@@ -125,7 +125,8 @@ MODULE BmatrixEnsemble_mod
   real(8)             :: vLocalize(maxNumLocalLength)
   character(len=256)  :: LocalizationType
   integer             :: waveBandPeaks(maxNumLocalLength)
-  logical             :: diagnostic
+  logical             :: ensDiagnostic
+  logical             :: advDiagnostic
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitudeFSOFcst
   logical             :: advectAmplitudeAssimWindow = .false.
@@ -175,8 +176,9 @@ CONTAINS
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname, &
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
-         diagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAssimWindow,&
-         removeSubEnsMeans, keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar
+         ensDiagnostic,advDiagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAssimWindow,&
+         removeSubEnsMeans, keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, &
+         IncludeAnlVar
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -194,7 +196,8 @@ CONTAINS
     enspathname           = 'ensemble'
     LocalizationType      = 'LevelDependent'
     waveBandPeaks(:)      =   -1.0d0
-    diagnostic            = .false.
+    ensDiagnostic         = .false.
+    advDiagnostic         = .false.
     hLocalize(:)          =   -1.0d0
     hLocalize(1)          = 2800.0d0
     vLocalize(:)          =   -1.0d0
@@ -298,6 +301,7 @@ CONTAINS
       vco_ens  => vco_anl ! the ensemble target grid is the analysis grid
       call vco_deallocate(vco_file)
       vco_file => vco_anl ! only the analysis levels will be read in the ensemble
+      EnsTopMatchesAnlTop = .true.
     else
       write(*,*)
       write(*,*) 'ben_setup: all the vertical levels will be read in the ensemble '
@@ -593,7 +597,7 @@ CONTAINS
         case default
           write(*,*)
           write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
-          call utl_abort('adv_setup')
+          call utl_abort('ben_setup')
         end select
         call adv_setup( adv_amplitudeAssimWindow,                                     & ! OUT
                         direction, hco_ens, vco_ens,                                  & ! IN
@@ -603,6 +607,10 @@ CONTAINS
 
       case('ensPertAnlInc')
         if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
+
+        if (.not. EnsTopMatchesAnlTop) then
+          call utl_abort('ben_setup: for advectTypeAssimWindow=ensPertAnlInc, ensTop and anlTop must match!')
+        end if
 
         advectEnsPertAnlInc         = .true.
         amp3dStepIndexAssimWindow   = 1
@@ -619,7 +627,7 @@ CONTAINS
         case default
           write(*,*)
           write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
-          call utl_abort('adv_setup')
+          call utl_abort('ben_setup')
         end select
 
         call adv_setup( adv_ensPerts,                                                 & ! OUT
@@ -637,13 +645,17 @@ CONTAINS
       case default
         write(*,*)
         write(*,*) 'Unsupported advectTypeAssimWindow : ', trim(advectTypeAssimWindow)
-        call utl_abort('adv_setup')
+        call utl_abort('ben_setup')
       end select
 
       call tmg_stop(136)
 
-      call gsv_writeToFile(ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
-                           HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+      !- If wanted, write the ensemble mean
+      if (advDiagnostic) then
+        call gsv_writeToFile(ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
+                             HUcontainsLQ_opt=HUcontainsLQ_gsv )       ! IN
+      end if
+
       call gsv_deallocate(ensMean4D)
 
     end if
@@ -654,40 +666,47 @@ CONTAINS
     !- 3.6 Ensemble perturbations advection
     if ( advectEnsPertAnlInc ) then
 
-      call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
-             stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
-      end do
+      !- If wanted, write the original ensemble perturbations for member #1
+      if (advDiagnostic) then
+        call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
+               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+        end do
+      end if
 
+      !- Do the advection of all the members
       call tmg_start(137,'BEN_ADVEC_ENSPERT_TL')
       call adv_ensemble_tl( ensPerts(1), &       ! INOUT
                             adv_ensPerts, nEns ) ! IN
       call tmg_stop(137)
 
-      call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
-             stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
-      end do
+      !- If wanted, write the advected ensemble perturbations for member #1
+      if (advDiagnostic) then
+        call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
+               stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+        end do
+      end if
 
     end if
 
     !- 3.7 Compute and write Std. Dev.
-    if (diagnostic) call EnsembleDiagnostic('FullPerturbations')
+    if (ensDiagnostic) call EnsembleDiagnostic('FullPerturbations')
 
-    !- 3.6 Partitioned the ensemble perturbations into wave bands
+    !- 3.8 Partitioned the ensemble perturbations into wave bands
     if (trim(LocalizationType) == 'ScaleDependent') then
       call EnsembleScaleDecomposition()
-      if (diagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
+      if (ensDiagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
     end if
 
-    !- 3.8 Setup en ensGridStateVector to store the amplitude fields (for writing)
+    !- 3.9 Setup en ensGridStateVector to store the amplitude fields (for writing)
     if (keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
-      call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitudeAssimWindow, hco_ens, vco_ens, dateStampList, &
-           varNames_opt=varNameALFA, dataKind_opt=8)
+      call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitudeAssimWindow, hco_ens, vco_ens, &
+                        dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
     end if
 
     !
@@ -1947,9 +1966,10 @@ CONTAINS
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
           !- Get normalized perturbations
-          call ben_getPerturbation( statevector_temp, & ! OUT
-                                    memberIndex,      & ! IN
-                                    'ConstantValue', waveBandIndex ) ! IN
+          call ens_copyMember(ensPerts(waveBandIndex), & ! IN
+                              statevector_temp,        & ! OUT
+                              memberIndex)               ! IN
+
           !- Square
           call gsv_power(statevector_temp, & ! INOUT
                          2.d0)               ! IN

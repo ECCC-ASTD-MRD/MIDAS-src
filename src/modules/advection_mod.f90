@@ -834,6 +834,10 @@ CONTAINS
     type(struct_adv)    :: adv
     integer, intent(in) :: nEns
 
+    if ( adv%nLev_M /= ens_getnLev_M(ens) .or. adv%nLev_T /= ens_getnLev_T(ens) ) then
+      call utl_abort('adv_ensemble_tl: vertical levels are not compatible')
+    end if
+
     if      ( ens_getDataKind(ens) == 8 ) then
       call adv_ensemble_tl_r8( ens, adv, nEns )
     else if ( ens_getDataKind(ens) == 4 ) then
@@ -1085,6 +1089,9 @@ CONTAINS
     if ( ens_getDataKind(ens) /= 8 ) then
       call utl_abort('adv_ensemble_ad can only deal with double precision (real8) ensembleStateVector')
     end if
+    if ( adv%nLev_M /= ens_getnLev_M(ens) .or. adv%nLev_T /= ens_getnLev_T(ens) ) then
+      call utl_abort('adv_ensemble_ad: vertical levels are not compatible')
+    end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
     allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
@@ -1213,6 +1220,9 @@ CONTAINS
     if ( gsv_getDataKind(statevector) /= 8 ) then
       call utl_abort('adv_statevector_tl can only deal with double precision (real8) gridStateVector')
     end if
+    if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
+      call utl_abort('adv_statevector_tl: vertical levels are not compatible')
+    end if
 
     allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
@@ -1320,6 +1330,9 @@ CONTAINS
     end if
     if ( gsv_getDataKind(statevector) /= 8 ) then
       call utl_abort('adv_statevector_ad can only deal with double precision (real8) ensembleStateVector')
+    end if
+    if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
+      call utl_abort('adv_statevector_ad: vertical levels are not compatible')
     end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))

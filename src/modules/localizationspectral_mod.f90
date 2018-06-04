@@ -71,7 +71,7 @@ MODULE localizationSpectral_mod
 
   real(8), parameter :: rsq2 = sqrt(2.0d0)
 
-  logical, parameter :: verbose = .true.
+  logical, parameter :: verbose = .false.
 
 CONTAINS
 

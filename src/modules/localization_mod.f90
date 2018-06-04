@@ -56,7 +56,7 @@ module localization_mod
   integer            :: nLocAlreadyAllocated = 0
   type(struct_loc), target :: loc(nMaxLoc)
 
-  logical, parameter :: verbose = .true.
+  logical, parameter :: verbose = .false.
 
 CONTAINS
 
