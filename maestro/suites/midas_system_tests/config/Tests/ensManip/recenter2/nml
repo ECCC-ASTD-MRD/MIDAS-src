@@ -6,6 +6,8 @@
    ensembleTypvarOutput = 'A'
    ensembleEtiketOutput = '1234'
    ensembleEtiketOutputAppendMemberNumber = T
+   shiftEnsembleControlMember = T
+   ensembleControlMemberEtiket = 'E2AVGANPALL'
    NENS = 4
    RECENTER = T
    RECENTERING_COEFF = 1.0
