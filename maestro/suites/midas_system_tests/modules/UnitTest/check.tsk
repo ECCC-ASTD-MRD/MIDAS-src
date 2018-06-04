@@ -10,6 +10,12 @@ else
     echo "The plateform 'EC_ARCH=${EC_ARCH}' is not supported"
 fi
 
+if [ "${UnitTest_checketiket}" = yes ]; then
+    fstcomp_options=
+else
+    fstcomp_options='-ne'
+fi
+
 ###############################################################
 ## This function check if a single file is validating against a
 ## reference.
@@ -60,15 +66,14 @@ function check_result {
         if [ "${method}" = fstcomp ]; then
             ln -s ${file2} file2
             ln -s ${full_file} file
-	    ${TASK_BIN}/fstcomp -ne -a file -b file2 2>&1 | tee fstcomp.list
+	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a file -b file2 2>&1 | tee fstcomp.list
 	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
 	        rm fstcomp.list fstcomp.list.grep file2
 	    else
-
-	        ${TASK_BIN}/fstcomp -ne -b file -a file2 2>&1 | tee fstcomp.list
+	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b file -a file2 2>&1 | tee fstcomp.list
 	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
