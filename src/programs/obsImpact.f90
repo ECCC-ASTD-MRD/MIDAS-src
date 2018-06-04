@@ -44,6 +44,8 @@ program midas_obsimpact
   use WindRotation_mod
   use obsErrors_mod
   use variableTransforms_mod
+  use rttov_const, only :inst_name, platform_name
+  use tovs_nl_mod
   implicit none
 
   integer :: istamp,exdb,exfin,ierr
@@ -322,8 +324,12 @@ contains
     
     !for Observation space 
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, index_body
-    real(8)                         :: fso_ori
+    real(8)                         :: fso_ori, fso_fin
 
+    ! for debugging
+    real(8) :: lat, lon, zlev
+    integer :: iass
+    CHARACTER(len=2) :: CFAM
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
@@ -387,14 +393,42 @@ contains
     ! Due to the very small value of FSO, here it is enlarged by 1e6
     ! therefore in the script file to extract FSO it should be divided by 1e6
     do headerIndex = 1, obs_numHeader(obsSpaceData)
+
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+     
+       CFAM  = obs_getFamily(obsSpaceData,headerIndex)
+       lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+       lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+
       do index_body = bodyIndexBeg, bodyIndexEnd
-        fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
+
+          fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
+          fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body)
+          if (CFAM  == 'GP' ) then
+            call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_fin)
+          else
+            call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_fin*1e6)
+          end if
+
+          if ( CFAM == 'GP' ) then
+            write(*,*) "FSO-GP", lat,lon,obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY), &
+                                 obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY),fso_ori, &
+                                 fso_ori*obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY) 
+          elseif ( CFAM == 'AI' ) then
+            write(*,*) "FSO-AI", lat,lon,obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY), &
+                                 obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY),fso_ori, &
+                                 fso_ori*obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY)*1e6 
+          elseif ( CFAM == 'UA' ) then
+            write(*,*) "FSO-UA ", lat,lon,obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY), &
+                                 obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY),fso_ori, &
+                                 fso_ori*obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY)*1e6
+          end if
       end do
     end do
 
+    ! print out the information of total FSO for each family
+    call fso_sumFSO(obsSpaceData)
 
     ! deallocate the control vector related arrays
     deallocate(ahat)
@@ -563,6 +597,117 @@ contains
     deallocate(gradJ)
 
   end subroutine fso_minimize
+
+  subroutine fso_sumFSO(obsSpaceData)
+    implicit none
+   
+    real*8           :: pfso
+    type(struct_obs) :: obsSpaceData
+    integer          :: index_body,itvs,isens,index_header
+
+    integer          :: bodyIndexBeg, bodyIndexEnd 
+    real*8           :: tfsogpsztd, tfsoraob, tfsoairep, tfsosatwind
+    real*8           :: tfsosurfc, tfsoscat, tfsotov, tfsogpsro, tfsoprof
+    real*8           :: tfsochm, pfso_1
+    real*8           :: tfsotov_sensors(tvs_nsensors) 
+
+    tfsogpsztd = 0.d0
+    tfsoraob = 0.d0
+    tfsoairep = 0.d0
+    tfsosatwind = 0.d0
+    tfsosurfc = 0.d0
+    tfsoscat = 0.d0
+    tfsotov = 0.d0
+    tfsogpsro = 0.d0
+    tfsoprof = 0.d0
+    tfsochm = 0.d0
+    tfsotov_sensors(:) = 0.d0
+
+    do index_body = 1, obs_numbody(obsSpaceData)
+
+      pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
+
+      ! total observation cost function
+      pfso   = pfso + pfso_1
+
+      ! subcomponents of observation cost function (diagnostic only)
+      select case(obs_getFamily(obsSpaceData,bodyIndex=index_body))
+      case('UA')
+        tfsoraob    = tfsoraob    + pfso_1
+      case('AI')
+        tfsoairep   = tfsoairep   + pfso_1
+      case('SW')
+        tfsosatwind = tfsosatwind + pfso_1
+      case('SF')
+        tfsosurfc   = tfsosurfc   + pfso_1
+      case('SC')
+        tfsoscat    = tfsoscat    + pfso_1
+      case('TO')
+        tfsotov     = tfsotov     + pfso_1
+      case('RO')
+        tfsogpsro   = tfsogpsro   + pfso_1
+      case('PR')
+        tfsoprof    = tfsoprof    + pfso_1
+      case('GP')
+        tfsogpsztd  = tfsogpsztd  + pfso_1
+      case('CH')
+        tfsochm     = tfsochm     + pfso_1
+      end select
+    end do
+
+    do itvs = 1, tvs_nobtov
+      index_header  = tvs_lobsno(itvs)
+      if (index_header > 0 ) then
+        bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,index_header)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,index_header) + bodyIndexBeg - 1
+        do index_body = bodyIndexBeg, bodyIndexEnd 
+          pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
+          isens = tvs_lsensor (itvs)
+          tfsotov_sensors(isens) =  tfsotov_sensors(isens) + pfso_1
+        end do
+      end if
+    end do
+
+    call mpi_allreduce_sumreal8scalar(pfso,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsoraob,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsoairep,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsosatwind,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsosurfc,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsoscat,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsotov,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsogpsro,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsoprof,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsogpsztd,"GRID")
+    call mpi_allreduce_sumreal8scalar(tfsochm,"GRID")
+    do isens = 1, tvs_nsensors
+      call mpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),"GRID")
+    end do
+
+    if (mpi_myid == 0) then
+      write(*,'(a15,f25.8)') 'FSO(UA)   = ',tfsoraob
+      write(*,'(a15,f25.8)') 'FSO(AI)   = ',tfsoairep
+      write(*,'(a15,f25.8)') 'FSO(SF)   = ',tfsosurfc
+      write(*,'(a15,f25.8)') 'FSO(SC)   = ',tfsoscat
+      write(*,'(a15,f25.8)') 'FSO(TO)   = ',tfsotov
+      write(*,'(a15,f25.8)') 'FSO(SW)   = ',tfsosatwind
+      write(*,'(a15,f25.8)') 'FSO(PR)   = ',tfsoprof
+      write(*,'(a15,f25.8)') 'FSO(RO)   = ',tfsogpsro
+      write(*,'(a15,f25.8)') 'FSO(GP)   = ',tfsogpsztd
+      write(*,'(a15,f25.8)') 'FSO(CH)   = ',tfsochm
+      write(*,*) ' '
+      if (tvs_nsensors > 0) then
+        write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
+        write(*,'(1x,a)') '#  plt sat ins    FSO'
+        do isens = 1, tvs_nsensors
+          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.8)') isens,inst_name(tvs_instruments(isens)), &
+                platform_name(tvs_platforms(isens)),tvs_satellites(isens),tfsotov_sensors(isens)
+        end do
+          write(*,*) ' '
+      end if
+
+    end if
+
+  end subroutine fso_sumFSO
 
   subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
     implicit none
