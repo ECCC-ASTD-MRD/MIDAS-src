@@ -68,7 +68,7 @@ program midas_ensManip
 
   ! namelist variables
   character(len=1)   :: ensembleTypVarOutput
-  character(len=14)  :: ensembleEtiketOutput
+  character(len=14)  :: ensembleEtiketOutput, ensembleControlMemberEtiket
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensembleCenter
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
@@ -77,7 +77,8 @@ program midas_ensManip
   integer  :: nEns, numBits
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, ensembleCenter, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
-                        recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, shiftEnsembleControlMember
+                        recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
+                        shiftEnsembleControlMember, ensembleControlMemberEtiket
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -112,6 +113,7 @@ program midas_ensManip
   ensembleTypVarOutput          = 'P'
   ensembleEtiketOutput          = 'ENSRECENTER'
   ensembleEtiketOutputAppendMemberNumber = .false.
+  ensembleControlMemberEtiket   = 'ENSCTLMEM'
   shiftEnsembleControlMember    = .false.
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
@@ -279,8 +281,9 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (shiftEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
-             recentering_coeff, HUcontainsLQ, ensembleCenter_opt=statevector_ensembleCenter)
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             ensembleTypVarOutput, ensembleCenter_opt=statevector_ensembleCenter, numBits_opt = numBits)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
@@ -288,8 +291,9 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (shiftEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
-             recentering_coeff, HUcontainsLQ)
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             ensembleTypVarOutput, numBits_opt = numBits)
       end if
     end if ! end of 'else' related to 'if (trim(ensembleCenter) /= '')'
 
