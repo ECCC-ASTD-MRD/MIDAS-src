@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 program=$(basename $1 .f90)
@@ -72,7 +71,7 @@ midasAbs=midas-${program}_${ORDENV_PLAT}-${revnum}.Abs
 #-----------------------------------------------------------------------------
 
 # LIBAPPL defined in "src_files" script
-LIBSYS="hpcoperf"
+LIBSYS="hpcoperf sqlite3"
 LIBRMN=rmnMP
 . ${programsDir}/src_files/src_files_${program}.sh
 

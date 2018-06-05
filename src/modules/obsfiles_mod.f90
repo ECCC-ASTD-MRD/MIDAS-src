@@ -23,6 +23,7 @@
 !!
 !!            1. BURP
 !!            2. CMA (binary format of obsSpaceData contents)
+!!            3. SQLITE
 !!
 !--------------------------------------------------------------------------
 module obsFiles_mod
@@ -33,9 +34,11 @@ module obsFiles_mod
   use utilities_mod
   use obsSpaceData_mod
   use burpFiles_mod
+  use sqliteFiles_mod
   use cmaFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
+  use obsUtil_mod
 
   implicit none
   save
@@ -64,7 +67,6 @@ contains
 
   subroutine obsf_setup(dateStamp_out,obsFileMode_in)
     implicit none
-
     ! arguments
     integer :: dateStamp_out
     character(len=*) :: obsFileMode_in
@@ -80,12 +82,10 @@ contains
     !
     ! Determine if obsFiles are split
     !
-    if ( obsFileType == 'BURP' ) then
+    if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
     else if ( obsFileType == 'CMA' ) then
       obsFilesSplit = .false.
-    else if ( obsFileType == 'SQLITE' ) then
-      call utl_abort('obsf_setup: SQLITE observation file type not yet implemented')
     else
       call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
     end if
@@ -95,6 +95,8 @@ contains
     !
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+    else if ( obsFileType == 'SQLITE' ) then
+      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else
       dateStamp_out = -1
     end if
@@ -163,7 +165,7 @@ contains
     else if ( obsFileType == 'SQLITE' ) then
 
       do fileIndex = 1, obsf_nfiles
-        !call sql_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
+        call sqlf_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
       end do
 
     else if ( obsFileType == 'CMA' ) then
@@ -177,69 +179,55 @@ contains
 
 
   subroutine obsf_writeFiles(obsSpaceData,HXensT_mpiglobal_opt,asciDumpObs_opt)
-    implicit none
+  implicit none
+  ! arguments
+  type(struct_obs)           :: obsSpaceData
+  real(8), pointer, optional :: HXensT_mpiglobal_opt(:,:)
+  logical, optional          :: asciDumpObs_opt
+  ! locals
+  integer :: fileIndex
 
-    ! arguments
-    type(struct_obs)           :: obsSpaceData
-    real(8), pointer, optional :: HXensT_mpiglobal_opt(:,:)
-    logical, optional          :: asciDumpObs_opt
+  if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
 
-    ! locals
-    integer :: fileIndex
+  if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
-    if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+    if (trim(obsFileMode) == 'analysis') call obsu_computeDirectionSpeedResiduals(obs_oma,obsSpaceData)
+    call obsu_computeDirectionSpeedResiduals(obs_omp,obsSpaceData)
+    if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
+    call obsu_updateFlagWindDirectionSpeed(obsSpaceData)
 
-    if ( obsFileType == 'BURP' ) then
+    do fileIndex = 1, obsf_nfiles
 
-      if (trim(obsFileMode) == 'analysis') call vint3dfd(obs_oma,obsSpaceData)
-      call vint3dfd(obs_omp,obsSpaceData)
-      if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call setassflg(obsSpaceData)
-      call flaguvtofd_obsdat(obsSpaceData)
+      if ( obsFileType == 'BURP'   ) call brpf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
+      if ( obsFileType == 'SQLITE' ) call sqlf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
 
-      do fileIndex = 1, obsf_nfiles
-        call brpf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
-      end do
+    end do
 
-      if ( present(HXensT_mpiglobal_opt) .and. mpi_myid == 0 ) then
-        call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
-      end if
-
-    else if ( obsFileType == 'SQLITE' ) then
-
-      if (trim(obsFileMode) == 'analysis') call vint3dfd(obs_oma,obsSpaceData)
-      call vint3dfd(obs_omp,obsSpaceData)
-      if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call setassflg(obsSpaceData)
-      call flaguvtofd_obsdat(obsSpaceData)
-
-      do fileIndex = 1, obsf_nfiles
-        !call sql_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
-      end do
-
-      if ( present(HXensT_mpiglobal_opt) .and. mpi_myid == 0 ) then
-        call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
-      end if
-
-    else if ( obsFileType == 'CMA' ) then
-
-      ! only 1 mpi task should do the writing
-      call cma_writeFiles(obsSpaceData,HXensT_mpiglobal_opt)
-
+    if ( present(HXensT_mpiglobal_opt) .and. mpi_myid == 0 ) then
+      call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
     end if
 
-    if ( present(asciDumpObs_opt) ) then
-      if ( asciDumpObs_opt ) call obsf_writeAsciDump(obsSpaceData)
-    end if
+  else if ( obsFileType == 'CMA' ) then
+
+    ! only 1 mpi task should do the writing
+    call cma_writeFiles(obsSpaceData,HXensT_mpiglobal_opt)
+
+  end if
+
+  if ( present(asciDumpObs_opt) ) then
+
+    if ( asciDumpObs_opt ) call obsf_writeAsciDump(obsSpaceData)
+
+  end if
 
   end subroutine obsf_writeFiles
 
 
   subroutine obsf_writeHX(obsSpaceData, HXensT_mpiglobal)
     implicit none
-
     ! arguments
     type(struct_obs) :: obsSpaceData
     real(8), pointer :: HXensT_mpiglobal(:,:)
-
     ! locals
     integer :: unitHX, ierr, headerIndex, fnom, fclos
     character(len=10) :: fileNameHX
@@ -251,7 +239,9 @@ contains
     ierr = fnom(unitHX, fileNameHX, 'FTN+SEQ+UNF+R/W', 0)
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
+
       call obs_write_hx(obsSpaceData, HXensT_mpiglobal, headerIndex, unitHX)
+
     enddo
  
     ierr = fclos(unitHX)
@@ -261,10 +251,8 @@ contains
 
   subroutine obsf_writeAsciDump(obsSpaceData)
     implicit none
-
     ! arguments
     type(struct_obs) :: obsSpaceData
-
     ! locals
     character(len=25) :: fileNameAsciDump
     integer :: unitAsciDump, ierr, fnom, fclos
@@ -297,9 +285,6 @@ contains
 
   subroutine obsf_setupFileNames()
     implicit none
-    !
-    ! obsf_setupFileNames - initialze obs file names
-    !
     ! locals
     character(len=20)   :: clvalu(jpfiles)
     character(len=2)    :: cfami(jpfiles)
@@ -469,7 +454,9 @@ contains
 
     obsf_nfiles = 0
     obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
+
     do fileIndex = 1, jpfiles 
+
       if(clvalu(fileIndex) == '') exit
       fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
@@ -486,6 +473,7 @@ contains
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
       end if
+
     end do
 
     write(*,*) ' '
@@ -501,10 +489,8 @@ contains
 
   subroutine obsf_determineFileType(obsFileType_out)
     implicit none
-
     ! arguements
     character(len=10) :: obsFileType_out
-
     ! locals
     integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
     integer :: fnom, fclos
@@ -527,7 +513,9 @@ contains
     end if
 
     write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
+
     if ( mpi_myid == procID ) then
+
       if ( index(obsf_cfilnam(1), 'cma' ) > 0 ) then
         obsFileType = 'CMA'
       else
@@ -544,14 +532,15 @@ contains
         else
           call utl_abort('obsf_determineFileType: unknown obs file type')
         end if
+
       end if
+
     end if
 
     call rpn_comm_bcastc(obsFileType , 10, 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
-
 
 !--------------------------------------------------------------------------
 !! *Purpose*: Returns the observations file name assigned to the calling processor.
@@ -574,7 +563,7 @@ contains
     character(len=2), intent(in) :: obsfam
     logical, intent(out), optional :: found_opt
     character(len=maxLengthFilename) :: filename
-    
+ 
     logical :: found
     integer :: ifile
 
@@ -594,250 +583,6 @@ contains
     if (present(found_opt)) found_opt = found
 
   end function obsf_get_filename
-
-
-  SUBROUTINE FLAGUVTOFD_OBSDAT(obsSpaceData)
-!
-!**s/r FLAGUVTOFD_OBSDAT  - Update WIND DIRECTION AND SPEED FLAGS
-!
-!
-!Author  : P. Koclas *CMC/CMDA  April 2013
-!
-!
-!Arguments
-!
-      IMPLICIT NONE
-!
-      type(struct_obs) :: obsSpaceData
-      INTEGER :: IUU,IVV,IFF,IDD
-      INTEGER :: FLAGU,FLAGV,NEWFLAG
-      INTEGER :: INDEX_HEADER,ISTART,IEND,jwintyp
-      INTEGER :: INDEX_BODY,INDEX_BODY2
-      REAL*8  :: ZLEVU
-      LOGICAL ::  LLOK
-      CHARACTER*9 :: STID
-!-----------------------------------------------------------------------
-!
-      WIND_TYPE: do jwintyp=1,2
-
-         if (jwintyp == 1) then
-            IUU=BUFR_NEUU
-            IVV=BUFR_NEVV
-            IDD=BUFR_NEDD
-            IFF=BUFR_NEFF
-         else
-            IUU=BUFR_NEUS
-            IVV=BUFR_NEVS
-            IDD=BUFR_NEDS
-            IFF=BUFR_NEFS
-         end if
-!
-!
-!
-         BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
-
-            LLOK= ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == IUU)
-
-             FLAGU=-1
-    !----------------
-            IF ( LLOK ) THEN
-    !----------------
-               INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
-               ISTART       = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
-               IEND=obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
-       STID=obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
-
-
-               ZLEVU = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-!
-!****************************************************************************
-!  GET FLAG OF U COMPONENT
-!***********************************************************************
-!
-       FLAGU=obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
-
-               BODY_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ( ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IVV) &
-                 .AND. ( obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU) ) THEN
-!
-!****************************************************************************
-!  GET FLAG OF V COMPONENT
-!***********************************************************************
-!
-                     FLAGV= obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY2)
-                     NEWFLAG =IOR(FLAGU,FLAGV)
-!   
-                  END IF
-               END DO BODY_2
-!
-!***********************************************************************
-!                UPDATE FLAGS OF DIRECTION AN SPEED
-!***********************************************************************
-!
-               BODY_2_2: DO INDEX_BODY2=ISTART,IEND
-       !===============================================
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IDD) &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
-
-                     NEWFLAG =IOR(FLAGU,FLAGV)
-                     call obs_bodySet_i(obsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
-
-                  END IF
-	       !===============================================
-
-       !===============================================
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IFF) &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
-
-                     NEWFLAG =IOR(FLAGU,FLAGV)
-                     call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
-                  END IF
-	       !===============================================
-               END DO BODY_2_2
-
-	    !----------------
-            END IF
-	    !----------------
-
-         END DO BODY
-
-      END DO WIND_TYPE
-
-  END SUBROUTINE FLAGUVTOFD_OBSDAT
-
-
-  SUBROUTINE VINT3DFD(elem_i,obsSpaceData)
-      !
-      ! s/r VINT3DFD  - Computation of DIRECTION AND SPEED RESIDUALS
-      !
-      ! Author  : P. Koclas *CMC/AES  September 1999
-      ! Revision:
-      !     1.0  P. Koclas CMC :  September 2000
-      !                 -remove quality control flag and (ff dd) component initializtions
-      !          JM Belanger CMDA/SMC  Jan 2001
-      !                   . 32 bits conversion
-      !
-      !     Purpose:  -Compute direction and speed residuals from u and
-      !                v residuals.
-      !
-      implicit none
-
-      type(struct_obs) :: obsSpaceData
-      integer, intent(in) :: elem_i
-      INTEGER IUU,IVV,IFF,IDD
-      INTEGER INDEX_HEADER,ISTART,IEND,jwintyp
-      INTEGER INDEX_BODY,INDEX_BODY2
-      REAL*8 ZLEVU
-      REAL*8 MODUL,ANG,UU,VV
-      LOGICAL LLOK
-
-      WIND_TYPE: do jwintyp=1,2
-
-         if (jwintyp == 1) then
-            IUU=BUFR_NEUU
-            IVV=BUFR_NEVV
-            IDD=BUFR_NEDD
-            IFF=BUFR_NEFF
-         else
-            IUU=BUFR_NEUS
-            IVV=BUFR_NEVS
-            IDD=BUFR_NEDS
-            IFF=BUFR_NEFS
-         end if
-
-         ! Process all data within the domain of the model
-
-         BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
-            LLOK= (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == 1)  &
-            .AND. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == IUU)
-            IF ( LLOK ) THEN
-               INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
-               ISTART=obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
-               IEND=obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
-               ZLEVU = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-               UU=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY) +  &
-                   obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
-               BODY_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IVV)  &
-                 .AND.(obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU)) THEN
-                   VV=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) +  &
-                       obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2)
-
-                     ! 1-calculate angle
-
-                     MODUL=SQRT((UU**2)+(VV**2))
-                     IF (MODUL == 0.) THEN
-                        ANG=0.0D0
-                     ELSE
-                        ANG=ATAN2(VV,UU)
-                        ANG= (270.0D0 - ANG  * MPC_DEGREES_PER_RADIAN_R8 )
-
-                        ! 2-Change to meteorological definition of wind direction.
-
-                        IF (ANG > 360.0D0) ANG=ANG-360.0D0
-                        IF (ANG <= 0.0D0)   ANG=ANG+360.0D0
-                     END IF
-   
-                  END IF
-               END DO BODY_2
-
-               ! insert resduals into obsSpaceData
-
-               BODY_2_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IDD)  &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
-
-                     call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,    &
-                          obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - ANG )
-
-                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) >  180.0d0)  &
-                        call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,   &
-                                       obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)-360.0d0)
-                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) <= -180.0d0)  &
-                        call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,  &
-                                       obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)+360.0d0)
-
-                      call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2, -1.0d0*  &
-                                         obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2))
-
-                      call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
-                      call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
-                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
-                  END IF
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IFF)  &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
-                     call obs_bodySet_r(obsSpaceData,elem_i, INDEX_BODY2,   &
-                          obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - MODUL)
-                     call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
-                     call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
-                     call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
-                  END IF
-               END DO BODY_2_2
-            END IF
-
-         END DO BODY
-
-      END DO WIND_TYPE
-
-  END SUBROUTINE VINT3DFD
-
-  subroutine setassflg(obsSpaceData)
-    ! Purpose:  Set banco quality control bit #12 for all data assimilated
-    !           by current analysis.
-    implicit none
-
-    type(struct_obs) :: obsSpaceData
-    integer :: index_body
-
-    ! Process all data
-    do index_body=1,obs_numBody(obsSpaceData)
-      if (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1)  then
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,index_body,ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,index_body), 12 ))
-      end if
-    end do
-
-  end subroutine setassflg
-
 
 !--------------------------------------------------------------------------
 !! *Purpose*: Retrieves information for observations from observation files and returns the data
