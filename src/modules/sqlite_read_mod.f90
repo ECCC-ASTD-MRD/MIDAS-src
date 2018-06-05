@@ -39,9 +39,6 @@ save
 private
 public  :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
 
-integer          :: itemInsertList(15), numberInsertItems, numberUpdateItems
-character(len=3) :: itemUpdateList(15)
-
 contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData )
@@ -61,9 +58,9 @@ contains
   end subroutine sqlr_initData
 
 
-  subroutine sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation &
-                            , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
-                            , solarAzimuth, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, obsStatus, idStation )
+  subroutine sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
+                              earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
+                              solarAzimuth, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, obsStatus, idStation )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
@@ -85,21 +82,26 @@ contains
     call     obs_set_c( obsdat, 'STID' , headerIndex, trim(idStation) )
 
     if ( trim(familyType) == 'TO' ) then
+
       call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat      )
       call obs_headSet_i( obsdat, OBS_OFL , headerIndex, landSea     )
       call obs_headSet_i( obsdat, OBS_INS , headerIndex, instrument  )
       call obs_headSet_i( obsdat, OBS_SZA , headerIndex, zenith      )
       call obs_headSet_i( obsdat, OBS_SUN , headerIndex, solarZenith )
+
       if ( trim(rdbSchema) /= 'csr' ) then
         call obs_headSet_i( obsdat, OBS_AZA , headerIndex, azimuth )
       end if
+
       if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
         call obs_headSet_i( obsdat, OBS_CLF , headerIndex, cloudCover   )
         call obs_headSet_i( obsdat, OBS_SAZ , headerIndex, solarAzimuth )  
       else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then   
         call obs_headSet_i( obsdat, OBS_SAZ , headerIndex, solarAzimuth )
       end if
+
     else
+
       call obs_headSet_r( obsdat, OBS_ALT ,headerIndex , elev )
       if ( trim(rdbSchema) == 'ro' ) then
         call obs_headSet_i( obsdat, OBS_ROQF, headerIndex, roQcFlag        )
@@ -108,12 +110,13 @@ contains
         call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat          )
         call obs_headSet_i( obsdat, OBS_AZA , headerIndex, azimuth         )
       end if
+
     end if
 
   end subroutine sqlr_initHeader
 
 
-  subroutine sqlr_readSqlite(obsdat,familyType,fileName,FileNumb)
+  subroutine sqlr_readSqlite(obsdat, familyType, fileName, FileNumb )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
@@ -168,20 +171,24 @@ contains
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
-      call qqexit(2)
+      call utl_abort( myError//': fSQL_open' )
     end if
 
     timeCharacter = sqlr_query(db,"select time('now')")
     query = "select schema from rdb4_schema ;"
     rdbSchema = sqlr_query(db,trim(query))
-    write(*,*) myName//' START OF QUERY TIME IS = ', timeCharacter, 'rdbSchema is ---> ', trim(rdbSchema)
+    write(*,'(4a)') myName//' START OF QUERY TIME IS = ', timeCharacter, 'rdbSchema is ---> ', trim(rdbSchema)
 
     sqlExtraHeader = ''
     sqlExtraDat    = ''
     sqlLimit       = ''
     sqlNull        = ''
     listElem       = ''
-    numberElem = 0; numberBitsOff = 0; bitsOff =  0; numberBitsOn = 0; bitsOn = 0
+    numberElem = 0
+    numberBitsOff = 0
+    bitsOff =  0
+    numberBitsOn = 0
+    bitsOn = 0
 
     if ( trim(familyType) == 'TO' ) then
       write(listElem,*) bufr_nbt3
@@ -205,90 +212,90 @@ contains
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLua )
       case ( 'ai' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLai )
       case ( 'sw' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsw )
       case ( 'pr' )
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLro )
       case ( 'sf' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'scat' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLairs, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLiasi )
       case( 'cris' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcris, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcris )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsua )
       case( 'amsub' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsub )
       case( 'atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         read(nulnam, nml = NAMSQLatms, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLatms )
       case( 'ssmi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLssmi )
       case( 'csr' )
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
-        call utl_abort( myName//': Unsupported  SCHEMA in SQLITE file!' )
+        call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
     end select
     ierr=fclos( nulnam )
 
@@ -301,26 +308,31 @@ contains
     do i = 1, numberBitsOn
       bitsFlagOn = ibset ( bitsFlagOn, 13 - bitsOn(i) )
     end do
+
     write(cfgSqlite, '(i6)' ) bitsFlagOff
     csqlcrit=trim("  flag & "//cfgSqlite)//" = 0 "
     write(cfgSqlite, '(i6)' ) bitsFlagOn
+
     if ( numberBitsOn > 0 ) then
       write(cfgSqlite, '(i6)' ) bitsFlagOn
       csqlcrit = trim(CSQLcrit)//trim(" and flag & "//cfgSqlite)
       csqlcrit = trim(CSQLcrit)//" = "//cfgSqlite
     end if
+
     csqlcrit = trim(CSQLcrit)//" and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
     queryData= "select "//columnsData
     queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlLimit)//";"
-    queryHeader="select "//columnsHeader//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
+    queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
     write(*,*)' ========================================== '
+
     if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' ) then
       elevFact=1.
     else
       elevFact=0.
     end if
+
     call fSQL_prepare( db, trim(queryHeader) , stmt, stat)
     call fSQL_prepare( db, trim(queryData), stmt2, stat2)
     if ( fSQL_error(stat)  /= FSQL_OK ) call sqlr_handleError(stat ,'fSQL_prepare hdr: ')
@@ -341,15 +353,18 @@ contains
 
     obsNlv = 0
     lastId = 1
-    HEADER:   do
+
+    HEADER: do
+
       call fSQL_get_row( stmt, finished )   ! Fetch the next row
       if (finished) then                    ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
-        call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation &
-                            , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
-                            , solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
-        exit
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+                                earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
+                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
+        exit HEADER
       end if
+
       ! The query result is inserted into variables
       terrainType = MPC_missingValue_INT
       landSea     = MPC_missingValue_INT
@@ -361,6 +376,7 @@ contains
       zenith = MPC_missingValue_INT; zenithReal = MPC_missingValue_R4    
       instrument = MPC_missingValue_INT
       azimuth = MPC_missingValue_INT; azimuthReal = MPC_missingValue_R8  
+
       call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo     )
       call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat       )
       call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon       )
@@ -371,22 +387,32 @@ contains
       call fSQL_get_column( stmt, COL_INDEX = 8, CHAR_VAR  = idStation )
 
       if ( trim(familyType) == 'TO' ) then
+
         call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
         call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
         call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument, INT_MISSING=MPC_missingValue_INT  )
         call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = zenithReal, REAL_MISSING=MPC_missingValue_R4  )
         call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4 )
+
         if ( trim(rdbSchema) /= 'csr' ) then
+
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal )
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
+
         end if
+
         if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
+
           call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4   )
           call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+
         else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then
+
           call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4 )
+
         end if
+
         if ( instrument == 420 ) obsSat  = 784
         zenith = nint ( (90. + zenithReal ) * 100. )
         solarZenith = nint ( (90. + solarZenithReal ) * 100. )
@@ -400,17 +426,23 @@ contains
         else
           instrument = obsu_cvt_obs_instrum(sensor)
         end if
+
       else  ! familyType = CONV
+
         call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
         elevReal=elev
+
         if ( trim(rdbSchema)=='ro' ) then
-          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT           )
-          call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation     )
+
+          call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
+          call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation )
           call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv )
-          call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT               )
+          call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal )
           azimuth = nint( azimuthReal * 100 )
+
         end if
+
       end if  ! TOVS or CONV
 
       if ( obsLon < 0. ) obsLon = obsLon + 360.
@@ -422,15 +454,19 @@ contains
       DATA: do rowIndex = lastId,numberRows
         ! ---------------------------------------------------
         if ( int(matdata(rowIndex,2)) > obsIdo ) then 
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation &
-                              , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
-                              , solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
-          exit
+
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+                                earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
+                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
+          exit DATA
+
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
+
           if ( headerIndex == headerIndexStart .and. obsNlv == 0  ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation &
-                              , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
-                              , solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
+            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+                                  earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
+                                  solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
+
           lastId = rowIndex + 1
           obsIdd = int(matdata(rowIndex,1))
           vertCoord = matdata(rowIndex,3)
@@ -441,50 +477,79 @@ contains
           bodyIndex = bodyIndex + 1
           obsNlv   = obsNlv + 1
           call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex, obsIdd)
+
           if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
+
             surfEmiss = matdata(rowIndex,7)
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
+
           end if
+
           if ( trim(familyType) == 'TO' ) then
+
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+
           else ! CONV
-            call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, obsValue, obsVarno, obsFlag,vertCoordType, bodyIndex)
+ 
+           call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                obsValue, obsVarno, obsFlag,vertCoordType, bodyIndex)
+
             if ( obsVarno == bufr_nedd .or. obsVarno == bufr_neds ) then ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+
               if ( obsVarno == bufr_nedd ) then
+
                 ! U COMPONENT
-                call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_neuu, 0, vertCoordType, bodyIndex+1)
+                call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
+                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    MPC_missingValue_R8, bufr_neuu, 0, vertCoordType, bodyIndex+1)
                 ! V COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_nevv, 0, vertCoordType, bodyIndex+2)
+                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    MPC_missingValue_R8, bufr_nevv, 0, vertCoordType, bodyIndex+2)
+
               else if ( obsVarno == bufr_neds) then
+
                 ! Us COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_neus, 0, vertCoordType, bodyIndex+1)
+                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    MPC_missingValue_R8, bufr_neus, 0, vertCoordType, bodyIndex+1)
                 ! Vs COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_nevs, 0, vertCoordType, bodyIndex+2)
+                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    MPC_missingValue_R8, bufr_nevs, 0, vertCoordType, bodyIndex+2)
               end if
+
               bodyIndex = bodyIndex + 2
               obsNlv = obsNlv + 2
+
             end if      ! extra space for winds
+
           end if       ! TOVS or CONV
+
         end if          !  obsIdo   
+
       end do DATA  ! END OF DATA LOOP
 
       if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
+
       if ( obsNlv > 0 ) then
+
         call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv )
+
         if ( headerIndex > 1 ) then
           reportLocation = obs_headElem_i(obsdat, OBS_RLN, headerIndex - 1 ) +  obs_headElem_i(obsdat, OBS_NLV, headerIndex - 1 )
           call obs_headSet_i(obsdat, OBS_RLN, headerIndex, reportLocation )
         end if   
+
         if ( lastId > numberRows ) &
-        call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation &
-                            , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
-                            , solarAzimuth, landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation )
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+                                earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
+                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation )
+
       else
+
         headerIndex = headerIndex - 1
+
       end if
 
     end do HEADER ! HEADER
@@ -531,10 +596,13 @@ contains
 
   subroutine sqlr_handleError(stat, message)
     implicit none
+
     type(FSQL_STATUS)  :: stat
     character(len = *) :: message
+
     write(*,*) message, fSQL_errmsg(stat)
-    call qqexit(2)
+    call utl_abort( trim(message) )
+
   end subroutine sqlr_handleError
 
   
@@ -546,17 +614,17 @@ contains
     character(len=*)                 :: fileName   
     character(len=*)                 :: familyType ! Observation Family Type 
     integer                          :: fileNumber  ! FILE NUMBER ASSOCIATED WITH db
-    !  locals 
+    !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
     integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag, iobs, obsIdo, obsStatus, last_comma
-    integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex
-    character*10                     :: timeCharacter
-    character(len  =   3)            :: item
+    integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex, numberUpdateItems
+    character(len =  10)             :: timeCharacter
+    character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: itemId, updateList(20), fnom, fclos, nulnam, ierr
-    character(len  =   9)            :: item2
-    character(len  = 128)            :: query
-    character(len  = 356)            :: itemChar,item2Char
+    character(len =   9)             :: item2
+    character(len = 128)             :: query
+    character(len = 356)             :: itemChar,item2Char
     logical                          :: back
     real                             :: romp, obsValue
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
@@ -573,7 +641,7 @@ contains
     nulnam = 0
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam,nml = namSQLUpdate, iostat = ierr )
-    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+    if ( ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
     if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
     ierr = fclos( nulnam )
 
@@ -612,10 +680,11 @@ contains
           item2='flag'
         case DEFAULT
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
-          return
+          call utl_abort( myError//': invalid item ' )
       end select
       itemChar = trim(itemChar)//trim(item2)//trim(' = ? ,')
     end do
+
     back=.true.
     last_comma  = scan(itemChar, ',', back)
     item2Char   = itemChar(1:last_comma-1)
@@ -626,30 +695,44 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
-    do headerIndex = 1, obs_numHeader(obsdat)
-      obsIdf = obs_headElem_i(obsdat,OBS_IDF, headerIndex)
-      if ( obsIdf /= fileNumber) cycle
-      obsIdo = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
-      obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-      obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-      do bodyIndex = obsRln, obsNlv + obsRln - 1
-        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex )
-        obsIdd  = obs_bodyElem_i(obsdat, OBS_IDD, bodyIndex )
-        obsAss  = obs_bodyElem_i(obsdat, OBS_ASS, bodyIndex )
+    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
+ 
+      obsIdf = obs_headElem_i( obsdat,OBS_IDF, headerIndex )
+ 
+      if ( obsIdf /= fileNumber) cycle HEADER
+      obsIdo = obs_headElem_i( obsdat, OBS_IDO, headerIndex )
+      obsRln = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
+      obsNlv = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+
+      BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
+
+        obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
+        obsIdd  = obs_bodyElem_i( obsdat, OBS_IDD, bodyIndex )
+        obsAss  = obs_bodyElem_i( obsdat, OBS_ASS, bodyIndex )
+
         if ( obsAss == 1 ) then
           call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
-          do itemId = 1, numberUpdateItems
+          ITEMS: do itemId = 1, numberUpdateItems
+
             obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+
             if ( obsValue /= MPC_missingValue_R8 ) then  
+
               romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
+
             end if
-          end do             
+
+          end do ITEMS            
+          
           call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
           call fSQL_exec_stmt (stmt)
-        end if
-      end do
-    end do
+
+        end if ! obsAss == 1
+
+      end do BODY
+
+    end do HEADER
     
     call fSQL_finalize( stmt )
     ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABBLE
@@ -657,15 +740,17 @@ contains
     call fSQL_prepare( db, query , stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
     
-    do headerIndex = 1,obs_numHeader(obsdat)
+    HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
+
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-      if ( obsIdf /= fileNumber ) cycle
+      if ( obsIdf /= fileNumber ) cycle HEADER2
       obsIdo    = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
       obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
       call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
       call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
       call fSQL_exec_stmt ( stmt)
-    end do
+
+    end do HEADER2
     
     call fSQL_finalize( stmt )
     call fSQL_commit(db)
@@ -674,7 +759,7 @@ contains
   end subroutine sqlr_updateSqlite
 
 
-  subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber)
+  subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber )
     implicit none
     ! arguments
     type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
@@ -683,6 +768,7 @@ contains
     character(len=*)       :: fileName
     integer                :: fileNumber
     ! locals
+    integer                :: itemInsertList(15), numberInsertItems
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
@@ -706,7 +792,7 @@ contains
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam, nml = namSQLInsert, iostat = ierr )
-    if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+    if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
     if (mpi_myid == 0) write(*, nml = namSQLInsert )
     ierr=fclos( nulnam )
 
@@ -718,23 +804,24 @@ contains
         query = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
     end select
     query=trim(query)
+    write(*,*) ' === Family Type === ',trim(familyType)
     write(*,*) ' Insert query = ', trim(query)
-    write(*,*) ' FAMILLE  = ',trim(familyType)
 
     call fSQL_begin(db)
     call fSQL_prepare( db, query , stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
     numberInsert=0
-    do headerIndex = 1, obs_numHeader(obsdat)
+    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
 
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-      if ( obsIdf /= fileNumber ) cycle
+      if ( obsIdf /= fileNumber ) cycle HEADER
       obsIdo = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
 
-      do bodyIndex = obsRln, obsNlv + obsRln -1
+      BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
+
         obsIdd        = obs_bodyElem_i(obsdat, OBS_IDD, bodyIndex )
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex )
@@ -781,8 +868,10 @@ contains
             numberInsert = numberInsert + 1
           end if    ! llok
         end if
-      end do
-    end do
+
+      end do BODY
+
+    end do HEADER
 
     call fSQL_finalize( stmt )
     call fSQL_commit(db)

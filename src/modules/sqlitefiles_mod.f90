@@ -36,12 +36,10 @@ module sqliteFiles_mod
   save
   private
   public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile
-  type(fSQL_DATABASE)  :: db         ! type for SQLIte  file handle
-  type(fSQL_STATEMENT) :: stmt,stmt2 ! type for precompiled SQLite statements
-  type(FSQL_STATUS)    :: statusSqlite
-  character(len=9)     :: datetimeSqliteCharacter
-  character(len=128)   :: querySqlite
-  integer              :: dateSqlite ,timeSqlite
+  
+  type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
+  type(FSQL_STATUS)   :: statusSqlite
+
   contains
 
   subroutine sqlf_getDateStamp(datestamp, sqliteFileName)
@@ -49,12 +47,14 @@ module sqliteFiles_mod
     ! arguments
     integer                      :: dateStamp
     character(len=*), intent(in) :: sqliteFileName
-    ! locals 
-    logical        :: isExistLogical 
-    integer        :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
-    integer        :: inrecs, mrfopc
-    real(obs_real) :: delhh
-    integer        :: nbrpdate, nbrphh, istampobs, inewhh, newdate
+    ! locals
+    logical             :: isExistLogical 
+    integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
+    integer             :: inrecs, mrfopc, dateSqlite ,timeSqlite
+    real(obs_real)      :: delhh
+    integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
+    character(len=128)  :: querySqlite
+    character(len=9)    :: datetimeSqliteCharacter
 
     ier = mrfopc('MSGLVL','FATAL')
     ivals = 8
@@ -177,9 +177,7 @@ module sqliteFiles_mod
     character(len=*)                 :: familyType
     integer                          :: fileIndex
     ! locals
-    integer             :: headerIndex
-    type(fSQL_DATABASE) :: db
-    type(FSQL_STATUS)   :: statusSqlite
+    integer :: headerIndex
     character(len=*), parameter :: myName = 'sqlf_updateFile'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
@@ -195,8 +193,8 @@ module sqliteFiles_mod
       write(*,*) myError, fSQL_errmsg(statusSqlite )
     end if
   
-    call sqlr_updateSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
-    call sqlr_insertSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
+    call sqlr_updateSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, statusSqlite )

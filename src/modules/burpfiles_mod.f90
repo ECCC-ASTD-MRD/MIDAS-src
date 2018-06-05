@@ -53,7 +53,6 @@ contains
     ! arguments
     integer :: dateStamp
     character(len=*), intent(in) :: burpFileName
-
     ! locals
     integer :: ier, inblks, nulburp, fnom, fclos, numblks
     logical :: isExist_L 
@@ -185,23 +184,32 @@ contains
     burp_chem = trim(familyType) == 'CH'
 
     if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
+
       call obsu_windDirectionToUV       (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
       call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
       call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
+
     end if  
+
     do headerIndex = headerIndexBegin, headerIndexEnd
+
       call obs_headSet_i(obsdat, OBS_OTP, headerIndex, fileIndex)
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
+
       ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
       if (burp_chem) call set_scale_chm(obsdat, headerIndex, forward=.true.)
+
     end do
+
     ! initializations
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
+
       if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
+
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
@@ -233,16 +241,14 @@ contains
 
     write(*,*) 'brpf_updateFile: Starting'
       
+    ! CH family: Scaling of the obs related values to be stored in the BURP files
     if (familytype == 'CH') then  
-
-       ! CH family: Scaling of the obs related values to be stored in the BURP files
-
-       call obs_set_current_header_list(obsSpaceData,'CH')
-       HEADER: do
-         headerIndex = obs_getHeaderIndex(obsSpaceData)
-         if (headerIndex < 0) exit HEADER
-         call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
-       end do HEADER
+      call obs_set_current_header_list(obsSpaceData,'CH')
+      HEADER: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER
+        call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
+      end do HEADER
     end if
     
     call brpr_updateBurp(obsSpaceData,familyType,fileName,fileIndex)
@@ -252,7 +258,6 @@ contains
     call tmg_stop(93)
 
   end subroutine brpf_updateFile
-
 
 
 !--------------------------------------------------------------------------
@@ -374,9 +379,6 @@ contains
       end if
 
   end subroutine set_scale_chm
-
-
-
 
 
 !--------------------------------------------------------------------------

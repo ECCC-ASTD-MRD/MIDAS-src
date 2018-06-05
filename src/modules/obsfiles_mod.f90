@@ -70,11 +70,18 @@ contains
     ! arguments
     integer :: dateStamp_out
     character(len=*) :: obsFileMode_in
+
     obsFileMode = trim(obsFileMode_in)
+
+    !
     ! Initialize file names and the file type
+    !
     call obsf_setupFileNames()
     call obsf_determineFileType(obsFileType)
+
+    !
     ! Determine if obsFiles are split
+    !
     if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
     else if ( obsFileType == 'CMA' ) then
@@ -82,7 +89,10 @@ contains
     else
       call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
     end if
+
+    !
     ! Do some setup of observation files
+    !
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else if ( obsFileType == 'SQLITE' ) then
@@ -90,56 +100,81 @@ contains
     else
       dateStamp_out = -1
     end if
+
     initialized = .true.
+
   end subroutine obsf_setup
 
 
   function obsf_filesSplit() result(obsFilesSplit_out)
     implicit none
+
     ! arguments
     logical :: obsFilesSplit_out
+
     if ( .not.initialized ) call utl_abort('obsf_filesSplit: obsFiles_mod not initialized!')
+
     obsFilesSplit_out = obsFilesSplit
+        
   end function obsf_filesSplit
 
 
   subroutine obsf_getFileType(obsFileType_out)
     implicit none
+
     ! arguments
     character(len=*) :: obsFileType_out
+
     if ( .not.initialized ) call utl_abort('obsf_getFileType: obsFiles_mod not initialized!')
+
     obsFileType_out = obsFileType
+        
   end subroutine obsf_getFileType
 
 
   function obsf_fileTypeIsBurp() result(fileTypeIsBurp)
     implicit none
+ 
     ! arguments
     logical :: fileTypeIsBurp
+
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
+
     fileTypeIsBurp = ( trim(obsFileType) == 'BURP' )
+
   end function obsf_fileTypeIsBurp
 
 
   subroutine obsf_readFiles(obsSpaceData)
     implicit none
+
     ! arguments
     type(struct_obs) :: obsSpaceData
+
     ! locals
     integer :: fileIndex
+
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
+
     if ( obsFileType == 'BURP' ) then
+
       do fileIndex = 1, obsf_nfiles
         call brpf_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
       end do
+
     else if ( obsFileType == 'SQLITE' ) then
+
       do fileIndex = 1, obsf_nfiles
         call sqlf_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
       end do
+
     else if ( obsFileType == 'CMA' ) then
+
       ! read same global CMA file on all mpi tasks
       call cma_readFiles(obsSpaceData)
+
     end if
+
   end subroutine obsf_readFiles
 
 
@@ -153,25 +188,38 @@ contains
   integer :: fileIndex
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
+
     if (trim(obsFileMode) == 'analysis') call obsu_computeDirectionSpeedResiduals(obs_oma,obsSpaceData)
     call obsu_computeDirectionSpeedResiduals(obs_omp,obsSpaceData)
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
     call obsu_updateFlagWindDirectionSpeed(obsSpaceData)
+
     do fileIndex = 1, obsf_nfiles
+
       if ( obsFileType == 'BURP'   ) call brpf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
+
     end do
+
     if ( present(HXensT_mpiglobal_opt) .and. mpi_myid == 0 ) then
-        call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
-      end if
+      call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
+    end if
+
   else if ( obsFileType == 'CMA' ) then
+
     ! only 1 mpi task should do the writing
     call cma_writeFiles(obsSpaceData,HXensT_mpiglobal_opt)
+
   end if
+
   if ( present(asciDumpObs_opt) ) then
+
     if ( asciDumpObs_opt ) call obsf_writeAsciDump(obsSpaceData)
+
   end if
+
   end subroutine obsf_writeFiles
 
 
@@ -185,13 +233,19 @@ contains
     character(len=10) :: fileNameHX
 
     write(*,*) 'obsf_writeHX: Starting'
+
     fileNameHX     = 'cmahxout'
     unitHX = 0
     ierr = fnom(unitHX, fileNameHX, 'FTN+SEQ+UNF+R/W', 0)
+
     do headerIndex = 1, obs_numHeader(obsSpaceData)
+
       call obs_write_hx(obsSpaceData, HXensT_mpiglobal, headerIndex, unitHX)
+
     enddo
+ 
     ierr = fclos(unitHX)
+
   endsubroutine obsf_writeHX
 
 
@@ -204,7 +258,9 @@ contains
     integer :: unitAsciDump, ierr, fnom, fclos
     character(len=4)    :: cmyidx, cmyidy
     character(len=9)    :: cmyid
+
     write(*,*) 'obsf_writeAsciDump: Starting'
+
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
@@ -217,11 +273,13 @@ contains
       if ( mpi_myid > 0 ) return
       fileNameAsciDump = 'obsout_asci'
     end if
+
     write(*,*) 'obsf_writeAsciDump: writing to file : ', fileNameAsciDump
     unitAsciDump = 0
     ierr = fnom(unitAsciDump, fileNameAsciDump, 'FTN+SEQ+FMT+R/W', 0)
     call obs_print(obsSpaceData,unitAsciDump)
     ierr = fclos(unitAsciDump)
+
   end subroutine obsf_writeAsciDump
 
 
@@ -237,9 +295,11 @@ contains
     character(len=256)               :: fileNamefull
     logical :: isExist_L 
     integer :: fileIndex
+
     write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
     write(cmyidx,'(I4.4)') (mpi_myidx + 1)
     cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
+
     clvalu(:)=''
     ! file names only for burp
     clvalu( 1) = 'brpuan'
@@ -315,7 +375,6 @@ contains
     clvalu(70) = 'obsch'
     ! file name for CMA format used by EnKF
     clvalu(71) = 'cmaheader'
-    clvalu(72) = 'brpsst' ! SST
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -390,13 +449,14 @@ contains
     cfami(70)  = 'CH'
     ! dummy family type for CMA, since it contains all families
     cfami(71)  = 'XX'
-    ! family type for SST
-    cfami(72)  = 'TM'
+
     obsDirectory = 'obs'
 
     obsf_nfiles = 0
     obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
+
     do fileIndex = 1, jpfiles 
+
       if(clvalu(fileIndex) == '') exit
       fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
@@ -407,12 +467,15 @@ contains
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
         inquire(file=trim(fileNameFull), exist=isExist_L)
       end if
+
       if ( isExist_L ) then
         obsf_nfiles=obsf_nfiles + 1
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
       end if
+
     end do
+
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
     write(*,*)'Type  Name '
@@ -420,6 +483,7 @@ contains
     do fileIndex = 1, obsf_nfiles
       write(*,'(1X,A2,1X,A60)' ) obsf_cfamtyp(fileIndex), trim(obsf_cfilnam(fileIndex))
     end do
+
   end subroutine obsf_setupFileNames
 
 
@@ -432,6 +496,7 @@ contains
     integer :: fnom, fclos
     logical :: fileExists
     character(len=20) :: fileStart
+
     call rpn_comm_allgather(obsf_nfiles, 1, 'MPI_INTEGER', &
                             all_nfiles,  1, 'MPI_INTEGER', &
                             'GRID',ierr)
@@ -446,8 +511,11 @@ contains
     if ( .not.fileExists ) then
       call utl_abort('obsf_determineFileType: No observation files found')
     end if
+
     write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
+
     if ( mpi_myid == procID ) then
+
       if ( index(obsf_cfilnam(1), 'cma' ) > 0 ) then
         obsFileType = 'CMA'
       else
@@ -464,23 +532,44 @@ contains
         else
           call utl_abort('obsf_determineFileType: unknown obs file type')
         end if
+
       end if
+
     end if
+
     call rpn_comm_bcastc(obsFileType , 10, 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
+
   end subroutine obsf_determineFileType
 
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Returns the observations file name assigned to the calling processor.
+!!            If the input family has more than one file, the first file found will
+!!            be returned.
+!!
+!! @author M. Sitwell  Sept 2016
+!!
+!! Input:
+!!v    obsfam            observation family name
+!!
+!! Output:
+!!v    filename       file name of associated observations file
+!!v    found_opt      logical indicating if a file could be found for the family (optional)
+!--------------------------------------------------------------------------
   function obsf_get_filename(obsfam,found_opt) result(filename)
+
     implicit none
+
     character(len=2), intent(in) :: obsfam
     logical, intent(out), optional :: found_opt
     character(len=maxLengthFilename) :: filename
  
     logical :: found
     integer :: ifile
+
     filename = ""
     found = .false.
+       
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_cfamtyp(ifile)) then
           filename = obsf_cfilnam(ifile)
@@ -488,14 +577,52 @@ contains
           exit
        end if
     end do
+
     if (.not.found) write(*,*) "obsf_get_filename: File not found for observation family '" // trim(obsfam) // "'"
+
     if (present(found_opt)) found_opt = found
+
   end function obsf_get_filename
 
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Retrieves information for observations from observation files and returns the data
+!!            in a struct_oss_obsdata object. Data will be retrieved for all nodes that have valid
+!!            filenames for the specied observational family and combined into one struct_oss_obsdata
+!!            if the observational files are split.
+!!
+!! @author M. Sitwell, ARQI/AQRD, Sept 2016
+!!
+!! Revisions:
+!!v       Y. Rochon, ARQI/AQRD, Nov 2016
+!!v         - Added optional input argument codtyp_opt and option of varno <=0 (in brpf_chem_read)
+!!
+!! Input:
+!!v           obsfam          observation family name
+!!v           stnid           station ID of observation
+!!v           varno           BUFR code (if <=0, to search through all codes to obtain first
+!!v                           between 10000 and 16000)
+!!v           nlev            number of levels in the observation
+!!v           ndim            number of dimensions for the retrieved data in
+!!v                           each report (e.g. ndim=1 for std, ndim=2 for
+!!v                           averagine kernels) 
+!!v           bkstp_opt       bkstp number of requested block if BURP file type (optional)
+!!v           block_opt       block type of requested block if BURP file type (optional)
+!!v                           Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
+!!v                           by the two rightmost bits of bknat.
+!!v           match_nlev_opt  determines if the report matching criteria includes checking
+!!v                           if the report number of levels is the same as the input
+!!v                           argument nlev (optional)
+!!v           codtyp_opt      optional CODTYP list for search (optional)
+!!
+!! Output:
+!!v           obsdata       struct_oss_obsdata object
+!!v
+!--------------------------------------------------------------------------
   function obsf_obsSub_read(obsfam,stnid,varno,nlev,ndim,bkstp_opt,block_opt,match_nlev_opt, &
                               codtyp_opt) result(obsdata)
+
     implicit none
+
     character(len=*), intent(in)  :: obsfam
     character(len=9), intent(in)  :: stnid
     integer, intent(in)           :: varno,nlev,ndim
@@ -503,11 +630,14 @@ contains
     logical, intent(in), optional :: match_nlev_opt
     character(len=4), intent(in), optional :: block_opt
     type(struct_oss_obsdata) :: obsdata
+
     character(len=maxLengthFilename) :: filename
     logical :: found
     
     filename = obsf_get_filename(obsfam,found)
+
     if (found) then
+
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
                call utl_abort("obsf_obsSub_read: optional varaible 'block_opt' is required for BURP observational files.")
@@ -516,8 +646,11 @@ contains
        else
           call utl_abort("obsf_obsSub_read: Only BURP observational files currently supported.")
        end if
+
     else
+
        write(*,*) "obsf_obsSub_read: No observational files found for family '" // trim(obsfam) // "' for this node."
+
        if (obsf_filesSplit()) then
           ! Must allocate obsdata so that it is available from ALL processors when
           ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
@@ -532,13 +665,39 @@ contains
           call utl_abort("obsf_obsSub_read: Abort since files are not split.")
        end if
     end if
+
     if (obsf_filesSplit()) call oss_obsdata_MPIallgather(obsdata)
+
   end function obsf_obsSub_read
 
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Add or modify data in observational files from data stored
+!!            in a struct_oss_obsdata object.
+!!
+!! @author M. Sitwell, ARQI/AQRD, Sept 2016
+!!
+!! Input:
+!!v           obsdata       Input struct_oss_obsdata object for varno.
+!!v           obsfam        observation family name
+!!v           varno         BUFR descriptors. Number of elements must be 
+!!v                         max(1,obsdata%dim2)
+!!v           bkstp_opt     bkstp number of requested block if BURP file type (optional)
+!!v           block_opt     block type of requested block if BURP file type (optional)
+!!v                         Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
+!!v                         by the two rightmost bits of bknat.
+!!v           multi_opt     Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
+!!v
+!!
+!! Output: 
+!!v           nrep_modified Number of modified reports
+!!
+!--------------------------------------------------------------------------
   function obsf_obsSub_update(obsdata,obsfam,varno,bkstp_opt,block_opt,multi_opt) &
                            result(nrep_modified)
+
     implicit none
+
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: obsfam
     integer, intent(in) :: varno(:)
@@ -546,10 +705,13 @@ contains
     character(len=4), intent(in), optional :: block_opt
     character(len=*), intent(in), optional :: multi_opt
     integer :: nrep_modified
+
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
     logical :: found
+    
     filename = obsf_get_filename(obsfam,found)
+
     if (found) then
        if (obsf_filesSplit() .or. mpi_myid == 0) then
           if (obsFileType=='BURP') then
@@ -563,9 +725,12 @@ contains
     else
        write(*,*) "obsf_obsSub_update: No observational files found for family '" // trim(obsfam) // "' for this node."
     end if
+
     if (obsf_filesSplit()) then
        call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
        nrep_modified = nrep_modified_global
     end if
+
   end function obsf_obsSub_update
+
 end module obsFiles_mod
