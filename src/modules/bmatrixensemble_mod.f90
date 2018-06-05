@@ -553,7 +553,7 @@ CONTAINS
                         'fromFirstTimeIndex', hco_ens, vco_ens,                 & ! IN
                         numStepAmplitudeFSOFcst, dateStampListAdvectedFields,   & ! IN
                         numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst,   & ! IN
-                        'MMLevsOnly', referenceFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
+                        'MMLevsOnly', steeringFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
         call tmg_stop(135)
       end if
     end if
@@ -603,7 +603,7 @@ CONTAINS
                         direction, hco_ens, vco_ens,                                  & ! IN
                         numStepAmplitudeAssimWindow, dateStampListAdvectedFields,     & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'MMLevsOnly', statevector_referenceFlow_opt = ensMean4D )       ! IN
+                        'MMLevsOnly', statevector_steeringFlow_opt = ensMean4D )       ! IN
 
       case('ensPertAnlInc')
         if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
@@ -634,13 +634,13 @@ CONTAINS
                         directionEnsPerts, hco_ens, vco_ens,                          & ! IN
                         numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_referenceFlow_opt = ensMean4D )          ! IN
+                        'allLevs', statevector_steeringFlow_opt = ensMean4D )          ! IN
 
         call adv_setup( adv_analInc,                                                  & ! OUT
                         directionAnlInc, hco_ens, vco_ens,                            & ! IN
                         numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_referenceFlow_opt = ensMean4D )          ! IN
+                        'allLevs', statevector_steeringFlow_opt = ensMean4D )          ! IN
 
       case default
         write(*,*)
@@ -661,7 +661,7 @@ CONTAINS
     end if
 
     !- 3.5 Compute and write Std. Dev.
-    if (diagnostic) call EnsembleDiagnostic('FullPerturbations')
+    if (ensDiagnostic) call EnsembleDiagnostic('FullPerturbations')
 
     !- 3.6 Ensemble perturbations advection
     if ( advectEnsPertAnlInc ) then

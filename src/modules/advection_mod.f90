@@ -79,19 +79,19 @@ MODULE advection_mod
   real(8), parameter :: numGridPts    =  1.0d0 ! used to compute numSubStep
   real(8), parameter :: latitudePatch = 80.0d0 ! this defines latitude where rotated grid used
 
-  integer :: numStepReferenceFlow
+  integer :: numStepSteeringFlow
   integer :: lonPerPE, latPerPE
   integer, allocatable :: allLonBeg(:), allLatBeg(:)
   integer, allocatable :: numSubStep(:)
 
-  real(8), pointer     :: uu_referenceFlow_ptr4d(:,:,:,:)
-  real(8), pointer     :: vv_referenceFlow_ptr4d(:,:,:,:)
-  real(8), allocatable :: uu_referenceFlow_mpiGlobal(:,:,:)
-  real(8), allocatable :: vv_referenceFlow_mpiGlobal(:,:,:)
-  real(8), allocatable :: uu_referenceFlow_ThermoLevel(:,:)
-  real(8), allocatable :: vv_referenceFlow_ThermoLevel(:,:)
+  real(8), pointer     :: uu_steeringFlow_ptr4d(:,:,:,:)
+  real(8), pointer     :: vv_steeringFlow_ptr4d(:,:,:,:)
+  real(8), allocatable :: uu_steeringFlow_mpiGlobal(:,:,:)
+  real(8), allocatable :: vv_steeringFlow_mpiGlobal(:,:,:)
+  real(8), allocatable :: uu_steeringFlow_ThermoLevel(:,:)
+  real(8), allocatable :: vv_steeringFlow_ThermoLevel(:,:)
 
-  real(8) :: delT_sec, referenceFlowFactor
+  real(8) :: delT_sec, steeringFlowFactor
 
   type(struct_hco), pointer :: hco
 
@@ -104,9 +104,9 @@ CONTAINS
   ! adv_Setup
   !--------------------------------------------------------------------------
   SUBROUTINE adv_setup(adv, mode, hco_in, vco_in, numStepAdvectedField, &
-                       dateStampListAdvectedField, numStepReferenceFlow_in, delT_hour, &
-                       referenceFlowFactor_in, levTypeList, referenceFlowFilename_opt, &
-                       statevector_referenceFlow_opt)
+                       dateStampListAdvectedField, numStepSteeringFlow_in, delT_hour, &
+                       steeringFlowFactor_in, levTypeList, steeringFlowFilename_opt, &
+                       statevector_steeringFlow_opt)
     implicit none
 
     type(struct_adv) :: adv
@@ -115,34 +115,34 @@ CONTAINS
 
     character(len=*), intent(in) :: mode
     character(len=*), intent(in) :: levTypeList
-    character(len=*), optional, intent(in) :: referenceFlowFilename_opt
-    integer, intent(in) :: numStepAdvectedField, numStepReferenceFlow_in
+    character(len=*), optional, intent(in) :: steeringFlowFilename_opt
+    integer, intent(in) :: numStepAdvectedField, numStepSteeringFlow_in
     integer, intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
-    real(8), intent(in) :: referenceFlowFactor_in, delT_hour
+    real(8), intent(in) :: steeringFlowFactor_in, delT_hour
 
-    type(struct_gsv), optional :: statevector_referenceFlow_opt
+    type(struct_gsv), optional :: statevector_steeringFlow_opt
 
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, jsubStep, stepIndexRF, stepIndexAF, ierr, gdxyfll
     integer :: nsize, latIndex_mpiglobal, lonIndex_mpiglobal
     integer :: alfa, nLevType
 
-    integer, allocatable :: dateStampListReferenceFlow(:)
+    integer, allocatable :: dateStampListSteeringFlow(:)
     integer, allocatable :: advectedFieldAssociatedStepIndexRF(:)
-    integer, allocatable :: advectionReferenceFlowStartingStepIndex(:)
-    integer, allocatable :: advectionReferenceFlowEndingStepIndex  (:)
+    integer, allocatable :: advectionSteeringFlowStartingStepIndex(:)
+    integer, allocatable :: advectionSteeringFlowEndingStepIndex  (:)
 
     real(8) :: uu, vv, subDelT, lonAdvect, latAdvect, delx, dely, sumWeight
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
     real(8) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
-    real(8), allocatable :: uu_referenceFlow_mpiGlobalTiles(:,:,:,:)
-    real(8), allocatable :: vv_referenceFlow_mpiGlobalTiles(:,:,:,:)
+    real(8), allocatable :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
+    real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4, xpos_r4, ypos_r4
 
     character(len=64) :: filename
     character(len=3)  :: filenumber
 
-    type(struct_gsv) :: statevector_referenceFlow
+    type(struct_gsv) :: statevector_steeringFlow
 
     logical :: AdvectFileExists
 
@@ -153,8 +153,8 @@ CONTAINS
     !
     !- 1.  Set low-level variables
     !
-    numStepReferenceFlow = numStepReferenceFlow_in
-    referenceFlowFactor  = referenceFlowFactor_in
+    numStepSteeringFlow = numStepSteeringFlow_in
+    steeringFlowFactor  = steeringFlowFactor_in
     adv%nTimeStep        = numStepAdvectedField
     
     allocate(adv%timeStepIndexSource(numStepAdvectedField))
@@ -271,50 +271,50 @@ CONTAINS
     end do
 
     !
-    !- 2.  Read in the reference forecasts (winds) to use for advection
+    !- 2.  Read in the wind data to use for advection
     !
-    allocate(dateStampListReferenceFlow(numStepReferenceFlow))
+    allocate(dateStampListSteeringFlow(numStepSteeringFlow))
 
-    if (present(referenceFlowFilename_opt) ) then
+    if (present(steeringFlowFilename_opt) ) then
 
       if (mpi_myid == 0)  then
         write(*,*)
-        write(*,*) 'referenceFlow source taken from input file = ', trim(referenceFlowFilename_opt) 
+        write(*,*) 'steeringFlow source taken from input file = ', trim(steeringFlowFilename_opt) 
       end if
-      !- Read in the forecasts (winds) to use for advection
-      do stepIndexRF = 1, numStepReferenceFlow
-        call incdatr(dateStampListReferenceFlow(stepIndexRF), dateStampListAdvectedField(1), &
+
+      do stepIndexRF = 1, numStepSteeringFlow
+        call incdatr(dateStampListSteeringFlow(stepIndexRF), dateStampListAdvectedField(1), &
                      real(stepIndexRF-1,8)*delT_hour)
       end do
 
-      call gsv_allocate(statevector_referenceFlow,numStepReferenceFlow, hco, vco_in, &
-                        dateStampList_opt=dateStampListReferenceFlow, &
+      call gsv_allocate(statevector_steeringFlow,numStepSteeringFlow, hco, vco_in, &
+                        dateStampList_opt=dateStampListSteeringFlow, &
                         varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true.)
       
-      fileName = ram_fullWorkingPath(trim(referenceFlowFilename_opt))
+      fileName = ram_fullWorkingPath(trim(steeringFlowFilename_opt))
       inquire(file=trim(fileName),exist=AdvectFileExists)
       write(*,*) 'AdvectFileExists', AdvectFileExists
-      do stepIndexRF = 1, numStepReferenceFlow
-        call gsv_readFromFile(statevector_referenceFlow,fileName,' ',' ',stepIndex_opt=stepIndexRF)
+      do stepIndexRF = 1, numStepSteeringFlow
+        call gsv_readFromFile(statevector_steeringFlow,fileName,' ',' ',stepIndex_opt=stepIndexRF)
       end do
 
-      uu_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow, 'UU')
-      vv_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow, 'VV')
+      uu_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow, 'UU')
+      vv_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow, 'VV')
 
-    else if (present(statevector_referenceFlow_opt)) then
+    else if (present(statevector_steeringFlow_opt)) then
 
       if (mpi_myid == 0)  then
         write(*,*)
-        write(*,*) 'referenceFlow source = input gridStateVector'
-        write(*,*) numStepReferenceFlow
-        write(*,*) statevector_referenceFlow_opt%dateStampList(:)
+        write(*,*) 'steeringFlow source = input gridStateVector'
+        write(*,*) numStepSteeringFlow
+        write(*,*) statevector_steeringFlow_opt%dateStampList(:)
       end if
-      dateStampListReferenceFlow(:) = statevector_referenceFlow_opt%dateStampList(:)
-      uu_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow_opt, 'UU')
-      vv_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow_opt, 'VV')
+      dateStampListSteeringFlow(:) = statevector_steeringFlow_opt%dateStampList(:)
+      uu_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow_opt, 'UU')
+      vv_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow_opt, 'VV')
 
     else
-      call utl_abort('adv_setup: referenceFlow source was not provided!')
+      call utl_abort('adv_setup: steeringFlow source was not provided!')
     end if
 
     !
@@ -325,8 +325,8 @@ CONTAINS
     allocate(advectedFieldAssociatedStepIndexRF(numStepAdvectedField))
     advectedFieldAssociatedStepIndexRF(:) = -1
     do stepIndexAF = 1, numStepAdvectedField
-      do stepIndexRF = 1, numStepReferenceFlow
-        if ( dateStampListAdvectedField(stepIndexAF) == dateStampListReferenceFlow(stepIndexRF) ) then
+      do stepIndexRF = 1, numStepSteeringFlow
+        if ( dateStampListAdvectedField(stepIndexAF) == dateStampListSteeringFlow(stepIndexRF) ) then
           advectedFieldAssociatedStepIndexRF(stepIndexAF) = stepIndexRF
           if (mpi_myid == 0)  then
             write(*,*)
@@ -336,24 +336,24 @@ CONTAINS
         end if
       end do
       if ( advectedFieldAssociatedStepIndexRF(stepIndexAF) == -1 ) then
-        call utl_abort('adv_setup: no match between dateStampListAdvectedField and dateStampListReferenceFlow')
+        call utl_abort('adv_setup: no match between dateStampListAdvectedField and dateStampListSteeringFlow')
       end if
     end do
 
     !-  3.2 Set starting, ending and direction parameters
-    allocate(advectionReferenceFlowStartingStepIndex(numStepAdvectedField))
-    allocate(advectionReferenceFlowEndingStepIndex  (numStepAdvectedField))
+    allocate(advectionSteeringFlowStartingStepIndex(numStepAdvectedField))
+    allocate(advectionSteeringFlowEndingStepIndex  (numStepAdvectedField))
 
     select case(trim(mode))
     case ('fromFirstTimeIndex','fromMiddleTimeIndex','towardFirstTimeIndexInverse','towardMiddleTimeIndexInverse')
       do stepIndexAF = 1, numStepAdvectedField
-        advectionReferenceFlowStartingStepIndex(stepIndexAF) = advectedFieldAssociatedStepIndexRF(adv%timeStepIndexMainSource)
-        advectionReferenceFlowEndingStepIndex  (stepIndexAF) = advectedFieldAssociatedStepIndexRF(stepIndexAF)
+        advectionSteeringFlowStartingStepIndex(stepIndexAF) = advectedFieldAssociatedStepIndexRF(adv%timeStepIndexMainSource)
+        advectionSteeringFlowEndingStepIndex  (stepIndexAF) = advectedFieldAssociatedStepIndexRF(stepIndexAF)
       end do
     case ('towardFirstTimeIndex','towardMiddleTimeIndex')
       do stepIndexAF = 1, numStepAdvectedField
-        advectionReferenceFlowStartingStepIndex(stepIndexAF) = advectedFieldAssociatedStepIndexRF(stepIndexAF)
-        advectionReferenceFlowEndingStepIndex  (stepIndexAF) = advectedFieldAssociatedStepIndexRF(adv%timeStepIndexMainSource)
+        advectionSteeringFlowStartingStepIndex(stepIndexAF) = advectedFieldAssociatedStepIndexRF(stepIndexAF)
+        advectionSteeringFlowEndingStepIndex  (stepIndexAF) = advectedFieldAssociatedStepIndexRF(adv%timeStepIndexMainSource)
       end do
     case default
       write(*,*)
@@ -368,11 +368,11 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(numSubStep(adv%nj))
-    allocate(uu_referenceFlow_mpiGlobal(numStepReferenceFlow, adv%ni, adv%nj))
-    allocate(vv_referenceFlow_mpiGlobal(numStepReferenceFlow, adv%ni, adv%nj))
+    allocate(uu_steeringFlow_mpiGlobal(numStepSteeringFlow, adv%ni, adv%nj))
+    allocate(vv_steeringFlow_mpiGlobal(numStepSteeringFlow, adv%ni, adv%nj))
 
-    allocate(uu_referenceFlow_mpiGlobalTiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
-    allocate(vv_referenceFlow_mpiGlobalTiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
+    allocate(uu_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
+    allocate(vv_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     do levTypeIndex = 1, min(nLevType,2) ! make sure that SF level is skipped
@@ -380,8 +380,8 @@ CONTAINS
         nLev = adv%nLev_M
       else if (levTypeIndex == THindex) then
         nLev = adv%nLev_T
-        allocate(uu_referenceFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
-        allocate(vv_referenceFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+        allocate(uu_steeringFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+        allocate(vv_steeringFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
       else
         call utl_abort('adv_setup: unknown levTypeIndex')
       end if
@@ -394,15 +394,15 @@ CONTAINS
 
         if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
 
-        call processReferenceFlow(levTypeIndex, levIndex,                                           & ! IN
-                                  uu_referenceFlow_mpiGlobalTiles, vv_referenceFlow_mpiGlobalTiles, & ! IN
+        call processSteeringFlow(levTypeIndex, levIndex,                                           & ! IN
+                                  uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! IN
                                   adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                         ! IN
 
         do stepIndexAF = 1, numStepAdvectedField
           if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
 
-          stepIndexRF_start = advectionReferenceFlowStartingStepIndex(stepIndexAF)
-          stepIndexRF_end   = advectionReferenceFlowEndingStepIndex  (stepIndexAF) 
+          stepIndexRF_start = advectionSteeringFlowStartingStepIndex(stepIndexAF)
+          stepIndexRF_end   = advectionSteeringFlowEndingStepIndex  (stepIndexAF) 
 
           ! loop over all initial grid points within tile for determining trajectories
           do latIndex0 = adv%myLatBeg, adv%myLatEnd
@@ -428,8 +428,8 @@ CONTAINS
       end do ! levIndex
 
       if (levTypeIndex == THindex) then
-        deallocate(vv_referenceFlow_ThermoLevel)
-        deallocate(uu_referenceFlow_ThermoLevel)
+        deallocate(vv_steeringFlow_ThermoLevel)
+        deallocate(uu_steeringFlow_ThermoLevel)
       end if
 
     end do ! levTypeIndex
@@ -456,12 +456,12 @@ CONTAINS
     deallocate(numSubStep)
     deallocate(allLonBeg)
     deallocate(allLatBeg)
-    deallocate(uu_referenceFlow_mpiGlobalTiles)
-    deallocate(vv_referenceFlow_mpiGlobalTiles)
-    deallocate(uu_referenceFlow_mpiGlobal)
-    deallocate(vv_referenceFlow_mpiGlobal)
-    if (present(referenceFlowFilename_opt) ) then
-      call gsv_deallocate(statevector_referenceFlow)
+    deallocate(uu_steeringFlow_mpiGlobalTiles)
+    deallocate(vv_steeringFlow_mpiGlobalTiles)
+    deallocate(uu_steeringFlow_mpiGlobal)
+    deallocate(vv_steeringFlow_mpiGlobal)
+    if (present(steeringFlowFilename_opt) ) then
+      call gsv_deallocate(statevector_steeringFlow)
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -470,15 +470,15 @@ CONTAINS
   end SUBROUTINE adv_setup
 
   !--------------------------------------------------------------------------
-  ! processReferenceFlow
+  ! processSteeringFlow
   !--------------------------------------------------------------------------
-  SUBROUTINE processReferenceFlow (levTypeIndex, levIndex, &
-                                   uu_referenceFlow_mpiGlobalTiles, vv_referenceFlow_mpiGlobalTiles, &
+  SUBROUTINE processSteeringFlow (levTypeIndex, levIndex, &
+                                   uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, &
                                    nLev_M, nLev_T, myLatBeg, myLatEnd)
     implicit none
     integer, intent(in) :: levTypeIndex, levIndex, nLev_M, nLev_T, myLatBeg, myLatEnd
-    real(8) :: uu_referenceFlow_mpiGlobalTiles(:,:,:,:)
-    real(8) :: vv_referenceFlow_mpiGlobalTiles(:,:,:,:)
+    real(8) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
+    real(8) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     integer :: stepIndexRF, nsize, ierr 
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
@@ -490,51 +490,51 @@ CONTAINS
 
     if ( levTypeIndex == MMindex ) then
       ! No vertical interpolation is needed
-      do stepIndexRF = 1, numStepReferenceFlow
+      do stepIndexRF = 1, numStepSteeringFlow
         ! gather the winds for this level
-        call rpn_comm_allgather(uu_referenceFlow_ptr4d(:,:,levIndex,stepIndexRF)  , nsize, "mpi_double_precision", &
-                                uu_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision", &
+        call rpn_comm_allgather(uu_steeringFlow_ptr4d(:,:,levIndex,stepIndexRF)  , nsize, "mpi_double_precision", &
+                                uu_steeringFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision", &
                                 "GRID", ierr )
-        call rpn_comm_allgather(vv_referenceFlow_ptr4d(:,:,levIndex,stepIndexRF)  , nsize, "mpi_double_precision", &
-                                vv_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision", &
+        call rpn_comm_allgather(vv_steeringFlow_ptr4d(:,:,levIndex,stepIndexRF)  , nsize, "mpi_double_precision", &
+                                vv_steeringFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision", &
                                 "GRID", ierr )
       end do
     else if (levTypeIndex == THindex ) then
       ! Vertical interpolation is needed...
       ! The adopted approach follows the vertical interpolation for the amplitude fields in bMatrixEnsemble_mod
-      do stepIndexRF = 1, numStepReferenceFlow
+      do stepIndexRF = 1, numStepSteeringFlow
         if (levIndex == 1) then
           ! use top momentum level amplitudes for top thermo level
-          uu_referenceFlow_ThermoLevel(:,:) = uu_referenceFlow_ptr4d(:,:,1,stepIndexRF)
-          vv_referenceFlow_ThermoLevel(:,:) = vv_referenceFlow_ptr4d(:,:,1,stepIndexRF)
+          uu_steeringFlow_ThermoLevel(:,:) = uu_steeringFlow_ptr4d(:,:,1,stepIndexRF)
+          vv_steeringFlow_ThermoLevel(:,:) = vv_steeringFlow_ptr4d(:,:,1,stepIndexRF)
         else if (levIndex == nLev_T) then
           ! use surface momentum level amplitudes for surface thermo level
-          uu_referenceFlow_ThermoLevel(:,:) = uu_referenceFlow_ptr4d(:,:,nLev_M,stepIndexRF)
-          vv_referenceFlow_ThermoLevel(:,:) = vv_referenceFlow_ptr4d(:,:,nLev_M,stepIndexRF)
+          uu_steeringFlow_ThermoLevel(:,:) = uu_steeringFlow_ptr4d(:,:,nLev_M,stepIndexRF)
+          vv_steeringFlow_ThermoLevel(:,:) = vv_steeringFlow_ptr4d(:,:,nLev_M,stepIndexRF)
         else
           ! for other levels, interpolate momentum winds to get thermo winds
 !$OMP PARALLEL DO PRIVATE (latIndex)
           do latIndex = myLatBeg, myLatEnd
-            uu_referenceFlow_ThermoLevel(:,latIndex) = 0.5d0*( uu_referenceFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
-                 uu_referenceFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
-            vv_referenceFlow_ThermoLevel(:,latIndex) = 0.5d0*( vv_referenceFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
-                 vv_referenceFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
+            uu_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( uu_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
+                 uu_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
+            vv_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( vv_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
+                 vv_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
           end do
 !$OMP END PARALLEL DO
         end if
 
         ! gather the INTERPOLATED winds for this level
-        call rpn_comm_allgather(uu_referenceFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
-                                uu_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision",  &
+        call rpn_comm_allgather(uu_steeringFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
+                                uu_steeringFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision",  &
                                 "GRID", ierr )
-        call rpn_comm_allgather(uu_referenceFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
-                                vv_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision",  &
+        call rpn_comm_allgather(uu_steeringFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
+                                vv_steeringFlow_mpiGlobalTiles(stepIndexRF,:,:,:), nsize, "mpi_double_precision",  &
                                 "GRID", ierr )
 
       end do
 
     else
-      call utl_abort('processReferenceFlow: invalid levTypeIndex')
+      call utl_abort('processSteeringFlow: invalid levTypeIndex')
     end if
 
     ! rearrange gathered winds for convenience
@@ -545,8 +545,8 @@ CONTAINS
           latIndex_mpiglobal = latIndex + allLatBeg(procIDy+1) - 1
           do lonIndex = 1, lonPerPE
             lonIndex_mpiglobal = lonIndex + allLonBeg(procIDx+1) - 1
-            uu_referenceFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = uu_referenceFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
-            vv_referenceFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = vv_referenceFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
+            uu_steeringFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = uu_steeringFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
+            vv_steeringFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = vv_steeringFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
           end do
         end do
       end do
@@ -556,19 +556,19 @@ CONTAINS
     do latIndex = 1, hco%nj
       latAdvect = hco%lat(latIndex)
       if (abs(latAdvect) < latitudePatch*MPC_RADIANS_PER_DEGREE_R8) then
-        uu = maxval(abs(uu_referenceFlow_mpiGlobal(:,:,latIndex) /(RA*cos(latAdvect)))) ! in rad/s
-        vv = maxval(abs(vv_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) /(RA*cos(latAdvect)))) ! in rad/s
+        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
       else
-        uu = maxval(abs(uu_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
-        vv = maxval(abs(vv_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
       end if
       numSubStep(latIndex) = max( 1,  &
-           nint( (delT_sec * referenceFlowFactor * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
-           nint( (delT_sec * referenceFlowFactor * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
+           nint( (delT_sec * steeringFlowFactor * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
+           nint( (delT_sec * steeringFlowFactor * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
     end do
     if (mpi_myid == 0) write(*,*) 'min and max of numSubStep',minval(numSubStep(:)),maxval(numSubStep(:))
 
-  end SUBROUTINE processReferenceFlow
+  end SUBROUTINE processSteeringFlow
 
   !--------------------------------------------------------------------------
   ! calcTrajAndWeights
@@ -639,15 +639,15 @@ CONTAINS
         if (abs(hco%lat(latIndex0)) < latitudePatch*MPC_RADIANS_PER_DEGREE_R8) then
           ! points away from pole, handled normally
           ! determine wind at current location (now at BL point)
-          uu = (  alfa *uu_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*uu_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
+          uu = (  alfa *uu_steeringFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*uu_steeringFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
                /(RA*cos(hco%lat(latIndex))) ! in rad/s
-          vv = (   alfa*vv_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*vv_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
+          vv = (   alfa*vv_steeringFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*vv_steeringFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
                /RA
           ! apply user-specified scale factor to advecting winds
-          uu = referenceFlowFactor * uu
-          vv = referenceFlowFactor * vv
+          uu = steeringFlowFactor * uu
+          vv = steeringFlowFactor * vv
 
           ! compute next position
           lonAdvect = lonAdvect + real(stepIndex_direction,8)*subDelT*uu  ! in radians
@@ -661,10 +661,10 @@ CONTAINS
         else
           ! points near pole, handled in a special way
           ! determine wind at current location (now at BL point)
-          uu =    alfa *uu_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*uu_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)  ! in m/s
-          vv =    alfa *vv_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*vv_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)
+          uu =    alfa *uu_steeringFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*uu_steeringFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)  ! in m/s
+          vv =    alfa *vv_steeringFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*vv_steeringFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)
           ! transform wind vector into rotated coordinate system
           Gcoef = ( cos(latAdvect)*cos(hco%lat(latIndex0)) + &
                sin(latAdvect)*sin(hco%lat(latIndex0))*cos(lonAdvect-hco%lon(lonIndex0)) ) / &
@@ -675,8 +675,8 @@ CONTAINS
           vv_p = Scoef * uu + Gcoef * vv 
 
           ! apply user-specified scale factor to advecting winds
-          uu_p = referenceFlowFactor * uu_p ! in m/s
-          vv_p = referenceFlowFactor * vv_p
+          uu_p = steeringFlowFactor * uu_p ! in m/s
+          vv_p = steeringFlowFactor * vv_p
 
           ! compute next position (in rotated coord system)
           lonAdvect_p = lonAdvect_p + real(stepIndex_direction,8)*subDelT*uu_p/(RA*cos(latAdvect_p))  ! in radians
@@ -1401,7 +1401,6 @@ CONTAINS
           end do ! procIDx
         end do ! procIDy
 !$OMP END PARALLEL DO
-
 
         nsize = adv%lonPerPE*adv%latPerPE
         if (mpi_nprocs > 1) then
