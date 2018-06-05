@@ -1212,12 +1212,11 @@ CONTAINS
   ! Author:  Y. Rochon, Nov 2015 
   !
   ! Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
-  !          Assumes vertical interpolation not needed or already done.
   !
   !          This version can be used with fields that are not part of the background state,
   !          such as climatologies.
   !
-  !          This version does not depend in column_data and gridstatevector modules.
+  !          This version does not depend on column_data and gridstatevector data types/structures.
   !
   ! Arguments:
   !
@@ -1257,17 +1256,17 @@ CONTAINS
     
     plong2 = plong
     if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
-    do ilon = 2,nlong
-       if  (xlong(ilon-1) < xlong(ilon)) then
-           if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
-       else 
-           ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
-       end if
+    do ilon = 2, nlong
+      if  (xlong(ilon-1) < xlong(ilon)) then
+        if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
+      else 
+        ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+      end if
     end do
     ilon = ilon-1
        
-    do ilat = 2,nlat
-       if (plat <= xlat(ilat)) exit
+    do ilat = 2, nlat
+      if (plat <= xlat(ilat)) exit
     end do
     ilat = ilat-1
     
@@ -1285,33 +1284,33 @@ CONTAINS
     
     lnvlevout(:) = log(vlevout(:))    
     lnvlev(:) = log(vlev(:))    
-!    lnvlev(:) = DLW1 * log(vlev(ilon,:,ilat)) &
-!               + DLW2 * log(vlev(ilon+1,:,ilat)) &
-!               + DLW3 * log(vlev(ilon,:,ilat+1)) &
-!               + DLW4 * log(vlev(ilon+1,:,ilat+1)) 
+!    lnvlev(:) = DLW1 * log(vlev(ilon,ilat,:))) &
+!               + DLW2 * log(vlev(ilon+1,ilat,:)) &
+!               + DLW3 * log(vlev(ilon,ilat+1,:)) &
+!               + DLW4 * log(vlev(ilon+1,ilat+1,:)) 
          
     ilev = 1
     do i = 1, nlevout
-       do j = ilev, nlev          
-          if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
-       end do
-       ilev = j-1
-       if (ilev < 1) then
-          ilev = 1
-       else if (ilev >= nlev) then
-           ilev = nlev-1
-       end if
+      do j = ilev, nlev          
+        if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+      end do
+      ilev = j-1
+      if (ilev < 1) then
+        ilev = 1
+      else if (ilev >= nlev) then
+        ilev = nlev-1
+      end if
        
-       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+      DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
-       vprof(i) = DLDP* (DLW1 * field(ilon,ilev,ilat) &
-                       + DLW2 * field(ilon+1,ilev,ilat) &
-                       + DLW3 * field(ilon,ilev,ilat+1) &
-                       + DLW4 * field(ilon+1,ilev,ilat+1)) &
-         + (1.d0-DLDP)* (DLW1 * field(ilon,ilev+1,ilat) &
-                       + DLW2 * field(ilon+1,ilev+1,ilat) &
-                       + DLW3 * field(ilon,ilev+1,ilat+1) &
-                       + DLW4 * field(ilon+1,ilev+1,ilat+1))                               
+      vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+                       + DLW2 * field(ilon+1,ilat,ilev) &
+                       + DLW3 * field(ilon,ilat+1,ilev) &
+                       + DLW4 * field(ilon+1,ilat+1,ilev)) &
+         + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
+                       + DLW2 * field(ilon+1,ilat,ilev+1) &
+                       + DLW3 * field(ilon,ilat+1,ilev+1) &
+                       + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
     end do
         
   end subroutine s2c_column_hbilin   

@@ -702,6 +702,8 @@ contains
     WRITE(*,'(10X,"Fill_obs_errors:",/)')
     WRITE(*,'(10X,"***********************************")')
 
+    header_prev=-1
+
     !
     !     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
     !     ---------------------------------------------------
