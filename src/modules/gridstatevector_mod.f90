@@ -2321,6 +2321,12 @@ module gridStateVector_mod
                       statevector%datestamplist(1), etiket_in, &
                       -1, -1, -1, typvar_in, varName)
 
+        if (ikey < 0) then
+          write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(1)
+          call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' ' // trim(etiket_in) &
+               // ' ' // trim(typvar_in) // ' in file ' // trim(fileName))
+        end if
+
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
