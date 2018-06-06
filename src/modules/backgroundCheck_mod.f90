@@ -74,7 +74,7 @@ subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
   character(len=256) :: namFile
   logical            :: NEW_BGCK_SW
 
-  character(len=2), dimension(11) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM' /)
+  character(len=2), dimension(12) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM', 'AL' /)
       
   call tmg_start(3,'BGCHECK_CONV')
 
@@ -270,6 +270,8 @@ end subroutine bgck_bgcheck_conv
 !C            NOTE: For GB-GPS ZTD observations, ZFGE is not the FGE but rather Std(O-P)
 !C                  set in s/r SETERRGPSGB.
               ZFGE  = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
+
+              ! Protect against zfge values that are too small
               IF ( CDFAM .EQ. 'GP' ) THEN
                 IF (ITYP .EQ. BUFR_NEZD) THEN
                   ZOER = ZOER/YZDERRWGT
@@ -301,6 +303,8 @@ end subroutine bgck_bgcheck_conv
                   ZOER=1.D-5
                 ENDIF
               ENDIF
+
+              ! Calculate zbgchk from zfge
               IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD ) THEN
                 ZBGCHK=(ZOMP**2)/(ZFGE**2)
                 ZSOP = ZFGE
@@ -308,10 +312,9 @@ end subroutine bgck_bgcheck_conv
                 ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
                 ZSOP = SQRT(ZFGE**2 + ZOER**2)
               ENDIF
-!C
-!C            UPDATE QUALITY CONTROL FLAGS
-!C            ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
-!C
+
+              ! UPDATE QUALITY CONTROL FLAGS, based on zbgchk
+              ! ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
               INAM =obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
               if( inam.eq.12192 .and. obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body).eq.0)then
                 zsum=zsum+zfge*zfge
@@ -657,7 +660,7 @@ end subroutine bgck_bgcheck_conv
       character*2 cdfam
       logical lmodif1020
 
-      real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3)
+      real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3),zalcrit(3)
       real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
       real*8 zchcrit(3)
 
@@ -671,6 +674,10 @@ end subroutine bgck_bgcheck_conv
          zuvcrit(1) = 10.00D0
          zuvcrit(2) = 20.00D0
          zuvcrit(3) = 30.00D0
+ 
+         zalcrit(1) = 10.00D0
+         zalcrit(2) = 20.00D0
+         zalcrit(3) = 30.00D0
 
          zescrit(1) = 10.00D0
          zescrit(2) = 20.00D0
@@ -761,6 +768,17 @@ end subroutine bgck_bgcheck_conv
               isetflag =3
          endif
       endif
+!C
+!C     SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
+!C
+      if ( kvnam .eq. BUFR_NEAL ) then
+         if       ( zbgchk >  zalcrit(1) ) then; isetflag=1
+            if    ( zbgchk >= zalcrit(2) ) then; isetflag=2
+               if ( zbgchk >= zalcrit(3) ) then; isetflag=3
+               end if
+            end if
+         end if
+      end if
 !C
 !C     SET FLAG FOR SURFACE WIND COMPONENTS
 !C
