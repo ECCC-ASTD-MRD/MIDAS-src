@@ -505,6 +505,7 @@ contains
 
     do fileIndex = 1, jpfiles 
 
+if(cfami(fileIndex) /= 'AL')cycle
       if(clvalu(fileIndex) == '') exit
       fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
