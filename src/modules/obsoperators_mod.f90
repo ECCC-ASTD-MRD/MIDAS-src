@@ -363,19 +363,19 @@ contains
   end subroutine oop_ppp_nl
 
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Computation of Jobs and y - H(x) for geometric-height observations
+!!
+!!            Interpolate vertically columnhr to the geometric heights (in
+!!            meters) of the observations.
+!!            Then compute Jobs.
+!!            A linear interpolation in z is performed.
+!!
+!--------------------------------------------------------------------------
   subroutine oop_geomht_nl(columnhr,obsSpaceData,jobsOut,cdfam)
     !
-    !**s/r oop_geomht_nl - Computation of Jobs and y - H(x)
-    !                      for geometric-height observations
-    !
     !Author  :  J.W. Blezius, Jan 2018 (inspired by oop_zzz_nl and oop_ppp_nl)
-    !
-    !Revision :
-    !
-    !     Purpose:  - Interpolate vertically columnhr to
-    !                 the geometric heights (in meters) of the observations.
-    !                 Then compute Jobs.
-    !                 A linear interpolation in z is performed.
     !
     !Arguments
     !     jobsOut:  contribution to Jobs

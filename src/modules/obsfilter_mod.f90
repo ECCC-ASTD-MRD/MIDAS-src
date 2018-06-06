@@ -906,15 +906,18 @@ contains
   end subroutine filt_topoProf
 
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Refuse elements which are considered to be in the free atmosphere
+!!            of the Aladin instrument but which fall in the surface boundary
+!!            layer of the model atmosphere.
+!!
+!--------------------------------------------------------------------------
   subroutine filt_topoAladin(columnhr,obsSpaceData,beSilent)
     !
     ! Author: JW Blezius March 2018
     !          - Based on the subroutines filt_topoProf and filt_topoSfc.  Adapt
     !            to Aladin data.
-    !
-    ! Purpose: Refuse elements which are considered to be in the free atmosphere
-    !          of the Aladin instrument but which fall in the surface boundary
-    !          layer of the model atmosphere.
     !
     implicit none
     type(struct_columnData) :: columnhr

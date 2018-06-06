@@ -17,8 +17,7 @@
 !--------------------------------------------------------------------------
 !! MODULE aladin_mod (prefix="ala")
 !!
-!! *Purpose*: Derived type and procedures related to the aladin observations of
-!!            wind.
+!! *Purpose*: Procedures related to the aladin observations of wind.
 !!
 !--------------------------------------------------------------------------
 module aladin_mod
@@ -34,11 +33,13 @@ module aladin_mod
 
   contains
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: To calculate the wind speed observed along the horizontal line of
+!!            sight (HLOS) from the model components of the wind, uu and vv.
+!!
+!--------------------------------------------------------------------------
   real(8) function ala_aladin(uu, vv, azimuth)
-    !
-    ! Purpose:
-    !          To calculate the wind speed observed along the horizontal line of
-    !          sight (HLOS) from the model components of the wind, uu and vv.
     !
     ! Note:
     !          The azimuth is the direction of the HLOS observation, from target
@@ -57,12 +58,15 @@ module aladin_mod
   end function ala_aladin
 
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: TLM VERSION
+!!            To calculate the delta of the wind speed observed along the
+!!            horizontal line of sight (HLOS) from the deltas of the model
+!!            components of the wind, del-uu and del-vv.
+!!
+!--------------------------------------------------------------------------
   real(8) function ala_aladin_tl(del_uu, del_vv, azimuth)
-    !
-    ! Purpose: TLM VERSION
-    !          To calculate the delta of the wind speed observed along the
-    !          horizontal line of sight (HLOS) from the deltas of the model
-    !          components of the wind, d-uu and d-vv.
     !
     ! Note:
     !          The azimuth is the direction of the HLOS observation, from target
@@ -80,12 +84,15 @@ module aladin_mod
   end function ala_aladin_tl
 
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: ADJOINT VERSION
+!!            From the delta of the wind speed observed along the horizontal
+!!            line of sight (HLOS) calculate the deltas of the HLOS wind speed
+!!            as well as of the model components of the wind, uu and vv.
+!!
+!--------------------------------------------------------------------------
   subroutine ala_aladin_ad(del_uu, del_vv, del_aladin, azimuth)
-    !
-    ! Purpose: ADJOINT VERSION
-    !          From the delta of the wind speed observed along the horizontal
-    !          line of sight (HLOS) calculate the deltas of the HLOS wind speed
-    !          as well as of the model components of the wind, uu and vv.
     !
     ! Note:
     !          The azimuth is the direction of the HLOS observation, from target
