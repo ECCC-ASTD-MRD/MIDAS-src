@@ -2538,9 +2538,11 @@ CONTAINS
             END IF
           
             IF ( allocated(obsvalue) ) THEN
-! For debugging, do not copy invalid observations to ObsSpaceData
-if(confidence_flag(k) /= 0)cycle
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+! For debugging, do not copy invalid aladin observations to ObsSpaceData
+if (trim(familytype) == 'AL') then
+   if(confidence_flag(k) /= 0)cycle
+   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+end if
               OBSERV(1:NELE,1:NVAL)    =obsvalue(1:NELE,1:NVAL,k)
               QCFLAGS(1:NELE,1:NVAL)   =qcflag  (1:NELE,1:NVAL,k)
               VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
