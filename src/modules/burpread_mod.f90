@@ -383,6 +383,10 @@ CONTAINS
       btyp_offset=0
     end if
 
+    if (trim(familytype) == 'AL') then
+      btyp_offset=255
+    end if
+
     if ( TRIM(FAMILYTYPE2) == 'SCAT') then
       btyp_offset= 0
       btyp_offset_uni= 256 +0
@@ -595,6 +599,15 @@ CONTAINS
                                  & BKNAT  = BKNAT, &
                                  & BKSTP  = BKSTP, &
                                  & IOSTAT = error)
+          if(trim(familytype) == 'AL')then
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
+
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - BTYP10des == 0 ) then
             Block_FLG_CP=BLOCK_IN
@@ -652,6 +665,14 @@ CONTAINS
                            & BKTYP  = bktyp, &
                            & BKNAT  = BKNAT, &
                            & IOSTAT = error)
+          if(trim(familytype) == 'AL')then
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
 
 
           ! observation block (btyp = 0100 100011X XXXX)
@@ -1745,6 +1766,10 @@ CONTAINS
       btyp_offset=0
     end if
 
+    if (trim(familytype) == 'AL') then
+      btyp_offset=255
+    end if
+
     if (TRIM(FAMILYTYPE2) == 'SFC') then
       btyp_offset= btyp_offset+32
       btyp_offset_uni= 256 +32
@@ -1901,6 +1926,14 @@ CONTAINS
 
 
           ! observation block (btyp = 0100 100011X XXXX)
+          if(trim(familytype) == 'AL')then
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - btyp10obs_uni == 0 .and. bkstp <= 4 ) then
 
