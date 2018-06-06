@@ -450,7 +450,6 @@ contains
       end if
 
       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
-if(abs(zomp) > 10.0d0)zomp=0.0d0
       jobs = jobs + zomp*zomp/(zoer*zoer)
       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
 
@@ -2318,15 +2317,11 @@ if(abs(zomp) > 10.0d0)zomp=0.0d0
               columngVarB=col_getElem(columng,IPB,headerIndex)
               columngVarT=col_getElem(columng,IPT,headerIndex)
             endif
-if(abs(obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)) > 10.0)then
-  call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0d0)
-else
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
                     ZWB*columnVarB + ZWT*columnVarT +  &
                     (columngVarB - columngVarT)*  &
                     (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel)/RG + &
                      ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)/RG))
-end if
           END IF
         END DO BODY
       end do FAMILY

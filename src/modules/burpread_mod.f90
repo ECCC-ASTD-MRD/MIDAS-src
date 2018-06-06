@@ -1573,7 +1573,7 @@ CONTAINS
     REAL   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
 
     INTEGER, ALLOCATABLE   :: QI1VAL(:) ,QI2VAL(:), QIVAL(:), MTVAL(:), LSVAL(:), HAVAL(:), GAVAL(:)
-    INTEGER, ALLOCATABLE   :: azimuth(:),confidence_flag(:)
+    INTEGER, ALLOCATABLE   :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
 
@@ -2190,9 +2190,8 @@ CONTAINS
             !
             else if (trim(familytype) == 'AL') then
               if (.not. allocated(azimuth)) then
-                allocate(azimuth(nte), confidence_flag(nte))
+                allocate(azimuth(nte))
                 azimuth(:) = 0
-                confidence_flag(:) = 0
               end if
 
               ! Read in the azimuth)
@@ -2202,11 +2201,6 @@ CONTAINS
               do k = 1, nte
                 azimuth(k)= BURP_Get_Tblval(Block_in, &
                                             nele_ind = ind_al, &
-                                            nval_ind = 1, &
-                                            nt_ind   = k, &
-                                            iostat   = error)
-                confidence_flag(k)= BURP_Get_Rval(Block_in, &
-                                            nele_ind = burp_find_element(block_in, element=25187, iostat=error), &
                                             nval_ind = 1, &
                                             nt_ind   = k, &
                                             iostat   = error)
@@ -2538,11 +2532,6 @@ CONTAINS
             END IF
           
             IF ( allocated(obsvalue) ) THEN
-! For debugging, do not copy invalid aladin observations to ObsSpaceData
-if (trim(familytype) == 'AL') then
-   if(confidence_flag(k) /= 0)cycle
-   NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
-end if
               OBSERV(1:NELE,1:NVAL)    =obsvalue(1:NELE,1:NVAL,k)
               QCFLAGS(1:NELE,1:NVAL)   =qcflag  (1:NELE,1:NVAL,k)
               VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
@@ -2662,7 +2651,6 @@ end if
         end if
         if (allocated(azimuth)) then
           deallocate(azimuth)
-          deallocate(confidence_flag)
         end if
 
         !---------SURFACE-----------------------------
