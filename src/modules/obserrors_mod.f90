@@ -955,12 +955,21 @@ contains
           else if ( cfam == 'PR' ) then
 
             zlev= obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) - obs_headElem_r( lobsSpaceData, OBS_ALT, headerIndex )
-            
+
             if ( zlev  >=  6000. ) then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_pr( 2 ) )
             else
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_pr( 1 ) )
             end if
+
+                !***********************************************************************
+                !        ALADIN HORIZONTAL LINE-OF-SIGHT WIND DATA
+                !***********************************************************************
+
+          else if ( CFAM == 'AL' ) then
+
+            ! TEMPORARILY, hard-code the observation error of AL winds to 2 m/s
+            call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 2.0d0 )
               
                 !***********************************************************************
                 !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
