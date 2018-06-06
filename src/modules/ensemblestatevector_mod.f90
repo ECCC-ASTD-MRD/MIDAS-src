@@ -1122,7 +1122,9 @@ CONTAINS
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     character(len=6) :: memberIndexStrFormat  !  will contain the character string '(I0.4)' to have 4 characters in the member extension
-    character(len=10), allocatable :: memberIndexStr ! this is the member number in a character string
+    !! The two next declarations are sufficient until we reach 10^10 members
+    character(len=10) :: memberIndexStr ! this is the member number in a character string
+    character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1248,10 +1250,8 @@ CONTAINS
           !  Write the file
           if (present(etiketAppendMemberNumber_opt)) then
             if (etiketAppendMemberNumber_opt) then
-              allocate(character(len=ensFileExtLength) :: memberIndexStr)
-              write(memberIndexStr,"(I1)") ensFileExtLength
-              memberIndexStrFormat = '(I0.' // trim(memberIndexStr) // ')'
-              write(memberIndexStr,memberIndexStrFormat) memberIndex
+              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
+              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
               !! 12 is the maximum length of an etiket for RPN fstd files
               maximumBaseEtiketLength = 12 - ensFileExtLength
               if ( len(trim(etiket)) >= maximumBaseEtiketLength ) then
@@ -1259,7 +1259,6 @@ CONTAINS
               else
                 etiketStr = trim(etiket) // trim(memberIndexStr)
               end if
-              deallocate(memberIndexStr)
             end if
           end if
 

@@ -48,7 +48,7 @@ contains
 
     ! locals
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
-    character(len=4) :: ensNumber
+    character(len=10):: ensNumber  !! this is sufficient until we reach 10^10 members
     logical          :: shouldExist
     character(len=2000) :: fileList(10), fileNamePattern
     character        :: ensembleFileExtLengthStr
