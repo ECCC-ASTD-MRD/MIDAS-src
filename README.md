@@ -6,7 +6,22 @@
 
 * [Master branch](http://hpfx.science.gc.ca/~erv000/midas-doc/latest)
 
-# Compiling the programs
+# Compiling a single program
+
+To compile a program for a given platform, one has to do:
+```bash
+ssh ${host}  ## '${host}' can be 'hare', 'brooks', 'eccc-ppp1', eccc-ppp2, 'gpsc*'
+cd ${WHERE YOUR CODE IS}
+cd src/programs
+./compile_program.sh ${program}
+```
+where `program` may be one the file with extention `.f90` in the
+sub-directory `src/programs`.
+
+The listing of the compilation will let you know where the program
+binary is.
+
+# Compiling all the programs
 
 To compile the programs used in this code, use the commands
 ```bash
