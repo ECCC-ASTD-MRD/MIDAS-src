@@ -1,7 +1,7 @@
  &NAMCT0
 /
  &NAMENSMANIP
-   ENSEMBLECENTER = '_enkfmean'
+   alternativeEnsembleMean = '_enkfmean'
    ENSPATHNAME = '.'
    ensembleTypvarOutput = 'A'
    ensembleEtiketOutput = '1234'

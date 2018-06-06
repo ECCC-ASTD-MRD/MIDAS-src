@@ -656,7 +656,7 @@ CONTAINS
   end subroutine ens_removeMean
 
 
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,ensembleCenter_opt,ensembleControlMember_opt)
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt)
     implicit none
 
     !! We want to compute:
@@ -665,11 +665,11 @@ CONTAINS
     ! arguments
     type(struct_ens) :: ens
     type(struct_gsv) :: recenteringMean
-    type(struct_gsv), optional :: ensembleCenter_opt, ensembleControlMember_opt
+    type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
 
     ! locals
-    real(8), pointer :: ptr4d_r8(:,:,:,:), ensembleCenter_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
@@ -683,10 +683,10 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     ptr4d_r8 => gsv_getField_r8(recenteringMean)
-    if(present(ensembleCenter_opt)) then
-      ensembleCenter_r8 => gsv_getField_r8(ensembleCenter_opt)
+    if(present(alternativeEnsembleMean_opt)) then
+      alternativeEnsembleMean_r8 => gsv_getField_r8(alternativeEnsembleMean_opt)
     else
-      nullify(ensembleCenter_r8)
+      nullify(alternativeEnsembleMean_r8)
     end if
 
     if (present(ensembleControlMember_opt)) then
@@ -700,8 +700,8 @@ CONTAINS
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, numStep
-            if(present(ensembleCenter_opt)) then
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ensembleCenter_r8(ji,jj,jk,stepIndex)
+            if(present(alternativeEnsembleMean_opt)) then
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
             else
               increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
             end if
@@ -723,7 +723,7 @@ CONTAINS
 
 
   subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
-       HUcontainsLQ,etiket,typvar,ensembleCenter_opt,numBits_opt)
+       HUcontainsLQ,etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
     !! We want to compute:
@@ -739,7 +739,7 @@ CONTAINS
     logical          :: HUcontainsLQ
     character(len=*)  :: etiket
     character(len=*)  :: typvar
-    type(struct_gsv), optional :: ensembleCenter_opt
+    type(struct_gsv), optional :: alternativeEnsembleMean_opt
     integer, optional :: numBits_opt
 
     ! locals
@@ -760,7 +760,7 @@ CONTAINS
            stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
     end do
 
-    call ens_recenter(ens,recenteringMean,recenteringCoeff,ensembleCenter_opt = ensembleCenter_opt, &
+    call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
          ensembleControlMember_opt = statevector_ensembleControlMember)
 
     call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &

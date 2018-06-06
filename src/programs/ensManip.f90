@@ -47,7 +47,7 @@ program midas_ensManip
   implicit none
 
   type(struct_gsv) :: statevector_mean, statevector_stddev
-  type(struct_gsv) :: statevector_recenteringMean, statevector_ensembleCenter
+  type(struct_gsv) :: statevector_recenteringMean, statevector_alternativeEnsembleMean
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
@@ -60,7 +60,7 @@ program midas_ensManip
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
 
-  character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, ensembleCenterFileName
+  character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
 
   logical             :: makeBiPeriodic, HUcontainsLQ
 
@@ -70,12 +70,12 @@ program midas_ensManip
   character(len=1)   :: ensembleTypVarOutput
   character(len=14)  :: ensembleEtiketOutput, ensembleControlMemberEtiket
   character(len=2)   :: ctrlVarHumidity
-  character(len=256) :: ensPathName, ensembleCenter
+  character(len=256) :: ensPathName, alternativeEnsembleMean
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
   logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, shiftEnsembleControlMember
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
-  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, ensembleCenter, ensembleEtiketOutput, ensembleTypVarOutput, &
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
                         shiftEnsembleControlMember, ensembleControlMemberEtiket
@@ -109,7 +109,7 @@ program midas_ensManip
   !- 1.1 Setting default values
   nEns                          = 10
   ensPathName                   = 'ensemble'
-  ensembleCenter                = ''
+  alternativeEnsembleMean       = ''
   ensembleTypVarOutput          = 'P'
   ensembleEtiketOutput          = 'ENSRECENTER'
   ensembleEtiketOutputAppendMemberNumber = .false.
@@ -174,7 +174,7 @@ program midas_ensManip
   call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
 
-  if (trim(ensembleCenter) == '' .or. output_ensemble_mean) then
+  if (trim(alternativeEnsembleMean) == '' .or. output_ensemble_mean) then
     !- 2.6 Compute ensemble mean
     call tmg_start(3,'COMPUTE_MEAN')
     call ens_computeMean( ensemble )
@@ -255,35 +255,34 @@ program midas_ensManip
 
     call tmg_stop(10)
 
-    write(*,*) 'The variable ensembleCenter is ', trim(ensembleCenter)
-    if (trim(ensembleCenter) /= '') then
-      ! read ensemble center in file '${ensFileBaseName}_${ensemblecenter}'
-      call tmg_start(11,'READ_ENSEMBLECENTER')
+    if (trim(alternativeEnsembleMean) /= '') then
+      ! read ensemble center in file '${ensFileBaseName}_${alternativeEnsembleMean}'
+      call tmg_start(11,'READ_ALTERNATIVEENSEMBLEMEAN')
 
       ! Filename for ensemble center
-      ensembleCenterFileName = './' // trim(ensFileBaseName) // trim(ensembleCenter)
+      alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
 
-      call gsv_allocate(statevector_ensembleCenter, numStep, hco_ens, vco_ens, &
+      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco_ens, vco_ens, &
            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
 
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
         if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(ensembleCenterFileName)
-        call gsv_readFromFile(statevector_ensembleCenter, trim(ensembleCenterFileName), ' ', ' ',  &
+        if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
+        call gsv_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), ' ', ' ',  &
              stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
       end do
 
       call tmg_stop(11)
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,ensembleCenter_opt=statevector_ensembleCenter)
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
       call tmg_stop(12)
 
       if (shiftEnsembleControlMember) then
         call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
              statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
-             ensembleTypVarOutput, ensembleCenter_opt=statevector_ensembleCenter, numBits_opt = numBits)
+             ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
@@ -295,7 +294,7 @@ program midas_ensManip
              statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, numBits_opt = numBits)
       end if
-    end if ! end of 'else' related to 'if (trim(ensembleCenter) /= '')'
+    end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 
     call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
     call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput, &
