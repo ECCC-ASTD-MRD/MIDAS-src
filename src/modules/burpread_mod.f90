@@ -600,6 +600,7 @@ CONTAINS
                                  & BKSTP  = BKSTP, &
                                  & IOSTAT = error)
           if(trim(familytype) == 'AL')then
+
             ! Fudge the block type, because the data are simulated
             if(btyp == 1024) then
               btyp=1152
@@ -666,6 +667,7 @@ CONTAINS
                            & BKNAT  = BKNAT, &
                            & IOSTAT = error)
           if(trim(familytype) == 'AL')then
+
             ! Fudge the block type, because the data are simulated
             if(btyp == 1024) then
               btyp=1152
@@ -1927,6 +1929,7 @@ CONTAINS
 
           ! observation block (btyp = 0100 100011X XXXX)
           if(trim(familytype) == 'AL')then
+
             ! Fudge the block type, because the data are simulated
             if(btyp == 1024) then
               btyp=1152

@@ -407,51 +407,51 @@ contains
     jobs=0.d0
 
     if(present(cdfam)) then
-       call obs_set_current_body_list(obsSpaceData, cdfam)
+      call obs_set_current_body_list(obsSpaceData, cdfam)
     else
-       write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
-       call obs_set_current_body_list(obsSpaceData, 'AL')
+      write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
+      call obs_set_current_body_list(obsSpaceData, 'AL')
     endif
 
     BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
 
-       ! Process all geometric-height data within the domain of the model
-       if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .ne. 1 .or.  &
-           obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) .ne. 0 .or.  &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) .ne. 1 ) &
-          cycle BODY
-       ! So, OBS_VCO==1 => OBS_PPP is a height in m
+      ! Process all geometric-height data within the domain of the model
+      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .ne. 1 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) .ne. 0 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) .ne. 1 ) &
+        cycle BODY
+      ! So, OBS_VCO==1 => OBS_PPP is a height in m
 
-       ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-       zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-       zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-       zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-       headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+      ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+      zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+      headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
 
-       ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-       varName = vnl_varnameFromVarnum(ivnm)
-       varLevel = vnl_varLevelFromVarnum(ivnm)
-       zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
-       zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
-       zwb  = (zpt-zlev)/(zpt-zpb)
-       zwt  = 1.d0 - zwb
+      ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+      varName = vnl_varnameFromVarnum(ivnm)
+      varLevel = vnl_varLevelFromVarnum(ivnm)
+      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
+      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
+      zwb  = (zpt-zlev)/(zpt-zpb)
+      zwt  = 1.d0 - zwb
 
-       if(ivnm == BUFR_NEAL) then
-          uuLyr =col_getElem(columnhr,ilyr,  headerIndex,'UU')
-          uuLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU')
-          vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
-          vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
-          azimuth=obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-          columnVarB=ala_aladin(uuLyr1, vvLyr1, azimuth)
-          columnVarT=ala_aladin(uuLyr,  vvLyr,  azimuth)
-       !else if(<another type of observation>
-       end if
+      if(ivnm == BUFR_NEAL) then
+        uuLyr =col_getElem(columnhr,ilyr,  headerIndex,'UU')
+        uuLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU')
+        vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
+        vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
+        azimuth=obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+        columnVarB=ala_aladin(uuLyr1, vvLyr1, azimuth)
+        columnVarT=ala_aladin(uuLyr,  vvLyr,  azimuth)
+      !else if(<another type of observation>
+      end if
 
-       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
-       jobs = jobs + zomp*zomp/(zoer*zoer)
-       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+      zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
+      jobs = jobs + zomp*zomp/(zoer*zoer)
+      call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
 
     enddo BODY
 
@@ -2260,69 +2260,70 @@ contains
 
       FAMILY: do familyIndex=1,NUMFAMILY
 
-         call obs_set_current_body_list(obsSpaceData, listFamily(familyIndex))
-         BODY: do
-            bodyIndex = obs_getBodyIndex(obsSpaceData)
-            if (bodyIndex < 0) exit BODY
+        call obs_set_current_body_list(obsSpaceData, listFamily(familyIndex))
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
 
-            IF (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)==obsAssVal)&
-                .AND.(obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                .AND.(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  )THEN
-               ! OBS_VCO==1 => OBS_PPP is a height in m
-               headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-               ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-               ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-               azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               IPT  = IK + col_getOffsetFromVarno(columng,ityp)
-               IPB  = IPT+1
-               ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)/RG
-               ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
-               ZDENO= ZPT-ZPB
-               ZWB  = (ZPT-ZLEV)/ZDENO
-               ZWT  = 1.0D0 - ZWB
+          IF (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)==obsAssVal)&
+              .AND.(obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
+              .AND.(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  )THEN
 
-               ZDA1= (ZLEV-ZPB)/(ZDENO**2)
-               ZDA2= (ZPT-ZLEV)/(ZDENO**2)
+            ! OBS_VCO==1 => OBS_PPP is a height in m
+            headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+            ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+            IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+            ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+            azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+            varLevel = vnl_varLevelFromVarnum(ityp)
+            IPT  = IK + col_getOffsetFromVarno(columng,ityp)
+            IPB  = IPT+1
+            ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)/RG
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZDENO= ZPT-ZPB
+            ZWB  = (ZPT-ZLEV)/ZDENO
+            ZWT  = 1.0D0 - ZWB
 
-               if(ITYP == BUFR_NEES) then
-                  write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!', &
-                             ityp,obs_getfamily(obsSpaceData,headerIndex), &
-                             headerIndex,bodyIndex
-                  call utl_abort('Aborting in oop_H')
+            ZDA1= (ZLEV-ZPB)/(ZDENO**2)
+            ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-               else if(ityp == BUFR_NEAL) then
-                  columnVarB=ala_aladin_tl( &
+            if(ITYP == BUFR_NEES) then
+              write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!', &
+                         ityp,obs_getfamily(obsSpaceData,headerIndex), &
+                         headerIndex,bodyIndex
+              call utl_abort('Aborting in oop_H')
+
+            else if(ityp == BUFR_NEAL) then
+              columnVarB=ala_aladin_tl( &
                                     col_getElem(column,IK+1,headerIndex,'UU'), &
                                     col_getElem(column,IK+1,headerIndex,'VV'), &
                                     azimuth)
-                  columnVarT=ala_aladin_tl( &
+              columnVarT=ala_aladin_tl( &
                                     col_getElem(column,IK  ,headerIndex,'UU'), &
                                     col_getElem(column,IK  ,headerIndex,'VV'), &
                                     azimuth)
-                  columngVarB=ala_aladin( &
+              columngVarB=ala_aladin( &
                                    col_getElem(columng,IK+1,headerIndex,'UU'), &
                                    col_getElem(columng,IK+1,headerIndex,'VV'), &
                                    azimuth)
-                  columngVarT=ala_aladin( &
+              columngVarT=ala_aladin( &
                                    col_getElem(columng,IK  ,headerIndex,'UU'), &
                                    col_getElem(columng,IK  ,headerIndex,'VV'), &
                                    azimuth)
 
-               else
-                  columnVarB=col_getElem(column,IPB,headerIndex)
-                  columnVarT=col_getElem(column,IPT,headerIndex)
-                  columngVarB=col_getElem(columng,IPB,headerIndex)
-                  columngVarT=col_getElem(columng,IPT,headerIndex)
-               end if
-               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
+            else
+              columnVarB=col_getElem(column,IPB,headerIndex)
+              columnVarT=col_getElem(column,IPT,headerIndex)
+              columngVarB=col_getElem(columng,IPB,headerIndex)
+              columngVarT=col_getElem(columng,IPT,headerIndex)
+            end if
+            call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
                     ZWB*columnVarB + ZWT*columnVarT +  &
                     (columngVarB - columngVarT)*  &
                     (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel)/RG + &
                      ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)/RG))
-            END IF
-         END DO BODY
+          END IF
+        END DO BODY
       end do FAMILY
       RETURN
     END subroutine oop_Hzp
@@ -3193,72 +3194,71 @@ contains
       listFamily(2) = 'AL'
 
       FAMILY: do familyIndex=1,NUMFAMILY
-         call obs_set_current_body_list(obsSpaceData,listFamily(familyIndex))
-         BODY: do
-            bodyIndex = obs_getBodyIndex(obsSpaceData)
-            if (bodyIndex < 0) exit BODY
+        call obs_set_current_body_list(obsSpaceData,listFamily(familyIndex))
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
 
-            IF (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
-                .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
-               headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-               ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-               azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               gz_column  => col_getColumn(column,headerIndex,'GZ',varLevel)
-               uu_column  => col_getColumn(column,headerIndex,'UU')
-               vv_column  => col_getColumn(column,headerIndex,'VV')
-               all_column => col_getColumn(column,headerIndex)
-               ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-               ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-               IPT  = IK  + col_getOffsetFromVarno(columng,ityp)
-               IPB  = IPT+1
-               ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)/RG
-               ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
-               ZDENO= ZPT-ZPB
-               ZWB  = (ZPT-ZLEV)/ZDENO
-               ZWT  = 1.0D0 - ZWB
+          IF (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
+              .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
+              .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
+            headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+            ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+            azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+            varLevel = vnl_varLevelFromVarnum(ityp)
+            gz_column  => col_getColumn(column,headerIndex,'GZ',varLevel)
+            uu_column  => col_getColumn(column,headerIndex,'UU')
+            vv_column  => col_getColumn(column,headerIndex,'VV')
+            all_column => col_getColumn(column,headerIndex)
+            ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+            ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+            IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+            IPT  = IK  + col_getOffsetFromVarno(columng,ityp)
+            IPB  = IPT+1
+            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)/RG
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZDENO= ZPT-ZPB
+            ZWB  = (ZPT-ZLEV)/ZDENO
+            ZWT  = 1.0D0 - ZWB
 
-               ZDA1= (ZLEV-ZPB)/(ZDENO**2)
-               ZDA2= (ZPT-ZLEV)/(ZDENO**2)
+            ZDA1= (ZLEV-ZPB)/(ZDENO**2)
+            ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-               if(ityp == BUFR_NEAL) then
-                  deltaAladin=zwb*zres
-                  call ala_aladin_ad(uu_column(ik+1),  &
-                                     vv_column(ik+1),  &
-                                     deltaAladin,         &
-                                     azimuth)
-                  deltaAladin=zwt*zres
-                  call ala_aladin_ad(uu_column(ik),  &
-                                     vv_column(ik),  &
-                                     deltaAladin,         &
-                                     azimuth)
-                  columngVarB=ala_aladin( &
+            if(ityp == BUFR_NEAL) then
+              deltaAladin=zwb*zres
+              call ala_aladin_ad(uu_column(ik+1),  &
+                                 vv_column(ik+1),  &
+                                 deltaAladin,         &
+                                 azimuth)
+              deltaAladin=zwt*zres
+              call ala_aladin_ad(uu_column(ik),  &
+                                 vv_column(ik),  &
+                                 deltaAladin,         &
+                                 azimuth)
+              columngVarB=ala_aladin( &
                                    col_getElem(columng,ik+1,headerIndex,'UU'), &
                                    col_getElem(columng,ik+1,headerIndex,'VV'), &
                                    azimuth)
-                  columngVarT=ala_aladin( &
+              columngVarT=ala_aladin( &
                                    col_getElem(columng,ik,headerIndex,'UU'), &
                                    col_getElem(columng,ik,headerIndex,'VV'), &
                                    azimuth)
-               else
-                  columngVarB=col_getElem(columng,IPB,headerIndex)
-                  columngVarT=col_getElem(columng,IPT,headerIndex)
-               end if
+            else
+              columngVarB=col_getElem(columng,IPB,headerIndex)
+              columngVarT=col_getElem(columng,IPT,headerIndex)
+            end if
 
-               gz_column(IK+1) =   gz_column(IK+1) &
-                                 + (columngVarB - columngVarT)*ZDA2*ZRES/RG
-               gz_column(IK)   =   gz_column(IK) &
-                                 + (columngVarB - columngVarT)*ZDA1*ZRES/RG
+            gz_column(IK+1) =   gz_column(IK+1) &
+                              + (columngVarB - columngVarT)*ZDA2*ZRES/RG
+            gz_column(IK)   =   gz_column(IK) &
+                              + (columngVarB - columngVarT)*ZDA1*ZRES/RG
 
-               if(ityp /= BUFR_NEAL) then
-                  all_column(IPB) = all_column(IPB) + ZWB*ZRES
-                  all_column(IPT) = all_column(IPT) + ZWT*ZRES
-               end if
-
-            END IF
-         END DO BODY
+            if(ityp /= BUFR_NEAL) then
+              all_column(IPB) = all_column(IPB) + ZWB*ZRES
+              all_column(IPT) = all_column(IPT) + ZWT*ZRES
+            end if
+          END IF
+        END DO BODY
       end do FAMILY
       RETURN
     END subroutine oop_HTzp
