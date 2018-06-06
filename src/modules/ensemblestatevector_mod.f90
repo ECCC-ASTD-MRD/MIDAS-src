@@ -755,7 +755,7 @@ CONTAINS
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
 
     do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_shiftEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
+      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
       call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
            stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
     end do
@@ -767,9 +767,9 @@ CONTAINS
          shouldExist_opt = .false.)
 
     ensFileNameOutput = 'recentered_' // trim(ensFileName)
-    ! Output the shifted ensemble control member
+    ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_shiftEnsembleControlMember: write shifted ensemble control member for time step: ',stepIndex
+      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
       call gsv_writeToFile( statevector_ensembleControlMember, ensFileName, etiket, &
            stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt)
     end do

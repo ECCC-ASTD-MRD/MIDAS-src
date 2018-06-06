@@ -72,13 +72,13 @@ program midas_ensManip
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, alternativeEnsembleMean
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
-  logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, shiftEnsembleControlMember
+  logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
-                        shiftEnsembleControlMember, ensembleControlMemberEtiket
+                        recenterEnsembleControlMember, ensembleControlMemberEtiket
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -114,7 +114,7 @@ program midas_ensManip
   ensembleEtiketOutput          = 'ENSRECENTER'
   ensembleEtiketOutputAppendMemberNumber = .false.
   ensembleControlMemberEtiket   = 'ENSCTLMEM'
-  shiftEnsembleControlMember    = .false.
+  recenterEnsembleControlMember    = .false.
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -279,7 +279,7 @@ program midas_ensManip
       call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
       call tmg_stop(12)
 
-      if (shiftEnsembleControlMember) then
+      if (recenterEnsembleControlMember) then
         call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
              statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
@@ -289,7 +289,7 @@ program midas_ensManip
       call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
       call tmg_stop(12)
 
-      if (shiftEnsembleControlMember) then
+      if (recenterEnsembleControlMember) then
         call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
              statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, numBits_opt = numBits)
