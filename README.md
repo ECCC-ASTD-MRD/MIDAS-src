@@ -79,4 +79,4 @@ An automatic system of tests has been developed.  For each push in the
 `master` branch the system tests are launched to guarantee that the
 all the tests pass for the `master` branch.  The [instructions for
 automatic testing using GitLab-CI are available in a separate
-file](README-CI.md).
+file](CI.md).
