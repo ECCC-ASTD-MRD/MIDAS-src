@@ -42,7 +42,7 @@ MODULE ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
@@ -656,7 +656,7 @@ CONTAINS
   end subroutine ens_removeMean
 
 
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff)
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt)
     implicit none
 
     !! We want to compute:
@@ -665,10 +665,11 @@ CONTAINS
     ! arguments
     type(struct_ens) :: ens
     type(struct_gsv) :: recenteringMean
+    type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
 
     ! locals
-    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
@@ -682,17 +683,36 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     ptr4d_r8 => gsv_getField_r8(recenteringMean)
+    if(present(alternativeEnsembleMean_opt)) then
+      alternativeEnsembleMean_r8 => gsv_getField_r8(alternativeEnsembleMean_opt)
+    else
+      nullify(alternativeEnsembleMean_r8)
+    end if
+
+    if (present(ensembleControlMember_opt)) then
+      ptr4d_ensembleControlmember_r8 => gsv_getField_r8(ensembleControlMember_opt)
+    else
+      nullify(ptr4d_ensembleControlmember_r8)
+    end if
 
 !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, numStep
-            increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
-            do memberIndex = 1, ens%numMembers
-              ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                   real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
-            end do
+            if(present(alternativeEnsembleMean_opt)) then
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+            else
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+            end if
+            if (present(ensembleControlMember_opt)) then
+              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
+            else
+              do memberIndex = 1, ens%numMembers
+                ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                     real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
+              end do
+            end if
           end do
         end do
       end do
@@ -700,6 +720,63 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   end subroutine ens_recenter
+
+
+  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
+       HUcontainsLQ,etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
+    implicit none
+
+    !! We want to compute:
+    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+
+    ! arguments
+    type(struct_ens) :: ens
+    type(struct_vco), pointer :: vco_ens
+    type(struct_hco), pointer :: hco_ens
+    character(len=*) :: ensFileName, ensPathName, ensFileNamePrefix
+    type(struct_gsv) :: recenteringMean
+    real(8)          :: recenteringCoeff
+    logical          :: HUcontainsLQ
+    character(len=*)  :: etiket
+    character(len=*)  :: typvar
+    type(struct_gsv), optional :: alternativeEnsembleMean_opt
+    integer, optional :: numBits_opt
+
+    ! locals
+    type(struct_gsv) :: statevector_ensembleControlMember
+    integer          :: stepIndex, numStep, ensFileExtLength
+    character(len=256) :: ensFileNameOutput
+
+    numStep = ens%statevector_work%numStep
+
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0)
+
+    call gsv_allocate(statevector_ensembleControlMember, numStep, hco_ens, vco_ens, &
+         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+
+    do stepIndex = 1, numStep
+      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
+      call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
+           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+    end do
+
+    call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
+         ensembleControlMember_opt = statevector_ensembleControlMember)
+
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &
+         shouldExist_opt = .false.)
+
+    ensFileNameOutput = 'recentered_' // trim(ensFileName)
+    ! Output the recentered ensemble control member
+    do stepIndex = 1, numStep
+      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
+      call gsv_writeToFile( statevector_ensembleControlMember, ensFileName, etiket, &
+           stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt)
+    end do
+
+    call gsv_deallocate(statevector_ensembleControlMember)
+
+  end subroutine ens_recenterControlMember
 
 
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
@@ -1014,7 +1091,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
-                               typvar, varNames_opt, ip3_opt, numBits_opt)
+                               typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1026,6 +1103,7 @@ CONTAINS
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
+    logical, optional :: etiketAppendMemberNumber_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -1040,8 +1118,13 @@ CONTAINS
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
+    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
+    character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
+    character(len=6) :: memberIndexStrFormat  !  will contain the character string '(I0.4)' to have 4 characters in the member extension
+    !! The two next declarations are sufficient until we reach 10^10 members
+    character(len=10) :: memberIndexStr ! this is the member number in a character string
+    character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1160,9 +1243,26 @@ CONTAINS
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, &
+               shouldExist_opt = .false., ensembleFileExtLength_opt = ensFileExtLength )
+
+          etiketStr = etiket
           !  Write the file
-          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
+          if (present(etiketAppendMemberNumber_opt)) then
+            if (etiketAppendMemberNumber_opt) then
+              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
+              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
+              !! 12 is the maximum length of an etiket for RPN fstd files
+              maximumBaseEtiketLength = 12 - ensFileExtLength
+              if ( len(trim(etiket)) >= maximumBaseEtiketLength ) then
+                etiketStr = etiket(1:maximumBaseEtiketLength) // trim(memberIndexStr)
+              else
+                etiketStr = trim(etiket) // trim(memberIndexStr)
+              end if
+            end if
+          end if
+
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
 

@@ -46,7 +46,8 @@ program midas_ensManip
   use ramDisk_mod
   implicit none
 
-  type(struct_gsv) :: statevector_mean, statevector_stddev, statevector_recenteringMean
+  type(struct_gsv) :: statevector_mean, statevector_stddev
+  type(struct_gsv) :: statevector_recenteringMean, statevector_alternativeEnsembleMean
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
@@ -59,21 +60,25 @@ program midas_ensManip
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
 
-  character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName
+  character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
 
-  logical             :: makeBiPeriodic
+  logical             :: makeBiPeriodic, HUcontainsLQ
 
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
   ! namelist variables
+  character(len=1)   :: ensembleTypVarOutput
+  character(len=14)  :: ensembleEtiketOutput, ensembleControlMemberEtiket
   character(len=2)   :: ctrlVarHumidity
-  character(len=256) :: ensPathName
-  logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
+  character(len=256) :: ensPathName, alternativeEnsembleMean
+  logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
+  logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
-  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, write_mpi,  &
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
-                        recenter, recentering_coeff, numBits
+                        recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
+                        recenterEnsembleControlMember, ensembleControlMemberEtiket
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -103,8 +108,13 @@ program midas_ensManip
 
   !- 1.1 Setting default values
   nEns                          = 10
-  write_mpi                     = .false.
   ensPathName                   = 'ensemble'
+  alternativeEnsembleMean       = ''
+  ensembleTypVarOutput          = 'P'
+  ensembleEtiketOutput          = 'ENSRECENTER'
+  ensembleEtiketOutputAppendMemberNumber = .false.
+  ensembleControlMemberEtiket   = 'ENSCTLMEM'
+  recenterEnsembleControlMember    = .false.
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -117,8 +127,8 @@ program midas_ensManip
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namensmanip, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('midas-ensManip: Error reading namelist')
   if ( mpi_myid == 0 ) write(*,nml=namensmanip)
+  if ( ierr /= 0) call utl_abort('midas-ensManip: Error reading namelist')
   ierr = fclos(nulnam)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -164,10 +174,12 @@ program midas_ensManip
   call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
 
-  !- 2.6 Compute ensemble mean
-  call tmg_start(3,'COMPUTE_MEAN')
-  call ens_computeMean( ensemble )
-  call tmg_stop(3)
+  if (trim(alternativeEnsembleMean) == '' .or. output_ensemble_mean) then
+    !- 2.6 Compute ensemble mean
+    call tmg_start(3,'COMPUTE_MEAN')
+    call ens_computeMean( ensemble )
+    call tmg_stop(3)
+  end if
 
   !- 3.0 Output the ensemble mean, if requested
   if ( output_ensemble_mean ) then
@@ -179,11 +191,8 @@ program midas_ensManip
 
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
-      else
-        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
-      end if
+      call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN',  &
+           stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
     end do
 
     call tmg_stop(4)
@@ -205,11 +214,8 @@ program midas_ensManip
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
-      else
-        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits)
-      end if
+      call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSSTDDEV',   &
+           stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits)
     end do
 
     call tmg_stop(7)
@@ -237,23 +243,64 @@ program midas_ensManip
     call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
 
+    HUcontainsLQ = ( ctrlVarHumidity == 'LQ' )
+
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
-      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ', stepIndex)
+      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
+           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
     end do
 
     call tmg_stop(10)
 
-    call tmg_start(11,'RECENTER_ENSEMBLE_MEMBERS')
-    call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
-    call tmg_stop(11)
+    if (trim(alternativeEnsembleMean) /= '') then
+      ! read ensemble center in file '${ensFileBaseName}_${alternativeEnsembleMean}'
+      call tmg_start(11,'READ_ALTERNATIVEENSEMBLEMEAN')
 
-    call tmg_start(12,'OUTPUT_RECENTER_MEMBERS')
-    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, 'ENSRECENTER', 'P', numBits_opt = numBits)
-    call tmg_stop(12)
-  end if
+      ! Filename for ensemble center
+      alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
+
+      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco_ens, vco_ens, &
+           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+
+      do stepIndex = 1, numStep
+        dateStamp = datestamplist(stepIndex)
+        if(mpi_myid == 0) write(*,*) ''
+        if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
+        call gsv_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), ' ', ' ',  &
+             stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+      end do
+
+      call tmg_stop(11)
+
+      call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
+      call tmg_stop(12)
+
+      if (recenterEnsembleControlMember) then
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
+      end if
+    else
+      call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
+      call tmg_stop(12)
+
+      if (recenterEnsembleControlMember) then
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             ensembleTypVarOutput, numBits_opt = numBits)
+      end if
+    end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
+
+    call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
+    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput, &
+         numBits_opt = numBits, etiketAppendMemberNumber_opt = ensembleEtiketOutputAppendMemberNumber)
+    call tmg_stop(130)
+  end if ! end of 'if (recenter)'
 
   !
   !- 6.  MPI, tmg finalize
