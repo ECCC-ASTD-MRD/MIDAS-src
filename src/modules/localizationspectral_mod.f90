@@ -30,6 +30,7 @@ MODULE localizationSpectral_mod
   use localizationFunction_mod
   use horizontalCoord_mod
   use earthConstants_mod
+  use ensembleStatevector_mod
   implicit none
   save
   private
@@ -70,7 +71,7 @@ MODULE localizationSpectral_mod
 
   real(8), parameter :: rsq2 = sqrt(2.0d0)
 
-  logical, parameter :: verbose = .true.
+  logical, parameter :: verbose = .false.
 
 CONTAINS
 
@@ -579,18 +580,20 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_Lsqrt
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_Lsqrt(id, controlVector, ensAmplitude)
+  SUBROUTINE lsp_Lsqrt(id, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    integer, intent(in)  :: id
+    integer, intent(in)  :: id, stepIndex
     real(8), intent(in)  :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(out) :: ensAmplitude(lsp(id)%nEnsOverDimension,lsp(id)%myLonBeg:lsp(id)%myLonEnd,lsp(id)%myLatBeg:lsp(id)%myLatEnd,lsp(id)%nLev)
+    type(struct_ens)     :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,p,memberIndex
     integer :: ierr, levIndex, latIndex
     character(len=19) :: kind
 
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:) 
+
+    real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     allocate(sp_vhLoc(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEnsOverDimension))
     allocate(sp_hLoc (lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns             ))
@@ -639,9 +642,11 @@ CONTAINS
     !
     do levIndex = 1, lsp(id)%nLev ! loop over all levels for the amplitudes
 
+      ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
+
 !$OMP PARALLEL DO PRIVATE (latIndex)
        do latIndex = lsp(id)%myLatBeg, lsp(id)%myLatEnd
-          ensAmplitude(:,:,latIndex,levIndex) = 0.0d0
+          ensAmplitude_oneLev(:,stepIndex,:,latIndex) = 0.0d0
        end do
 !$OMP END PARALLEL DO
 
@@ -649,13 +654,13 @@ CONTAINS
        
        if (lsp(id)%global) then
           call gst_setID(lsp(id)%gstID)
-          call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude(:,:,:,levIndex))
+          call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
        else
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform( lsp(id)%lst%id,                 & ! IN
-                                 sp_vhLoc(:,:,levIndex,:),       & ! IN
-                                 ensAmplitude(:,:,:,levIndex),   & ! OUT
-                                 kind, lsp(id)%nEnsOverDimension)  ! IN
+          call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
+                                 sp_vhLoc(:,:,levIndex,:),             & ! IN
+                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
+                                 kind, lsp(id)%nEnsOverDimension)        ! IN
        end if
 
        call tmg_stop(64)
@@ -764,18 +769,20 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! spectralLocalizationSqrtAd
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_LsqrtAd(id, ensAmplitude, controlVector)
+  SUBROUTINE lsp_LsqrtAd(id, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    integer, intent(in)   :: id
+    integer, intent(in)   :: id, stepIndex
     real(8), intent(out)  :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(inout):: ensAmplitude(lsp(id)%nEnsOverDimension,lsp(id)%myLonBeg:lsp(id)%myLonEnd,lsp(id)%myLatBeg:lsp(id)%myLatEnd,lsp(id)%nLev)
+    type(struct_ens)      :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,memberIndex,p
     integer :: ierr, levIndex, latIndex
     character(len=19) :: kind
 
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:)
+
+    real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     if (verbose) write(*,*) 'Entering lsp_LsqrtAd'
     call idcheck(id)
@@ -788,19 +795,21 @@ CONTAINS
     !
     do levIndex = 1, lsp(id)%nLev ! loop over all levels for the amplitudes
 
-       sp_vhLoc(:,:,levIndex,:) = 0.d0 ! needed, not everything is set
+      ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
 
-       call tmg_start(64,'LOC_SPECTRAL')
+      sp_vhLoc(:,:,levIndex,:) = 0.d0 ! needed, not everything is set
 
-       if (lsp(id)%global) then
-          call gst_setID(lsp(id)%gstID)
-          call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude(:,:,:,levIndex))
-       else
-          kind = 'GridPointToSpectral'
-          call lst_VarTransform( lsp(id)%lst%id,                 & ! IN
-                                 sp_vhLoc(:,:,levIndex,:),       & ! OUT
-                                 ensAmplitude(:,:,:,levIndex),   & ! IN
-                                 kind, lsp(id)%nEnsOverDimension ) ! IN
+      call tmg_start(64,'LOC_SPECTRAL')
+
+      if (lsp(id)%global) then
+        call gst_setID(lsp(id)%gstID)
+        call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
+      else
+        kind = 'GridPointToSpectral'
+        call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
+                               sp_vhLoc(:,:,levIndex,:),             & ! OUT
+                               ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
+                               kind, lsp(id)%nEnsOverDimension )       ! IN
         end if
 
         call tmg_stop(64)
@@ -830,11 +839,11 @@ CONTAINS
     !- 1.  Horizontal Localization
     !
     if (lsp(id)%global) then
-      call globalSpectralHLocAd( id, sp_hLoc, & ! IN
-                                 controlVector )       ! OUT
+      call globalSpectralHLocAd( id, sp_hLoc,  & ! IN
+                                 controlVector ) ! OUT
     else
-      call lamSpectralHLocAd( id, sp_hLoc, & ! IN
-                              controlVector )       ! OUT
+      call lamSpectralHLocAd( id, sp_hLoc,  & ! IN
+                              controlVector ) ! OUT
     end if
 
     deallocate(sp_hLoc )

@@ -25,11 +25,13 @@ program midas_diagBmatrix
   use controlVector_mod
   use variableTransforms_mod
   use gridStateVector_mod
+  use ensembleStateVector_mod
   use bmatrix_mod
   use bmatrixEnsemble_mod
   use localization_mod
   use horizontalCoord_mod
   use analysisGrid_mod
+  use advection_mod
   use verticalCoord_mod
   use timeCoord_mod
   use randomNumber_mod
@@ -38,14 +40,17 @@ program midas_diagBmatrix
   use globalSpectralTransform_mod
   IMPLICIT NONE
 
-  type(struct_gsv) :: statevector, statevectorEnsAmp
+  type(struct_gsv) :: statevector, statevectorEnsAmplitude
+  type(struct_ens) :: ensAmplitude
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_loc), pointer :: locInfo => null()
+  type(struct_adv), pointer :: adv_amplitudeAssimWindow
 
-  real(8), pointer :: field(:,:,:)
-  real(8), allocatable :: ensAmplitude(:,:,:,:)
+  real(8), pointer :: field4d(:,:,:,:)
+  real(8), pointer :: field3d(:,:,:)
+  real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
   real(4), allocatable :: randomEns(:,:,:,:)
   real(8), allocatable :: mean(:,:,:)
   real(8), allocatable :: stddev(:,:,:)
@@ -59,18 +64,21 @@ program midas_diagBmatrix
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
   integer :: ensIndex, index, lonIndex, latIndex, kIndex, nkgdim, levIndex
-  integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc
-  integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
-  integer :: latIndex2, lonIndex2, levIndex2, locIndex
+  integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
+  integer :: nlons, nlats, nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
+  integer :: latInex2, lonIndex2, levIndex2, locIndex, stepIndexInc, nEns
+  integer :: amp3dStepIndex
 
   integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: myLatBeg, myLatEnd
   integer :: myLonBeg, myLonEnd
+  integer, allocatable :: dateStampList(:)
 
-  character(len=128) :: filename, filenameEnsAmp
+  character(len=128) :: filename, filenameInc, filenameIncNorm, filenameEnsAmp
+  character(len=128) :: oneobs_timeStep
   character(len=10)  :: datestr
   character(len=12)  :: etiket
-  character(len=4)   :: varName
+  character(len=4)   :: varName, oneobs_varName
   character(len=1)   :: locIndexString
 
   ! namelist variables
@@ -81,7 +89,7 @@ program midas_diagBmatrix
   logical :: writePsiChiStddev
 
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lons, oneobs_lats, &
-                    writeEnsAmplitude, writeTextStddev, writePsiChiStddev
+                    oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
   write(*,*) " ------------------------------------------------"
   write(*,*) " --- START OF MAIN PROGRAM midas-diagBmatrix  ---"
@@ -98,6 +106,8 @@ program midas_diagBmatrix
   diagdate = 2011020100
   numperturbations = -1
   nrandseed = 1
+  oneobs_varName  = 'all'
+  oneobs_timeStep = 'middle'
   oneobs_levs(:)=-1
   oneobs_lons(:)=-1
   oneobs_lats(:)=-1
@@ -134,6 +144,7 @@ program midas_diagBmatrix
   write(datestr,'(i10.10)') diagdate
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',diagdate,' stamp= ',dateStamp
+  !datestampList(1) = dateStamp
 
   ! Top Level Control setup
   call ram_setup
@@ -181,32 +192,54 @@ program midas_diagBmatrix
   !- Compute columns of B and L matrices
   !==============================================
   !
-  if ( nlevs.ge.1 .and. nlons.ge.1 .and. nlats.ge.1 ) then
+  if ( nLevs >= 1 .and. nLons >= 1 .and. nLats >= 1 ) then
 
     !
     !- Compute columns of the B matrix
     !
+    select case(trim(oneobs_timeStep))
+    case ('first')
+      oneobs_timeStepIndex = 1
+    case ('middle')
+      if (mod(tim_nstepobsinc,2) == 0) then
+        write(*,*)
+        write(*,*) 'odd number of nstepobsinc a required for obs place in the middle of the analysis window '
+        write(*,*) 'tim_nstepobsinc = ', tim_nstepobsinc
+        call utl_abort('midas-diagBmatrix')
+      end if
+      oneobs_timeStepIndex = (tim_nstepobsinc+1)/2
+    case ('last')
+      oneobs_timeStepIndex = tim_nstepobsinc
+    case default
+      write(*,*)
+      write(*,*) 'Unsupported oneobs_timeStep : ', trim(oneobs_timeStep)
+      call utl_abort('midas-diagBmatrix')
+    end select
+
     allocate(controlVector(cvm_nvadim))
 
     write(*,*) '********************************************'
     write(*,*) 'midas-diagBmatrix: Compute columns of B matrix'
     write(*,*) '********************************************'
+    write(*,*)
+    write(*,*) ' temporal location    = ',trim(oneobs_timeStep), oneobs_timeStepIndex
+    write(*,*) ' number of levels     = ',nLevs
+    write(*,*) ' number of longitudes = ',nLons
+    write(*,*) ' number of latitudes  = ',nLats
 
-    write(*,*) 'number of levels     =',nlevs
-    write(*,*) 'number of longitudes =',nlons
-    write(*,*) 'number of latitudes  =',nlats
+    do varIndex = 1, vnl_numvarmax
 
-    do jvar = 1, vnl_numvarmax
+      if ( .not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
+      if ( trim(oneobs_varName)  /= 'all' .and. (trim(oneobs_varName) /= trim(vnl_varNameList(varIndex))) ) cycle
 
-      if (.not. gsv_varExist(varName=vnl_varNameList(jvar)) ) cycle
-
-      filename       = 'columnB_'      // trim(vnl_varNameList(jvar)) // '_' // datestr // '.fst'
-      filenameEnsAmp = 'ensAmplitude_' // trim(vnl_varNameList(jvar)) // '_' // datestr
+      filenameInc    = 'columnB_'      // trim(vnl_varNameList(varIndex)) // '_' // datestr // '.fst'
+      filenameIncNorm= 'columnBnorm_'  // trim(vnl_varNameList(varIndex)) // '_' // datestr // '.fst'
+      filenameEnsAmp = 'ensAmplitude_' // trim(vnl_varNameList(varIndex)) // '_'
 
       write(*,*)
-      write(*,*) 'midas-diagBmatrix: simulating a pseudo-observation of ', trim(vnl_varNameList(jvar))
+      write(*,*) 'midas-diagBmatrix: simulating a pseudo-observation of ', trim(vnl_varNameList(varIndex))
 
-      if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+      if(vnl_varLevelFromVarname(vnl_varNameList(varIndex)).eq.'SF') then
         nlevs2 = 1
       else
         nlevs2 = nlevs
@@ -218,14 +251,14 @@ program midas_diagBmatrix
           do latIndex = 1, nlats
 
             call gsv_zero(statevector)                   
-            field => gsv_getField3d_r8(statevector,vnl_varNameList(jvar))
+            field4d => gsv_getField_r8(statevector,vnl_varNameList(varIndex))
 
             if(oneobs_lats(latIndex).ge.statevector%myLatBeg .and. oneobs_lats(latIndex).le.statevector%myLatEnd .and.  &
                  oneobs_lons(lonIndex).ge.statevector%myLonBeg .and. oneobs_lons(lonIndex).le.statevector%myLonEnd) then
-              if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
-                field(oneobs_lons(lonIndex),oneobs_lats(latIndex),1) = 1.0D0
+              if(vnl_varLevelFromVarname(vnl_varNameList(varIndex)).eq.'SF') then
+                field4d(oneobs_lons(lonIndex),oneobs_lats(latIndex),1                    ,oneobs_timeStepIndex) = 1.0D0
               else
-                field(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex)) = 1.0D0
+                field4d(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0
               end if
             end if
 
@@ -237,17 +270,20 @@ program midas_diagBmatrix
 
             ip3 = ip3 + 1
 
-            call gsv_writeToFile(statevector,filename,'1OBS_'//trim(vnl_varNameList(jvar)),  &
-                 ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
+            do stepIndexInc = 1, tim_nstepobsinc
+              call gsv_writeToFile(statevector,filenameInc,'1OBS_'//trim(vnl_varNameList(varIndex)),  &
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,HUcontainsLQ_opt=.true.,   &
+                                   unitConversion_opt=.true.)
+            end do
 
             ! Normalized the result to get correlation-like pattern
             centralValueLocal = 0.d0
             if(oneobs_lats(latIndex).ge.statevector%myLatBeg .and. oneobs_lats(latIndex).le.statevector%myLatEnd .and.  &
                  oneobs_lons(lonIndex).ge.statevector%myLonBeg .and. oneobs_lons(lonIndex).le.statevector%myLonEnd) then
-              if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
-                centralValueLocal = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),1)
+              if(vnl_varLevelFromVarname(vnl_varNameList(varIndex)).eq.'SF') then
+                centralValueLocal = field4d(oneobs_lons(lonIndex),oneobs_lats(latIndex),1                    ,oneobs_timeStepIndex)
               else
-                centralValueLocal = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex))
+                centralValueLocal = field4d(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex),oneobs_timeStepIndex)
               end if
             end if
             call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
@@ -261,8 +297,11 @@ program midas_diagBmatrix
               call utl_abort('midas-diagBmatrix: central value equals 0!')
             end if
 
-            call gsv_writeToFile(statevector,filename,'1OBSNRM_'//trim(vnl_varNameList(jvar)),  &
-                 ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.false.)
+            do stepIndexInc = 1, tim_nstepobsinc
+              call gsv_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,HUcontainsLQ_opt=.true.,     &
+                                   unitConversion_opt=.false.)
+            end do
 
             ! Write the ensemble amplitude fields (i.e., the alphas) when Bens is active
             if (writeEnsAmplitude) call ben_writeAmplitude('./',filenameEnsAmp, ip3) ! IN
@@ -279,6 +318,18 @@ program midas_diagBmatrix
     !- Compute columns of the L matrix
     !
     numLoc = loc_getNumLocActive()
+    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
+    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
+
+    if (numStepAmplitude > 1) then
+      allocate(datestampList(numStepAmplitude))
+      call tim_getstamplist(dateStampList,numStepAmplitude,tim_getDatestamp())
+      nEns = ben_getnEns()
+      adv_amplitudeAssimWindow = ben_getAmplitudeAssimWindow()
+    else
+      allocate(datestampList(1))
+      datestampList(1) = dateStamp
+    end if
 
     do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
       locInfo => loc_getLocInfo(locIndex)
@@ -286,11 +337,12 @@ program midas_diagBmatrix
       call mpivar_setup_latbands(locInfo%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
       call mpivar_setup_lonbands(locInfo%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-      call gsv_allocate(statevectorEnsAmp, 1, locInfo%hco, locInfo%vco, &
-                        datestamp_opt=tim_getDatestamp(),mpi_local_opt=.true., &
-                        varNames_opt=(/'ALFA'/))
+      call ens_allocate(ensAmplitude, locInfo%nEnsOverDimension, numStepAmplitude, locInfo%hco, locInfo%vco, &
+                        datestampList=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8)
 
-      allocate(ensAmplitude(locInfo%nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd,locInfo%vco%nLev_M))
+      call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, locInfo%hco, locInfo%vco, &
+                        dateStampList_opt=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8, &
+                        mpi_local_opt=.true.)
 
       allocate(controlVector(locInfo%cvDim))
 
@@ -302,56 +354,63 @@ program midas_diagBmatrix
       write(*,*) 'number of longitudes =',nlons
       write(*,*) 'number of latitudes  =',nlats
 
-      write(locIndexString,'(i1)') locIndex
-      filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+      if (numLoc > 1) then
+        write(locIndexString,'(i1)') locIndex
+        filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+      else
+        filename = 'columnL_' // trim(locInfo%locType) // '_' // datestr // '.fst'
+      end if
 
       ip3 = 0
       do levIndex = 1, nlevs2
         do lonIndex = 1, nlons
           do latIndex = 1, nlats
 
-            ensAmplitude(:,:,:,:) = 0.d0
-            if(oneobs_lats(latIndex).ge.myLatBeg .and. oneobs_lats(latIndex).le.myLatEnd .and.  &
-                 oneobs_lons(lonIndex).ge.myLonBeg .and. oneobs_lons(lonIndex).le.myLonEnd) then
-              ensAmplitude(1,oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex)) = 1.d0
+            call ens_zero(ensAmplitude)
+            call gsv_zero(statevectorEnsAmplitude)
+            if ( oneobs_lats(latIndex).ge.myLatBeg .and. oneobs_lats(latIndex).le.myLatEnd .and. &
+                 oneobs_lons(lonIndex).ge.myLonBeg .and. oneobs_lons(lonIndex).le.myLonEnd ) then
+              ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,oneobs_levs(levIndex))
+              ensAmplitude_oneLev(:,oneobs_timeStepIndex,oneobs_lons(lonIndex),oneobs_lats(latIndex)) = 1.d0
             end if
             controlVector(:)=0.0d0
 
+            if (numStepAmplitude > 1) then
+              call adv_ensemble_ad( ensAmplitude,                 & ! INOUT
+                                    adv_amplitudeAssimWindow, nEns )  ! IN
+            end if
+
             call loc_LsqrtAd(locIndex,      & ! IN
                              ensAmplitude,  & ! IN
-                             controlVector)   ! OUT
+                             controlVector, & ! OUT
+                             amp3dStepIndex)  ! IN
             call loc_Lsqrt  (locIndex,      & ! IN
                              controlVector, & ! IN
-                             ensAmplitude)    ! OUT
+                             ensAmplitude,  & ! OUT
+                             amp3dStepIndex)  ! IN
+
+            if (numStepAmplitude > 1) then
+              call adv_ensemble_tl( ensAmplitude,                 & ! INOUT
+                                    adv_amplitudeAssimWindow, nEns )  ! IN
+            end if
 
             write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
             call flush(6)
-            
-            ip3 = ip3 + 1
-            
-            nullify(field)
-            field => gsv_getField3D_r8(statevectorEnsAmp,'ALFA')
-!$OMP PARALLEL DO PRIVATE(latIndex2,lonIndex2,levIndex2)
-            do levIndex2 = 1, locInfo%vco%nLev_M
-              do latIndex2 = myLatBeg, myLatEnd
-                do lonIndex2 = myLonBeg, myLonEnd
-                  field(lonIndex2,latIndex2,levIndex2) = &
-                      ensAmplitude(1,lonIndex2,latIndex2,levIndex2)
-                end do
-              end do
-            end do
-!$OMP END PARALLEL DO
 
-            call gsv_writeToFile(statevectorEnsAmp,filename,'ONEOBS',  &
-                 ip3_opt=ip3,unitConversion_opt=.false.)
+            ip3 = ip3 + 1
+            call ens_copyMember(ensAmplitude, statevectorEnsAmplitude, 1)
+            do stepIndexInc = 1, numStepAmplitude
+              call gsv_writeToFile(statevectorEnsAmplitude,filename,'ONEOBS',  &
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,unitConversion_opt=.false.)
+            end do
 
           end do
         end do
       end do
 
       deallocate(controlVector)
-      deallocate(ensAmplitude)
-      call gsv_deallocate(statevectorEnsAmp)
+      call ens_deallocate(ensAmplitude)
+      call gsv_deallocate(statevectorEnsAmplitude)
 
     end do ! localization index (if active in B)
 
@@ -383,7 +442,7 @@ program midas_diagBmatrix
     iseed = abs(nrandseed)
     call rng_setup(iseed)
 
-    field => gsv_getField3d_r8(statevector)
+    field3d => gsv_getField3d_r8(statevector)
 
     !
     !- Compute the ensemble of random perturbations
@@ -410,7 +469,7 @@ program midas_diagBmatrix
       do kIndex = 1, nkgdim
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            randomEns(lonIndex,latIndex,kIndex,ensIndex) = field(lonIndex,latIndex,kIndex)
+            randomEns(lonIndex,latIndex,kIndex,ensIndex) = field3d(lonIndex,latIndex,kIndex)
           end do
         end do
       end do
@@ -494,7 +553,7 @@ program midas_diagBmatrix
     do kIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          field(lonIndex,latIndex,kIndex) = stddev(lonIndex,latIndex,kIndex)
+          field3d(lonIndex,latIndex,kIndex) = stddev(lonIndex,latIndex,kIndex)
         end do
       end do
     end do
@@ -520,7 +579,7 @@ program midas_diagBmatrix
     do kIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          stddev_zm(latIndex,kIndex) = stddev_zm(latIndex,kIndex) + (field(lonIndex,latIndex,kIndex)**2)/real(hco_anl%ni,8)
+          stddev_zm(latIndex,kIndex) = stddev_zm(latIndex,kIndex) + (field3d(lonIndex,latIndex,kIndex)**2)/real(hco_anl%ni,8)
         end do
       end do
     end do
@@ -536,9 +595,9 @@ program midas_diagBmatrix
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           if(stddev_zm2(latIndex,kIndex)> 0.0d0) then
-            field(lonIndex,latIndex,kIndex) = sqrt(stddev_zm2(latIndex,kIndex))
+            field3d(lonIndex,latIndex,kIndex) = sqrt(stddev_zm2(latIndex,kIndex))
           else
-            field(lonIndex,latIndex,kIndex) = 0.0d0
+            field3d(lonIndex,latIndex,kIndex) = 0.0d0
           end if
         end do
       end do
@@ -553,25 +612,25 @@ program midas_diagBmatrix
     ! Write the zonal mean stddev to a text file, if requested
     if ( writeTextStddev ) then
       allocate(zonalMeanStddev(statevector%latPerPE * mpi_npey))
-      do jvar = 1, vnl_numvarmax
-        if (.not. gsv_varExist(varName=vnl_varNameList(jvar)) ) cycle
+      do varIndex = 1, vnl_numvarmax
+        if (.not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
 
-        write(*,*) 'midas-diagBmatrix: writing zonal mean stddev to text file for variable: ', vnl_varNameList(jvar)
-        field => gsv_getField3d_r8(statevector,vnl_varNameList(jvar))
+        write(*,*) 'midas-diagBmatrix: writing zonal mean stddev to text file for variable: ', vnl_varNameList(varIndex)
+        field3d => gsv_getField3d_r8(statevector,vnl_varNameList(varIndex))
 
-        varName = vnl_varNameList(jvar)
+        varName = vnl_varNameList(varIndex)
         if ( varName == 'HU' ) varName = 'LQ'
         filename = 'stddev_ZM_' // trim(varName) // '_' // datestr // '.txt'
         nultxt = 0
         if ( mpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
 
-        do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(jvar))
+        do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(varIndex))
           nsize = statevector%latPerPE
-          call rpn_comm_gather(field(1,:,levIndex), nsize, 'mpi_double_precision',  &
+          call rpn_comm_gather(field3d(1,:,levIndex), nsize, 'mpi_double_precision',  &
                                zonalMeanStddev,     nsize, 'mpi_double_precision', 0, 'NS', ierr )
           if ( mpi_myid == 0 ) then
             do latIndex = 1, statevector%nj
-              write(nultxt,*) field(1,latIndex,levIndex)
+              write(nultxt,*) field3d(1,latIndex,levIndex)
             end do
           end if
         end do
@@ -598,7 +657,7 @@ program midas_diagBmatrix
     do kIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          stddev_dm(lonIndex,kIndex) = stddev_dm(lonIndex,kIndex) + (field(lonIndex,latIndex,kIndex)**2)/real(hco_anl%nj,8)
+          stddev_dm(lonIndex,kIndex) = stddev_dm(lonIndex,kIndex) + (field3d(lonIndex,latIndex,kIndex)**2)/real(hco_anl%nj,8)
         end do
       end do
     end do
@@ -614,9 +673,9 @@ program midas_diagBmatrix
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           if(stddev_dm2(lonIndex,kIndex)> 0.0d0) then
-            field(lonIndex,latIndex,kIndex) = sqrt(stddev_dm2(lonIndex,kIndex))
+            field3d(lonIndex,latIndex,kIndex) = sqrt(stddev_dm2(lonIndex,kIndex))
           else
-            field(lonIndex,latIndex,kIndex) = 0.0d0
+            field3d(lonIndex,latIndex,kIndex) = 0.0d0
           end if
         end do
       end do
@@ -628,7 +687,7 @@ program midas_diagBmatrix
     deallocate(controlVector_global)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
-         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
+                         HUcontainsLQ_opt=.true., unitConversion_opt=.true.)
 
   end if ! if numperturbations.gt.1
 

@@ -11,7 +11,9 @@
    NENS         = 16
    SCALEFACTOR  = 100*1.0D0
    ENSPATHNAME  ='./ensemble/'
-   !KEEPAMPLITUDE = .true.
+   advectTypeAnlWindow = 'amplitude'
+   advectStartTimeIndexAnlWindow = 'middle'
+   advectFactorAnlWindow = 0.75D0
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -22,6 +24,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTIME
-  DSTEPOBS = 6.0d0
-  DSTEPOBSINC = 6.0d0
+  DSTEPOBS = 3.0d0
+  DSTEPOBSINC = 3.0d0
 /

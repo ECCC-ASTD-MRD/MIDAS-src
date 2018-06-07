@@ -11,7 +11,7 @@
    NENS = 12 
    SCALEFACTOR=3*0.00D0,0.10D0,0.10D0,0.20D0,0.30D0,0.45D0,0.60D0,0.70D0,0.80D0,0.90D0,100*1.0D0
    ENSPATHNAME='./ensemble/'
-   advectAmplitudeFactor = 0.75
+   advectFactorFSOFcst = 0.75
 /
  &NAMFSO
    LEADTIME = 24.0D0

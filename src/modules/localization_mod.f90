@@ -28,7 +28,7 @@ module localization_mod
   use localizationFunction_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-
+  use ensembleStatevector_mod
   implicit none
   save
   private
@@ -56,7 +56,7 @@ module localization_mod
   integer            :: nLocAlreadyAllocated = 0
   type(struct_loc), target :: loc(nMaxLoc)
 
-  logical, parameter :: verbose = .true.
+  logical, parameter :: verbose = .false.
 
 CONTAINS
 
@@ -72,7 +72,6 @@ CONTAINS
     type(struct_vco), pointer, intent(in) :: vco_loc
 
     integer, intent(in) :: nEns
- !   integer, intent(in) :: nLev
     integer, intent(in) :: nTrunc
 
     real(8), intent(in) :: pressureProfile(vco_loc%nLev_M)
@@ -140,12 +139,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_Lsqrt
 !--------------------------------------------------------------------------
-  subroutine loc_Lsqrt(id, controlVector, ensAmplitude)
+  subroutine loc_Lsqrt(id, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    integer, intent(in)  :: id
+    integer, intent(in)  :: id, stepIndex
     real(8), intent(in)  :: controlVector(:)
-    real(8), intent(out) :: ensAmplitude(:,:,:,:)
+    type(struct_ens)     :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_Lsqrt'
     call idcheck(id)
@@ -153,7 +152,8 @@ CONTAINS
     select case (trim(loc(id)%locType))
     case('spectral')
        call lsp_Lsqrt(loc(id)%id, controlVector, & ! IN
-                      ensAmplitude)                ! OUT
+                      ensAmplitude,              & ! OUT
+                      stepIndex)                   ! IN
     case default
        call utl_abort('loc_Lsqrt: unknown locType')
     end select
@@ -163,12 +163,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_LsqrtAd
 !--------------------------------------------------------------------------
-  subroutine loc_LsqrtAd(id, ensAmplitude, controlVector)
+  subroutine loc_LsqrtAd(id, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    integer, intent(in)   :: id
+    integer, intent(in)   :: id, stepIndex
     real(8), intent(out)  :: controlVector(:)
-    real(8), intent(inout):: ensAmplitude(:,:,:,:)
+    type(struct_ens)      :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_LsqrtAd'
     call idcheck(id)
@@ -177,7 +177,8 @@ CONTAINS
     case('spectral')
        call lsp_LsqrtAd(loc(id)%id,   & ! IN
                         ensAmplitude, & ! INOUT
-                        controlVector ) ! OUT
+                        controlVector,& ! OUT
+                        stepIndex )     ! IN
     case default
        call utl_abort('loc_LsqrtAd: unknown locType')
     end select

@@ -47,7 +47,7 @@ module gridStateVector_mod
   public :: gsv_getIntOffset, gsv_getIntMultFactor
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
-  public :: gsv_getVco, gsv_getHco
+  public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist
   public :: gsv_multEnergyNorm, gsv_dotProduct
@@ -80,7 +80,7 @@ module gridStateVector_mod
     real(8), pointer    :: intOffset(:,:) => null()
     real(8), pointer    :: intMultFactor(:,:) => null()
     ! All the remaining extra information
-    integer             :: dataKind = 8
+    integer             :: dataKind = 8 ! default value
     integer             :: ni, nj, nk, numStep, anltime
     integer             :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer             :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
@@ -208,6 +208,34 @@ module gridStateVector_mod
     nlev = vco_getNumLev(statevector%vco,varLevel)
 
   end function gsv_getNumLev
+
+  !--------------------------------------------------------------------------
+  ! gsv_getNumK
+  !--------------------------------------------------------------------------
+  function gsv_getNumK(gsv) result(numK)
+    implicit none
+
+    ! arguments
+    type(struct_gsv), intent(in)  :: gsv
+    integer                       :: numK
+
+    numK = 1 + gsv%mykEnd - gsv%mykBeg
+
+  end function gsv_getNumK
+
+  !--------------------------------------------------------------------------
+  ! gsv_getDataKind
+  !--------------------------------------------------------------------------
+  function gsv_getDataKind(gsv) result(dataKind)
+    implicit none
+
+    ! arguments
+    type(struct_gsv), intent(in)  :: gsv
+    integer                       :: dataKind
+
+    dataKind = gsv%dataKind
+
+  end function gsv_getDataKind
 
   !--------------------------------------------------------------------------
   ! gsv_getNumLevFromVarName
@@ -2318,7 +2346,7 @@ module gridStateVector_mod
 
         ! Make sure that the input variable has the same grid size than hco_file   
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
-                      statevector%datestamplist(1), etiket_in, &
+                      statevector%datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_in, varName)
 
         if (ikey < 0) then
@@ -2335,6 +2363,7 @@ module gridStateVector_mod
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
           write(*,*) 'gsv_readFile: variable on a different horizontal grid = ',trim(varName)
+          write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
           if (statevector%hco%global) then
             call utl_abort('gsv_readFile: This is not allowed in global mode!')
           end if
