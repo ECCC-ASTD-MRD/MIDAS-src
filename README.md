@@ -73,6 +73,15 @@ configuration file.
 
 The listings will be collected at the same time.
 
+Once the new results have been collected, you can update the variable
+`UnitTest_reference` with the path to the new results.
+
+You can then commit the changes to the configuration.
+
+When you will ask a merge-request, the new results will be copied in a
+safe directory with all other reference results by one of the
+maintainer.
+
 # Automatic Testing using GitLab-CI
 
 An automatic system of tests has been developed.  For each push in the
