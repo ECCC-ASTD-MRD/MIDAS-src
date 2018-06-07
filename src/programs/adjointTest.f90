@@ -320,7 +320,7 @@ contains
                     directionAnlInc, hco_anl, vco_anl,                       & ! IN
                     numStepAdvect, dateStampList,              & ! IN
                     numStepReferenceFlow, delT_hour, advectFactor,           & ! IN
-                    'MMLevsOnly', referenceFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
+                    'MMLevsOnly', steeringFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
 
     call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
                       varNames_opt=varNameALFA, dataKind_opt=8)
@@ -462,7 +462,7 @@ contains
                     directionAnlInc, hco_anl, vco_anl,                       & ! IN
                     numStepAdvect, dateStampList,              & ! IN
                     numStepReferenceFlow, delT_hour, advectFactor,           & ! IN
-                    'allLevs', referenceFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
+                    'allLevs', steeringFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
                       mpi_local_opt=.true.)

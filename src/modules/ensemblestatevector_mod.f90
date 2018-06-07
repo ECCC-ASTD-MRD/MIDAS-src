@@ -979,14 +979,14 @@ CONTAINS
             if(present(alternativeEnsembleMean_opt)) then
               increment = ptr4d_r8(ji,jj,jk,stepIndex) - alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
             else
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
             end if
             if (present(ensembleControlMember_opt)) then
               ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
             else
               do memberIndex = 1, ens%numMembers
-                ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                     real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
+                ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                     real( real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
               end do
             end if
           end do
