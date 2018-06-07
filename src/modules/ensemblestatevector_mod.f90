@@ -41,7 +41,7 @@ MODULE ensembleStateVector_mod
   public :: struct_ens, ens_allocate, ens_deallocate
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
   public :: ens_copyToStateWork, ens_getOneLevMean_r8
-  public :: ens_varExist, ens_getNumLev, ens_getnLev_M, ens_getnLev_T
+  public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getOneLev_r4, ens_getOneLev_r8
@@ -628,34 +628,6 @@ CONTAINS
     numK = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
 
   end function ens_getNumK
-
-  !--------------------------------------------------------------------------
-  ! ens_getnLev_M
-  !--------------------------------------------------------------------------
-  function ens_getnLev_M(ens) result(nLev_M)
-    implicit none
-
-    ! arguments
-    type(struct_ens), intent(in)  :: ens
-    integer                       :: nLev_M
-
-    nLev_M = ens%statevector_work%vco%nLev_M
-
-  end function ens_getnLev_M
-
-  !--------------------------------------------------------------------------
-  ! ens_getnLev_T
-  !--------------------------------------------------------------------------
-  function ens_getnLev_T(ens) result(nLev_T)
-    implicit none
-
-    ! arguments
-    type(struct_ens), intent(in)  :: ens
-    integer                       :: nLev_T
-
-    nLev_T = ens%statevector_work%vco%nLev_T
-
-  end function ens_getnLev_T
 
   !--------------------------------------------------------------------------
   ! ens_getDataKind

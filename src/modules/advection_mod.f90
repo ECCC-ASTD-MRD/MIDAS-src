@@ -95,6 +95,8 @@ MODULE advection_mod
 
   type(struct_hco), pointer :: hco
 
+  logical :: nlat_equalAcrossMpiTasks, nlon_equalAcrossMpiTasks
+
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .false.
 
@@ -218,8 +220,10 @@ CONTAINS
     adv%nLev_M = vco_in%nLev_M
     adv%nLev_T = vco_in%nLev_T
 
-    call mpivar_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd)
-    call mpivar_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd)
+    call mpivar_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
+         divisible_opt=nlat_equalAcrossMpiTasks)
+    call mpivar_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
+         divisible_opt=nlon_equalAcrossMpiTasks)
     allocate(adv%allLonBeg(mpi_npex))
     call rpn_comm_allgather(adv%myLonBeg,1,"mpi_integer",       &
          adv%allLonBeg,1,"mpi_integer","EW",ierr)
@@ -394,9 +398,9 @@ CONTAINS
 
         if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
 
-        call processSteeringFlow(levTypeIndex, levIndex,                                           & ! IN
+        call processSteeringFlow(levTypeIndex, levIndex,                                          & ! IN
                                   uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! IN
-                                  adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                         ! IN
+                                  adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                       ! IN
 
         do stepIndexAF = 1, numStepAdvectedField
           if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
@@ -513,14 +517,14 @@ CONTAINS
           vv_steeringFlow_ThermoLevel(:,:) = vv_steeringFlow_ptr4d(:,:,nLev_M,stepIndexRF)
         else
           ! for other levels, interpolate momentum winds to get thermo winds
-!$OMP PARALLEL DO PRIVATE (latIndex)
+          !$OMP PARALLEL DO PRIVATE (latIndex)
           do latIndex = myLatBeg, myLatEnd
             uu_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( uu_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
                  uu_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
             vv_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( vv_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexRF) + &
                  vv_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexRF) )
           end do
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
         end if
 
         ! gather the INTERPOLATED winds for this level
@@ -834,7 +838,7 @@ CONTAINS
     type(struct_adv)    :: adv
     integer, intent(in) :: nEns
 
-    if ( adv%nLev_M /= ens_getnLev_M(ens) .or. adv%nLev_T /= ens_getnLev_T(ens) ) then
+    if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_tl: vertical levels are not compatible')
     end if
 
@@ -901,8 +905,8 @@ CONTAINS
                                   ens1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_double_precision",  &
                                   "GRID", ierr )
 
-          ! rearrange gathered winds for convenience
-!$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
+          ! rearrange gathered fields for convenience
+          !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
           do procIDy = 0, (mpi_npey-1)
             do procIDx = 0, (mpi_npex-1)
               procID = procIDx + procIDy*mpi_npex
@@ -918,13 +922,13 @@ CONTAINS
               end do ! latIndex
             end do ! procIDx
           end do ! procIDy
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true.
 
         end if
 
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
+        !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
         do latIndex = adv%myLatBeg, adv%myLatEnd
           do lonIndex = adv%myLonBeg, adv%myLonEnd
             lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
@@ -944,7 +948,7 @@ CONTAINS
             end do ! memberIndex
           end do ! lonIndex
         end do ! latIndex
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
       end do ! stepIndexAF
       
@@ -1008,8 +1012,8 @@ CONTAINS
                                   ens1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_real4",  &
                                   "GRID", ierr )
 
-          ! rearrange gathered winds for convenience
-!$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
+          ! rearrange gathered fields for convenience
+          !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
           do procIDy = 0, (mpi_npey-1)
             do procIDx = 0, (mpi_npex-1)
               procID = procIDx + procIDy*mpi_npex
@@ -1025,13 +1029,13 @@ CONTAINS
               end do ! latIndex
             end do ! procIDx
           end do ! procIDy
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
 
         end if
 
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
+        !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
         do latIndex = adv%myLatBeg, adv%myLatEnd
           do lonIndex = adv%myLonBeg, adv%myLonEnd
             lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
@@ -1051,7 +1055,7 @@ CONTAINS
             end do ! memberIndex
           end do ! lonIndex
         end do ! latIndex
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
       end do ! stepIndexAF
       
@@ -1089,8 +1093,11 @@ CONTAINS
     if ( ens_getDataKind(ens) /= 8 ) then
       call utl_abort('adv_ensemble_ad can only deal with double precision (real8) ensembleStateVector')
     end if
-    if ( adv%nLev_M /= ens_getnLev_M(ens) .or. adv%nLev_T /= ens_getnLev_T(ens) ) then
+    if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_ad: vertical levels are not compatible')
+    end if
+    if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
+      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
@@ -1121,7 +1128,7 @@ CONTAINS
             latIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex(lonIndex,latIndex,levIndex)
             lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
             latIndex2_p1 = min(latIndex2+1,adv%nj)
-!$OMP PARALLEL DO PRIVATE(memberIndex)
+            !$OMP PARALLEL DO PRIVATE(memberIndex)
             do memberIndex = 1, nEns
               ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) = &
                    ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
@@ -1140,13 +1147,13 @@ CONTAINS
                    adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)* &
                       ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
             end do ! memberIndex
-!$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
           end do ! stepIndexAF
         end do ! lonIndex
       end do ! latIndex
 
       ! redistribute the global initial time field across mpi tasks by tiles
-!$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal,memberIndex)
+      !$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal,memberIndex)
       do procIDy = 0, (mpi_npey-1)
         do procIDx = 0, (mpi_npex-1)
           procID = procIDx + procIDy*mpi_npex
@@ -1162,7 +1169,7 @@ CONTAINS
           end do ! latIndex
         end do ! procIDx
       end do ! procIDy
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       nsize = nEns*adv%lonPerPE*adv%latPerPE
       if (mpi_nprocs > 1) then
@@ -1173,7 +1180,7 @@ CONTAINS
       end if
 
       do procID = 0, (mpi_nprocs-1)
-!$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,memberIndex)
+        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,memberIndex)
         do latIndex = 1, adv%latPerPE
           latIndex2= latIndex + adv%myLatBeg - 1
           do lonIndex = 1, adv%lonPerPE
@@ -1185,7 +1192,7 @@ CONTAINS
             end do ! memberIndex
           end do ! lonIndex
         end do ! latIndex
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
       end do ! procID
 
     end do ! levIndex
@@ -1255,8 +1262,8 @@ CONTAINS
                                   field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
                                   "GRID", ierr )
 
-          ! rearrange gathered winds for convenience
-!$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
+          ! rearrange gathered fields for convenience
+          !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
           do procIDy = 0, (mpi_npey-1)
             do procIDx = 0, (mpi_npex-1)
               procID = procIDx + procIDy*mpi_npex
@@ -1270,13 +1277,13 @@ CONTAINS
               end do ! latIndex
             end do ! procIDx
           end do ! procIDy
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
 
         end if
 
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1)
+        !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1)
         do latIndex = adv%myLatBeg, adv%myLatEnd
           do lonIndex = adv%myLonBeg, adv%myLonEnd
             lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
@@ -1294,7 +1301,7 @@ CONTAINS
                  field2D_mpiglobal(lonIndex2_p1,latIndex2_p1)
           end do ! lonIndex
         end do ! latIndex
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
       end do ! stepIndexAF
 
@@ -1334,6 +1341,9 @@ CONTAINS
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
       call utl_abort('adv_statevector_ad: vertical levels are not compatible')
     end if
+    if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
+      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
+    end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
     allocate(field2D_mpiglobal_tiles (adv%lonPerPE,adv%latPerPE,mpi_nprocs))
@@ -1367,26 +1377,26 @@ CONTAINS
             lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
             latIndex2_p1 = min(latIndex2+1,adv%nj)
             field2D_mpiglobal(lonIndex2   ,latIndex2) = &
-            field2D_mpiglobal(lonIndex2   ,latIndex2) +  &
+                 field2D_mpiglobal(lonIndex2   ,latIndex2) +  &
                  adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex,latIndex,levIndex)* &
                  field4D(lonIndex,latIndex,levIndex,stepIndexAF)
             field2D_mpiglobal(lonIndex2_p1,latIndex2) = &
-            field2D_mpiglobal(lonIndex2_p1,latIndex2) +  &
+                 field2D_mpiglobal(lonIndex2_p1,latIndex2) +  &
                  adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex,latIndex,levIndex)* &
                  field4D(lonIndex,latIndex,levIndex,stepIndexAF)
             field2D_mpiglobal(lonIndex2   ,latIndex2_p1) = &
-            field2D_mpiglobal(lonIndex2   ,latIndex2_p1) +  &
+                 field2D_mpiglobal(lonIndex2   ,latIndex2_p1) +  &
                  adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex,latIndex,levIndex)* &
                  field4D(lonIndex,latIndex,levIndex,stepIndexAF)
             field2D_mpiglobal(lonIndex2_p1,latIndex2_p1) = &
-            field2D_mpiglobal(lonIndex2_p1,latIndex2_p1) +  &
+                 field2D_mpiglobal(lonIndex2_p1,latIndex2_p1) +  &
                  adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)* &
                  field4D(lonIndex,latIndex,levIndex,stepIndexAF)
           end do ! lonIndex
         end do ! latIndex
 
         ! redistribute the global initial time field across mpi tasks by tiles
-!$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal)
+        !$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal)
         do procIDy = 0, (mpi_npey-1)
           do procIDx = 0, (mpi_npex-1)
             procID = procIDx + procIDy*mpi_npex
@@ -1400,7 +1410,7 @@ CONTAINS
             end do ! latIndex
           end do ! procIDx
         end do ! procIDy
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
         nsize = adv%lonPerPE*adv%latPerPE
         if (mpi_nprocs > 1) then
@@ -1413,17 +1423,17 @@ CONTAINS
         field4D(:, :, levIndex, adv%timeStepIndexSource(stepIndexAF)) = 0.d0
 
         do procID = 0, (mpi_nprocs-1)
-!$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2)
+          !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2)
           do latIndex = 1, adv%latPerPE
             latIndex2= latIndex + adv%myLatBeg - 1
             do lonIndex = 1, adv%lonPerPE
               lonIndex2 = lonIndex + adv%myLonBeg - 1
               field4D(lonIndex2, latIndex2, levIndex, adv%timeStepIndexSource(stepIndexAF)) = &
-              field4D(lonIndex2, latIndex2, levIndex, adv%timeStepIndexSource(stepIndexAF)) + &
+                   field4D(lonIndex2, latIndex2, levIndex, adv%timeStepIndexSource(stepIndexAF)) + &
                    field2D_mpiglobal_tiles2(lonIndex, latIndex, procID+1)
             end do ! lonIndex
           end do ! latIndex
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
         end do ! procID
 
       end do ! stepIndexAF

@@ -107,10 +107,10 @@ MODULE BmatrixEnsemble_mod
   character(len=32) :: advectTypeAssimWindow
   character(len=32) :: advectStartTimeIndexAssimWindow
 
-  type(struct_adv)  :: adv_amplitudeFSOFcst
-  type(struct_adv)  :: adv_amplitudeAssimWindow
-  type(struct_adv)  :: adv_ensPerts
-  type(struct_adv)  :: adv_analInc
+  type(struct_adv)          :: adv_amplitudeFSOFcst
+  type(struct_adv), target  :: adv_amplitudeAssimWindow
+  type(struct_adv)          :: adv_ensPerts
+  type(struct_adv)          :: adv_analInc
 
   integer           :: amp3dStepIndexAssimWindow
   integer           :: amp3dStepIndexFSOFcst
@@ -154,7 +154,7 @@ CONTAINS
 
     character(len=15) :: ben_mode
 
-    type(struct_gsv) :: ensMean4D, oneEnsPert4D
+    type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
 
     real(8) :: pSurfRef, delT_hour
     real(8) :: advectFactorFSOFcst
@@ -553,7 +553,8 @@ CONTAINS
                         'fromFirstTimeIndex', hco_ens, vco_ens,                 & ! IN
                         numStepAmplitudeFSOFcst, dateStampListAdvectedFields,   & ! IN
                         numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst,   & ! IN
-                        'MMLevsOnly', steeringFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
+                        'MMLevsOnly',                                           & ! IN
+                        steeringFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
         call tmg_stop(135)
       end if
     end if
@@ -572,11 +573,11 @@ CONTAINS
       delT_hour                 = tim_dstepobsinc
       allocate(dateStampListAdvectedFields(numStep))
       dateStampListAdvectedFields(:) = dateStampList(:)
-      call gsv_allocate(ensMean4D, numStep, hco_ens, vco_ens, &
+      call gsv_allocate(statevector_ensMean4D, numStep, hco_ens, vco_ens, &
                         datestampList_opt=dateStampListAdvectedFields,     &
                         mpi_local_opt=.true.)
       call ens_copyEnsMean(ensPerts(1), & ! IN
-                           ensMean4D  )   ! OUT
+                           statevector_ensMean4D  )   ! OUT
 
       call tmg_start(136,'BEN_SETUP_ADVEC_ANL')
 
@@ -603,7 +604,7 @@ CONTAINS
                         direction, hco_ens, vco_ens,                                  & ! IN
                         numStepAmplitudeAssimWindow, dateStampListAdvectedFields,     & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'MMLevsOnly', statevector_steeringFlow_opt = ensMean4D )       ! IN
+                        'MMLevsOnly', statevector_steeringFlow_opt = statevector_ensMean4D )       ! IN
 
       case('ensPertAnlInc')
         if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
@@ -634,13 +635,13 @@ CONTAINS
                         directionEnsPerts, hco_ens, vco_ens,                          & ! IN
                         numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_steeringFlow_opt = ensMean4D )          ! IN
+                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D ) ! IN
 
         call adv_setup( adv_analInc,                                                  & ! OUT
                         directionAnlInc, hco_ens, vco_ens,                            & ! IN
                         numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_steeringFlow_opt = ensMean4D )          ! IN
+                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D ) ! IN
 
       case default
         write(*,*)
@@ -652,11 +653,11 @@ CONTAINS
 
       !- If wanted, write the ensemble mean
       if (advDiagnostic) then
-        call gsv_writeToFile(ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
-                             HUcontainsLQ_opt=HUcontainsLQ_gsv )       ! IN
+        call gsv_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
+                             HUcontainsLQ_opt=HUcontainsLQ_gsv )                   ! IN
       end if
 
-      call gsv_deallocate(ensMean4D)
+      call gsv_deallocate(statevector_ensMean4D)
 
     end if
 
@@ -668,10 +669,10 @@ CONTAINS
 
       !- If wanted, write the original ensemble perturbations for member #1
       if (advDiagnostic) then
-        call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+        call ens_copyMember(ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
-               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+          call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
+               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )             ! IN
         end do
       end if
 
@@ -683,10 +684,10 @@ CONTAINS
 
       !- If wanted, write the advected ensemble perturbations for member #1
       if (advDiagnostic) then
-        call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+        call ens_copyMember(ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
-               stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+          call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
+               stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )                       ! IN
         end do
       end if
 
@@ -2044,9 +2045,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getAmplitudeAssimWindow() result(adv_amplitude)
     implicit none
-    type(struct_adv)  :: adv_amplitude
+    type(struct_adv), pointer  :: adv_amplitude
 
-    adv_amplitude = adv_amplitudeAssimWindow
+    adv_amplitude => adv_amplitudeAssimWindow
 
   end function ben_getAmplitudeAssimWindow
 

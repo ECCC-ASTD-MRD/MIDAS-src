@@ -46,7 +46,7 @@ program midas_diagBmatrix
   type(struct_hco), pointer :: hco_core => null()
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_loc), pointer :: locInfo => null()
-  type(struct_adv)  :: adv_amplitudeAssimWindow
+  type(struct_adv), pointer :: adv_amplitudeAssimWindow
 
   real(8), pointer :: field4d(:,:,:,:)
   real(8), pointer :: field3d(:,:,:)
