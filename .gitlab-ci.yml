@@ -30,6 +30,7 @@ runtests:
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
+     - ./extractRunTime.sh $suite
      - ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
