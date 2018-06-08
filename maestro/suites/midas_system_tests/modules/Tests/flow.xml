@@ -87,6 +87,14 @@
         <MODULE  name="UnitTest"/>
       </FAMILY>
     </FAMILY>
+    <SUBMITS sub_name="obsSelect"/>
+    <FAMILY  name="obsSelect">
+      <SUBMITS sub_name="aladin"/>
+      <FAMILY  name="aladin">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+    </FAMILY>
     <SUBMITS sub_name="vbc"/>
     <FAMILY  name="vbc">
       <SUBMITS sub_name="UnitTest"/>
