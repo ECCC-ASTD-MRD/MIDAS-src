@@ -11,16 +11,25 @@
 ### Description of changes:
 
 <!--The text here should describe how the change was implemented.-->
+<!--Detail here the changes answered as YES in the previous section-->
 
 ### Addition to CHANGELOG:
 
 <!--Some oneliners describing changes for the whole merge-request-->
 <!--That information will be added to the 'CHANGELOG.md' file-->
+<!--Put any information relevant to the user, especially non-backward compatible changes-->
+<!--   * new functionality  -->
+<!--   * Namelist variables -->
+<!--   * input/output files -->
+<!--   * results            -->
+
+<!--if changes are not relevant for CHANGELOG.md, please be clear on why it is not-->
+
 
 ### Resolved issues:
 
 <!--Put the list of issues that this merge request resolves-->
-Closes
+Closes #...
 
 <!--(choose one of the following labels)-->
 /label ~"Minor Functionality"
