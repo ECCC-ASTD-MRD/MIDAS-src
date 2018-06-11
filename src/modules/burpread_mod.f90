@@ -805,6 +805,7 @@ CONTAINS
                         OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
                         OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
                         FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+
                         if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
                           FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
                         else
