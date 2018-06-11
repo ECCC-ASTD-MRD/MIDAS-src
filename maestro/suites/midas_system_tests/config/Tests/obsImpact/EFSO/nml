@@ -54,7 +54,7 @@
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
-   rmat_lnonDiagR=.true.
+   rmat_lnonDiagR=.false.
 /
  &NAMSTATE
    RHUMIN  = 1.0D-07
