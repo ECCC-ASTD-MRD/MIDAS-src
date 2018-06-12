@@ -1,11 +1,11 @@
-## `midas.findTrials`
+## `envar.findTrials`
 
 This scripts finds the trials file in an assimilation window.
 
 Here is the `help` page:
 ```
-./midas.findTrials -h
-usage: midas.findTrials [-h] [--trialfrequency TRIALFREQUENCY]
+./envar.findTrials -h
+usage: envar.findTrials [-h] [--trialfrequency TRIALFREQUENCY]
                         [--trialoutputfrequency TRIALOUTPUTFREQUENCY]
                         [--assimilationwindowwidth WIDTH] [--date DATE]
                         [--unittest] [--verbose] [--version]
@@ -30,7 +30,7 @@ optional arguments:
 
 ### Examples
 
-For example, when calling the command `./midas.findTrials -t 6 -o 15 -w 6 -d 2018050212`, we obtain the output:
+For example, when calling the command `./envar.findTrials -t 6 -o 15 -w 6 -d 2018050212`, we obtain the output:
 ```
 2018050206_180m
 2018050206_195m
@@ -60,7 +60,7 @@ For example, when calling the command `./midas.findTrials -t 6 -o 15 -w 6 -d 201
 ```
 
 For one hour assimilation window with trials at each 6 hours for which
-output each 15 minutes, we call `./midas.findTrials -t 6 -o 15 -w 1 -d 2018050210`
+output each 15 minutes, we call `./envar.findTrials -t 6 -o 15 -w 1 -d 2018050210`
 which gives:
 ```
 2018050206_210m
@@ -72,7 +72,7 @@ which gives:
 
 ## UnitTests
 
-You can run the unit tests very easily with the command `./midas.findTrials -u` which should give you an output like this.
+You can run the unit tests very easily with the command `./envar.findTrials -u` which should give you an output like this.
 ```
 test_1hr (__main__.Test_findTrials) ... ok
 test_1hr_1bin (__main__.Test_findTrials) ... ok
