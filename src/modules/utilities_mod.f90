@@ -73,20 +73,22 @@ contains
   !--------------------------------------------------------------------------
   ! utl_setezopt (private subroutine)
   !--------------------------------------------------------------------------
-  subroutine utl_setezopt(interpDegree_opt, extrapDegree_opt)
+  subroutine utl_setezopt(interpDegree, extrapDegree_opt)
     implicit none
 
     ! arguments
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*) :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
-    character(len=12) :: interpDegree, extrapDegree
+    character(len=12) :: extrapDegree
     integer           :: ierr, ezsetopt
 
-    if ( present(interpDegree_opt) ) then
-      interpDegree = interpDegree_opt
-    else
-      interpDegree = 'LINEAR'
+    if ( trim(interpDegree) /= 'LINEAR' .and. &
+         trim(interpDegree) /= 'CUBIC' .and. &
+         trim(interpDegree) /= 'NEAREST' ) then
+      write(*,*) 'utl_setezopt: interpDegree = ', trim(interpDegree)
+      call utl_abort('utl_setezopt: invalid interpolation degree')
     end if
 
     if ( present(extrapDegree_opt) ) then
@@ -103,15 +105,16 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r4_3d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r4_3d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r4_3d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(4) :: zout4(:,:,:), zin4(:,:,:)
     integer :: ierr, ezsint
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     ierr = ezsint(zout4,zin4)
 
@@ -120,17 +123,18 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r4_2d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r4_2d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r4_2d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(4) :: zout4(:,:), zin4(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: ierr, ezsint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     ierr = ezsint(zout4,zin4)
 
@@ -139,17 +143,18 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r4_2dTo1d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r4_2dTo1d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r4_2dTo1d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(4) :: zout4(:), zin4(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: ierr, ezsint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     ierr = ezsint(zout4,zin4)
 
@@ -158,12 +163,13 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r8_3d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r8_3d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r8_3d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(8) :: zout8(:,:,:), zin8(:,:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: nii, nji, nki, nio, njo, nko     
@@ -171,7 +177,7 @@ contains
     real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
     integer :: ezsint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     nii = size(zin8,1)
     nji = size(zin8,2)
@@ -210,12 +216,13 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r8_2d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r8_2d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r8_2d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(8) :: zout8(:,:), zin8(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: nii, nji, nio, njo     
@@ -223,7 +230,7 @@ contains
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     nii = size(zin8,1)
     nji = size(zin8,2)
@@ -256,12 +263,13 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezsint_r8_2dTo1d
   !--------------------------------------------------------------------------
-  function utl_ezsint_r8_2dTo1d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezsint_r8_2dTo1d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(8) :: zout8(:), zin8(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: nii, nji, nio
@@ -269,7 +277,7 @@ contains
     real(4), allocatable :: bufferi4(:,:), buffero4(:)
     integer :: ezsint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     nii = size(zin8,1)
     nji = size(zin8,2)
@@ -299,18 +307,19 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezuvint_r4_2d
   !--------------------------------------------------------------------------
-  function utl_ezuvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezuvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(4) :: uuout(:,:), vvout(:,:)
     real(4) :: uuin(:,:) , vvin(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: ierr, ezuvint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
@@ -319,18 +328,19 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezuvint_r4_2dTo1d
   !--------------------------------------------------------------------------
-  function utl_ezuvint_r4_2dTo1d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezuvint_r4_2dTo1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(4) :: uuout(:), vvout(:)
     real(4) :: uuin(:,:) , vvin(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: ierr, ezuvint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
@@ -339,13 +349,14 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezuvint_r8_1d
   !--------------------------------------------------------------------------
-  function utl_ezuvint_r8_1d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezuvint_r8_1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(8) :: uuout(:), vvout(:)
     real(8) :: uuin(:) , vvin(:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: iun, nio, nii
@@ -354,7 +365,7 @@ contains
     real, allocatable :: bufuuin4(:), bufvvin4(:)
     integer :: ezuvint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     nii = size(uuin)
     nio = size(uuout)
@@ -386,13 +397,14 @@ contains
   !--------------------------------------------------------------------------
   ! utl_ezuvint_r8_2d
   !--------------------------------------------------------------------------
-  function utl_ezuvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+  function utl_ezuvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
     real(8) :: uuout(:,:), vvout(:,:)
     real(8) :: uuin(:,:) , vvin(:,:)
-    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
 
     ! locals
     integer :: iun, nio, njo, nii, nji
@@ -401,7 +413,7 @@ contains
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
     integer :: ezuvint
 
-    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+    call utl_setezopt(interpDegree, extrapDegree_opt)   
 
     nii = size(uuin,1)
     nji = size(uuin,2)

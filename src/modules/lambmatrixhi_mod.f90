@@ -672,7 +672,7 @@ contains
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
            ! Note: EZSCINT setup was done above
-           ier = utl_ezsint(StdDev2D_Regrid, StdDev2D)
+           ier = utl_ezsint(StdDev2D_Regrid, StdDev2D, interpDegree='LINEAR')
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
 

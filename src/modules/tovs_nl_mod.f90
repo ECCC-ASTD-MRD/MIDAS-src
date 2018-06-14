@@ -2949,7 +2949,7 @@ contains
     IX9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', IX9
 
-    IX10 = utl_ezsint(GLACE_INTRPL,glace,interpDegree_opt='NEAREST')
+    IX10 = utl_ezsint(GLACE_INTRPL,glace,interpDegree='NEAREST')
     write(*,*) 'variable = LG           : utl_ezsint  : return = ', IX10
 
     write(*,*) 
@@ -2960,7 +2960,7 @@ contains
     IY9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', IY9
 
-    IY10 = utl_ezsint(NEIGE_INTRPL,neige,interpDegree_opt='NEAREST')
+    IY10 = utl_ezsint(NEIGE_INTRPL,neige,interpDegree='NEAREST')
     write(*,*) 'variable = ', snowvar, '           : utl_ezsint  : return = ', IY10
 
     write(*,*) 
@@ -2971,7 +2971,7 @@ contains
     IZ9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', IZ9
 
-    IZ10 = utl_ezsint(ALB_INTRPL,alb,interpDegree_opt='NEAREST')
+    IZ10 = utl_ezsint(ALB_INTRPL,alb,interpDegree='NEAREST')
     write(*,*) 'variable = AL           : utl_ezsint  : return = ', IZ10
 
 

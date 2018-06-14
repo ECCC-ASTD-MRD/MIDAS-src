@@ -1061,8 +1061,6 @@ CONTAINS
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
-    character(len=4)   :: ensVarNamesWanted_dummy(vnl_numvarmax)
-    character(len=4), allocatable :: ensVarNamesWanted(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
 
     write(*,*) 'ens_readEnsemble: starting'
@@ -1181,16 +1179,19 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames_opt, dataKind_opt = 4)
+                        varNames_opt = varNames_opt, dataKind_opt = 4,  &
+                        hInterpolateDegree_opt = 'LINEAR')
       if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
-                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                            varNames_opt = varNames_opt, dataKind_opt = 4)
+                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                          varNames_opt = varNames_opt, dataKind_opt = 4,  &
+                          hInterpolateDegree_opt = 'LINEAR')
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames_opt, dataKind_opt = 4)
+                          varNames_opt = varNames_opt, dataKind_opt = 4, &
+                          hInterpolateDegree_opt = 'LINEAR')
       end if
       
       do memberIndex = 1, ens%numMembers

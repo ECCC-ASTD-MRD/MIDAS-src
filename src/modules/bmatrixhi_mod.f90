@@ -1122,9 +1122,9 @@ CONTAINS
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
        iset = ezdefset(AnalGridID,itggid)
        if ( TweakTG ) then
-          ierr = utl_ezsint(tgstdbg,dltg,interpDegree_opt='NEAREST')
+          ierr = utl_ezsint(tgstdbg,dltg,interpDegree='NEAREST')
        else
-          ierr = utl_ezsint(tgstdbg,dltg,interpDegree_opt='CUBIC')
+          ierr = utl_ezsint(tgstdbg,dltg,interpDegree='CUBIC')
        end if
 
     end if
@@ -1258,8 +1258,8 @@ CONTAINS
       ierr = ezdefset(AnalGridID     , TrialGridID     ) ! IN,  IN
 
       ! Nearest-neighbor interpolation
-      ierr = utl_ezsint(AnalLandSeaMask, TrialLandSeaMask, interpDegree_opt='NEAREST') ! OUT, IN
-      ierr = utl_ezsint(AnalSeaIceMask , TrialSeaIceMask, interpDegree_opt='NEAREST' ) ! OUT, IN
+      ierr = utl_ezsint(AnalLandSeaMask, TrialLandSeaMask, interpDegree='NEAREST') ! OUT, IN
+      ierr = utl_ezsint(AnalSeaIceMask , TrialSeaIceMask, interpDegree='NEAREST' ) ! OUT, IN
 
       deallocate(TrialLandSeaMask)
       deallocate(TrialSeaIceMask)
