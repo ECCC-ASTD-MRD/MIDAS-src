@@ -651,8 +651,8 @@ CONTAINS
             new_bktyp=bktyp
             if ( post_bit > 0 ) then
               new_bktyp=IBSET(bktyp,post_bit)
-              Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKSTP =0 )
-              Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKSTP =0 )
+              Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP=new_bktyp, BKSTP =0 )
+              Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP=new_bktyp, BKSTP =0 )
             end if
 
             il_index=0
