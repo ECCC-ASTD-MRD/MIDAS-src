@@ -326,8 +326,6 @@ contains
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, index_body
     real(8)                         :: fso_ori, fso_fin
 
-    ! for debugging
-
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
     hco_anl => agd_getHco('ComputationalGrid')
@@ -387,7 +385,7 @@ contains
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
 
-    ! Due to the very small value of FSO, here it is enlarged by 1e6 except 15031 from Ground-Based GPS
+    ! Due to the very small value of FSO, here it is enlarged by 1e6 except 15031 of Ground-Based GPS
     ! therefore in the script file to extract FSO it should be divided by 1e6
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
@@ -663,6 +661,9 @@ contains
 
 
     if (mpi_myid == 0) then
+
+      write(*,'(a15,f15.8)') 'Total FSO=', pfso
+      write(*,*) ' '
 
       do indexFam = 1, numFamily
         write(*,'(a4,a2,a2,f15.8,a16,i10)') 'FSO-', familyList(indexFam), '=', tfso(indexFam),'  Count Number=', numAss_global(indexFam) 
