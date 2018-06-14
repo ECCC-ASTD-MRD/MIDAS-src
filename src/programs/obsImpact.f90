@@ -581,14 +581,14 @@ contains
   subroutine fso_sumFSO(obsSpaceData)
     implicit none
    
-    real*8             :: pfso, pfso_1
+    real*8             :: pfso_1
     type(struct_obs)   :: obsSpaceData
     integer            :: index_body,itvs,isens,index_header
     integer            :: bodyIndexBeg, bodyIndexEnd 
 
     integer, parameter :: numFamily = 10
     character(len=2), parameter :: familyList(numFamily) = (/'UA','AI','SF','SC','TO','SW','PR','RO','GP','CH'/)
-    real*8             :: tfso(numFamily), tfsotov_sensors(tvs_nsensors)
+    real*8             :: tfso(numFamily), tfsotov_sensors(tvs_nsensors),totFSO
     integer            :: numAss_local(numFamily), numAss_global(numFamily)
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
     integer            :: ierr, indexFam
@@ -605,14 +605,13 @@ contains
     tfsotov_sensors(:) = 0.d0
     numAss_sensors_loc(:) = 0
     numAss_sensors_glb(:) = 0
+    totFSO = 0.d0
 
     do indexFam = 1, numFamily
       do index_body = 1, obs_numbody(obsSpaceData)
 
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1 ) then
-          ! FSO for all assimilated family
-          pfso   = pfso + pfso_1
           ! FSO for each family         
           if (obs_getFamily(obsSpaceData,bodyIndex=index_body) == familyList(indexFam) ) then
             if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,index_body) == 15031 ) then
@@ -642,13 +641,11 @@ contains
       end if
     end do
 
-    call mpi_allreduce_sumreal8scalar(pfso,"GRID")
-
     do indexFam = 1, numFamily
       call mpi_allreduce_sumreal8scalar(tfso(indexFam),"GRID")
       ! remove the scale factor and get the real value of FSO 
       tfso(indexFam) = tfso(indexFam)/1.0e6
-
+      totFSO = totFSO + tfso(indexFam)
       call rpn_comm_allreduce(numAss_local(indexFam), numAss_global(indexFam) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     end do
     
@@ -662,7 +659,8 @@ contains
 
     if (mpi_myid == 0) then
 
-      write(*,'(a15,f15.8)') 'Total FSO=', pfso
+      write(*,*) ' '
+      write(*,'(a15,f15.8)') 'Total FSO=', totFSO 
       write(*,*) ' '
 
       do indexFam = 1, numFamily
