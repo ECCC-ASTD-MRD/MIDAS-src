@@ -48,10 +48,10 @@ module obsFiles_mod
   public :: obsf_nfiles, obsf_cfilnam
 
   ! public procedures
-  public :: obsf_setup, obsf_filesSplit, obsf_getFileType, obsf_fileTypeIsBurp
+  public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
 
-  character(len=10) :: obsFileType
+!  character(len=10) :: obsFileType
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -65,11 +65,14 @@ module obsFiles_mod
 
 contains
 
-  subroutine obsf_setup(dateStamp_out,obsFileMode_in)
+  subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
     implicit none
     ! arguments
-    integer :: dateStamp_out
-    character(len=*) :: obsFileMode_in
+    integer                                   :: dateStamp_out
+    character(len=*)                          :: obsFileMode_in
+    character(len=10), intent(out), optional  :: obsFileType_opt
+    ! locals
+    character(len=10)                         :: obsFileType
 
     obsFileMode = trim(obsFileMode_in)
 
@@ -78,6 +81,8 @@ contains
     !
     call obsf_setupFileNames()
     call obsf_determineFileType(obsFileType)
+
+    if ( present(obsFileType_opt) ) obsFileType_opt = obsFileType
 
     !
     ! Determine if obsFiles are split
@@ -119,75 +124,56 @@ contains
   end function obsf_filesSplit
 
 
-  subroutine obsf_getFileType(obsFileType_out)
+  subroutine obsf_readFiles( obsSpaceData, obsFileType_opt )
     implicit none
-
     ! arguments
-    character(len=*) :: obsFileType_out
-
-    if ( .not.initialized ) call utl_abort('obsf_getFileType: obsFiles_mod not initialized!')
-
-    obsFileType_out = obsFileType
-        
-  end subroutine obsf_getFileType
-
-
-  function obsf_fileTypeIsBurp() result(fileTypeIsBurp)
-    implicit none
- 
-    ! arguments
-    logical :: fileTypeIsBurp
-
-    if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
-
-    fileTypeIsBurp = ( trim(obsFileType) == 'BURP' )
-
-  end function obsf_fileTypeIsBurp
-
-
-  subroutine obsf_readFiles(obsSpaceData)
-    implicit none
-
-    ! arguments
-    type(struct_obs) :: obsSpaceData
-
+    type(struct_obs)                        :: obsSpaceData
+    character(len=10), intent(in), optional :: obsFileType_opt
     ! locals
-    integer :: fileIndex
+    integer           :: fileIndex
+    character(len=10) :: obsFileType
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
+    if ( present(obsFileType_opt) ) obsFileType = obsFileType_opt
 
-    if ( obsFileType == 'BURP' ) then
-
-      do fileIndex = 1, obsf_nfiles
-        call brpf_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
-      end do
-
-    else if ( obsFileType == 'SQLITE' ) then
-
-      do fileIndex = 1, obsf_nfiles
-        call sqlf_readFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
-      end do
-
-    else if ( obsFileType == 'CMA' ) then
+    if ( obsFileType == 'CMA' ) then
 
       ! read same global CMA file on all mpi tasks
       call cma_readFiles(obsSpaceData)
+
+    else 
+
+      ! for every splitted file, the file type is defined separately 
+      do fileIndex = 1, obsf_nfiles
+
+        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+        if ( obsFileType == 'BURP' )   call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( obsFileType == 'SQLITE' ) call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+
+      end do
 
     end if
 
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles(obsSpaceData,HXensT_mpiglobal_opt,asciDumpObs_opt)
+  subroutine obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt, asciDumpObs_opt, obsFileType_opt )
   implicit none
   ! arguments
-  type(struct_obs)           :: obsSpaceData
-  real(8), pointer, optional :: HXensT_mpiglobal_opt(:,:)
-  logical, optional          :: asciDumpObs_opt
+  type(struct_obs)                       :: obsSpaceData
+  real(8),             pointer, optional :: HXensT_mpiglobal_opt(:,:)
+  logical,                      optional :: asciDumpObs_opt
+  character(len=*), intent(in), optional :: obsFileType_opt
   ! locals
-  integer :: fileIndex
+  integer           :: fileIndex
+  character(len=10) :: obsFileType
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+  if ( present(obsFileType_opt) ) then
+    obsFileType = obsFileType_opt
+  else
+    call obsf_determineFileType(obsFileType)
+  end if
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
@@ -198,8 +184,9 @@ contains
 
     do fileIndex = 1, obsf_nfiles
 
-      if ( obsFileType == 'BURP'   ) call brpf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
-      if ( obsFileType == 'SQLITE' ) call sqlf_updateFile(obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex)
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( obsFileType == 'BURP'   ) call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
     end do
 
@@ -487,19 +474,18 @@ contains
   end subroutine obsf_setupFileNames
 
 
-  subroutine obsf_determineFileType(obsFileType_out)
+  subroutine obsf_determineFileType( obsFileType )
     implicit none
-    ! arguements
-    character(len=10) :: obsFileType_out
+    ! arguments
+    character(len=10)                       :: obsFileType
     ! locals
     integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
     integer :: fnom, fclos
     logical :: fileExists
-    character(len=20) :: fileStart
+    character(len=20)   :: fileStart
 
-    call rpn_comm_allgather(obsf_nfiles, 1, 'MPI_INTEGER', &
-                            all_nfiles,  1, 'MPI_INTEGER', &
-                            'GRID',ierr)
+    call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
+                             all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
     fileExists = .false.
     PROCID_LOOP: do procID = 0, (mpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
@@ -515,32 +501,48 @@ contains
     write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
 
     if ( mpi_myid == procID ) then
-
       if ( index(obsf_cfilnam(1), 'cma' ) > 0 ) then
         obsFileType = 'CMA'
       else
-        ! check first characters of file
-        unitFile = 0
-        ierr = fnom(unitFile, obsf_cfilnam(1), 'FTN+SEQ+FMT+R/O', 0)
-        read(unitFile,'(A)') fileStart
-        ierr = fclos(unitFile)
-        !write(*,*) 'obsf_determineFileType: fileStart = |||', trim(fileStart), '|||'
-        if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-          obsFileType = 'SQLITE'
-        else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
-          obsFiletype = 'BURP'
-        else
-          call utl_abort('obsf_determineFileType: unknown obs file type')
-        end if
-
+        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
       end if
-
     end if
 
     call rpn_comm_bcastc(obsFileType , 10, 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
+
+  subroutine obsf_determineSplitFileType( obsFileType, fileName )
+    implicit none
+    ! arguments
+    character(len=10),intent(out) :: obsFileType
+    character(len=*) ,intent(in)  :: fileName
+    ! locals
+    integer           :: ierr, unitFile
+    integer           :: fnom, fclos
+    character(len=20) :: fileStart
+
+    write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
+
+    unitFile = 0
+    ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
+    read(unitFile,'(A)') fileStart
+    ierr = fclos(unitFile)
+   
+    if ( index(trim(fileName), 'cma' ) > 0 ) then
+        obsFileType = 'CMA'
+    else if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
+      obsFileType = 'SQLITE'
+    else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
+      obsFiletype = 'BURP'
+    else
+      call utl_abort('obsf_determineFileType: unknown obs file type')
+    end if
+
+    write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType
+
+  end subroutine obsf_determineSplitFileType
 
 !--------------------------------------------------------------------------
 !! *Purpose*: Returns the observations file name assigned to the calling processor.
@@ -633,11 +635,12 @@ contains
 
     character(len=maxLengthFilename) :: filename
     logical :: found
-    
+    character(len=10) :: obsFileType
+
     filename = obsf_get_filename(obsfam,found)
 
     if (found) then
-
+       call obsf_determineSplitFileType( obsFileType, filename )
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
                call utl_abort("obsf_obsSub_read: optional varaible 'block_opt' is required for BURP observational files.")
@@ -709,11 +712,13 @@ contains
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
     logical :: found
-    
+    character(len=10) :: obsFileType
+
     filename = obsf_get_filename(obsfam,found)
 
     if (found) then
        if (obsf_filesSplit() .or. mpi_myid == 0) then
+          call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
                   call utl_abort("obsf_obsSub_update: optional varaible 'block_opt' is required for BURP observational files.")

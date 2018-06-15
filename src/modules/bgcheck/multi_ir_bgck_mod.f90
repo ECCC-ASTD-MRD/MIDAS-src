@@ -336,10 +336,10 @@ contains
     implicit none
 
     type(struct_obs) :: lobsSpaceData
-    integer jfile
+    integer          :: fileIndex
     character(len=10) :: obsFileType
-
-    call obsf_getFileType(obsFileType)
+    
+    call obsf_determineFileType(obsFileType)
     if ( trim(obsFileType) /= 'BURP' ) then
       write(*,*) 'obsFileType = ',obsFileType
       call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
@@ -348,9 +348,16 @@ contains
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
 
-    do jfile=1,obsf_nfiles
-      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(obsf_cfilnam(jfile))
-      call hir_cldprm_to_brp(lobsspacedata,obsf_cfilnam(jfile))
+    do fileIndex = 1, obsf_nfiles
+
+      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim( obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( trim(obsFileType) /= 'BURP' ) then
+        write(*,*) 'obsFileType = ',obsFileType
+        call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
+      else
+        call hir_cldprm_to_brp( lobsspacedata, obsf_cfilnam(fileIndex) )
+      end if
     end do
 
   end subroutine add_cloudprms

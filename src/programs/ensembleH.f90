@@ -126,8 +126,7 @@ program midas_ensembleH
   end if
 
   ! Read the observations
-  call obsf_setup( dateStamp, midasMode )
-  call obsf_getFileType( obsFileType )
+  call obsf_setup( dateStamp, midasMode, obsFileType )
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName( ensFileName, ensPathName, 1 )
@@ -166,14 +165,14 @@ program midas_ensembleH
   call tmg_start(4,'SETUPOBS')
   obsColumnMode = 'ENKFMIDAS'
   ! determine the mpi strategy for observations, based on file type
-  if ( obsFileType == 'BURP' ) then
+  if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
     obsMpiStrategy = 'LIKESPLITFILES'
   else
     obsMpiStrategy = 'ROUNDROBIN'
   end if
   ! read in the observations
-  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
-                    obsClean_opt=obsClean)
+  call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
+                     obsClean_opt=obsClean, obsFileType_opt = obsFileType )
   ! set up the observation operators
   call oop_setup(midasMode)
   call tmg_stop(4)
@@ -307,7 +306,8 @@ program midas_ensembleH
   ! Output mpiglobal H(X) and obsSpaceData files
   if( (.not.obsf_filesSplit() .and. mpi_myid == 0) .or. obsf_filesSplit() ) then
     call tmg_start(9,'WRITEHXOBS')
-    call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal, asciDumpObs )
+    call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt = HXensT_mpiglobal, &
+                          asciDumpObs_opt = asciDumpObs, obsFileType_opt = obsFileType )
     call tmg_stop(9)
   end if
 

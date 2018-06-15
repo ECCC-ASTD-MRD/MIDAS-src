@@ -814,8 +814,6 @@ contains
 
     integer :: istnid
 
-    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
-
     ! read the averaging kernel information from the auxiliary file
     call chm_read_avgkern_auxfile
 
@@ -824,7 +822,7 @@ contains
 
     ! read from observation file
     do istnid=1,chm_avgkern%n_stnid
-       if (chm_avgkern%source(istnid).eq.1) then
+       if (chm_avgkern%source(istnid) == 1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
           chm_obsSub_avgkern(istnid) = obsf_obsSub_read('CH',chm_avgkern%stnids(istnid),bufr_avgkern, &
@@ -2022,7 +2020,7 @@ contains
 
 !   If needed, add effective temperature values in obs file for total column measurements
 
-    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_add_efftemp_obsfile: only compatible with BURP files')
+    !if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_add_efftemp_obsfile: only compatible with BURP files')
 
     call oss_obsdata_MPIallgather(chm_efftemp)
     
