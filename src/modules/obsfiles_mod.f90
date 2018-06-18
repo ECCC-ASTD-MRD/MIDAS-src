@@ -51,7 +51,6 @@ module obsFiles_mod
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
 
-!  character(len=10) :: obsFileType
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
@@ -68,11 +67,11 @@ contains
   subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
     implicit none
     ! arguments
-    integer                                   :: dateStamp_out
-    character(len=*)                          :: obsFileMode_in
-    character(len=10), intent(out), optional  :: obsFileType_opt
+    integer                                 :: dateStamp_out
+    character(len=*)                        :: obsFileMode_in
+    character(len=*), intent(out), optional :: obsFileType_opt
     ! locals
-    character(len=10)                         :: obsFileType
+    character(len=10)                       :: obsFileType
 
     obsFileMode = trim(obsFileMode_in)
 
@@ -124,17 +123,17 @@ contains
   end function obsf_filesSplit
 
 
-  subroutine obsf_readFiles( obsSpaceData, obsFileType_opt )
+  subroutine obsf_readFiles( obsSpaceData )
     implicit none
     ! arguments
-    type(struct_obs)                        :: obsSpaceData
-    character(len=10), intent(in), optional :: obsFileType_opt
+    type(struct_obs)  :: obsSpaceData
     ! locals
     integer           :: fileIndex
     character(len=10) :: obsFileType
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
-    if ( present(obsFileType_opt) ) obsFileType = obsFileType_opt
+
+    call obsf_determineFileType(obsFileType)
 
     if ( obsFileType == 'CMA' ) then
 
@@ -157,23 +156,19 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt, asciDumpObs_opt, obsFileType_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt, asciDumpObs_opt )
   implicit none
   ! arguments
   type(struct_obs)                       :: obsSpaceData
   real(8),             pointer, optional :: HXensT_mpiglobal_opt(:,:)
   logical,                      optional :: asciDumpObs_opt
-  character(len=*), intent(in), optional :: obsFileType_opt
   ! locals
   integer           :: fileIndex
   character(len=10) :: obsFileType
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
-  if ( present(obsFileType_opt) ) then
-    obsFileType = obsFileType_opt
-  else
-    call obsf_determineFileType(obsFileType)
-  end if
+ 
+  call obsf_determineFileType(obsFileType)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 

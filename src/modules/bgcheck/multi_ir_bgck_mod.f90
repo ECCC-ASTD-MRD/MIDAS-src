@@ -339,12 +339,6 @@ contains
     integer          :: fileIndex
     character(len=10) :: obsFileType
     
-    call obsf_determineFileType(obsFileType)
-    if ( trim(obsFileType) /= 'BURP' ) then
-      write(*,*) 'obsFileType = ',obsFileType
-      call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
-    end if
-
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
 

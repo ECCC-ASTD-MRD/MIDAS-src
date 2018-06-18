@@ -125,14 +125,16 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: Not enough mpi processes available to read all ensemble members')
   end if
 
+  
+
   ! Read the observations
-  call obsf_setup( dateStamp, midasMode, obsFileType )
+  call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName( ensFileName, ensPathName, 1 )
 
   ! Setup timeCoord module, get datestamp from ensemble member
-  call tim_setup(fileNameForDate_opt=ensFileName)
+  call tim_setup( fileNameForDate_opt = ensFileName )
   numStep = tim_nstepobs
 
   !- Initialize variables of the model states
@@ -172,7 +174,7 @@ program midas_ensembleH
   end if
   ! read in the observations
   call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
-                     obsClean_opt=obsClean, obsFileType_opt = obsFileType )
+                     obsClean_opt = obsClean )
   ! set up the observation operators
   call oop_setup(midasMode)
   call tmg_stop(4)
@@ -233,7 +235,7 @@ program midas_ensembleH
     write(*,*) ''
     ! compute Y-H(X) in OBS_OMP
     call tmg_start(7,'OBSOPER')
-    call inn_computeInnovation(column_mean, obsSpaceData)
+    call inn_computeInnovation(column_mean, obsSpaceData )
     call tmg_stop(7)
 
     ! extract observation-minus-HXmean value, Y-HXmean
@@ -307,7 +309,7 @@ program midas_ensembleH
   if( (.not.obsf_filesSplit() .and. mpi_myid == 0) .or. obsf_filesSplit() ) then
     call tmg_start(9,'WRITEHXOBS')
     call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt = HXensT_mpiglobal, &
-                          asciDumpObs_opt = asciDumpObs, obsFileType_opt = obsFileType )
+                          asciDumpObs_opt = asciDumpObs )
     call tmg_stop(9)
   end if
 

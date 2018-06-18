@@ -68,7 +68,7 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in, obsClean_opt, obsFileType_opt )
+       innovationMode_in, obsClean_opt )
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
@@ -88,7 +88,6 @@ contains
     character(len=*)                        :: obsColumnMode
     character(len=*), intent(in)            :: innovationMode_in
     logical,                       optional :: obsClean_opt
-    character(len=10), intent(in), optional :: obsFileType_opt
 
     character(len=20) :: nameDimFile
     integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
@@ -133,11 +132,7 @@ contains
     ! Read the observations from files
     !
     call tmg_start(11,'READ_OBS')
-    if ( present( obsFileType_opt ) ) then
-      call obsf_readFiles( obsSpaceData, obsFileType_opt )
-    else  
-      call obsf_readFiles( obsSpaceData )
-    end if
+    call obsf_readFiles( obsSpaceData )
     call tmg_stop(11)
 
     !
