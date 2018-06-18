@@ -192,13 +192,17 @@ contains
   else if ( obsFileType == 'CMA' ) then
 
     ! only 1 mpi task should do the writing
-    call cma_writeFiles(obsSpaceData,HXensT_mpiglobal_opt)
+    if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXensT_mpiglobal_opt )
 
   end if
 
   if ( present(asciDumpObs_opt) ) then
-
-    if ( asciDumpObs_opt ) call obsf_writeAsciDump(obsSpaceData)
+    if ( asciDumpObs_opt ) then
+      if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
+        ! all processors write to files only for BURP and SQLITE    
+        call obsf_writeAsciDump(obsSpaceData)
+      end if
+    end if
 
   end if
 
