@@ -139,7 +139,8 @@ CONTAINS
     real(8), allocatable :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
     real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
-    real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4, xpos_r4, ypos_r4
+    real(4) :: xpos_r4, ypos_r4
+    real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
 
     character(len=64) :: filename
     character(len=3)  :: filenumber
@@ -157,7 +158,7 @@ CONTAINS
     !
     numStepSteeringFlow = numStepSteeringFlow_in
     steeringFlowFactor  = steeringFlowFactor_in
-    adv%nTimeStep        = numStepAdvectedField
+    adv%nTimeStep       = numStepAdvectedField
     
     allocate(adv%timeStepIndexSource(numStepAdvectedField))
 
@@ -380,67 +381,112 @@ CONTAINS
     allocate(vv_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    do levTypeIndex = 1, min(nLevType,2) ! make sure that SF level is skipped
-      if      (levTypeIndex == MMindex ) then
-        nLev = adv%nLev_M
-      else if (levTypeIndex == THindex) then
-        nLev = adv%nLev_T
-        allocate(uu_steeringFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
-        allocate(vv_steeringFlow_ThermoLevel(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
-      else
-        call utl_abort('adv_setup: unknown levTypeIndex')
-      end if
+    if ( nLevType >= THindex ) then
+      allocate(xposMM_r4(numStepSteeringFlow,myLonBeg:myLonEnd,myLatBeg:myLatEnd,adv%nLev_M))
+      allocate(yposMM_r4(numStepSteeringFlow,myLonBeg:myLonEnd,myLatBeg:myLatEnd,adv%nLev_M))
+    end if
 
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levTypeIndex = ', levTypeIndex
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    !- 4.1 Compute the trajectories on the momentum levels
+    levTypeIndex = MMindex
+    nLev         = adv%nLev_M
+
+    do levIndex = 1, nLev ! loop over levels
+      
+      if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
+
+      call processSteeringFlow(levTypeIndex, levIndex,                                         & ! IN
+                               uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! IN
+                               adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                       ! IN
+
+      do stepIndexAF = 1, numStepAdvectedField
+        if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
+
+        stepIndexRF_start = advectionSteeringFlowStartingStepIndex(stepIndexAF)
+        stepIndexRF_end   = advectionSteeringFlowEndingStepIndex  (stepIndexAF) 
+
+        ! loop over all initial grid points within tile for determining trajectories
+        do latIndex0 = adv%myLatBeg, adv%myLatEnd
+          do lonIndex0 = adv%myLonBeg, adv%myLonEnd
+
+            call calcTrajectory(xpos_r4, ypos_r4,                                       & ! OUT
+                                latIndex0, lonIndex0, stepIndexRF_start, stepIndexRF_end) ! IN
+
+            if ( nLevType >= THindex ) then
+              xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex) = xpos_r4
+              yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex) = ypos_r4
+            end if
+            
+            call calcWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR,   & ! OUT
+                             interpWeight_TL, interpWeight_TR,                       & ! OUT
+                             xpos_r4, ypos_r4)                                         ! IN
+
+            ! store the final position of the trajectory and interp weights
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex       (lonIndex0,latIndex0,levIndex) = lonIndex
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex       (lonIndex0,latIndex0,levIndex) = latIndex
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex0,latIndex0,levIndex) = interpWeight_BL
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex0,latIndex0,levIndex) = interpWeight_BR
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex0,latIndex0,levIndex) = interpWeight_TL
+            adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex0,latIndex0,levIndex) = interpWeight_TR
+
+          end do ! lonIndex0
+        end do ! latIndex0
+
+      end do ! stepIndexAF
+
+    end do ! levIndex
+
+    !- 4.2 Thermodynamic levels: Interpolate vertically the positions found on the momentum levels
+    if ( nLevType >= THindex ) then
+      levTypeIndex = THindex
+      nLev         = adv%nLev_T
 
       do levIndex = 1, nLev ! loop over levels
-
-        if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
-
-        call processSteeringFlow(levTypeIndex, levIndex,                                          & ! IN
-                                  uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! IN
-                                  adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                       ! IN
-
         do stepIndexAF = 1, numStepAdvectedField
           if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
 
-          stepIndexRF_start = advectionSteeringFlowStartingStepIndex(stepIndexAF)
-          stepIndexRF_end   = advectionSteeringFlowEndingStepIndex  (stepIndexAF) 
-
-          ! loop over all initial grid points within tile for determining trajectories
           do latIndex0 = adv%myLatBeg, adv%myLatEnd
             do lonIndex0 = adv%myLonBeg, adv%myLonEnd
 
-              call calcTrajAndWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR,   & ! OUT
-                                      interpWeight_TL, interpWeight_TR,                       & ! OUT
-                                      latIndex0, lonIndex0, stepIndexRF_start, stepIndexRF_end) ! IN
+              if (levIndex == 1) then
+                ! use top momentum level amplitudes for top thermo level
+                xpos_r4 = xposMM_r4(stepIndexAF,lonIndex0,latIndex0,1)
+                ypos_r4 = yposMM_r4(stepIndexAF,lonIndex0,latIndex0,1)
+              else if (levIndex == nLev) then
+                ! use surface momentum level amplitudes for surface thermo level
+                xpos_r4 = xposMM_r4(stepIndexAF,lonIndex0,latIndex0,adv%nLev_M)
+                ypos_r4 = yposMM_r4(stepIndexAF,lonIndex0,latIndex0,adv%nLev_M)
+              else
+                ! for other levels, interpolate momentum position to get thermo position (as in GEM)
+                xpos_r4 = 0.5 * ( xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex  ) + &
+                                  xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex-1) )
+                ypos_r4 = 0.5 * ( yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex  ) + &
+                                  yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex-1) )
+              end if
 
-              ! store the final position of the trajectory and interp weights
+              ! Compute weights
+              call calcWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR,   & ! OUT
+                               interpWeight_TL, interpWeight_TR,                       & ! OUT
+                               xpos_r4, ypos_r4)                                         ! IN
+
+              ! Store the final position of the trajectory and interp weights
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex       (lonIndex0,latIndex0,levIndex) = lonIndex
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex       (lonIndex0,latIndex0,levIndex) = latIndex
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex0,latIndex0,levIndex) = interpWeight_BL
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex0,latIndex0,levIndex) = interpWeight_BR
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex0,latIndex0,levIndex) = interpWeight_TL
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex0,latIndex0,levIndex) = interpWeight_TR
+            end do
+          end do
+        end do
+      end do
 
-            end do ! lonIndex0
-          end do ! latIndex0
+      deallocate(xposMM_r4)
+      deallocate(yposMM_r4)
 
-        end do ! stepIndexAF
+    end if
 
-      end do ! levIndex
-
-      if (levTypeIndex == THindex) then
-        deallocate(vv_steeringFlow_ThermoLevel)
-        deallocate(uu_steeringFlow_ThermoLevel)
-      end if
-
-    end do ! levTypeIndex
-
-    ! Surface Level: Use info from lower momentum levels
-    if ( nLevType == 3 ) then
+    !- 4.3 Surface level: Use the positions from the lowest momentum levels
+    if ( nLevType == SFindex ) then
       do stepIndexAF = 1, numStepAdvectedField
         if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
         adv%timeStep(stepIndexAF)%levType(SFindex)%lonIndex       (:,:,1) = &
@@ -576,23 +622,21 @@ CONTAINS
   end SUBROUTINE processSteeringFlow
 
   !--------------------------------------------------------------------------
-  ! calcTrajAndWeights
+  ! calcTrajectory
   !--------------------------------------------------------------------------
-  SUBROUTINE calcTrajAndWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR, &
-                                interpWeight_TL, interpWeight_TR, latIndex0, lonIndex0, &
-                                stepIndexRF_start, stepIndexRF_end)
+  SUBROUTINE calcTrajectory(xpos_r4, ypos_r4, latIndex0, lonIndex0, &
+                            stepIndexRF_start, stepIndexRF_end)
     implicit none
 
-    integer, intent(out) :: lonIndex, latIndex
-    real(8), intent(out) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
+    real(4), intent(out) :: xpos_r4, ypos_r4
     integer, intent(in)  :: latIndex0, lonIndex0, stepIndexRF_start, stepIndexRF_end
 
-    integer :: subStepIndex, stepIndexRF, ierr, gdxyfll
+    integer :: subStepIndex, stepIndexRF, ierr, gdxyfll, latIndex, lonIndex
     integer :: alfa, ni, nj,  stepIndex_direction, stepIndex_first, stepIndex_last
 
-    real(8) :: uu, vv, subDelT, lonAdvect, latAdvect, delx, dely, sumWeight
+    real(8) :: uu, vv, subDelT, lonAdvect, latAdvect
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
-    real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4, xpos_r4, ypos_r4
+    real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4
 
     ni = hco%ni
     nj = hco%nj
@@ -804,8 +848,28 @@ CONTAINS
 
     end do ! stepIndexRF
 
-    if (verbose) write(*,*) 'final, initial lonIndex,latIndex', lonIndex0,latIndex0,lonIndex,latIndex
+    if (verbose) write(*,*) 'final, initial xpos,ypos', lonIndex0,latIndex0,xpos_r4, ypos_r4
 
+  end SUBROUTINE calcTrajectory
+  
+  !--------------------------------------------------------------------------
+  ! calcWeights
+  !--------------------------------------------------------------------------
+  SUBROUTINE calcWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR, &
+                         interpWeight_TL, interpWeight_TR, xpos_r4, ypos_r4)
+    implicit none
+
+    integer, intent(out) :: lonIndex, latIndex
+    real(8), intent(out) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
+    real(4), intent(in)  :: xpos_r4, ypos_r4
+
+    real(8) :: delx, dely, sumWeight
+
+    ! Determine bottom left grid point
+    lonIndex = floor(xpos_r4)
+    latIndex = floor(ypos_r4)
+
+    ! Compute the surrounding four gridpoint interpolation weights
     delx = real(xpos_r4,8) - real(lonIndex,8)
     dely = real(ypos_r4,8) - real(latIndex,8)
 
@@ -814,22 +878,23 @@ CONTAINS
     interpWeight_TL = min(max( (1.d0-delx) *       dely , 0.0d0), 1.0d0)
     interpWeight_TR = min(max(       delx  *       dely , 0.0d0), 1.0d0)
 
+    ! Verification
     sumWeight = interpWeight_BL + interpWeight_BR + interpWeight_TL +  interpWeight_TR
 
     if (sumWeight > 1.1d0) then
       write(*,*) 'sumWeight > 1.1 : ', sumWeight
       write(*,*) '          BL, BR, TL, TR=', &
            interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
-      write(*,*) '          lonIndex0, latIndex0, lonIndex, latIndex, delx, dely  =', &
-           lonIndex0, latIndex0, lonIndex, latIndex, delx, dely
+      write(*,*) '          xpos_r4, ypos_r4, lonIndex, latIndex, delx, dely  =', &
+           xpos_r4, ypos_r4, lonIndex, latIndex, delx, dely
       interpWeight_BL = 0.25d0
       interpWeight_BR = 0.25d0
       interpWeight_TL = 0.25d0
       interpWeight_TR = 0.25d0
     end if
 
-  end SUBROUTINE calcTrajAndWeights
-  
+  end SUBROUTINE calcWeights
+
   !--------------------------------------------------------------------------
   ! adv_ensemble_tl
   !--------------------------------------------------------------------------
