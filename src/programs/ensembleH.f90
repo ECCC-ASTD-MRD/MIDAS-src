@@ -306,12 +306,10 @@ program midas_ensembleH
   call tmg_stop(8)
 
   ! Output mpiglobal H(X) and obsSpaceData files
-  !if( (.not.obsf_filesSplit() .and. mpi_myid == 0) .or. obsf_filesSplit() ) then
-    call tmg_start(9,'WRITEHXOBS')
-    call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt = HXensT_mpiglobal, &
-                          asciDumpObs_opt = asciDumpObs )
-    call tmg_stop(9)
-  !end if
+  call tmg_start(9,'WRITEHXOBS')
+  call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt = HXensT_mpiglobal, &
+                        asciDumpObs_opt = asciDumpObs )
+  call tmg_stop(9)
 
   !
   !- MPI, tmg finalize
