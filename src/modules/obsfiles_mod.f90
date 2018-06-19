@@ -476,7 +476,7 @@ contains
   subroutine obsf_determineFileType( obsFileType )
     implicit none
     ! arguments
-    character(len=10)                       :: obsFileType
+    character(len=*)                       :: obsFileType
     ! locals
     integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
     integer :: fnom, fclos
@@ -499,15 +499,9 @@ contains
 
     write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
 
-    if ( mpi_myid == procID ) then
-      if ( index(obsf_cfilnam(1), 'cma' ) > 0 ) then
-        obsFileType = 'CMA'
-      else
-        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
-      end if
-    end if
+    if ( mpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
 
-    call rpn_comm_bcastc(obsFileType , 10, 'MPI_CHARACTER', procID, 'GRID', ierr)
+    call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
@@ -515,7 +509,7 @@ contains
   subroutine obsf_determineSplitFileType( obsFileType, fileName )
     implicit none
     ! arguments
-    character(len=10),intent(out) :: obsFileType
+    character(len=*),intent(out) :: obsFileType
     character(len=*) ,intent(in)  :: fileName
     ! locals
     integer           :: ierr, unitFile
@@ -523,20 +517,26 @@ contains
     character(len=20) :: fileStart
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
-
-    unitFile = 0
-    ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
-    read(unitFile,'(A)') fileStart
-    ierr = fclos(unitFile)
    
     if ( index(trim(fileName), 'cma' ) > 0 ) then
-        obsFileType = 'CMA'
-    else if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-      obsFileType = 'SQLITE'
-    else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
-      obsFiletype = 'BURP'
+
+      obsFileType = 'CMA'
+
     else
-      call utl_abort('obsf_determineFileType: unknown obs file type')
+
+      unitFile = 0
+      ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
+      read(unitFile,'(A)') fileStart
+      ierr = fclos(unitFile)
+    
+      if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
+        obsFileType = 'SQLITE'
+      else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
+        obsFiletype = 'BURP'
+      else
+        call utl_abort('obsf_determineFileType: unknown obs file type')
+      end if
+
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType
