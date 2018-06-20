@@ -651,8 +651,17 @@ CONTAINS
             new_bktyp=bktyp
             if ( post_bit > 0 ) then
               new_bktyp=IBSET(bktyp,post_bit)
-              Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP=new_bktyp, BKSTP =0 )
-              Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP=new_bktyp, BKSTP =0 )
+
+              do item = 1, BN_ITEMS
+                if ( BITEMLIST(item) == 'FSO') then
+                  Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
+                  Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
+                else
+
+                  Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp)
+                  Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
+                end if
+              end do
             end if
 
             il_index=0
@@ -805,7 +814,6 @@ CONTAINS
                         OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
                         OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
                         FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-
                         if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
                           FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
                         else
