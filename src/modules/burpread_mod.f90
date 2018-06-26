@@ -186,7 +186,6 @@ CONTAINS
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
         33062,33039,10035,10036,08046,5043/
 
-    FSOFound = .false.
     STATUS_HIRES = 0
     FAMILYTYPE2= 'SCRAP'
     vcord_type(:)=-1
@@ -355,6 +354,7 @@ CONTAINS
     WRITE(*,'(x,a9)' ) ' BTYP OF UPDATED BURP FILE=', TYPE_RESUME
 
     ! check if there is FSO calculation
+    FSOFound = .false.
     do item = 1, BN_ITEMS
       if ( BITEMLIST(item) == 'FSO' ) FSOFound = .true.
     end do

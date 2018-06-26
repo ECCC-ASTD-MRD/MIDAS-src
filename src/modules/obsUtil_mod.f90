@@ -780,7 +780,7 @@ module obsUtil_mod
           if ( obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex)  /= 15031 ) then
             call obs_bodySet_r(obsdat,OBS_FSO,bodyIndex, FSOVal*1.0e6)
           end if
-         end if
+        end if
       end do
 
     end do
