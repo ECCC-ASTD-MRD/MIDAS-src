@@ -180,11 +180,13 @@ CONTAINS
 
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
+    logical                :: FSOFound
 
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
         33062,33039,10035,10036,08046,5043/
 
+    FSOFound = .false.
     STATUS_HIRES = 0
     FAMILYTYPE2= 'SCRAP'
     vcord_type(:)=-1
@@ -351,6 +353,11 @@ CONTAINS
     WRITE(*,*)  ' BN_ITEMS   =',BN_ITEMS
     WRITE(*,'(a12,x)') ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
     WRITE(*,'(x,a9)' ) ' BTYP OF UPDATED BURP FILE=', TYPE_RESUME
+
+    ! check if there is FSO calculation
+    do item = 1, BN_ITEMS
+      if ( BITEMLIST(item) == 'FSO' ) FSOFound = .true.
+    end do
 
     SELECT CASE( trim(TYPE_RESUME))
       CASE("BGCKALT", "POSTALT")
@@ -652,16 +659,14 @@ CONTAINS
             if ( post_bit > 0 ) then
               new_bktyp=IBSET(bktyp,post_bit)
 
-              do item = 1, BN_ITEMS
-                if ( BITEMLIST(item) == 'FSO') then
-                  Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
-                  Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
-                else
+              if ( FSOFound ) then
+                Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
+                Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
+              else
+                Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp)
+                Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
+              end if
 
-                  Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp)
-                  Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
-                end if
-              end do
             end if
 
             il_index=0

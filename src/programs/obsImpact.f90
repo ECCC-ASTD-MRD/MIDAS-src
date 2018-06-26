@@ -323,7 +323,7 @@ contains
     integer                         :: dateStamp_fcst
     
     !for Observation space 
-    integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, index_body
+    integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     real(8)                         :: fso_ori, fso_fin
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
@@ -385,24 +385,17 @@ contains
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
 
-    ! Due to the very small value of FSO, here it is enlarged by 1e6 except 15031 of Ground-Based GPS
-    ! therefore in the script file to extract FSO it should be divided by 1e6
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
 
-      do index_body = bodyIndexBeg, bodyIndexEnd
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1 ) then
-          fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-          fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body)
-          ! treat GBGPS variable 15031 differently from the others due to the way of storage in burp
-          if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,index_body)  == 15031 ) then
-            call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_fin)
-          else
-            call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_fin*1e6)
-          end if
-         end if
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+          fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+          fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+          call obs_bodySet_r(obsSpaceData,OBS_FSO,bodyIndex, fso_fin)
+        end if
       end do
 
     end do
@@ -581,25 +574,25 @@ contains
   subroutine fso_sumFSO(obsSpaceData)
     implicit none
    
-    real*8             :: pfso_1
+    real(8)            :: pfso_1
     type(struct_obs)   :: obsSpaceData
-    integer            :: index_body,itvs,isens,index_header
+    integer            :: bodyIndex,itvs,isens,headerIndex
     integer            :: bodyIndexBeg, bodyIndexEnd 
 
     integer, parameter :: numFamily = 10
     character(len=2), parameter :: familyList(numFamily) = (/'UA','AI','SF','SC','TO','SW','PR','RO','GP','CH'/)
-    real*8             :: tfso(numFamily), tfsotov_sensors(tvs_nsensors),totFSO
+    real(8)            :: tfso(numFamily), tfsotov_sensors(tvs_nsensors),totFSO
     integer            :: numAss_local(numFamily), numAss_global(numFamily)
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
-    integer            :: ierr, indexFam
+    integer            :: ierr, familyIndex
 
     if (mpi_myid == 0) write(*,*) 'sum of FSO information' 
     
     ! initialize 
-    do indexFam = 1, numFamily
-      tfso(indexFam) = 0.d0
-      numAss_local(indexFam) = 0
-      numAss_global(indexFam) = 0
+    do familyIndex = 1, numFamily
+      tfso(familyIndex) = 0.d0
+      numAss_local(familyIndex) = 0
+      numAss_global(familyIndex) = 0
     end do
 
     tfsotov_sensors(:) = 0.d0
@@ -607,32 +600,29 @@ contains
     numAss_sensors_glb(:) = 0
     totFSO = 0.d0
 
-    do indexFam = 1, numFamily
-      do index_body = 1, obs_numbody(obsSpaceData)
+    do familyIndex = 1, numFamily
+      do bodyIndex = 1, obs_numbody(obsSpaceData)
 
-        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1 ) then
+        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
           ! FSO for each family         
-          if (obs_getFamily(obsSpaceData,bodyIndex=index_body) == familyList(indexFam) ) then
-            if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,index_body) == 15031 ) then
-              pfso_1 = pfso_1 * 1.0e6
-            end if 
-            tfso(indexFam) = tfso(indexFam) + pfso_1
-            numAss_local(indexFam) = numAss_local(indexFam) + 1
+          if (obs_getFamily(obsSpaceData,bodyIndex=bodyIndex) == familyList(familyIndex) ) then
+            tfso(familyIndex) = tfso(familyIndex) + pfso_1
+            numAss_local(familyIndex) = numAss_local(familyIndex) + 1
           end if
-
         end if 
+
       end do
     end do
 
     do itvs = 1, tvs_nobtov
-      index_header  = tvs_lobsno(itvs)
-      if (index_header > 0 ) then
-        bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,index_header)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,index_header) + bodyIndexBeg - 1
-        do index_body = bodyIndexBeg, bodyIndexEnd 
-          pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1 ) then
+      headerIndex  = tvs_lobsno(itvs)
+      if (headerIndex > 0 ) then
+        bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+          pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
             isens = tvs_lsensor (itvs)
             tfsotov_sensors(isens) =  tfsotov_sensors(isens) + pfso_1
             numAss_sensors_loc(isens) = numAss_sensors_loc(isens) + 1
@@ -641,19 +631,15 @@ contains
       end if
     end do
 
-    do indexFam = 1, numFamily
-      call mpi_allreduce_sumreal8scalar(tfso(indexFam),"GRID")
-      ! remove the scale factor and get the real value of FSO 
-      tfso(indexFam) = tfso(indexFam)/1.0e6
-      totFSO = totFSO + tfso(indexFam)
-      call rpn_comm_allreduce(numAss_local(indexFam), numAss_global(indexFam) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    do familyIndex = 1, numFamily
+      call mpi_allreduce_sumreal8scalar(tfso(familyIndex),"GRID")
+      totFSO = totFSO + tfso(familyIndex)
+      call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     end do
     
     do isens = 1, tvs_nsensors
       call mpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),"GRID")
-      tfsotov_sensors(isens) = tfsotov_sensors(isens)/1.0e6
       call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-
     end do
 
 
@@ -663,8 +649,8 @@ contains
       write(*,'(a15,f15.8)') 'Total FSO=', totFSO 
       write(*,*) ' '
 
-      do indexFam = 1, numFamily
-        write(*,'(a4,a2,a2,f15.8,a16,i10)') 'FSO-', familyList(indexFam), '=', tfso(indexFam),'  Count Number=', numAss_global(indexFam) 
+      do familyIndex = 1, numFamily
+        write(*,'(a4,a2,a2,f15.8,a16,i10)') 'FSO-', familyList(familyIndex), '=', tfso(familyIndex),'  Count Number=', numAss_global(familyIndex) 
       end do
       write(*,*) ' '
 
@@ -675,7 +661,7 @@ contains
           write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') isens,inst_name(tvs_instruments(isens)), &
                 platform_name(tvs_platforms(isens)),tvs_satellites(isens),tfsotov_sensors(isens), numAss_sensors_glb(isens)
         end do
-          write(*,*) ' '
+        write(*,*) ' '
       end if
 
     end if
