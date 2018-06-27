@@ -660,6 +660,8 @@ CONTAINS
               new_bktyp=IBSET(bktyp,post_bit)
 
               if ( FSOFound ) then
+                ! to correct the btyp of SC and UA surface observation for the block
+                ! of observation value and flag
                 Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
                 Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp, BKSTP=0)
               else
