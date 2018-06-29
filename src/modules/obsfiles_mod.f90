@@ -176,6 +176,8 @@ contains
     call obsu_computeDirectionSpeedResiduals(obs_omp,obsSpaceData)
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
     call obsu_updateFlagWindDirectionSpeed(obsSpaceData)
+    ! Put the scale factor for FSO
+    if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 
     do fileIndex = 1, obsf_nfiles
 
