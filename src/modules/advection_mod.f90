@@ -1329,6 +1329,8 @@ CONTAINS
       call utl_abort('adv_statevector_tl: vertical levels are not compatible')
     end if
 
+    call tmg_start(140,'ADV_GSV')
+
     allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
 
@@ -1355,12 +1357,16 @@ CONTAINS
         if (.not. gatheringDone ) then
 
           ! gather the global field to be interpolated on all tasks
+          call rpn_comm_barrier('GRID',ierr)
+          call tmg_start(141,'ADV_GSV_COMM')
           nsize = adv%lonPerPE*adv%latPerPE
           call rpn_comm_allgather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), nsize, "mpi_double_precision",  &
                                   field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
                                   "GRID", ierr )
+          call tmg_stop(141)
 
           ! rearrange gathered fields for convenience
+          call tmg_start(142,'ADV_GSV_SHUFFLING')
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
           do procIDy = 0, (mpi_npey-1)
             do procIDx = 0, (mpi_npex-1)
@@ -1376,10 +1382,13 @@ CONTAINS
             end do ! procIDx
           end do ! procIDy
           !$OMP END PARALLEL DO
+          call tmg_stop(142)
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
 
         end if
+
+        call tmg_start(143,'ADV_GSV_CALC')
 
         !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1)
         do latIndex = adv%myLatBeg, adv%myLatEnd
@@ -1401,12 +1410,16 @@ CONTAINS
         end do ! latIndex
         !$OMP END PARALLEL DO
 
+        call tmg_stop(143)
+
       end do ! stepIndexAF
 
     end do ! kIndex
 
     deallocate(field2D_mpiglobal_tiles)
     deallocate(field2D_mpiglobal)
+
+    call tmg_stop(140)
 
   END SUBROUTINE adv_statevector_tl
 
