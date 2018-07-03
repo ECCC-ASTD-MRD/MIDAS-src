@@ -340,12 +340,14 @@ module HorizontalCoord_mod
       xlat2_4 = -999.999
       xlon2_4 = -999.999
 
+      rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
+
       !-  2.4.3 We know this is a global grid
       global = .true.
 
     else
       write(*,*)
-      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
+      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U are supported !, grtyp = ', trim(grtyp)
       call utl_abort('hco_setupFromFile')
     end if
 
