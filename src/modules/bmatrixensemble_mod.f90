@@ -653,8 +653,10 @@ CONTAINS
 
       !- If wanted, write the ensemble mean
       if (advDiagnostic) then
-        call gsv_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
-                             HUcontainsLQ_opt=HUcontainsLQ_gsv )                   ! IN
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D',        & ! IN
+                               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv ) ! IN
+        end do
       end if
 
       call gsv_deallocate(statevector_ensMean4D)

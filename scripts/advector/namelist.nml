@@ -1,0 +1,17 @@
+ &NAMADVECTOR
+   nEns = 1
+   fileToAdvec = './fileToAdvect.fst'
+   steeringFlowFile = './steeringFlow.fst'
+   dateStart = 2016060915
+   direction = 'forward-backward'
+   advectedFieldNumStep  = 7
+   steeringFlowNumStep   = 7	
+   advectedFieldDelThour = 1.d0
+   steeringFlowDelThour  = 1.d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='P0'
+/

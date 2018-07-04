@@ -325,7 +325,7 @@ program midas_diagBmatrix
       allocate(datestampList(numStepAmplitude))
       call tim_getstamplist(dateStampList,numStepAmplitude,tim_getDatestamp())
       nEns = ben_getnEns()
-      adv_amplitudeAssimWindow = ben_getAmplitudeAssimWindow()
+      adv_amplitudeAssimWindow => ben_getAmplitudeAssimWindow()
     else
       allocate(datestampList(1))
       datestampList(1) = dateStamp
