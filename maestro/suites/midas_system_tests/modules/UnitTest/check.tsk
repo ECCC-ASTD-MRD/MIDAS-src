@@ -25,32 +25,32 @@ function check_result {
     filename=${1}
     result_file=${2}
 
-    full_file=${TASK_INPUT}/live_results/${filename}
+    live_file=${TASK_INPUT}/live_results/${filename}
 
-    file=$(basename ${filename})
-    file2=$(echo ${filename} | sed 's!/!.!g')
+    live=$(basename ${filename})
+    rfrn=$(echo ${filename} | sed 's!/!.!g')
 
-    mkdir ${file2}.check_result
-    cd ${file2}.check_result
+    mkdir ${rfrn}.check_result
+    cd ${rfrn}.check_result
 
     not_validating=""
 
-    if [ ! -f "${full_file}" ]; then
-	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "File '${full_file}' not available!"
+    if [ ! -f "${live_file}" ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "File '${live_file}' not available!"
 	return 1
     fi
 
-    ${TASK_BIN}/cmcarc -f ../${result_file} -x "${filename}" -O > ${file2}
+    ${TASK_BIN}/cmcarc -f ../${result_file} -x "${filename}" -O > ${rfrn}
 
     cmp_identical=yes
-    cmp ${full_file} ${file2} || cmp_identical=no
+    cmp ${live_file} ${rfrn} || cmp_identical=no
     if [ "${cmp_identical}" = yes ]; then
         method=cmp
     else
-        ${TASK_BIN}/r.filetype ${full_file}  > file.filetype  ||  filetype=$?
-        ${TASK_BIN}/r.filetype ${file2}      > file2.filetype || filetype2=$?
-        if [ "${filetype}" -eq "${filetype2}" ]; then
-            case "${filetype}" in
+        ${TASK_BIN}/r.filetype ${live_file}  > file.filetype  ||  livetype=$?
+        ${TASK_BIN}/r.filetype ${rfrn}      > rfrn.filetype || filetype2=$?
+        if [ "${livetype}" -eq "${filetype2}" ]; then
+            case "${livetype}" in
                 ## de type fichier standard
                 1|2|3|33) method=fstcomp;;
                 ## BURP
@@ -59,71 +59,71 @@ function check_result {
                 *) method=cmp;;
             esac
         else
-	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${file} are not of the same type!"
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not of the same type!"
             method=not_the_same_type
         fi
 
         if [ "${method}" = fstcomp ]; then
-            ln -s ${file2} file2
-            ln -s ${full_file} file
-	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a file -b file2 2>&1 | tee fstcomp.list
+            ln -s ${rfrn} rfrn
+            ln -s ${live_file} live
+	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
 	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
-	        rm fstcomp.list fstcomp.list.grep file2
+	        rm fstcomp.list fstcomp.list.grep rfrn
 	    else
-	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b file -a file2 2>&1 | tee fstcomp.list
+	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
 	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
 		    not_validating="yes"
 	        fi
-	        rm fstcomp.list fstcomp.list.grep file2
+	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
         elif [ "${method}" = cmp ]; then
-	    cmp ${full_file} ${file2} || not_validating="yes"
+	    cmp ${live_file} ${rfrn} || not_validating="yes"
         elif [ "${method}" = diff ]; then
-	    diff ${diff_options} ${full_file} ${file2} || not_validating="yes"
+	    diff ${diff_options} ${live_file} ${rfrn} || not_validating="yes"
         elif [ "${method}" = liburp ]; then
 	    status=0
-	    diff ${full_file} ${file2} > /dev/null || status=1
+	    diff ${live_file} ${rfrn} > /dev/null || status=1
 	    if [ "${status}" -ne 0 ]; then
-		${TASK_BIN}/liburp -wide ${full_file} > file1.${file}
-		${TASK_BIN}/liburp -wide ${file2}     > file2.${file}
+		${TASK_BIN}/liburp -wide ${live_file} > live.${live}
+		${TASK_BIN}/liburp -wide ${rfrn}      > rfrn.${live}
 		status=0
-		cmp file1.${file} file2.${file} || status=1
+		cmp live.${live} rfrn.${live} || status=1
 		if [ "${status}" -ne 0 ]; then
-		    diff ${diff_options} file1.${file} file2.${file} || not_validating="yes"
+		    diff ${diff_options} live.${live} rfrn.${live} || not_validating="yes"
 		    if [ -z "${not_validating}" ]; then
-			rm file1.${file} file2.${file}
+			rm live.${live} rfrn.${live}
 		    fi
 		fi
 	    fi
         elif [ "${method}" = liburp-noresume ]; then
-            [[ -f file1.nores ]] && rm -f file1.nores
-            ${TASK_BIN}/editbrp -s ${full_file} -d file1.nores -i<<EOF
+            [[ -f live.nores ]] && rm -f live.nores
+            ${TASK_BIN}/editbrp -s ${live_file} -d live.nores -i<<EOF
  exclure('>>*******')
 EOF
-            [[ -f file2.nores ]] && rm -f file2.nores
-            ${TASK_BIN}/editbrp -s ${file2} -d file2.nores -i<<EOF
+            [[ -f rfrn.nores ]] && rm -f rfrn.nores
+            ${TASK_BIN}/editbrp -s ${rfrn} -d rfrn.nores -i<<EOF
  exclure('>>*******')
 EOF
-            ${TASK_BIN}/liburp -wide file1.nores > file1.${file}
-            ${TASK_BIN}/liburp -wide file2.nores > file2.${file}
-            cmp file1.${file} file2.${file} || not_validating="yes"
+            ${TASK_BIN}/liburp -wide live.nores > live.${live}
+            ${TASK_BIN}/liburp -wide rfrn.nores > rfrn.${live}
+            cmp live.${live} rfrn.${live} || not_validating="yes"
 	    if [ -n "${not_validating}" ]; then
 	        ## Alors on trouve ce qui ne valide pas
-                diff ${diff_options} file1.${file} file2.${file} > diff.${file} || not_validating="yes"
+                diff ${diff_options} live.${live} rfrn.${live} > diff.${live} || not_validating="yes"
 	    fi
             if [ -z "${not_validating}" ]; then
-                rm file1.${file} file2.${file} file1.nores file2.nores
-	        [ -f diff.${file} ] && rm diff.${file}
+                rm live.${live} rfrn.${live} live.nores rfrn.nores
+	        [ -f diff.${live} ] && rm diff.${live}
             else
-                cat diff.${file}
+                cat diff.${live}
             fi
         elif [ "${method}" = SQL ]; then
-	    fam=$(basename ${file} | cut -d. -f3 | cut -d_ -f2-)
+	    fam=$(basename ${live} | cut -d. -f3 | cut -d_ -f2-)
 	    if [ "$fam" = to_amsua ]; then
 	        typ=amsua
 	    elif [ "$fam" = to_amsub ]; then
@@ -135,14 +135,14 @@ EOF
 	    else
 	        typ=$fam
 	    fi
-	    ${TASK_BIN}/burp2rdb -in ${full_file}  -out file1.sql.${file} -type ${typ} || rm file1.sql.${file}
-	    if [ ! -s file1.sql.${file} ]; then
-	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${file}"
+	    ${TASK_BIN}/burp2rdb -in ${live_file}  -out live.sql.${live} -type ${typ} || rm live.sql.${live}
+	    if [ ! -s live.sql.${live} ]; then
+	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${live}"
 	        not_validating="problem"
 	    else
-	        ${TASK_BIN}/burp2rdb -in ${file2} -out file2.sql.${file} -type ${typ} || rm file2.sql.${file}
-	        if [ ! -s file2.sql.${file} ]; then
-		    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${file2}"
+	        ${TASK_BIN}/burp2rdb -in ${rfrn} -out rfrn.sql.${live} -type ${typ} || rm rfrn.sql.${live}
+	        if [ ! -s rfrn.sql.${live} ]; then
+		    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${rfrn}"
 		    not_validating="problem"
 	        else
 		    case "${fam}" in
@@ -155,25 +155,25 @@ EOF
 select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data  order by concat(id_stn,lat,lon,date,time);
 EOF
 
-		    cat sqldir | ${TASK_BIN}/d.sqlite -noheader file1.sql.${file} | sort -n > file1.sqllist.${file} || rm file1.sqllist.${file}
-		    if [ ! -s file1.sqllist.${file} ]; then
-		        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${file}"
+		    cat sqldir | ${TASK_BIN}/d.sqlite -noheader live.sql.${live} | sort -n > live.sqllist.${live} || rm live.sqllist.${live}
+		    if [ ! -s live.sqllist.${live} ]; then
+		        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${live}"
 		        not_validating="problem"
 		    else
-		        cat sqldir | ${TASK_BIN}/d.sqlite -noheader file2.sql.${file} | sort -n > file2.sqllist.${file} || rm file2.sqllist.${file}
-		        if [ ! -s file2.sqllist.${file} ]; then
-			    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${file2}"
+		        cat sqldir | ${TASK_BIN}/d.sqlite -noheader rfrn.sql.${live} | sort -n > rfrn.sqllist.${live} || rm rfrn.sqllist.${live}
+		        if [ ! -s rfrn.sqllist.${live} ]; then
+			    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${rfrn}"
 			    not_validating="problem"
 		        else
-			    diff ${diff_options} file1.sqllist.${file} file2.sqllist.${file} || not_validating="yes"
-			    cmp file1.sqllist.${file} file2.sqllist.${file} || echo "'cmp' found files different"
+			    diff ${diff_options} live.sqllist.${live} rfrn.sqllist.${live} || not_validating="yes"
+			    cmp live.sqllist.${live} rfrn.sqllist.${live} || echo "'cmp' found files different"
 			    if [ -z "${not_validating}" ]; then
-			        rm file1.sql.${file} file2.sql.${file} file1.sqllist.${file} file2.sqllist.${file}
+			        rm live.sql.${live} rfrn.sql.${live} live.sqllist.${live} rfrn.sqllist.${live}
 			    fi
-		        fi ## Fin du else pour le 'if [ ! -s file2.sqllist.${file} ]'
-		    fi ## Fin du else pour le 'if [ ! -s file1.sqllist.${file} ]'
-	        fi ## Fin du else pour le 'if [ ! -s file2.sql.${file} ]'
-	    fi ## Fin du else pour le 'if [ ! -s file1.sql.${file} ]'
+		        fi ## Fin du else pour le 'if [ ! -s rfrn.sqllist.${live} ]'
+		    fi ## Fin du else pour le 'if [ ! -s live.sqllist.${live} ]'
+	        fi ## Fin du else pour le 'if [ ! -s rfrn.sql.${live} ]'
+	    fi ## Fin du else pour le 'if [ ! -s live.sql.${live} ]'
         elif [ "${method}" = not_the_same_type ]; then
             not_validating=yes
         else
@@ -184,13 +184,13 @@ EOF
     fi ## Fin du 'if [ "${cmp_not_identical}" = yes ]'
 
     if [ -n "${not_validating}" ]; then
-	message="The file ${file} does not validate with method '${method}'!"
+	message="The file ${live} does not validate with method '${method}'!"
 	echo "${message}"
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "${message}"
 	NOT_VALIDATING="yes"
         return 1
     else
-	message="The file ${file} is validating with method '${method}'!"
+	message="The file ${live} is validating with method '${method}'!"
 	echo "${message}"
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "${message}"
     fi
