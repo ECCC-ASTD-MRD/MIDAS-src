@@ -6,6 +6,11 @@
 
 * [Master branch](http://hpfx.science.gc.ca/~erv000/midas-doc/latest)
 
+# Contributing
+
+The workflow to contribute to MIDAS is documented in the [contributing
+guide](CONTRIBUTING.md).
+
 # Compiling a single program
 
 To compile a program for a given platform, one has to do:
