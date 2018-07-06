@@ -1,0 +1,16 @@
+Issue #{}: Title representing the change (should be less then 40 characters)
+
+One or more paragraph explaining the reasons of the changes.  We
+should not repeat the changes in the code since this is visible in the
+code itself with 'git log -p' or 'git diff' commands.
+
+Also, let others know if this commit changes the results in some way.
+You can also refer to other issues using the '#' sign.
+
+Wrap the text with 72 characters.
+
+#For a justification of those rules, see
+#   https://gist.github.com/jeffjewiss/1198556
+#or a more complete reference:
+#   https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+
