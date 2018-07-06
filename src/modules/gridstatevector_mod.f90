@@ -21,7 +21,7 @@
 !!
 !--------------------------------------------------------------------------
 module gridStateVector_mod
-  use mpi  ! this is the mpi library module
+  use mpi, only : mpi_status_size ! this is the mpi library module
   use mpivar_mod
   use earthConstants_mod
   use varNameList_mod
