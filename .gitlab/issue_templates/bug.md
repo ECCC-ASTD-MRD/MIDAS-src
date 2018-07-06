@@ -1,11 +1,11 @@
 
 ### Summary
 
-<!-- Summarize the bug encountered concisely) --> 
+<!-- (Summarize the bug encountered concisely) -->
 
 ### Steps to reproduce or context in which it is happens
 
-<!--(How one can reproduce the issue - this is very important)--> 
+<!--(How one can reproduce the issue - this is very important)-->
 
 ### What is the current *bug* behavior?
 
