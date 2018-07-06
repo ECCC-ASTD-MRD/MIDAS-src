@@ -1,16 +1,23 @@
-Issue #{}: Title representing the change (should be less then 40 characters)
+Issue #XXX: Title representing the change (should be less then 40 characters)
 
-One or more paragraph explaining the reasons of the changes.  We
-should not repeat the changes in the code since this is visible in the
-code itself with 'git log -p' or 'git diff' commands.
+In the title, specify the related issue number (replacing "XXX").
 
-Also, let others know if this commit changes the results in some way.
-You can also refer to other issues using the '#' sign.
+The body should include more detailed explanatory text, if
+necessary. Explain why the change was made. Also, mention if the
+results or the timings are affected by this change.  You can also
+refer to other issues using the '#' sign.
 
-Wrap the text with 72 characters.
+Wrap it to about 72 characters or so ('git log' does not automatically
+wrap text).  The blank line separating the summary from the body is
+critical (unless you omit the body entirely). Separate paragraphs with
+blank lines.
+
+- Bullet points are okay, too
+
+- Use a hyphen followed by a single space, with blank lines in between
+  and use a hanging indent
 
 #For a justification of those rules, see
 #   https://gist.github.com/jeffjewiss/1198556
 #or a more complete reference:
 #   https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
-
