@@ -21,6 +21,10 @@
    LVARQC=.TRUE.,
    NWOQCV=5
    CETIKINC ='ENVAR'
+   WRITEANALYSIS = .TRUE.
+/
+ &NAMADDINC
+   hInterpolationDegree = 'CUBIC'
 /
  &NAMSPECTRAL
 /

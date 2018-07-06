@@ -22,6 +22,10 @@
    LVARQC=.TRUE.,
    NWOQCV=5
    CETIKINC ='XXXXXX'
+   WRITEANALYSIS = .TRUE.
+/
+ &NAMADDINC
+   hInterpolationDegree = 'CUBIC'
 /
  &NAMDIMO
    NMXOBS=100000,

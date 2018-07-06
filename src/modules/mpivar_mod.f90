@@ -38,6 +38,7 @@ module mpivar_mod
   ! public variables through inheritance
   public :: mpi_myid, mpi_nprocs, mpi_npex, mpi_npey, mpi_myidx, mpi_myidy
   public :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID, mpi_doBarrier
+  public :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
   ! public procedures through inheritance
   public :: mpi_initialize, mpi_getptopo, mpi_allreduce_sumreal8scalar
 
