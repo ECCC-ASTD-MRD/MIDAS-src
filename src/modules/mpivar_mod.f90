@@ -22,6 +22,13 @@
 !!
 !--------------------------------------------------------------------------
 module mpivar_mod
+  !
+  ! MODULE mpivar (prefix="mpivar")
+  !
+  ! **Purpose**: Subroutine and public variables related to the mpi decomposition
+  ! specific to the OAVAR code. Depends on the more general mpi_mod module.
+  !
+  !
   use mpi_mod
   use utilities_mod
   implicit none

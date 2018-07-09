@@ -21,6 +21,12 @@
 !!
 !--------------------------------------------------------------------------
 module ramDisk_mod
+  !
+  ! MODULE ramDisk_mod (prefix="ram")
+  !
+  ! *Purpose*: Control the file manipulations/enquiries on the RAM disk
+  !
+  !
   use utilities_mod
   implicit none
   save

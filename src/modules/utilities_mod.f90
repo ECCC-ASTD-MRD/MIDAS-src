@@ -21,6 +21,11 @@
 !!
 !--------------------------------------------------------------------------
 module utilities_mod
+  !
+  ! MODULE utilities_mod (prefix='utl')
+  !
+  ! **Purpose**: A place to collect numerous simple utlity routines
+  !
   implicit none
   save
   private

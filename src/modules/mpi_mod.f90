@@ -21,6 +21,11 @@
 !!
 !--------------------------------------------------------------------------
 module mpi_mod
+  !
+  ! MODULE mpi (prefix='mpi')
+  !
+  ! **Purpose**: Subroutine and public variables related to general aspects of mpi.
+  !
   use utilities_mod
   implicit none
   save
