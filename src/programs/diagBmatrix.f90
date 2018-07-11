@@ -20,6 +20,9 @@
 !!
 !--------------------------------------------------------------------------
 program midas_diagBmatrix
+  !
+  ! **Purpose**: Main program for computing diagnostics of the B and L matrices
+  !
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod

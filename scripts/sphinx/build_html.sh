@@ -5,11 +5,11 @@
 codedir=../../src
 
 # ALL THE FILES (ONLY AFTER WORK IS DONE TO MODIFY ALL SOURCE FILES)
-#program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
+program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
 #module_filelist=`ls -dR -1 $codedir/modules/*.f*90 $codedir/modules/*/*.f*90`
 
 # SMALL NUMBER OF FILES (JUST AS PROOF OF CONCEPT)
-program_filelist=`ls -dR -1 $codedir/programs/var.f90`
+#program_filelist=`ls -dR -1 $codedir/programs/var.f90`
 module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/mpi_mod.f90 $codedir/modules/mpivar_mod.f90`
 
 # CREATE LINKS TO F90 FILES
@@ -93,7 +93,17 @@ Welcome to MIDAS documentation
 
 This is the automatically generated MIDAS documentation. Below you
 will find a list of all fortran programs and modules that make up
-the MIDAS software.
+the MIDAS software. Documentation in the fortran code that appears 
+in comments immediately following the program or module or subroutine
+statement will be included. It can be formatted using *reStructuredText*.
+A primer on this markup language can be found here:
+
+http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+
+.. note::  Currently only a few programs/modules are included since significant
+           changes will be required in modifying existing comments to avoid sphinx
+           from aborting. For example, since ``-------`` is used in *reStructuredText* 
+           to indicate a heading, these must be removed from all comments.
 
 Programs
 ========

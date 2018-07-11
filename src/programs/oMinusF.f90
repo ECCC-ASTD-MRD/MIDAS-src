@@ -20,6 +20,9 @@
 !!
 !--------------------------------------------------------------------------
 program midas_ominusf
+  !
+  ! **Purpose**: Main program for Observation minus Forecast (O-F) computation
+  !
   use ramDisk_mod
   use utilities_mod
   use mpiVar_mod

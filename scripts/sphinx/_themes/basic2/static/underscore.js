@@ -1,1 +1,1 @@
-../../../../javascript/sphinxdoc/1.0/underscore.js
+/usr/share/javascript/sphinxdoc/1.0/underscore.js

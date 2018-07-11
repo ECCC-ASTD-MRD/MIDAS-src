@@ -630,7 +630,7 @@ contains
     !     i   KLEN    : Dimension of list.
     !     i   KENTRY  : Entry.
     !     O   ISRCHEQ : Index of entry: (0, not found, >0, found)
-
+    !
     INTEGER :: ISRCHEQ
     INTEGER :: KENTRY, KLEN, JI
     INTEGER :: KLIST(KLEN)
@@ -650,21 +650,16 @@ contains
   !--------------------------------------------------------------------------
   SUBROUTINE utl_MATSQRT(PA,KN,ZSIGN,printInformation_opt)
     !
-    !**s/r MATSQRT     - Calculate square root of an error covariance
-    !     .              matrix
+    ! Calculate square root of an error covariance matrix
     !
-    ! Arguments
-    !     .  PA(KN,KN)     :  on entry, the original matrix
-    !     .                   on exit,  the sqrt     matrix
-    !     .  KN            : order of the matrix
     implicit none
     !
     ! Arguments
     !
-    INTEGER, intent(in) :: KN
-    REAL(8), intent(inout) :: PA(KN,KN)
-    REAL(8), intent(in) ::ZSIGN
-    LOGICAL, intent(in), optional :: printInformation_opt
+    INTEGER, intent(in)    :: KN ! order of the matrix
+    REAL(8), intent(inout) :: PA(KN,KN) ! on entry, the original matrix; on exit, the sqrt
+    REAL(8), intent(in)    :: ZSIGN ! sign of the exponent
+    LOGICAL, intent(in), optional :: printInformation_opt ! switch to print be more verbose
     !
     ! Local variables
     !
@@ -786,7 +781,6 @@ contains
     character(len=*) :: cdtypvar
     character(len=*) :: cdvar
     character(len=*) :: cdetiket
-
     !
     !*    Purpose: Get 3D grid parameters for a specific trial field
     !              and check for consitancies between grid parameters
@@ -813,7 +807,6 @@ contains
     !     kip1kind        : kind of vertical coord encoded in ip1
     !     koutmpg         : the unit which contains the selected records.  
     !
-
     integer :: fstinl,fstprm,ezqkdef,newdate
     integer :: ini,inj,ink,jlev,ier
     integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf, &
@@ -967,20 +960,19 @@ contains
   ! utl_open_asciifile
   !--------------------------------------------------------------------------
   subroutine utl_open_asciifile(filename,unit)
-  ! 
-  !  Purpose: Opens an ascii file for output 
-  !
-  !  Author: M. Sitwell, April 2016
-  !
-  !  Input
-  !  
-  !           filename      filename
-  !           unit          unit number to use or 0 to let fnom set value
-  !  Output
-  !           unit          unit number associated with file
-  !
-  !-------------------------------------------------------------------------------------------
-
+    ! 
+    ! **Purpose:** Opens an ascii file for output 
+    !
+    ! Author: M. Sitwell, April 2016
+    !
+    ! Input
+    !  
+    !      filename      filename
+    !      unit          unit number to use or 0 to let fnom set value
+    !
+    ! Output
+    !      unit          unit number associated with file
+    !
     implicit none
 
     character(len=*), intent(in) :: filename
@@ -1011,14 +1003,12 @@ contains
   ! utl_open_file
   !--------------------------------------------------------------------------
   function utl_open_file(unit,filename,mode) result(ier)
-  ! 
-  ! Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
-  !           a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
-  !
-  !  Author: M. Sitwell, Aug 2016
-  !
-  !-------------------------------------------------------------------------------------------
-
+    ! 
+    ! **Purpose:** This is a temporary subroutine to open a file with fnom that is needed due to
+    ! a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
+    !
+    !  Author: M. Sitwell, Aug 2016
+    !
     implicit none
 
     integer, intent(inout) :: unit
@@ -1050,29 +1040,18 @@ contains
   ! utl_stnid_equal
   !--------------------------------------------------------------------------
   function utl_stnid_equal(id1,id2) result(same)
-  !
-  ! Author  : Y. Rochon  Nov 2014
-  ! Revision: 
-  !           M. Sitwell, Feb 2015
-  !           - Code set as a function.
-  !           Y. Rochon, July 2015
-  !           - Accounted for ilen1>ilen2 with the additional characters being *
-  !           M. Sitwell, Aug 2015
-  !           - Made function symmetric so that * is treated as a wildcard
-  !             for both arguments
-  !
-  ! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
-  !
-  ! Input
-  !          id1         reference stnid
-  !          id2         stnid being verified
-  !
-  ! Output
-  !
-  !          same        logical indicating if id1 and id2 match
-  !     
-  !-----------------------------------------------------------------------------------------    
-
+    !
+    ! Author  : Y. Rochon  Nov 2014
+    !
+    ! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
+    !
+    ! Input:
+    !   id1         reference stnid
+    !   id2         stnid being verified
+    !
+    ! Output:
+    !   same        logical indicating if id1 and id2 match
+    !     
     implicit none
 
     logical :: same
@@ -1112,13 +1091,11 @@ contains
   ! utl_int2str
   !--------------------------------------------------------------------------
   character(len=20) function utl_int2str(i)
-  !
-  ! Author  : M. Sitwell Oct 2015
-  !
-  ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
-  !
-  !-------------------------------------------------------------------------------------------
-
+    !
+    ! Author  : M. Sitwell Oct 2015
+    !
+    ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
+    !
     implicit none
 
     integer, intent(in) :: i
@@ -1132,13 +1109,11 @@ contains
   ! utl_float2str
   !--------------------------------------------------------------------------
   character(len=20) function utl_float2str(x)
-  !
-  ! Author:  M. Sitwell April 2016 
-  !
-  ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
-  !
-  !-------------------------------------------------------------------------------------------
-
+    !
+    ! Author:  M. Sitwell April 2016 
+    !
+    ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !
     implicit none
 
     real(8), intent(in) :: x
@@ -1152,13 +1127,11 @@ contains
   ! utl_resise_1d_real
   !--------------------------------------------------------------------------
   subroutine utl_resize_1d_real(arr,dim1)
-  !
-  ! Author  : M. Sitwell  April 2015
-  ! Revision:  
-  !
-  ! Purpose: Resize 1D array
-  !
-  !---------------------------------------------------------------------------------------
+    !
+    ! Author  : M. Sitwell  April 2015
+    !
+    ! Purpose: Resize 1D array
+    !
     implicit none
 
     real(8), pointer, intent(inout) :: arr(:)
@@ -1186,13 +1159,11 @@ contains
   ! utl_resise_1d_int
   !--------------------------------------------------------------------------
   subroutine utl_resize_1d_int(arr,dim1)
-  !
-  ! Author  : M. Sitwell  April 2015
-  !
-  ! Purpose: Resize 1D array 
-  !
-  !---------------------------------------------------------------------------------------
-     
+    !
+    ! Author  : M. Sitwell  April 2015
+    !
+    ! Purpose: Resize 1D array 
+    !
     implicit none
 
     integer, pointer, intent(inout) :: arr(:)
@@ -1220,13 +1191,11 @@ contains
   ! utl_resise_1d_str
   !--------------------------------------------------------------------------  
   subroutine utl_resize_1d_str(arr,dim1)
-  !
-  ! Author  : M. Sitwell  April 2016
-  !
-  ! Purpose: Resize 1D array
-  !
-  !---------------------------------------------------------------------------------------
-     
+    !
+    ! Author  : M. Sitwell  April 2016
+    !
+    ! Purpose: Resize 1D array
+    !
     implicit none
 
     character(len=*), pointer, intent(inout) :: arr(:)
@@ -1252,17 +1221,11 @@ contains
   ! utl_resise_2d_real
   !--------------------------------------------------------------------------
   subroutine utl_resize_2d_real(arr,dim1,dim2)
-  !
-  ! Author  : M. Sitwell  April 2015
-  !
-  ! Purpose: Resize 2D array
-  !
-  ! Revision: 
-  !           Y. Rochon Feb 2016
-  !           - Added option to increase array sizes
-  !
-  !---------------------------------------------------------------------------------------
-
+    !
+    ! Author  : M. Sitwell  April 2015
+    !
+    ! Purpose: Resize 2D array
+    !
     implicit none
 
     real(8), pointer, intent(inout) :: arr(:,:)
@@ -1293,14 +1256,11 @@ contains
   ! utl_resise_3d_real
   !--------------------------------------------------------------------------
   subroutine utl_resize_3d_real(arr,dim1,dim2,dim3)
-  !
-  ! Author  : M. Sitwell  May 2015
-  ! Revision: 
-  !
-  ! Purpose: Resize 3D array
-  !
-  !---------------------------------------------------------------------------------------
-
+    !
+    ! Author  : M. Sitwell  May 2015
+    !
+    ! Purpose: Resize 3D array
+    !
     implicit none
 
     real(8), pointer, intent(inout) :: arr(:,:,:)
@@ -1334,36 +1294,29 @@ contains
   ! utl_get_stringId
   !--------------------------------------------------------------------------
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
-
-  ! 
-  !   Purpose: Get element ID from a list of accumulating character 
-  !            strings (e.g. stnids). 
-  !
-  !            Called by filt_topoChm in filterobs_mod.ftn90
-  !
-  !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
-  !    
-  !   Revisions:
-  !            Y.J. Rochon, ARQI/AQRD, July 2015
-  !            - Account for wildcards (use if utl_stnid_equal) when present.         
-  !
-  !   Input:
-  !
-  !       Nmax            Max allowed dimension.
-  !       NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
-  !       CList           Input list of accumulated character strings
-  !                       for uni and multi-level data.
-  !       cstringin       Input character string
-  !       nobslev         Number of elements in profile associated to cstringin.
-  !
-  !   Output:
-  !
-  !       NListSize       Updated number of identified IDs
-  !       CList           Updated list of accumulated character strings
-  !       elemId          Index of cstringin within CList_chm
-  !        
-  !-------------------------------------------------------------------------------------------
- 
+    ! 
+    !   Purpose: Get element ID from a list of accumulating character 
+    !            strings (e.g. stnids). 
+    !
+    !            Called by filt_topoChm in filterobs_mod.ftn90
+    !
+    !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
+    !    
+    !   Input:
+    !
+    !       Nmax            Max allowed dimension.
+    !       NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
+    !       CList           Input list of accumulated character strings
+    !          for uni and multi-level data.
+    !       cstringin       Input character string
+    !       nobslev         Number of elements in profile associated to cstringin.
+    !
+    !   Output:
+    !
+    !       NListSize       Updated number of identified IDs
+    !       CList           Updated list of accumulated character strings
+    !       elemId          Index of cstringin within CList_chm
+    !        
     implicit none
 
     integer, intent(in)    :: Nmax,nobslev
@@ -1423,27 +1376,24 @@ contains
   ! utl_get_Id
   !--------------------------------------------------------------------------
   subroutine utl_get_Id(id,IdList,NListSize,Nmax,elemId)
-
-  ! 
-  !   Purpose: Get element ID from list of accumulating integer IDs.
-  !
-  !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
-  !
-  !   Input:
-  !
-  !       Nmax         Max allowed dimension.
-  !       NListSize    Input number of IDs (must be >=0 and <=Nmax)
-  !       IdList       Input list of accumulated IDs.
-  !       id           Input id for individual obs 
-  !
-  !   Output:
-  !
-  !       NListSize    Updated number of IDs 
-  !       IdList       Updated list of accumulated IDs.
-  !       elemId       Index of id within List
-  !     
-  !-------------------------------------------------------------------------------------------
- 
+    ! 
+    !   Purpose: Get element ID from list of accumulating integer IDs.
+    !
+    !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
+    !
+    !   Input:
+    !
+    !       Nmax         Max allowed dimension.
+    !       NListSize    Input number of IDs (must be >=0 and <=Nmax)
+    !       IdList       Input list of accumulated IDs.
+    !       id           Input id for individual obs 
+    !
+    !   Output:
+    !
+    !       NListSize    Updated number of IDs 
+    !       IdList       Updated list of accumulated IDs.
+    !       elemId       Index of id within List
+    !     
     implicit none
 
     integer, intent(in)    :: Nmax,id
@@ -1478,38 +1428,37 @@ contains
   !------------------;-------------------------------------------------------
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
                                ni,nj,nkeys,array,xlat_opt,xlong_opt,lvls_opt,kind_opt)
-  !
-  ! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
-  !
-  ! Revision: 
-  !
-  ! Purpose:  Read specified field from standard RPN/fst file. Could be one
-  !           to all levels depending on the input iip1,iip2,iip3 values
-  !
-  !           Currently assumes lat/long (or Gaussian) type grids.
-  !           See hco_SetupFromFile for example toward future generalizations.
-  !           Generalization would require having xlat and xlong being 2D.
-  !
-  ! IN
-  !
-  !     fname    input filename
-  !     varName  search nomvar
-  !     iip1     search ip1
-  !     iip2     search ip2
-  !     iip3     search ip3
-  !     etiketi  search etiket
-  !
-  ! OUT
-  !
-  !     ni,nj     ni,nj values
-  !     nkeys     number of records satisfying search criteria
-  !     array     (ni,nj,nkeys) data arrray
-  !     xlat_opt  1D latitude array (optional)
-  !     xlong_opt 1D longitude array (optional)
-  !     lvls_opt  1D vertical coordinate array (optional)
-  !     kind_opt  vertical coordinate type according to convip (optional)
-  !-----------------------------------------------------------------------------------------
-
+    !
+    ! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
+    !
+    ! Revision: 
+    !
+    ! Purpose:  Read specified field from standard RPN/fst file. Could be one
+    !           to all levels depending on the input iip1,iip2,iip3 values
+    !
+    !           Currently assumes lat/long (or Gaussian) type grids.
+    !           See hco_SetupFromFile for example toward future generalizations.
+    !           Generalization would require having xlat and xlong being 2D.
+    !
+    ! IN
+    !
+    !     fname    input filename
+    !     varName  search nomvar
+    !     iip1     search ip1
+    !     iip2     search ip2
+    !     iip3     search ip3
+    !     etiketi  search etiket
+    !
+    ! OUT
+    !
+    !     ni,nj     ni,nj values
+    !     nkeys     number of records satisfying search criteria
+    !     array     (ni,nj,nkeys) data arrray
+    !     xlat_opt  1D latitude array (optional)
+    !     xlong_opt 1D longitude array (optional)
+    !     lvls_opt  1D vertical coordinate array (optional)
+    !     kind_opt  vertical coordinate type according to convip (optional)
+    !
     implicit none
 
     integer, intent(in) :: iip1,iip2,iip3

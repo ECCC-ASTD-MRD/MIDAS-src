@@ -22,7 +22,8 @@
 !--------------------------------------------------------------------------
 program midas_randomPert
   !
-  !**   midas-randomPert  - Program to generate an ensemble of random perturbations
+  ! **Purpose**: Main program for generating an ensemble of random perturbations
+  ! based on the B matrix (can be homogeneous/isotropic or ensemble-based).
   !
   use mpi_mod
   use mpivar_mod

@@ -1,1 +1,1 @@
-../../../../javascript/sphinxdoc/1.0/doctools.js
+/usr/share/javascript/sphinxdoc/1.0/doctools.js

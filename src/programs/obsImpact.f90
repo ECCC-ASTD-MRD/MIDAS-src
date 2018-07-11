@@ -20,6 +20,9 @@
 !!
 !--------------------------------------------------------------------------
 program midas_obsimpact
+  !
+  ! **Purpose**: Main program for Observation Impact computation (FSOI)
+  !
   use ramDisk_mod
   use utilities_mod
   use mpivar_mod
@@ -414,11 +417,10 @@ contains
   end subroutine fso_ensemble
 
   subroutine fso_calcFcstError(columng,obsSpaceData,statevector_out)
-    !---------------------------------------------------------------------------------------------
+    !
     ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
     ! Based on these inputs, it calculates the Forecast error
     !
-    !-----------------------------------------------------------------------------------------------
     implicit none
     
     type(struct_columnData),target  :: columng
@@ -775,19 +777,18 @@ contains
   end subroutine simvar
 
   SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
-    !***s/r DSCALQN: inner product in canonical space
-    !*    ------------------- 
-    !**    Purpose: interface for the inner product to be used
-    !*     .        by the minimization subroutines N1QN3.
-    !*
-    !*Arguments
-    !*     i : KDIM      : dimension of the vectors
-    !*     i : PX, PY    : vector for which <PX,PY> is being calculated
-    !*     o : DDSC      : result of the inner product
-    !*     --------------
-    !*     i :  KZS(1)   : unused working space for INTEGER  (not used)
-    !*     i :  PZS(1)   : unused working space for REAL     (not used)
-    !*     i : PDZS(1)   : unused working space for REAL*8   (not used)
+    ! DSCALQN: inner product in canonical space
+    !
+    ! Purpose: interface for the inner product to be used
+    ! by the minimization subroutines N1QN3.
+    !
+    ! Arguments
+    !     i : KDIM      : dimension of the vectors
+    !     i : PX, PY    : vector for which <PX,PY> is being calculated
+    !     o : DDSC      : result of the inner product
+    !     i :  KZS(1)   : unused working space for INTEGER  (not used)
+    !     i :  PZS(1)   : unused working space for REAL     (not used)
+    !     i : PDZS(1)   : unused working space for REAL*8   (not used)
     IMPLICIT NONE
 
     REAL PZS(1)
@@ -803,19 +804,16 @@ contains
   END SUBROUTINE DSCALQN
 
   SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
-    !***s/r PRSCAL: inner product in canonical space
-    !*
-    !*Author  : P. Gauthier *ARMA/AES  January 27, 1993
-    !**    Purpose: evaluation of the inner product used in the
-    !*     .        minimization
-    !*
-    !*Arguments
-    !*     i : KDIM     : dimension of the vectors
-    !*     i : PX, PY   : vector for which <PX,PY> is being calculated
-    !*     o : DDSC     : result of the inner product
-    !*
-    !* Implicit argument: SCALP(KDIM) assumed to be unity
-
+    ! PRSCAL: inner product in canonical space
+    !
+    ! Author  : P. Gauthier *ARMA/AES  January 27, 1993
+    ! Purpose: evaluation of the inner product used in the minimization
+    !
+    ! Arguments
+    !     i : KDIM     : dimension of the vectors
+    !     i : PX, PY   : vector for which <PX,PY> is being calculated
+    !     o : DDSC     : result of the inner product
+    !
     IMPLICIT NONE
 
     INTEGER KDIM, J, RR
@@ -842,18 +840,17 @@ contains
   END SUBROUTINE PRSCAL
 
   SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
-    !***s/r DCANAB  - Change of variable associated with the canonical
-    !*     .         inner product
-    !*
-    !*Author    JM Belanger CMDA/SMC   May 2001
-    !*     .    Double precision version based on single precision CTCAB.
-    !*          Refered to  as dummy argument DTCAB by N1QN3 minimization
-    !*          package.
-    !*    -------------------
-    !**    Purpose: to compute PX = L^-1 * Py with L related to the inner product
-    !*     .        <PX,PY> = PX^t  L^t  L PY
-    !*     .        (see the modulopt documentation aboutn DTCAB)
-    !*     NOTE: L is assumed to be the identity!
+    ! DCANAB  - Change of variable associated with the canonical inner product
+    !
+    ! Author    JM Belanger CMDA/SMC   May 2001
+    ! Double precision version based on single precision CTCAB.
+    ! Refered to  as dummy argument DTCAB by N1QN3 minimization
+    ! package.
+    !
+    ! Purpose: to compute PX = L^-1 * Py with L related to the inner product
+    ! <PX,PY> = PX^t  L^t  L PY
+    ! (see the modulopt documentation aboutn DTCAB)
+    !
     IMPLICIT NONE
 
     INTEGER KDIM, KZS(1)
@@ -872,19 +869,17 @@ contains
   END SUBROUTINE DCANAB
 
   SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
-    !***s/r DCANONB  - Change of variable associated with the canonical
-    !*     .          inner product
-    !*
-    !*Author    JM Belanger CMDA/SMC  May 2001
-    !*     .    Double precision version based on single precision CANONB.
-    !*          Refered to as dummy argument DTONB by N1QN3 minimization
-    !*          package.
-    !*    -------------------
-    !**    Purpose: to compute PY = L * PX with L related to the inner product
-    !*     .        <PX,PY> = PX^t  L^t  L PY
-    !*     .        (see the modulopt documentation about DTONB)
-    !*     .
-
+    ! DCANONB  - Change of variable associated with the canonical inner product
+    !
+    ! Author    JM Belanger CMDA/SMC  May 2001
+    ! Double precision version based on single precision CANONB.
+    ! Refered to as dummy argument DTONB by N1QN3 minimization
+    ! package.
+    !
+    ! Purpose: to compute PY = L * PX with L related to the inner product
+    ! <PX,PY> = PX^t  L^t  L PY
+    !(see the modulopt documentation about DTONB)
+    !
     IMPLICIT NONE
     INTEGER KDIM, KZS(1)
     REAL PZS(1)
