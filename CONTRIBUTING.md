@@ -63,7 +63,7 @@ branch, you can *rebase* your changes in your branch on top of the
 latest commit in the `master` branch in the GitLab project.
 
 ```bash
-## create a copy of the original branch and rebuild the branch on top of the 'master' branch
+## If wanted, you can create a new branch to work on, but this is not mandatory
 git checkout -b <name of branch>_v1
 git pull --rebase origin master
 ```
@@ -71,10 +71,6 @@ git pull --rebase origin master
 Resolve any possible conflicts and do a final :
 ```bash
 git push origin HEAD
-```
-If you already pushed to branch, this command will abort.  You then have to force push the branch:
-```bash
-git push origin HEAD --force-with-lease
 ```
 
 
