@@ -62,6 +62,10 @@ evolved since the time you created your branch.  To synchronize your
 branch, you can *rebase* your changes in your branch on top of the
 latest commit in the `master` branch in the GitLab project.
 
+It is often a good idea to create a new branch to work on (which
+starts out as a copy of your existing branch). It is mandatory to do
+this if your branch has already been pushed to the central repository.
+
 ```bash
 ## ...not mandatory, if the branch has not yet been pushed
 ##                or if you dont mind to change the working branch in-place
