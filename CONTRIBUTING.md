@@ -63,7 +63,8 @@ branch, you can *rebase* your changes in your branch on top of the
 latest commit in the `master` branch in the GitLab project.
 
 ```bash
-## If wanted, you can create a new branch to work on, but this is not mandatory
+## ...not mandatory, if the branch has not yet been pushed
+##                or if you dont mind to change the working branch in-place
 git checkout -b <name of branch>_v1
 git pull --rebase origin master
 ```
