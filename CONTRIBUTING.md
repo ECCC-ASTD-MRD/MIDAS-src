@@ -63,9 +63,9 @@ branch, you can *rebase* your changes in your branch on top of the
 `master` branch in the GitLab project.
 
 ```bash
-## keep a copy of the original branch
-git branch <name of branch>_v1
-git pull --rebase master
+## create a copy of the original branch and rebuild the branch on top of the 'master' branch
+git checkout -b <name of branch>_v1
+git pull --rebase origin master
 ```
 
 Resolve any possible conflicts and do a final :
