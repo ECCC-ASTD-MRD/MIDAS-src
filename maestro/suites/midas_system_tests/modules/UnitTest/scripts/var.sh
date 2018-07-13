@@ -55,7 +55,7 @@ if [ "${fasttmp}" = yes ]; then
     typeset -Z2 counter=1
     for file in trlm_* ; do
         if [ "$(((counter-1)%nprocs))" -eq "${MP_CHILD}" ]; then
-            /bin/cp ${file} ${FASTTMPDIR}/
+            [ -f "${file}" ] && /bin/cp ${file} ${FASTTMPDIR}/
         fi
 	let counter=counter+1
     done
