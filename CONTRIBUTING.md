@@ -74,7 +74,7 @@ git push origin HEAD
 ```
 If you already pushed to branch, this command will abort.  You then have to force push the branch:
 ```bash
-git push origin HEAD -f
+git push origin HEAD --force-with-lease
 ```
 
 
