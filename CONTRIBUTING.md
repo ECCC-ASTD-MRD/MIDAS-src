@@ -81,7 +81,7 @@ git push origin HEAD -f
 ### Create and assign the `Merge Request`
 
   - Go to **gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
-  - Verify the information, in particular the source branch and the target branch should be `master`.
+  - Verify the information, in particular the source branch should the branch you worked on and the target branch should be `master`.
   - Assign the `Merge Request` to a colleague.
   - And press `Submit merge request`.
   - The assignee is expected to review the code, discuss/comment and finally accept the `Merge Request`, which will:
