@@ -60,7 +60,7 @@ git log --oneline ..origin/master
 If the command returns something, that means the branch `master` has
 evolved since the time you created your branch.  To synchronize your
 branch, you can *rebase* your changes in your branch on top of the
-`master` branch in the GitLab project.
+latest commit in the `master` branch in the GitLab project.
 
 ```bash
 ## create a copy of the original branch and rebuild the branch on top of the 'master' branch
