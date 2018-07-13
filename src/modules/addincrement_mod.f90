@@ -286,8 +286,8 @@ CONTAINS
     !- Impose limits on humidity analysis and recompute increment
     !
     write(*,*) 'adx_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
-    call qlim_gsvSaturationLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
-    if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
+    call qlim_gsvSaturationLimit(statevector_analysis)
+    if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis)
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
 

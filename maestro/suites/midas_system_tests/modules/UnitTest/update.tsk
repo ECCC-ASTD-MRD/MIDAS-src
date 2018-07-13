@@ -52,6 +52,15 @@ for result in ${TASK_INPUT}/results/results*.ca; do
     done
 done
 
+# Remove useless data
+for dir in $(ls -d */) ; do
+    rmdir $dir
+done
+for nonTrackFile in $UnitTest_check_results_ignore ; do
+    rm $nonTrackFile
+done
+
+# Check if we have something left
 if [ -n "$(find . -type l)" ]; then
     echo "Not all files have been archived!"
     echo "Here are the files left in the working directory."

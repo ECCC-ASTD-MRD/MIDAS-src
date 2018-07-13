@@ -198,7 +198,7 @@ program midas_advector
 
     do stepIndex = 1, advectedFieldNumStep
       call gsv_writeToFile(statevector,'./advectedFields.fst','FORWARD',    & ! IN
-                           stepIndex_opt=stepIndex, HUcontainsLQ_opt=.false. )! IN
+                           stepIndex_opt=stepIndex)! IN
     end do
   end if
 
@@ -209,7 +209,7 @@ program midas_advector
 
     do stepIndex = 1, advectedFieldNumStep
       call gsv_writeToFile(statevector,'./advectedFields.fst','FORW_BACK',   & ! IN
-                           stepIndex_opt=stepIndex, HUcontainsLQ_opt=.false. ) ! IN
+                           stepIndex_opt=stepIndex) ! IN
     end do
   end if
 
@@ -223,7 +223,7 @@ program midas_advector
 
     do stepIndex = 1, advectedFieldNumStep
       call gsv_writeToFile(statevector,'./advectedFields.fst','BACKWARD', & ! IN
-           stepIndex_opt=stepIndex, HUcontainsLQ_opt=.false. )       ! IN
+                           stepIndex_opt=stepIndex)                         ! IN
     end do
   end if
 
@@ -234,7 +234,7 @@ program midas_advector
 
     do stepIndex = 1, advectedFieldNumStep
       call gsv_writeToFile(statevector,'./advectedFields.fst','BACK_FORW', & ! IN
-           stepIndex_opt=stepIndex, HUcontainsLQ_opt=.false. )       ! IN
+                           stepIndex_opt=stepIndex)                          ! IN
     end do
   end if
 

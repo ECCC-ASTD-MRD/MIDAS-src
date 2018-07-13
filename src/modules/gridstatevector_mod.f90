@@ -2085,7 +2085,7 @@ module gridStateVector_mod
     character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
 
-    logical :: doHorizInterp, doVertInterp, unitConversion, HUcontainsLQ
+    logical :: doHorizInterp, doVertInterp, unitConversion
     logical :: readGZsfc, readSubsetOfLevels
 
     type(struct_vco), pointer :: vco_file
@@ -4233,7 +4233,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, HUcontainsLQ_opt, &
+  subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, &
                             hInterpolateDegree_opt)
     !
     ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
@@ -4245,7 +4245,6 @@ module gridStateVector_mod
     type(struct_hco), pointer :: hco_in
     type(struct_vco), pointer :: vco_in
     type(struct_gsv)          :: statevector_trial
-    logical, optional         :: HUcontainsLQ_opt
     character(len=*),optional :: hInterpolateDegree_opt
 
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
@@ -4254,14 +4253,8 @@ module gridStateVector_mod
     integer, allocatable :: dateStampList(:)
     character(len=2)     :: fileNumber
     character(len=30)    :: fileName
-    logical              :: fileExists, HUcontainsLQ
+    logical              :: fileExists
     character(len=12)    :: hInterpolateDegree
-
-    if ( present(HUcontainsLQ_opt) ) then
-      HUcontainsLQ = HUcontainsLQ_opt
-    else
-      HUcontainsLQ = .true.
-    end if
 
     if ( present(hInterpolateDegree_opt) ) then
       hInterpolateDegree = trim(hInterpolateDegree_opt)

@@ -66,7 +66,6 @@ contains
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
-    logical            :: HUcontainsLQinFile
 
     write(*,*) 'enkf_readMember: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

@@ -970,7 +970,7 @@ CONTAINS
   end subroutine ens_recenter
 
   subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
-       HUcontainsLQ,etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
+       etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
     !! We want to compute:
@@ -983,7 +983,6 @@ CONTAINS
     character(len=*) :: ensFileName, ensPathName, ensFileNamePrefix
     type(struct_gsv) :: recenteringMean
     real(8)          :: recenteringCoeff
-    logical          :: HUcontainsLQ
     character(len=*)  :: etiket
     character(len=*)  :: typvar
     type(struct_gsv), optional :: alternativeEnsembleMean_opt
@@ -1004,7 +1003,7 @@ CONTAINS
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
       call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
-           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+           stepIndex_opt=stepIndex, unitConversion_opt=.true.)
     end do
 
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &

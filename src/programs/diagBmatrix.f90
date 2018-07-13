@@ -275,8 +275,7 @@ program midas_diagBmatrix
 
             do stepIndexInc = 1, tim_nstepobsinc
               call gsv_writeToFile(statevector,filenameInc,'1OBS_'//trim(vnl_varNameList(varIndex)),  &
-                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,HUcontainsLQ_opt=.true.,   &
-                                   unitConversion_opt=.true.)
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3, unitConversion_opt=.true.)
             end do
 
             ! Normalized the result to get correlation-like pattern
@@ -302,7 +301,7 @@ program midas_diagBmatrix
 
             do stepIndexInc = 1, tim_nstepobsinc
               call gsv_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
-                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,HUcontainsLQ_opt=.true.,     &
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,  &
                                    unitConversion_opt=.false.)
             end do
 
@@ -565,7 +564,7 @@ program midas_diagBmatrix
 
     !- Write to file
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
-         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
+                         unitConversion_opt=.true.)
 
     !
     !- Compute the zonal mean std dev
@@ -610,7 +609,7 @@ program midas_diagBmatrix
     deallocate(stddev_zm2)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
-                         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
+                         unitConversion_opt=.true.)
 
     ! Write the zonal mean stddev to a text file, if requested
     if ( writeTextStddev ) then
@@ -690,7 +689,7 @@ program midas_diagBmatrix
     deallocate(controlVector_global)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
-                         HUcontainsLQ_opt=.true., unitConversion_opt=.true.)
+                         unitConversion_opt=.true.)
 
   end if ! if numperturbations.gt.1
 

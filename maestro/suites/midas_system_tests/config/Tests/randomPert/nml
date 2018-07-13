@@ -1,6 +1,6 @@
  &NAMBHI
-  NTRUNC = 180
-  SCALEFACTOR = 200*0.0d0
+  NTRUNC = 270
+  SCALEFACTOR = 100*0.5d0
 /
  &NAMBEN
   NENS = 16
@@ -9,7 +9,7 @@
  &NAMENKF
    NENS=4
    SEED=1
-   DATE=2017010100
+   DATE=2014062000
    REMOVE_MEAN=T
    WRITE_MPI=F
    MPITOPOINDEPENDENT = .true.
@@ -22,7 +22,7 @@
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'
-   ANLVAR(4)   ='LQ'
+   ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /

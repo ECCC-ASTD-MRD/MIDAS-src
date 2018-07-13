@@ -38,17 +38,15 @@ module humidityLimits_mod
 
   contains
 
-  subroutine qlim_gsvSaturationLimit(statevector, HUcontainsLQ_opt)
+  subroutine qlim_gsvSaturationLimit(statevector)
     !
     ! Purpose:
     !          impose saturation limit on humidity variable of a statevector
     !
     implicit none
     type(struct_gsv) :: statevector
-    logical, optional :: HUcontainsLQ_opt
 
     type(struct_vco), pointer :: vco_ptr
-    logical :: HUcontainsLQ
     real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), tt_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
@@ -67,12 +65,6 @@ module humidityLimits_mod
     if( statevector%dataKind /= 8 ) then
       call utl_abort('qlim_gsvSaturationLimit: only compatible with double precision ' // &
                      'data.')
-    end if
-
-    if( present(HUcontainsLQ_opt) ) then
-      HUcontainsLQ = HUcontainsLQ_opt
-    else
-      HUcontainsLQ = .true.
     end if
 
     vco_ptr => gsv_getVco(statevector)
@@ -101,13 +93,7 @@ module humidityLimits_mod
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
-
-            ! Obtain HU from LQ, if necessary
-            if( HUcontainsLQ ) then
-              call utl_abort('qlim_gsvSaturationLimit: HUcontainsLQ not supported anymore')
-            else
-              hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
-            end if
+            hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
             tt = tt_ptr(lonIndex,latIndex,levIndex,stepIndex)
 
             ! get the saturated vapor pressure from HU
@@ -129,16 +115,14 @@ module humidityLimits_mod
   end subroutine qlim_gsvSaturationLimit
 
 
-  subroutine qlim_gsvRttovLimit(statevector, HUcontainsLQ_opt)
+  subroutine qlim_gsvRttovLimit(statevector)
     !
     ! Purpose:
     !          impose RTTOV limits on humidity
     !
     implicit none
     type(struct_gsv) :: statevector
-    logical, optional :: HUcontainsLQ_opt
     type(struct_vco), pointer :: vco_ptr
-    logical :: HUcontainsLQ
     real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, hu_modified
@@ -162,12 +146,6 @@ module humidityLimits_mod
     if( statevector%dataKind /= 8 ) then
       call utl_abort('qlim_gsvRttovLimit: only compatible with double precision ' // &
                      'data.')
-    end if
-
-    if( present(HUcontainsLQ_opt) ) then
-      HUcontainsLQ = HUcontainsLQ_opt
-    else
-      HUcontainsLQ = .true.
     end if
 
     ! Read in RTTOV humidity limits
@@ -234,13 +212,7 @@ module humidityLimits_mod
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
-
-            ! Obtain HU from LQ, if necessary
-            if( HUcontainsLQ ) then
-              call utl_abort('qlim_gsvRttovLimit: HUcontainsLQ not supported anymore')
-            else
-              hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
-            end if
+            hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
 
             ! limit the humidity according to the rttov limits
             hu_modified = max(hu, qmin3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex) )
