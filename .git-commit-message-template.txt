@@ -1,0 +1,32 @@
+Issue #
+
+# - In the title, specify the related issue number followed by a colon (':')
+#    - the title summaries the change
+#    - should be less then 40 characters (excluding the 'Issue #XXX')
+# - The body should include more detailed explanatory text
+# - Explain why the change was made: the intention.
+# - Mention if the results or the timings are affected by this change.
+# - You can also refer to other issues using the '#' sign.
+# - Reread yourself!
+#
+#Wrap it to about 72 characters or so ('git log' does not automatically
+#wrap text).  The blank line separating the summary from the body is
+#critical (unless you omit the body entirely). Separate paragraphs with
+#blank lines.
+#
+#- Bullet points are okay, too
+#
+#- Use a hyphen followed by a single space, with blank lines in between
+#  and use a hanging indent
+
+#For a justification of those rules, see
+#   https://gist.github.com/jeffjewiss/1198556
+#or a more complete reference:
+#   https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+
+
+
+
+
+
+
