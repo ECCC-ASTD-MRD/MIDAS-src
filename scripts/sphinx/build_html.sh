@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # SELECT WHICH FORTRAN SOURCE FILES TO INCLUDE IN DOCUMENTATION
 
 codedir=${1:-../../src}
@@ -157,6 +159,7 @@ make html
 mkdir -p ${htmldir}
 mv _build/html/* ${htmldir}
 
+echo "The HTML are in ${htmldir}"
 # CLEAN UP
 
 rm -fR _src_files
