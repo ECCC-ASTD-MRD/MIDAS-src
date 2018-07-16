@@ -37,7 +37,7 @@ runtests:
    only:
      - master
 
-doc:
+doc_f90doc:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
@@ -48,3 +48,16 @@ doc:
   - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
+
+doc_sphinx:
+  stage: doc
+  variables:
+    docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+    midasdoc: /home/erv000/public_html/midas-sphinx-doc
+  script:
+  - cd scripts/sphinx
+  - ./build_html.sh ../../src $midasdoc/$docname
+  - rm -fv $midasdoc/latest
+  - ln -sv $midasdoc/$docname $midasdoc/latest
+  #only:
+  #  - manual
