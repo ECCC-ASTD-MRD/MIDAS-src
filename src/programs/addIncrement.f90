@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_addIncrement
+  !
+  ! **Purpose**: Main program for replacing functionality of Jeff's original 
+  ! AddAnalInc (AAI) program
+  !
   use mpi_mod
   use utilities_mod
   use ramDisk_mod

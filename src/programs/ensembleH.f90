@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_ensembleH
+  !
+  ! **Purpose**: Main program for applying the observation operator to an ensemble
+  ! of states as the first step for most EnKF algorithms.
+  !
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod

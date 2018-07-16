@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_calcstats
+  !
+  ! **Purpose**: Main program for computing background-error covariance file
+  ! based on homogeneous and isotropic correlations.
+  !
   use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod

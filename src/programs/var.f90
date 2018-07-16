@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_var
+  !
+  ! **Purpose**: Main program for variational minimization and background check 
+  ! (depending on the mode selected in the namelist).
+  !
   use ramDisk_mod
   use utilities_mod
   use mpivar_mod

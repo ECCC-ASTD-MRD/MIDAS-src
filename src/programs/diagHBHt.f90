@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_diagHBHt
+  !
+  ! **Purpose**: Main program for computing background error variance in observation
+  ! space.
+  !
   use ramDisk_mod
   use utilities_mod
   use mpivar_mod

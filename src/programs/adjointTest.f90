@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_adjointTest
+  !
+  ! **Purpose**: Main program for adjoint test applications: 
+  ! <x,L(y)> = <L^T(x),y>
+  !
   use ramDisk_mod
   use utilities_mod
   use mpiVar_mod

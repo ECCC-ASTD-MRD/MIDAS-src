@@ -21,6 +21,11 @@
 !!
 !--------------------------------------------------------------------------
 module mpi_mod
+  !
+  ! MODULE mpi (prefix='mpi')
+  !
+  ! **Purpose**: Subroutine and public variables related to general aspects of mpi.
+  !
   use utilities_mod
   implicit none
   save
@@ -122,53 +127,51 @@ module mpi_mod
   end subroutine mpi_getptopo 
 
 
-  subroutine mpi_allreduce_sumreal8scalar(sendrecvbuf,com)
+  subroutine mpi_allreduce_sumreal8scalar(sendRecvValue,comm)
     implicit none
-    real(8) :: sendrecvbuf
-    character(len=*) :: com
+    real(8), intent(inout)       :: sendRecvValue ! value to be summed over all mpi tasks
+    character(len=*), intent(in) :: comm          ! rpn_comm communicator
 
     integer :: nsize, ierr, root, rank
     real(8), allocatable :: allvalues(:)
 
     ! do a barrier so that timing on reduce operation is accurate
     call tmg_start(109,'MPI_SUMSCA_BARR')
-    if(mpi_doBarrier) call rpn_comm_barrier(com,ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
     call tmg_start(16,'allreduce_sum8')
 
     ! determine number of processors in the communicating group
-    call rpn_comm_size(com,nsize,ierr)
+    call rpn_comm_size(comm,nsize,ierr)
 
     ! determine where to gather the values: first task in group
-    call rpn_comm_rank(com,rank,ierr)
-    call rpn_comm_allreduce(rank,root,1,"MPI_INTEGER","MPI_MIN",com,ierr)
+    call rpn_comm_rank(comm,rank,ierr)
+    call rpn_comm_allreduce(rank,root,1,"MPI_INTEGER","MPI_MIN",comm,ierr)
 
     ! gather values to be added onto 1 processor
     allocate(allvalues(nsize))
-    call rpn_comm_gather(sendrecvbuf, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, com, ierr)
+    call rpn_comm_gather(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     ! sum the values and broadcast to group
-    if(rank.eq.root) sendrecvbuf = sum(allvalues(:))
+    if(rank.eq.root) sendRecvValue = sum(allvalues(:))
     deallocate(allvalues)
-    call rpn_comm_bcast(sendrecvbuf, 1, "MPI_DOUBLE_PRECISION", root, com, ierr)
+    call rpn_comm_bcast(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     call tmg_stop(16)
 
   end subroutine mpi_allreduce_sumreal8scalar
  
-  !-------------------------------------------------------------------------------------------
   
   subroutine mpi_allgather_string(str_list,str_list_all,nlist,nchar,nproc,comm,ierr)
-  ! 
-  !   Purpose: Performs the MPI 'allgather' routine for an array of strings
-  !
-  !   Author:  Y. Rochom, ARQI/AQRD, July 2015
-  !
-  !   Revisions:  M. Sitwell, ARQI/AQRD, Aug 2015
-  !               - Code set as a subroutine
-  !-------------------------------------------------------------------------------------------
-
+    ! 
+    ! **Purpose**: Performs the MPI 'allgather' routine for an array of strings
+    !
+    ! Author:  Y. Rochom, ARQI/AQRD, July 2015
+    !
+    ! Revisions:  M. Sitwell, ARQI/AQRD, Aug 2015
+    !             - Code set as a subroutine
+    !
     implicit none
 
     character(len=nchar), intent(in) :: str_list(nlist)

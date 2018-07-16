@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_advector
+  !
+  ! **Purpose**: Main program for the propagation of fields based on 
+  ! Lagrangian advection
+  !
   use ramDisk_mod
   use utilities_mod
   use mpiVar_mod
