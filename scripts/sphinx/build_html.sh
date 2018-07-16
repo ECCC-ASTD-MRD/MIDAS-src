@@ -2,7 +2,8 @@
 
 # SELECT WHICH FORTRAN SOURCE FILES TO INCLUDE IN DOCUMENTATION
 
-codedir=../../src
+codedir=${1:-../../src}
+htmldir=${2:-~/public_html/midas_sphinx}
 
 # ALL THE FILES (ONLY AFTER WORK IS DONE TO MODIFY ALL SOURCE FILES)
 program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
@@ -152,9 +153,9 @@ make html
 
 # PUBLISH HTML FILES
 
-rm -fR ~/public_html/midas_sphinx
-mkdir -p ~/public_html/midas_sphinx
-mv _build/html/* ~/public_html/midas_sphinx/
+[ -d "${htmldir}" ] && rm -rf ${htmldir}
+mkdir -p ${htmldir}
+mv _build/html/* ${htmldir}
 
 # CLEAN UP
 
