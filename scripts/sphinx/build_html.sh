@@ -149,7 +149,7 @@ EOF
 
 rm -fR _build
 mkdir _build
-PYTHONPATH="$PYTHONPATH:${PWD}/lib/python2.7"
+PYTHONPATH="$PYTHONPATH:${PWD}/lib/python2.7:${PWD}/lib/python2.7/sphinx_fortran-1.0.1-py2.7.egg"
 #sphinx-build -b html ./ ./_build
 make html
 
