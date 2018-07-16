@@ -85,14 +85,17 @@ $module_name
 EOF
 done
 
+revision=$(git describe --always --dirty=_M 2>/dev/null)
 
 # GENERATE THE MAIN PAGE
 
-cat > index.rst << 'EOF'
+cat > index.rst << EOF
 .. MIDAS documentation master file
 
 Welcome to MIDAS documentation
 ==============================
+
+This is the documentation for version ${revision}
 
 This is the automatically generated MIDAS documentation. Below you
 will find a list of all fortran programs and modules that make up
@@ -102,6 +105,9 @@ statement will be included. It can be formatted using *reStructuredText*.
 A primer on this markup language can be found here:
 
 http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+EOF
+
+cat >> index.rst << 'EOF'
 
 .. note::  Currently only a few programs/modules are included since significant
            changes will be required in modifying existing comments to avoid sphinx
