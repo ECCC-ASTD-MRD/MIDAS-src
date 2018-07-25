@@ -2332,7 +2332,7 @@ CONTAINS
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
     call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_tlm' ) ! IN
+                        'LQtoHU_ad' )  ! IN
 
     call copyFromStatevector(statevector,gd_in)
 

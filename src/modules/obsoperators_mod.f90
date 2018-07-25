@@ -314,8 +314,6 @@ contains
           if(ivnm == bufr_nees) then
              col_ptr_hu=>col_getColumn(columnhr,headerIndex,'HU')
              col_ptr_tt=>col_getColumn(columnhr,headerIndex,'TT')
-             !columnVarB=lqtoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
-             !columnVarT=lqtoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
              columnVarB=hutoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
              columnVarT=hutoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
           else

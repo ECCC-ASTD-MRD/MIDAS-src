@@ -1515,7 +1515,7 @@ CONTAINS
     !
     if ( ctrlVarHumidity == 'LQ') then
       call vtr_transform( statevector, & ! INOUT
-                          'LQtoHU_tlm' ) ! IN
+                          'LQtoHU_ad' )  ! IN
     end if
 
     !

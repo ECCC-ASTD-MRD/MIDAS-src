@@ -776,7 +776,7 @@ contains
     !-  4. Convert LQ_inc to HU_inc
     !
     call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_tlm' ) ! IN
+                        'LQtoHU_ad' )  ! IN
 
     !
     !-  3.  Extract data from the StateVector
