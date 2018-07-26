@@ -115,6 +115,8 @@ contains
           write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
           call blb_Setup( hco_anl, vco_anl, & ! IN
                           cvdim )             ! OUT
+        else
+          cvdim=0
         end if
 
       case ('ENS')
@@ -132,7 +134,9 @@ contains
           write(*,*)
           write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
           call bchm_Setup( hco_anl, vco_anl, & ! IN
-                           cvdim )                   ! OUT
+                           cvdim )             ! OUT
+        else
+          cvdim=0
         end if
 
       case ('DIFF')
@@ -152,7 +156,7 @@ contains
       call cvm_setupSubVector(bmatLabelList(bmatIndex), bmatTypeList(bmatIndex), cvdim)
 
     end do
-    
+
   end subroutine bmat_setup
 
   !--------------------------------------------------------------------------
