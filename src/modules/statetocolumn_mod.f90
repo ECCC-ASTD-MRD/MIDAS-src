@@ -712,10 +712,8 @@ CONTAINS
 
       if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
-        numLev = size(column_ptr,1)
-      else
-        numLev = 1
       end if
+      numLev = statevector%nk
 
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
