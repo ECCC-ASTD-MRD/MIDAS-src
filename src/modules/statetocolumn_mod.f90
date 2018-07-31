@@ -416,11 +416,8 @@ CONTAINS
       if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
         column_ptr(:,:) = 0.0d0
-        numLev = size(column_ptr,1)
-      else
-        numLev = 1
-        write(*,*) 'gd2mvo: numHeaderTile not positive, set numLev to 1'
       end if
+      numLev = statevector%nk
 
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
