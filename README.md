@@ -9,8 +9,22 @@
 
 # Contributing
 
-The workflow to contribute to MIDAS is documented in the [contributing
-guide](CONTRIBUTING.md).
+We strongly suggest anyone considering to contribute to the MIDAS
+ project, to follow the workflow documented in the [contributing
+ guide](CONTRIBUTING.md).
+
+# Getting a local copy of the code
+
+To simply get a local copy of the code, we suggest to use the tool
+`clone_projet`.  Here is how to use it:
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/1.0
+clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
+```
+or if one is interested in the `master` branch:
+```bash
+clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
+```
 
 # Compiling a single program
 
