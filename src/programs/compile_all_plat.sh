@@ -2,7 +2,7 @@
 
 set -ex
 
-MIDAS_ABS=${1:${PWD}/../../compiledir/midas_abs}
+MIDAS_ABS=${1:-${PWD}/../../compiledir/midas_abs}
 codedir=${2:-${PWD}}
 
 rev=${CI_BUILD_REF:-$(git describe)}
