@@ -47,7 +47,7 @@ MODULE minimization_mod
   use utilities_mod
   use biasCorrection_mod
   use chem_postproc_mod, only: chm_transform_final_increments
-  use addIncrement_mod
+  use increment_mod
   implicit none
   save
   private
@@ -502,7 +502,7 @@ CONTAINS
         ! compute and write the analysis (as well as the increment on the trial grid)
         if (writeAnalysis) then
           call tmg_start(129,'MIN_ADDINCREMENT')
-          call adx_computeAndWriteAnalysis(statevector_incr) ! IN
+          call inc_computeAndWriteAnalysis(statevector_incr) ! IN
           call tmg_stop(129)
         end if
 

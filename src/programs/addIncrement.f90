@@ -30,7 +30,7 @@ program midas_addIncrement
   use ramDisk_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use addIncrement_mod
+  use increment_mod
   implicit none
 
   integer :: get_max_rss
@@ -70,7 +70,7 @@ program midas_addIncrement
   !
   !- Interpolate the increment, add the increment and output the analysis
   !
-  call adx_computeAndWriteAnalysis()
+  call inc_computeAndWriteAnalysis()
 
   !
   !- MPI, tmg finalize
