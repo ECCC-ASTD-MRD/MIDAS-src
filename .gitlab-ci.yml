@@ -34,6 +34,7 @@ runtests:
      - ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
+     - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
 
