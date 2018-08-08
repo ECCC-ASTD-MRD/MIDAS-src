@@ -4,8 +4,8 @@
 
 # MIDAS Fortran code documentation:
 
-* [Master branch](http://hpfx.science.gc.ca/~erv000/midas-doc/latest)
-* [Master branch (new sphinx prototype)](http://hpfx.science.gc.ca/~erv000/midas-sphinx-doc/latest)
+* [Master branch](http://hpfx.science.gc.ca/~sanl000/midas-doc/latest)
+* [Master branch (new sphinx prototype)](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest)
 
 # Contributing
 
