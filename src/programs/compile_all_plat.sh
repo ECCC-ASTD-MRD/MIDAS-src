@@ -2,8 +2,19 @@
 
 set -ex
 
-MIDAS_ABS=${1:-${PWD}/../../compiledir/midas_abs}
-codedir=${2:-${PWD}}
+if [ $# -eq 0 ]; then
+    MIDAS_ABS=
+    codedir=${PWD}
+elif [ $# -eq 1 ]; then
+    MIDAS_ABS=${1}
+    codedir=${PWD}
+elif [ $# -eq 2 ]; then
+    MIDAS_ABS=${1}
+    codedir=${2}
+else
+    echo "$0 only takes 0, 1 or 2 arguments"
+    exit 1
+fi
 
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
