@@ -396,11 +396,12 @@ contains
     clvalu(68) = 'obsssm'
     clvalu(69) = 'obsgp'
     clvalu(70) = 'obsch'
+    clvalu(71) = 'obsgl'
     ! file name for CMA format used by EnKF
-    clvalu(71) = 'cmaheader'
+    clvalu(72) = 'cmaheader'
     ! Sea Surface Temperature data file name
-    clvalu(72) = 'brpsst'
-    clvalu(73) = 'obsal'
+    clvalu(73) = 'brpsst'
+    clvalu(74) = 'obsal'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -473,10 +474,11 @@ contains
     cfami(68)  = 'MI'
     cfami(69)  = 'GP'
     cfami(70)  = 'CH'
+    cfami(71)  = 'GL'
     ! dummy family type for CMA, since it contains all families
-    cfami(71)  = 'XX'
-    cfami(72)  = 'TM'
-    cfami(73)  = 'AL'
+    cfami(72)  = 'XX'
+    cfami(73)  = 'TM'
+    cfami(74)  = 'AL'
 
     obsDirectory = 'obs'
 
@@ -539,12 +541,12 @@ contains
       call utl_abort('obsf_determineFileType: No observation files found')
     end if
 
-    write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
+    write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
 
     if ( mpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
 
     call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
-    write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
+    write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
 
@@ -576,7 +578,7 @@ contains
       else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
         obsFiletype = 'BURP'
       else
-        call utl_abort('obsf_determineFileType: unknown obs file type')
+        call utl_abort('obsf_determineSplitFileType: unknown obs file type')
       end if
 
     end if

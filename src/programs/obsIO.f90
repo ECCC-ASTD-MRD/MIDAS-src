@@ -46,7 +46,7 @@ program midas_obsio
 
   write(*,*) " ------------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM midas-obsIO ---"
-  write(*,*) " ---  Computation of the innovation     ---"
+  write(*,*) " ---  Read and update observation files ---"
   write(*,*) " ------------------------------------------"
 
   !

@@ -15,6 +15,12 @@
   sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /
+ &NAMSQLgl
+  numberElem=1
+  listElem="20222"
+  sqlExtraDat=" order by id_obs "
+  sqlNull=" and obsvalue is not null "
+/
  &namSQLUpdate
  numberUpdateItems=1
  itemUpdateList(1)='VAR'

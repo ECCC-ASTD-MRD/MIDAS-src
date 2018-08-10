@@ -137,7 +137,7 @@ module sqliteFiles_mod
       call obsu_windDirectionToUV     (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
       call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
       call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
-    end if             
+    end if
 
     do headerIndex = headerIndexBegin, headerIndexEnd
       call obs_headSet_i(obsdat, OBS_OTP, headerIndex, fileIndex)

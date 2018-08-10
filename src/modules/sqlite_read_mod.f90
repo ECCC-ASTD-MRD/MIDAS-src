@@ -166,6 +166,7 @@ contains
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
@@ -206,7 +207,7 @@ contains
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, status, id_stn, elev"  
     end if
-    
+
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     select case(trim(rdbSchema))
@@ -301,6 +302,10 @@ contains
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
+     case( 'gl' )
+        read(nulnam, nml = NAMSQLgl, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
@@ -352,7 +357,8 @@ contains
     write(*,*) myName//' DEBUT numheader  =', obs_numHeader(obsdat)
     write(*,*) myName//' DEBUT numbody    =', obs_numBody(obsdat)
     call fSQL_get_many (  stmt2, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
-    write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns, rdbSchema, trim(queryData)
+    write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
+    write(*,*) myName//'  rdbSchema = ', rdbSchema
     write(*,*)' ========================================== '
     allocate( matdata(numberRows, numberColumns) )
     call fSQL_fill_matrix ( stmt2, matdata )
@@ -567,10 +573,10 @@ contains
     write(*,*)  myName//' FIN numbody    =', obs_numBody(obsdat)
     write(*,*)  myName//' fin header '
     timeCharacter = sqlr_query(db,"select time('now')")
-    write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter,rdbSchema
+    write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
-    write(*,*) myName//' end subroutine: ', rdbSchema
+    write(*,*) myName//' end subroutine: ', myName
 
   end subroutine sqlr_readSqlite
 
