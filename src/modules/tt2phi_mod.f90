@@ -334,7 +334,7 @@ subroutine tt2phi_tl(column,columng)
           hu = col_getElem(columng,lev_T,columnIndex,'HU')
           tt = col_getElem(columng,lev_T,columnIndex,'TT')
           coeff_M_TT(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
-          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0)
+          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / hu
           coeff_M_P0(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M(lev_T+1)-delLnP_M(lev_T)) * fotvt8(tt,hu)
         enddo
 
@@ -457,7 +457,7 @@ subroutine tt2phi_ad(column,columng)
           hu = col_getElem(columng,lev_T,columnIndex,'HU')
           tt = col_getElem(columng,lev_T,columnIndex,'TT')
           coeff_M_TT(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
-          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0)
+          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / hu
           coeff_M_P0(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M(lev_T)-delLnP_M(lev_T-1)) * fotvt8(tt,hu)
         enddo
 
@@ -544,7 +544,7 @@ subroutine tt2phi_ad(column,columng)
           hu = col_getElem(columng,lev_T,columnIndex,'HU')
           tt = col_getElem(columng,lev_T,columnIndex,'TT')
           coeff_M_TT(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
-          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0)
+          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / hu
           coeff_M_P0(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M(lev_T+1)-delLnP_M(lev_T)) * fotvt8(tt,hu)
         enddo
 

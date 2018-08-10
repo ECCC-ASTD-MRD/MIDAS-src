@@ -576,7 +576,6 @@ contains
     ! Get specific humidity if available
     if (col_varExist('HU')) then
        do jl=1,nmodlev
-         !obsoper%hu(jl) = exp(col_getElem(column_bkgrnd,jl,headerIndex,'HU')) ! Convert from LQ to Q (lnq to q)
          obsoper%hu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'HU')       ! lnq was replaced by q
        enddo
     else
