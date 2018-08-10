@@ -30,12 +30,26 @@ MODULE increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
+  use variableTransforms_mod, only: vtr_transform
+  use columnData_mod, only: struct_columnData, col_getVco
+  use BMatrix_mod, only: bmat_sqrtB
+  use chem_postproc_mod, only: chm_transform_final_increments
   implicit none
   save
   private
 
   ! public procedures
-  public :: inc_computeAndWriteAnalysis
+  public :: inc_computeAndWriteAnalysis, inc_getIncrement, inc_writeIncrement
+
+  ! namelist variables
+  integer  :: writeNumBits
+  logical  :: writeHiresIncrement
+  logical  :: imposeRttovHuLimits
+  character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
+  character(len=12) :: hInterpolationDegree
+
+  NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
+       etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree
 
 CONTAINS
 
@@ -73,25 +87,15 @@ CONTAINS
 
     logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
 
-    ! namelist variables
-    integer  :: writeNumBits
-    logical  :: writeHiresIncrement
-    logical  :: imposeRttovHuLimits
-    character(len=12) :: etiket_rehm
-    character(len=12) :: etiket_anlm
-    character(len=12) :: hInterpolationDegree
-
-    NAMELIST /NAMADDINC/writeHiresIncrement, etiket_rehm, etiket_anlm, &
-         writeNumBits, imposeRttovHuLimits, hInterpolationDegree
-
     !
-    !- Set/Read values for the namelist NAMADDINC
+    !- Set/Read values for the namelist NAMINC
     !
 
     !- Setting default values
     writeHiresIncrement = .true.
     imposeRttovHuLimits = .true.
     etiket_rehm = 'INCREMENT'
+    etiket_rebm = 'INCREMENT'
     etiket_anlm = 'ANALYSIS'
     writeNumBits = 16
     hInterpolationDegree = 'LINEAR'
@@ -99,9 +103,9 @@ CONTAINS
     !- Read the namelist
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namaddinc, iostat=ierr)
+    read(nulnam, nml=naminc, iostat=ierr)
     if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*,nml=namaddinc)
+    if ( mpi_myid == 0 ) write(*,nml=naminc)
     ierr = fclos(nulnam)
 
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -350,5 +354,85 @@ CONTAINS
     call gsv_deallocate(statevector_trial)
 
   end subroutine inc_computeAndWriteAnalysis
+
+  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal,hco_anl,vco_anl)
+
+    implicit none
+
+    ! arguments
+    real(8) :: incr_cv(:)
+    type(struct_gsv) :: statevector_incr
+    integer :: nvadim_mpilocal
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+
+    ! compute increment from control vector (multiply by B^1/2)
+    call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
+
+    ! Compute new diagnotics based on NAMSTATE
+    if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
+       write(*,*)
+       write(*,*) 'User is asking for Vort-Div analysis increment'
+       call vtr_transform( statevector_incr, & ! INOUT
+                           'UVtoVortDiv' )     ! IN
+       if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
+          write(*,*)
+          write(*,*) 'User is asking for Psi-Chi analysis increment'
+          call vtr_transform( statevector_incr, & ! INOUT
+                              'VortDivToPsiChi')  ! IN
+       end if
+    end if
+
+    ! Adjust and or transform chemical consituent concentration increments as needed.
+    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
+    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
+
+  end subroutine inc_getIncrement
+
+  subroutine inc_writeIncrement(statevector_incr)
+
+    implicit none
+
+    ! arguments
+    type(struct_gsv)     :: statevector_incr
+    ! locals
+    integer              :: stepIndex, dateStamp, nulnam
+    integer              :: fclos, fnom, ierr
+    real(8)              :: deltaHours
+    character(len=4)     :: coffset
+    character(len=2)     :: flnum
+    character(len=30)    :: fileName
+
+    if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: STARTING'
+
+    etiket_rebm = 'INCREMENT'
+
+    !- Read the namelist
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=naminc, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=naminc)
+    ierr = fclos(nulnam)
+
+    ! loop over times for which increment is computed
+    do stepIndex = 1, tim_nstepobsinc
+
+      dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
+      if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
+
+      ! write the increment file for this time step
+      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+      if(nint(deltaHours*60.0d0).lt.0) then
+        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+      else
+        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+      endif
+      fileName = './rebm_' // trim(coffset) // 'm'
+      call gsv_writeToFile(statevector_incr, fileName, etiket_rebm, 1.0d0, 0, stepIndex)
+
+    enddo
+
+  end subroutine inc_writeIncrement
 
 END MODULE increment_mod
