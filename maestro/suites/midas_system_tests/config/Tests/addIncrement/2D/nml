@@ -1,6 +1,6 @@
  &NAMCT0
 /
- &NAMADDINC
+ &NAMINC
 /
  &NAMTIME
   DSTEPOBS = 6.0d0

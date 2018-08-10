@@ -20,11 +20,11 @@
    LWRTHESS = .FALSE.,
    LVARQC=.TRUE.,
    NWOQCV=5
-   CETIKINC ='ENVAR'
    WRITEANALYSIS = .TRUE.
 /
- &NAMADDINC
+ &NAMINC
    hInterpolationDegree = 'CUBIC'
+   etiket_rebm ='ENVAR'
 /
  &NAMSPECTRAL
 /
