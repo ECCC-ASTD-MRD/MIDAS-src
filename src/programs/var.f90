@@ -192,15 +192,8 @@ program midas_var
     ! Do minimization of cost function
     call min_minimize(trlColumnOnAnlLev,obsSpaceData)
 
-    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
-    ! computations controlled by NAMOSD namelist in flnml)
-    call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
-
     ! Deallocate memory related to variational bias correction
     call bias_finalize()
-
-    ! Deallocate memory related to B matrices
-    call bmat_finalize()
 
     ! Now write out the observation data files
     if(min_niter.gt.0) then

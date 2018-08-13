@@ -27,6 +27,7 @@ MODULE minimization_mod
   use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
+  use obsSpaceDiag_mod
   use controlVector_mod
   use mpivar_mod
   use horizontalCoord_mod
@@ -506,6 +507,13 @@ CONTAINS
         call tmg_start(6,'MIN_WRITEINCR')
         call inc_writeIncrement(statevector_incr) ! IN
         call tmg_stop(6)
+
+        ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
+        ! computations controlled by NAMOSD namelist in flnml)
+        call osd_ObsSpaceDiag(obsSpaceData,columng)
+
+        ! Deallocate memory related to B matrices
+        call bmat_finalize()
 
         ! compute and write the analysis (as well as the increment on the trial grid)
         if (writeAnalysis) then
