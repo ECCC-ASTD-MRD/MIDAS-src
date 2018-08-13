@@ -1,6 +1,6 @@
 variables:
     # CI_DEBUG_TRACE: "true"
-    MIDAS_ABS: /home/erv000/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
 
 stages:
    - build
@@ -34,6 +34,7 @@ runtests:
      - ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
+     - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
 
@@ -41,7 +42,7 @@ doc_f90doc:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/erv000/public_html/midas-doc
+    midasdoc: /home/sanl000/public_html/midas-doc
   script:
   - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
   - rm -fv $midasdoc/latest
@@ -53,7 +54,7 @@ doc_sphinx:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/erv000/public_html/midas-sphinx-doc
+    midasdoc: /home/sanl000/public_html/midas-sphinx-doc
   script:
   - cd scripts/sphinx
   - ./build_html.sh ../../src $midasdoc/$docname

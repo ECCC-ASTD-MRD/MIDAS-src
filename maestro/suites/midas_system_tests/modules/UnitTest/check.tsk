@@ -192,7 +192,7 @@ EOF
     else
 	message="The file ${live} is validating with method '${method}'!"
 	echo "${message}"
-	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "${message}"
+	## $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "${message}"
     fi
 }
 ## Fin de la fonction 'check_results'
