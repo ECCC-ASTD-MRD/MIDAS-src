@@ -520,7 +520,7 @@ CONTAINS
         end if
 
         ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
-        call calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
+        call min_calcOmA(statevector_incr,columng,obsSpaceData)
 
         call gsv_deallocate(statevector_incr)
 
@@ -1584,7 +1584,7 @@ CONTAINS
 !!
 !! @author M. Sitwell Sept 2015
 !--------------------------------------------------------------------------
-  subroutine calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
+  subroutine min_calcOmA(statevector_incr,columng,obsSpaceData)
     
     implicit none
     
@@ -1625,6 +1625,6 @@ CONTAINS
     ! Calculate OBS_OMA from OBS_WORK : d-Hdx
     call res_compute(obsSpaceData,obsAssVal_opt=3)
 
-  end subroutine calc_OmA_diagnostic
+  end subroutine min_calcOmA
 
 END MODULE minimization_mod
