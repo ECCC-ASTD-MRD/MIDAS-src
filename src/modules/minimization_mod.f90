@@ -592,12 +592,6 @@ CONTAINS
        end if
     end if
 
-    ! convert LQ to HU
-    if ( gsv_varExist(statevector_incr,'HU') ) then
-       call vtr_transform( statevector_incr, & ! INOUT
-                          'LQtoHU_tlm' )       ! IN
-    end if
-
     ! Adjust and or transform chemical consituent concentration increments as needed.
     ! This includes ensuring non-negative analysis values on the analysis/increment grid.
     if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
@@ -851,12 +845,6 @@ CONTAINS
     ! locals
     character(len=100) :: fileNameFull
     integer            :: stepIndex
-
-    ! convert LQ to HU
-    if ( gsv_varExist(statevector,'HU') ) then
-       call vtr_transform( statevector, & ! INOUT
-                           'LQtoHU_tlm' ) ! IN
-    end if
 
     do stepIndex = 1, statevector%numStep
       fileNameFull = trim(fileName) // trim(fileNameExt(statevector,stepIndex,indexAnalysis))

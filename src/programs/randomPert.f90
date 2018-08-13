@@ -38,6 +38,7 @@ program midas_randomPert
   use timeCoord_mod
   use randomNumber_mod
   use utilities_mod
+  use variableTransforms_mod
   implicit none
 
   type(struct_gsv) :: statevector
@@ -175,6 +176,9 @@ program midas_randomPert
   call bmat_setup(hco_anl, vco_anl)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+  !- 2.6 Initialize the gridded variable transform module
+  call vtr_setup(hco_anl,vco_anl)
 
   !
   !- 3. Memory allocations
@@ -395,10 +399,10 @@ program midas_randomPert
 
     if( write_mpi ) then
       call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN
-                              HUcontainsLQ_opt=.true., unitConversion_opt=.true.)  ! IN
+                              unitConversion_opt=.true.)  ! IN
     else
       call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
-                           HUcontainsLQ_opt=.true., unitConversion_opt=.true.)  ! IN
+                           unitConversion_opt=.true.)  ! IN
     end if
 
     call gsv_deallocate(statevector)

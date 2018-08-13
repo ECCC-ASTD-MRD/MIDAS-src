@@ -186,7 +186,7 @@ EOF
     if [ -n "${not_validating}" ]; then
 	message="The file ${live} does not validate with method '${method}'!"
 	echo "${message}"
-	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "${message}"
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox  -m "${message}"
 	NOT_VALIDATING="yes"
         return 1
     else

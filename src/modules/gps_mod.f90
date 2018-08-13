@@ -812,7 +812,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rLQ,rUU,rVV,prf)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -824,7 +824,7 @@ contains
     real(dp)        , intent(in)  :: rPP (ngpssize)
     real(dp)        , intent(in)  :: rDP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
-    real(dp)        , intent(in)  :: rLQ (ngpssize)
+    real(dp)        , intent(in)  :: rHU (ngpssize)
     real(dp)        , intent(in)  :: rUU (ngpssize)
     real(dp)        , intent(in)  :: rVV (ngpssize)
 
@@ -876,9 +876,9 @@ contains
     ! Fill moisture placeholders:
     !
     do i = 1, ngpslev
-       prf%qst(i)%Var               = exp(rLQ(i))
+       prf%qst(i)%Var               = rHU(i)
        prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = prf%qst(i)%Var
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     enddo
 
     ! Compressibility:
@@ -978,7 +978,7 @@ contains
 
 !modgps04profilezd
 
-  subroutine gps_structztd(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rLQ,lbevis,refopt,prf)
+  subroutine gps_structztd(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
 !
@@ -990,7 +990,7 @@ contains
     real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
     real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
-    real(dp)          , intent(in)  :: rLQ (ngpssize)   ! LOG(q) at each level
+    real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
     
 !   lbevis determines which set of refractivity constants to use (Bevis or Rueger)
     logical           , intent(in)  :: lbevis
@@ -1071,9 +1071,9 @@ contains
     ! Fill moisture (Q) placeholders (kg/kg):
     !
     do i = 1, ngpslev
-       prf%qst(i)%Var               = exp(rLQ(i))
+       prf%qst(i)%Var               = rHU(i)
        prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = prf%qst(i)%Var
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     enddo
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity

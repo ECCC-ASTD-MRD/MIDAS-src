@@ -77,7 +77,7 @@ program midas_ensManip
 
   character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
 
-  logical             :: makeBiPeriodic, HUcontainsLQ
+  logical             :: makeBiPeriodic
 
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
@@ -258,14 +258,12 @@ program midas_ensManip
     call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
 
-    HUcontainsLQ = ( ctrlVarHumidity == 'LQ' )
-
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
       call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
-           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+           stepIndex_opt=stepIndex, unitConversion_opt=.true.)
     end do
 
     call tmg_stop(10)
@@ -285,7 +283,7 @@ program midas_ensManip
         if(mpi_myid == 0) write(*,*) ''
         if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
         call gsv_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), ' ', ' ',  &
-             stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+             stepIndex_opt=stepIndex, unitConversion_opt=.true.)
       end do
 
       call tmg_stop(11)
@@ -296,7 +294,7 @@ program midas_ensManip
 
       if (recenterEnsembleControlMember) then
         call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
     else
@@ -306,7 +304,7 @@ program midas_ensManip
 
       if (recenterEnsembleControlMember) then
         call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, HUcontainsLQ, ensembleControlMemberEtiket, &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, numBits_opt = numBits)
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'

@@ -258,34 +258,7 @@ contains
     do jvar = 1, vnl_numvarmax3D
        if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
        if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
-
-       ! do extra manipulation of HU to obtain results closer to previous 
-       ! version of code that did vertical interpolation before converting HU->LQ
-       if ( vnl_varNameList3D(jvar).eq.'HU  ' ) then
-          ! conversion from log(humidity) to specific humidity 
-          do columnIndex = 1, col_getNumCol(columng)
-             columnhr_ptr => col_getColumn(columnhr,columnIndex,'HU')
-             do jlev=1,col_getNumLev(columnhr,'TH')
-                columnhr_ptr(jlev)=exp(columnhr_ptr(jlev))
-             enddo
-          enddo
-       endif
-
        call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
-
-       if ( vnl_varNameList3D(jvar).eq.'HU  ' ) then
-          ! conversion from specific humidity to log(humidity)
-          do columnIndex = 1, col_getNumCol(columng)
-             columng_ptr  => col_getColumn(columng ,columnIndex,'HU')
-             columnhr_ptr => col_getColumn(columnhr,columnIndex,'HU')
-             do jlev=1,col_getNumLev(columnhr,'TH')
-                columnhr_ptr(jlev) = log(max(columnhr_ptr(jlev),col_rhumin))
-             enddo
-             do jlev=1,col_getNumLev(columng,'TH')
-                columng_ptr(jlev) = log(max(columng_ptr(jlev),col_rhumin))
-             enddo
-          enddo
-       endif
     enddo
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
@@ -849,11 +822,11 @@ contains
                    enddo
                 enddo
              elseif (vnl_varNameList3D(jvar).eq.'HU  ') then
-                ! conversion from specific humidity to log(humidity)
+               ! Imposing a minimum value for HU (legacy)
                 do jobs=1,numColumns
                    column_ptr => col_getColumn(columnhr,jobs,'HU')
                    do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
+                      column_ptr(jlev)=max(column_ptr(jlev),col_rhumin)
                    enddo
                 enddo
              endif

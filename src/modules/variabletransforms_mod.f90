@@ -75,9 +75,8 @@ CONTAINS
     implicit none
 
     call tmg_start(92,'VTR_READTRIALS')
-    call gsv_readTrials( hco_anl, vco_anl,        & ! IN
-                         statevector_trial,       & ! OUT
-                         HUcontainsLQ_opt=.false. )  !IN
+    call gsv_readTrials( hco_anl, vco_anl,  & ! IN
+                         statevector_trial )  ! OUT
     call tmg_stop(92)
 
     trialsInitialized = .true.
@@ -102,26 +101,44 @@ CONTAINS
        call UVtoVortDiv(statevector)
     case ('VortDivToPsiChi')
        if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
-         write(*,*)
-         write(*,*) 'for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector'
-         call utl_abort('vtr_transform')
+         call utl_abort('vtr_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
        end if
        call VortDivToPsiChi(statevector)
     case ('UVtoPsiChi')
        if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
-         write(*,*)
-         write(*,*) 'for UVToPsiChi, variables PP and CC must be allocated in gridstatevector'
-         call utl_abort('vtr_transform')
+         call utl_abort('vtr_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
        end if
        call UVtoPsiChi(statevector)
     case ('LQtoHU')
-       call LQtoHU(statevector)
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
+      end if
+      call LQtoHU(statevector)
     case ('HUtoLQ')
-       call HUtoLQ(statevector)
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for HUtoLQ, variable HU must be allocated in gridstatevector')
+      end if
+      call HUtoLQ(statevector)
     case ('LQtoHU_tlm')
-       call LQtoHU_tlm(statevector)
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for LQtoHU_tlm, variable HU must be allocated in gridstatevector')
+      end if
+      call LQtoHU_tlm(statevector)
     case ('HUtoLQ_tlm')
-       call HUtoLQ_tlm(statevector)
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
+      end if
+      call HUtoLQ_tlm(statevector)
+    case ('LQtoHU_ad')
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
+      end if
+      call LQtoHU_tlm(statevector) ! self-adjoint
+    case ('HUtoLQ_ad')
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
+      end if
+      call HUtoLQ_tlm(statevector) ! self-adjoint
     case default
        write(*,*)
        write(*,*) 'Unsupported function : ', trim(transform)
@@ -208,7 +225,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd       
-               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*hu_trial(i,j,k,stepIndex)
+               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
              end do
           end do
        end do
@@ -239,7 +256,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/hu_trial(i,j,k,stepIndex)
+               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
              end do
           end do
        end do

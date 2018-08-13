@@ -2055,10 +2055,8 @@ module gridStateVector_mod
   ! gsv_readFromFile
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
-                              unitConversion_opt, HUcontainsLQ_opt, PsfcReference_opt, readGZsfc_opt)
+                              unitConversion_opt, PsfcReference_opt, readGZsfc_opt)
     implicit none
-    ! Note this routine currently only works correctly for reading FULL FIELDS,
-    ! not increments or perturbations... because of the HU -> LQ conversion
 
     ! arguments
     type(struct_gsv)              :: statevector_out
@@ -2070,7 +2068,6 @@ module gridStateVector_mod
     integer, optional             :: stepIndex_opt
 
     logical, optional             :: unitConversion_opt
-    logical, optional             :: HUcontainsLQ_opt
     logical, optional             :: readGZsfc_opt
 
     real(8), optional             :: PsfcReference_opt(:,:)
@@ -2088,7 +2085,7 @@ module gridStateVector_mod
     character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
 
-    logical :: doHorizInterp, doVertInterp, unitConversion, HUcontainsLQ
+    logical :: doHorizInterp, doVertInterp, unitConversion
     logical :: readGZsfc, readSubsetOfLevels
 
     type(struct_vco), pointer :: vco_file
@@ -2111,12 +2108,6 @@ module gridStateVector_mod
       unitConversion = unitConversion_opt
     else
       unitConversion = .true.
-    end if
-
-    if ( present(HUcontainsLQ_opt) ) then
-      HUcontainsLQ = HUcontainsLQ_opt
-    else
-      HUcontainsLQ = .true.
     end if
 
     if ( present(readGZsfc_opt) ) then
@@ -2234,7 +2225,7 @@ module gridStateVector_mod
 
     call gsv_deallocate(statevector_tiles)
 
-    !-- 6.0 Copy result to output statevector and convert HU to LQ
+    !-- 6.0 Copy result to output statevector
     ! THIS SHOULD BE REPLACED MOSTLY BY CALL TO gsv_copy
 
     if ( associated(statevector_vinterp%gzSfc) .and. associated(statevector_out%gzSfc) ) then
@@ -2245,29 +2236,15 @@ module gridStateVector_mod
       if ( .not. gsv_varExist(statevector_out,vnl_varNameList(varIndex)) ) cycle
       field_in_ptr => gsv_getField_r8(statevector_vinterp, vnl_varNameList(varIndex))
       field_out_ptr => gsv_getField_r8(statevector_out, vnl_varNameList(varIndex))
-
-      if ( trim(vnl_varNameList(varIndex)) == 'HU' .and. HUcontainsLQ ) then
 !$OMP PARALLEL DO PRIVATE (latIndex,levIndex,lonIndex)
-        do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          do levIndex = 1, statevector_out%varNumLev(varIndex)
-            do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-              field_out_ptr(lonIndex,latIndex,levIndex,stepIndex) = log(max(field_in_ptr(lonIndex,latIndex,levIndex,1),MPC_MINIMUM_HU_R8))
-            end do
+      do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
+        do levIndex = 1, statevector_out%varNumLev(varIndex)
+          do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
+            field_out_ptr(lonIndex,latIndex,levIndex,stepIndex) = field_in_ptr(lonIndex,latIndex,levIndex,1)
           end do
         end do
+      end do
 !$OMP END PARALLEL DO
-      else
-!$OMP PARALLEL DO PRIVATE (latIndex,levIndex,lonIndex)
-        do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          do levIndex = 1, statevector_out%varNumLev(varIndex)
-            do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-              field_out_ptr(lonIndex,latIndex,levIndex,stepIndex) = field_in_ptr(lonIndex,latIndex,levIndex,1)
-            end do
-          end do
-        end do
-!$OMP END PARALLEL DO
-      end if
-
     end do ! varIndex
 
     call gsv_deallocate(statevector_vinterp)
@@ -2452,20 +2429,8 @@ module gridStateVector_mod
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
         if (ierr.lt.0)then
-          if (varName == 'HU') then
-            ! HU variable not found in file, try reading LQ
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'LQ')
-            field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
-            if (ierr.lt.0)then
-              write(*,*) 'LQ',ip1,statevector%datestamplist(stepIndex)
-              call utl_abort('gsv_readFile: Problem with reading file')
-            end if
-          else
-            write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
-            call utl_abort('gsv_readFile: Problem with reading file')
-          end if
+          write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
+          call utl_abort('gsv_readFile: Problem with reading file')
         end if
 
         ! When mpi distribution could put UU on a different mpi task than VV
@@ -4268,7 +4233,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, HUcontainsLQ_opt, &
+  subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, &
                             hInterpolateDegree_opt)
     !
     ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
@@ -4280,7 +4245,6 @@ module gridStateVector_mod
     type(struct_hco), pointer :: hco_in
     type(struct_vco), pointer :: vco_in
     type(struct_gsv)          :: statevector_trial
-    logical, optional         :: HUcontainsLQ_opt
     character(len=*),optional :: hInterpolateDegree_opt
 
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
@@ -4289,14 +4253,8 @@ module gridStateVector_mod
     integer, allocatable :: dateStampList(:)
     character(len=2)     :: fileNumber
     character(len=30)    :: fileName
-    logical              :: fileExists, HUcontainsLQ
+    logical              :: fileExists
     character(len=12)    :: hInterpolateDegree
-
-    if ( present(HUcontainsLQ_opt) ) then
-      HUcontainsLQ = HUcontainsLQ_opt
-    else
-      HUcontainsLQ = .true.
-    end if
 
     if ( present(hInterpolateDegree_opt) ) then
       hInterpolateDegree = trim(hInterpolateDegree_opt)
@@ -4360,7 +4318,7 @@ module gridStateVector_mod
 
       ! read the trial file for this timestep
       call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', stepIndex,  &
-                            HUcontainsLQ_opt=HUcontainsLQ, readGZsfc_opt=.true.)
+                            readGZsfc_opt=.true.)
 
     end do ! stepIndex
 

@@ -162,7 +162,7 @@ CONTAINS
     !
     if(mpi_myid == 0) write(*,*) ''
     if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: reading background state for all time steps'
-    call gsv_readTrials(hco_trl,vco_trl,statevector_trial,HUcontainsLQ_opt=.false.,& 
+    call gsv_readTrials(hco_trl,vco_trl,statevector_trial, & 
                         hInterpolateDegree_opt=hInterpolationDegree)
 
     !
@@ -206,8 +206,7 @@ CONTAINS
           endif
           incFileName = './rebm_' // trim(coffset) // 'm'
  
-          call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ_opt=.false.)
+          call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex)
         end do
  
       end if
@@ -273,10 +272,9 @@ CONTAINS
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
         if (gsv_varExist(varName='P0')) then
           call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ_opt=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
+               PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
         else
-          call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ_opt=.false.)
+          call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex)
         end if
       end do
 
@@ -288,8 +286,8 @@ CONTAINS
     !- Impose limits on humidity analysis and recompute increment
     !
     write(*,*) 'adx_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
-    call qlim_gsvSaturationLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
-    if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
+    call qlim_gsvSaturationLimit(statevector_analysis)
+    if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis)
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
 
