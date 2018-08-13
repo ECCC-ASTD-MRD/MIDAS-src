@@ -528,7 +528,7 @@ CONTAINS
         end if
 
         ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
-        call min_calcOmA(statevector_incr,columng,obsSpaceData)
+        call min_calcOmA(statevector_incr,columng,obsSpaceData,obsAssVal=3)
 
         call gsv_deallocate(statevector_incr)
 
@@ -1590,27 +1590,32 @@ CONTAINS
 !! *Purpose*: Calculates the OmA for diagnostic (i.e. valid but non-assimilated)
 !!            observations.
 !!
+!!            The last argument, 'obsAssVal', contains the value of
+!!            'OBS_ASS' to test against to know which observations are
+!!            not assimilated.
+!!
 !! @author M. Sitwell Sept 2015
 !--------------------------------------------------------------------------
-  subroutine min_calcOmA(statevector_incr,columng,obsSpaceData)
+  subroutine min_calcOmA(statevector_incr,columng,obsSpaceData,obsAssVal)
     
     implicit none
     
     type(struct_gsv), intent(inout) :: statevector_incr
     type(struct_columnData), intent(inout) :: columng
     type(struct_obs), intent(inout) :: obsSpaceData
+    integer :: obsAssVal
 
     type(struct_columnData) :: column
-    integer :: bodyIndex,headerIndex,ierr
+    integer :: bodyIndex,headerIndex,ierr,diagnosticObsAssValue
     logical :: calc_OmA,calc_OmA_global
-    
+
     ! Check for the presence of diagnostic only observations
     calc_OmA = .false.
     call obs_set_current_body_list(obsSpaceData)
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
        if (bodyIndex < 0) exit BODY
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.3) then
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.obsAssVal) then
           calc_OmA = .true.
           exit BODY
        end if
@@ -1628,10 +1633,10 @@ CONTAINS
     call s2c_tl(statevector_incr,column,columng,obsSpaceData)
     
     ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=3)
+    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=obsAssVal)
        
     ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-    call res_compute(obsSpaceData,obsAssVal_opt=3)
+    call res_compute(obsSpaceData,obsAssVal_opt=obsAssVal)
 
   end subroutine min_calcOmA
 
