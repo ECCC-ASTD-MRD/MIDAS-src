@@ -42,7 +42,7 @@ program midas_var
   use minimization_mod
   use innovation_mod
   use WindRotation_mod
-  use minimization_mod
+  use minimization_mod, only: min_niter, min_nsim, min_setup, min_minimize
   use analysisGrid_mod
   use bmatrix_mod
   use tovs_nl_mod
@@ -51,6 +51,10 @@ program midas_var
   use obsOperators_mod
   use multi_ir_bgck_mod
   use biasCorrection_mod
+  use increment_mod, only: inc_getIncrement, inc_computeAndWriteAnalysis, inc_writeIncrement
+  use residual_mod, only: res_compute
+  use stateToColumn_mod, only: s2c_tl
+
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -59,11 +63,17 @@ program midas_var
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_vco),       pointer :: vco_anl
+  type(struct_hco),       pointer :: hco_anl
+  type(struct_gsv) :: statevector_incr
+
+  real*8,allocatable :: vazx(:)
 
   character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
 
-  NAMELIST /NAMCT0/NCONF
+  logical :: writeAnalysis
+  NAMELIST /NAMCT0/NCONF,writeAnalysis
   integer nulnam, fnom, fclos 
 
   istamp = exdb('VAR','DEBUT','NON')
@@ -89,6 +99,7 @@ program midas_var
 
   ! 1. Top level setup
   nconf             = 141
+  writeAnalysis = .false.
 
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -189,8 +200,58 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
+    allocate(vazx(cvm_nvadim),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'var: Problem allocating memory for ''vazx''',ierr
+      call utl_abort('aborting in VAR')
+    endif
+
     ! Do minimization of cost function
-    call min_minimize(trlColumnOnAnlLev,obsSpaceData)
+    call min_minimize(trlColumnOnAnlLev,obsSpaceData,vazx)
+
+    ! Compute satellite bias correction increment and write to file
+    call bias_writebias(vazx,cvm_nvadim)
+
+    ! initialize statevector_incr
+    hco_anl => agd_getHco('ComputationalGrid')
+    vco_anl => col_getVco(trlColumnOnAnlLev)
+
+    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+
+    ! get final increment
+    call inc_getIncrement(vazx,statevector_incr,cvm_nvadim,hco_anl,vco_anl)
+
+    deallocate(vazx)
+
+    ! output the analysis increment
+    call tmg_start(6,'WRITEINCR')
+    call inc_writeIncrement(statevector_incr) ! IN
+    call tmg_stop(6)
+
+    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic
+    ! computations controlled by NAMOSD namelist in flnml)
+    call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
+
+    ! Deallocate memory related to B matrices
+    call bmat_finalize()
+
+    ! compute and write the analysis (as well as the increment on the trial grid)
+    if (writeAnalysis) then
+      call tmg_start(129,'ADDINCREMENT')
+      call inc_computeAndWriteAnalysis(statevector_incr) ! IN
+      call tmg_stop(129)
+    end if
+
+    if (mpi_myid == 0) then
+      clmsg = 'REBM_DONE'
+      call utl_writeStatus(clmsg)
+    end if
+
+    ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
+    call var_calcOmA(statevector_incr,trlColumnOnAnlLev,obsSpaceData,obsAssVal=3)
+
+    call gsv_deallocate(statevector_incr)
 
     ! Deallocate memory related to variational bias correction
     call bias_finalize()
@@ -247,9 +308,7 @@ contains
 
     character (len=*) :: obsColumnMode
     integer :: datestamp
-    type(struct_vco),pointer :: vco_anl => null()
     type(struct_vco),pointer :: vco_trl => null()
-    type(struct_hco),pointer :: hco_anl => null()
     type(struct_hco),pointer :: hco_core => null()
 
     integer :: get_max_rss
@@ -386,5 +445,59 @@ contains
     end if
 
   end subroutine var_setup
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Calculates the OmA for diagnostic (i.e. valid but non-assimilated)
+!!            observations.
+!!
+!!            The last argument, 'obsAssVal', contains the value of
+!!            'OBS_ASS' to test against to know which observations are
+!!            not assimilated.
+!!
+!! @author M. Sitwell Sept 2015
+!--------------------------------------------------------------------------
+  subroutine var_calcOmA(statevector_incr,columng,obsSpaceData,obsAssVal)
+
+    implicit none
+
+    type(struct_gsv), intent(inout) :: statevector_incr
+    type(struct_columnData), intent(inout) :: columng
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer :: obsAssVal
+
+    type(struct_columnData) :: column
+    integer :: bodyIndex,headerIndex,ierr,diagnosticObsAssValue
+    logical :: calc_OmA,calc_OmA_global
+
+    ! Check for the presence of diagnostic only observations
+    calc_OmA = .false.
+    call obs_set_current_body_list(obsSpaceData)
+    BODY: do
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.obsAssVal) then
+          calc_OmA = .true.
+          exit BODY
+       end if
+    end do BODY
+
+    call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+    if (.not.calc_OmA_global) return
+
+    ! Initialize columnData object for increment
+    call col_setVco(column,col_getVco(columng))
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_copyLatLon(columng,column)
+
+    ! Put H_horiz dx in column
+    call s2c_tl(statevector_incr,column,columng,obsSpaceData)
+
+    ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=obsAssVal)
+
+    ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+    call res_compute(obsSpaceData,obsAssVal_opt=obsAssVal)
+
+  end subroutine var_calcOmA
 
 end program midas_var

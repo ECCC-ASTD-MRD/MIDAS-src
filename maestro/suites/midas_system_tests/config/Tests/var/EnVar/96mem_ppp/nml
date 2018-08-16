@@ -1,5 +1,6 @@
  &NAMCT0
    NCONF  = 141,
+   WRITEANALYSIS = .TRUE.
 /
  &NAMBHI
    NTRUNC  = 270,
@@ -20,7 +21,6 @@
    LWRTHESS = .TRUE.,
    LVARQC=.TRUE.,
    NWOQCV=5
-   WRITEANALYSIS = .TRUE.
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
