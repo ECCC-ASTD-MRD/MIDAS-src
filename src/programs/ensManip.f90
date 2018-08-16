@@ -83,6 +83,7 @@ program midas_ensManip
 
   ! namelist variables
   character(len=1)   :: ensembleTypVarOutput
+  character(len=12)  :: hInterpolationDegree
   character(len=14)  :: ensembleEtiketOutput, ensembleControlMemberEtiket
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, alternativeEnsembleMean
@@ -93,7 +94,7 @@ program midas_ensManip
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
-                        recenterEnsembleControlMember, ensembleControlMemberEtiket
+                        recenterEnsembleControlMember, ensembleControlMemberEtiket, hInterpolationDegree
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -137,6 +138,7 @@ program midas_ensManip
   numBits                       = 16
   recenter                      = .false.
   recentering_coeff             = 1.0
+  hInterpolationDegree             = 'CUBIC' ! or "LINEAR" or "NEAREST"
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -256,7 +258,8 @@ program midas_ensManip
     recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
 
     call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
-         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+         hInterpolateDegree_opt = hInterpolationDegree)
 
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
@@ -276,7 +279,8 @@ program midas_ensManip
       alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
 
       call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco_ens, vco_ens, &
-           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+           hInterpolateDegree_opt = hInterpolationDegree)
 
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
