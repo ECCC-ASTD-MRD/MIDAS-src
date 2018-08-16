@@ -9,18 +9,20 @@ which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmda/maestro/dev/2
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/16.2
 
+DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
+
 if [ $# -ne 0 ]; then
     MIDAS_TESTS_SUITE=$1
     MIDAS_SUITE_RUN=$2
     MIDAS_ABS=$3
 else
     while [ -z "${REPONSE}" ]; do
-        echo "Please choose a suite name to install of maestro midas suite of tests"
+        echo "Please choose a suite name to install of maestro midas suite of tests (default: ${DEFAULT_SUITE_NAME})"
         echo "It will be installed under ${HOME}/.suites"
         read REPONSE
         if [ -z "${REPONSE}" ]; then
-	    echo "Nothing was entered... so we use the default 'midas_system_tests_science'."
-	    REPONSE=midas_system_tests_science
+	    echo "Nothing was entered... so we use the default '${DEFAULT_SUITE_NAME}'."
+	    REPONSE=${DEFAULT_SUITE_NAME}
         fi
         if [ -a ~/.suites/${REPONSE} ]; then
 

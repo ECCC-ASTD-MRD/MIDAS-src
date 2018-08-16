@@ -991,7 +991,6 @@ CONTAINS
     ! locals
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
-    character(len=256) :: ensFileNameOutput
 
     numStep = ens%statevector_work%numStep
 
@@ -1009,10 +1008,9 @@ CONTAINS
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
          ensembleControlMember_opt = statevector_ensembleControlMember)
 
-    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &
+    call fln_ensFileName( ensFileName, '.', memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &
          shouldExist_opt = .false.)
 
-    ensFileNameOutput = 'recentered_' // trim(ensFileName)
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
