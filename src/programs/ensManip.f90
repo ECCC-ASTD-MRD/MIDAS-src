@@ -303,7 +303,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,ensPathName, 'recentered_', &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
              ensembleTypVarOutput, numBits_opt = numBits)
       end if
