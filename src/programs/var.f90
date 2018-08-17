@@ -67,7 +67,7 @@ program midas_var
   type(struct_hco),       pointer :: hco_anl
   type(struct_gsv) :: statevector_incr
 
-  real*8,allocatable :: vazx(:)
+  real*8,allocatable :: controlVector_incr(:)
 
   character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -226,29 +226,25 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    allocate(vazx(cvm_nvadim),stat=ierr)
+    allocate(controlVector_incr(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'var: Problem allocating memory for ''vazx''',ierr
+      write(*,*) 'var: Problem allocating memory for ''controlVector_incr''',ierr
       call utl_abort('aborting in VAR')
     endif
 
     ! Do minimization of cost function
-    call min_minimize(trlColumnOnAnlLev,obsSpaceData,vazx)
+    call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVector_incr)
 
     ! Compute satellite bias correction increment and write to file
-    call bias_writebias(vazx,cvm_nvadim)
-
-    ! initialize statevector_incr
-    hco_anl => agd_getHco('ComputationalGrid')
-    vco_anl => col_getVco(trlColumnOnAnlLev)
+    call bias_writebias(controlVector_incr,cvm_nvadim)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! get final increment
-    call inc_getIncrement(vazx,statevector_incr,cvm_nvadim)
+    call inc_getIncrement(controlVector_incr,statevector_incr,cvm_nvadim)
 
-    deallocate(vazx)
+    deallocate(controlVector_incr)
 
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
