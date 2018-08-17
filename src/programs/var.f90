@@ -42,7 +42,7 @@ program midas_var
   use minimization_mod
   use innovation_mod
   use WindRotation_mod
-  use minimization_mod, only: min_niter, min_nsim, min_setup, min_minimize
+  use minimization_mod
   use analysisGrid_mod
   use bmatrix_mod
   use tovs_nl_mod
@@ -51,9 +51,9 @@ program midas_var
   use obsOperators_mod
   use multi_ir_bgck_mod
   use biasCorrection_mod
-  use increment_mod, only: inc_getIncrement, inc_computeAndWriteAnalysis, inc_writeIncrement
-  use residual_mod, only: res_compute
-  use stateToColumn_mod, only: s2c_tl
+  use increment_mod
+  use residual_mod
+  use stateToColumn_mod
 
   implicit none
 
@@ -74,7 +74,8 @@ program midas_var
 
   logical :: writeAnalysis
   NAMELIST /NAMCT0/NCONF,writeAnalysis
-  integer nulnam, fnom, fclos 
+
+  integer :: nulnam, fnom, fclos, get_max_rss
 
   istamp = exdb('VAR','DEBUT','NON')
 

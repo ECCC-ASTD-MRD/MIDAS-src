@@ -30,10 +30,10 @@ MODULE increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
-  use variableTransforms_mod, only: vtr_transform
-  use columnData_mod, only: struct_columnData, col_getVco
-  use BMatrix_mod, only: bmat_sqrtB
-  use chem_postproc_mod, only: chm_transform_final_increments
+  use variableTransforms_mod
+  use columnData_mod
+  use BMatrix_mod
+  use chem_postproc_mod
   implicit none
   save
   private
