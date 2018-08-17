@@ -189,6 +189,31 @@ program midas_var
     call var_setup('VAR') ! obsColumnMode
     call tmg_stop(2)
 
+    !
+    !- Initialize the background-error covariance, also sets up control vector module (cvm)
+    !
+    call bmat_setup(hco_anl,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize variational bias correction (default is to not use it)
+    !
+    call bias_setup()
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    ! - Initialize the gridded variable transform module
+    !
+    call vtr_setup(hco_anl,vco_anl)
+
+    !
+    !- Set up the minimization module, now that the required parameters are known
+    !  NOTE: some global variables remain in minimization_mod that must be initialized before
+    !        inn_setupBackgroundColumns
+    !
+    call min_setup( cvm_nvadim ) ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
     call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
@@ -410,39 +435,6 @@ contains
     !
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize the background-error covariance, also sets up control vector module (cvm)
-    !
-    if ( trim(varMode) == 'analysis' ) then
-       call bmat_setup(hco_anl,vco_anl)
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
-
-    !
-    !- Initialize variational bias correction (default is to not use it)
-    !
-    if ( trim(varMode) == 'analysis' ) then
-      call bias_setup()
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
-
-    !
-    ! - Initialize the gridded variable transform module
-    !
-    if ( trim(varMode) == 'analysis'  ) then
-       call vtr_setup(hco_anl,vco_anl)
-    end if
-
-    !
-    !- Set up the minimization module, now that the required parameters are known
-    !  NOTE: some global variables remain in minimization_mod that must be initialized before 
-    !        inn_setupBackgroundColumns
-    !
-    if ( trim(varMode) == 'analysis' ) then
-       call min_setup( cvm_nvadim ) ! IN
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
 
   end subroutine var_setup
 
