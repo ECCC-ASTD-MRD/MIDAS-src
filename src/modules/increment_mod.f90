@@ -15,34 +15,46 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE addincrement (prefix="adx")
+!! MODULE increment (prefix="inc")
 !!
-!! *Purpose*: To add a 4D increment to a given 4D background/reference state 
+!! *Purpose*: To add a 4D increment to a given 4D background/reference state
 !!            and to output the results
 !!
 !--------------------------------------------------------------------------
-MODULE addincrement_mod
+MODULE increment_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
+  use variableTransforms_mod
+  use BMatrix_mod
+  use chem_postproc_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: adx_computeAndWriteAnalysis
+  public :: inc_computeAndWriteAnalysis, inc_getIncrement, inc_writeIncrement
+
+  ! namelist variables
+  integer  :: writeNumBits
+  logical  :: writeHiresIncrement
+  logical  :: imposeRttovHuLimits
+  character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
+  character(len=12) :: hInterpolationDegree
+
+  NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
+       etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree
 
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! adx_computeAndWriteAnalysis
+  ! inc_computeAndWriteAnalysis
   !--------------------------------------------------------------------------
-  subroutine adx_computeAndWriteAnalysis(statevector_incLowRes_opt)
+  subroutine inc_computeAndWriteAnalysis(statevector_incLowRes_opt)
     implicit none
 
     type(struct_gsv), intent(in), optional :: statevector_incLowRes_opt
@@ -73,25 +85,15 @@ CONTAINS
 
     logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
 
-    ! namelist variables
-    integer  :: writeNumBits
-    logical  :: writeHiresIncrement
-    logical  :: imposeRttovHuLimits
-    character(len=12) :: etiket_rehm
-    character(len=12) :: etiket_anlm
-    character(len=12) :: hInterpolationDegree
-
-    NAMELIST /NAMADDINC/writeHiresIncrement, etiket_rehm, etiket_anlm, &
-         writeNumBits, imposeRttovHuLimits, hInterpolationDegree
-
     !
-    !- Set/Read values for the namelist NAMADDINC
+    !- Set/Read values for the namelist NAMINC
     !
 
     !- Setting default values
     writeHiresIncrement = .true.
     imposeRttovHuLimits = .true.
     etiket_rehm = 'INCREMENT'
+    etiket_rebm = 'INCREMENT'
     etiket_anlm = 'ANALYSIS'
     writeNumBits = 16
     hInterpolationDegree = 'LINEAR'
@@ -99,9 +101,9 @@ CONTAINS
     !- Read the namelist
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namaddinc, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('adx_computeAndWriteAnalysis: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*,nml=namaddinc)
+    read(nulnam, nml=naminc, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=naminc)
     ierr = fclos(nulnam)
 
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -113,7 +115,7 @@ CONTAINS
 
     !- Initialize the trial state grid
     if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: Set hco parameters for trial grid'
+    if (mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: Set hco parameters for trial grid'
     trialFileName = './trlm_01'
     call hco_setupFromFile( hco_trl, trim(trialFileName), ' ')
     if ( mpi_myid == 0 ) then
@@ -132,7 +134,7 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       incFileName = './rebm_' // trim(coffset) // 'm'
-    
+
       if ( mpi_myid == 0 ) then
         call vco_setupFromFile(vco_inc, incFileName)
       end if
@@ -143,13 +145,13 @@ CONTAINS
     if ( useIncLevelsOnly ) then
       ! Read only the increment levels
       write(*,*)
-      write(*,*) 'adx_computeAndWriteAnalysis: only the increment levels will be read in the trials' 
+      write(*,*) 'inc_computeAndWriteAnalysis: only the increment levels will be read in the trials'
       call  vco_deallocate(vco_trl)
       vco_trl => vco_inc
     else
       ! Read them all
       write(*,*)
-      write(*,*) 'adx_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
+      write(*,*) 'inc_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
       if (.not. present(statevector_incLowRes_opt)) then
         call vco_deallocate(vco_inc)
       end if
@@ -161,8 +163,8 @@ CONTAINS
     ! Read trial files, keeping HU as is (no conversion to LQ)
     !
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: reading background state for all time steps'
-    call gsv_readTrials(hco_trl,vco_trl,statevector_trial, & 
+    if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
+    call gsv_readTrials(hco_trl,vco_trl,statevector_trial, &
                         hInterpolateDegree_opt=hInterpolationDegree)
 
     !
@@ -176,7 +178,7 @@ CONTAINS
 
       if (present(statevector_incLowRes_opt)) then
         if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
+        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
 
         ! Extract Psfc inc at low resolution
         call gsv_allocate(statevector_PsfcLowRes, numStep, statevector_incLowRes_opt%hco, &
@@ -196,8 +198,8 @@ CONTAINS
         do stepIndex = 1, numStep
           dateStamp = datestamplist(stepIndex)
           if(mpi_myid == 0) write(*,*) ''
-          if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: reading Psfc increment for time step: ',stepIndex, dateStamp
-          
+          if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading Psfc increment for time step: ',stepIndex, dateStamp
+
           call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
           if(nint(deltaHours*60.0d0).lt.0) then
             write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
@@ -205,21 +207,21 @@ CONTAINS
             write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
           endif
           incFileName = './rebm_' // trim(coffset) // 'm'
- 
+
           call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex)
         end do
- 
+
       end if
-     
+
       !
       !- Compute analysis Psfc to use for interpolation of increment
       !
       PsfcTrial     => gsv_getField_r8(statevector_trial,'P0')
       PsfcIncrement => gsv_getField_r8(statevector_Psfc ,'P0')
       PsfcAnalysis  => gsv_getField_r8(statevector_Psfc ,'P0')
-      
+
       PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
-      
+
       !
       !- Copy the surface GZ from trial into statevector_Psfc
       !
@@ -236,7 +238,7 @@ CONTAINS
     !- Compute the analysis
     !
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: compute the analysis'
+    if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: compute the analysis'
 
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -259,8 +261,8 @@ CONTAINS
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
         if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: reading increment for time step: ',stepIndex, dateStamp
-        
+        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading increment for time step: ',stepIndex, dateStamp
+
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
@@ -268,7 +270,7 @@ CONTAINS
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         endif
         incFileName = './rebm_' // trim(coffset) // 'm'
-        
+
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
         if (gsv_varExist(varName='P0')) then
           call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
@@ -285,7 +287,7 @@ CONTAINS
     !
     !- Impose limits on humidity analysis and recompute increment
     !
-    write(*,*) 'adx_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
+    write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
     call qlim_gsvSaturationLimit(statevector_analysis)
     if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis)
     call gsv_copy(statevector_analysis, statevector_incHighRes)
@@ -298,7 +300,7 @@ CONTAINS
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
         if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: writing interpolated increment for time step: ',stepIndex, dateStamp
+        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: writing interpolated increment for time step: ',stepIndex, dateStamp
 
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
@@ -327,7 +329,7 @@ CONTAINS
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: writing analysis for time step: ',stepIndex, dateStamp
+      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: writing analysis for time step: ',stepIndex, dateStamp
 
       call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
       if(nint(deltaHours*60.0d0).lt.0) then
@@ -349,6 +351,84 @@ CONTAINS
     call gsv_deallocate(statevector_incHighRes)
     call gsv_deallocate(statevector_trial)
 
-  end subroutine adx_computeAndWriteAnalysis
+  end subroutine inc_computeAndWriteAnalysis
 
-END MODULE addincrement_mod
+  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal)
+
+    implicit none
+
+    ! arguments
+    real(8) :: incr_cv(:)
+    type(struct_gsv) :: statevector_incr
+    integer :: nvadim_mpilocal
+
+    ! compute increment from control vector (multiply by B^1/2)
+    call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
+
+    ! Compute new diagnotics based on NAMSTATE
+    if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
+       write(*,*)
+       write(*,*) 'User is asking for Vort-Div analysis increment'
+       call vtr_transform( statevector_incr, & ! INOUT
+                           'UVtoVortDiv' )     ! IN
+       if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
+          write(*,*)
+          write(*,*) 'User is asking for Psi-Chi analysis increment'
+          call vtr_transform( statevector_incr, & ! INOUT
+                              'VortDivToPsiChi')  ! IN
+       end if
+    end if
+
+    ! Adjust and or transform chemical consituent concentration increments as needed.
+    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
+    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr)
+
+  end subroutine inc_getIncrement
+
+  subroutine inc_writeIncrement(statevector_incr)
+
+    implicit none
+
+    ! arguments
+    type(struct_gsv)     :: statevector_incr
+    ! locals
+    integer              :: stepIndex, dateStamp, nulnam
+    integer              :: fclos, fnom, ierr
+    real(8)              :: deltaHours
+    character(len=4)     :: coffset
+    character(len=2)     :: flnum
+    character(len=30)    :: fileName
+
+    if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: STARTING'
+
+    etiket_rebm = 'INCREMENT'
+
+    !- Read the namelist
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=naminc, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=naminc)
+    ierr = fclos(nulnam)
+
+    ! loop over times for which increment is computed
+    do stepIndex = 1, tim_nstepobsinc
+
+      dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
+      if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
+
+      ! write the increment file for this time step
+      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+      if(nint(deltaHours*60.0d0).lt.0) then
+        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+      else
+        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+      endif
+      fileName = './rebm_' // trim(coffset) // 'm'
+      call gsv_writeToFile(statevector_incr, fileName, etiket_rebm, 1.0d0, 0, stepIndex)
+
+    enddo
+
+  end subroutine inc_writeIncrement
+
+END MODULE increment_mod

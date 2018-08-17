@@ -1,5 +1,6 @@
  &NAMCT0
    NCONF  = 141,
+   WRITEANALYSIS = .TRUE.
 /
  &NAMBHI
    NTRUNC  = 250,
@@ -20,8 +21,6 @@
    LWRTHESS = .FALSE.,
    LVARQC=.TRUE.,
    NWOQCV=5,
-   CETIKINC ='ENVAR',
-   WRITEANALYSIS = .TRUE.
 /
  &NAMSPECTRAL
 /
@@ -119,5 +118,6 @@
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
 /
- &NAMADDINC
+ &NAMINC
+   etiket_rebm ='ENVAR',
 /

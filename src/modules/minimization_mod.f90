@@ -27,6 +27,7 @@ MODULE minimization_mod
   use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
+  use obsSpaceDiag_mod
   use controlVector_mod
   use mpivar_mod
   use horizontalCoord_mod
@@ -46,14 +47,12 @@ MODULE minimization_mod
   use quasinewton_mod
   use utilities_mod
   use biasCorrection_mod
-  use chem_postproc_mod, only: chm_transform_final_increments
-  use addIncrement_mod
   implicit none
   save
   private
 
   ! public variables
-  public              :: min_niter
+  public              :: min_niter,min_nsim
   ! public procedures
   public              :: min_Setup, min_minimize !, min_diagHBHt
 
@@ -90,7 +89,6 @@ MODULE minimization_mod
   real(8) :: e1_scaleFactor, e2_scaleFactor
   integer,parameter   :: maxNumLevels=200
   real(8) :: pertScaleFactor_UV(maxNumLevels)
-  character(len=12) :: cetikinc
 
   NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
   NAMELIST /NAMMIN/LGRTEST
@@ -100,7 +98,6 @@ MODULE minimization_mod
   NAMELIST /NAMMIN/numIterMax_pert,numAnalyses,ensPathName
   NAMELIST /NAMMIN/e1_scaleFactor,e2_scaleFactor,pertBhiOnly
   NAMELIST /NAMMIN/pertScaleFactor_UV,ntrunc_pert
-  NAMELIST /NAMMIN/cetikinc,writeAnalysis
 
 CONTAINS
 
@@ -140,8 +137,6 @@ CONTAINS
     pertBhiOnly = .true.
     pertScaleFactor_UV(:) = 1.0d0
     ntrunc_pert = 0
-    cetikinc = 'UNDEFINED***'
-    writeAnalysis = .false.
 
     ! read in the namelist NAMMIN
     nulnam=0
@@ -179,11 +174,13 @@ CONTAINS
 
   END SUBROUTINE min_setup
 
-  subroutine min_minimize(columng,obsSpaceData)
+  subroutine min_minimize(columng,obsSpaceData,vazx)
     implicit none
 
     type(struct_obs) :: obsSpaceData
     type(struct_columnData) :: column,columng
+    real*8 :: vazx(:)
+
     integer :: get_max_rss
 
     write(*,*) '--------------------------------'
@@ -200,7 +197,7 @@ CONTAINS
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
     call oti_setup(obsSpaceData,tim_nstepobsinc)
 
-    call quasiNewtonMinimization(column,columng,obsSpaceData)
+    call quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
 
     call col_deallocate(column)
     call tmg_stop(3)
@@ -214,7 +211,7 @@ CONTAINS
 
 
 
-  SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)
+  SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
     !
     ! Purpose:
     ! 3D/En VAR minimization
@@ -223,6 +220,8 @@ CONTAINS
 
       type(struct_columnData),target :: column,columng
       type(struct_obs),target :: obsSpaceData
+      real*8 :: vazx(:)
+
       type(struct_dataptr) :: dataptr 
       integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
       integer              :: nulout = 6
@@ -233,7 +232,6 @@ CONTAINS
       real    :: zzsunused(1)
 
       real*8,allocatable :: vazg(:)
-      real*8,allocatable :: vazx(:)
       real*8,allocatable :: vatra(:)
 
       real*8 :: dlds(1)
@@ -244,8 +242,6 @@ CONTAINS
       integer :: ibrpstamp, isim3d, ilen
       real*8 :: zjsp, zxmin, zdf1, zeps0, zeps1
       real*8 :: dlgnorm, dlxnorm, zjotov
-
-      type(struct_gsv) :: statevector_incr
 
       integer fnom,fclos, remove_c
       external fnom,fclos
@@ -274,12 +270,6 @@ CONTAINS
       endif
 
       ! allocate control vector related arrays (these are all mpilocal)
-
-      allocate(vazx(nvadim_mpilocal),stat=ierr)
-      if(ierr.ne.0) then
-        write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-        call utl_abort('aborting in quasiNewtonMinimization')
-      endif
 
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
@@ -488,34 +478,6 @@ CONTAINS
           end do
         endif
 
-        ! Compute satellite bias correction increment and write to file
-        call bias_writebias(vazx,cvm_nvadim)
-
-        ! get final increment
-        call min_getIncrement(vazx,columng,statevector_incr)
-
-        ! output the analysis increment
-        call tmg_start(6,'MIN_WRITEINCR')
-        call min_writeIncrement(statevector_incr) ! IN
-        call tmg_stop(6)
-
-        ! compute and write the analysis (as well as the increment on the trial grid)
-        if (writeAnalysis) then
-          call tmg_start(129,'MIN_ADDINCREMENT')
-          call adx_computeAndWriteAnalysis(statevector_incr) ! IN
-          call tmg_stop(129)
-        end if
-
-        if (mpi_myid == 0) then
-          clmsg = 'REBM_DONE'
-          call utl_writeStatus(clmsg)
-        end if
-
-        ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
-        call calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
-
-        call gsv_deallocate(statevector_incr)
-
         ! Write out the Hessian to file
         if(lwrthess) then
           if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -546,7 +508,6 @@ CONTAINS
       if(lvarqc) call vqc_listrej(obsSpaceData)
 
       ! deallocate the control vector related arrays
-      deallocate(vazx)
       deallocate(vazg)
       deallocate(vatra)
       deallocate(dg_vbar)
@@ -554,84 +515,6 @@ CONTAINS
       deallocate(dataptr_int)
 
   END SUBROUTINE quasiNewtonMinimization
-
-
-  subroutine min_getIncrement(incr_cv,columng,statevector_incr)
-
-    implicit none
-
-    ! arguments
-    real(8) :: incr_cv(:)
-    type(struct_columnData), target :: columng
-    type(struct_gsv) :: statevector_incr
-    ! locals
-    type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl
-
-    ! initialize statevector_incr
-    hco_anl => agd_getHco('ComputationalGrid')
-    vco_anl => col_getVco(columng)
-
-    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
-
-    ! compute increment from control vector (multiply by B^1/2)
-    call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
-
-    ! Compute new diagnotics based on NAMSTATE
-    if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
-       write(*,*)
-       write(*,*) 'User is asking for Vort-Div analysis increment'
-       call vtr_transform( statevector_incr, & ! INOUT
-                           'UVtoVortDiv' )     ! IN
-       if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
-          write(*,*)
-          write(*,*) 'User is asking for Psi-Chi analysis increment'
-          call vtr_transform( statevector_incr, & ! INOUT
-                              'VortDivToPsiChi')  ! IN
-       end if
-    end if
-
-    ! Adjust and or transform chemical consituent concentration increments as needed.
-    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
-    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
-
-  end subroutine min_getIncrement
-
-  subroutine min_writeIncrement(statevector_incr)
-
-    implicit none
-
-    ! arguments
-    type(struct_gsv)     :: statevector_incr
-    ! locals
-    integer              :: stepIndex, dateStamp
-    real(8)              :: deltaHours
-    character(len=4)     :: coffset
-    character(len=2)     :: flnum
-    character(len=30)    :: fileName
-    
-    if(mpi_myid == 0) write(*,*) 'min_writeIncrement: STARTING'
-
-    ! loop over times for which increment is computed
-    do stepIndex = 1, tim_nstepobsinc
-
-      dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
-      if(mpi_myid == 0) write(*,*) 'min_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
-
-      ! write the increment file for this time step
-      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFile(statevector_incr, fileName, cetikinc, 1.0d0, 0, stepIndex)
-
-    enddo
-
-  end subroutine min_writeIncrement
 
 
   subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
@@ -1647,54 +1530,5 @@ CONTAINS
           G23.16)
   return
   end subroutine grtest2
-
-!--------------------------------------------------------------------------
-!! *Purpose*: Calculates the OmA for diagnostic (i.e. valid but non-assimilated)
-!!            observations.
-!!
-!! @author M. Sitwell Sept 2015
-!--------------------------------------------------------------------------
-  subroutine calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
-    
-    implicit none
-    
-    type(struct_gsv), intent(inout) :: statevector_incr
-    type(struct_columnData), intent(inout) :: columng
-    type(struct_obs), intent(inout) :: obsSpaceData
-
-    type(struct_columnData) :: column
-    integer :: bodyIndex,headerIndex,ierr
-    logical :: calc_OmA,calc_OmA_global
-    
-    ! Check for the presence of diagnostic only observations
-    calc_OmA = .false.
-    call obs_set_current_body_list(obsSpaceData)
-    BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.3) then
-          calc_OmA = .true.
-          exit BODY
-       end if
-    end do BODY
-
-    call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
-    if (.not.calc_OmA_global) return
-       
-    ! Initialize columnData object for increment
-    call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
-    
-    ! Put H_horiz dx in column
-    call s2c_tl(statevector_incr,column,columng,obsSpaceData)
-    
-    ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=3)
-       
-    ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-    call res_compute(obsSpaceData,obsAssVal_opt=3)
-
-  end subroutine calc_OmA_diagnostic
 
 END MODULE minimization_mod

@@ -26,7 +26,9 @@
    LWRTHESS = .TRUE.,
    LVARQC=.TRUE.,
    NWOQCV=5
-   CETIKINC ='XXXXXX'
+/
+ &NAMINC
+   etiket_rebm ='XXXXXX'
 /
  &NAMDIMO
    NMXOBS=100000,
