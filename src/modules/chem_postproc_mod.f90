@@ -76,13 +76,11 @@ contains
 !!v         - Added upper bound.
 !!v         - Use of col_varExist.
 !--------------------------------------------------------------------------
-  subroutine chm_transform_final_increments(statevector_increment,hco_anl,vco_anl)
+  subroutine chm_transform_final_increments(statevector_increment)
 
     implicit none
     
     type(struct_gsv), intent(inout) :: statevector_increment
-    type(struct_hco), pointer, intent(inout) :: hco_anl
-    type(struct_vco), pointer, intent(inout) :: vco_anl
 
     type(struct_gsv) :: statevector_trial
     integer :: jvar,unit,ier
@@ -90,7 +88,13 @@ contains
 
     integer, external :: fclos
 
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+
     write(*,*) "chm_transform_final_increments: Beginning final increment transformations."
+
+    hco_anl => gsv_getHco(statevector_increment)
+    vco_anl => gsv_getVco(statevector_increment)
 
     call gsv_readTrials(hco_anl,vco_anl,statevector_trial)
 

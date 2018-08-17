@@ -25,13 +25,11 @@ MODULE increment_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
   use variableTransforms_mod
-  use columnData_mod
   use BMatrix_mod
   use chem_postproc_mod
   implicit none
@@ -355,7 +353,7 @@ CONTAINS
 
   end subroutine inc_computeAndWriteAnalysis
 
-  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal,hco_anl,vco_anl)
+  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal)
 
     implicit none
 
@@ -363,8 +361,6 @@ CONTAINS
     real(8) :: incr_cv(:)
     type(struct_gsv) :: statevector_incr
     integer :: nvadim_mpilocal
-    type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
@@ -385,7 +381,7 @@ CONTAINS
 
     ! Adjust and or transform chemical consituent concentration increments as needed.
     ! This includes ensuring non-negative analysis values on the analysis/increment grid.
-    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
+    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr)
 
   end subroutine inc_getIncrement
 

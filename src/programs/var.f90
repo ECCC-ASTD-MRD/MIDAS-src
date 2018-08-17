@@ -246,7 +246,7 @@ program midas_var
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! get final increment
-    call inc_getIncrement(vazx,statevector_incr,cvm_nvadim,hco_anl,vco_anl)
+    call inc_getIncrement(vazx,statevector_incr,cvm_nvadim)
 
     deallocate(vazx)
 
