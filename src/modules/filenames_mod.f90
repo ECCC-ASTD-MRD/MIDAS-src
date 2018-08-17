@@ -22,6 +22,7 @@
 !--------------------------------------------------------------------------
 module fileNames_mod
   use utilities_mod
+  use clib_interfaces_mod
   use ramDisk_mod
   implicit none
   save
@@ -55,17 +56,6 @@ contains
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
     character(len=200), save :: ensFileBaseName
-
-    ! The following interface was extracted from #include <clib_interface.cdk>
-    interface clib_glob
-      integer function clib_glob_schhide(filelist,nfiles,pattern,maxnfiles)
-        implicit none
-        integer,intent(IN)  :: maxnfiles
-        character(len=*),intent(IN) :: pattern
-        integer,intent(OUT) :: nfiles
-        character(len=*),dimension(maxnfiles),intent(OUT):: filelist
-      end function clib_glob_schhide
-    end interface clib_glob
 
     if ( present(shouldExist_opt) ) then
       shouldExist = shouldExist_opt

@@ -28,6 +28,7 @@ module ramDisk_mod
   !
   !
   use utilities_mod
+  use clib_interfaces_mod
   implicit none
   save
   private
@@ -87,10 +88,11 @@ contains
     character(len=*)   :: fileName
 
     logical            :: fileExists, noAbort
-    character(len=256) :: fileName2
+    character(len=256) :: fileName2, subDirectory
+    integer            :: status, fileSize
 
     if ( .not. initialized ) then
-          call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
+      call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
     end if
 
     if ( present(noAbort_opt) ) then
@@ -103,15 +105,34 @@ contains
     fileName2 = trim(fileName)
 
     ! first look for file in the ram disk directory
-    fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
+    if ( ram_disk_dir_exists ) then
+      fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
+    else
+      fullWorkingPath = trim(fileName2)
+    end if
     inquire(file=trim(fullWorkingPath),exist=fileExists)
 
+    ! treat case when no ramdisk exists
+    if ( .not. ram_disk_dir_exists ) then
+      if ( fileExists ) then
+        return
+      else
+        if ( noAbort ) then
+          fullWorkingPath = ' '
+          return
+        else
+          write(*,*) 'ram_fullWorkingPath: file name = ', trim(fileName2)
+          call utl_abort('ram_fullWorkingPath: this file cannot be found on disk.')
+        end if
+      end if
+    end if
+
+    ! treat the case when ramdisk DOES exists
     if ( fileExists ) then
       write(*,*) 'ram_fullWorkingPath: this file found on ram disk: ', trim(fileName2)
     else
       ! now look in working directory
-      fullWorkingPath = './' // trim(fileName2)
-      inquire(file=trim(fullWorkingPath),exist=fileExists)
+      inquire(file='./' // trim(fileName2),exist=fileExists)
 
       if ( .not. fileExists ) then
         if ( noAbort ) then
@@ -121,6 +142,28 @@ contains
           write(*,*) 'ram_fullWorkingPath: ram disk directory = ', trim(ram_disk_dir)
           call utl_abort('ram_fullWorkingPath: this file cannot be found.')
         end if
+      else
+        ! copy the file from disk to the ramdisk
+        if ( index(trim(filename2),'/') /= 0 ) then
+          status = clib_dirname(trim(filename2),subDirectory)
+          status = clib_mkdir_r(trim(ram_disk_dir) // '/' // trim(subDirectory))
+          if ( status /= clib_ok ) then
+            call utl_abort('ram_fullWorkingPath: problem with mkdir')
+          end if
+          status = clib_isdir(trim(ram_disk_dir) // '/' // trim(subDirectory))
+          if ( status /= clib_ok ) then
+            call utl_abort('ram_fullWorkingPath: problem with checking existence of directory')
+          end if
+        end if
+
+        ! copy the file from disk to the ramdisk
+        status = copyFile(trim(fileName2), trim(ram_disk_dir) // '/' // trim(fileName2))
+
+        fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
+        fileSize = clib_size(trim(fullWorkingPath))
+        write(*,*) 'ram_fullWorkingPath: file copied to ramdisk: ', trim(fullWorkingPath)
+        write(*,*) 'ram_fullWorkingPath: size of copied file = ', fileSize
+
       end if
 
     end if
@@ -136,14 +179,6 @@ contains
     character(len=*) :: fullWorkingPath
     integer          :: returnCode
     logical          :: fileExists
-
-    ! The following interface was extracted from #include <clib_interface.cdk>
-    interface clib_remove
-      integer function clib_remove_schhide(path)
-        implicit none
-        character(len=*),intent(IN) :: path
-      end function
-    end interface
 
     if ( .not. initialized ) then
       call utl_abort('ram_remove: ramDisk module has not been initialized.')
@@ -171,5 +206,60 @@ contains
     end if
 
   end function ram_remove
+
+!--------------------------------------------------------------------------
+! copyFile - copy the specified file to the new location and/or name
+!            This function is very general, but was initially written to
+!            copy files from the disk to the ram disk
+!--------------------------------------------------------------------------
+  function copyFile(filein, fileout) result(status)
+    implicit none
+    character(len=*) :: filein
+    character(len=*) :: fileout
+    integer :: status
+
+    integer :: ierr, unitin, unitout, numBuffer, numChar
+    integer, parameter :: bufferSize = 1024
+    character :: buffer(bufferSize), onechar
+
+    call tmg_start(100,'CopyFile')
+
+    write(*,*) 'copyFile: copy from ', trim(filein), ' to ', trim(fileout)
+
+    unitin=10
+    open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', action='READ', access='STREAM')
+    unitout=11
+    open(unit=unitout, file=trim(fileout), status='NEW', form='UNFORMATTED', action='WRITE', access='STREAM')
+
+    numBuffer = 0
+    do 
+      read(unitin,iostat=ierr) buffer
+      if (ierr < 0) exit
+      numBuffer = numBuffer + 1
+      write(unitout) buffer
+    end do
+    numChar = numBuffer*bufferSize
+
+    do 
+      read(unitin,iostat=ierr,pos=numChar+1) oneChar
+      if (ierr < 0) exit
+      numChar = numChar + 1
+      write(unitout) oneChar
+    end do
+    write(*,*) 'copyFile: copied ', numChar, ' bytes'
+
+    close(unit=unitin)
+    close(unit=unitout)
+
+    if (numChar > 0) then
+      status = 0
+    else
+      status = -1
+      call utl_abort('ramdisk_mod copyFile: ERROR, zero bytes copied')
+    end if
+
+    call tmg_stop(100)
+
+  end function copyFile
 
 end module ramDisk_mod
