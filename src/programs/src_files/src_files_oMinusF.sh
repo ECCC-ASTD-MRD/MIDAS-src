@@ -22,4 +22,4 @@ SRC_FILES="$SRC_FILES sqlitefiles_mod.f90 burpfiles_mod.f90 cmafiles_mod.f90 obs
 SRC_FILES="$SRC_FILES chem_obsoperators_mod.f90 chem_postproc_mod.f90"
 SRC_FILES="$SRC_FILES obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 tovs_lin_mod.f90 obsoperators_mod.f90 obsspacediag_mod.f90"
 SRC_FILES="$SRC_FILES innovation_mod.f90"
-SRC_FILES="$SRC_FILES bgcdata.f90 bilin.f90 compute_HBHT_static.f90 setfgefamz.f90 setfgett.f90 bgcgpsro.f90 compute_HBHT.f90 compute_HBHT_static_chem.f90 setfgedif.f90 setfgegps.f90 bgcheck_conv.f90 compute_HBHT_ensemble.f90 isetflag.f90 setfgefam.f90 setfgesurf.f90"
+SRC_FILES="$SRC_FILES bgcdata.f90 compute_HBHT_static.f90 setfgefamz.f90 setfgett.f90 bgcgpsro.f90 compute_HBHT.f90 compute_HBHT_static_chem.f90 setfgedif.f90 setfgegps.f90 bgcheck_conv.f90 compute_HBHT_ensemble.f90 isetflag.f90 setfgefam.f90 setfgesurf.f90"

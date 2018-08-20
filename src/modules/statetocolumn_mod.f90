@@ -39,7 +39,8 @@ module stateToColumn_mod
   private
   
   ! public routines
-  public :: s2c_tl, s2c_ad, s2c_column_hbilin
+  public :: s2c_tl, s2c_ad
+  public :: s2c_column_hbilin, s2c_bgcheck_bilin
 
   ! private module variables
   logical :: initialized = .false.
@@ -1199,6 +1200,156 @@ CONTAINS
 
   end subroutine commLatLonAd
 
+  !------------------------------------------------------------------
+  ! S2C_BGCHECK_BILIN
+  ! Special version of s2c_tl used for background check. This should
+  ! be replaced by direct call to s2c_tl.
+  !------------------------------------------------------------------
+  subroutine s2c_bgcheck_bilin(column,statevector,obsSpaceData)
+    use MathPhysConstants_mod
+    use obsSpaceData_mod
+    use columnData_mod
+    use gridStateVector_mod
+    IMPLICIT NONE
+  
+    ! arguments
+    type(struct_columnData) :: column
+    type(struct_gsv) :: statevector
+    type(struct_obs) :: obsSpaceData
+  
+    ! locals
+    integer :: jlev, jk, jk2, jgl, jlon, headerIndex
+    integer :: ilon, ila, ierr
+    real(8) :: lat, lon
+    real(8) :: latrot, lonrot
+    real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
+    real(8), allocatable ::zgd(:,:,:)
+    real(8), pointer :: uu_column(:),vv_column(:),hu_column(:)
+    real(8), pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
+    real(8), pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
+
+    ! Note: We assume here the all the obs between the poles and the last grid points
+    !       (i.e. outside the grid) have been moved within the grid by suprep
+
+    allocate(zgd(statevector%ni+1,statevector%nj,statevector%nk))
+  
+    zgd(:,:,:)=0.0d0
+    field_ptr => gsv_getField3D_r8(statevector)
+    zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
+         field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
+
+    !
+    !- 1.  EXPAND Field BY REPEATING MERIDIAN 1 into INTO MERIDIAN NI+1
+    !
+    do jk = 1, statevector%nk
+      do jgl = 1, statevector%nj
+        zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
+      end do
+    end do
+  
+    !
+    !- 2.  LOOP OVER ALL THE OBSERVATIONS
+    !
+    do headerIndex = 1, col_getNumCol(column)
+
+      !- 2.1 Find the obs positin within the analysis grid
+      call col_getLatLon( column, headerIndex,                 & ! IN
+                          Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
+
+      !- Make sure we are within bounds
+      if ( ypos < 1.d0                        .or. &
+           ypos > real(statevector%nj    , 8) .or. &
+           xpos < 1.d0                        .or. &
+           xpos > real(statevector%ni + 1, 8) ) then
+        write(*,*) 's2c_bgcheck_bilin: Obs outside local domain for headerIndex = ', headerIndex
+        write(*,*) '  obs    lat, lon position            = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
+        write(*,*) '  obs    x, y     position            = ', xpos, ypos
+        write(*,*) '  domain x_end, y_end bounds          = ', statevector%ni + 1, statevector%nj
+        call utl_abort('s2c_bgcheck_bilin')
+      end if
+
+      !- 2.2 Find the lower-left grid point next to the observation
+      if ( xpos /= real(statevector%ni + 1,8) ) then
+        ILON = floor(xpos)
+      else
+        ILON = floor(xpos) - 1
+      end if
+
+      if ( ypos /= real(statevector%nj,8) ) then
+        ILA = floor(ypos)
+      else
+        ILA = floor(ypos) - 1
+      end if
+
+      !- 2.3 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+      dldx = xpos - real(ILON,8)
+      dldy = ypos - real(ILA,8)
+
+      dlw1 = (1.d0-dldx) * (1.d0-dldy)
+      dlw2 =       dldx  * (1.d0-dldy)
+      dlw3 = (1.d0-dldx) *       dldy
+      dlw4 =       dldx  *       dldy
+     
+      !- 2.4 Interpolate the model state to the obs point
+      if(col_varExist('UU')) uu_column => col_getColumn(column,headerIndex,'UU')
+      if(col_varExist('VV')) vv_column => col_getColumn(column,headerIndex,'VV')
+      if(col_varExist('HU')) hu_column => col_getColumn(column,headerIndex,'HU')
+      if(col_varExist('TT')) tt_column => col_getColumn(column,headerIndex,'TT')
+      if(col_varExist('P0')) ps_column => col_getColumn(column,headerIndex,'P0')
+      if(col_varExist('TG')) tg_column => col_getColumn(column,headerIndex,'TG')
+     
+      do jk = 1, gsv_getNumLev(statevector,'MM')
+        if(gsv_varExist(statevector,'UU')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
+          uu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                          + dlw2*zgd(ilon+1,ila,jk2)  &
+                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                          + dlw4*zgd(ilon+1,ila+1,jk2)
+        end if
+        if(gsv_varExist(statevector,'VV')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
+          vv_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                          + dlw2*zgd(ilon+1,ila,jk2)  &
+                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                          + dlw4*zgd(ilon+1,ila+1,jk2)
+        end if
+      end do
+      do jk = 1, gsv_getNumLev(statevector,'TH')
+        if(gsv_varExist(statevector,'HU')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
+          hu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                          + dlw2*zgd(ilon+1,ila,jk2)  &
+                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                          + dlw4*zgd(ilon+1,ila+1,jk2)
+        end if
+        if(gsv_varExist(statevector,'TT')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
+          tt_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                          + dlw2*zgd(ilon+1,ila,jk2)  &
+                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                          + dlw4*zgd(ilon+1,ila+1,jk2)
+        end if
+      end do
+      if(gsv_varExist(statevector,'P0')) then
+        jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
+        ps_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                       + dlw2*zgd(ilon+1,ila,jk2)  &
+                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                       + dlw4*zgd(ilon+1,ila+1,jk2)
+      end if
+      if(gsv_varExist(statevector,'TG')) then
+        jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
+        tg_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                       + dlw2*zgd(ilon+1,ila,jk2)  &
+                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                       + dlw4*zgd(ilon+1,ila+1,jk2)
+      end if
+    end do
+
+    deallocate(zgd)
+  
+  end subroutine s2c_bgcheck_bilin
+
   !--------------------------------------------------------------------------
   ! S2C_COLUMN_HBILIN  
   !--------------------------------------------------------------------------
@@ -1279,10 +1430,6 @@ CONTAINS
     
     lnvlevout(:) = log(vlevout(:))    
     lnvlev(:) = log(vlev(:))    
-!    lnvlev(:) = DLW1 * log(vlev(ilon,ilat,:))) &
-!               + DLW2 * log(vlev(ilon+1,ilat,:)) &
-!               + DLW3 * log(vlev(ilon,ilat+1,:)) &
-!               + DLW4 * log(vlev(ilon+1,ilat+1,:)) 
          
     ilev = 1
     do i = 1, nlevout

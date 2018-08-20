@@ -25,6 +25,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
+      use stateToColumn_mod
       use gridStateVector_mod
       use verticalCoord_mod
       use horizontalCoord_mod
@@ -239,7 +240,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      call bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 
       ! copy GZ data from TT to GZ slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
@@ -292,7 +293,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      call bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
       call setfgett(lcolumn,lcolumng,lobsSpaceData)
 
 !
@@ -373,7 +374,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      call bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 !
 !     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
 !     ------------------------------------------------
@@ -405,7 +406,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      call bilin(lcolumn,statevector,lobsSpaceData)
+      call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 !
 !     OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
 !     -------------------------------------------------
