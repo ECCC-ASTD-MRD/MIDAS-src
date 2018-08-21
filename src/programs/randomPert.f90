@@ -71,10 +71,10 @@ program midas_randomPert
   character(len=12) :: etiket
   character(len=12) :: out_etiket
   
-  logical  :: remove_mean, smoothVariances, write_mpi, mpiTopoIndependent
+  logical  :: remove_mean, smoothVariances, mpiTopoIndependent
   integer  :: nens, seed, date
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
-                    smoothVariances, write_mpi, mpiTopoIndependent
+                    smoothVariances, mpiTopoIndependent
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -105,7 +105,6 @@ program midas_randomPert
   remove_mean = .true.
   out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
-  write_mpi = .false.
   mpiTopoIndependent = .false.
 
   !- 1.2 Read the namelist
@@ -397,14 +396,8 @@ program midas_randomPert
     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
-    if( write_mpi ) then
-      call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN
-                              unitConversion_opt=.true.)  ! IN
-    else
-      call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
-                           unitConversion_opt=.true.)  ! IN
-    end if
-
+    call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
+                         unitConversion_opt=.true.)  ! IN
     call gsv_deallocate(statevector)
 
   end do

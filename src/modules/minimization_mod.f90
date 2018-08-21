@@ -730,9 +730,9 @@ CONTAINS
 
     do stepIndex = 1, statevector%numStep
       fileNameFull = trim(fileName) // trim(fileNameExt(statevector,stepIndex,indexAnalysis))
-      call gsv_writeToFileMpi(statevector,fileNameFull,cetiket,1.0d0, &
-                              ip3_opt=0,  &
-                              stepIndex_opt=stepIndex)
+      call gsv_writeToFile(statevector,fileNameFull,cetiket,1.0d0, &
+                           ip3_opt=0,  &
+                           stepIndex_opt=stepIndex)
     enddo
 
   end subroutine writeToFile4D
