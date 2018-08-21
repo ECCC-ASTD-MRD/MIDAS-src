@@ -1118,7 +1118,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call fln_ensFileName(ensFileName, ensPathName, 1)
+    call fln_ensFileName(ensFileName, ensPathName, 1, copyToRamDisk_opt=.false.)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then

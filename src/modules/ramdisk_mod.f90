@@ -15,16 +15,16 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE ramDisk_mod (prefix="ram")
+!! MODULE ramDisk_mod (prefix='ram')
 !!
 !! *Purpose*: Control the file manipulations/enquiries on the RAM disk
 !!
 !--------------------------------------------------------------------------
 module ramDisk_mod
   !
-  ! MODULE ramDisk_mod (prefix="ram")
+  ! MODULE ramDisk_mod (prefix='ram')
   !
-  ! *Purpose*: Control the file manipulations/enquiries on the RAM disk
+  ! **Purpose**: Control the file manipulations/enquiries on the RAM disk
   !
   !
   use utilities_mod
@@ -43,9 +43,9 @@ module ramDisk_mod
 
 contains
 
-!--------------------------------------------------------------------------
-! ram_setup
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! ram_setup
+  !--------------------------------------------------------------------------
   subroutine ram_setup
     implicit none
 
@@ -76,18 +76,19 @@ contains
 
   end subroutine ram_setup
 
-!--------------------------------------------------------------------------
-! ram_fullWorkingPath - given a filename, return the full path by either
-!                       adding the current working directory or the ram disk
-!                       directory
-!--------------------------------------------------------------------------
-  function ram_fullWorkingPath(fileName, noAbort_opt) result(fullWorkingPath)
+  !--------------------------------------------------------------------------
+  ! ram_fullWorkingPath - given a filename, return the full path by either
+  !                       adding the current working directory or the ram disk
+  !                       directory
+  !--------------------------------------------------------------------------
+  function ram_fullWorkingPath(fileName, noAbort_opt, copyToRamDisk_opt) result(fullWorkingPath)
     implicit none
     character(len=512) :: fullWorkingPath
     logical, optional  :: noAbort_opt
+    logical, optional  :: copyToRamDisk_opt
     character(len=*)   :: fileName
 
-    logical            :: fileExists, noAbort
+    logical            :: fileExists, noAbort, copyToRamDisk
     character(len=256) :: fileName2, subDirectory
     integer            :: status, fileSize
 
@@ -99,6 +100,12 @@ contains
       noAbort = noAbort_opt
     else
       noAbort = .false.
+    end if
+
+    if ( present(copyToRamDisk_opt) ) then
+      copyToRamDisk = copyToRamDisk_opt
+    else
+      copyToRamDisk = .true.
     end if
 
     ! this should make it safe for calls where input and output are the same variable
@@ -131,7 +138,7 @@ contains
     if ( fileExists ) then
       write(*,*) 'ram_fullWorkingPath: this file found on ram disk: ', trim(fileName2)
     else
-      ! now look in working directory
+      ! not found on ram disk, so now look in working directory
       inquire(file='./' // trim(fileName2),exist=fileExists)
 
       if ( .not. fileExists ) then
@@ -143,26 +150,32 @@ contains
           call utl_abort('ram_fullWorkingPath: this file cannot be found.')
         end if
       else
-        ! copy the file from disk to the ramdisk
-        if ( index(trim(filename2),'/') /= 0 ) then
-          status = clib_dirname(trim(filename2),subDirectory)
-          status = clib_mkdir_r(trim(ram_disk_dir) // '/' // trim(subDirectory))
-          if ( status /= clib_ok ) then
-            call utl_abort('ram_fullWorkingPath: problem with mkdir')
+
+        if ( copyToRamDisk ) then
+          ! copy the file from disk to the ramdisk
+          if ( index(trim(filename2),'/') /= 0 ) then
+            status = clib_dirname(trim(filename2),subDirectory)
+            status = clib_mkdir_r(trim(ram_disk_dir) // '/' // trim(subDirectory))
+            if ( status /= clib_ok ) then
+              call utl_abort('ram_fullWorkingPath: problem with mkdir')
+            end if
+            status = clib_isdir(trim(ram_disk_dir) // '/' // trim(subDirectory))
+            if ( status /= clib_ok ) then
+              call utl_abort('ram_fullWorkingPath: problem with checking existence of directory')
+            end if
           end if
-          status = clib_isdir(trim(ram_disk_dir) // '/' // trim(subDirectory))
-          if ( status /= clib_ok ) then
-            call utl_abort('ram_fullWorkingPath: problem with checking existence of directory')
-          end if
+
+          ! copy the file from disk to the ramdisk
+          status = copyFile(trim(fileName2), trim(ram_disk_dir) // '/' // trim(fileName2))
+
+          fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
+          fileSize = clib_size(trim(fullWorkingPath))
+          write(*,*) 'ram_fullWorkingPath: file copied to ramdisk: ', trim(fullWorkingPath)
+          write(*,*) 'ram_fullWorkingPath: size of copied file = ', fileSize
+        else
+          fullWorkingPath = trim(fileName2)
+          write(*,*) 'ram_fullWorkingPath: file left on disk, as requested: ', trim(fullWorkingPath)
         end if
-
-        ! copy the file from disk to the ramdisk
-        status = copyFile(trim(fileName2), trim(ram_disk_dir) // '/' // trim(fileName2))
-
-        fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
-        fileSize = clib_size(trim(fullWorkingPath))
-        write(*,*) 'ram_fullWorkingPath: file copied to ramdisk: ', trim(fullWorkingPath)
-        write(*,*) 'ram_fullWorkingPath: size of copied file = ', fileSize
 
       end if
 
@@ -170,10 +183,10 @@ contains
 
   end function ram_fullWorkingPath
 
-!--------------------------------------------------------------------------
-! ram_remove - given the full path+filename, remove the file only if 
-!                     it is located on the ram disk (to free up memory)
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! ram_remove - given the full path+filename, remove the file only if 
+  !                     it is located on the ram disk (to free up memory)
+  !--------------------------------------------------------------------------
   function ram_remove(fullWorkingPath) result(returnCode)
     implicit none
     character(len=*) :: fullWorkingPath
@@ -207,45 +220,55 @@ contains
 
   end function ram_remove
 
-!--------------------------------------------------------------------------
-! copyFile - copy the specified file to the new location and/or name
-!            This function is very general, but was initially written to
-!            copy files from the disk to the ram disk
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! copyFile - copy the specified file to the new location and/or name
+  !            This function is very general, but was initially written to
+  !            copy files from the disk to the ram disk
+  !--------------------------------------------------------------------------
   function copyFile(filein, fileout) result(status)
     implicit none
     character(len=*) :: filein
     character(len=*) :: fileout
     integer :: status
 
-    integer :: ierr, unitin, unitout, numBuffer, numChar
-    integer, parameter :: bufferSize = 1024
-    character :: buffer(bufferSize), onechar
-
-    call tmg_start(100,'CopyFile')
+    integer :: ierr, unitin, unitout, numChar
+    character :: bufferB
+    integer, parameter :: bufferSizeKB = 1024
+    character :: bufferKB(bufferSizeKB)
+    integer, parameter :: bufferSizeMB = 1024*1024
+    character :: bufferMB(bufferSizeMB)
 
     write(*,*) 'copyFile: copy from ', trim(filein), ' to ', trim(fileout)
+
+    call tmg_start(160,'CopyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', action='READ', access='STREAM')
     unitout=11
     open(unit=unitout, file=trim(fileout), status='NEW', form='UNFORMATTED', action='WRITE', access='STREAM')
 
-    numBuffer = 0
+    numChar = 0
     do 
-      read(unitin,iostat=ierr) buffer
+      read(unitin,iostat=ierr) bufferMB
       if (ierr < 0) exit
-      numBuffer = numBuffer + 1
-      write(unitout) buffer
+      numChar = numChar + bufferSizeMB
+      write(unitout) bufferMB
     end do
-    numChar = numBuffer*bufferSize
 
     do 
-      read(unitin,iostat=ierr,pos=numChar+1) oneChar
+      read(unitin,iostat=ierr,pos=numChar+1) bufferKB
+      if (ierr < 0) exit
+      numChar = numChar + bufferSizeKB
+      write(unitout) bufferKB
+    end do
+
+    do 
+      read(unitin,iostat=ierr,pos=numChar+1) bufferB
       if (ierr < 0) exit
       numChar = numChar + 1
-      write(unitout) oneChar
+      write(unitout) bufferB
     end do
+
     write(*,*) 'copyFile: copied ', numChar, ' bytes'
 
     close(unit=unitin)
@@ -258,7 +281,7 @@ contains
       call utl_abort('ramdisk_mod copyFile: ERROR, zero bytes copied')
     end if
 
-    call tmg_stop(100)
+    call tmg_stop(160)
 
   end function copyFile
 
