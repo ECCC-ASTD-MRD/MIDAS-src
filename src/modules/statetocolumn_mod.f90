@@ -51,7 +51,7 @@ module stateToColumn_mod
   real(8), allocatable :: myLatTile(:), myLonTile(:)
   real(8), allocatable :: myTimeInterpWeight(:,:)
   real(8), pointer     :: fieldsWithHalo(:,:,:,:)
-
+  type(struct_oti), pointer :: oti_tlad => null()
 
 CONTAINS 
 
@@ -76,6 +76,8 @@ CONTAINS
     real(8), allocatable :: myLonToSend(:)
     real(8), allocatable :: myTimeInterpWeightToSend(:,:)
     real(8) :: Lat, Lon, ypos, xpos, LatRot, LonRot
+
+    call oti_setup(oti_tlad, obsSpaceData, statevector%numStep, interpType='LINEAR' )
 
     if(mpi_myid == 0) write(*,*) 's2c_setup: gathering information for load balancing'
 
@@ -176,7 +178,7 @@ CONTAINS
             else
               do stepIndex = 1, statevector%numStep
                 myTimeInterpWeight(headerIndex2,stepIndex) = &
-                  oti_getTimeInterpWeight(headerIndex,stepIndex)
+                  oti_getTimeInterpWeight(oti_tlad,headerIndex,stepIndex)
               end do
             end if
           end if
@@ -225,7 +227,7 @@ CONTAINS
             else
               do stepIndex = 1, statevector%numStep
                 myTimeInterpWeight(headerIndex2,stepIndex) = &
-                  oti_getTimeInterpWeight(headerIndex,stepIndex)
+                  oti_getTimeInterpWeight(oti_tlad,headerIndex,stepIndex)
               end do
             end if
           end if
@@ -257,7 +259,7 @@ CONTAINS
               else
                 do stepIndex = 1, statevector%numStep
                   myTimeInterpWeightToSend(headerIndex2,stepIndex) = &
-                    oti_getTimeInterpWeight(headerIndex,stepIndex)
+                    oti_getTimeInterpWeight(oti_tlad,headerIndex,stepIndex)
                 end do
               end if
 
@@ -313,7 +315,7 @@ CONTAINS
           else
             do stepIndex = 1, statevector%numStep
               myTimeInterpWeight(headerIndex,stepIndex) = &
-                oti_getTimeInterpWeight(headerIndex,stepIndex)
+                oti_getTimeInterpWeight(oti_tlad,headerIndex,stepIndex)
             end do
           end if
         end do

@@ -29,7 +29,6 @@ program midas_obsimpact
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -341,8 +340,6 @@ contains
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
- 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
     write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
@@ -437,8 +434,6 @@ contains
     
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
-
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)

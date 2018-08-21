@@ -307,7 +307,6 @@ contains
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     !
     !- 2.  Compute the perturbations

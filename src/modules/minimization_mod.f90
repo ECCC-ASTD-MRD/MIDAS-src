@@ -195,7 +195,6 @@ CONTAINS
 
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     call quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
 
