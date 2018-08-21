@@ -75,8 +75,10 @@ CONTAINS
     implicit none
 
     call tmg_start(92,'VTR_READTRIALS')
-    call gsv_readTrials( hco_anl, vco_anl,  & ! IN
-                         statevector_trial )  ! OUT
+    call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,   &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR')
+    call gsv_readTrials( statevector_trial )  ! IN/OUT
     call tmg_stop(92)
 
     trialsInitialized = .true.

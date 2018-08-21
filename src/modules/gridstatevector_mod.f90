@@ -4233,8 +4233,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, &
-                            hInterpolateDegree_opt)
+  subroutine gsv_readTrials( statevector_trial )
     !
     ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
     !         Bulk of content originally in vtr_setupTrials.
@@ -4242,11 +4241,10 @@ module gridStateVector_mod
     !---------------------------------------------------------------------------
     implicit none
 
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
+    ! arguments
     type(struct_gsv)          :: statevector_trial
-    character(len=*),optional :: hInterpolateDegree_opt
 
+    ! locals
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
     integer              :: ierr, ikey, stepIndex, trialIndex, numTrials, nulTrial
     integer              :: ni_file, nj_file, nk_file, dateStamp
@@ -4255,17 +4253,6 @@ module gridStateVector_mod
     character(len=30)    :: fileName
     logical              :: fileExists
     character(len=12)    :: hInterpolateDegree
-
-    if ( present(hInterpolateDegree_opt) ) then
-      hInterpolateDegree = trim(hInterpolateDegree_opt)
-    else
-      hInterpolateDegree = 'LINEAR'
-    end if
-
-    ! initialize statevector_trial
-    call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_in, vco_in,     &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=.true., hInterpolateDegree_opt=hInterpolateDegree)
 
     ! initialize list of dates for the 4D analysis increment
     allocate(datestamplist(tim_nStepObsInc))
