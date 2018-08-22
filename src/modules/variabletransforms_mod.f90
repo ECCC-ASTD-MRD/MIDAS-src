@@ -40,11 +40,12 @@ MODULE variableTransforms_mod
   ! public procedures
   public :: vtr_Setup, vtr_Transform
 
-  logical             :: trialsInitialized = .false.
+  logical                   :: trialsInitialized = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
   type(struct_gsv)    :: statevector_trial
+  character(len=4)    :: trialVarNamesToRead(2) = (/ 'HU', 'P0' /)
 
 CONTAINS
 
@@ -75,10 +76,16 @@ CONTAINS
     implicit none
 
     call tmg_start(92,'VTR_READTRIALS')
+
+    ! initialize statevector_trial on analysis grid
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR')
+                      allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=trialVarNamesToRead )
+
+    ! read trial files using default horizontal interpolation degree
     call gsv_readTrials( statevector_trial )  ! IN/OUT
+
     call tmg_stop(92)
 
     trialsInitialized = .true.
