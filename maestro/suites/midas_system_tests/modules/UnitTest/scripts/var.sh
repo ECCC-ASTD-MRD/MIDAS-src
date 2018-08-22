@@ -19,20 +19,20 @@ burpfile_y=$((npey-MP_CHILD/npex))
 burpfile_x=$((MP_CHILD+1-npex*(MP_CHILD/npex)))
 
 if [ "${fasttmp}" = yes ]; then
-    FASTTMPDIR=${ramdiskpath}/oavar_${MP_CHILD}
+    FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
     /bin/mkdir -p ${FASTTMPDIR}
-    export OAVAR_RAM_DISK_DIR=${FASTTMPDIR}
+    export MIDAS_RAMDISKDIR=${FASTTMPDIR}
 fi
-
-echo "The preparation of the working directory took ${SECONDS} seconds"
-
-SECONDS=0
 
 [ "${MP_CHILD}" -eq 0 ] && /bin/mkdir ./obs
 while [ ! -d ./obs ]; do
     /bin/sleep 1
 done
 /bin/cp burpfiles_*/brp*_${burpfile_x}_${burpfile_y} ./obs
+
+echo "The preparation of the working directory took ${SECONDS} seconds"
+
+SECONDS=0
 
 ${RUN_PGM}
 echo "The program itself took ${SECONDS} seconds"

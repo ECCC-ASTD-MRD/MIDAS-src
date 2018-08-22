@@ -18,7 +18,7 @@
 !! MODULE mpivar (prefix="mpivar")
 !!
 !! *Purpose*: Subroutine and public variables related to the mpi decomposition
-!!            specific to the OAVAR code. Depends on the more general mpi_mod module.
+!!            specific to the MIDAS code. Depends on the more general mpi_mod module.
 !!
 !--------------------------------------------------------------------------
 module mpivar_mod
@@ -26,7 +26,7 @@ module mpivar_mod
   ! MODULE mpivar (prefix="mpivar")
   !
   ! **Purpose**: Subroutine and public variables related to the mpi decomposition
-  ! specific to the OAVAR code. Depends on the more general mpi_mod module.
+  ! specific to the MIDAS code. Depends on the more general mpi_mod module.
   !
   !
   use mpi_mod

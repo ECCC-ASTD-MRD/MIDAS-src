@@ -104,7 +104,6 @@ fi
 
  cd $gest
  export TMG_ON=YES
- export OAVAR_BURP_SPLIT=yes
  ${run_in_parallel} -pgm ./seaice.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
 EOF
 

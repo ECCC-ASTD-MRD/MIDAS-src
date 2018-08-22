@@ -55,19 +55,19 @@ contains
     !- Determine the ramdisk directory, if available
     !
     status = 0
-    call get_environment_variable('OAVAR_RAM_DISK_DIR',ram_disk_dir,length_ram_disk_dir,status,.true.)
+    call get_environment_variable('MIDAS_RAMDISKDIR',ram_disk_dir,length_ram_disk_dir,status,.true.)
 
     if (status.gt.1) then
-      write(*,*) 'ram_setup: Problem when getting the environment variable OAVAR_RAM_DISK_DIR'
+      write(*,*) 'ram_setup: Problem when getting the environment variable MIDAS_RAMDISKDIR'
     end if
     if (status.eq.1) then
-      write(*,*) 'ram_setup: The environment variable OAVAR_RAM_DISK_DIR has not been detected!'
+      write(*,*) 'ram_setup: The environment variable MIDAS_RAMDISKDIR has not been detected!'
       write(*,*) '           Assume all files in current working directory'
       ram_disk_dir_exists = .false.  
       ram_disk_dir = 'DOES_NOT_EXIST'
     else
       write(*,*)
-      write(*,*) 'ram_setup: The environment variable OAVAR_RAM_DISK_DIR has correctly been detected'
+      write(*,*) 'ram_setup: The environment variable MIDAS_RAMDISKDIR has correctly been detected'
       write(*,*) 'ram_setup: Files will first be opened from directory: ', trim(ram_disk_dir)
       ram_disk_dir_exists = .true.
     end if
