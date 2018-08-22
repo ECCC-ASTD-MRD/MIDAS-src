@@ -23,7 +23,7 @@
 !--------------------------------------------------------------------------
 module HorizontalCoord_mod
   use mpivar_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use utilities_mod
   implicit none
   save
@@ -35,6 +35,7 @@ module HorizontalCoord_mod
   ! Public Subroutines
   public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast
 
+  integer, parameter :: maxNumSubGrid = 2
 
   type :: struct_hco
      character(len=32)    :: gridname
@@ -47,16 +48,18 @@ module HorizontalCoord_mod
      integer              :: ig3
      integer              :: ig4
      integer              :: EZscintID
+     integer              :: numSubGrid
+     integer              :: EZscintIDsubGrids(maxNumSubGrid)
      real(8), allocatable :: lat(:) ! in radians
      real(8), allocatable :: lon(:) ! in radians
      real(8)              :: dlat   ! in radians
      real(8)              :: dlon   ! in radians
      logical              :: global
      logical              :: rotated
-     real(8)              :: xlat1
-     real(8)              :: xlon1
-     real(8)              :: xlat2
-     real(8)              :: xlon2
+     real(8)              :: xlat1, xlat1_yan
+     real(8)              :: xlon1, xlon1_yan
+     real(8)              :: xlat2, xlat2_yan
+     real(8)              :: xlon2, xlon2_yan
      real(4), allocatable :: tictacU(:)
   end type struct_hco
 
@@ -82,22 +85,25 @@ module HorizontalCoord_mod
     real(8), allocatable :: lon_8(:)
 
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+    real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    integer :: iu_template
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos, ezqkdef
-    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
+    integer :: iu_template, numSubGrid
+    integer :: fnom, fstlir, fstouv, fstfrm, fclos
+    integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
+    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
     integer :: ig1, ig2, ig3, ig4
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
+    integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
 
     logical :: FileExist, global, rotated
 
     character(len=4 ) :: nomvar
     character(len=2 ) :: typvar
-    character(len=1 ) :: grtyp, grtyp_tictac
+    character(len=1 ) :: grtyp, grtyp_tictac, grtyp_yy
     character(len=12) :: etiket
 
     if( .not.associated(hco) ) then
@@ -116,8 +122,7 @@ module HorizontalCoord_mod
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
       if ( ier == 0 ) then
         write(*,*)
-        write(*,*) 'Template File :', trim(TemplateFile)
-        write(*,*) 'opened as unit file ',iu_template
+        write(*,*) 'hco_setupFromFile: Template File =', trim(TemplateFile)
         ier = fstouv(iu_template,'RND+OLD')
       else
         write(*,*)
@@ -170,11 +175,18 @@ module HorizontalCoord_mod
     end if
 
     EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
+    numSubGrid = 1
+    EZscintIDsubGrids(:) = -999
 
     allocate(lat_8(1:nj))
     allocate(lon_8(1:ni))
 
-    !- 2.2 Rotated grid
+    xlat1_yan_4 = -999.9
+    xlon1_yan_4 = -999.9
+    xlat2_yan_4 = -999.9
+    xlon2_yan_4 = -999.9
+
+    !- 2.2 Rotated lat-lon grid
     if ( trim(grtyp) == 'Z' ) then
 
        !-  2.2.1 Read the Longitudes
@@ -333,12 +345,27 @@ module HorizontalCoord_mod
       lon_8(:) = -999.999d0
       lat_8(:) = -999.999d0
 
-      !-  2.4.2 Initialize these parameters to dummy values
-      rotated = .false.
-      xlat1_4 = -999.999
-      xlon1_4 = -999.999
-      xlat2_4 = -999.999
-      xlon2_4 = -999.999
+      !-  2.4.2 Yin-Yan subgrid IDs
+      numSubGrid = ezget_nsubgrids(EZscintID)
+      if ( numSubGrid /= 2 ) then
+        call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
+      end if
+      ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
+
+      !-  2.4.3 Determine parameters related to Yin and Yan grid rotations
+      rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
+
+      ier = ezgprm( EZscintIDsubGrids(1), grtyp_yy, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      grtyp_yy = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
+      call cigaxg ( grtyp_yy,                           & ! IN
+                    xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
+                    ig1_yy, ig2_yy, ig3_yy, ig4_yy )      ! IN
+
+      ier = ezgprm( EZscintIDsubGrids(2), grtyp_yy, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      grtyp_yy = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
+      call cigaxg ( grtyp_yy,                                           & ! IN
+                    xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
+                    ig1_yy, ig2_yy, ig3_yy, ig4_yy )                      ! IN
 
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
 
@@ -362,25 +389,31 @@ module HorizontalCoord_mod
     else
       hco % gridname     = 'UNDEFINED'
     end if
-    hco % ni           = ni
-    hco % nj           = nj
-    hco % grtyp        = trim(grtyp) 
-    hco % ig1          = ig1
-    hco % ig2          = ig2
-    hco % ig3          = ig3
-    hco % ig4          = ig4
-    hco % EZscintID    = EZscintID
-    hco % lon(:)       = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco % lat(:)       = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco % dlon         = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco % dlat         = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco % global       = global
-    hco % rotated      = rotated
-    hco % xlat1        = real(xlat1_4,8)
-    hco % xlon1        = real(xlon1_4,8)
-    hco % xlat2        = real(xlat2_4,8)
-    hco % xlon2        = real(xlon2_4,8)
-    hco % initialized  = .true.
+    hco % ni                   = ni
+    hco % nj                   = nj
+    hco % grtyp                = trim(grtyp) 
+    hco % ig1                  = ig1
+    hco % ig2                  = ig2
+    hco % ig3                  = ig3
+    hco % ig4                  = ig4
+    hco % EZscintID            = EZscintID
+    hco % numSubGrid           = numSubGrid
+    hco % EZscintIDsubGrids(:) = EZscintIDsubGrids(:)
+    hco % lon(:)               = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco % lat(:)               = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco % dlon                 = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco % dlat                 = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco % global               = global
+    hco % rotated              = rotated
+    hco % xlat1                = real(xlat1_4,8)
+    hco % xlon1                = real(xlon1_4,8)
+    hco % xlat2                = real(xlat2_4,8)
+    hco % xlon2                = real(xlon2_4,8)
+    hco % xlat1_yan            = real(xlat1_yan_4,8)
+    hco % xlon1_yan            = real(xlon1_yan_4,8)
+    hco % xlat2_yan            = real(xlat2_yan_4,8)
+    hco % xlon2_yan            = real(xlon2_yan_4,8)
+    hco % initialized          = .true.
 
     deallocate(lat_8)
     deallocate(lon_8)
@@ -442,7 +475,7 @@ module HorizontalCoord_mod
     implicit none
     type(struct_hco), pointer :: hco
     integer :: ierr
-    integer, external :: ezgprm, ezqkdef
+    integer, external :: ezqkdef
 
     write(*,*) 'hco_mpiBcast: starting'
 
@@ -477,6 +510,10 @@ module HorizontalCoord_mod
     call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlat1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlon1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     if ( hco%grtyp == 'U' ) then
       if ( mpi_myid > 0 ) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
@@ -539,6 +576,10 @@ module HorizontalCoord_mod
     equal = equal .and. (hco1%xlon1   ==    hco2%xlon1)
     equal = equal .and. (hco1%xlat2   ==    hco2%xlat2)
     equal = equal .and. (hco1%xlon2   ==    hco2%xlon2)
+    equal = equal .and. (hco1%xlat1_yan ==  hco2%xlat1_yan)
+    equal = equal .and. (hco1%xlon1_yan ==  hco2%xlon1_yan)
+    equal = equal .and. (hco1%xlat2_yan ==  hco2%xlat2_yan)
+    equal = equal .and. (hco1%xlon2_yan ==  hco2%xlon2_yan)
     if (.not. equal) then
       write(*,*) 'hco_equal: rotation not equal'
       return
