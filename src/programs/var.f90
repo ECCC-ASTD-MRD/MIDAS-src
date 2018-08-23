@@ -41,7 +41,6 @@ program midas_var
   use obsFilter_mod  
   use minimization_mod
   use innovation_mod
-  use WindRotation_mod
   use minimization_mod
   use analysisGrid_mod
   use bmatrix_mod
@@ -389,10 +388,6 @@ contains
        call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
        !- Setup the LAM analysis grid metrics
        call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
-
-    if ( hco_anl % rotated ) then
-       call uvr_Setup(hco_anl) ! IN 
     end if
 
     !     

@@ -39,7 +39,7 @@ module innovation_mod
   use varNameList_mod
   use analysisGrid_mod
   use gridStateVector_mod
-  use WindRotation_mod
+  use windRotation_mod
   use tt2phi_mod
   use utilities_mod
   use obsFilter_mod  
@@ -334,6 +334,7 @@ contains
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
     integer :: ig1, ig2, ig3, ig4
+    type(struct_uvr), pointer :: uvr_tlad => null()
 
     ! external functions
     integer :: get_max_rss, newdate
@@ -430,6 +431,13 @@ contains
     else
        xposLowerBoundAnl_r4 = 1.0
        xposUpperBoundAnl_r4 = real(hco_anl % ni)
+    end if
+
+    ! setup the information for wind rotation (analysis grid)
+    if ( col_varExist('UU') .and. col_varExist('VV') .and.  &
+         hco_anl%rotated ) then
+      call uvr_Setup( uvr_tlad,       & ! INOUT
+                      hco_anl ) ! IN 
     end if
 
     !
@@ -589,10 +597,10 @@ contains
 
              !- Convert to rotated grid if needed
              if (hco_anl % rotated) then
-                call uvr_RotateLatLon( lat_rot, lon_rot,       & ! OUT (radians)
-                                       lat_r8,                 & ! IN  (radians)
-                                       lon_r8,                 & ! IN  (radians)
-                                       'ToLatLonRot')            ! IN
+                call uvr_RotateLatLon( uvr_tlad, 1,      & ! IN
+                                       lat_rot, lon_rot, & ! OUT (radians)
+                                       lat_r8, lon_r8,   & ! IN  (radians)
+                                       'ToLatLonRot')      ! IN
              else
                 lat_rot = lat_r8
                 lon_rot = lon_r8

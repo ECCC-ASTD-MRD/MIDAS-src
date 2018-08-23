@@ -306,12 +306,6 @@ module mpivar_mod
     enddo
     mykEnd = mykBeg + mykCount - 1
 
-    if(minval(mykCounts) == 0) then
-      write(*,*) 'mpivar_setup_varslevels: numk = ', numk
-      write(*,*) 'mpivar_setup_varslevels: mykCounts = ', mykCounts(:)
-      write(*,*) 'mpivar_setup_varslevels: WARNING, some mpi tasks have zero vars/levels'
-    endif
-
   end subroutine mpivar_setup_varslevels
 
 end module mpivar_mod

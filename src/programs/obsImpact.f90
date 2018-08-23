@@ -43,7 +43,6 @@ program midas_obsimpact
   use innovation_mod
   use obsFiles_mod
   use obsFilter_mod
-  use WindRotation_mod
   use obsErrors_mod
   use variableTransforms_mod
   use rttov_const, only :inst_name, platform_name
@@ -256,10 +255,6 @@ contains
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
-
-    if ( hco_anl % rotated ) then
-      call uvr_Setup(hco_anl) ! IN 
     end if
 
     !     

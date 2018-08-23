@@ -25,15 +25,16 @@
 !!
 !--------------------------------------------------------------------------
 module stateToColumn_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use mpivar_mod 
   use gridstatevector_mod
   use obsSpaceData_mod
   use columnData_mod
   use obsTimeInterp_mod
   use tt2phi_mod
+  use windRotation_mod
   use utilities_mod
-  
+
   implicit none
   save
   private
@@ -52,6 +53,7 @@ module stateToColumn_mod
   real(8), allocatable :: myTimeInterpWeight(:,:)
   real(8), pointer     :: fieldsWithHalo(:,:,:,:)
   type(struct_oti), pointer :: oti_tlad => null()
+  type(struct_uvr), pointer :: uvr_tlad => null()
 
 CONTAINS 
 
@@ -77,7 +79,15 @@ CONTAINS
     real(8), allocatable :: myTimeInterpWeightToSend(:,:)
     real(8) :: Lat, Lon, ypos, xpos, LatRot, LonRot
 
+    ! setup the information for time interpolation to observation times
     call oti_setup(oti_tlad, obsSpaceData, statevector%numStep, interpType='LINEAR' )
+
+    ! setup the information for wind rotation
+    if ( gsv_varExist(stateVector,'UU') .and. gsv_varExist(stateVector,'VV') .and.  &
+         stateVector%hco%rotated ) then
+      call uvr_Setup( uvr_tlad,       & ! INOUT
+                      stateVector%hco ) ! IN 
+    end if
 
     if(mpi_myid == 0) write(*,*) 's2c_setup: gathering information for load balancing'
 
@@ -591,7 +601,6 @@ CONTAINS
       !
       !- uvrot2uv - Transforms tangential (U,V) wind components at observation
       !             locations on GEM rotated frame to the real sphere.
-      use WindRotation_mod
       implicit none
 
       character(len=*), intent(in) :: UUvarName
@@ -600,7 +609,7 @@ CONTAINS
     
       real(8) :: lat, lon, latrot, lonrot, xpos, ypos
       real(8), pointer :: UUcolumn(:), VVcolumn(:)
-      integer :: headerIndex
+      integer :: headerIndex, levIndex
 
       !
       !- 1.  Loop over all the observation locations
@@ -616,10 +625,13 @@ CONTAINS
                             Lat, Lon, ypos, xpos, LatRot, LonRot )   ! OUT
 
         !- 1.3 Rotate Winds
-        call uvr_RotateWind( UUColumn, VVColumn,       & ! INOUT
-                             Lat, Lon, LatRot, LonRot, & ! IN
-                             'ToMetWind', numLev )       ! IN
-
+        do levIndex = 1, numLev
+          call uvr_RotateWind( uvr_tlad, 1,               & ! IN
+                               UUColumn(levIndex),        & ! INOUT
+                               VVColumn(levIndex),        & ! INOUT
+                               lat, lon, latRot, lonRot,  & ! IN
+                               'ToMetWind' )                ! IN
+        end do
       end do
 
     end subroutine uvrot2uv
@@ -892,7 +904,6 @@ CONTAINS
       !
       !- uvrot2uv - Transforms tangential (U,V) wind components at observation
       !             locations on GEM rotated frame to the real sphere.
-      use WindRotation_mod
       implicit none
 
       character(len=*), intent(in) :: UUvarName
@@ -901,7 +912,7 @@ CONTAINS
     
       real(8) :: lat, lon, latrot, lonrot, xpos, ypos
       real(8), pointer :: UUcolumn(:), VVcolumn(:)
-      integer :: headerIndex
+      integer :: headerIndex, levIndex
 
       !
       !- 1.  Loop over all the observation locations
@@ -917,9 +928,13 @@ CONTAINS
                             Lat, Lon, ypos, xpos, LatRot, LonRot )   ! OUT
 
         !- 1.3 Rotate Winds
-        call uvr_RotateWindAdj( UUColumn, VVColumn,       & ! INOUT
-                                Lat, Lon, LatRot, LonRot, & ! IN
-                                'ToMetWind', numLev )       ! IN
+        do levIndex = 1, numLev
+          call uvr_RotateWindAdj( uvr_tlad, 1,               & ! IN
+                                  UUColumn(levIndex),        & ! INOUT
+                                  VVColumn(levIndex),        & ! INOUT
+                                  lat, lon, latRot, lonRot,  & ! IN
+                                  'ToMetWind' )                ! IN
+        end do
 
       end do
 
@@ -1208,11 +1223,7 @@ CONTAINS
   ! be replaced by direct call to s2c_tl.
   !------------------------------------------------------------------
   subroutine s2c_bgcheck_bilin(column,statevector,obsSpaceData)
-    use MathPhysConstants_mod
-    use obsSpaceData_mod
-    use columnData_mod
-    use gridStateVector_mod
-    IMPLICIT NONE
+    implicit none
   
     ! arguments
     type(struct_columnData) :: column

@@ -15,75 +15,103 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE WindRotation (prefix="uvr")
+!! MODULE windRotation (prefix="uvr")
 !!
 !! *Purpose*: To transform winds FROM the rotated spherical 
 !!            coordinate system TO the non-rotated spherical coordinate system.
 !!
 !--------------------------------------------------------------------------
-module WindRotation_mod
-  use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8,MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
-  use HorizontalCoord_mod
+module windRotation_mod
+  use mathPhysConstants_mod
+  use horizontalCoord_mod
+  use utilities_mod
   implicit none
   save
   private
 
+  ! Public derived type definition
+  public :: struct_uvr
+
   ! Public Subroutines
-  public :: uvr_Setup, uvr_RotateWind, uvr_RotateLatLon
-  public :: uvr_RotateWindAdj
+  public :: uvr_Setup, uvr_RotateWind, uvr_RotateWindAdj, uvr_RotateLatLon
 
   integer, parameter :: msize = 3
-  real(8)            :: grd_rot_8   (msize,msize) ! Real Earth to Rotated Earth
-  real(8)            :: grd_rotinv_8(msize,msize) ! Rotated Earth to Real Earth
+  integer, parameter :: maxNumSubGrid = 2
 
-  logical :: initialized = .false.
+  type :: struct_uvr
+    real(8) :: grd_rot_8   (msize,msize,maxNumSubGrid) ! Real Earth to Rotated Earth
+    real(8) :: grd_rotinv_8(msize,msize,maxNumSubGrid) ! Rotated Earth to Real Earth
+    logical :: initialized = .false.
+  end type struct_uvr
 
   contains
 
-!--------------------------------------------------------------------------
-! uvr_Setup
-!--------------------------------------------------------------------------
-  subroutine uvr_Setup(hco_in)
+  !--------------------------------------------------------------------------
+  ! uvr_Setup
+  !--------------------------------------------------------------------------
+  subroutine uvr_Setup( uvr, hco_in )
     implicit none
 
+    ! arguments
+    type(struct_uvr), pointer    :: uvr
     type(struct_hco), intent(in) :: hco_in
 
     !
     !-  Compute the rotation matrices (grd_rot_8 and grd_rotinv_8)
     !
     write(*,*)
-    write(*,*) 'uvr_Setup: Starting...'
+    write(*,*) 'uvr_Setup: Starting...  for grid type = ', hco_in%grtyp
 
-    print*,hco_in % xlon1
-    print*,hco_in % xlat1
-    print*,hco_in % xlon2
-    print*,hco_in % xlat2
+    if ( associated(uvr) ) then
+      call utl_abort('uvr_setup: the supplied uvr pointer is not null!')
+    endif
 
-    call sugrdpar(hco_in % xlon1, hco_in % xlat1, hco_in % xlon2, hco_in % xlat2 )
+    allocate(uvr)
 
-    initialized = .true.
+    write(*,*) hco_in % xlon1
+    write(*,*) hco_in % xlat1
+    write(*,*) hco_in % xlon2
+    write(*,*) hco_in % xlat2
+
+    call sugrdpar(uvr, 1, hco_in % xlon1, hco_in % xlat1, hco_in % xlon2, hco_in % xlat2 )
+
+    if ( hco_in%grtyp == 'U' ) then
+
+      write(*,*) 'uvr_setup: doing setup for YAN grid'
+      write(*,*) hco_in % xlon1_yan
+      write(*,*) hco_in % xlat1_yan
+      write(*,*) hco_in % xlon2_yan
+      write(*,*) hco_in % xlat2_yan
+
+      call sugrdpar(uvr, 2, hco_in % xlon1_yan, hco_in % xlat1_yan, hco_in % xlon2_yan, hco_in % xlat2_yan )
+
+    end if
+
+    uvr%initialized = .true.
 
     write(*,*)
     write(*,*) 'uvr_Setup: Done!'
 
   end subroutine uvr_Setup
 
-!--------------------------------------------------------------------------
-! SUGRDPAR
-!--------------------------------------------------------------------------
-  SUBROUTINE sugrdpar(grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 )
+  !--------------------------------------------------------------------------
+  ! SUGRDPAR
+  !--------------------------------------------------------------------------
+  subroutine sugrdpar( uvr, subGridIndex, grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 )
     !
-    !- Compute the rotation matrix (r_8) that allows transformation
-    !  from the non-rotated to the rotated spherical coordinate system.
-    IMPLICIT NONE
+    ! Compute the rotation matrix (r_8) that allows transformation
+    ! from the non-rotated to the rotated spherical coordinate system.
+    implicit none
 
-    real(8), intent(in) :: grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 
+    ! arguments
+    type(struct_uvr), pointer :: uvr
+    integer                   :: subGridIndex
+    real(8), intent(in)       :: grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 
 
+    ! locals
     integer :: ierr, ji, jj, j1, j2
     integer :: ii0, ij0, Idum, Imargin
-
     real(8) :: zxlon1_8,zxlat1_8,zxlon2_8,zxlat2_8
-
     real(8) :: a_8, b_8, c_8, d_8, xyz1_8(msize), xyz2_8(msize)
     real(8) :: zrot_t(msize,msize), zunit(msize,msize)
 
@@ -98,15 +126,15 @@ module WindRotation_mod
       !
       write(*,*)
       write(*,*) 'uvr_sugrdpar: Warning: This grid is not rotated !!!'
-      grd_rot_8(1,1) = 1.0d0       
-      grd_rot_8(1,2) = 0.0d0
-      grd_rot_8(1,3) = 0.0d0
-      grd_rot_8(2,1) = 0.0d0
-      grd_rot_8(2,2) = 1.0d0
-      grd_rot_8(2,3) = 0.0d0
-      grd_rot_8(3,1) = 0.0d0
-      grd_rot_8(3,2) = 0.0d0
-      grd_rot_8(3,3) = 1.0d0
+      uvr%grd_rot_8(1,1,subGridIndex) = 1.0d0       
+      uvr%grd_rot_8(1,2,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(1,3,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(2,1,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(2,2,subGridIndex) = 1.0d0
+      uvr%grd_rot_8(2,3,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(3,1,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(3,2,subGridIndex) = 0.0d0
+      uvr%grd_rot_8(3,3,subGridIndex) = 1.0d0
 
     else
       !
@@ -131,21 +159,21 @@ module WindRotation_mod
                  ( ( (  a_8*xyz1_8(3)) - xyz2_8(3) ) / b_8 )**2  )
 
       !- 2.3 Compute the forward rotation matrix
-      grd_rot_8(1,1) = -xyz1_8(1) / c_8
-      grd_rot_8(1,2) = -xyz1_8(2) / c_8
-      grd_rot_8(1,3) = -xyz1_8(3) / c_8
-      grd_rot_8(2,1) = ( ((a_8*xyz1_8(1)) - xyz2_8(1)) / b_8 ) / d_8
-      grd_rot_8(2,2) = ( ((a_8*xyz1_8(2)) - xyz2_8(2)) / b_8 ) / d_8
-      grd_rot_8(2,3) = ( ((a_8*xyz1_8(3)) - xyz2_8(3)) / b_8 ) / d_8
-      grd_rot_8(3,1) = ( (xyz1_8(2)*xyz2_8(3)) - (xyz2_8(2)*xyz1_8(3))) / b_8
-      grd_rot_8(3,2) = ( (xyz2_8(1)*xyz1_8(3)) - (xyz1_8(1)*xyz2_8(3))) / b_8
-      grd_rot_8(3,3) = ( (xyz1_8(1)*xyz2_8(2)) - (xyz2_8(1)*xyz1_8(2))) / b_8
+      uvr%grd_rot_8(1,1,subGridIndex) = -xyz1_8(1) / c_8
+      uvr%grd_rot_8(1,2,subGridIndex) = -xyz1_8(2) / c_8
+      uvr%grd_rot_8(1,3,subGridIndex) = -xyz1_8(3) / c_8
+      uvr%grd_rot_8(2,1,subGridIndex) = ( ((a_8*xyz1_8(1)) - xyz2_8(1)) / b_8 ) / d_8
+      uvr%grd_rot_8(2,2,subGridIndex) = ( ((a_8*xyz1_8(2)) - xyz2_8(2)) / b_8 ) / d_8
+      uvr%grd_rot_8(2,3,subGridIndex) = ( ((a_8*xyz1_8(3)) - xyz2_8(3)) / b_8 ) / d_8
+      uvr%grd_rot_8(3,1,subGridIndex) = ( (xyz1_8(2)*xyz2_8(3)) - (xyz2_8(2)*xyz1_8(3))) / b_8
+      uvr%grd_rot_8(3,2,subGridIndex) = ( (xyz2_8(1)*xyz1_8(3)) - (xyz1_8(1)*xyz2_8(3))) / b_8
+      uvr%grd_rot_8(3,3,subGridIndex) = ( (xyz1_8(1)*xyz2_8(2)) - (xyz2_8(1)*xyz1_8(2))) / b_8
 
     end if
 
     do j1 = 1, msize
       do j2 = 1, msize
-        write(*,*) 'sugrdpar: grd_rot_8(j1,j2) =',j1,j2,grd_rot_8(j1,j2)
+        write(*,*) 'sugrdpar: grd_rot_8(j1,j2) =',j1,j2,uvr%grd_rot_8(j1,j2,subGridIndex)
       end do
     end do
 
@@ -154,25 +182,25 @@ module WindRotation_mod
     !
     do j1 = 1, msize
       do j2 = 1, msize
-        grd_rotinv_8(j1,j2) = grd_rot_8(j2,j1)
+        uvr%grd_rotinv_8(j1,j2,subGridIndex) = uvr%grd_rot_8(j2,j1,subGridIndex)
       end do
     end do
 
     zunit(:,:) = 0.d0
-    call mxma8x(zunit,grd_rotinv_8,grd_rot_8,msize,msize,msize)
+    call mxma8x(zunit,uvr%grd_rotinv_8(:,:,subGridIndex),uvr%grd_rot_8(:,:,subGridIndex),msize,msize,msize)
     do j1 = 1, msize
       do j2 = 1, msize
         write(*,*) 'sugrdpar: unit = ', j1, j2, zunit(j1,j2)
       end do
     end do
 
-  end SUBROUTINE sugrdpar
+  end subroutine sugrdpar
 
-!--------------------------------------------------------------------------
-! VLLACAR
-!--------------------------------------------------------------------------
-  subroutine vllacar(F_xyz_8, F_lon, F_lat)
-    IMPLICIT NONE
+  !--------------------------------------------------------------------------
+  ! vllacar
+  !--------------------------------------------------------------------------
+  subroutine vllacar( F_xyz_8, F_lon, F_lat )
+    implicit none
 
     real(8), intent(out) :: F_xyz_8(msize)
     real(8), intent(in)  :: F_lon, F_lat ! In degrees
@@ -183,20 +211,23 @@ module WindRotation_mod
 
   end subroutine vllacar
 
-!--------------------------------------------------------------------------
-! MXMA8X
-!--------------------------------------------------------------------------
-  subroutine mxma8x(pmat3,pmat1,pmat2,kdimi1,kdimj1,kdimj2)
+  !--------------------------------------------------------------------------
+  ! mxma8x
+  !--------------------------------------------------------------------------
+  subroutine mxma8x( pmat3, pmat1, pmat2, kdimi1, kdimj1, kdimj2 )
     !
-    !- Matrix times matrix.
+    ! Matrix times matrix.
     !
-    IMPLICIT NONE
-    integer kdimi1,kdimj1,kdimj2
-    real*8 pmat3(kdimi1,kdimj2)
-    real*8 pmat1(kdimi1,kdimj1)
-    real*8 pmat2(kdimj1,kdimj2)
+    implicit none
 
-    integer ji1,jj2,jj
+    ! arguments
+    integer :: kdimi1,kdimj1,kdimj2
+    real(8) :: pmat3(kdimi1,kdimj2)
+    real(8) :: pmat1(kdimi1,kdimj1)
+    real(8) :: pmat2(kdimj1,kdimj2)
+
+    ! locals
+    integer :: ji1,jj2,jj
 
     pmat3(:,:) = 0.d0
 
@@ -210,36 +241,33 @@ module WindRotation_mod
  
   end subroutine mxma8x
 
-!--------------------------------------------------------------------------
-! UVR_RotateWind
-!--------------------------------------------------------------------------
-  subroutine uvr_RotateWind( uwind, vwind, Lat, Lon, LatRot, LonRot, mode, &
-                             nlev )
+  !--------------------------------------------------------------------------
+  ! uvr_rotateWind
+  !--------------------------------------------------------------------------
+  subroutine uvr_rotateWind( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
-    !- Go from tangential wind components from one sphere to another
-    !  (same origin!). Fast version used by Variational analysis. 
+    ! Go from tangential wind components from one sphere to another
+    ! (same origin!). Fast version used by Variational analysis. 
     !
-    IMPLICIT NONE
+    implicit none
 
-    integer, intent(in)      :: nlev
-    real(8), intent(in)      :: Lat, Lon       ! In radians
-    real(8), intent(in)      :: LatRot, LonRot ! In radians
-    real(8), intent(inout)   :: uwind(nlev), vwind(nlev)
-    character(*), intent(in) :: mode ! ToMetWind or ToRotWind
+    ! arguments
+    type(struct_uvr), pointer :: uvr
+    integer, intent(in)       :: subGridIndex
+    real(8), intent(in)       :: Lat, Lon       ! In radians
+    real(8), intent(in)       :: LatRot, LonRot ! In radians
+    real(8), intent(inout)    :: uwind, vwind
+    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
 
+    ! locals
+    integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
+    real(8) :: xyz(msize), uvcart(msize)
 
-    real(8), allocatable :: xyz(:,:)
-    real(8), allocatable :: uvcart(:,:)
-
-    if ( .not. initialized ) then
+    if ( .not. uvr%initialized ) then
       write(*,*)
-      write(*,*) 'uvr_RotateWind: WindRotation module is not initialize'
-      stop
+      call utl_abort('uvr_RotateWind: WindRotation module is not initialize')
     endif
-
-    allocate(xyz   (msize,nlev))
-    allocate(uvcart(msize,nlev))
 
     coslatr = cos(LatRot)
     sinlatr = sin(LatRot)
@@ -247,67 +275,69 @@ module WindRotation_mod
     sinlonr = sin(LonRot)
     coslon  = cos(Lon)
     sinlon  = sin(Lon)
-    rsinlat = 1.0d0/sin(Lat)
+    if ( Lat /= 0.0d0 ) then
+      rsinlat = 1.0d0/sin(Lat)
+    else
+      !write(*,*) 'rotateWind: latitude is zero!', Lat
+      rsinlat = 1.0d0/sin(1.0d-8)
+    end if
     
     if ( trim(mode) == 'ToMetWind' ) then 
 
-      call fuvacart( xyz,                            & ! OUT
-                     uwind, vwind, sinlonr, coslonr, & ! IN
-                     sinlatr, coslatr, nlev )          ! IN
+      xyz(1) = -uwind*sinlonr - vwind*coslonr*sinlatr
+      xyz(2) =  uwind*coslonr - vwind*sinlonr*sinlatr
+      xyz(3) =                  vwind*coslatr
     
-      call mxm8( grd_rotinv_8, msize, xyz, msize, & ! IN
-                 uvcart,                          & ! OUT
-                 nlev )                             ! IN
+      uvcart(:) = 0.0d0
+      do index2 = 1, msize
+        do index1 = 1, msize
+          uvcart(index1) = uvcart(index1) +   &
+               uvr%grd_rotinv_8(index1,index2,subGridIndex)*xyz(index2)
+        end do
+      end do
 
-      call fcartauv( uwind, vwind,                         & ! OUT
-                     uvcart, coslon, sinlon, rsinlat, nlev ) ! IN
+      uwind = -uvcart(1)*sinlon         + uvcart(2)*coslon
+      vwind = -uvcart(1)*rsinlat*coslon - uvcart(2)*rsinlat*sinlon
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*) 
-      write(*,*) 'uvr_RotateWind: mode ToRotWind is not available yet'
-      stop
+      call utl_abort('uvr_RotateWind: mode ToRotWind is not available yet')
     else
       write(*,*) 
       write(*,*) 'uvr_RotateWind: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
-      stop
+      call utl_abort('uvr_RotateWind')
     end if
-
-    deallocate(xyz)
-    deallocate(uvcart)
 
   end subroutine uvr_RotateWind
 
 !--------------------------------------------------------------------------
-! UVR_RotateWindAdj
+! uvr_rotateWindAdj
 !--------------------------------------------------------------------------
-  subroutine uvr_RotateWindAdj( uwind, vwind, Lat, Lon, LatRot, LonRot, mode, &
-                                nlev )
+  subroutine uvr_rotateWindAdj( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
-    !- Adjoint of : Go from tangential wind components from one sphere to another
-    !  (same origin!). Fast version used by Variational analysis. 
+    ! Adjoint of : Go from tangential wind components from one sphere to another
+    ! (same origin!). Fast version used by Variational analysis. 
     !
-    IMPLICIT NONE
+    implicit none
 
-    integer, intent(in)      :: nlev
-    real(8), intent(in)      :: Lat, Lon       ! In radians
-    real(8), intent(in)      :: LatRot, LonRot ! In radians
-    real(8), intent(inout)   :: uwind(nlev), vwind(nlev)
-    character(*), intent(in) :: mode ! ToMetWind or ToRotWind
+    ! arguments
+    type(struct_uvr), pointer :: uvr
+    integer, intent(in)       :: subGridIndex
+    real(8), intent(in)       :: Lat, Lon       ! In radians
+    real(8), intent(in)       :: LatRot, LonRot ! In radians
+    real(8), intent(inout)    :: uwind, vwind
+    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
 
+    ! locals
+    integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
+    real(8) :: xyz(msize), uvcart(msize)
 
-    real(8), allocatable :: xyz(:,:)
-    real(8), allocatable :: uvcart(:,:)
-
-    if ( .not. initialized ) then
+    if ( .not. uvr%initialized ) then
       write(*,*)
-      write(*,*) 'uvr_RotateWindAdj: WindRotation module is not initialize'
-      stop
+      call utl_abort('uvr_RotateWindAdj: WindRotation module is not initialize')
     endif
-
-    allocate(xyz   (msize,nlev))
-    allocate(uvcart(msize,nlev))
 
     coslatr = cos(LatRot)
     sinlatr = sin(LatRot)
@@ -315,221 +345,65 @@ module WindRotation_mod
     sinlonr = sin(LonRot)
     coslon  = cos(Lon)
     sinlon  = sin(Lon)
-    rsinlat = 1.0d0/sin(Lat)
+    if ( Lat /= 0.0d0 ) then
+      rsinlat = 1.0d0/sin(Lat)
+    else
+      !write(*,*) 'rotateWindAdj: latitude is zero!', Lat
+      rsinlat = 1.0d0/sin(1.0d-8)
+    end if
 
     if ( trim(mode) == 'ToMetWind' ) then 
 
-      call fcartauvAdj( uvcart,                                     & ! OUT
-                        uwind, vwind, coslon, sinlon, rsinlat, nlev ) ! IN
+      uvcart(1) = -uwind*sinlon - vwind*rsinlat*coslon
+      uvcart(2) =  uwind*coslon - vwind*rsinlat*sinlon
+      uvcart(3) = 0.0d0
 
-      call mxm8( grd_rot_8, msize, uvcart, msize, & ! IN
-                 xyz,                             & ! OUT
-                 nlev )                             ! IN
+      xyz(:) = 0.0d0
+      do index2 = 1, msize
+        do index1 = 1, msize
+          xyz(index1) = xyz(index1) + uvr%grd_rot_8(index1,index2,subGridIndex)*uvcart(index2)
+        end do
+      end do
 
-      call fuvacartAdj( uwind, vwind,             & ! OUT
-                        xyz, sinlonr, coslonr,    & ! IN
-                        sinlatr, coslatr, nlev )    ! IN
+      uwind = -xyz(1)*sinlonr         + xyz(2)*coslonr
+      vwind = -xyz(1)*coslonr*sinlatr - xyz(2)*sinlonr*sinlatr + xyz(3)*coslatr
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*) 
-      write(*,*) 'uvr_RotateWindAdj: mode ToRotWind is not available yet'
-      stop
+      call utl_abort('uvr_RotateWindAdj: mode ToRotWind is not available yet')
     else
       write(*,*) 
       write(*,*) 'uvr_RotateWindAdj: Unknown transform name: ', trim(mode)
       write(*,*) '                   mode = ToMetWind or ToRotWind'
-      stop
+      call utl_abort('uvr_RotateWindAdj')
     end if
-
-    deallocate(xyz)
-    deallocate(uvcart)
 
   end subroutine uvr_RotateWindAdj
 
-!--------------------------------------------------------------------------
-! FUVACART
-!--------------------------------------------------------------------------
-  subroutine fuvacart(pcart,pu,pv,psinlon,pcoslon,psinlat,pcoslat,knk)
+  !--------------------------------------------------------------------------
+  ! uvr_rotateLatLon
+  !--------------------------------------------------------------------------
+  subroutine uvr_rotateLatLon( uvr, subGridIndex, LatOut, LonOut, LatIn, LonIn, mode )
     !
-    !- Compute the winds in the cartesian space from
-    !  the tangential wind vector components.
-    !  Fast version of uvacart special to Var analysis.
+    ! Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
+    ! Cartesian frame given the rotation matrix.
     !
-    !arguments
-    !    out    pvcart - Cartesian components of the tangential wind vector
-    !    IN     pu     - Zonal component of the wind on the tangential plane.
-    !           pv     - Meridional component of the wind on the tangential plane.
-    !
-    IMPLICIT NONE
-
-    integer, intent(in)  :: knk
-    real(8), intent(in)  :: psinlon,pcoslon,psinlat,pcoslat
-    real(8), intent(out) :: pcart(msize,knk)
-    real(8), intent(in)  :: pu(knk),pv(knk)
-
-    integer :: ji,jj,jk
-    real(8) :: zfac1,zfac2
-
-    zfac1 = pcoslon*psinlat
-    zfac2 = psinlon*psinlat
-
-    do jk = 1, knk
-       pcart(1,jk) = -(pu(jk)*psinlon) - (pv(jk)*zfac1)
-       pcart(2,jk) =  (pu(jk)*pcoslon) - (pv(jk)*zfac2)
-       pcart(3,jk) =   pv(jk)*pcoslat
-    end do
-
-  end subroutine fuvacart
-
-!--------------------------------------------------------------------------
-! FUCACARTAdj
-!--------------------------------------------------------------------------
-  subroutine fuvacartAdj(pu,pv,pcart,psinlonr,pcoslonr,psinlatr,pcoslatr,knk)
-    !
-    !- Adjoint of fuvacart.
-    !
-    IMPLICIT NONE
-
-    integer, intent(in)  ::  knk
-    real(8), intent(in)  :: psinlonr,pcoslonr,psinlatr,pcoslatr
-    real(8), intent(inout)  :: pcart(msize,knk)
-    real(8), intent(out) :: pu(knk), pv(knk)
-    
-    integer :: jk
-    real(8) :: zfac1,zfac2
-
-    do jk = 1, knk
-      pu(jk)=0.0d0  ! dont use sub. zero.ftn here... *4 versus *8 diff...
-      pv(jk)=0.0d0
-    end do
-
-    zfac1=psinlonr*psinlatr
-    zfac2=pcoslonr*psinlatr
-
-    do jk =1, knk
-      pu(jk) = pu(jk)+pcart(2,jk)*pcoslonr
-      pv(jk) = pv(jk)-pcart(2,jk)*zfac1
-      pcart(2,jk) = 0.0d0
-      pu(jk) = pu(jk)-pcart(1,jk)*psinlonr
-      pv(jk) = pv(jk)-pcart(1,jk)*zfac2
-      pcart(1,jk) = 0.0d0
-      pv(jk) = pv(jk)+pcart(3,jk)*pcoslatr
-      pcart(3,jk) = 0.0d0
-    end do
-
-  end subroutine fuvacartAdj
-
-!--------------------------------------------------------------------------
-! FCARTAUV
-!--------------------------------------------------------------------------
-  subroutine fcartauv(pu,pv,pcart,pcoslonob,psinlonob,prsinlatob,knk)
-    !
-    !- Compute the components of the winds in the rotated system of
-    !  coordinates from the winds in the rotated cartesian space
-    !  Fast version of cartauv used by Variational analysis.
-    !
-    IMPLICIT NONE
-
-    integer, intent(in)  :: knk
-
-    real(8), intent(in)  :: pcart(msize,knk)
-    real(8), intent(out) :: pu(knk), pv(knk)
-    real(8), intent(in)  :: pcoslonob, psinlonob, prsinlatob
-
-    integer :: jk
-    real(8) :: zfac1, zfac2
-
-    zfac1 = -prsinlatob*pcoslonob
-    zfac2 = -prsinlatob*psinlonob
-
-    do jk=1,knk
-      pu(jk) = -psinlonob*pcart(1,jk) + pcoslonob*pcart(2,jk)
-      pv(jk) = zfac1*pcart(1,jk) + zfac2*pcart(2,jk)
-    end do
-
-  end subroutine fcartauv
-
-!--------------------------------------------------------------------------
-! FCARTAUVAdj
-!--------------------------------------------------------------------------
-  subroutine fcartauvAdj(pcart,pu,pv,pcoslonob,psinlonob,prsinlatob,knk)
-    !
-    !- Adjoint of cartauv.
-    !
-    IMPLICIT NONE
-    integer, intent(in)    :: knk
-    real(8), intent(in)    :: pcoslonob, psinlonob, prsinlatob
-    real(8), intent(inout) :: pu(knk), pv(knk)
-    real(8), intent(out)   :: pcart(msize,knk)
-
-    integer :: jk
-    real(8) ::  zfac1,zfac2
-
-    do jk=1,knk
-      pcart(1,jk)=0.0d0
-      pcart(2,jk)=0.0d0
-      pcart(3,jk)=0.0d0
-    end do
-
-    zfac1=prsinlatob*pcoslonob
-    zfac2=prsinlatob*psinlonob
-
-    do jk = 1, knk
-      pcart(1,jk) = pcart(1,jk)-pv(jk)*zfac1
-      pcart(2,jk) = pcart(2,jk)-pv(jk)*zfac2
-      pv(jk) = 0.0d0
-      pcart(2,jk) = pcart(2,jk)+pu(jk)*pcoslonob
-      pcart(1,jk) = pcart(1,jk)-pu(jk)*psinlonob
-      pu(jk) = 0.0d0
-    end do
-
-  end subroutine fcartauvAdj
-
-!--------------------------------------------------------------------------
-! MXM8
-!--------------------------------------------------------------------------
-  subroutine mxm8(a,nar,b,nac,c,nbc)
     implicit none
 
-    integer, intent(in)  :: nar, nac, nbc
-    real(8), intent(in)  :: a(nar,nac), b(nac,nbc)
-    real(8), intent(out) :: c(nar,nbc)
-
-    integer :: i,j,k
-
-    do j = 1, nbc
-       do i = 1, nar
-          c(i,j) = 0.0d0
-          do k = 1, nac
-             c(i,j) = c(i,j) + a(i,k)*b(k,j)
-          end do
-       end do
-    end do
-
-  end subroutine mxm8
-
-!--------------------------------------------------------------------------
-! uvr_RotateLatLon
-!--------------------------------------------------------------------------
-  subroutine uvr_RotateLatLon(LatOut,LonOut,LatIn,LonIn,mode)
-    !
-    !- Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
-    !  Cartesian frame given the rotation matrix.
-    !
-    IMPLICIT NONE
-
-    real(8), intent(in)          :: LatIn , LonIn   ! In radians
-    real(8), intent(out)         :: LatOut, LonOut  ! In radians
-
+    ! arguments
+    type(struct_uvr), pointer :: uvr
+    integer, intent(in)       :: subGridIndex
+    real(8), intent(in)       :: LatIn , LonIn   ! In radians
+    real(8), intent(out)      :: LatOut, LonOut  ! In radians
     character(len=*), intent(in) :: mode
 
+    ! locals
     real(8) :: CartIn(msize),CartOut(msize)
     real(8) :: rLon,rLat
 
-    if ( .not. initialized ) then
+    if ( .not. uvr%initialized ) then
       write(*,*)
-      write(*,*) 'uvr_RotateLatLon: WindRotation module is not initialize'
-      stop
+      call utl_abort('uvr_RotateLatLon: WindRotation module is not initialize')
     endif
 
     rLon = LonIn * MPC_DEGREES_PER_RADIAN_R8 ! To degress
@@ -540,17 +414,17 @@ module WindRotation_mod
 
     if ( trim(mode) == 'ToLatLonRot' ) then
       call mxv( CartOut,              & ! OUT
-                grd_rot_8, CartIn,    & ! IN
+                uvr%grd_rot_8(:,:,subGridIndex), CartIn,    & ! IN
                 msize, msize)           ! IN
     else if ( trim(mode) == 'ToLatLon' ) then 
       call mxv( CartOut,              & ! OUT
-                grd_rotinv_8, CartIn, & ! IN
+                uvr%grd_rotinv_8(:,:,subGridIndex), CartIn, & ! IN
                 msize, msize)           ! IN
     else
       write(*,*) 
       write(*,*) 'uvr_RotateLatLon: Unknown transform name: ', trim(mode)
       write(*,*) '                  mode = ToLatLonRot or ToLatLon'
-      stop
+      call utl_abort('uvr_RotateLatLon')
     end if
 
     call carall( LonOut, LatOut, & ! OUT
@@ -561,16 +435,17 @@ module WindRotation_mod
 
   end subroutine uvr_RotateLatLon
 
-!--------------------------------------------------------------------------
-! CARALL
-!--------------------------------------------------------------------------
-  subroutine carall(plon,plat,pcart)
+  !--------------------------------------------------------------------------
+  ! carall
+  !--------------------------------------------------------------------------
+  subroutine carall( plon, plat, pcart )
     !
-    !- Returns (lat,lon) (degrees) of an input Cartesian position vector 
-    !  on the unit sphere.
+    ! Returns (lat,lon) (degrees) of an input Cartesian position vector 
+    ! on the unit sphere.
     !
-    IMPLICIT NONE
+    implicit none
 
+    ! arguments
     real(8), intent(out) :: plat, plon
     real(8), intent(in)  :: pcart(msize)
 
@@ -593,18 +468,20 @@ module WindRotation_mod
 
   end subroutine carall
 
-!--------------------------------------------------------------------------
-! MXV
-!--------------------------------------------------------------------------
-  subroutine mxv(pvec2,pmat,pvec1,kdimi,kdimj)
+  !--------------------------------------------------------------------------
+  ! mxv
+  !--------------------------------------------------------------------------
+  subroutine mxv( pvec2, pmat, pvec1, kdimi, kdimj )
     !
-    !- Matrix times vector.
+    ! Matrix times vector.
     !
-    IMPLICIT NONE
+    implicit none
 
+    ! arguments
     integer :: kdimi, kdimj
     real(8) :: pvec2(kdimi), pmat(kdimi,kdimj), pvec1(kdimj)
 
+    ! locals
     integer :: ji,jj
 
     pvec2(:) = 0.0d0
@@ -616,4 +493,4 @@ module WindRotation_mod
 
   end subroutine mxv
 
-end module WindRotation_mod
+end module windRotation_mod
