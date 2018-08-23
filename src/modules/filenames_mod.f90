@@ -22,6 +22,7 @@
 !--------------------------------------------------------------------------
 module fileNames_mod
   use utilities_mod
+  use clib_interfaces_mod
   use ramDisk_mod
   implicit none
   save
@@ -35,7 +36,9 @@ contains
  !--------------------------------------------------------------------------
  ! fln_ensFileName
  !--------------------------------------------------------------------------
-  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt)
+  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt,  &
+                             ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
+                             copyToRamDisk_opt )
     implicit none
 
     ! arguments
@@ -45,6 +48,7 @@ contains
     character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
     logical, optional :: shouldExist_opt
     integer, optional :: ensembleFileExtLength_opt
+    logical, optional :: copyToRamDisk_opt
 
     ! locals
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
@@ -55,17 +59,6 @@ contains
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
     character(len=200), save :: ensFileBaseName
-
-    ! The following interface was extracted from #include <clib_interface.cdk>
-    interface clib_glob
-      integer function clib_glob_schhide(filelist,nfiles,pattern,maxnfiles)
-        implicit none
-        integer,intent(IN)  :: maxnfiles
-        character(len=*),intent(IN) :: pattern
-        integer,intent(OUT) :: nfiles
-        character(len=*),dimension(maxnfiles),intent(OUT):: filelist
-      end function clib_glob_schhide
-    end interface clib_glob
 
     if ( present(shouldExist_opt) ) then
       shouldExist = shouldExist_opt
@@ -132,7 +125,7 @@ contains
 
     write(*,*) 'fln_ensFileName: ensFileName = ', trim(ensFileName)
 
-    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
+    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName, copyToRamDisk_opt=copyToRamDisk_opt)
 
     if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
     if (present(ensembleFileExtLength_opt)) ensembleFileExtLength_opt = ensembleFileExtLength

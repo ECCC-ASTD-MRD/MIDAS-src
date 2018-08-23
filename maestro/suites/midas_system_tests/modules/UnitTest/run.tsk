@@ -8,10 +8,20 @@ if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
     export AFSISIO=/home/smco502/env_sles-11-broadwell-64-xc40
 elif [[ "${ORDENV_PLAT}" = ubuntu-14.04* ]]; then
     export AFSISIO=/home/smco502/env_ubuntu-14.04-amd64-64
+    ## loading OpenMPI 1.6.5 (the binaries must be compiled with too)
+    . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
+    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
+    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
+    ## those variables are necessary on PPP
+    export OMPI_MCA_orte_tmpdir_base=/run/shm
+    export OMPI_MCA_btl_openib_if_include=mlx5_0
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
+
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
 
 for __envvar__ in ${UnitTest_run_environment_variables}; do
     eval "export ${__envvar__}"

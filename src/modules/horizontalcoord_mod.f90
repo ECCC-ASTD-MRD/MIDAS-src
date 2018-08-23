@@ -477,6 +477,12 @@ module HorizontalCoord_mod
     call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    if ( hco%grtyp == 'U' ) then
+      if ( mpi_myid > 0 ) then
+        allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
+      endif
+      call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
+    end if
 
     if ( mpi_myid > 0 ) then
       if ( hco%grtyp == 'G' ) then

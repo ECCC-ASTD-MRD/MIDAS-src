@@ -4,7 +4,7 @@ set -e
 
 LIBAPPL="f90sqlite udfsqlite burp_module descrip $MPILIB"
 
-SRC_FILES="codeprecision_mod.f90 utilities_mod.f90 bufr_mod.f90 ramdisk_mod.f90 randomnumber_mod.f90"
+SRC_FILES="clib_interfaces_mod.ftn90 codeprecision_mod.f90 utilities_mod.f90 bufr_mod.f90 ramdisk_mod.f90 randomnumber_mod.f90"
 SRC_FILES="$SRC_FILES mathphysconstants_mod.f90 earthconstants_mod.f90 mpi_mod.f90 mpivar_mod.f90 codtyp_mod.f90"
 SRC_FILES="$SRC_FILES physicsfunctions_mod.f90 horizontalcoord_mod.f90 analysisgrid_mod.f90 windrotation_mod.f90 "
 SRC_FILES="$SRC_FILES obsspacedata_mod.f90 obssubspacedata_mod.f90 obsUtil_mod.f90 burpread_mod.f90 burpfiles_mod.f90 sqlite_read_mod.f90 sqlitefiles_mod.f90 cmafiles_mod.f90 obsfiles_mod.f90"

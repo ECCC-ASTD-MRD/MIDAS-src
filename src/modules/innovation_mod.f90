@@ -458,7 +458,7 @@ contains
     else
       ! get from working directory (disk)
       trialfile_forEZ = 'trlm_01'
-      trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ)
+      trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ,copyToRamDisk_opt=.false.)
       nultrl_forEZ = 0
       ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
       ierr = fstouv(nultrl_forEZ,'RND+OLD')
@@ -956,7 +956,7 @@ contains
       else
         ! get from working directory (disk)
         trialfile_forEZ = 'trlm_01'
-        trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ)
+        trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ,copyToRamDisk_opt=.false.)
         nultrl_forEZ = 0
         ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
         ierr = fstouv(nultrl_forEZ,'RND+OLD')
