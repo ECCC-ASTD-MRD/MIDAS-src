@@ -777,7 +777,7 @@ module presProfileOperators_mod
       dy=y2-y1
       dz=z1-z2
 !     dzd=1.0/dz
-      if (abs(dz).lt.1D-10) then
+      if (abs(dz).lt.1D-14) then
          write(*,*) 'SUBLAYER: ERROR: dz is zero. dz = ',dz
          write(*,*) 'z1,z2,z3 = ',z1,z2,z3
          write(*,*) 'x1,x2    = ',x1,x2
@@ -795,7 +795,7 @@ module presProfileOperators_mod
       w20=w2
       dx=(x2-x1)
 !     dxd=1.0/dx
-      if (abs(dx).lt.1D-10) then
+      if (abs(dx).lt.1D-14) then
          write(*,*) 'SUBLAYER: ERROR: dx is zero. dx = ',dx
          write(*,*) 'z1,z2,z3 = ',z1,z2,z3
          write(*,*) 'x1,x2    = ',x1,x2

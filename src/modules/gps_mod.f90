@@ -397,7 +397,8 @@ module gps_mod
 !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
 !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
 !
-  REAL*8  DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT
+  REAL*8  DZMIN, YZTDERR, YSFERRWGT, YZDERRWGT
+  REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
   LOGICAL LASSMET, LLBLMET, LBEVIS, L1OBS, LTESTOP
   INTEGER IREFOPT, IZTDOP
 
