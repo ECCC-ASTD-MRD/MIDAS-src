@@ -946,10 +946,17 @@ contains
       write(*,*) myError, fSQL_errmsg(status)
     end if
 
-    call thn_thinAladin(obsdat)
+    select case(trim(familyType))
+      case ('AL')
+        call thn_thinAladin(obsdat)
+
+      case default
+        write(*,*)
+        write(*,*) 'Unsupported familyType for thinning: ', trim(familyType)
+        call utl_abort('sqlr_thinSqlite')
+    end select
 
     ! Write the changes to the SQL file
-    ! (This assumes that namelist, namSQLUpdate, has itemUpdateList()='FLG')
     call sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber, &
                            update_obsflg=.true.)
 
