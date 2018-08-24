@@ -635,6 +635,7 @@ contains
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
+    integer                          :: ivalue
     real                             :: romp, obsValue
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
     character(len=*), parameter      :: myWarning = '****** '// myName //' WARNING: '
@@ -725,12 +726,18 @@ contains
 
             obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
 
-            if ( obsValue /= MPC_missingValue_R8 ) then  
-
-              romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
-
-            end if
+            if(updateList(itemId) == OBS_FLG)then
+              ivalue = obs_bodyElem_i(obsdat, updateList(itemId), bodyIndex )
+              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
+                                   INT_VAR = ivalue )
+              
+            else ! OBS_FLG
+              if ( obsValue /= MPC_missingValue_R8 ) then  
+                romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
+                call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
+                                     REAL_VAR = romp )
+              end if
+            end if ! OBS_FLG
 
           end do ITEMS            
           
