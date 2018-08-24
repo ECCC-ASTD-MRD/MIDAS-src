@@ -89,9 +89,9 @@ contains
 
 
 
-    ! Return the flag bits that indicate which observations will be deleted
-    numberThinningFlagBitsItems=1
-    itemThinningFlagBitsList=(/9, (0, ii=2,15) /)
+    ! Return the flag bits that indicate which observations should be deleted
+    numberThinningFlagBitsItems=2
+    itemThinningFlagBitsList=(/9, 11, (0, ii=3,15) /)
 
     ! Read the namelist for Aladin observations
     nulnam = 0
@@ -194,7 +194,7 @@ contains
 !! *Purpose*: Of the observations in a column that have not already been
 !!            rejected, keep every nth observation and throw out the rest.
 !!
-!!            Set bit 9 of OBS_FLG on observations that are to be rejected.
+!!            Set bit 11 of OBS_FLG on observations that are to be rejected.
 !!
 !--------------------------------------------------------------------------
   subroutine keepNthObs(obsdat, familyType, keepNthVertical)
@@ -202,7 +202,8 @@ contains
     character(len=*), intent(in) :: familyType
     integer,          intent(in) :: keepNthVertical
 
-    integer, parameter :: BIT9=int(Z'200')
+    integer, parameter :: BIT9 =int(Z'200')
+    integer, parameter :: BIT11=int(Z'800')
     integer :: headerIndex, bodyIndex, bodyIndex2, bodyIndexStart, bodyIndexEnd
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
@@ -251,7 +252,7 @@ contains
           countKeepN=0
         else
           ! Reject this observation
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag, BIT9))
+          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag, BIT11))
         end if
 
       end do BODY
