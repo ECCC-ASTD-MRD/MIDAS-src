@@ -120,6 +120,7 @@
  &THIN_ALADIN
   stepHours=0.125
   thinningDistance=50.0
+  keepNthVertical=3
 /
  &NAMSQLAL
   numberElem=2,

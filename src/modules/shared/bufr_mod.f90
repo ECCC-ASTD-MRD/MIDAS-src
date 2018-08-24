@@ -77,6 +77,9 @@ module bufr_mod
  integer, parameter :: BUFR_NEZD=15031
  integer, parameter :: BUFR_NEFE=15032
  integer, parameter :: BUFR_NEZW=15035
+ integer, parameter :: BUFR_NEAZ=05021
+ integer, parameter :: BUFR_NEAL=40030 ! aladin HLOS wind
+ integer, parameter :: BUFR_NEPR=05068 ! profile index
  ! Doppler wind 
  integer, parameter :: BUFR_NEDW=11200  
  integer, parameter :: bufr_sst =22042

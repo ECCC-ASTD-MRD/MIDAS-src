@@ -215,13 +215,17 @@ contains
   subroutine obsf_thinFiles(obsSpaceData)
     implicit none
     ! arguments
-    type(struct_obs), intent(in) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! locals
     integer :: fileIndex
 
   if(.not.initialized) call utl_abort( &
                                 'obsf_writeFiles: obsFiles_mod not initialized!')
+
+    if ( obsFileType /= 'SQLITE' ) then
+      call utl_abort('obsf_thinFiles: files must be type SQLITE')
+    end if
 
     do fileIndex = 1, obsf_nfiles
       call sqlf_thinFile(obsSpaceData, obsf_cfilnam(fileIndex), &

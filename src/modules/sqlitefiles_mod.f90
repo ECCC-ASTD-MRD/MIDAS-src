@@ -211,7 +211,7 @@ module sqliteFiles_mod
   subroutine sqlf_thinFile(obsSpaceData, fileName, familyType, fileIndex)
     implicit none
     ! arguments
-    type (struct_obs), intent(in) :: obsSpaceData
+    type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*),  intent(in) :: fileName
     character(len=*),  intent(in) :: familyType
     integer,           intent(in) :: fileIndex
@@ -221,7 +221,7 @@ module sqliteFiles_mod
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call tmg_start(97,'POST_THINSQL')
+    call tmg_start(96,'POST_THINSQL')
     write(*,*) myName//' Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
@@ -233,7 +233,7 @@ module sqliteFiles_mod
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call tmg_stop(97)
+    call tmg_stop(96)
   end subroutine sqlf_thinFile
 
 end module sqliteFiles_mod

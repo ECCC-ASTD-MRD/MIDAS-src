@@ -900,7 +900,7 @@ contains
     implicit none
     ! arguments
     type(fSQL_DATABASE), intent(in) :: db   ! SQLite file handle
-    type(struct_obs),    intent(in) :: obsdat
+    type(struct_obs),    intent(inout) :: obsdat
     character(len=*),    intent(in) :: familyType
     character(len=*),    intent(in) :: fileName
     integer,             intent(in) :: fileNumber
@@ -917,7 +917,7 @@ contains
       write(*,*) myError, fSQL_errmsg(status)
     end if
 
-    call thn_thinAladin(db)
+    call thn_thinAladin(obsdat)
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
