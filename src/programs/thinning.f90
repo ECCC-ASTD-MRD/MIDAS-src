@@ -35,6 +35,7 @@ program midas_thinning
   integer :: ierr, dateStamp
   type(struct_obs)    :: obsSpaceData
   character(len=48) :: obsMpiStrategy, varMode
+  integer :: itemThinningFlagBitsList(15), numberThinningFlagBitsItems
 
   istamp = exdb('THINNING','DEBUT','NON')
 
@@ -44,6 +45,10 @@ program midas_thinning
             '14x,"-- OBSERVATION THINNING          --",/, ' //&
             '14x,"-- VAR Revision number   ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
+  ! These values will be obtained from a thn_thin* method:
+  numberThinningFlagBitsItems=0
+  itemThinningFlagBitsList   =0
 
   ! MPI initilization
   call mpi_initialize
@@ -69,7 +74,15 @@ program midas_thinning
   call thin_setup('ALL') ! obsColumnMode 
 
 
-  ! 3. Do the Thinning - set bit9 of iflag
+  ! 3. Do the Thinning
+
+  ! Set bit 11 of flag, one observation type at a time
+  call thn_thinAladin(obsSpaceData)
+
+  ! Write bit11 to the sql files (FLG must be set in namSQLUpdate)
+  call obsf_writeFiles(obsSpaceData)
+
+  ! Delete the flagged observations, and make the files smaller
   call obsf_thinFiles(obsSpaceData)
 
   ! 4. Job termination

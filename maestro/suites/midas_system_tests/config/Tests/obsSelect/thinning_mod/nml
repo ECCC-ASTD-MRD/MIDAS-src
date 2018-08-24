@@ -129,8 +129,8 @@
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
-  numberUpdateItems=0
-  itemUpdateList(1)='NUL'
+  numberUpdateItems=1
+  itemUpdateList(1)='FLG'
 /
  &namSQLInsert
   numberInsertItems=0

@@ -32,7 +32,6 @@ use mpiVar_mod
 use obsUtil_mod
 use utilities_mod
 use bufr_mod
-use thinning_mod
 
 implicit none
 save
@@ -615,8 +614,7 @@ contains
   end subroutine sqlr_handleError
 
   
-  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber, &
-                               update_obsflg)
+  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
     implicit none
     ! arguments
     type(fSQL_DATABASE),intent(inout):: db
@@ -624,14 +622,12 @@ contains
     character(len=*),   intent(in)    :: fileName   
     character(len=*),   intent(in)    :: familyType ! Observation Family Type 
     integer         ,   intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
-    logical, optional,  intent(in)    :: update_obsflg ! instead of namelist
 
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
     integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag, iobs, obsIdo, obsStatus, last_comma
     integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex, numberUpdateItems
-    logical                          :: update_flg
     character(len =  10)             :: timeCharacter
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: itemId, updateList(20), fnom, fclos, nulnam, ierr
@@ -652,27 +648,13 @@ contains
     itemUpdateList(:) = ''
     numberUpdateItems = 0
 
-    if(present(update_obsflg))then
-      update_flg = update_obsflg
-    else
-      update_flg = .false.
-    end if
-
-    if(update_flg)then
-      ! Update just 'flag'; don't look for other directives
-      if(mpi_myid == 0) write(*,*)"Updating 'flag'"
-      numberUpdateItems=1
-      itemUpdateList(1)='FLG'
-
-    else
-      ! Read the namelist for directives
-      nulnam = 0
-      ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-      read(nulnam,nml = namSQLUpdate, iostat = ierr )
-      if ( ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
-      if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
-      ierr = fclos( nulnam )
-    end if
+    ! Read the namelist for directives
+    nulnam = 0
+    ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+    read(nulnam,nml = namSQLUpdate, iostat = ierr )
+    if ( ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+    if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
+    ierr = fclos( nulnam )
 
     write(*,'(3a,i8)') myName//': Family Type   = ', trim(familyType), ' number of items to update: ', numberUpdateItems
     write(*,*)         myName//': File Name     = ', trim(fileName)
@@ -932,20 +914,13 @@ contains
     integer,             intent(in) :: fileNumber
 
     ! locals
-    integer :: itemThinningFlagBitsList(15), numberThinningFlagBitsItems
     character(len=*), parameter :: myName = 'sqlr_thinSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     character(len = 128) :: query
-    character(len=10)    :: bitAsAscii
-    integer              :: flagBitIndex
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
     type(fSQL_STATUS)    :: status
-
-    ! These values will be obtained from a thn_thin* method:
-    numberThinningFlagBitsItems=0
-    itemThinningFlagBitsList   =0
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
@@ -953,33 +928,15 @@ contains
       write(*,*) myError, fSQL_errmsg(status)
     end if
 
-    select case(trim(familyType))
-      case ('AL')
-        call thn_thinAladin(obsdat, numberThinningFlagBitsItems, &
-                            itemThinningFlagBitsList)
-
-      case default
-        write(*,*)
-        write(*,*) 'Unsupported familyType for thinning: ', trim(familyType)
-        call utl_abort('sqlr_thinSqlite')
-    end select
-
-    ! Write the changes to the SQL file
-    call sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber, &
-                           update_obsflg=.true.)
-
-    ! Mark for deletion all records with OBS_FLG bits that match the list
-    do flagBitIndex = 1, numberThinningFlagBitsItems
-      write(bitAsAscii,'(i10)') 2**itemThinningFlagBitsList(flagBitIndex)
-      query = ' delete from data where flag & ' // trim(bitAsAscii) // ';'
-      call fSQL_prepare(db, query, statement, status)
-      if (fSQL_error(status) /= FSQL_OK) &
-        call sqlr_handleError(status, 'thinning fSQL_prepare : ')
-      call fSQL_begin(db)
-      call fSQL_exec_stmt(statement)
-      call fSQL_finalize(statement)
-      call fSQL_commit(db)
-    end do
+    ! Mark for deletion all records with bit 11 (0x800) set
+    query = ' delete from data where flag & 800;'
+    call fSQL_prepare(db, query, statement, status)
+    if (fSQL_error(status) /= FSQL_OK) &
+      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(statement)
+    call fSQL_finalize(statement)
+    call fSQL_commit(db)
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )

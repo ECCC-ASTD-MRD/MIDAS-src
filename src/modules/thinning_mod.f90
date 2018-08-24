@@ -53,14 +53,11 @@ contains
 !!$
 !!$set_spatial_grid_boxes()  ! used by iasi, scat
 
-  subroutine thn_thinAladin(obsdat, numberThinningFlagBitsItems, &
-                            itemThinningFlagBitsList)
+  subroutine thn_thinAladin(obsdat)
     implicit none
 
     ! ARGUMENTS
     type(struct_obs), intent(inout) :: obsdat
-    integer,          intent(out)   :: numberThinningFlagBitsItems
-    integer,          intent(out)   :: itemThinningFlagBitsList(15)
 
 
     ! deltrad:  iasi also uses this in addition to thinningSteps,
@@ -88,10 +85,6 @@ contains
 !!$    integer :: obsDateStamp
 
 
-
-    ! Return the flag bits that indicate which observations should be deleted
-    numberThinningFlagBitsItems=2
-    itemThinningFlagBitsList=(/9, 11, (0, ii=3,15) /)
 
     ! Read the namelist for Aladin observations
     nulnam = 0
