@@ -219,10 +219,12 @@ contains
 
     ! locals
     integer :: fileIndex
+    character(len=10) :: obsFileType
 
-  if(.not.initialized) call utl_abort( &
+    if(.not.initialized) call utl_abort( &
                                 'obsf_writeFiles: obsFiles_mod not initialized!')
 
+    call obsf_determineFileType(obsFileType)
     if ( obsFileType /= 'SQLITE' ) then
       call utl_abort('obsf_thinFiles: files must be type SQLITE')
     end if

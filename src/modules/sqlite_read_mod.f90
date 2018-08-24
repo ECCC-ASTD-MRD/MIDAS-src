@@ -919,6 +919,10 @@ contains
 
     call thn_thinAladin(obsdat)
 
+    ! Write the changes to the SQL file
+    ! (This assumes that namelist, namSQLUpdate, has itemUpdateList()='FLG')
+    call sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
+
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
   end subroutine sqlr_thinSqlite
