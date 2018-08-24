@@ -26,11 +26,14 @@ program midas_thinning
   use obsSpaceData_mod
   use obsFiles_mod
   use innovation_mod
+  use thinning_mod
+  use fSQLite
 
   implicit none
 
   integer :: istamp,exdb,exfin
   integer :: ierr
+  type(fSQL_DATABASE)    :: db   ! SQLite file handle
   type(struct_obs)               :: obsSpaceData
   character(len=48) :: obsMpiStrategy, varMode
 
@@ -69,6 +72,7 @@ program midas_thinning
 
 !!$  ! 3. Do the Thinning - set bit9 of iflag
 !!$  call obsf_thinFiles(obsSpaceData)
+  call thn_thinAladin(db)
 
   ! 4. Job termination
 
