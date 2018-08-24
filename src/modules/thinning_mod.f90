@@ -53,11 +53,14 @@ contains
 !!$
 !!$set_spatial_grid_boxes()  ! used by iasi, scat
 
-  subroutine thn_thinAladin(obsdat)
+  subroutine thn_thinAladin(obsdat, numberThinningFlagBitsItems, &
+                            itemThinningFlagBitsList)
     implicit none
 
     ! ARGUMENTS
     type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(out)   :: numberThinningFlagBitsItems
+    integer,          intent(out)   :: itemThinningFlagBitsList(15)
 
 
     ! deltrad:  iasi also uses this in addition to thinningSteps,
@@ -67,8 +70,8 @@ contains
 
 
     ! NAMELIST VARIABLES
-    integer :: nulnam
-    real :: stepHours ! assimilation step size
+    integer :: nulnam, ii
+    real    :: stepHours ! assimilation step size
     integer :: keepNthVertical ! keep every nth vertical datum
 
     ! Distance that limits to one observation per box.
@@ -85,6 +88,10 @@ contains
 !!$    integer :: obsDateStamp
 
 
+
+    ! Return the flag bits that indicate which observations will be deleted
+    numberThinningFlagBitsItems=1
+    itemThinningFlagBitsList=(/9, (0, ii=2,15) /)
 
     ! Read the namelist for Aladin observations
     nulnam = 0

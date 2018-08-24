@@ -932,13 +932,20 @@ contains
     integer,             intent(in) :: fileNumber
 
     ! locals
+    integer :: itemThinningFlagBitsList(15), numberThinningFlagBitsItems
     character(len=*), parameter :: myName = 'sqlr_thinSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    character(len = 128)             :: query
+    character(len = 128) :: query
+    character(len=10)    :: bitAsAscii
+    integer              :: flagBitIndex
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
     type(fSQL_STATUS)    :: status
+
+    ! These values will be obtained from a thn_thin* method:
+    numberThinningFlagBitsItems=0
+    itemThinningFlagBitsList   =0
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
@@ -948,7 +955,8 @@ contains
 
     select case(trim(familyType))
       case ('AL')
-        call thn_thinAladin(obsdat)
+        call thn_thinAladin(obsdat, numberThinningFlagBitsItems, &
+                            itemThinningFlagBitsList)
 
       case default
         write(*,*)
@@ -960,15 +968,18 @@ contains
     call sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber, &
                            update_obsflg=.true.)
 
-    ! Mark for deletion all records with BIT9 set in OBS_FLG
-    query = ' delete from data where flag & 512;'
-    call fSQL_prepare(db, query, statement, status)
-    if (fSQL_error(status) /= FSQL_OK) &
-      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
-    call fSQL_begin(db)
-    call fSQL_exec_stmt(statement)
-    call fSQL_finalize(statement)
-    call fSQL_commit(db)
+    ! Mark for deletion all records with OBS_FLG bits that match the list
+    do flagBitIndex = 1, numberThinningFlagBitsItems
+      write(bitAsAscii,'(i10)') 2**itemThinningFlagBitsList(flagBitIndex)
+      query = ' delete from data where flag & ' // trim(bitAsAscii) // ';'
+      call fSQL_prepare(db, query, statement, status)
+      if (fSQL_error(status) /= FSQL_OK) &
+        call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+      call fSQL_begin(db)
+      call fSQL_exec_stmt(statement)
+      call fSQL_finalize(statement)
+      call fSQL_commit(db)
+    end do
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, status )
