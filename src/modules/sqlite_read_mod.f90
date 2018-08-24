@@ -32,12 +32,14 @@ use mpiVar_mod
 use obsUtil_mod
 use utilities_mod
 use bufr_mod
+use thinning_mod
 
 implicit none
 save
 
 private
-public  :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
+public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
+public :: sqlr_thinSqlite
 
 contains
   
@@ -164,6 +166,7 @@ contains
     namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
@@ -232,6 +235,12 @@ contains
         read(nulnam, nml = NAMSQLpr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
+      case ( 'al' )
+        vertCoordFact = 1
+        vertCoordType = 1
+        read(nulnam, nml = NAMSQLal, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLal )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
@@ -885,5 +894,33 @@ contains
     write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_insertSqlite
+
+
+  subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
+    implicit none
+    ! arguments
+    type(fSQL_DATABASE), intent(in) :: db   ! SQLite file handle
+    type(struct_obs),    intent(in) :: obsdat
+    character(len=*),    intent(in) :: familyType
+    character(len=*),    intent(in) :: fileName
+    integer,             intent(in) :: fileNumber
+
+    ! locals
+    character(len=*), parameter :: myName = 'sqlr_thinSqlite'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    type(fSQL_STATUS) :: status
+
+    call fSQL_open(db, fileName, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(status)
+      write(*,*) myError, fSQL_errmsg(status)
+    end if
+
+    call thn_thinAladin(db)
+
+    write(*,*)'  closed database -->', trim(FileName)
+    call fSQL_close( db, status )
+  end subroutine sqlr_thinSqlite
 
 end module sqliteRead_mod

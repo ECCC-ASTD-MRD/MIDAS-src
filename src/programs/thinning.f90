@@ -32,9 +32,8 @@ program midas_thinning
   implicit none
 
   integer :: istamp,exdb,exfin
-  integer :: ierr
-  type(fSQL_DATABASE)    :: db   ! SQLite file handle
-  type(struct_obs)               :: obsSpaceData
+  integer :: ierr, dateStamp
+  type(struct_obs)    :: obsSpaceData
   character(len=48) :: obsMpiStrategy, varMode
 
   istamp = exdb('THINNING','DEBUT','NON')
@@ -47,7 +46,7 @@ program midas_thinning
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   ! MPI initilization
-  call mpi_initialize  
+  call mpi_initialize
 
   call tmg_init(mpi_myid, 'TMG_THIN' )
   call tmg_start(1,'MAIN')
@@ -70,16 +69,15 @@ program midas_thinning
   call thin_setup('ALL') ! obsColumnMode 
 
 
-!!$  ! 3. Do the Thinning - set bit9 of iflag
-!!$  call obsf_thinFiles(obsSpaceData)
-  call thn_thinAladin(db)
+  ! 3. Do the Thinning - set bit9 of iflag
+  call obsf_thinFiles(obsSpaceData)
 
   ! 4. Job termination
 
   istamp = exfin('THINNING','FIN','NON')
 
-!!$  ! deallocate obsSpaceData
-!!$  call obs_finalize(obsSpaceData)
+  ! deallocate obsSpaceData
+  call obs_finalize(obsSpaceData)
 
 
   call tmg_stop(1)
@@ -110,16 +108,16 @@ contains
     write(*,*) '-- Starting subroutine thin_setup --'
     write(*,*) '-----------------------------------'
 
-!!$    !     
-!!$    !- Initialize observation file names
-!!$    !
-!!$    call obsf_setup( dateStamp, varMode )
+    !     
+    !- Initialize observation file names
+    !
+    call obsf_setup( dateStamp, varMode )
 
     !
     !- Setup and read observations
     !
-!!$    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
-!!$    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thin_setup
 

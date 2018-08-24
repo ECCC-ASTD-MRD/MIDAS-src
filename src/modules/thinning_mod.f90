@@ -1,4 +1,4 @@
- 
+
 !--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
@@ -57,7 +57,7 @@ contains
     implicit none
 
     ! ARGUMENTS
-    type(fSQL_DATABASE)    :: db   ! SQLite file handle
+    type(fSQL_DATABASE), intent(in) :: db   ! SQLite file handle
 
 
     ! deltrad:  iasi also uses this in addition to thinningSteps,
