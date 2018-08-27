@@ -35,6 +35,8 @@ module stateToColumn_mod
   use tt2phi_mod
   use windRotation_mod
   use utilities_mod
+  use variabletransforms_mod
+  
   implicit none
   save
   private
@@ -700,6 +702,9 @@ contains
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType_tlad,  rejectOutsideObs=.false. )
     end if
+
+    call vtr_transform( statevector, & ! INOUT
+                        'TTHUtoGZ_tl') ! IN
 
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))

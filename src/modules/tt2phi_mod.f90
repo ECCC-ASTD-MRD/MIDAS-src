@@ -29,6 +29,7 @@ module tt2phi_mod
   use earthConstants_mod
   use columnData_mod
   use verticalCoord_mod
+  use gridstatevector_mod
   use utilities_mod
   use obsSpaceData_mod
   implicit none
@@ -53,6 +54,12 @@ module tt2phi_mod
   real(8), allocatable, save :: coeff_T_TT(:), coeff_T_HU(:)
   real(8), allocatable, save :: coeff_M_P0(:,:), coeff_M_P0_dP(:,:)
   real(8), allocatable, save :: coeff_T_P0(:), coeff_T_P0_dP(:)
+
+  ! interface for ...
+  interface tt2phi_tl
+    module procedure tt2phi_tl_col
+    module procedure tt2phi_tl_gsv
+  end interface tt2phi_tl
 
 contains
 
@@ -272,9 +279,9 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
 end subroutine tt2phi
 
 
-subroutine tt2phi_tl(column,columng,obsSpaceData)
+subroutine tt2phi_tl_col(column,columng)
   !
-  !**s/r tt2phi_tl - Temperature to geopotential transformation on GEM4 staggered levels
+  !**s/r tt2phi_tl_col - Temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 
   !                     1) nlev_T = nlev_M+1 
   !                     2) alt_T(nlev_T) = alt_M(nlev_M), both at the surface
@@ -394,8 +401,17 @@ subroutine tt2phi_tl(column,columng,obsSpaceData)
 
   deallocate(delThick)
 
-end subroutine tt2phi_tl
+end subroutine tt2phi_tl_col
 
+subroutine tt2phi_tl_gsv(statevector,statevector_trial)
+
+  implicit none
+
+  type(struct_gsv) :: statevector,statevector_trial
+
+  write(*,*) 'MAZIAR IS HERE!'
+
+end subroutine tt2phi_tl_gsv
 
 subroutine tt2phi_ad(column,columng,obsSpaceData)
   !
