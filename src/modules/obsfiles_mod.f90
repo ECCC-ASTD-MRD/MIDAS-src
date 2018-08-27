@@ -316,7 +316,7 @@ contains
     character(len=256)  :: obsDirectory
     character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
     character(len=256)               :: fileNamefull
-    logical :: isExist_L 
+    logical :: fileExist_L
     integer :: fileIndex
 
     write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
@@ -396,12 +396,17 @@ contains
     clvalu(68) = 'obsssm'
     clvalu(69) = 'obsgp'
     clvalu(70) = 'obsch'
-    clvalu(71) = 'obsgl'
+    clvalu(71) = 'obsgl_ssmi'
+    clvalu(72) = 'obsgl_ssmis'
+    clvalu(73) = 'obsgl_amsr2'
+    clvalu(74) = 'obsgl_ascat'
+    clvalu(75) = 'obsgl_avhrr'
+    clvalu(76) = 'obsgl_cis'
     ! file name for CMA format used by EnKF
-    clvalu(72) = 'cmaheader'
+    clvalu(77) = 'cmaheader'
     ! Sea Surface Temperature data file name
-    clvalu(73) = 'brpsst'
-    clvalu(74) = 'obsal'
+    clvalu(78) = 'brpsst'
+    clvalu(79) = 'obsal'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -475,10 +480,15 @@ contains
     cfami(69)  = 'GP'
     cfami(70)  = 'CH'
     cfami(71)  = 'GL'
+    cfami(72)  = 'GL'
+    cfami(73)  = 'GL'
+    cfami(74)  = 'GL'
+    cfami(75)  = 'GL'
+    cfami(76)  = 'GL'
     ! dummy family type for CMA, since it contains all families
-    cfami(72)  = 'XX'
-    cfami(73)  = 'TM'
-    cfami(74)  = 'AL'
+    cfami(77)  = 'XX'
+    cfami(78)  = 'TM'
+    cfami(79)  = 'AL'
 
     obsDirectory = 'obs'
 
@@ -492,13 +502,13 @@ contains
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
 
       inquire(file=trim(fileNameFull),exist=isExist_L)
-      if (.not. isExist_L ) then
+      if (.not. fileExist_L ) then
         fileName=trim(obsDirectory)//'/'//trim(clvalu(fileIndex))
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
         inquire(file=trim(fileNameFull), exist=isExist_L)
       end if
 
-      if ( isExist_L ) then
+      if ( fileExist_L ) then
         obsf_nfiles=obsf_nfiles + 1
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
