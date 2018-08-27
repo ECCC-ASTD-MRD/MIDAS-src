@@ -35,6 +35,7 @@ module variableTransforms_mod
   use verticalCoord_mod
   use utilities_mod
   use varNameList_mod
+  use tt2phi_mod
   implicit none
   save
   private
@@ -94,6 +95,7 @@ CONTAINS
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_hu )  ! IN/OUT
+      call gsv_calcPressure( statevector_trial_hu )
 
       huTrialsInitialized = .true.
     case default
@@ -186,6 +188,7 @@ CONTAINS
         call utl_abort('vtr_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector) ! self-adjoint
+
     case ('LVIStoVIS')
       if (present(statevectorOut_opt)) then
         if ( .not. gsv_varExist(statevector,'LVIS')) then
@@ -201,6 +204,19 @@ CONTAINS
         end if
         call LVIStoVIS(statevector)
       end if
+
+    case ('TTHUtoGZ_tl')
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable P0 must be allocated in gridstatevector')
+      end if
+      call TTHUtoGZ_tl(statevector)
+
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -468,6 +484,19 @@ CONTAINS
     end if
 
   end subroutine LVIStoVIS
+
+  ! TTHUtoGZ_tl
+  !--------------------------------------------------------------------------
+  subroutine TTHUtoGZ_tl(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( .not. trialsInitialized ) call vtr_setupTrials()
+
+    call tt2phi_tl(statevector,statevector_trial)
+
+  end subroutine TTHUtoGZ_tl
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv_gsv

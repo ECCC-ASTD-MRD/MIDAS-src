@@ -72,7 +72,11 @@ module gridStateVector_mod
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
     logical             :: gzSfcPresent = .false.
     real(8), pointer    :: gzSfc(:,:) => null()  ! surface GZ, if VarsLevs then only on proc 0
-    ! These are used when distribution is VarsLevs to keep corresponding UV
+    ! Add calculation of the GZ/P  
+    real*8,pointer    :: gz_T(:,:,:,:),gz_M(:,:,:,:)
+    real*8,pointer    :: pressure_T(:,:,:,:),pressure_M(:,:,:,:)
+    real*8,pointer    :: dP_dPsfc_T(:,:,:,:),dP_dPsfc_M(:,:,:,:)
+    ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.  ! a wind component is present on this mpi task
     logical             :: extraUVallocated = .false.    ! extra winds  (gdUV) are actually allocated
@@ -769,6 +773,45 @@ module gridStateVector_mod
       end if
     end if
 
+    ! allocate GZ
+    allocate(statevector%gz_T(statevector%myLonBeg:statevector%myLonEnd, &
+                              statevector%myLatBeg:statevector%myLatEnd, &
+                              gsv_getNumLev(statevector,'TH'), &
+                              numStep))
+    allocate(statevector%gz_M(statevector%myLonBeg:statevector%myLonEnd, &
+                              statevector%myLatBeg:statevector%myLatEnd, &
+                              gsv_getNumLev(statevector,'MM'), &
+                              numStep))
+
+    statevector%gz_T(:,:,:,:) = 0.0d0
+    statevector%gz_M(:,:,:,:) = 0.0d0
+
+    ! allocate P
+    allocate(statevector%pressure_T(statevector%myLonBeg:statevector%myLonEnd, &
+                                    statevector%myLatBeg:statevector%myLatEnd, &
+                                    gsv_getNumLev(statevector,'TH'), &
+                                    numStep))
+    allocate(statevector%pressure_M(statevector%myLonBeg:statevector%myLonEnd, &
+                                    statevector%myLatBeg:statevector%myLatEnd, &
+                                    gsv_getNumLev(statevector,'MM'), &
+                                    numStep))
+
+    statevector%pressure_T(:,:,:,:) = 0.0d0
+    statevector%pressure_M(:,:,:,:) = 0.0d0
+
+    ! allocate dP_dPsfc
+    allocate(statevector%dP_dPsfc_T(statevector%myLonBeg:statevector%myLonEnd, &
+                                    statevector%myLatBeg:statevector%myLatEnd, &
+                                    gsv_getNumLev(statevector,'TH'), &
+                                    numStep))
+    allocate(statevector%dP_dPsfc_M(statevector%myLonBeg:statevector%myLonEnd, &
+                                    statevector%myLatBeg:statevector%myLatEnd, &
+                                    gsv_getNumLev(statevector,'MM'), &
+                                    numStep))
+
+    statevector%dP_dPsfc_T(:,:,:,:) = 0.0d0
+    statevector%dP_dPsfc_M(:,:,:,:) = 0.0d0
+
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
@@ -781,6 +824,99 @@ module gridStateVector_mod
     statevector%allocated=.true.
 
   end subroutine gsv_allocate
+
+
+  subroutine gsv_calcPressure(statevector, beSilent_opt)
+    implicit none
+    type(struct_gsv), intent(inout) :: statevector
+    logical, optional :: beSilent_opt
+
+    real(kind=8), allocatable	:: Psfc(:,:)
+    real(kind=8), pointer	:: Pressure_out(:,:,:) 
+    real(kind=8), pointer	:: dP_dPsfc_out(:,:,:)
+    real(kind=8), pointer	:: field_in(:,:,:,:)
+    integer			:: jobs, status, stepIndex
+    logical			:: beSilent
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+		statevector%myLatBeg:statevector%myLatEnd))
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not.beSilent ) write(*,*) 'gsv_calcPressure: computing pressure on staggered or UNstaggered levels'
+
+    do stepIndex = 1, statevector%numStep
+
+      if (.not.gsv_varExist(statevector,'P0')) then 
+	call utl_abort('gsv_calcPressure: P0 must be present as an analysis variable!')
+      endif
+
+      field_in => gsv_getField_r8(statevector,'P0')
+      Psfc(:,:) = field_in(:,:,1,stepIndex)
+
+      ! pressure_T
+      nullify(Pressure_out)
+      status=vgd_levels(statevector%vco%vgrid, &
+			ip1_list=statevector%vco%ip1_M, &
+			levels=Pressure_out, &
+			sfc_field=Psfc, &
+			in_log=.false.)
+      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+      statevector%pressure_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      ! pressure_M
+      nullify(Pressure_out)
+      status=vgd_levels(statevector%vco%vgrid, &
+			ip1_list=statevector%vco%ip1_T, &
+			levels=Pressure_out, &
+			sfc_field=Psfc, &
+			in_log=.false.)
+      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+      statevector%pressure_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      ! dP_dPsfc_M
+      nullify(dP_dPsfc_out)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+			statevector%vco%ip1_M, &
+			dP_dPsfc_out, &
+			Psfc)
+      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_dpidpis')
+      statevector%dP_dPsfc_M(:,:,:,stepIndex) = dP_dPsfc_out(:,:,:)
+      deallocate(dP_dPsfc_out)
+
+      ! dP_dPsfc_T
+      nullify(dP_dPsfc_out)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+			statevector%vco%ip1_T, &
+			dP_dPsfc_out, &
+			Psfc)
+      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_dpidpis')
+      statevector%dP_dPsfc_T(:,:,:,stepIndex) = dP_dPsfc_out(:,:,:)
+      deallocate(dP_dPsfc_out)
+
+      deallocate(Psfc)
+
+      if ( .not.beSilent ) then
+	write(*,*) 'stepIndex=',stepIndex, ',pressure_M='
+	write(*,*) statevector%pressure_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+	write(*,*) 'stepIndex=',stepIndex, ',pressure_T='
+	write(*,*) statevector%pressure_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+	write(*,*) 'stepIndex=',stepIndex, ',dP_dPsfc_M='
+	write(*,*) statevector%dP_dPsfc_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+	write(*,*) 'stepIndex=',stepIndex, ',dP_dPsfc_T='
+	write(*,*) statevector%dP_dPsfc_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+  end subroutine gsv_calcPressure
+
 
   !--------------------------------------------------------------------------
   ! gsv_complementaryUVname
@@ -883,6 +1019,10 @@ module gridStateVector_mod
     k2UV = statevector%myUVkEnd
 
     if ( associated(statevector%gzSfc) ) statevector%gzSfc(:,:) = 0.0d0
+    if ( associated(statevector%gz_T) ) statevector%gz_T(:,:,:,:) = 0.0d0
+    if ( associated(statevector%gz_M) ) statevector%gz_M(:,:,:,:) = 0.0d0
+    if ( associated(statevector%pressure_T) ) statevector%pressure_T(:,:,:,:) = 0.0d0
+    if ( associated(statevector%pressure_M) ) statevector%pressure_M(:,:,:,:) = 0.0d0
 
     if ( statevector%dataKind == 8 ) then
 
@@ -1859,6 +1999,36 @@ module gridStateVector_mod
     if ( associated(statevector%gzSfc) ) then
       deallocate(statevector%gzSfc)
       nullify(statevector%gzSfc)
+    end if
+
+    if ( associated(statevector%gz_T) ) then
+      deallocate(statevector%gz_T)
+      nullify(statevector%gz_T)
+    end if
+
+    if ( associated(statevector%gz_M) ) then
+      deallocate(statevector%gz_M)
+      nullify(statevector%gz_M)
+    end if
+
+    if ( associated(statevector%pressure_T) ) then
+      deallocate(statevector%pressure_T)
+      nullify(statevector%pressure_T)
+    end if
+
+    if ( associated(statevector%pressure_M) ) then
+      deallocate(statevector%pressure_M)
+      nullify(statevector%pressure_M)
+    end if
+
+    if ( associated(statevector%dP_dPsfc_T) ) then
+      deallocate(statevector%dP_dPsfc_T)
+      nullify(statevector%dP_dPsfc_T)
+    end if
+
+    if ( associated(statevector%dP_dPsfc_M) ) then
+      deallocate(statevector%dP_dPsfc_M)
+      nullify(statevector%dP_dPsfc_M)
     end if
 
     if ( associated(statevector%dateStampList) ) then
