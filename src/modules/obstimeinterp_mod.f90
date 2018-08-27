@@ -70,7 +70,7 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
-    integer, parameter   :: numFamily = 10
+    integer, parameter   :: numFamily = 11
     character(len=2)     :: familylist(numFamily)
     character(len=256)   :: formatspec, formatspec2
     real(8)              :: stepObsIndex
@@ -84,16 +84,17 @@ contains
     allocate(my_inumheader(numFamily,nStepObs+1))
     my_inumheader(:,:) = 0
 
-    familylist(1) = 'UA'
-    familylist(2) = 'AI'
-    familylist(3) = 'SF'
-    familylist(4) = 'TO'
-    familylist(5) = 'SW'
-    familylist(6) = 'SC'
-    familylist(7) = 'PR'
-    familylist(8) = 'RO'
-    familylist(9) = 'GP'
+    familylist( 1) = 'UA'
+    familylist( 2) = 'AI'
+    familylist( 3) = 'SF'
+    familylist( 4) = 'TO'
+    familylist( 5) = 'SW'
+    familylist( 6) = 'SC'
+    familylist( 7) = 'PR'
+    familylist( 8) = 'RO'
+    familylist( 9) = 'GP'
     familylist(10) = 'CH'
+    familylist(11) = 'TM'
 
     do headerIndex = 1, obs_numheader(obsSpaceData)
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &

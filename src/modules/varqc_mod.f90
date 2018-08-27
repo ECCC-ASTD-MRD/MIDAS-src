@@ -66,12 +66,12 @@ module varqc_mod
     implicit none
     type(struct_obs) :: obsSpaceData
 
-    integer jdata,kindic,iter,jjo,idata,idatend,idburp
-    integer ityp,iass,ifld,iother,jj,istyp,ilev
-    real(8) zagz,zahu,zatt,zduv,zdgz,zdtt,zdhu,zauv,zslev,zapn,zdpn
-    real(8) zabt,zdbt,zabtb,zdbtb,zach,zdch
-    real(8) zlev,zjo,zval,zspdo,zspdf,zofcst,zoval,zdiff,zaasym,zoer
-    real(8) zfcst,zlat,zlon,zprior,zaps,zdps,zauvra,zattra,zattsym
+    integer jdata, kindic, iter, jjo, idata, idatend, idburp
+    integer ityp, iass, ifld, iother, jj, istyp, ilev
+    real(8) zagz, zahu, zatt, zduv, zdgz, zdtt, zdhu, zauv, zslev, zapn, zdpn, zatm, zdtm
+    real(8) zabt, zdbt, zabtb, zdbtb, zach, zdch
+    real(8) zlev, zjo, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
+    real(8) zfcst, zlat, zlon, zprior, zaps, zdps, zauvra, zattra, zattsym
     logical llok
     real(8) zazd, zdzd
     !
@@ -82,6 +82,7 @@ module varqc_mod
     !     standard deviation multiple for background check for humidity: zdhu
     !
     zagz   = 1.d-12
+    zatm   = 1.d-12
     zatt   = 5.d-2
 !    zattra = 1.d-2
     zattra = 0.005d0
@@ -100,6 +101,7 @@ module varqc_mod
     zach = 1.0d-3
     zduv = 5.d0
     zdgz = 5.d0
+    zdtm = 5.d0
     zdtt = 5.d0
     zdhu = 5.d0
     zdpn = 5.d0
@@ -109,56 +111,59 @@ module varqc_mod
     zdzd = 3.d0
     zdch = 10.d0
 
-    DO JJO = 1, obs_numheader(obsSpaceData)
-       IDATA = obs_headElem_i(obsSpaceData,OBS_RLN,JJO)
-       IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,JJO) + IDATA - 1
-       IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,JJO)
-       ZLAT = obs_headElem_r(obsSpaceData,OBS_LAT,JJO)*MPC_DEGREES_PER_RADIAN_R8
-       ZLON = obs_headElem_r(obsSpaceData,OBS_LON,JJO)*MPC_DEGREES_PER_RADIAN_R8
-       DO JDATA = IDATA, IDATEND
-          ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
-          IASS = obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA)
-          ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)*MPC_MBAR_PER_PA_R8
-          ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,JDATA)
-          ZVAL = obs_bodyElem_r(obsSpaceData,OBS_VAR,JDATA)
-          ZFCST= ZVAL - obs_bodyElem_r(obsSpaceData,OBS_OMP,JDATA)
+    do jjo = 1, obs_numheader(obsSpaceData)
 
-          IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.  &
-              ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.  &
-              ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.  &
-              ITYP .EQ. BUFR_NEZD) THEN
-             LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) .EQ. 1)
-          ELSE
-             LLOK = (IASS .EQ. 1) .AND. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) .EQ.0) &
-                .OR. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) .EQ. 2) .AND. &
-                      (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) .EQ. BUFR_NEGZ)))
-          ENDIF
+       IDATA   = obs_headElem_i( obsSpaceData, OBS_RLN, jjo )
+       IDATEND = obs_headElem_i( obsSpaceData, OBS_NLV, jjo ) + IDATA - 1
+       IDBURP  = obs_headElem_i( obsSpaceData, OBS_ITY, jjo )
+       ZLAT    = obs_headElem_r( obsSpaceData, OBS_LAT, jjo ) * MPC_DEGREES_PER_RADIAN_R8
+       ZLON    = obs_headElem_r( obsSpaceData, OBS_LON, jjo ) * MPC_DEGREES_PER_RADIAN_R8
 
-          IF (LLOK) THEN
-             IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV .OR.  &
-                 ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
+       do JDATA = IDATA, IDATEND
+
+          ityp  = obs_bodyElem_i( obsSpaceData, OBS_VNM, JDATA )
+          IASS  = obs_bodyElem_i( obsSpaceData, OBS_ASS, JDATA )
+          ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, JDATA ) * MPC_MBAR_PER_PA_R8
+          ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
+          ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
+          ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
+
+          if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
+              ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
+              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
+              ityp == BUFR_NEZD ) then
+             LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1)
+          else
+             LLOK = (IASS == 1) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
+                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == 2) .and. &
+                      (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) == BUFR_NEGZ)))
+          end if
+
+          if (LLOK) then
+             if (ityp == BUFR_NEUU .or. ityp == BUFR_NEVV .or.  &
+                 ityp == BUFR_NEUS .or. ityp == BUFR_NEVS) then
                 ZAASYM = 1.0d0
                 IOTHER = -1
-                IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
-                  DO JJ=IDATA,JDATA
+                if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
+                  do JJ = IDATA, JDATA
+                    ISTYP = obs_bodyElem_i( obsSpaceData, OBS_VNM, JJ )
+                    ZSLEV = obs_bodyElem_r( obsSpaceData, OBS_PPP, JJ ) * MPC_MBAR_PER_PA_R8
+                    if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS)  &
+                         .and. ZLEV == ZSLEV) then
+                      IOTHER = JJ
+                    end if
+                  end do
+                else
+                  do JJ=IDATA,JDATA
                     ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
                     ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)*MPC_MBAR_PER_PA_R8
-                    IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)  &
-                         .AND. ZLEV .EQ. ZSLEV) THEN
+                    if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS)  &
+                         .and. ZLEV == ZSLEV) then
                       IOTHER = JJ
-                    ENDIF
-                  ENDDO
-                ELSE
-                  DO JJ=IDATA,JDATA
-                    ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
-                    ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)*MPC_MBAR_PER_PA_R8
-                    IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)  &
-                         .AND. ZLEV .EQ. ZSLEV) THEN
-                      IOTHER = JJ
-                    ENDIF
-                  ENDDO
-                ENDIF
-                IF (IOTHER .NE. -1) THEN
+                    end if
+                  end do
+                end if
+                if (IOTHER /= -1) then
                   ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,JDATA)
                   ZOVAL = obs_bodyElem_r(obsSpaceData,OBS_VAR,IOTHER)
                   ZOFCST = ZOVAL-obs_bodyElem_r(obsSpaceData,OBS_OMP,IOTHER)
@@ -169,22 +174,22 @@ module varqc_mod
                   !
                   !___tighten rejection criterion for satob winds
                   !
-                  IF (IDBURP .EQ. 88 .OR. IDBURP .EQ. 188) THEN
-                    IF (ZDIFF .LT. 0.0d0 .AND. ABS(ZLAT) .GT. 20.d0 .AND.  &
-                         ILEV .LT. 550) THEN
+                  if (IDBURP == 88 .or. IDBURP == 188) then
+                    if (ZDIFF < 0.0d0 .and. ABS(ZLAT) > 20.d0 .and.  &
+                         ILEV < 550) then
                        ZAASYM = 0.7d0*MAX(ZSPDF,1.0d0)
                        ZPRIOR = ZAASYM*ZAUV
-                       IF (ZPRIOR .GT. 0.99d0) ZAASYM = 0.99d0/ZAUV
-                    ELSE
+                       if (ZPRIOR > 0.99d0) ZAASYM = 0.99d0/ZAUV
+                    else
                        !
                        !___zaasym used to specify new criterion for satwinds
                        !   than are not included in the asymmetric test
                        !
                        ZAASYM = 10.d0
-                    ENDIF
-                  ENDIF
+                    end if
+                  end if
 
-                ENDIF
+                end if
                 !
                 !__INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
                 !
@@ -192,31 +197,31 @@ module varqc_mod
                    (1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM)))*(2.d0*MPC_PI_r8)/  &
                   ((1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM))*  &
                                     (2.d0*ZDUV)*(2.d0*ZDUV)))
-                IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.  &
-                   (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.  &
-                   (IDBURP .EQ. 132) )  &
+                if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
+                   (IDBURP >= 135 .and. IDBURP <= 142) .or.  &
+                   (IDBURP == 132) )  &
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,  &
                        (1.d0 - (1.d0-ZAUVRA)*(1.d0-ZAUVRA))  &
                        *(2.d0*MPC_PI_R8)/((1.d0-ZAUVRA)*(1.d0-ZAUVRA)*  &
                                    (2.d0*ZDUV)*(2.d0*ZDUV)))
-             ELSEIF (ITYP .EQ. BUFR_NEGZ) THEN
+             else if (ityp == BUFR_NEGZ) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAGZ*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAGZ)*(2.d0*ZDGZ)))
-             ELSEIF (ITYP .EQ. BUFR_NETT) THEN
+             else if (ityp == BUFR_NETT) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATT*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
-                IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.  &
-                    (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.  &
-                    (IDBURP .EQ. 132) )  &
+                if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
+                    (IDBURP >= 135 .and. IDBURP <= 142) .or.  &
+                    (IDBURP == 132) )  &
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATTRA*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTRA)*(2.d0*ZDTT)))
-             ELSEIF (ITYP .EQ. BUFR_NETS) THEN
+             else if (ityp == BUFR_NETS) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
                 !
@@ -225,60 +230,66 @@ module varqc_mod
                 !
                 ! ASYMMETRIC TEST FOR SHIP TEMPERATURES
                 !
-                IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
+                if ((IDBURP == 13) .and. (ZVAL > ZFCST)) then
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATTSYM*  &
                       SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTSYM)*(2.d0*ZDTT)))
-                ENDIF
-             ELSEIF (ITYP .EQ. BUFR_NEPN) THEN
+                end if
+             else if (ityp == BUFR_NEPN) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAPN*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPN)*(2.d0*ZDPN)))
-             ELSEIF (ITYP .EQ. BUFR_NEPS) THEN
+             else if (ityp == BUFR_NEPS) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAPS*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPS)*(2.d0*ZDPS)))
-             ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.  &
-                      ITYP .EQ. 12163) THEN
+             else if ( ityp == 12062 .or. ityp == 12063 .or.  &
+                      ityp == 12163) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
                 ! TOVS AMSU-A + AIRS + IASI + GEORAD !!!!! 
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABT*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
-                IF (IDBURP .EQ. 181 .OR. IDBURP .EQ. 182) THEN
+                if (IDBURP == 181 .or. IDBURP == 182) then
                   !
                   ! INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
                   !
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABTB*  &
                         SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
-                ENDIF
-             ELSEIF (ITYP .EQ. BUFR_NEZD) THEN
+                end if
+             else if (ityp == BUFR_NEZD) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAZD*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
-             ELSEIF (bufr_IsAtmosConstituent(ITYP)) then
+             else if (bufr_IsAtmosConstituent(ityp)) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
                 !
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZACH* &
                        SQRT(2.d0*MPC_PI_R8))/((1.d0-ZACH)*(2.d0*ZDCH)))
-             ELSE
+             else if (ityp == bufr_sst ) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR SST
+                !
+                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zatm *  &
+                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zatm ) * ( 2.d0 * zdtm )))
+             else
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAHU*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDHU)))
-             ENDIF
-          ENDIF
-       END DO
+             end if
+          end if
+       end do
 
-    END DO
+    end do
 
   end subroutine vqc_setup
 
@@ -314,23 +325,23 @@ module varqc_mod
         index_body_start = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
         zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,index_body)
-        ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
-        LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.  &
-               col_varExist('UU')) .OR. ((ITYP .EQ. BUFR_NEVV .OR.  &
-               ITYP .EQ. BUFR_NEVS).AND.col_varExist('VV'))
-        IF (LLUV) THEN
-          IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS)THEN
+        ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+        LLUV = ((ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
+               col_varExist('UU')) .or. ((ityp == BUFR_NEVV .or.  &
+               ityp == BUFR_NEVS).and.col_varExist('VV'))
+        if (LLUV) then
+          if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS)then
             !
             ! In order to calculate the contribution to Jo from a wind, the o-a
             ! must be available for both u and v components. Hence, loop over only
             ! data for which o-a has already been calculated
             !
-            DO JJ=INDEX_BODY_START, INDEX_BODY
+            do JJ=INDEX_BODY_START, INDEX_BODY
               ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
               ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
-              IF ((ISTYP .EQ. BUFR_NEVV .OR.  &
-                   ISTYP .EQ. BUFR_NEVS) .AND.  &
-                   ZSLEV .EQ. ZLEV) THEN
+              if ((ISTYP == BUFR_NEVV .or.  &
+                   ISTYP == BUFR_NEVS) .and.  &
+                   ZSLEV == ZLEV) then
                 ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
                      obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
                 ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
@@ -344,15 +355,15 @@ module varqc_mod
 
                 call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
                 call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-              ENDIF
-            ENDDO
-          ELSE ! ITYP
-            DO JJ=INDEX_BODY_START, INDEX_BODY
+              end if
+            end do
+          else ! ityp
+            do JJ=INDEX_BODY_START, INDEX_BODY
               ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
               ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
-              IF ((ISTYP .EQ. BUFR_NEUU .OR.  &
-                   ISTYP .EQ. BUFR_NEUS) .AND.  &
-                   ZSLEV .EQ. ZLEV) THEN
+              if ((ISTYP == BUFR_NEUU .or.  &
+                   ISTYP == BUFR_NEUS) .and.  &
+                   ZSLEV == ZLEV) then
                 ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
                      obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
                 ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
@@ -361,9 +372,9 @@ module varqc_mod
                 call obs_bodySet_r(obsSpaceData,OBS_QCV,JJ, ZPPOST)
                 call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
                 call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-              ENDIF
+              end if
             enddo
-          endif !ITYP
+          endif !ityp
         else ! LLUV
           zjon = obs_bodyElem_r(obsSpaceData,OBS_JOBS,index_body)
           zqcarg = zgami + exp(-1.0D0*zjon)
@@ -438,21 +449,21 @@ module varqc_mod
     !            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
     implicit none
     type(struct_obs) :: lobsSpaceData
-    INTEGER, parameter :: numFamily = 10
-    CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH'/)
-    INTEGER, parameter :: NUMITEM=14
-    INTEGER ICOUNT(NUMITEM,numFamily)
+    integer, parameter :: numFamily = 11
+    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM'/)
+    integer, parameter :: numitem = 14
+    integer :: icount( numitem, numFamily )
 
-    INTEGER JFAM,JITEM,INDEX_HEADER
-    INTEGER INDEX_BODY,INDEX_BODY2,ISTART,ITYP,ISTYP
-    INTEGER ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
-    INTEGER IDBURP,IOTHER
-    REAL*8    ZVAR,ZFCST,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
-    REAL*8    SPD,DEG,ZLEV,ZSLEV,ZCUT
-    CHARACTER *4 CLITM(NUMITEM),CLDESC
-    CHARACTER *2 CLUNITS
-    CHARACTER *21 CODTYPNAME
-    LOGICAL LLOK,LLELREJ
+    integer :: jfam, jitem, headerIndex
+    integer :: bodyIndex, bodyIndex2, ISTART,ityp,ISTYP
+    integer :: ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
+    integer :: IDBURP,IOTHER
+    real(8) :: ZVAR,ZFCST,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
+    real(8) :: SPD,DEG,ZLEV,ZSLEV,ZCUT
+    character(len=4)  :: CLITM(NUMITEM),CLDESC
+    character(len=2)  :: CLUNITS
+    character(len=21) :: CODTYPNAME
+    logical :: LLOK,LLELREJ
     !
     !  ------NOTE----------
     ! CURRENTLY SUPPORTED FAMILIES OF DATA 'UA' 'AI' 'SF' 'HU' 'TO' 'GO' 'GP'
@@ -465,80 +476,83 @@ module varqc_mod
     DATA CLITM(13),CLITM(14) /'ZTD', 'CHM'/
 
 
-    DO JFAM=1,numFamily
-      DO JITEM=1,NUMITEM
-        ICOUNT(JITEM,JFAM) = 0
-      ENDDO
-    ENDDO
-    WRITE(*,*) 'LIST OF DATA REJECTED BY VARIATIONAL QUALITY CONTROL'
+    do jfam = 1, numFamily
+      do jitem = 1, numitem
+        icount( jitem, jfam ) = 0
+      end do
+    end do
+    write(*,*) 'LIST OF DATA REJECTED BY VARIATIONAL QUALITY CONTROL'
     !
     !_____LOOP OVER ALL REPORTS, ONE FAMILY AT A TIME
     !
-    FAMILY: DO JFAM = 1,numFamily
+    FAMILY: do jfam = 1, numFamily
 
-      WRITE(*,*) ' '
-      IF (listFamily(JFAM) .NE. 'TO') THEN
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
-      ELSE
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
-      ENDIF
+      write(*,*) ' '
+      if (listFamily(jfam) /= 'TO' ) then
+        write(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+      else
+        write(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+      end if
+
       ! loop over all header indices of the family
-      call obs_set_current_header_list(lobsSpaceData,listFamily(jfam))
+      call obs_set_current_header_list( lobsSpaceData, listFamily( jfam ) )
+
       HEADER: do
-        index_header = obs_getHeaderIndex(lobsSpaceData)
-        if (index_header < 0) exit HEADER
+        headerIndex = obs_getHeaderIndex( lobsSpaceData )
+        if (headerIndex < 0) exit HEADER
 
-        LLELREJ = .FALSE.
-        IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-        ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)*MPC_DEGREES_PER_RADIAN_R8
-        ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)*MPC_DEGREES_PER_RADIAN_R8
+        llelrej = .false.
+        idburp  = obs_headElem_i( lobsSpaceData, OBS_ITY, headerIndex )
+        zlat    = obs_headElem_r( lobsSpaceData, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+        zlon    = obs_headElem_r( lobsSpaceData, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
 
-        ! loop over all body indices for this index_header
-        call obs_set_current_body_list(lobsSpaceData, index_header)
+        ! loop over all body indices for this headerIndex
+        call obs_set_current_body_list( lobsSpaceData, headerIndex )
+
         BODY: do 
-           index_body = obs_getBodyIndex(lobsSpaceData)
-           if (index_body < 0) exit BODY
-           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-           IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.  &
-               ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.  &
-               ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.  &
-               ITYP .EQ. BUFR_NEZD) THEN
-              LLOK = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)
-           ELSE
-              LLOK = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.  &
-                      obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 0) .OR.  &
-                     (obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 2 .AND.  &
-                      obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEGZ)
-           ENDIF
-           IF (LLOK) THEN
-             zpost = obs_bodyElem_r(lobsSpaceData,OBS_QCV,INDEX_BODY)
-             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
-             IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2) THEN
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
+           bodyIndex = obs_getBodyIndex( lobsSpaceData )
+           if ( bodyIndex < 0) exit BODY
+           ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
+           if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
+               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
+               ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
+               ityp == BUFR_NEZD .or. ityp == bufr_sst ) then
+              llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
+           else
+              llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and.  &
+                      obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 0) .or.  &
+                     (obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 2 .and.  &
+                      obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) == BUFR_NEGZ)
+           end if
+           if ( llok ) then
+             zpost = obs_bodyElem_r( lobsSpaceData, OBS_QCV, bodyIndex )
+             zlev  = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
+             if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == 2) then
+               zlev = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
                CLUNITS = 'MB'
-             ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1) THEN
+             else if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == 1) then
                !
                ! VERTICAL COORDINATE IS HEIGHT
                !
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = ' M'
-               IF (listFamily(JFAM).EQ.'CH') THEN
+               if (listFamily(JFAM)=='CH') then
                   ZLEV = ZLEV*0.01
                   CLUNITS = 'HM'
-               END IF
-             ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
+               end if
+             else if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == -1) then
                !
                ! TOVS CHANNEL NUMBER
                !
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = '  '
-             ELSE 
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+             else 
+               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = '  '
-             ENDIF
-             ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-             ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-             ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
+             end if
+             ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex)
+             ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
+             ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,bodyIndex)
              !
              !_____________TREAT WINDS AS SPECIAL CASE
              !              BUFR_NEUU       = 011003 (U COMPONENT)           (m/s)
@@ -546,136 +560,136 @@ module varqc_mod
              !              BUFR_NEUS       = 011215 (U COMPONENT AT 10 M)   (m/s)
              !              BUFR_NEVS       = 011216 (V COMPONENT AT 10 M)   (m/s)
              !
-             IF (((ITYP.EQ.BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.  &
-                  col_varExist('UU')).OR.  &
-                 ((ITYP.EQ.BUFR_NEVV .OR. ITYP .EQ. BUFR_NEVS) .AND.  &
-                  col_varExist('VV'))) THEN
+             if (((ityp==BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
+                  col_varExist('UU')).or.  &
+                 ((ityp==BUFR_NEVV .or. ityp == BUFR_NEVS) .and.  &
+                  col_varExist('VV'))) then
                IOTHER = -1
-               IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
-                 ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-                 DO INDEX_BODY2=ISTART,INDEX_BODY
-                   ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2)
-                   IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY2) .EQ. 2) THEN
-                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2)*MPC_MBAR_PER_PA_R8
-                   ENDIF
-                   IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY2) .EQ. 1) THEN
-                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2)
-                   ENDIF
-                   IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS) .AND. &
-                        ZLEV .EQ. ZSLEV) THEN
-                     IOTHER = INDEX_BODY2
-                   ENDIF
-                 ENDDO
-               ELSE
-                 ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-                 DO INDEX_BODY2=ISTART,INDEX_BODY
-                   ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2)
-                   IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY2) .EQ. 2) THEN
-                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2)*MPC_MBAR_PER_PA_R8
-                   ENDIF
-                   IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY2) .EQ. 1) THEN
-                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2)
-                   ENDIF
-                   IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS) .AND.  &
-                        ZLEV .EQ. ZSLEV) THEN
-                     IOTHER = INDEX_BODY2
-                   ENDIF
-                 ENDDO
-               ENDIF
-               IF (IOTHER .NE. -1) THEN
-                 IF (ITYP .EQ. BUFR_NEVV .OR. ITYP .EQ. BUFR_NEUS) THEN
+               if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
+                 ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
+                 do bodyIndex2=ISTART,bodyIndex
+                   ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex2)
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 2) then
+                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)*MPC_MBAR_PER_PA_R8
+                   end if
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 1) then
+                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
+                   end if
+                   if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS) .and. &
+                        ZLEV == ZSLEV) then
+                     IOTHER = bodyIndex2
+                   end if
+                 end do
+               else
+                 ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
+                 do bodyIndex2=ISTART,bodyIndex
+                   ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex2)
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 2) then
+                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)*MPC_MBAR_PER_PA_R8
+                   end if
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 1) then
+                     ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
+                   end if
+                   if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS) .and.  &
+                        ZLEV == ZSLEV) then
+                     IOTHER = bodyIndex2
+                   end if
+                 end do
+               end if
+               if (IOTHER /= -1) then
+                 if (ityp == BUFR_NEVV .or. ityp == BUFR_NEUS) then
                    ZUU = ZVAR
                    ZVV = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
-                 ELSE
+                 else
                    ZVV = ZVAR
                    ZUU = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
-                 ENDIF
+                 end if
                  SPD = SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDO = NINT(SPD)
-                 IF (ZUU.EQ.0.D0 .AND. ZVV.EQ.0.D0)THEN
+                 if (ZUU==0.D0 .and. ZVV==0.D0)then
                    IDIRO = 999
-                 ELSE
+                 else
                    DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                   IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
-                   IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
+                   if (DEG > 360.D0)DEG = DEG - 360.D0
+                   if (DEG < 0.D0)  DEG = DEG + 360.D0
                    IDIRO = NINT(DEG)
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
+                 end if
+                 if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
                    ZUU = ZFCST
                    ZVV = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER) - &
                          obs_bodyElem_r(lobsSpaceData,OBS_OMP,IOTHER)
-                 ELSE
+                 else
                    ZVV = ZFCST
                    ZUU = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER) - &
                          obs_bodyElem_r(lobsSpaceData,OBS_OMP,IOTHER)
-                 ENDIF
+                 end if
                  SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDF = NINT(SPD)
-                 IF (ZUU .EQ. 0.D0 .AND. ZVV .EQ. 0.D0) THEN
+                 if (ZUU == 0.D0 .and. ZVV == 0.D0) then
                    IDIRF = 999
-                 ELSE
+                 else
                    DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                   IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
-                   IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
+                   if (DEG > 360.D0)DEG = DEG - 360.D0
+                   if (DEG < 0.D0)  DEG = DEG + 360.D0
                    IDIRF = NINT(DEG)
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
+                 end if
+                 if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
                    ZUU = ZANA
                    ZVV = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER) -  &
                          obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)
-                 ELSE
+                 else
                    ZVV = ZANA
                    ZUU = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER) -  &
                          obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)
-                 ENDIF
+                 end if
                  SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDA = NINT(SPD)
-                 IF (ZUU.EQ.0.D0 .AND. ZVV.EQ.0.D0) THEN
+                 if (ZUU==0.D0 .and. ZVV==0.D0) then
                    IDIRA = 999
-                 ELSE
+                 else
                    DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                   IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
-                   IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
+                   if (DEG > 360.D0)DEG = DEG - 360.D0
+                   if (DEG < 0.D0)  DEG = DEG + 360.D0
                    IDIRA = NINT(DEG)
-                 ENDIF
+                 end if
                  ILEV = NINT(ZLEV)
-                 IF (ZPOST .GT. ZCUT) THEN
+                 if (ZPOST > ZCUT) then
                    LLELREJ = .TRUE.
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
+                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
+                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
                      IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),9))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),17))
+                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
+                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
                      IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),17))
-                   IF (ITYP .EQ. BUFR_NEUU .OR.  &
-                       ITYP .EQ. BUFR_NEVV) THEN
+                   if (ityp == BUFR_NEUU .or.  &
+                       ityp == BUFR_NEVV) then
                      ICOUNT(1,JFAM) = ICOUNT(1,JFAM) + 1
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
+                   end if
+                   if (ityp == BUFR_NEUS .or. ityp == BUFR_NEVS) then
                      ICOUNT(10,JFAM) = ICOUNT(10,JFAM) + 1
-                   ENDIF
+                   end if
                    codtypname=codtyp_get_name(IDBURP)
-                   WRITE(*,620) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),  &
+                   write(*,620) obs_elem_c(lobsSpaceData,'STID',headerIndex),  &
                      IDBURP,codtypname,ZLAT,ZLON,  &
                      ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,  &
                      ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,  &
-                     INDEX_HEADER)
+                     headerIndex)
  620               FORMAT(A9,1X,i3,1x,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                      'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,  &
                      '/',I3,2X,F7.4,1X,I8)
 
-                 ENDIF
-               ENDIF
-             ELSE
+                 end if
+               end if
+             else
                ILEV = NINT(ZLEV)
-               IF (ZPOST .GT. ZCUT) THEN
+               if (ZPOST > ZCUT) then
                  LLELREJ = .TRUE.
-                 IF (listFamily(JFAM).EQ.'CH') THEN
+                 if (listFamily(JFAM)=='CH') then
                     ICOUNT(14,JFAM)=ICOUNT(14,JFAM)+1
                     CLDESC=CLITM(14)
-                    if (obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) then
+                    if (obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex).ge.0) then
 
                        ! CONVERT TO PERCENTAGE DIFFERENCE FROM THE FORECAST
 
@@ -689,9 +703,9 @@ module varqc_mod
                           ZANA=(ZANA-ZFCST)/ZFCST*100.
                        end if
                        ZFCST=0.0
-                       CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER))
+                       CLDESC=vnl_varnameFromVarnum(ityp,obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex))
                          
-                    else if (ITYP .EQ. BUFR_NETT) THEN
+                    else if (ityp == BUFR_NETT) then
 
                        ! CONVERT FROM KELVIN TO CELCIUS
 
@@ -700,7 +714,7 @@ module varqc_mod
                        ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                        ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
                     end if
-                 ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
+                 else if (ityp == BUFR_NEGZ) then
                    CLDESC = CLITM(3)
                    ICOUNT(3,JFAM) = ICOUNT(3,JFAM) + 1
                    !
@@ -709,7 +723,7 @@ module varqc_mod
                    ZVAR = ZVAR/RG
                    ZFCST = ZFCST/RG
                    ZANA  = ZANA/RG
-                 ElSE IF (ITYP .EQ. BUFR_NETT) THEN
+                 else if (ityp == BUFR_NETT) then
                    CLDESC = CLITM(4)
                    ICOUNT(4,JFAM) = ICOUNT(4,JFAM) + 1
                    !
@@ -718,10 +732,10 @@ module varqc_mod
                    ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                    ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                    ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                 ELSE IF (ITYP .EQ. BUFR_NEES) THEN
+                 else if (ityp == BUFR_NEES) then
                    CLDESC = CLITM(5)
                    ICOUNT(5,JFAM) = ICOUNT(5,JFAM) + 1
-                 ELSE IF (ITYP .EQ. BUFR_NEPS) THEN
+                 else if (ityp == BUFR_NEPS) then
                    CLDESC = CLITM(6)
                    ICOUNT(6,JFAM) = ICOUNT(6,JFAM) + 1
                    !
@@ -730,7 +744,7 @@ module varqc_mod
                    ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                    ZANA = ZANA*MPC_MBAR_PER_PA_R8
                    ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                 ELSE IF (ITYP .EQ. BUFR_NEPN) THEN
+                 else if (ityp == BUFR_NEPN) then
                    CLDESC = CLITM(7)
                    ICOUNT(7,JFAM) = ICOUNT(7,JFAM) + 1
                    !
@@ -739,7 +753,7 @@ module varqc_mod
                    ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                    ZANA = ZANA*MPC_MBAR_PER_PA_R8
                    ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                 ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+                 else if (ityp == BUFR_NETS) then
                    CLDESC = CLITM(8)
                    ICOUNT(8,JFAM) = ICOUNT(8,JFAM) + 1
                    !
@@ -748,14 +762,14 @@ module varqc_mod
                    ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                    ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                    ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                 ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+                 else if (ityp == BUFR_NESS) then
                    CLDESC = CLITM(9)
                    ICOUNT(9,JFAM) = ICOUNT(9,JFAM) + 1
-                 ELSE IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.  &
-                      ITYP.EQ.BUFR_NBT3      ) THEN
+                 else if ( ityp==BUFR_NBT1 .or. ityp==BUFR_NBT2 .or.  &
+                      ityp==BUFR_NBT3      ) then
                    CLDESC = CLITM(12)
                    ICOUNT(12,JFAM) = ICOUNT(12,JFAM) + 1
-                 ELSE IF (ITYP .EQ. BUFR_NEZD) THEN
+                 else if (ityp == BUFR_NEZD) then
                    CLDESC = CLITM(13)
                    ICOUNT(13,JFAM) = ICOUNT(13,JFAM) + 1
                    !
@@ -764,44 +778,44 @@ module varqc_mod
                    ZVAR = ZVAR * 1000.D0
                    ZFCST = ZFCST * 1000.D0
                    ZANA  = ZANA * 1000.D0
-                 ENDIF
+                 end if
 
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),17))
+                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
+                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
+                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
+                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
                  codtypname=codtyp_get_name(IDBURP)
-                 WRITE(*,630) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,  &
+                 write(*,630) obs_elem_c(lobsSpaceData,'STID',headerIndex),IDBURP,  &
                    codtypname,ZLAT,ZLON,ILEV,CLUNITS,CLDESC, &
-                   ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
+                   ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)
  630               FORMAT(A9,1X,I3,1X,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                     A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)
-               ENDIF
-             ENDIF
-           ENDIF
-        ENDDO BODY
+               end if
+             end if
+           end if
+        end do BODY
         !
         ! NOW SET THE GLOBAL FLAGS IN THE BURP RECORD HEADER
         !
-        IF (LLELREJ) THEN
-          call obs_headSet_i(lobsSpaceData,OBS_ST1,INDEX_HEADER, IBSET( obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER), 06))
-        ENDIF
-      ENDDO HEADER
-    ENDDO FAMILY
+        if (LLELREJ) then
+          call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex, IBSET( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex), 06))
+        end if
+      end do HEADER
+    end do FAMILY
 
 
-    WRITE(*,640)
+    write(*,640)
  640  FORMAT(//)
-    WRITE(*,*) ' REJECTED DATA ACCORDING TO FAMILY OF REPORT.'
-    WRITE(*,670)(listFamily(JFAM),JFAM=1,numFamily)
+    write(*,*) ' REJECTED DATA ACCORDING TO FAMILY OF REPORT.'
+    write(*,670)(listFamily(JFAM),JFAM=1,numFamily)
  670  FORMAT(5X,11(7X,A2))
-    DO JITEM=1,NUMITEM
-      IF ( .NOT. (JITEM .EQ. 2 .OR. JITEM .EQ. 11)) THEN
-        WRITE(*,680)CLITM(JITEM),(ICOUNT(JITEM,JFAM),JFAM=1,numFamily)
+    do JITEM=1,NUMITEM
+      if ( .NOT. (JITEM == 2 .or. JITEM == 11)) then
+        write(*,680)CLITM(JITEM),(ICOUNT(JITEM,JFAM),JFAM=1,numFamily)
  680      FORMAT(1X,A4,11(4X,I5))
-      ENDIF
-    ENDDO
-    WRITE(*,640)
+      end if
+    end do
+    write(*,640)
 
   end subroutine vqc_listrej
 

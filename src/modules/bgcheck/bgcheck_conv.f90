@@ -30,7 +30,7 @@
 !!           - New option NEW_BGCK_SW for AMVs
 !!
 !--------------------------------------------------------------------------
-SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
+subroutine BGCHECK_CONV( columng, columnhr, obsSpaceData )
 
   use mpivar_mod
   use obsSpaceData_mod
@@ -43,34 +43,33 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   type(struct_columnData) :: columng       !
   type(struct_columnData) :: columnhr      ! 
 
-  INTEGER J,JDATA
-  REAL*8 ZJO
+  integer :: j, jdata
+  real(8) :: zjo
 
-  INTEGER        :: NULNAM,IER,FNOM,FCLOS
-  CHARACTER *256 :: NAMFILE
-  LOGICAL        :: NEW_BGCK_SW
+  integer            :: nulNam, ier, fnom, fclos
+  character(len=256) :: namFile
+  logical            :: NEW_BGCK_SW
 
-  character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
+  character(len=2), dimension(11) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM' /)
       
-!
   call tmg_start(3,'BGCHECK_CONV')
 
-  WRITE(*,FMT=9000)
+  write(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
 
   NEW_BGCK_SW = .false.
 
   NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
-  NAMFILE=trim("flnml")
-  nulnam=0
-  IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+  namFile=trim("flnml")
+  nulNam=0
+  ier = FNOM( NULNAM, NAMFILE, 'R/O', 0 )
 
-  READ(NULNAM,NML=NAMBGCKCONV,IOSTAT=IER)
-  if(IER.ne.0) then
+  read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
+  if ( ier /= 0 ) then
     write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
-  endif
+  end if
 
-  iER=FCLOS(NULNAM)
+  ier = fclos(nulNam)
 
   write(*,*) 'new_bgck_sw = ',new_bgck_sw
 
@@ -86,17 +85,17 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
 !     ----------------------------------------------
 
-  do j=1,size(bgfam)
+  do j = 1, size( bgfam )
     ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-    if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData,new_bgck_sw)
+    if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL BGCDATA( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
   end do
 
-  if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
+  if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO( columnhr , obsSpaceData )
 
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)
 
-  call osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt=.false.)
+  call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
 
 !
 !     Write out contents of obsSpaceData into observation files
@@ -104,10 +103,10 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   CALL obsf_writeFiles(obsSpaceData)
 
   if (mpi_myid == 0 ) then
-     DO j =1, min(1,obs_numHeader(obsSpaceData))
-        call obs_prnthdr(obsSpaceData,j)
-        call obs_prntbdy(obsSpaceData,j)
-     END DO
+    do j =1, min(1,obs_numHeader(obsSpaceData))
+      call obs_prnthdr(obsSpaceData,j)
+      call obs_prntbdy(obsSpaceData,j)
+    end do
   end if
 
   ! deallocate obsSpaceData
@@ -115,4 +114,4 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
   call tmg_stop(3)
 
-END SUBROUTINE BGCHECK_CONV
+end subroutine BGCHECK_CONV

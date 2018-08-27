@@ -262,91 +262,89 @@ contains
     integer ilansea
     logical llok,llrej,llbogus
 
-    if(mpi_myid.eq.0) write(*,*) 'starting subroutine filt_suprep'
+    if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
-    iknt=0
+    iknt = 0
 
-    BODY: do bodyIndex=1,obs_numbody(obsSpaceData)
-       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-       ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-       idburp=obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-       !
-       ! Unwanted data types via types specified in NLIST
-       !
-       llok = .false.
-       do loopIndex =1,filt_nelems
-          llok=( ivnm.eq.filt_nlist(loopIndex) ) .or. llok
-       end do
-       if (.not.llok) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-          cycle BODY
-       end if
-       !
-       ! Allow gz for bogus data only in analysis case 
-       !
-       llbogus=( idburp.eq.150 .or. idburp.eq.151 .or. idburp.eq.152 .or. idburp.eq.153 )
-       if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm.eq.BUFR_NEGZ .and. .not.llbogus ) then
-          llok=.false.
-       end if
-       !
-       ! Ground-based GPS (GP) data (codtyp 189)
-       ! LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
-       ! If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
-       ! Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
-       !
-       if ( idburp .eq. 189 ) then
-          if (.not.lassmet .and. (ivnm .eq. BUFR_NEPS .or.  &
-               ivnm .eq. BUFR_NETS .or.  &
-               ivnm .eq. BUFR_NESS)) then
-             llok = .false.
-          end if
-       end if
-       !
-       ! Exclude T-Td above level RLIMLVHU (mbs)
-       !
-       ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
-       ipres= nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-       if ( (ivco .eq. 2) .and. (ivnm .eq. BUFR_NEES) .and.  &
-            (ipres .lt. nint(filt_rlimlvhu*100.0d0)) ) then
-          llok=.false.
-       end if
-       !
-       ! Bad data with quality control flags via bit list specified in NLISTFLG
-       !
-       iflg = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
-       llrej = .false.
-       do loopIndex=1,filt_nflags
-          ibad= 13-filt_nlistflg(loopIndex)
-          llrej=( btest(iflg,ibad) ) .or. llrej
-       end do
-       !
-       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
-       !
-       if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
-         if ( tvs_isIdBurpTovs(idburp) ) then
-            ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
-            if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
-               llok = .false.
-            end if
-         end if
-       end if
+    BODY: do bodyIndex = 1, obs_numbody( obsSpaceData )
+      headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex   )
+      ivnm        = obs_bodyElem_i( obsSpaceData, OBS_VNM , bodyIndex   )
+      idburp      = obs_headElem_i( obsSpaceData, OBS_ITY , headerIndex )
+      !
+      ! Unwanted data types via types specified in NLIST
+      !
+      llok = .false.
+      do loopIndex = 1, filt_nelems
+        llok = ( ivnm == filt_nlist( loopIndex ) ) .or. llok
+      end do
+      if (.not.llok) then
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+      end if
+      !
+      ! Allow gz for bogus data only in analysis case 
+      !
+      llbogus = ( idburp == 150 .or. idburp == 151 .or. idburp == 152 .or. idburp == 153 )
+      if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm == BUFR_NEGZ .and. .not.llbogus ) then
+        llok=.false.
+      end if
+      !
+      ! Ground-based GPS (GP) data (codtyp 189)
+      ! LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
+      ! If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
+      ! Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
+      !
+      if ( idburp == 189 ) then
+        if (.not.lassmet .and. ( ivnm == BUFR_NEPS .or.  &
+                                 ivnm == BUFR_NETS .or.  &
+                                 ivnm == BUFR_NESS )) then
+          llok = .false.
+        end if
+      end if
+      !
+      ! Exclude T-Td above level RLIMLVHU (mbs)
+      !
+      ivco  = obs_bodyElem_i( obsSpaceData, OBS_VCO, bodyIndex )
+      ipres = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex))
+      if ( ( ivco == 2) .and. ( ivnm == BUFR_NEES ) .and.  &
+           ( ipres < nint( filt_rlimlvhu *100.0d0 )) ) then
+        llok=.false.
+      end if
+      !
+      ! Bad data with quality control flags via bit list specified in NLISTFLG
+      !
+      iflg = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
+      llrej = .false.
+      do loopIndex = 1, filt_nflags
+        ibad = 13 - filt_nlistflg( loopIndex )
+        llrej=( btest(iflg,ibad) ) .or. llrej
+      end do
+      !
+      ! Filter TOVS data: check for invalid land/sea/sea-ice flag
+      !
+      if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
+        if ( tvs_isIdBurpTovs(idburp) ) then
+          ilansea  = obs_headElem_i( obsSpaceData, OBS_OFL, headerIndex )
+          if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
+        end if
+      end if
 
-       if (llok .and. .not.llrej) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
-          iknt= iknt + 1
-       else
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-       end if
+      if ( llok .and. .not.llrej ) then
+        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, 1 )
+        iknt = iknt + 1
+      else
+        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, 0 )
+      end if
 
     end do body
 
-    call rpn_comm_allreduce(iknt,iknt_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt_mpiglobal
+    call rpn_comm_allreduce( iknt, iknt_mpiglobal, 1, "MPI_INTEGER", "MPI_SUM", "GRID", ierr )
+    if(mpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
 
-    if(mpi_myid.eq.0) write(*,*) 'end of filt_suprep'
+    if(mpi_myid == 0) write(*,*) 'end of filt_suprep'
 
     ! abort if there is no data to be assimilated
-    if (iknt_mpiglobal.eq.0 ) then
+    if (iknt_mpiglobal == 0 ) then
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
     end if
 

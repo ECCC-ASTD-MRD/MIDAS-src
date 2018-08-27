@@ -363,6 +363,8 @@ contains
     clvalu(70) = 'obsch'
     ! file name for CMA format used by EnKF
     clvalu(71) = 'cmaheader'
+    ! Sea Surface Temperature data file name
+    clvalu(72) = 'brpsst'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -437,6 +439,7 @@ contains
     cfami(70)  = 'CH'
     ! dummy family type for CMA, since it contains all families
     cfami(71)  = 'XX'
+    cfami(72)  = 'TM'
 
     obsDirectory = 'obs'
 

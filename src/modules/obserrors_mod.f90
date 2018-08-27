@@ -55,7 +55,7 @@ module obsErrors_mod
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,4)
   real(8) :: xstd_pr(2)
-  real(8) :: xstd_sc(1)
+  real(8) :: xstd_sc(1), xstd_sst(1)
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
 
   integer :: n_sat_type, n_categorie
@@ -137,12 +137,16 @@ contains
     !
     ! Read in the observation stddev errors for conventional data
     !
-    if (obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
-         obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'SC').or. &
-         obs_famExist(lobsSpaceData,'PR') ) then
+    if ( obs_famExist( lobsSpaceData, 'UA' ) .or. obs_famExist( lobsSpaceData, 'AI' ) .or. obs_famExist( lobsSpaceData, 'SW' ) .or. &
+         obs_famExist( lobsSpaceData, 'SF' ) .or. obs_famExist( lobsSpaceData, 'GP' ) .or. obs_famExist( lobsSpaceData, 'SC' ) .or. &
+         obs_famExist( lobsSpaceData, 'PR' ) .or. obs_famExist( lobsSpaceData, 'TM' ) ) then
+
       call read_obs_erreurs_conv
+
     else
+
       write(*,*) "oer_setObsErrors: No conventional weather observations found."
+
     end if
 
     !
@@ -162,7 +166,7 @@ contains
     !
     ! Deallocate temporary storage
     !
-    if (obs_famExist(lobsspaceData,'CH')) call chm_dealloc_obs_err_stddev
+    if ( obs_famExist( lobsspaceData, 'CH' )) call chm_dealloc_obs_err_stddev
 
   end subroutine oer_setObsErrors
 
@@ -222,7 +226,7 @@ contains
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
-    WRITE(*,'(//,10x,"-read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
+    write(*,'(//,10x,"-read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
 
     !
     !    1. Initialize
@@ -234,8 +238,8 @@ contains
         TOVERRIN(JI,1,JL) = 0.0D0
         TOVERRIN(JI,2,JL) = 0.0D0
         IUTILST   (JI,JL) = 0
-      END DO
-    END DO
+      end do
+    end do
 
     DO JL = 1, tvs_maxNumberOfSensors
       IPLATFORM(JL) = 0
@@ -244,8 +248,8 @@ contains
       DO JI = 1, tvs_maxChannelNumber
         ICHN(JI,JL) = 0
         ICHNIN(JI,JL) = 0
-      END DO
-    END DO
+      end do
+    end do
 
     if (tvs_nobtov == 0) return
 
@@ -255,10 +259,10 @@ contains
     !
     ilutov = 0
     IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
-    IF(IER < 0)THEN
-      WRITE ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-      CALL utl_abort ('read_obs_erreurs_tovs')
-    END IF
+    if(IER < 0)THEN
+      write ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
+      call utl_abort ('read_obs_erreurs_tovs')
+    end if
 
     !
     !     3. Read number of satellites
@@ -273,13 +277,13 @@ contains
     !        the observation errors and the utilization flags
     !        ----------------------------------------------------------
     !
-    WRITE(*,'(5X,"read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
+    write(*,'(5X,"read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
 
     DO JL = 1, INUMSAT
 
       READ (ILUTOV,*)
       READ (ILUTOV,'(A)') CLDUM
-      WRITE(*,'(A)') CLDUM
+      write(*,'(A)') CLDUM
       CINSTR=CLDUM
       call split(CINSTR," ",CPLATF)
       Write(*,*) "CINSTR: ",CINSTR
@@ -289,53 +293,53 @@ contains
 
       DO JI = 1, 3
         READ (ILUTOV,*)
-      END DO
+      end do
 
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
 
-      IF ( IPLATFORM(JL) == -1 ) THEN
-        WRITE ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
-        CALL utl_abort ('read_obs_erreurs_tovs')
-      END IF
+      if ( IPLATFORM(JL) == -1 ) THEN
+        write ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
+        call utl_abort ('read_obs_erreurs_tovs')
+      end if
 
       IINSTRUMENT(JL) = tvs_getInstrumentId(CINSTR)
       
-      IF ( IINSTRUMENT(JL) == -1 ) THEN
-        WRITE ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
-        CALL utl_abort ('read_obs_erreurs_tovs')
-      END IF
+      if ( IINSTRUMENT(JL) == -1 ) THEN
+        write ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
+        call utl_abort ('read_obs_erreurs_tovs')
+      end if
 
       DO JI = 1, NUMCHNIN(JL)
         READ (ILUTOV,*) ICHNIN(JI,JL), TOVERRIN(ICHNIN(JI,JL),1,JL), TOVERRIN(ICHNIN(JI,JL),2,JL), IUTILST(ICHNIN(JI,JL),JL), ZDUM
-      END DO
+      end do
       READ (ILUTOV,*)
 
-    END DO
+    end do
 
     !
     !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
     !   otherwise use ERRBGCK (JJ=1)
     !
-    IF ( trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO' ) THEN
+    if ( trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO' ) THEN
       JJ = 2
     ELSE
       JJ = 1
-    END IF
+    end if
 
     !
     !   Fill the observation error array TOVERRST
     !
-    WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
+    write(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
     DO JM= 1, INUMSAT
       DO JL = 1, tvs_nsensors
-        IF ( tvs_platforms (JL) == IPLATFORM(JM) .AND. tvs_satellites(JL) == ISATID(JM) ) THEN
-          IF ( tvs_instruments (JL) == IINSTRUMENT(JM) ) THEN
+        if ( tvs_platforms (JL) == IPLATFORM(JM) .AND. tvs_satellites(JL) == ISATID(JM) ) THEN
+          if ( tvs_instruments (JL) == IINSTRUMENT(JM) ) THEN
             NUMCHN(JL)=NUMCHNIN(JM)
             DO JI = 1, tvs_maxChannelNumber
               TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
-            END DO
-            IF ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
+            end do
+            if ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
               call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
             end if
             if ( trim(obserrorMode) == 'bgckIR' ) THEN
@@ -343,10 +347,10 @@ contains
                 tovutil(JI,JL) =  IUTILST(JI,JM)
               end do
             end if
-          END IF
-        END IF
-      END DO
-    END DO
+          end if
+        end if
+      end do
+    end do
 
     !
     !  Check that oberservation error statistics have been defined for
@@ -355,15 +359,15 @@ contains
     DO JL = 1, tvs_nsensors
       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, tvs_platforms  (JL) )
       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, tvs_satellites (JL) )
-      IF ( IPLF == 0 .OR. ISAT == 0 ) THEN
-        WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-        CALL utl_abort ('read_obs_erreurs_tovs')
-      END IF
-      IF ( NUMCHN(JL) == 0 ) THEN 
-        WRITE ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-        CALL utl_abort ('read_obs_erreurs_tovs')
-      END IF
-    END DO
+      if ( IPLF == 0 .OR. ISAT == 0 ) THEN
+        write ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
+        call utl_abort ('read_obs_erreurs_tovs')
+      end if
+      if ( NUMCHN(JL) == 0 ) THEN 
+        write ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
+        call utl_abort ('read_obs_erreurs_tovs')
+      end if
+    end do
 
     !
     
@@ -374,27 +378,27 @@ contains
     !    5. Print out observation errors for each sensor
     !       --------------------------------------------
     !
-    IF(MPI_MYID == 0) THEN
-      WRITE(*,'(//1X,"Radiance observation errors read from file")')
-      WRITE(*,'(  1X,"------------------------------------------")')
+    if(MPI_MYID == 0) THEN
+      write(*,'(//1X,"Radiance observation errors read from file")')
+      write(*,'(  1X,"------------------------------------------")')
       DO JL = 1, tvs_nsensors
-        WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
+        write(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
              JL, tvs_satelliteName(JL), tvs_instrumentName(JL)
-        WRITE(*,'(1X,"Channel",5X,"  error   ")')
+        write(*,'(1X,"Channel",5X,"  error   ")')
         DO JI = 1, NUMCHN(JL)
-          WRITE (*,'(1X,I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
-        END DO
-      END DO
-    END IF
+          write (*,'(1X,I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
+        end do
+      end do
+    end if
 
     !
     !    6. Close the file
     !       --------------
     !
     IER = FCLOS(ILUTOV)
-    IF(IER /= 0)THEN
-      CALL utl_abort ('read_obs_erreurs_tovs')
-    END IF
+    if(IER /= 0)THEN
+      call utl_abort ('read_obs_erreurs_tovs')
+    end if
 
   contains
 
@@ -491,7 +495,6 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine read_obs_erreurs_conv
-    !
     ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
     !
     ! Author  : S. Laroche  February 2014
@@ -500,64 +503,51 @@ contains
     !           - add height assignment errors
     !          
     ! Purpose: read observation errors (modification of former readcovo subroutine).
-    !
 
     implicit none
 
-    integer :: FNOM, FCLOS
-    integer :: IERR, jlev, jelm, jcat, icodtyp, nulstat
-    logical :: LnewExists
-
+    external fnom, fclos
+    integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat, nulnam
+    logical             :: LnewExists
     character (len=128) :: ligne
+    character(len=256)  :: fileName
 
-    EXTERNAL FNOM,FCLOS
-
-    INTEGER*4      :: NULNAM,IER
-    CHARACTER *256 :: NAMFILE
-
-    !------------------------------------------------------------------------
- 
     NEW_OER_SW = .false.
 
     NAMELIST /NAMOER/NEW_OER_SW
-    NAMFILE=trim("flnml")
-    nulnam=0
-    IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+    fileName = trim("flnml")
+    nulnam = 0
+    ierr = fnom( nulnam, fileName, 'R/O', 0)
 
-    READ(NULNAM,NML=NAMOER,IOSTAT=IER)
-    if(IER /= 0) then
+    read( nulnam, nml = NAMOER, iostat = ierr )
+    if(ierr /= 0) then
       write(*,*) 'No valid namelist NAMOER found'
     end if
 
-    iER=FCLOS(NULNAM)
+    ierr = fclos( nulnam )
 
     write(*,*) 'new_oer_sw = ',new_oer_sw
 
-    !
-    !     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
-    !     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !
-    INQUIRE(FILE='obserr',EXIST=LnewExists)
-    IF (LnewExists )then
-      WRITE(*,*) '--------------------------------------------------------'
-      WRITE(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
-      WRITE(*,*) '--------------------------------------------------------'
+    ! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
+    inquire( file = 'obserr', exist = LnewExists )
+    if ( LnewExists ) then
+      write(*,*) '--------------------------------------------------------'
+      write(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
+      write(*,*) '--------------------------------------------------------'
     else
-      CALL utl_abort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
-    END IF
-    !
-    !     Read observation errors from file obserr for conventional data
-    !     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !
-    NULSTAT=0
-    IERR=FNOM(NULSTAT,'obserr','SEQ',0)
-    IF ( IERR == 0 ) THEN
+      call utl_abort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
+    end if
+    
+    ! Read observation errors from file obserr for conventional data
+    nulstat=0
+    ierr=fnom( nulstat, 'obserr', 'SEQ', 0 )
+    if ( ierr == 0 ) then
       write(*,*) 'read_obs_errors_conv: File =  ./obserr'
       write(*,*) ' opened as unit file ',nulstat
       open(unit=nulstat, file='obserr', status='OLD')
-    ELSE
-      CALL utl_abort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
-    END IF
+    else
+      call utl_abort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
+    end if
 
     write(*, '(A)') ' '
 
@@ -598,6 +588,13 @@ contains
       read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,4)
       write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,4)
     end do
+
+    do jlev = 1,3
+      read(nulstat, '(A)') ligne
+      write(*, '(A)') ligne
+    end do
+    read(nulstat, * ) xstd_sst(1)
+    write(*, '(f8.3)' )  xstd_sst(1)
 
     !
     !     Read height assignment errors
@@ -654,8 +651,8 @@ contains
 
     write(*, '(A)') ' '
 
-    CLOSE(UNIT=NULSTAT)
-    IERR=FCLOS(NULSTAT)    
+    close( unit = nulstat )
+    ierr = fclos( nulstat )    
 
   end subroutine read_obs_erreurs_conv
 
@@ -681,186 +678,176 @@ contains
 
     implicit none
 
+    ! arguments
     type(struct_obs) :: lobsSpaceData
+    !  locals
+    integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
+    integer :: isat, ichn, iplatf, instr, iplatform, instrum
+    integer :: ilev, nlev, idate, itime
+    integer :: ielem, icodtyp, header_prev
+    real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev
+    logical :: ifirst
+    character(len=2)  :: cfam
+    character(len=12) :: cstnid
 
-    integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
-    integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
-    integer :: ILEV,ISTNID,JINT,NLEV,IDATE,ITIME
-    integer :: ielem,icodtyp,header_prev
-    real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt, obs_err_stddev
-    logical :: IFIRST
-
-    CHARACTER(len=2) :: CFAM
-    CHARACTER(len=12) :: CSTNID
-
-    !
-    !     ========================================================================== 
-    !
-    WRITE(*,'(10X,"Fill_obs_errors")')
-    WRITE(*,'(10X,"-----------------",/)')
-    WRITE(*,'(10X,"***********************************")')
-    WRITE(*,'(10X,"Fill_obs_errors:",/)')
-    WRITE(*,'(10X,"***********************************")')
+    write(*,'(10X,"Fill_obs_errors")')
+    write(*,'(10X,"-----------------",/)')
+    write(*,'(10X,"***********************************")')
+    write(*,'(10X,"Fill_obs_errors:",/)')
+    write(*,'(10X,"***********************************")')
 
     header_prev=-1
 
-    !
-    !     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
-    !     ---------------------------------------------------
-    !
-    DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
+    ! SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
+    HEADER: do headerIndex = 1, obs_numheader(lobsSpaceData)
 
-      IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-      IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-      CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
-      ZLAT    = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-      ZLON    = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-      IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-      IPLATF  = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
-      INSTR   = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
-      CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
-      IDATE  = obs_headElem_i(lobsSpaceData,OBS_DAT,INDEX_HEADER) 
-      ITIME  = obs_headElem_i(lobsSpaceData,OBS_ETM,INDEX_HEADER)
+      idata    = obs_headElem_i( lobsSpaceData, OBS_RLN, headerIndex )
+      idatend  = obs_headElem_i( lobsSpaceData, OBS_NLV, headerIndex ) + idata - 1
+      cfam     =  obs_getFamily( lobsSpaceData, headerIndex )
+      zlat     = obs_headElem_r( lobsSpaceData, OBS_LAT, headerIndex )
+      zlon     = obs_headElem_r( lobsSpaceData, OBS_LON, headerIndex )
+      codeType = obs_headElem_i( lobsSpaceData, OBS_ITY, headerIndex )
+      iplatf   = obs_headElem_i( lobsSpaceData, OBS_SAT, headerIndex )
+      instr    = obs_headElem_i( lobsSpaceData, OBS_INS, headerIndex )
+      cstnid   = obs_elem_c    ( lobsSpaceData, 'STID' , headerIndex )
+      idate    = obs_headElem_i( lobsSpaceData, OBS_DAT, headerIndex ) 
+      itime    = obs_headElem_i( lobsSpaceData, OBS_ETM, headerIndex )
       
-      NLEV = IDATEND-IDATA+1
+      nlev = idatend - idata + 1
        
-      DO INDEX_BODY  = IDATA, IDATEND
+      BODY: do bodyIndex  = idata, idatend
 
-        ITYP  = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-        IFLG  = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
-        IASS  = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
-        ZVAL  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+        ityp  = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
+        iass  = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
+        zval  = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex )
 
-        IF ( IASS == 1 ) THEN
+        if ( iass == 1 ) then
 
              !***********************************************************************
              !                           TOVS DATA
              !***********************************************************************
 
-          IF ( CFAM == 'TO' ) THEN
+          if ( cfam == 'TO' ) then
 
-            IF ( ITYP == BUFR_NBT1 .OR. &
-                 ITYP == BUFR_NBT2 .OR. &
-                 ITYP == BUFR_NBT3     )THEN
+            if ( ityp == BUFR_NBT1 .or. &
+                 ityp == BUFR_NBT2 .or. &
+                 ityp == BUFR_NBT3     ) then
 
-              ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-              CALL tvs_mapSat(IPLATF,IPLATFORM,ISAT)
-              CALL tvs_mapInstrum(INSTR,INSTRUM)
+              ichn = NINT( obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ))
+              call tvs_mapSat( iplatf, iplatform, isat )
+              call tvs_mapInstrum( instr, instrum )
 
-              DO JN = 1, tvs_nsensors
-                IF ( IPLATFORM ==  tvs_platforms(JN)  .AND. &
-                     ISAT      ==  tvs_satellites(JN) .AND. &
-                     INSTRUM   == tvs_instruments(JN)      ) THEN
-                  call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,TOVERRST(ICHN,JN))
+              do jn = 1, tvs_nsensors
+                if ( iplatform ==  tvs_platforms(jn)  .and. &
+                     isat      ==  tvs_satellites(jn) .and. &
+                     instrum   == tvs_instruments(jn)      ) then
+                  call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, TOVERRST( ichn, jn ))
 
-!   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
-                  if ( trim(obserrorMode) == 'bgckIR' ) then
-                    if  (tovutil(ICHN,JN) == 0) &
-                         call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8))
+                  !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
+                  if ( trim( obserrorMode ) == 'bgckIR' ) then
+                    if  ( tovutil( ichn, jn ) == 0) &
+                      call obs_bodySet_i( lobsSpaceData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( lobsSpaceData, OBS_FLG, bodyIndex ), 8))
                   end if
-                END IF
-              END DO
+                end if
+              end do
 
-            END IF
+            end if
 
                 !***********************************************************************
                 !                      RADIOSONDE DATA
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'UA' ) THEN
+          else if ( cfam == 'UA' ) then
 
-            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+            zlev = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
 
-            IF ( (ITYP == BUFR_NEUS) .OR. (ITYP == BUFR_NEVS) )THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,4))
-            ELSE IF (ITYP == BUFR_NETS) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,2))
-            ELSE IF (ITYP == BUFR_NESS) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,3))
-            ELSE IF (ITYP == BUFR_NEPS ) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
-            ELSE IF (ITYP == BUFR_NEPN ) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
-            ELSE
+            if ( ( ityp == BUFR_NEUS ) .or. ( ityp == BUFR_NEVS ) ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,4) )
+            else if ( ityp == BUFR_NETS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,2) )
+            else if ( ityp == BUFR_NESS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,3) )
+            else if ( ityp == BUFR_NEPS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,1) )
+            else if ( ityp == BUFR_NEPN ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,1) )
+            else
 
-              if ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) ) then
+              if ( ( ityp == BUFR_NEUU ) .or. ( ityp == BUFR_NEVV ) ) then
                 ielem = 4
-              else if (ITYP == BUFR_NETT) then
+              else if ( ityp == BUFR_NETT ) then
                 ielem = 2
-              else if (ITYP == BUFR_NEES) then
+              else if ( ityp == BUFR_NEES ) then
                 ielem = 3
-              else if (ITYP == BUFR_NEGZ) then
+              else if ( ityp == BUFR_NEGZ ) then
                 ielem = 5
               end if
 
-              if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(1,1) ) then
+              if ( (zlev * MPC_MBAR_PER_PA_R8 ) >= xstd_ua_ai_sw(1,1) ) then
 
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(1,ielem))
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw( 1, ielem) )
 
-              else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= xstd_ua_ai_sw(19,1) ) then
+              else if ( ( zlev * MPC_MBAR_PER_PA_R8 ) <= xstd_ua_ai_sw( 19, 1 ) ) then
 
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(19,ielem))
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw( 19, ielem ))
 
               else
 
-                do jn = 1,18
-                  if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(jn+1,1) ) exit
+                do jn = 1, 18
+                  if ( ( zlev * MPC_MBAR_PER_PA_R8 ) >= xstd_ua_ai_sw( jn + 1, 1 ) ) exit
                 end do
 
-                zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/xstd_ua_ai_sw(JN,1)) / log(xstd_ua_ai_sw(JN+1,1)/xstd_ua_ai_sw(JN,1))
+                zwb = log(( zlev * MPC_MBAR_PER_PA_R8 ) / xstd_ua_ai_sw( jn, 1 )) / log( xstd_ua_ai_sw( jn + 1, 1) / xstd_ua_ai_sw( jn, 1 ))
                 zwt = 1.0D0 - zwb
                 
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,zwt*xstd_ua_ai_sw(JN,ielem) + zwb*xstd_ua_ai_sw(JN+1,ielem))
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, zwt * xstd_ua_ai_sw( jn, ielem ) + zwb * xstd_ua_ai_sw( jn + 1, ielem ))
 
               end if
                    
-            END IF
+            end if
 
                 !***********************************************************************
                 !                          AMV, AIREP, AMDAR DATA
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'AI'.OR. CFAM == 'SW') THEN
+          else if ( cfam == 'AI' .or. cfam == 'SW') then
 
-            ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+            zlev=obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
 
-            IF ( IDBURP == 188 ) THEN ! AMV
-              if ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) ) then
-                ielem = 11
-              end if
-
-            ELSE IF (IDBURP == 128 ) THEN ! AIREP
-              if ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) ) then
+            if ( codeType == 188 ) then ! AMV
+          
+              if ( ( ityp == BUFR_NEUU ) .or. ( ityp == BUFR_NEVV ) ) ielem = 11
+       
+            else if (codeType == 128 ) then ! AIREP
+              if ( (ityp == BUFR_NEUU) .or. (ityp == BUFR_NEVV) ) then
                 ielem = 7
-              else if ( ITYP == BUFR_NETT ) then
+              else if ( ityp == BUFR_NETT ) then
                 ielem = 6
               end if
               
-            ELSE IF (IDBURP == 42 .OR. IDBURP == 157 .OR. IDBURP == 177) THEN ! AMDAR
-              if ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) ) then
+            else if ( codeType == 42 .or. codeType == 157 .or. codeType == 177 ) then ! AMDAR
+              if ( ( ityp == BUFR_NEUU) .or. ( ityp == BUFR_NEVV ) ) then
                 ielem = 10
-              else if ( ITYP == BUFR_NETT ) then
+              else if ( ityp == BUFR_NETT ) then
                 ielem = 8
-              else if ( ITYP == BUFR_NEES ) then
+              else if ( ityp == BUFR_NEES ) then
                 ielem = 9
               end if
+            end if
 
-            END IF
-
-            if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(1,1) ) then
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(1,ielem))
-            else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= xstd_ua_ai_sw(19,1) ) then
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(19,ielem))
+            if ( ( zlev * MPC_MBAR_PER_PA_R8 ) >= xstd_ua_ai_sw( 1, 1 ) ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw( 1, ielem ))
+            else if ( ( zlev * MPC_MBAR_PER_PA_R8 ) <= xstd_ua_ai_sw( 19, 1 ) ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw( 19, ielem ))
             else
-
-              do jn = 1,18
-                if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(jn+1,1) ) exit
+              do jn = 1, 18
+                if ( ( zlev * MPC_MBAR_PER_PA_R8 ) >= xstd_ua_ai_sw( jn + 1, 1 ) ) exit
               end do
 
-              zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/xstd_ua_ai_sw(JN,1)) / log(xstd_ua_ai_sw(JN+1,1)/xstd_ua_ai_sw(JN,1))
+              zwb = log(( zlev * MPC_MBAR_PER_PA_R8 ) / xstd_ua_ai_sw( jn, 1 )) / log( xstd_ua_ai_sw( jn + 1, 1) / xstd_ua_ai_sw( jn, 1))
               zwt = 1.0D0 - zwb 
 
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,zwt*xstd_ua_ai_sw(JN,ielem) + zwb*xstd_ua_ai_sw(JN+1,ielem))
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, zwt * xstd_ua_ai_sw( jn, ielem ) + zwb * xstd_ua_ai_sw( jn + 1, ielem ))
 
             end if
 
@@ -868,66 +855,63 @@ contains
                 !                         SURFACE DATA
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'SF' ) THEN
+          else if ( cfam == 'SF' ) then
             icodtyp = 1   ! Default values
-            IF ( IDBURP == 12  ) icodtyp = 2   ! SYNOP
-            IF ( IDBURP == 13  ) icodtyp = 3   ! SHIP NON-AUTOMATIQUE
-            IF ( IDBURP == 14  ) icodtyp = 4   ! DRIBU
-            IF ( IDBURP == 18  ) icodtyp = 5   ! DRIFTER
-            IF ( IDBURP == 145 ) icodtyp = 6   ! STATION AUTOMATIQUE
-            IF ( IDBURP == 146 ) icodtyp = 7   ! ASYNOP
-            IF ( IDBURP == 147 ) icodtyp = 8   ! ASHIP
-            IF ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) .OR. &
-                 (ITYP == BUFR_NEGZ) .OR. (ITYP == BUFR_NETT) .OR. (ITYP == BUFR_NEES) ) icodtyp = 9  ! Others
+            if ( codeType == 12  ) icodtyp = 2   ! SYNOP
+            if ( codeType == 13  ) icodtyp = 3   ! SHIP NON-AUTOMATIQUE
+            if ( codeType == 14  ) icodtyp = 4   ! DRIBU
+            if ( codeType == 18  ) icodtyp = 5   ! DRifTER
+            if ( codeType == 145 ) icodtyp = 6   ! STATION AUTOMATIQUE
+            if ( codeType == 146 ) icodtyp = 7   ! ASYNOP
+            if ( codeType == 147 ) icodtyp = 8   ! ASHIP
+            if ( ( ityp == BUFR_NEUU ) .or. ( ityp == BUFR_NEVV ) .or. &
+                 ( ityp == BUFR_NEGZ ) .or. ( ityp == BUFR_NETT ) .or. ( ityp == BUFR_NEES ) ) icodtyp = 9  ! Others
 
-            IF ( (ITYP == BUFR_NEUS) .OR. (ITYP == BUFR_NEVS) )THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,4))
-            ELSE IF (ITYP == BUFR_NETS) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,2))
-            ELSE IF (ITYP == BUFR_NESS) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,3))
-            ELSE IF (ITYP == BUFR_NEPS ) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
-            ELSE IF (ITYP == BUFR_NEPN ) THEN
-              if(icodtyp == 2  .or. icodtyp == 7) then
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
+            if ( ( ityp == BUFR_NEUS ) .or. ( ityp == BUFR_NEVS ) ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 4 ))
+            else if ( ityp == BUFR_NETS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 2 ))
+            else if ( ityp == BUFR_NESS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
+            else if ( ityp == BUFR_NEPS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 1 ))
+            else if ( ityp == BUFR_NEPN ) then
+              if ( icodtyp == 2  .or. icodtyp == 7 ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( 1, 1 ))
               else
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 1 ))
               end if
-            ELSE IF ( (ITYP == BUFR_NEUU) .OR. (ITYP == BUFR_NEVV) )THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,4))
-            ELSE IF (ITYP == BUFR_NEGZ) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
-            ELSE IF (ITYP == BUFR_NETT) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,2))
-            ELSE IF (ITYP == BUFR_NEES) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,3))
-            END IF
+            else if ( ( ityp == BUFR_NEUU ) .or. ( ityp == BUFR_NEVV ) )then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 4 ))
+            else if ( ityp == BUFR_NEGZ ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 1 ))
+            else if ( ityp == BUFR_NETT ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 2 ))
+            else if ( ityp == BUFR_NEES ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
+            end if
 
                 !***********************************************************************
                 !                             GPS RO DATA
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'RO' ) THEN
-                !     
-                !                 Process only refractivity data (codtyp 169)
-                !
-            IF ( obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) == 169 ) THEN
+          else if ( cfam == 'RO' ) then
+            ! Process only refractivity data (codtyp 169)
+            if ( obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex) == 169 ) then
 
-              IF ( ITYP == BUFR_NEPS ) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 50.D0)
-              END IF
-              IF ( ITYP == BUFR_NETT) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 10.D0)
-              END IF
-              IF ( ITYP == BUFR_NERF) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
-              END IF
-              IF ( ITYP == BUFR_NEBD) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
-              END IF
-
-            END IF
+              if ( ityp == BUFR_NEPS ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 50.D0 )
+              end if
+              if ( ityp == BUFR_NETT ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 10.D0 )
+              end if
+              if ( ityp == BUFR_NERF ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 1001.D0 )
+              end if
+              if ( ityp == BUFR_NEBD ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 1001.D0 )
+              end if
+            end if
 
                 !***********************************************************************
                 !                          GB-GPS SFC MET DATA
@@ -937,114 +921,121 @@ contains
                 !              AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
                 !              OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING) 
                 !
-          ELSE IF ( CFAM == 'GP' ) THEN
+          else if ( cfam == 'GP' ) then
 
-            IF ( ITYP == BUFR_NEPS ) THEN ! Psfc Error (Pa)
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,1))
-            END IF
-            IF ( ITYP == BUFR_NETS ) THEN ! Tsfc Error (K)
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,2))
-            END IF
-            IF ( ITYP == BUFR_NESS ) THEN ! T-Td Error (K)
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,3))
-            END IF
+            if ( ityp == BUFR_NEPS ) then ! Psfc Error (Pa)
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( 2, 1 ))
+            end if
+            if ( ityp == BUFR_NETS ) then ! Tsfc Error (K)
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( 2, 2 ))
+            end if
+            if ( ityp == BUFR_NESS ) then ! T-Td Error (K)
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( 2, 3 ))
+            end if
                 ! ZTD Error (m) (value is formal error, real error set later in s/r seterrgpsgb)
                 ! If error is missing, set to dummy value (1 m).
-            IF ( ITYP == BUFR_NEZD ) THEN
-              IF (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)  <=  0.0D0) call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 1.0D0)
-            END IF
+            if ( ityp == BUFR_NEZD ) then
+              if ( obs_bodyElem_r( lobsSpaceData, OBS_OER, bodyIndex)  <=  0.0D0) call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
+            end if
 
                 !***********************************************************************
                 !        SCATTEROMETER, WIND PROFILER DATA
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'SC' ) THEN
+          else if ( cfam == 'SC' ) then
 
-            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sc(1))
+            call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sc( 1 ))
 
-          ELSE IF ( CFAM == 'PR' ) THEN
+          else if ( cfam == 'PR' ) then
 
-            ZLEV= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY) - obs_headElem_r(lobsSpaceData,OBS_ALT,INDEX_HEADER)
+            zlev= obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) - obs_headElem_r( lobsSpaceData, OBS_ALT, headerIndex )
             
-            IF ( ZLEV  >=  6000. ) THEN
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(2))
-            ELSE
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(1))
-            END IF
+            if ( zlev  >=  6000. ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_pr( 2 ) )
+            else
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_pr( 1 ) )
+            end if
               
                 !***********************************************************************
                 !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
                 !***********************************************************************
 
-          ELSE IF ( CFAM == 'CH' ) THEN
+          else if ( cfam == 'CH' ) then
 
                 !        Process only retrieved constituent data
                 !        Also, exclude BUFR_SCALE_EXPONENT element as a data value!
                
-            if (idburp == codtyp_get_codtyp('CHEMREMOTE').or.idburp == codtyp_get_codtyp('CHEMINSITU')) then
+            if ( codeType == codtyp_get_codtyp('CHEMREMOTE') .or. codeType == codtyp_get_codtyp('CHEMINSITU') ) then
 
-              ifirst = index_header /= header_prev
-              if (ifirst) then
-                header_prev = index_header
+              ifirst = headerIndex /= header_prev
+              if ( ifirst ) then
+
+                header_prev = headerIndex
                  
-                     ! Subtract the number of occurences of code BUFR_SCALE_EXPONENT from number of levels
-                do ji=0,nlev-1
-                  if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji) == BUFR_SCALE_EXPONENT) then
-                    nlev = nlev-1
-                  end if
+                ! Subtract the number of occurences of code BUFR_SCALE_EXPONENT from number of levels
+                do ji = 0, nlev - 1
+                  if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, idata + ji ) == BUFR_SCALE_EXPONENT ) nlev = nlev-1
                 end do
               end if
               
-              ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+              zlev   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
 
               ilev = 0
-              do ji=IDATA,INDEX_BODY
-                if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,ji) /= BUFR_SCALE_EXPONENT) ilev = ilev+1
+              do ji = idata, bodyIndex
+                if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, ji) /= BUFR_SCALE_EXPONENT ) ilev = ilev+1
               end do
 
-              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST)
-              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
+              obs_err_stddev = chm_get_obs_err_stddev( cstnid, nlev, ityp, zlat, zlon, idate, itime, zval, zlev, ilev, ifirst )
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, obs_err_stddev )
               
-            end if
+            end if     
+     
+                !***********************************************************************
+                !               Sea Surface Temperature
+                !***********************************************************************
 
-          ELSE
+          else if ( cfam == 'TM' ) then
 
-            WRITE(*,*)' UNKNOWN DATA FAMILY:',CFAM
+            call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 1 ) )
 
-          END IF
+          else
+
+            write(*,*)' UNKNOWN DATA FAMILY:',cfam
+
+          end if
 
              !***********************************************************************
              !              Check for case where error should have been set but was
              !              not. 3dvar will abort in this case.
              !***********************************************************************
 
-          IF (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)  <=  0.0D0) THEN
+          if ( obs_bodyElem_r( lobsSpaceData, OBS_OER, bodyIndex )  <=  0.0D0) then
 
-            WRITE(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',CFAM
+            write(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',cfam
 
-            WRITE(*,'(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2," LON = ",F10.2)') &
-                 obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),    &
-                 IDBURP,                                           &
-                 ZLAT*MPC_DEGREES_PER_RADIAN_R8,                   &
-                 ZLON*MPC_DEGREES_PER_RADIAN_R8
+            write(*,'(1X,"STNID= ",A10,"codeType= ",I5," LAT= ",F10.2," LON = ",F10.2)') &
+                 obs_elem_c( lobsSpaceData, 'STID', headerIndex),    &
+                 codeType,                                           &
+                 zlat*MPC_DEGREES_PER_RADIAN_R8,                   &
+                 zlon*MPC_DEGREES_PER_RADIAN_R8
             
-            WRITE(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
-                 ITYP,                                             &
-                 obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
-                 obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+            write(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
+                 ityp,                                             &
+                 obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex), &
+                 obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
 
-            CALL utl_abort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+            call utl_abort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
 
-          END IF
+          end if
 
-        END IF ! end of IASS == 1
+        end if ! end of iass == 1
 
-      END DO ! end of INDEX_BODY loop 
+      end do BODY 
 
-    END DO ! end of INDEX_HEADER loop
+    end do HEADER
 
-    WRITE(*,'(10X,"Fill_obs_errors")')
-    WRITE(*,'(10X,"---------------",/)')
+    write(*,'(10X,"Fill_obs_errors")')
+    write(*,'(10X,"---------------",/)')
 
   end subroutine fill_obs_erreurs
 
@@ -1132,25 +1123,25 @@ contains
       ilyr = obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
       ZPT  = col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
       ZPB  = col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
-      ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+      ZWB  = LOG(zlev/ZPT)/LOG(ZPB/ZPT)
       ZWT  = 1. - ZWB
 
       ZMOD = ZWB*col_ptr_uv(ilyr+1) + ZWT*col_ptr_uv(ilyr)
 
       TO_WGH = 0.0D0
       TO_DSP = 0.0D0
-      if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
-        write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,ZLEV,ZMOD,ZVAR,E_DRIFT
+      if(zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug ) then
+        write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,zlev,ZMOD,ZVAR,E_DRIFT
       end if
       do jlev = 2, col_getNumLev(columnhr,'MM') - 1
         ZPT= col_getPressure(columnhr,jlev-1,headerIndex,varLevel)
         ZPC= col_getPressure(columnhr,jlev  ,headerIndex,varLevel)
         ZPB= col_getPressure(columnhr,jlev+1,headerIndex,varLevel)
         ZOTR = col_ptr_uv(jlev)
-        SP_WGH = exp( -0.5*((ZPC - ZLEV)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
+        SP_WGH = exp( -0.5*((ZPC - zlev)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
         TO_WGH = TO_WGH + SP_WGH 
-        if( ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+        if( zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug ) then
           write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
         end if
 
@@ -1159,7 +1150,7 @@ contains
       E_VHGT = sqrt(TO_DSP/TO_WGH)
       zoer = sqrt(E_VHGT**2 + E_DRIFT**2)
        
-      if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+      if(zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug ) then
         write(*,'(a10,4f10.2)') 'stlchkb',zoer,E_VHGT,E_DRIFT,E_HEIGHT
         passe_once = .false.
       end if
@@ -1258,7 +1249,7 @@ contains
     type(struct_columnData) :: lcolumnhr
     type(struct_obs)        :: lobsSpaceData
     !
-    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
+    integer headerIndex, IDATYP, bodyIndex, iProfile
     REAL*8 zLat, Lat, sLat
     REAL*8 zLon, Lon
     REAL*8 zAzm, Azm
@@ -1270,19 +1261,19 @@ contains
     REAL*8, allocatable :: ZVV(:)
     !
     REAL*8 DH,DDH
-    INTEGER JL, IAZM, ISAT, JH, NGPSLEV, NWNDLEV
+    integer JL, IAZM, isat, JH, NGPSLEV, NWNDLEV
     REAL*8 zMT, Rad, Geo, zP0
     REAL*8 HNH1, SUM0, SUM1, ZMIN
     !
     LOGICAL  ASSIM, L1, L2, L3
 
-    INTEGER NH, NH1
+    integer NH, NH1
     TYPE(GPS_PROFILE)           :: PRF
     REAL*8       , allocatable :: H   (:),AZMV(:)
     REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
     TYPE(GPS_DIFF), allocatable :: RSTV(:)
 
-    WRITE(*,*)'ENTER SETERRGPSRO'
+    write(*,*)'ENTER SETERRGPSRO'
     !
     !     * 1.  Initializations
     !     *     ---------------
@@ -1309,80 +1300,80 @@ contains
     !
     call obs_set_current_header_list(lobsSpaceData,'RO')
     HEADER: do
-      INDEX_HEADER = obs_getHeaderIndex(lobsSpaceData)
-      if (INDEX_HEADER < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(lobsSpaceData)
+      if (headerIndex < 0) exit HEADER
        !
        !     *  Process only refractivity data (codtyp 169)
        !
-      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-      IF ( IDATYP == 169 ) THEN
+      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+      IF ( IDATYP == 169 ) then
           !
           !     *     Scan for requested data values of the profile, and count them
           !
         ASSIM = .FALSE.
         NH = 0
-        call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+        call obs_set_current_body_list(lobsSpaceData, headerIndex)
         BODY: do 
-          index_body = obs_getBodyIndex(lobsSpaceData)
-          if (index_body < 0) exit BODY
-          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) THEN
+          bodyIndex = obs_getBodyIndex(lobsSpaceData)
+          if ( bodyIndex < 0) exit BODY
+          IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
             ASSIM = .TRUE.
             NH = NH + 1
-          END IF
-        END DO BODY
+          end if
+        end do BODY
           !
           !     *     If assimilations are requested, prepare and apply the observation operator
           !
-        IF (ASSIM) THEN
-          iProfile=gps_iprofile_from_index(INDEX_HEADER)
+        IF (ASSIM) then
+          iProfile=gps_iprofile_from_index(headerIndex)
              !
              !     *        Basic geometric variables of the profile:
              !
-          IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
-          ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
-          Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
-          Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+          IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,headerIndex)
+          isat = obs_headElem_i(lobsSpaceData,OBS_SAT,headerIndex)
+          Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
+          Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
           zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-          zMT  = col_getHeight(lcolumnhr,NGPSLEV,INDEX_HEADER,'TH')/RG
+          zMT  = col_getHeight(lcolumnhr,NGPSLEV,headerIndex,'TH')/RG
              !     
              !     *        Profile at the observation location:
              !
-          zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-          zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+          zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
+          zLon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
           Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
           zMT  = zMT * RG / gpsgravitysrf(sLat)
-          zP0  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
+          zP0  = col_getElem(lcolumnhr,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
                 !     *           Profile x
                 !
-            ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
+            ZPP(JL) = col_getPressure(LCOLUMNHR,JL,headerIndex,'TH')
                 !     *           True implementation of ZDP (dP/dP0)
-            ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,INDEX_HEADER,'TH')
-            ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT') - p_TC
-            ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+            ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,headerIndex,'TH')
+            ZTT(JL) = col_getElem(lcolumnhr,JL,headerIndex,'TT') - p_TC
+            ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
-          END DO
+          end do
 
-          if((col_getPressure(lcolumnhr,1,index_header,'TH') + 1.0d-4)  <  &
-               col_getPressure(lcolumnhr,1,index_header,'MM')) then
+          if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
+               col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
                 ! case with top thermo level above top momentum level (Vcode=5002)
             do jl = 1, nwndlev
-              zuu(jl) = col_getElem(lcolumnhr,jl  ,index_header,'UU') * p_knot
-              zvv(jl) = col_getElem(lcolumnhr,jl  ,index_header,'VV') * p_knot
+              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU') * p_knot
+              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV') * p_knot
             end do
           else
                 ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
-            do jl = 1, nwndlev-1
-              zuu(jl) = col_getElem(lcolumnhr,jl+1,index_header,'UU') * p_knot
-              zvv(jl) = col_getElem(lcolumnhr,jl+1,index_header,'VV') * p_knot
+            do jl = 1, nwndlev - 1
+              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' ) * p_knot
+              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' ) * p_knot
             end do
-            zuu(nwndlev) = zuu(nwndlev-1)
-            zvv(nwndlev) = zuu(nwndlev-1)
+            zuu(nwndlev) = zuu( nwndlev - 1 )
+            zvv(nwndlev) = zuu( nwndlev - 1 )
           end if
           zuu(ngpslev) = zuu(nwndlev)
           zvv(ngpslev) = zuu(nwndlev)
@@ -1398,31 +1389,31 @@ contains
              !     *        Loop over all body indices for this index_header:
              !     *        (start at the beginning of the list)
              !
-          call obs_set_current_body_list(lobsSpaceData, index_header)
+          call obs_set_current_body_list(lobsSpaceData, headerIndex )
           BODY_2: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY_2
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) THEN
+            bodyIndex = obs_getBodyIndex(lobsSpaceData)
+            if ( bodyIndex < 0) exit BODY_2
+            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )==1 ) then
               NH1      = NH1 + 1
-              H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+              H(NH1)   = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
               AZMV(NH1)= zAzm
-              ZOBS(NH1)= obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+              ZOBS(NH1)= obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex )
                    !     *              Reference value:
-              IF (LEVELGPSRO==1) THEN
+              IF (LEVELGPSRO==1) then
                 ZREF(NH1) = 0.025d0*exp(-(H(NH1)-Rad)/6500.d0)
               ELSE
                 ZREF(NH1) = 300.d0*exp(-H(NH1)/6500.d0)
-              END IF
-            END IF
-          END DO BODY_2
+              end if
+            end if
+          end do BODY_2
              !
              !     *        Apply the observation operator:
              !
-          IF (LEVELGPSRO==1) THEN
-            CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
+          IF (LEVELGPSRO==1) then
+            call GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
           ELSE
-            CALL GPS_REFOPV (H,       NH, PRF, RSTV)
-          END IF
+            call GPS_REFOPV (H,       NH, PRF, RSTV)
+          end if
              !
              !     *        Perform the (H(x)-Y)/R operation:
              !
@@ -1431,78 +1422,78 @@ contains
                 !
                 !     *           Normalized offset:
                 !
-            IF ( NUMGPSSATS  >=  1 ) THEN
+            IF ( NUMGPSSATS  >=  1 ) then
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZREF(NH1)
             ELSE
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZMHX(NH1)
-            END IF
-          END DO
+            end if
+          end do
              !
              !     *        The procedure below is well tested to collectively
              !     *        create error profiles from the data profile, and
              !     *        intended to be used for these data.
              !
           DH = 5000.d0
-          IF (LEVELGPSRO==1) THEN
+          if (LEVELGPSRO==1) then
             ZMIN=0.01D0
-          ELSE
+          else
             ZMIN=0.002D0
-          END IF
+          end if
 
-          IF (LEVELGPSRO==2) THEN
-            DO NH1 = 1, NH
+          if (LEVELGPSRO==2) then
+            do NH1 = 1, NH
               SUM0=0.d0
               SUM1=0.d0
-              DO JH = 1, NH
+              do JH = 1, NH
                 DDH=H(JH)-H(NH1)
                 SUM0=SUM0+EXP(-(DDH/DH)**2)
                 SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
-              END DO
+              end do
               ZERR(NH1)=(SUM1/SUM0)**0.5D0
-              IF ( NUMGPSSATS  >=  1 ) THEN
-                IF (ISAT==3 .OR. ISAT==4) ZERR(NH1) = 2*ZERR(NH1)
-              END IF
-              IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-            END DO
-          ELSE
-            DO NH1 = 1, NH
+              if ( NUMGPSSATS  >=  1 ) then
+                if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
+              end if
+              if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+            end do
+          else
+            do NH1 = 1, NH
               ZERR(NH1)=0.05d0
               HNH1=H(NH1)-Rad
               L1=( HNH1 <= 10000.d0 )
-              L2=( HNH1 > 10000.d0 .AND. HNH1 < 30000.d0 )
+              L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
               L3=( HNH1 > 30000.d0 )
               IF ( L1 ) ZERR(NH1)=0.02d0+0.08d0*(10000.d0-HNH1)/10000.d0
               IF ( L2 ) ZERR(NH1)=0.02d0
               IF ( L3 ) ZERR(NH1)=0.02d0+0.13d0*(HNH1-30000.d0)/30000.d0
-              IF (ISAT==3 .OR. ISAT==4 .OR. ISAT==5) ZERR(NH1) = 2*ZERR(NH1)
+              IF (isat==3 .or. isat==4 .or. isat==5) ZERR(NH1) = 2*ZERR(NH1)
               IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-            END DO
-          END IF
+            end do
+          end if
 
           NH1 = 0
              !
              !     *        Loop over all body indices for this index_header:
              !     *        (start at the beginning of the list)
              !
-          call obs_set_current_body_list(lobsSpaceData, index_header)
+          call obs_set_current_body_list(lobsSpaceData, headerIndex )
           BODY_4: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY_4
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) THEN
+            bodyIndex = obs_getBodyIndex(lobsSpaceData)
+            if ( bodyIndex < 0) exit BODY_4
+            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
               NH1 = NH1 + 1
               !
                    !     *              Observation error    S
                    !
-              IF ( NUMGPSSATS  >=  1 ) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,index_body, ZERR(NH1) * ZREF(NH1))
-              ELSE
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,index_body, ZERR(NH1) * ZMHX(NH1))
-              END IF
-            END IF
-          END DO BODY_4
-        END IF
-      END IF
-    END DO HEADER
+              if ( NUMGPSSATS  >=  1 ) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, ZERR(NH1) * ZREF(NH1))
+              else
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, ZERR(NH1) * ZMHX(NH1))
+              end if
+            end if
+          end do BODY_4
+        end if
+      end if
+    end do HEADER
 
     deallocate( RSTV )
     deallocate( ZERR )
@@ -1520,7 +1511,7 @@ contains
     deallocate(zDP)
     deallocate(zPP)
 
-    WRITE(*,*)'EXIT SETERRGPSRO'
+    write(*,*)'EXIT SETERRGPSRO'
 
   END SUBROUTINE OER_SETERRGPSRO
 
@@ -1546,14 +1537,14 @@ contains
     logical                 :: ldata
     logical                 :: analysisMode
 
-    INTEGER INDEX_BODY, INDEX_HEADER, ITYP, IASS, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
+    integer bodyIndex, headerIndex, ityp, iass, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
     integer ielem, nlev_T
 
     LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
     LOGICAL LLZWD
 
     !
-    REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, ZLEV, ZVAL, ZZWD
+    REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, zlev, zval, ZZWD
     REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
 
     !
@@ -1595,20 +1586,20 @@ contains
     DATA  ZRCOEFF2 /42.6D0/
     !
     !
-    WRITE(*,*) 'ENTER SETERRGPSGB'
+    write(*,*) 'ENTER SETERRGPSGB'
     !
     DEBUG = .FALSE.
 
     LLCZTDE = .FALSE.
     LLRZTDE = .FALSE.
     LLFZTDE = .FALSE.
-    IF (YZTDERR  <  0.0D0) THEN
+    IF (YZTDERR  <  0.0D0) then
       LLFZTDE = .TRUE.
-    ELSE IF (YZTDERR  >  0.0D0) THEN
+    else if (YZTDERR  >  0.0D0) then
       LLCZTDE = .TRUE.
     ELSE
       LLRZTDE = .TRUE.
-    END IF
+    end if
 
     nlev_T = col_getNumLev(columnhr,'TH')
 
@@ -1619,10 +1610,10 @@ contains
     !     Loop over all header indices of the 'GP' family:
     !
     call obs_set_current_header_list(lobsSpaceData,'GP')
-    HEADER: DO
-      index_header = obs_getHeaderIndex(lobsSpaceData)
-      if (index_header < 0) exit HEADER
-      NBRPDATE  = obs_headElem_i(lobsSpaceData,OBS_DAT,INDEX_HEADER)
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(lobsSpaceData)
+      if ( headerIndex < 0) exit HEADER
+      NBRPDATE  = obs_headElem_i( lobsSpaceData, OBS_DAT, headerIndex )
       LLZTD     = .FALSE.
       LLFER     = .FALSE.
       LLZWD     = .FALSE.
@@ -1636,134 +1627,134 @@ contains
 
        !   Get Psfc (Pa), Tsfc (K) and model surface height (m) from background profile
 
-      ZBPSFC = col_getElem(columnhr,1,index_header,'P0')
-      ZBTSFC = col_getElem(columnhr,nlev_T,index_header,'TT')
-      ZBZSFC = col_getHeight(columnhr,nlev_T,index_header,'TH')/RG
+      ZBPSFC = col_getElem( columnhr, 1, headerIndex, 'P0' )
+      ZBTSFC = col_getElem( columnhr, nlev_T, headerIndex, 'TT' )
+      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' ) / RG
        !
        !    Loop over all body indices of current report; Set the ZTD error if
        !    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).
        !    Get ZTD obs, ZTD formal error and ZWD observation.
        !
-      call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
-      BODY: DO 
-        index_body = obs_getBodyIndex(lobsSpaceData)
-        if (index_body < 0) exit BODY
-        ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-        IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
-        ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+      call obs_set_current_body_list(lobsSpaceData, headerIndex)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(lobsSpaceData)
+        if ( bodyIndex < 0) exit BODY
+        ityp   = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
+        iass   = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
+        zval   = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex )
           !         Store Psfc
-        IF ( ITYP == BUFR_NEPS ) THEN
-          IF ( ZVAL  >  0.0D0 ) ZPSFC = ZVAL
-        END IF
+        IF ( ityp == BUFR_NEPS ) then
+          IF ( zval  >  0.0D0 ) ZPSFC = zval
+        end if
           !         Set ZTDOER to constant value (if LLCZTDE); get value of ZTD, 
           !         ZTD formal error (OBS_OER) and antenna height (OBS_PPP).
-        IF ( ITYP == BUFR_NEZD ) THEN
-          IF ( LLCZTDE ) THEN
+        IF ( ityp == BUFR_NEZD ) then
+          IF ( LLCZTDE ) then
             ZTDOER = YZTDERR
             ERRSET = .TRUE.
-          END IF
-          ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-          ZTDERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+          end if
+          zlev   = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
+          ZTDERR = obs_bodyElem_r( lobsSpaceData, OBS_OER, bodyIndex )
           IF ( ZTDERR  /=  1.0D0 ) LLFER = .TRUE.
-          IZTDJ = INDEX_BODY
-          IF ( ZVAL  >  0.0D0 ) THEN
-            ZZTD = ZVAL
+          IZTDJ = bodyIndex
+          IF ( zval  >  0.0D0 ) then
+            ZZTD = zval
             LLZTD = .TRUE.
-          END IF
-          IF ( IASS == 1 ) ASSIM = .TRUE.
-        END IF
-        IF ( ITYP == BUFR_NEZW ) THEN
-          IF ( ZVAL  >  0.0D0 ) THEN
-            ZZWD = ZVAL
+          end if
+          IF ( iass == 1 ) ASSIM = .TRUE.
+        end if
+        IF ( ityp == BUFR_NEZW ) then
+          IF ( zval  >  0.0D0 ) then
+            ZZWD = zval
             LLZWD = .TRUE.
-          END IF
-        END IF
-      END DO BODY
+          end if
+        end if
+      end do BODY
 
        !      Initialize Std(O-P) to 15 mm  for ZTD observation (for bgck mode)
-      IF ( LLZTD .AND. .NOT.analysisMode) &
+      IF ( LLZTD .and. .NOT.analysisMode) &
            call obs_bodySet_r(lobsSpaceData,OBS_HPHT,IZTDJ,ZSTDOMP)
 
        !      Replace formal ZTD error with real error for all ZTD to be assimilated.
        !      Set Std(O-P) as function of ZWD for ZTD observation and store in OBS_HPHT. 
 
-      IF ( ASSIM ) THEN
-        IF ( LLZTD ) THEN
+      if ( ASSIM ) then
+        if ( LLZTD ) then
           ldata = .true.
           ICOUNT = ICOUNT + 1
-          IF ( LLZWD ) THEN
+          if ( LLZWD ) then
             ZWD = ZZWD
-          ELSE
+          else
                 !               If Psfc obs is missing, estimate the pressure from background state
-            IF ( ZPSFC  <  0.0D0 ) THEN
+            if ( ZPSFC  <  0.0D0 ) then
               LESTP = .TRUE.
-              ZDZ = ZLEV - ZBZSFC
+              ZDZ = zlev - ZBZSFC
               ZPSFC  = ZBPSFC * &
                    (1.0D0-(ZGAMMA/ZBTSFC)*ZDZ)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
               ICOUNT2 = ICOUNT2 + 1
-            END IF
+            end if
                 !                Compute the hydrostatic delay ZHD (m) from Psfc (Pa)
             ZHD = 2.2766D-05 * ZPSFC
                 !               Compute the wet delay (m) from ZTD and ZHD. Avoid negative ZWD.
-            IF ( ZHD  >  ZZTD ) THEN
+            if ( ZHD  >  ZZTD ) then
               ZWD = 0.0D0
-            ELSE
+            else
               ZWD = ZZTD - ZHD
-            END IF
-          END IF
+            end if
+          end if
              !              Std(O-P) for background check. Limit to 30 mm in case ZTD obs is bad (too high).             
           ZSTDOMP = (ZRCONST2 + ZRCOEFF2*ZWD)*0.001D0
           ZSTDOMP = MIN(ZZDERMAX, ZSTDOMP)
              !             Compute ZTD error as a function of ZWD using regression coeff (SD(O-P) vs ZWD).
              !             Take fraction ZOPEFAC of computed error and convert from mm to m.
              !             Ensure error is > ZZDERMIN and < ZZDERMAX
-          IF ( .NOT. ERRSET ) THEN 
+          IF ( .NOT. ERRSET ) then 
             ZMINZDE = ZRCONST + ZRCOEFF*ZWD
             ZMINZDE = ZMINZDE * ZOPEFAC * 0.001D0
-            IF (LLRZTDE) THEN
+            IF (LLRZTDE) then
               ZTDOER = MAX(ZZDERMIN, ZMINZDE)
               ZTDOER = MIN(ZZDERMAX, ZTDOER)
             ELSE
-              IF (LLFER) THEN
+              IF (LLFER) then
                 ZTDOER = MAX(ZZDERMIN, ZTDERR*ZTDERFAC)
               ELSE
                 ZTDOER = MAX(ZZDERMIN, ZMINZDE)
                 ZTDOER = MIN(ZZDERMAX, ZTDOER)
-              END IF
-            END IF
+              end if
+            end if
                 !  Ensure that error is not less than formal error ZTDERR
-            IF (LLFER) THEN
-              IF (DEBUG .AND. ICOUNT  <=  50) THEN
-                WRITE(*,*) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER), &
+            IF (LLFER) then
+              IF (DEBUG .and. ICOUNT  <=  50) then
+                write(*,*) obs_elem_c(lobsSpaceData,'STID',headerIndex), &
                      ' FORMAL ERR, OBS ERROR (mm) = ', &
                      ZTDERR*1000.D0, ZTDOER*1000.D0
-              END IF
+              end if
               ZTDOER = MAX(ZTDOER, ZTDERR)
-            END IF
-          END IF
+            end if
+          end if
              !  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D THINNING)
           call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, ZTDOER*YZDERRWGT)
           IF (.NOT.analysisMode) call obs_bodySet_r(lobsSpaceData,OBS_HPHT,IZTDJ, ZSTDOMP)
-          IF (DEBUG .AND. (ICOUNT2  <=  50) .AND. LESTP) THEN
-            WRITE(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD     STDOMP'
-            WRITE(*,*) 'ERRDEBUG ', obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER), &
-                 ZZTD*1000.D0, ZTDOER*1000.D0, ZLEV, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
-          END IF
+          IF (DEBUG .and. (ICOUNT2  <=  50) .and. LESTP) then
+            write(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD     STDOMP'
+            write(*,*) 'ERRDEBUG ', obs_elem_c(lobsSpaceData,'STID',headerIndex), &
+                 ZZTD*1000.D0, ZTDOER*1000.D0, zlev, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
+          end if
         ELSE
-          CALL utl_abort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
-        END IF
-      END IF
+          call utl_abort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
+        end if
+      end if
 
        !
-    END DO  HEADER
+    end do  HEADER
 
-    !      IF (DEBUG) CALL utl_abort('******DEBUG STOP*******')
+    !      IF (DEBUG) call utl_abort('******DEBUG STOP*******')
 
     IF (.not.ldata) numGPSZTD = 0
 
-    IF (ldata) WRITE(*,*) ' numGPSZTD = ', ICOUNT
+    IF (ldata) write(*,*) ' numGPSZTD = ', ICOUNT
 
-    WRITE(*,*) 'EXIT SETERRGPSGB'
+    write(*,*) 'EXIT SETERRGPSGB'
 
   END SUBROUTINE OER_SETERRGPSGB
 
