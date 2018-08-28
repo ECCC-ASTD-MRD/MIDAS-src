@@ -9,26 +9,12 @@ ramdiskpath=${2:-/tmp/${USER}}
 
 ## assume the observations are splitted into many files
 
-npex=${SEQ_NPEX}
-npey=${SEQ_NPEY}
-let nprocs=npex*npey
-
-typeset -Z4 burpfile_x burpfile_y
-
-burpfile_y=$((npey-MP_CHILD/npex))
-burpfile_x=$((MP_CHILD+1-npex*(MP_CHILD/npex)))
-
 if [ "${fasttmp}" = yes ]; then
     FASTTMPDIR=${ramdiskpath}/midas_${MP_CHILD}
     /bin/mkdir -p ${FASTTMPDIR}
     export MIDAS_RAMDISKDIR=${FASTTMPDIR}
+    /bin/df -hP ${FASTTMPDIR}
 fi
-
-[ "${MP_CHILD}" -eq 0 ] && /bin/mkdir ./obs
-while [ ! -d ./obs ]; do
-    /bin/sleep 1
-done
-/bin/cp burpfiles_*/brp*_${burpfile_x}_${burpfile_y} ./obs
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
 
@@ -55,6 +41,15 @@ if [ "${fasttmp}" = yes ]; then
         fi
     done
 else
+    npex=${SEQ_NPEX}
+    npey=${SEQ_NPEY}
+    let nprocs=npex*npey
+
+    typeset -Z4 burpfile_x burpfile_y
+
+    burpfile_y=$((npey-MP_CHILD/npex))
+    burpfile_x=$((MP_CHILD+1-npex*(MP_CHILD/npex)))
+
     for file in ./obs/brp*_${burpfile_x}_${burpfile_y}; do
         fam=$(/usr/bin/basename ${file} | /usr/bin/rev | /usr/bin/cut -d_ -f3- | /usr/bin/rev | /usr/bin/cut -c4-)
         while [ ! -d burpfiles_${fam}.updated ]; do
