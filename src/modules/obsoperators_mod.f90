@@ -1733,21 +1733,21 @@ contains
                IPT  = nlev - 1 + col_getOffsetFromVarno(columng,ityp)
                IPB  = IPT+1
 
-               IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
-                    ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
-                  if (ITYP == BUFR_NESS ) THEN
-                     dPdPsfc = col_getPressureDeriv(columng,nlev,index_header,'TH')
-                     columnVarB=hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
+               if (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
+                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
+                 if (ITYP == BUFR_NESS ) THEN
+                   dPdPsfc = col_getPressureDeriv(columng,nlev,headerIndex,'TH')
+                   columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
                           col_getElem(column,nlev,headerIndex,'TT'), &
                           col_getElem(column,1,headerIndex,'P0'), &
                           col_getElem(columng,nlev,headerIndex,'HU'), &
                           col_getPressure(columng,nlev,headerIndex,varLevel),  &
                           dPdPsfc)
                   else
-                     columnVarB=col_getElem(COLUMN,IPB,headerIndex)
+                    columnVarB=col_getElem(COLUMN,IPB,headerIndex)
                   end if
                   call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,columnVarB)
-               ELSEIF (ITYP == BUFR_NEPS .OR. ITYP == BUFR_NEPN) THEN
+               else if (ITYP == BUFR_NEPS .OR. ITYP == BUFR_NEPN) THEN
                   ZLTV  = columng%OLTV(1,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'TT')  & 
                        + columng%OLTV(2,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'HU')
                   ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
@@ -2805,7 +2805,6 @@ contains
                       (col_getElem(columng,IPB,headerIndex) - col_getElem(columng,IPT,headerIndex))  &
                       *ZDADPS*ZRES
                end if
-
             end if
 
          END DO BODY
