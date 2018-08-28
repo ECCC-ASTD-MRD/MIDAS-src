@@ -160,7 +160,7 @@ CONTAINS
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
-    ! Read trial files, keeping HU as is (no conversion to LQ)
+    ! Read trial files
     !
     if(mpi_myid == 0) write(*,*) ''
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
@@ -210,7 +210,8 @@ CONTAINS
           endif
           incFileName = './rebm_' // trim(coffset) // 'm'
 
-          call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex)
+          call gsv_readFromFile( statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
+                                 containsFullField_opt=.false. )
         end do
 
       end if
@@ -275,10 +276,12 @@ CONTAINS
 
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
         if (gsv_varExist(varName='P0')) then
-          call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-               PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
+          call gsv_readFromFile( statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
+                                 PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex),  &
+                                 containsFullField_opt=.false. )
         else
-          call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex)
+          call gsv_readFromFile( statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex, &
+                                 containsFullField_opt=.false. )
         end if
       end do
 
@@ -313,14 +316,15 @@ CONTAINS
         incFileName = './rehm_' // trim(coffset) // 'm'
 
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-        call gsv_writeToFile(statevector_incHighRes, trim(incFileName), etiket_rehm,  &
-             stepIndex_opt=stepIndex, typvar_opt='R', numBits_opt=writeNumBits )
+        call gsv_writeToFile( statevector_incHighRes, trim(incFileName), etiket_rehm,  &
+                              stepIndex_opt=stepIndex, typvar_opt='R', numBits_opt=writeNumBits, &
+                              containsFullField_opt=.false. )
 
         if (gsv_varExist(varName='P0')) then
           ! Also write analysis value of Psfc and surface GZ to increment file
-          call gsv_writeToFile(statevector_Psfc, trim(incFileName), etiket_rehm,  &
-               stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=.true., &
-               numBits_opt=writeNumBits )
+          call gsv_writeToFile( statevector_Psfc, trim(incFileName), etiket_rehm,  &
+                                stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=.true., &
+                                numBits_opt=writeNumBits, containsFullField_opt=.false. )
         end if
       end do
     end if
@@ -342,8 +346,9 @@ CONTAINS
       anlFileName = './anlm_' // trim(coffset) // 'm'
 
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-      call gsv_writeToFile(statevector_analysis, trim(anlFileName), etiket_anlm, stepIndex_opt=stepIndex, &
-           typvar_opt='A', writeGZsfc_opt=writeGZsfc, numBits_opt=writeNumBits )
+      call gsv_writeToFile( statevector_analysis, trim(anlFileName), etiket_anlm,  &
+                            stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
+                            numBits_opt=writeNumBits, containsFullField_opt=.true. )
     end do
 
     call gsv_deallocate(statevector_analysis)
@@ -427,7 +432,8 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFile(statevector_incr, fileName, etiket_rebm, 1.0d0, 0, stepIndex)
+      call gsv_writeToFile( statevector_incr, fileName, etiket_rebm, 1.0d0, 0,  &
+                            stepIndex, containsFullField_opt=.false. )
 
     enddo
 

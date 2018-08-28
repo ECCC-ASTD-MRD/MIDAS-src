@@ -442,7 +442,7 @@ contains
     call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P')
+    call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfa
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
@@ -453,7 +453,7 @@ contains
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P')
+    call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfb
     call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
@@ -464,7 +464,7 @@ contains
     call gsv_allocate(statevector_a, 1,hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
+    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
 
     ! compute error of both forecasts (overwrite forecasts with error)
     call gsv_add(statevector_a, statevector_fa, -1.0d0)

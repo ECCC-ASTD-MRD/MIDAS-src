@@ -89,7 +89,7 @@ module humidityLimits_mod
                         levels=pressure,         &
                         sfc_field=psfc, &
                         in_log=.false.)
-!$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -97,7 +97,7 @@ module humidityLimits_mod
             tt = tt_ptr(lonIndex,latIndex,levIndex,stepIndex)
 
             ! get the saturated vapor pressure from HU
-            husat = foqst8(tt + MPC_K_C_DEGREE_OFFSET_R8, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
+            husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
 
             ! limit the humidity to the saturated humidity
             hu_modified = min(husat, hu)
@@ -106,7 +106,7 @@ module humidityLimits_mod
           end do ! lonIndex
         end do ! latIndex
       end do ! levIndex
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       deallocate(pressure)
 
@@ -208,7 +208,7 @@ module humidityLimits_mod
       call lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
                         ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
 
-!$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -222,7 +222,7 @@ module humidityLimits_mod
           end do ! lonIndex
         end do ! latIndex
       end do ! levIndex
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       deallocate(pressure)
 

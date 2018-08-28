@@ -602,6 +602,7 @@ module gridStateVector_mod
         allocate(statevector%gdUV_r8(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd,  &
                                      statevector%myUVkBeg:statevector%myUVkEnd,numStep),stat=ierr)
+        statevector%gdUV_r8(:,:,:,:) = 0.0d0
       end if
     else if (statevector%dataKind == 4) then
       allocate(statevector%gd_r4(statevector%myLonBeg:statevector%myLonEnd,  &
@@ -611,6 +612,7 @@ module gridStateVector_mod
         allocate(statevector%gdUV_r4(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd,  &
                                      statevector%myUVkBeg:statevector%myUVkEnd,numStep),stat=ierr)
+        statevector%gdUV_r4(:,:,:,:) = 0.0
       end if
     else if (statevector%dataKind == 2) then
       allocate(statevector%gd_i2(statevector%myLonBeg:statevector%myLonEnd,  &
@@ -620,6 +622,7 @@ module gridStateVector_mod
         allocate(statevector%gdUV_i2(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd,  &
                                      statevector%myUVkBeg:statevector%myUVkEnd,numStep),stat=ierr)
+        statevector%gdUV_i2(:,:,:,:) = 0
       end if
     else
       call utl_abort('gsv_allocate: unknown value of datakind')
@@ -2070,44 +2073,34 @@ module gridStateVector_mod
   ! gsv_readFromFile
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
-                              unitConversion_opt, PsfcReference_opt, readGZsfc_opt)
+                              unitConversion_opt, PsfcReference_opt, readGZsfc_opt, containsFullField_opt )
     implicit none
 
     ! arguments
     type(struct_gsv)              :: statevector_out
-
     character(len=*), intent(in)  :: fileName
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
-
     integer, optional             :: stepIndex_opt
-
     logical, optional             :: unitConversion_opt
     logical, optional             :: readGZsfc_opt
-
+    logical, optional,intent(in)  :: containsFullField_opt
     real(8), optional             :: PsfcReference_opt(:,:)
 
     ! locals
     type(struct_gsv) :: statevector_file, statevector_tiles, statevector_hinterp, statevector_vinterp
-
-    real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
     real(8), allocatable :: PsfcReference3D(:,:,:)
-    real(4) :: factor_r4
-
     integer :: kIndex, lonIndex, latIndex, varIndex, stepIndex, levIndex
-
     character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
-
     logical :: doHorizInterp, doVertInterp, unitConversion
-    logical :: readGZsfc, readSubsetOfLevels
-
+    logical :: readGZsfc, readSubsetOfLevels, containsFullField
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
 
     nullify(vco_file, hco_file)
-    nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
+    nullify(field_in_ptr, field_out_ptr)
 
     write(*,*) ''
     write(*,*) 'gsv_readFromFile: START'
@@ -2130,6 +2123,17 @@ module gridStateVector_mod
     else
       readGZsfc = .false.
     end if
+
+    if ( unitConversion .and. .not. present(containsFullField_opt) ) then
+      call utl_abort('gsv_readFromFile: containsFullField_opt must be supplied when performing unit conversion')
+    end if
+
+    if (present(containsFullField_opt)) then
+      containsFullField = containsFullField_opt
+    else
+      containsFullField = .false.
+    end if
+    write(*,*) 'gsv_readFromFile: containsFullField = ', containsFullField
 
     nullify(varNamesToRead)
     call vnl_varNamesFromExistList(varNamesToRead, statevector_out%varExistlist(:))
@@ -2189,24 +2193,9 @@ module gridStateVector_mod
 
     !-- 3.0 Scale factor and unit conversion
 
-    field3d_r4_ptr => gsv_getField3D_r4(statevector_hinterp)
-    K_LOOP: do kIndex = statevector_hinterp%mykBeg, statevector_hinterp%mykEnd
-      varName = gsv_getVarNameFromK(statevector_hinterp,kIndex)
-
-      if ( unitConversion ) then
-        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
-          factor_r4 = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
-        else if ( trim(varName) == 'P0' ) then
-          factor_r4 = 100.0 ! hPa -> Pa
-        else
-          factor_r4 = 1.0 ! no conversion
-        end if
-      else
-        factor_r4 = 1.0
-      end if
-      field3d_r4_ptr(:,:,kIndex) = factor_r4 * field3d_r4_ptr(:,:,kIndex)
-
-    end do K_LOOP
+    if ( unitConversion ) then
+      call gsv_fileUnitsToStateUnits( statevector_hinterp, containsFullField )
+    end if
 
     !-- 4.0 MPI communication from vars/levels to lat/lon tiles
 
@@ -2498,7 +2487,7 @@ module gridStateVector_mod
 
     ! locals
     real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:,:)
-    real(4) :: multFactor
+    real(8) :: multFactor
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
     character(len=4) :: varName
 
@@ -2511,9 +2500,6 @@ module gridStateVector_mod
     end if
 
     field_r4_ptr   => gsv_getField_r4(statevector)
-    if ( statevector%UVComponentPresent ) then
-      fieldUV_r4_ptr => gsv_getFieldUV_r4(statevector)
-    end if
 
     STEP_LOOP: do stepIndex = stepIndexBeg, stepIndexEnd
 
@@ -2522,28 +2508,31 @@ module gridStateVector_mod
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
-          multFactor = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
+          multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
         else if ( trim(varName) == 'P0' ) then
-          multFactor = MPC_PA_PER_MBAR_R4 ! hPa -> Pa
+          multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
         else
-          multFactor = 1.0 ! no conversion
+          multFactor = 1.0d0 ! no conversion
         end if
 
-        if ( multFactor /= 1.0 ) field_r4_ptr(:,:,kIndex,stepIndex) = multFactor * field_r4_ptr(:,:,kIndex,stepIndex)
+        if ( multFactor /= 1.0d0 ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
+        end if
 
         if (trim(varName) == 'TT' .and. containsFullField) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R4
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
         end if
 
       end do K_LOOP
 
       ! Do unit conversion for extra copy of winds, if present
       if ( statevector%UVComponentPresent ) then
-        multFactor = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
+        multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
 
+        fieldUV_r4_ptr => gsv_getFieldUV_r4(statevector)
         !$OMP PARALLEL DO PRIVATE (kIndex)
         do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
-          fieldUV_r4_ptr(:,:,kIndex,stepIndex) = multFactor * fieldUV_r4_ptr(:,:,kIndex,stepIndex)
+          fieldUV_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * fieldUV_r4_ptr(:,:,kIndex,stepIndex), 4 )
         end do
         !$OMP END PARALLEL DO
 
@@ -4458,8 +4447,8 @@ module gridStateVector_mod
       end if
 
       ! read the trial file for this timestep
-      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', stepIndex,  &
-                            readGZsfc_opt=.true.)
+      call gsv_readFromFile( statevector_trial, fileName, ' ', 'P', stepIndex,  &
+                             readGZsfc_opt=.true., containsFullField_opt=.true. )
 
     end do ! stepIndex
 

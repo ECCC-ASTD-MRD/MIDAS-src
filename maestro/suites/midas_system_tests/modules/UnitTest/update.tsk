@@ -57,7 +57,7 @@ for dir in $(ls -d */) ; do
     rmdir $dir
 done
 for nonTrackFile in $UnitTest_check_results_ignore ; do
-    rm $nonTrackFile
+    rm -f $nonTrackFile
 done
 
 # Check if we have something left

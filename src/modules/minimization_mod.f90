@@ -593,7 +593,8 @@ CONTAINS
       fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
       if(mpi_myid == 0) write(*,*) 'Reading from file: ', fileName
       do stepIndex = 1, statevector_ens(indexAnalysis)%numStep
-        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P',stepIndex_opt=stepIndex)
+        call gsv_readFromFile( statevector_ens(indexAnalysis),fileName,' ','P',stepIndex_opt=stepIndex, &
+                               containsFullField_opt=.true. )
       enddo
 
     enddo
@@ -604,7 +605,8 @@ CONTAINS
     do stepIndex = 1, statevector_mean%numStep
       write(trialTimeIndex_str,'(i2.2)') stepIndex
       fileName = './trlm_' // trim(trialTimeIndex_str)
-      call gsv_readFromFile(statevector_mean,fileName,' ','P',stepIndex_opt=stepIndex)
+      call gsv_readFromFile( statevector_mean,fileName,' ','P',stepIndex_opt=stepIndex, &
+                             containsFullField_opt=.true. )
     enddo
 
     ! remove mean

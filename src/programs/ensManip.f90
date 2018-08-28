@@ -209,7 +209,8 @@ program midas_ensManip
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN',  &
-           stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
+           stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits,  &
+           containsFullField_opt=.true.)
     end do
 
     call tmg_stop(4)
@@ -265,8 +266,9 @@ program midas_ensManip
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
-      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
-           stepIndex_opt=stepIndex, unitConversion_opt=.true.)
+      call gsv_readFromFile( statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
+                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,   &
+                             containsFullField_opt=.true. )
     end do
 
     call tmg_stop(10)
@@ -286,8 +288,9 @@ program midas_ensManip
         dateStamp = datestamplist(stepIndex)
         if(mpi_myid == 0) write(*,*) ''
         if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
-        call gsv_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), ' ', ' ',  &
-             stepIndex_opt=stepIndex, unitConversion_opt=.true.)
+        call gsv_readFromFile( statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), ' ', ' ',  &
+                               stepIndex_opt=stepIndex, unitConversion_opt=.true., &
+                               containsFullField_opt=.true. )
       end do
 
       call tmg_stop(11)

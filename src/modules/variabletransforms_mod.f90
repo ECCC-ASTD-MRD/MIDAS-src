@@ -15,16 +15,16 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE variableTransforms (prefix="vtr")
+!! MODULE variableTransforms (prefix='vtr')
 !!
 !! *Purpose*: To store various functions for variable transforms using inputs from
 !!            gridStateVector(s). Outputs are also placed in a GridStateVector.
 !!
 !--------------------------------------------------------------------------
-MODULE variableTransforms_mod
+module variableTransforms_mod
   use mpivar_mod
   use mathPhysConstants_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use timeCoord_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
@@ -38,7 +38,7 @@ MODULE variableTransforms_mod
   private
 
   ! public procedures
-  public :: vtr_Setup, vtr_Transform
+  public :: vtr_setup, vtr_transform
 
   logical                   :: trialsInitialized = .false.
   type(struct_hco), pointer :: hco_anl => null()
@@ -50,7 +50,7 @@ MODULE variableTransforms_mod
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! vtr_Setup
+  ! vtr_setup
   !--------------------------------------------------------------------------
   subroutine vtr_setup(hco_in,vco_in)
     implicit none
@@ -109,15 +109,15 @@ CONTAINS
     case ('UVtoVortDiv')
        call UVtoVortDiv(statevector)
     case ('VortDivToPsiChi')
-       if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
-         call utl_abort('vtr_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
-       end if
-       call VortDivToPsiChi(statevector)
+      if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
+        call utl_abort('vtr_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
+      end if
+      call VortDivToPsiChi(statevector)
     case ('UVtoPsiChi')
-       if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
-         call utl_abort('vtr_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
-       end if
-       call UVtoPsiChi(statevector)
+      if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
+        call utl_abort('vtr_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
+      end if
+      call UVtoPsiChi(statevector)
     case ('LQtoHU')
       if ( .not. gsv_varExist(statevector,'HU')  ) then
         call utl_abort('vtr_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
@@ -149,16 +149,16 @@ CONTAINS
       end if
       call HUtoLQ_tlm(statevector) ! self-adjoint
     case default
-       write(*,*)
-       write(*,*) 'Unsupported function : ', trim(transform)
-       call utl_abort('vtr_transform')
+      write(*,*)
+      write(*,*) 'Unsupported function : ', trim(transform)
+      call utl_abort('vtr_transform')
     end select
 
   end subroutine vtr_transform
 
-!--------------------------------------------------------------------------
-! LQtoHU
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! LQtoHU
+  !--------------------------------------------------------------------------
   subroutine LQtoHU(statevector)
     implicit none
 
@@ -171,22 +171,22 @@ CONTAINS
     lq_ptr => gsv_getField_r8(statevector,'HU')
 
     do stepIndex = 1, statevector%numStep
-!$OMP PARALLEL DO PRIVATE(i,j,k)
-       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-             do i = statevector%myLonBeg, statevector%myLonEnd
-                hu_ptr(i,j,k,stepIndex) = exp(lq_ptr(i,j,k,stepIndex))
-             end do
+      !$OMP PARALLEL DO PRIVATE(i,j,k)
+      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do j = statevector%myLatBeg, statevector%myLatEnd
+          do i = statevector%myLonBeg, statevector%myLonEnd
+            hu_ptr(i,j,k,stepIndex) = exp(lq_ptr(i,j,k,stepIndex))
           end do
-       end do
-!$OMP END PARALLEL DO
-   end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    end do
 
   end subroutine LQtoHU
 
-!--------------------------------------------------------------------------
-! HUtoLQ
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! HUtoLQ
+  !--------------------------------------------------------------------------
   subroutine HUtoLQ(statevector)
     implicit none
 
@@ -199,22 +199,22 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector,'HU')
 
     do stepIndex = 1, statevector%numStep
-!$OMP PARALLEL DO PRIVATE(i,j,k)
-       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-             do i = statevector%myLonBeg, statevector%myLonEnd
-                lq_ptr(i,j,k,stepIndex) = log(max(hu_ptr(i,j,k,stepIndex),MPC_MINIMUM_HU_R8))
-             end do
+      !$OMP PARALLEL DO PRIVATE(i,j,k)
+      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do j = statevector%myLatBeg, statevector%myLatEnd
+          do i = statevector%myLonBeg, statevector%myLonEnd
+            lq_ptr(i,j,k,stepIndex) = log(max(hu_ptr(i,j,k,stepIndex),MPC_MINIMUM_HU_R8))
           end do
-       end do
-!$OMP END PARALLEL DO
+        end do
+      end do
+      !$OMP END PARALLEL DO
     end do
 
   end subroutine HUtoLQ
 
-!--------------------------------------------------------------------------
-! LQtoHU_tlm
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! LQtoHU_tlm
+  !--------------------------------------------------------------------------
   subroutine LQtoHU_tlm(statevector)
     implicit none
 
@@ -230,22 +230,22 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-!$OMP PARALLEL DO PRIVATE(i,j,k)
-       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-             do i = statevector%myLonBeg, statevector%myLonEnd       
-               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
-             end do
+      !$OMP PARALLEL DO PRIVATE(i,j,k)
+      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do j = statevector%myLatBeg, statevector%myLatEnd
+          do i = statevector%myLonBeg, statevector%myLonEnd       
+            hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
           end do
-       end do
-!$OMP END PARALLEL DO
+        end do
+      end do
+      !$OMP END PARALLEL DO
     end do
 
   end subroutine LQtoHU_tlm
 
-!--------------------------------------------------------------------------
-! HUtoLQ_tlm
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! HUtoLQ_tlm
+  !--------------------------------------------------------------------------
   subroutine HUtoLQ_tlm(statevector)
     implicit none
 
@@ -261,22 +261,22 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-!$OMP PARALLEL DO PRIVATE(i,j,k)
-       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-             do i = statevector%myLonBeg, statevector%myLonEnd
-               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
-             end do
+      !$OMP PARALLEL DO PRIVATE(i,j,k)
+      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do j = statevector%myLatBeg, statevector%myLatEnd
+          do i = statevector%myLonBeg, statevector%myLonEnd
+            lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
           end do
-       end do
-!$OMP END PARALLEL DO
+        end do
+      end do
+      !$OMP END PARALLEL DO
     end do
 
   end subroutine HUtoLQ_tlm
 
-!--------------------------------------------------------------------------
-! UVtoVortDiv
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! UVtoVortDiv
+  !--------------------------------------------------------------------------
   subroutine UVtoVortDiv(statevector)
     implicit none
    
@@ -310,9 +310,9 @@ CONTAINS
 
   end subroutine UVtoVortDiv
 
-!--------------------------------------------------------------------------
-! VortDivToPsiChi
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! VortDivToPsiChi
+  !--------------------------------------------------------------------------
   subroutine VortDivToPsiChi(statevector)
     implicit none
    
@@ -361,9 +361,9 @@ CONTAINS
 
   end subroutine VortDivToPsiChi
 
-!--------------------------------------------------------------------------
-! UVtoPsiChi
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! UVtoPsiChi
+  !--------------------------------------------------------------------------
   subroutine UVtoPsiChi(statevector)
     implicit none
    
@@ -456,4 +456,4 @@ CONTAINS
 
   end subroutine UVtoPsiChi
 
-END MODULE variableTransforms_mod
+end module variableTransforms_mod
