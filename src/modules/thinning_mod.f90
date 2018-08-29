@@ -17,7 +17,13 @@
 !--------------------------------------------------------------------------
 !! MODULE thinning (prefix="thn")
 !!
-!! *Purpose*: To group all the thinning methods in a single fortran module
+!! *Purpose*: Using observation-type specific algorithms, set bit 11 of 'flag'
+!!            on data that are not to be assimilated.
+!!
+!! *Note*:    This module is intended to group all of the thinning methods in a
+!!            single fortran module.
+!!
+!!            So far, only aladin wind data are treated.
 !!
 !--------------------------------------------------------------------------
 module thinning_mod
@@ -63,16 +69,15 @@ contains
   end subroutine thn_thinAladin
 
 
-!_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+!_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 !_/
 !_/ The following methods are intended to be general algorithms that may be
 !_/ called by any of the observation-type-specific thinning methods.
 !_/
-!_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+!_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
 
 !--------------------------------------------------------------------------
-!! SUBROUTINE keepNthObs of module thinning_mod
 !!
 !! *Purpose*: Of the observations in a column that have not already been
 !!            rejected, keep every nth observation and throw out the rest.

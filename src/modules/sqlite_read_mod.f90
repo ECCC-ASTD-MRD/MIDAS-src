@@ -904,6 +904,11 @@ contains
   end subroutine sqlr_insertSqlite
 
 
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to flagged (bit 11 set) observations in an SQL file
+  !!
+  !--------------------------------------------------------------------------
   subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
     implicit none
     ! arguments

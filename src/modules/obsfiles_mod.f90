@@ -212,6 +212,13 @@ contains
   end subroutine obsf_writeFiles
 
 
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to reduce the number of observation data
+  !!
+  !! *Note*:    operates only on SQL files. Issues a warning for other file types
+  !!
+  !--------------------------------------------------------------------------
   subroutine obsf_thinFiles(obsSpaceData)
     implicit none
     ! arguments

@@ -208,6 +208,11 @@ module sqliteFiles_mod
   end subroutine sqlf_updateFile
 
 
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to reduce the number of observation data in an SQL file
+  !!
+  !--------------------------------------------------------------------------
   subroutine sqlf_thinFile(obsSpaceData, fileName, familyType, fileIndex)
     implicit none
     ! arguments

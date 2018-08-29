@@ -16,7 +16,14 @@
 
 !--------------------------------------------------------------------------
 !!
-!! *Purpose*: Thinning1 program to reduce the number of observation data
+!! *Purpose*: Thinning1 program to reduce the number of observation data.
+!!
+!! *Method*:  Set bit 11 of ;flag' according to an observation-type specific
+!!            algorithm.  Then delete all SQL records where bit 11 is set.
+!!            So far, only aladin wind data are treated.
+!!
+!! *Note*:    In order for the SQL file size to be reduced, a script must
+!!            subsequently execute the SQL command, 'vacuum'.
 !!
 !--------------------------------------------------------------------------
 program midas_thinning
@@ -101,12 +108,9 @@ program midas_thinning
 contains
 
   !--------------------------------------------------------------------------
-  !! *Purpose*: Control of the preprocessing of the variational assimilation
   !!
-  !! Revisions:
-  !!           Y.J. Rochon, Jan 2016
-  !!           - Addition of test on availability of input trial fields according
-  !!             to related observation families.
+  !! *Purpose*: Control of the preprocessing of the MIDAS thinning
+  !!
   !--------------------------------------------------------------------------
   subroutine thin_setup(obsColumnMode)
     implicit none
