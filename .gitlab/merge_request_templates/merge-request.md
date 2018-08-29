@@ -24,6 +24,7 @@
 <!--   * results            -->
 
 <!--if changes are not relevant for CHANGELOG.md, please be clear on why it is not-->
+<!--if changes are relevant for CHANGELOG.md, please add yours the 'Unreleased' section.-->
 
 
 ### Resolved issues:
