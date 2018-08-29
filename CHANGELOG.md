@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Relax constraints on MPI topology (#49, !44)
 * Add a 2D mode (#32, #51, !45)
 * First step towards controlling precision (#47, !46)
-* Benjamin Menetrier's localization lengthscale diagnostics is now 
+* Benjamin Menetrier's localization lengthscale diagnostics is now
   available in global and lam mode in calcstats (#31 and !34)
 * Reactivation of the Scale-Dependent Localization (#40 and !35)
 * Allow accounting for some latitudinal heterogeneity of the
@@ -145,7 +145,7 @@ mpi task during the redistribution step (!38 and #42)
 
 ## [3.0.0] - 2017-10-30
 
-Since `v_2.2.6`.  This is the initial version delivered in final cycles for the GDPS 6.1 project in 2018.
+This is the initial version delivered in final cycles for the GDPS 6.1 project in 2018.
 
 ### Added
 - Includes backward comptatible changes to conventional observations by Stéphane Laroche
@@ -154,6 +154,15 @@ Since `v_2.2.6`.  This is the initial version delivered in final cycles for the 
 - Introducing the use of RTTOV-12 library (release '1.0) (non backward compatible) (Sylvain Heilliette)
 - Using `cmda/libs/16.2-6`
 - Reduce memory usage for IR bgck by a factor of 5
+
+## [2.2.0] - 2016-09
+
+This is the first version published and use on the HPCR platforms
+`ubuntu-14.04-amd64-64` and `sles-11-amd64-64` on the `science.gc.ca`
+network.
+
+Some other `v_2.2.*` subsequent versions have been published but we
+are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...HEAD
 [3.2.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.1...v_3.2.2
@@ -165,4 +174,4 @@ Since `v_2.2.6`.  This is the initial version delivered in final cycles for the 
 [3.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.0.2...v_3.0.3
 [3.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.0.1...v_3.0.2
 [3.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.0.0...v_3.0.1
-[3.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_2.2.6...v_3.0.0
+[3.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_2.2.0...v_3.0.0
