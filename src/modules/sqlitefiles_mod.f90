@@ -50,7 +50,7 @@ module sqliteFiles_mod
     ! locals
     logical             :: isExistLogical 
     integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
-    integer             :: inrecs, mrfopc, dateSqlite ,timeSqlite
+    integer             :: inrecs, mrfopc, dateSqlite , timeSqlite
     real(obs_real)      :: delhh
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
@@ -70,10 +70,10 @@ module sqliteFiles_mod
       read(datetimeSqliteCharacter,*)  dateSqlite
       kdate = dateSqlite
       querySqlite = "select time from resume;"
-      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite) )
-      read(datetimeSqliteCharacter,*) timeSqlite 
-      ktime=timeSqlite
-      write(*,*) ' DATE and TIME in Sqlite file = ', dateSqlite, timeSqlite
+      datetimeSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
+      read( datetimeSqliteCharacter, * ) timeSqlite 
+      ktime = timeSqlite
+      write(*,*) ' DATE and TIME in Sqlite file = ', dateSqlite, timeSqlite, ' (kdate, ktime) (',kdate,ktime,')'
       call fSQL_close( db, statusSqlite )
     end if
 
@@ -87,7 +87,8 @@ module sqliteFiles_mod
     delhh = 3.0d0
     call INCDATR (datestamp, istampobs, delhh)
     ier = newdate(datestamp, nbrpdate, inewhh, -3)
-    nbrphh = ktime / 100
+    !nbrphh = ktime / 100
+    nbrphh = ktime
     if (nbrphh >= 21 .or. nbrphh < 3 ) then
       nbrphh = 0
     else if(nbrphh >= 3 .and. nbrphh < 9 ) then

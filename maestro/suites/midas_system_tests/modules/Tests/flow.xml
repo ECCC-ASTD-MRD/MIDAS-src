@@ -109,11 +109,6 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="o-a_sst"/>
-    <FAMILY  name="o-a_sst">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="ensManip">
