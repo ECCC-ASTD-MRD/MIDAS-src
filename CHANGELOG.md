@@ -17,15 +17,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     `NAMINC` with name `ETIKET_REBM`. The namelist variable
     `WRITEANALYSIS` was moved from `NAMMIN` to `NAMCT0`.
 * Variational bias correction functionality have been added (#41 and !43)
-* Relax constraints on MPI topology (#49, !44)
 * Add a 2D mode (#32, #51, !45)
 * First step towards controlling precision (#47, !46)
 * Benjamin Menetrier's localization lengthscale diagnostics is now
   available in global and lam mode in calcstats (#31 and !34)
-* Reactivation of the Scale-Dependent Localization (#40 and !35)
-* Allow accounting for some latitudinal heterogeneity of the
-  correlations (#39 and !37)
-* Add more flexibility to latBands B matrix (#48 and !40)
+* Add a new type of global static B matrix with some latitudinal heterogeneity of the
+  correlations (#39, #48, !37 and !40)
 * Add a new program, `ensembleH`, to apply H to ensemble (#60 and !51)
 * Add automatic increment normalization in diagBmatrix
 * Allow computation of local horizontal correlation in calcstats for LAM
@@ -48,22 +45,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * Using RTTOV-12 v1.1 from which 'lapack.o' has been removed to use
   the system library which is faster
-* The directories have been reorganized (#50)
-* Fix and a modify to the LQ to HU tangent-linear transform (#61 and !49)
+* The directories have been reorganized (#50, !42)
+* Relax constraints on MPI topology (#49, !44)
 * Make the Bnmc-LAM 2D mode fullly functionnal (#62 and !50)
-* Fix for the vertical interpolation of LAM ensembles (#46 and !53)
 * Make `controlVector_mod` more general (#73 and !58)
 * Refactor all system tests to test directly all the programs (#59 and !60)
-* Fix bugs in gsv_writeToFile related to tic toc records (#70 and !62)
 * Improve `tim_getDateStampFromFile`: using trial/analysis input file
   to determine the date (#74, #76 and !63)
 * Add chemical consituents capacity (#98, !95 and !89)
 * Make advection modular and flexible (!87 and !99)
 * Improve advection code (#87, #119, !99 and !105)
-* Fix to statetocolumn_mod in the extremely rare case where a
-  processor had some observations before the load balancing but none
-  after (#129 and !13)
-* Fix the I/O for hessian in LAM mode (#128 and !112)
 * `HU` rather than `LQ` in `gridStateVector` outside `$B$` matrix modules. This
   has significant impact on the results and also requires changes to
   the use of the randomPert program within the EnKF (a background
@@ -71,7 +62,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * The copy of files to RAMDisk is now done directly in the fortran
   code and no longer in the scripts (#133 and !117)
 
+### Fixed
+
+* Reactivation of the Scale-Dependent Localization (#40 and !35)
+* Fix and a modification to the LQ to HU tangent-linear transform (#61 and !49)
+* Fix for the vertical interpolation of LAM ensembles (#46 and !53)
+* Fix bugs in gsv_writeToFile related to tic toc records (#70 and !62)
+* Fix the I/O for hessian in LAM mode (#128 and !112)
+* Fix to statetocolumn_mod in the extremely rare case where a
+  processor had some observations before the load balancing but none
+  after (#129 and !113)
+
 ### Removed
+
+* (Nothing yet) 
 
 ## [3.2.2] - 2018-05-09
 
