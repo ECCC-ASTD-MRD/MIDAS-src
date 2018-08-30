@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
-* (Nothing yet) 
+* (Nothing yet)
 
 ## [3.2.2] - 2018-05-09
 
@@ -83,7 +83,7 @@ No change to the fortran code so it is equivalent to `v_3.2.1`.
 
 ## [3.2.1] - 2018-05-03
 
-### Changed
+### Fixed
 
 - Fix a bug when IASI are missing at the background check step.  It
 was causing an aborting in the following analysis.  We also correct a
@@ -94,15 +94,13 @@ non-initialized variable.  (#94 and #96)
 This release comes from `v_3.0.4` to ignore changes with `lapack.o` in
 RTTOV-12.
 
-### Changed
+### Fixed
 
 - Fix a bug which affects 'BURP_update' (#66 and #79)
 
 ## [3.1.0] - 2018-01-28
 
 This version will be ignored.
-
-### Changed
 
 Since the release `v_3.0.5` has changed the results, we should have
 tagged it 'v_3.1.0' to follow semantic versioning.
@@ -120,7 +118,7 @@ results are very sligthly changed.
 
 ## [3.0.4] - 2017-11-28
 
-### Changed
+### Fixed
 
 - Fix a bug where an assumption was incorrectly made that the number
 of vertical levels of the trial field was the same as in the analysis
@@ -128,7 +126,7 @@ vertical grid.
 
 ## [3.0.3] - 2017-11-28
 
-### Changed
+### Fixed
 
 - Fix the situation where the grid for TG is not the same as for other
      fields like TT.  This is the case where the trial field comes
@@ -136,13 +134,13 @@ vertical grid.
 
 ## [3.0.2] - 2017-11-16
 
-### Changed
+### Fixed
 
 - Fix MPI related problems in `tvs_rttov_read_coefs` (!39 and #44)
 
 ## [3.0.1] - 2017-11-08
 
-### Changed
+### Fixed
 
 - Fix the rare case where all obs on one mpi task are sent to another
 mpi task during the redistribution step (!38 and #42)
