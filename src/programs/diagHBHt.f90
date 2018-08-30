@@ -43,7 +43,6 @@ program midas_diagHBHt
   use obsTimeInterp_mod
   use stateToColumn_mod
   use innovation_mod
-  use WindRotation_mod
   use analysisGrid_mod
   use bmatrix_mod
   use tovs_nl_mod
@@ -214,10 +213,6 @@ contains
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
-    if ( hco_anl % rotated ) then
-      call uvr_Setup(hco_anl) ! IN 
-    end if
-
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
@@ -307,7 +302,6 @@ contains
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     !
     !- 2.  Compute the perturbations

@@ -69,6 +69,7 @@ MODULE ensembleStateVector_mod
     type(struct_oneLev_r8), allocatable :: allLev_r8(:)
     logical                       :: meanIsComputed = .false.
     logical                       :: stdDevIsComputed = .false.
+    logical                       :: meanIsRemoved = .false.
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
     integer                       :: numSubEns
     character(len=256)            :: enspathname
@@ -769,7 +770,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
     ! Compute ensemble mean(s)
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
+    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
@@ -788,7 +789,7 @@ CONTAINS
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! provide output argument value
     if ( present(numSubEns_opt) ) numSubEns_opt = ens%numSubEns
@@ -837,7 +838,7 @@ CONTAINS
     !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
     !   stddev = sqrt( var_allensensemble / numEnsTotal )
 
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
+    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
@@ -856,7 +857,7 @@ CONTAINS
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     deallocate(subEnsStdDev)
 
@@ -883,7 +884,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
+    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
@@ -897,7 +898,9 @@ CONTAINS
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
+
+    ens%meanIsRemoved = .true.
 
   end subroutine ens_removeMean
 
@@ -943,7 +946,7 @@ CONTAINS
       nullify(ptr4d_ensembleControlmember_r8)
     end if
 
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
+    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
@@ -965,7 +968,7 @@ CONTAINS
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine ens_recenter
 
@@ -1001,8 +1004,9 @@ CONTAINS
 
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
-      call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
-           stepIndex_opt=stepIndex, unitConversion_opt=.true.)
+      call gsv_readFromFile( statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
+                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,  &
+                             containsFullField_opt=.true. )
     end do
 
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
@@ -1015,7 +1019,8 @@ CONTAINS
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
       call gsv_writeToFile( statevector_ensembleControlMember, ensFileName, etiket, &
-           stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt)
+                            stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
+                            containsFullField_opt = .true. )
     end do
 
     call gsv_deallocate(statevector_ensembleControlMember)
@@ -1043,8 +1048,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_file, vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
-    real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
-    real(8)              :: multFactor
+    real(4), pointer     :: ptr3d_r4(:,:,:)
     integer,pointer :: dateStampList(:)
     integer :: batchnum, nsize, status, ierr
     integer :: yourid, youridx, youridy
@@ -1052,7 +1056,7 @@ CONTAINS
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jk, jk2, jk3
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
@@ -1234,26 +1238,17 @@ CONTAINS
           end if
 
           ! unit conversion
-          VAR_LOOP: do jvar = 1, vnl_numvarmax
-            varName = vnl_varNameList(jvar)
-            if ( .not. gsv_varExist(statevector_member_r4, varName) ) cycle VAR_LOOP
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4, varName)
+          call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField=.true. )
 
-            if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
-              multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
-            else if ( trim(varName) == 'P0' ) then
-              multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
-            else
-              multFactor = 1.0D0 ! no conversion
-            end if
-            ptr3d_r4(:,:,:) = real( multFactor * ptr3d_r4(:,:,:), 4 )
-
-            if      (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ') then
+          ! transform HU to LQ, depending on value of ctrlVarHumidity
+          if ( gsv_varExist(statevector_member_r4, 'HU') ) then
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4, 'HU')
+            if      ( ctrlVarHumidity == 'LQ' ) then
               ptr3d_r4(:,:,:) = sngl(log(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8)))
-            else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU') then
+            else if ( ctrlVarHumidity == 'HU' ) then
               ptr3d_r4(:,:,:) = sngl(    max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
             end if
-          end do VAR_LOOP
+          end if
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -1276,7 +1271,7 @@ CONTAINS
             numLevelsToSend2 = jk2 - jk + 1
 
             ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
-!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
@@ -1286,7 +1281,7 @@ CONTAINS
                            ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
               end do
             end do
-!$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
 
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mpi_nprocs.gt.1) then
@@ -1297,7 +1292,7 @@ CONTAINS
             end if
 
             call tmg_start(110,'ENS_TO_ONELEV')
-!$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
+            !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
             do jk3 = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
@@ -1305,7 +1300,7 @@ CONTAINS
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, jk3, yourid+1)
               end do
             end do
-!$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
             call tmg_stop(110)
 
           end do ! jk
@@ -1360,20 +1355,20 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
-    real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
-    real(8)              :: multFactor
+    real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchnum, nsize, status, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
+    integer :: memberIndex, memberIndex2, stepIndex, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     character(len=6) :: memberIndexStrFormat  !  will contain the character string '(I0.4)' to have 4 characters in the member extension
     !! The two next declarations are sufficient until we reach 10^10 members
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
+    logical :: containsFullField
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1451,23 +1446,23 @@ CONTAINS
             numLevelsToSend2 = jk2 - jk + 1
 
             if ( ens%dataKind == 8 ) then
-!$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
+              !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
               do jk3 = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = real(ens%allLev_r8(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
-!$OMP END PARALLEL DO
+              !$OMP END PARALLEL DO
             else
-!$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
+              !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
               do jk3 = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = ens%allLev_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
-!$OMP END PARALLEL DO
+              !$OMP END PARALLEL DO
             end if
 
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
@@ -1479,7 +1474,7 @@ CONTAINS
             end if
 
             ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
-!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
@@ -1490,7 +1485,7 @@ CONTAINS
 
               end do
             end do
-!$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
 
           end do ! jk
           call tmg_stop(13)
@@ -1521,9 +1516,14 @@ CONTAINS
             end if
           end if
 
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
-        end if ! locally written one member
+          ! Determine if ensemble is full fields (if yes, will be converted from K to C)
+          containsFullField =  ( .not. ens%meanIsRemoved )
 
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
+                                typvar_opt = typvar, numBits_opt = numBits_opt,  &
+                                containsFullField_opt = containsFullField )
+
+        end if ! locally written one member
 
       end do ! memberIndex
 

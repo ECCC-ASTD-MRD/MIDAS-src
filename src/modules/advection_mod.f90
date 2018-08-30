@@ -307,7 +307,8 @@ CONTAINS
       inquire(file=trim(fileName),exist=AdvectFileExists)
       write(*,*) 'AdvectFileExists', AdvectFileExists
       do stepIndexSF = 1, numStepSteeringFlow
-        call gsv_readFromFile(statevector_steeringFlow,fileName,' ',' ',stepIndex_opt=stepIndexSF)
+        call gsv_readFromFile( statevector_steeringFlow, fileName, ' ', ' ', stepIndex_opt=stepIndexSF, &
+                               containsFullField_opt=.true.)
       end do
 
       uu_steeringFlow_ptr4d => gsv_getField_r8(statevector_steeringFlow, 'UU')

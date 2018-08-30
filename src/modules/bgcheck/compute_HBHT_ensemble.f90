@@ -89,7 +89,6 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
 
   !- 1.6
   call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
-  call oti_setup(obsSpaceData,tim_nstepobsinc)
 
   !
   !- 2.  Compute HBHT from the ensemble perturbations

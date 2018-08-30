@@ -36,7 +36,6 @@ program midas_ominusf
   use obsFiles_mod
   use obsFilter_mod  
   use innovation_mod
-  use windRotation_mod
   use analysisGrid_mod
   use tovs_nl_mod
   use obsErrors_mod
@@ -136,10 +135,6 @@ program midas_ominusf
   else
     call hco_SetupFromFile(hco_anl, trim(trialFileName), ' ') ! IN
     call agd_SetupFromHCO( hco_anl ) ! IN
-  end if
-
-  if ( hco_anl % rotated ) then
-    call uvr_Setup(hco_anl) ! IN 
   end if
 
   ! 1.10 Setup a column vector following the analysis vertical grid

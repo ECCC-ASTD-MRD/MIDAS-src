@@ -29,27 +29,34 @@ module obsTimeInterp_mod
   save
   private
   
+  ! public derived type
+  public :: struct_oti
+
   ! public procedures
-  public :: oti_setup, oti_setupMpiGlobal, oti_initialized
+  public :: oti_setup, oti_initialized
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal
   public :: oti_timeInterpWeightAllZero
 
-  real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation to obs times
-  real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
-  logical          :: initialized = .false.
+  type struct_oti
+    real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for temporal interpolation to obs times
+    real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
+    logical          :: initialized = .false.
+  end type struct_oti
 
   integer, external :: get_max_rss
 
 contains
 
-  function oti_initialized() result(initialized_out)
+  function oti_initialized(oti) result(initialized_out)
     implicit none
-    logical initialized_out
+    type(struct_oti), pointer :: oti
+    logical                   :: initialized_out
 
-    initialized_out = initialized
+    initialized_out = oti%initialized
 
   end function oti_initialized
+
 
   subroutine oti_timeBinning(obsSpaceData,nstepobs)
     implicit none
@@ -179,16 +186,25 @@ contains
   end subroutine oti_timeBinning
 
 
-  subroutine oti_setup(obsSpaceData, numStep)
+  subroutine oti_setup(oti, obsSpaceData, numStep, interpType, flagObsOutside_opt)
     implicit none
 
     ! arguments
-    type(struct_obs) :: obsSpaceData
-    integer          :: numStep
+    type(struct_oti), pointer  :: oti
+    type(struct_obs)           :: obsSpaceData
+    integer                    :: numStep
+    character(len=*)           :: interpType
+    logical, optional          :: flagObsOutside_opt
 
     ! locals
-    integer :: headerIndex
-    real(8) :: stepObsIndex
+    integer           :: headerIndex
+    real(8)           :: stepObsIndex
+
+    if ( associated(oti) ) then
+      call utl_abort('oti_setup: the supplied oti pointer is not null!')
+    endif
+
+    allocate(oti)
 
     if ( .not.tim_initialized() ) call utl_abort('oti_setup: timeCoord module not initialized')
 
@@ -198,33 +214,54 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
 
-    if (associated(timeInterpWeight)) deallocate(timeInterpWeight)
-    allocate(timeInterpWeight(obs_numHeader(obsSpaceData),numStep))
-    timeInterpWeight(:,:) = 0.0d0
+    if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
+    allocate(oti%timeInterpWeight(obs_numHeader(obsSpaceData),numStep))
+    oti%timeInterpWeight(:,:) = 0.0d0
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
       if (numStep == 1) then
-        call oti_setTimeInterpWeight(1.0d0,headerIndex,1)
+        call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
       else
         ! building floating point step index
         call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                              obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
                              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
         ! leave all weights zero if obs time is out of range, otherwise set weights
-        if (floor(stepObsIndex) >= numStep) then
+        if (floor(stepObsIndex) > numStep) then
           write(*,*) 'oti_setup: stepObsIndex too big=', headerIndex, stepObsIndex
-        else if (floor(stepObsIndex) <= 0) then
+          !call utl_abort('oti_setup: this case should not occur')
+        else if (floor(stepObsIndex) < 1) then
           write(*,*) 'oti_setup: stepObsIndex too small=',headerIndex, stepObsIndex
+          !call utl_abort('oti_setup: this case should not occur')
         else
-          call oti_setTimeInterpWeight(1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
-          call oti_setTimeInterpWeight(stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
+          if ( trim(interpType) == 'LINEAR' ) then
+            if ( stepObsIndex >= real(numStep,8) ) then
+              ! special case not handled by general approach
+              call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, numStep)
+            else
+              ! general approach for most observations
+              call oti_setTimeInterpWeight(oti, 1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
+              call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
+            end if
+          else if ( trim(interpType) == 'nearest' ) then
+            call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
+          else
+            call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType))
+          end if
         end if
       end if
 
     end do
 
-    initialized = .true.
+    oti%initialized = .true.
+
+    if ( present(flagObsOutside_opt) ) then
+      if (flagObsOutside_opt) call oti_flagObsOutsideWindow(oti, obsSpaceData)
+    end if
+
+    ! also setup MPI global version of weights, needed for s2c_nl
+    call oti_setupMpiGlobal(oti)
 
     if (mpi_myid == 0) write(*,*) ' '
     if (mpi_myid == 0) write(*,*) '-------- End of oti_setup ---------'
@@ -233,35 +270,38 @@ contains
   end subroutine oti_setup
 
 
-  subroutine oti_setupMpiGlobal()
+  subroutine oti_setupMpiGlobal(oti)
     implicit none
+
+    ! arguments
+    type(struct_oti), pointer :: oti
 
     ! locals
     integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
-    if ( .not.associated(timeInterpWeight) ) then
+    if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_setupMpiGlobal: oti_setup must first be called')
     end if
 
-    numHeader = size(timeInterpWeight,1)
-    numStep = size(timeInterpWeight,2)
+    numHeader = size(oti%timeInterpWeight,1)
+    numStep = size(oti%timeInterpWeight,2)
     write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader ; call flush(6)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
                numHeaderMax, numStep, mpi_nprocs 
-    allocate(timeInterpWeightMpiGlobal(numHeaderMax,numStep,mpi_nprocs))
+    allocate(oti%timeInterpWeightMpiGlobal(numHeaderMax,numStep,mpi_nprocs))
 
     ! copy over timeInterpWeight into a local array with same size for all mpi tasks
     allocate(timeInterpWeightMax(numHeaderMax,numStep))
     timeInterpWeightMax(:,:) = 0.0d0
-    timeInterpWeightMax(1:numHeader,1:numStep) = timeInterpWeight(1:numHeader,1:numStep)
+    timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(1:numHeader,1:numStep)
 
     nsize = numHeaderMax * numStep 
-    call rpn_comm_allgather(timeInterpWeightMax,       nsize, 'MPI_REAL8',  &
-                            timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
+    call rpn_comm_allgather(timeInterpWeightMax,           nsize, 'MPI_REAL8',  &
+                            oti%timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
                             'GRID', ierr)
 
     deallocate(timeInterpWeightMax)
@@ -271,44 +311,91 @@ contains
   end subroutine oti_setupMpiGlobal
 
 
-  subroutine oti_setTimeInterpWeight(weight_in,headerIndex,stepObs)
+  subroutine oti_setTimeInterpWeight(oti, weight_in, headerIndex, stepObs)
     implicit none
-    integer, intent(in) :: headerIndex, stepObs
-    real(8), intent(in) :: weight_in
+    type(struct_oti), pointer :: oti
+    integer, intent(in)       :: headerIndex, stepObs
+    real(8), intent(in)       :: weight_in
 
-    timeInterpWeight(headerIndex, stepObs) = weight_in
+    oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
   end SUBROUTINE oti_setTimeInterpWeight
 
 
-  function oti_getTimeInterpWeight(headerIndex,stepObs) result(weight_out)
+  function oti_getTimeInterpWeight(oti, headerIndex, stepObs) result(weight_out)
     implicit none
-    real(8)             :: weight_out
-    integer, intent(in) :: headerIndex, stepObs
+    type(struct_oti), pointer :: oti
+    real(8)                   :: weight_out
+    integer, intent(in)       :: headerIndex, stepObs
 
-    weight_out = timeInterpWeight(headerIndex, stepObs)
+    weight_out = oti%timeInterpWeight(headerIndex, stepObs)
 
   end function oti_getTimeInterpWeight
 
 
-  function oti_getTimeInterpWeightMpiGlobal(headerIndex,stepObs,procIndex) result(weight_out)
+  function oti_getTimeInterpWeightMpiGlobal(oti, headerIndex, stepObs, procIndex) result(weight_out)
     implicit none
-    real(8)             :: weight_out
-    integer, intent(in) :: headerIndex, stepObs, procIndex
+    type(struct_oti), pointer :: oti
+    real(8)                   :: weight_out
+    integer, intent(in)       :: headerIndex, stepObs, procIndex
 
-    weight_out = timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
+    weight_out = oti%timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
 
   end function oti_getTimeInterpWeightMpiGlobal
 
 
-  function oti_timeInterpWeightAllZero(headerIndex) result(allZero)
+  function oti_timeInterpWeightAllZero(oti, headerIndex) result(allZero)
     implicit none
-    logical             :: allZero
-    integer, intent(in) :: headerIndex
+    type(struct_oti), pointer :: oti
+    logical                   :: allZero
+    integer, intent(in)       :: headerIndex
 
-    allZero = all(timeInterpWeight(headerIndex, :) == 0.0d0)
+    if ( .not.associated(oti%timeInterpWeight) ) then
+      call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
+    end if
+
+    allZero = all(oti%timeInterpWeight(headerIndex, :) == 0.0d0)
 
   end function oti_timeInterpWeightAllZero
 
+
+  subroutine oti_flagObsOutsideWindow(oti, obsSpaceData)
+    implicit none
+
+    ! arguments
+    type(struct_oti), pointer :: oti
+    type(struct_obs)          :: obsSpaceData
+
+    ! locals
+    integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
+
+    if ( .not.associated(oti%timeInterpWeight) ) then
+      call utl_abort('oti_flagObsOutsideWindow: oti_setup must first be called')
+    end if
+
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+
+      if ( oti_timeInterpWeightAllZero(oti, headerIndex) ) then
+        ! obs is outside of assimilation window
+
+        write(*,*) 'oti_flagObsOutsideWindow: Observation time outside assimilation window: ',  &
+             obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+
+        ! flag these observations as out of time domain and turn off its assimilation flag
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+        end do
+        call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
+             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+
+        ! set the weight to 1 for time step 1 so that the column will be interpolated
+        call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
+      end if
+
+    end do
+
+  end subroutine oti_flagObsOutsideWindow
 
 end module obsTimeInterp_mod

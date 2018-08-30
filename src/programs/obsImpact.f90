@@ -29,7 +29,6 @@ program midas_obsimpact
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -44,7 +43,6 @@ program midas_obsimpact
   use innovation_mod
   use obsFiles_mod
   use obsFilter_mod
-  use WindRotation_mod
   use obsErrors_mod
   use variableTransforms_mod
   use rttov_const, only :inst_name, platform_name
@@ -259,10 +257,6 @@ contains
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
-    if ( hco_anl % rotated ) then
-      call uvr_Setup(hco_anl) ! IN 
-    end if
-
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file !
     call vco_SetupFromFile( vco_anl,        & ! OUT
@@ -341,8 +335,6 @@ contains
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
- 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
     write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
@@ -438,8 +430,6 @@ contains
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
-    call oti_setup(obsSpaceData,tim_nstepobsinc)
-
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
     write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
@@ -452,7 +442,7 @@ contains
     call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P')
+    call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfa
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
@@ -463,7 +453,7 @@ contains
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P')
+    call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P', containsFullField_opt=.true.)
 
     !for statevecotr_tempfb
     call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
@@ -474,7 +464,7 @@ contains
     call gsv_allocate(statevector_a, 1,hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
+    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
 
     ! compute error of both forecasts (overwrite forecasts with error)
     call gsv_add(statevector_a, statevector_fa, -1.0d0)

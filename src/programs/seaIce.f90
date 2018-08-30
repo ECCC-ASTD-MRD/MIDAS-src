@@ -206,8 +206,8 @@ program midas_seaIce
               call flush(6)
 
               ip3 = ip3 + 1
-              call gsv_writeToFileMpi(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
-                                         ip3_opt=ip3,unitConversion_opt=.true.)
+              call gsv_writeToFile(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
+                                   ip3_opt=ip3,unitConversion_opt=.true.)
 
            enddo
         enddo

@@ -38,6 +38,7 @@ module utilities_mod
   public :: utl_get_stringId, utl_get_Id
   public :: utl_readFstField
   public :: utl_varNamePresentInFile
+  public :: utl_reAllocate
 
   ! module interfaces
   ! -----------------
@@ -72,6 +73,15 @@ module utilities_mod
     module procedure utl_ezuvint_r8_1d
     module procedure utl_ezuvint_r8_2d
   end interface utl_ezuvint
+
+  interface utl_reAllocate
+    module procedure utl_reAllocate_r4_3d
+    module procedure utl_reAllocate_r8_3d
+    module procedure utl_reAllocate_r4_4d
+    module procedure utl_reAllocate_r8_4d
+    module procedure utl_reAllocate_r4_5d
+    module procedure utl_reAllocate_r8_5d
+  end interface utl_reAllocate
 
 contains
 
@@ -454,13 +464,10 @@ contains
 
   end function utl_ezuvint_r8_2d
 
-
-
-
   !--------------------------------------------------------------------------
   ! utl_EZGDEF
   !--------------------------------------------------------------------------
-  FUNCTION utl_EZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
+  function utl_ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
     implicit none
 
     integer :: vezgdef
@@ -502,12 +509,12 @@ contains
 
     vezgdef=ier2
 
-  end FUNCTION utl_EZGDEF
+  end function utl_ezgdef
 
   !--------------------------------------------------------------------------
-  ! utl_CXGAIG
+  ! utl_cxgaig
   !--------------------------------------------------------------------------
-  SUBROUTINE utl_CXGAIG(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
+  subroutine utl_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
     implicit none
 
     integer :: ig1, ig2, ig3, ig4   
@@ -523,12 +530,12 @@ contains
 
     call cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat04, xlon04, dlat4, dlon4)
 
-  end SUBROUTINE utl_CXGAIG
+  end subroutine utl_cxgaig
 
   !--------------------------------------------------------------------------
   ! utl_fstlir
   !--------------------------------------------------------------------------
-  FUNCTION utl_FSTLIR(fld8, iun, ni, nj, nk, datev, etiket, &
+  function utl_fstlir(fld8, iun, ni, nj, nk, datev, etiket, &
        ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
     implicit none
 
@@ -569,12 +576,12 @@ contains
 
     vfstlir=key1
 
-  end FUNCTION utl_FSTLIR
+  end function utl_fstlir
 
   !--------------------------------------------------------------------------
   ! utl_fstecr
   !--------------------------------------------------------------------------
-  FUNCTION utl_FSTECR(fld8, npak, iun, dateo, deet, &
+  function utl_fstecr(fld8, npak, iun, dateo, deet, &
        npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
        nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
        datyp, rewrit) result(vfstecr)
@@ -615,12 +622,12 @@ contains
 
     vfstecr=ikey
 
-  end FUNCTION UTL_FSTECR
+  end function utl_fstecr
 
   !--------------------------------------------------------------------------
   ! utl_findArrayIndex
   !--------------------------------------------------------------------------
-  FUNCTION utl_findArrayIndex(KLIST, KLEN, KENTRY) result(isrcheq)
+  function utl_findArrayIndex(KLIST, KLEN, KENTRY) result(isrcheq)
     implicit none
     !
     ! Find entry in list.
@@ -630,7 +637,7 @@ contains
     !     i   KLEN    : Dimension of list.
     !     i   KENTRY  : Entry.
     !     O   ISRCHEQ : Index of entry: (0, not found, >0, found)
-    !
+
     INTEGER :: ISRCHEQ
     INTEGER :: KENTRY, KLEN, JI
     INTEGER :: KLIST(KLEN)
@@ -643,12 +650,12 @@ contains
        END IF
     END DO
 
-  END FUNCTION UTL_FINDARRAYINDEX
+  end function utl_findArrayIndex
 
   !--------------------------------------------------------------------------
   ! utl_matSqrt
   !--------------------------------------------------------------------------
-  SUBROUTINE utl_MATSQRT(PA,KN,ZSIGN,printInformation_opt)
+  subroutine utl_matsqrt(PA,KN,ZSIGN,printInformation_opt)
     !
     ! Calculate square root of an error covariance matrix
     !
@@ -746,7 +753,7 @@ contains
        WRITE(*,*)' '
     end if
 
-  END SUBROUTINE UTL_MATSQRT
+  end subroutine utl_matsqrt
 
   !--------------------------------------------------------------------------
   ! utl_writeStatus
@@ -1632,11 +1639,11 @@ contains
        call utl_abort(message)
     end if
 
- end subroutine utl_checkAllocationStatus
+  end subroutine utl_checkAllocationStatus
 
- !--------------------------------------------------------------------------
- ! utl_varNamePresentInFile
- !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! utl_varNamePresentInFile
+  !--------------------------------------------------------------------------
   function utl_varNamePresentInFile(fileName,varName) result(found)
     implicit none
 
@@ -1663,5 +1670,137 @@ contains
     ierr =  fclos (unit)
 
   end function utl_varNamePresentInFile
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r4_3d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r4_3d(array,dim1,dim2,dim3)
+    implicit none
+    real(4), allocatable :: array(:,:,:)
+    integer :: dim1, dim2, dim3
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3))
+    array(:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r4_3d
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r8_3d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r8_3d(array,dim1,dim2,dim3)
+    implicit none
+    real(8), allocatable :: array(:,:,:)
+    integer :: dim1, dim2, dim3
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3))
+    array(:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r8_3d
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r4_4d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r4_4d(array,dim1,dim2,dim3,dim4)
+    implicit none
+    real(4), allocatable :: array(:,:,:,:)
+    integer :: dim1, dim2, dim3, dim4
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3*dim4 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3,dim4))
+    array(:,:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r4_4d
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r8_4d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r8_4d(array,dim1,dim2,dim3,dim4)
+    implicit none
+    real(8), allocatable :: array(:,:,:,:)
+    integer :: dim1, dim2, dim3, dim4
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3*dim4 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3,dim4))
+    array(:,:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r8_4d
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r4_5d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r4_5d(array,dim1,dim2,dim3,dim4,dim5)
+    implicit none
+    real(4), allocatable :: array(:,:,:,:,:)
+    integer :: dim1, dim2, dim3, dim4, dim5
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3,dim4,dim5))
+    array(:,:,:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r4_5d
+
+  !--------------------------------------------------------------------------
+  ! utl_reAllocate_r8_5d
+  !--------------------------------------------------------------------------
+  subroutine utl_reAllocate_r8_5d(array,dim1,dim2,dim3,dim4,dim5)
+    implicit none
+    real(8), allocatable :: array(:,:,:,:,:)
+    integer :: dim1, dim2, dim3, dim4, dim5
+
+    if( allocated(array) ) then
+      if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
+        return
+      else
+        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
+        deallocate(array)
+      end if
+    end if
+
+    allocate(array(dim1,dim2,dim3,dim4,dim5))
+    array(:,:,:,:,:) = 0.0d0
+
+  end subroutine utl_reAllocate_r8_5d
 
 end module utilities_mod
