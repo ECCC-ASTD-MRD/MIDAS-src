@@ -75,9 +75,9 @@ else
     cmd=${RUN_PGM}
 fi
 
-/bin/mkdir ./obs
+[ ! -d obs ] && mkdir obs
 echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
-/bin/cp burpfiles_*/brp*_*_* ./obs
+/bin/cp burpfiles_*/brp*_*_* ./obs || true
 
 echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
@@ -105,6 +105,7 @@ done
 ## remove other files created by the execution
 rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
 rm -r mpitmpdir
+[ -d obs ] && rm -r obs
 
 ## put all the rest in 'output'
 mv * ${TASK_OUTPUT}

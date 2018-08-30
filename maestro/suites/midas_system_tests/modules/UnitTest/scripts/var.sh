@@ -19,7 +19,6 @@ fi
 echo "The preparation of the working directory took ${SECONDS} seconds"
 
 SECONDS=0
-
 ${RUN_PGM}
 echo "The program itself took ${SECONDS} seconds"
 
@@ -39,6 +38,9 @@ extract_family () {
 if [ "${fasttmp}" = yes ]; then
     for file in ${FASTTMPDIR}/obs/brp*; do
         if [ -f "${file}" ]; then
+            if [[ "${file}" = *.num_headers ]]; then
+                continue
+            fi
             bfile=${file##*/}
             fam=$(extract_family ${file})
             while [ ! -d burpfiles_${fam}.updated ]; do
@@ -61,6 +63,10 @@ else
     burpfile_x=$(/usr/bin/printf "%0.4d" ${burpfile_x})
 
     for file in ./obs/brp*_${burpfile_x}_${burpfile_y}; do
+        if [[ "${file}" = *.num_headers ]]; then
+            /bin/rm ${file}
+            continue
+        fi
         bfile=${file##*/}
         fam=$(extract_family ${file})
         while [ ! -d burpfiles_${fam}.updated ]; do
@@ -80,3 +86,4 @@ if [ "${fasttmp}" = yes ]; then
 fi
 
 echo "The finalization took ${SECONDS} seconds"
+echo "Ending var.sh at $(/bin/date +%Y%m%d:%H:%M:%S.%N)"
