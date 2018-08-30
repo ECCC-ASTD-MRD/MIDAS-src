@@ -5,7 +5,6 @@
 # commands used in the highly parallel area, we want to use the actual path
 # to avoid undue searches through the command path (involving shared filesystems)
 # this is highly desirable when hundreds of MPI processes are fired
-echo "r.run_in_parallel ERVIG $(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 CMD_rm=$(which rm)
 CMD_date=$(which date)
 CMD_cat=$(which cat)
@@ -205,7 +204,6 @@ mpiexec_Linux_launch() {
       [[ -n ${verbose} ]] && \
         echo "INFO: ${mpirun} ${EXTRA_MPI_PARMS} -machinefile ${MY_NODEFILE} -n ${PeInWorld[${MpiCommWorld}]} "$@" ${ParallelScript}.${MpiCommWorld}"
 #      set -x
-      echo "ERVIG: Starting mpirun at $(/bin/date +%Y%m%d:%H:%M:%S.%N)"
       [[ -z ${dryrun} ]] && \
         ${mpirun} ${EXTRA_MPI_PARMS} -machinefile ${MY_NODEFILE} -n ${PeInWorld[${MpiCommWorld}]} "$@" ${ParallelScript}.${MpiCommWorld}
       set +x
@@ -1148,13 +1146,10 @@ do
   ((npex=${PeInWorld[${MpiCommWorld}]}/${MembersInWorld[${MpiCommWorld}]}))
   cat <<EOT >${ParallelScript}.${MpiCommWorld}
 #!/bin/bash
-echo "ERVIG: OMPI_COMM_WORLD_RANK=\${OMPI_COMM_WORLD_RANK} Starting at \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 ulimit -s unlimited
-echo "ERVIG: \${MP_CHILD} stack unlimited \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 [[ -n "${debug}" ]] && set -x
 #
 export MP_CHILD=\${MP_CHILD:-\${PMI_RANK:-\${OMPI_COMM_WORLD_RANK:-\${ALPS_APP_PE}}}}  # poe/mpich2/openmpi/CrayALPS
-echo "ERVIG: \${MP_CHILD} MP_CHILD \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 ((MP_CHILD=MP_CHILD+ChildOffset))   # need to add ChildOffset for this MPI world to MP_CHILD (always 0 for poe)
 export RP_WorldChild
 ((RP_WorldChild=MP_CHILD-${WorldOffset}))   # child ordinal in this world
@@ -1164,18 +1159,13 @@ export RP_Child="\$((MP_CHILD))"            # global child number, same as MP_CH
 export RP_Member=\$((RP_WorldChild/${npex}+${offset}))      # member number in this world (including offset)
 export RP_MemberChild=\$((RP_WorldChild-RP_WorldChild/${npex}*${npex}))   # child ordinal within this member
 MP_Tag="\$(/usr/bin/printf '${F_world}${F_member}${F_child}${F_seq}' ${V_world} ${V_member} ${V_child} ${V_seq})"
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} cd \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 cd ${tmpdir}
 [[ -n "${debug}" ]] && $CMD_env | $CMD_sort >.mpi_env_\$\$_\$($CMD_hostname)
 #
 #[[ -n "${processorder}" ]] &&
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} touch fail \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 SECONDS=0
 $CMD_touch fail.\${MP_Tag}.\${MP_SeqNum}   # precondition status to failure
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} touch fail took \${SECONDS} seconds"
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} Starting MpiRunScript at \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 source ./${MpiRunScript#${tmpdir}/}.${MpiCommWorld}  ${RedirectStdout} ${RedirectStderr}
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} Ending MpiRunScript at \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 [[ -n "${processorder}" ]] || exit 0     # no listings to process, exit
 cd ${tmpdir}
 touch \${MP_SeqNum}/done  # tell that listing is there and should be complete
@@ -1205,7 +1195,6 @@ for dir in \${MP_SeqNum%??}??  ; do
   rm -f \${the_file}
 done
 true
-echo "ERVIG: \${MP_Tag}.\${MP_SeqNum} Ending at \$(/bin/date +%Y%m%d:%H:%M:%S.%N)"
 EOT
 #==================================================================================================
   chmod 755 ${ParallelScript}.${MpiCommWorld}
