@@ -113,8 +113,8 @@
   </FAMILY>
 
   <FAMILY  name="obsSelect">
-    <SUBMITS sub_name="thinning_mod"/>
-    <FAMILY  name="thinning_mod">
+    <SUBMITS sub_name="thin_AL"/>
+    <FAMILY  name="thin_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

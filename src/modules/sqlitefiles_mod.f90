@@ -223,8 +223,6 @@ module sqliteFiles_mod
 
     ! locals
     character(len=*), parameter :: myName = 'sqlf_thinFile'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     call tmg_start(96,'POST_THINSQL')
     write(*,*) myName//' Starting'

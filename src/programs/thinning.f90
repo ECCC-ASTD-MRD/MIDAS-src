@@ -42,7 +42,9 @@ program midas_thinning
   integer :: ierr, dateStamp
   type(struct_obs)    :: obsSpaceData
   character(len=48) :: obsMpiStrategy, varMode
+  character(len=3)  :: obsColumnMode
   integer :: itemThinningFlagBitsList(15), numberThinningFlagBitsItems
+  integer :: get_max_rss
 
   istamp = exdb('THINNING','DEBUT','NON')
 
@@ -78,7 +80,18 @@ program midas_thinning
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  call thin_setup('ALL') ! obsColumnMode 
+  !     
+  !- Initialize observation file names
+  !
+  call obsf_setup( dateStamp, varMode )
+
+  !
+  !- Setup and read observations
+  !
+  obsColumnMode='ALL'
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
+
+  write(*,*) 'Memory Used during set-up: ',get_max_rss()/1024,'Mb'
 
 
   ! 3. Do the Thinning
@@ -104,38 +117,5 @@ program midas_thinning
   call tmg_terminate(mpi_myid, 'TMG_THIN' )
 
   call rpn_comm_finalize(ierr)
-
-contains
-
-  !--------------------------------------------------------------------------
-  !!
-  !! *Purpose*: Control of the preprocessing of the MIDAS thinning
-  !!
-  !--------------------------------------------------------------------------
-  subroutine thin_setup(obsColumnMode)
-    implicit none
-
-    character (len=*) :: obsColumnMode
-    integer :: datestamp
-
-    integer :: get_max_rss
-
-    write(*,*) ''
-    write(*,*) '-----------------------------------'
-    write(*,*) '-- Starting subroutine thin_setup --'
-    write(*,*) '-----------------------------------'
-
-    !     
-    !- Initialize observation file names
-    !
-    call obsf_setup( dateStamp, varMode )
-
-    !
-    !- Setup and read observations
-    !
-    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  end subroutine thin_setup
 
 end program midas_thinning

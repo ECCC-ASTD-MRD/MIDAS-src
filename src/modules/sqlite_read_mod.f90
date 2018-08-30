@@ -929,7 +929,6 @@ contains
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
-      write(*,*) 'fSQL_open: ', fSQL_errmsg(status)
       write(*,*) myError, fSQL_errmsg(status)
     end if
 
