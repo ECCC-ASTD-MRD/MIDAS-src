@@ -97,6 +97,7 @@ contains
 
     integer, parameter :: BIT9 =int(Z'200')
     integer, parameter :: BIT11=int(Z'800')
+    integer, parameter :: PROFILE_NOT_FOUND=-1
     integer :: headerIndex, bodyIndex, bodyIndex2, bodyIndexStart, bodyIndexEnd
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
@@ -121,12 +122,15 @@ contains
                      + bodyIndexStart - 1
       level          = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex  )
 
-      ! Obtain supplementary parameters that are stored as observations
+      ! Scan  body indices for the profile ID 'observed' at that level
+      newProfileId=PROFILE_NOT_FOUND
       BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
         if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex2 ) == BUFR_NEPR .and. &
             obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex2 ) == level &
            ) then
+          ! Profile ID found.  Obtain the value of this variable.
           newProfileId = obs_bodyElem_i(obsdat, OBS_VAR, bodyIndex2 )
+          exit BODY_SUPP ! Stop searching for the profile ID
         end if
       end do BODY_SUPP
 
@@ -156,6 +160,12 @@ contains
       logical :: new_column
 
       integer, save :: previousProfileId=huge(previousProfileId)
+
+      if(newProfileId == PROFILE_NOT_FOUND)then
+        ! The profile ID for this element is missing.
+        ! Assume that it is the same as the previous element
+        newProfileId = previousProfileId
+      end if
 
       if(newProfileId /= previousProfileId)then
         previousProfileId = newProfileId
