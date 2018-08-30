@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 set -ex
 
@@ -25,41 +25,52 @@ echo "The program itself took ${SECONDS} seconds"
 
 SECONDS=0
 
+extract_family () {
+    set -ex
+    file=$1
+    ## on prend le 'basename'
+    file1=${file##*/}
+    ## On enleve la partie '_0014_0008'
+    file2=${file1%_*_*}
+    ## On enleve la partie 'brp' ce qui nous donne la famille
+    echo ${file2:3}
+}
+
 if [ "${fasttmp}" = yes ]; then
     for file in ${FASTTMPDIR}/obs/brp*; do
         if [ -f "${file}" ]; then
-            fam=$(/usr/bin/basename ${file} | /usr/bin/rev | /usr/bin/cut -d_ -f3- | /usr/bin/rev | /usr/bin/cut -c4-)
+            bfile=${file##*/}
+            fam=$(extract_family ${file})
             while [ ! -d burpfiles_${fam}.updated ]; do
                 if [ "${MP_CHILD}" -eq 0 ]; then
                     /bin/mkdir burpfiles_${fam}.updated
                     break
                 fi
-                sleep 1
+                /bin/sleep 1
             done
-            /bin/cp ${file} burpfiles_${fam}.updated/$(/usr/bin/basename ${file})
-            /bin/rm -f obs/$(/usr/bin/basename ${file})
+            /bin/cp ${file} burpfiles_${fam}.updated/${bfile}
+            /bin/rm -f obs/${bfile}
         fi
     done
 else
-    npex=${SEQ_NPEX}
-    npey=${SEQ_NPEY}
-    let nprocs=npex*npey
+    burpfile_y=$((SEQ_NPEY-MP_CHILD/SEQ_NPEX))
+    burpfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
 
-    typeset -Z4 burpfile_x burpfile_y
-
-    burpfile_y=$((npey-MP_CHILD/npex))
-    burpfile_x=$((MP_CHILD+1-npex*(MP_CHILD/npex)))
+    ## The numbering for files must contain 4 characters padded with '0'.
+    burpfile_y=$(/usr/bin/printf "%0.4d" ${burpfile_y})
+    burpfile_x=$(/usr/bin/printf "%0.4d" ${burpfile_x})
 
     for file in ./obs/brp*_${burpfile_x}_${burpfile_y}; do
-        fam=$(/usr/bin/basename ${file} | /usr/bin/rev | /usr/bin/cut -d_ -f3- | /usr/bin/rev | /usr/bin/cut -c4-)
+        bfile=${file##*/}
+        fam=$(extract_family ${file})
         while [ ! -d burpfiles_${fam}.updated ]; do
             if [ "${MP_CHILD}" -eq 0 ]; then
                 /bin/mkdir burpfiles_${fam}.updated
                 break
             fi
-            sleep 1
+            /bin/sleep 1
         done
-        /bin/mv ${file} burpfiles_${fam}.updated/$(/usr/bin/basename ${file})
+        /bin/mv ${file} burpfiles_${fam}.updated/${bfile}
     done
 fi
 
