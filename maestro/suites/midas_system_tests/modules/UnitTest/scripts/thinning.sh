@@ -135,8 +135,8 @@ else
                     sleep 1
                 done
 
-                # Clean deleted records from the SQL file
-                sqlite3 ${file} 'vacuum'
+#                # Clean deleted records from the SQL file
+#                sqlite3 ${file} 'vacuum'
 
                 /bin/mv ${file} sqlfiles_${fam}.thinned/$(/usr/bin/basename ${file})
             done
