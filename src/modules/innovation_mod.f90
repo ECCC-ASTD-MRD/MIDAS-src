@@ -587,8 +587,8 @@ contains
                   write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
                   write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                  idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
-                  idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
+                  idata   = obs_headElem_i( obsSpaceData, OBS_RLN, jobs)
+                  idatend = obs_headElem_i( obsSpaceData, OBS_NLV, jobs) + idata -1
                   do jdata = idata, idatend
                     call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
                   end do
@@ -599,11 +599,12 @@ contains
              end if
 
              !- Convert to rotated grid if needed
-             if (hco_anl % rotated) then
-                call uvr_RotateLatLon( uvr_tlad, 1,      & ! IN
-                                       lat_rot, lon_rot, & ! OUT (radians)
-                                       lat_r8, lon_r8,   & ! IN  (radians)
-                                       'ToLatLonRot')      ! IN
+             if ( col_varExist('UU') .and. col_varExist('VV') .and.  &
+                  hco_anl%rotated ) then
+               call uvr_RotateLatLon( uvr_tlad, 1,      & ! IN
+                                      lat_rot, lon_rot, & ! OUT (radians)
+                                      lat_r8, lon_r8,   & ! IN  (radians)
+                                      'ToLatLonRot')      ! IN
              else
                lat_rot = lat_r8
                lon_rot = lon_r8
@@ -785,7 +786,7 @@ contains
 
           if ( mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlevtrl_M
             
-          do jlev = 1,nlevtrl_M
+          do jlev = 1, nlevtrl_M
             if ( mpi_myid == 0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
           end do
           
@@ -828,60 +829,41 @@ contains
 
           call col_fillmvo( columnhr, varInterphr_T, vnl_varNameList3D( jvar ))
 
-          if ( vnl_varNameList3D( jvar ) == 'TT  ') then
-
+          if (vnl_varNameList3D(jvar) == 'TT  ') then
             ! conversion from Celcius to Kelvin
             do jobs = 1, numColumns
-              column_ptr => col_getColumn( columnhr, jobs, 'TT')
-              do jlev = 1, col_getNumLev( columnhr, 'TH')
-                column_ptr( jlev ) = column_ptr( jlev ) + MPC_K_C_DEGREE_OFFSET_R8
+              column_ptr => col_getColumn( columnhr, jobs, 'TT' )
+              do jlev = 1, col_getNumLev( columnhr, 'TH' )
+                column_ptr(jlev) = column_ptr(jlev) + MPC_K_C_DEGREE_OFFSET_R8
               end do
             end do
-
-            else if (vnl_varNameList3D(jvar) == 'HU  ') then
-              ! conversion from specific humidity to log(humidity)
-              do jobs = 1, numColumns
-                column_ptr => col_getColumn( columnhr, jobs, 'HU' )
-                do jlev = 1, col_getNumLev( columnhr, 'TH' )
-                  column_ptr( jlev ) = log( max( column_ptr( jlev ), col_rhumin ))
-                end do
+          else if (vnl_varNameList3D(jvar) == 'HU  ') then
+            ! Imposing a minimum value for HU (legacy)
+            do jobs = 1, numColumns
+              column_ptr => col_getColumn(columnhr,jobs,'HU')
+              do jlev = 1, col_getNumLev(columnhr,'TH')
+                column_ptr(jlev)=max(column_ptr(jlev),col_rhumin)
               end do
-
-            if (vnl_varNameList3D(jvar) == 'TT  ') then
-              ! conversion from Celcius to Kelvin
-              do jobs = 1, numColumns
-                column_ptr => col_getColumn( columnhr, jobs, 'TT' )
-                do jlev = 1, col_getNumLev( columnhr, 'TH' )
-                  column_ptr(jlev) = column_ptr(jlev) + MPC_K_C_DEGREE_OFFSET_R8
-                end do
-              end do
-            else if (vnl_varNameList3D(jvar) == 'HU  ') then
-              ! Imposing a minimum value for HU (legacy)
-              do jobs = 1, numColumns
-                column_ptr => col_getColumn(columnhr,jobs,'HU')
-                do jlev = 1, col_getNumLev(columnhr,'TH')
-                  column_ptr(jlev)=max(column_ptr(jlev),col_rhumin)
-                end do
-              end do
-            end if
+            end do
           end if
+        end if
 
-       case default
+      case default
 
-         call readTrialField(varInterphr_T, varInterphr_VV, vnl_varNameList3D( jvar ), vnl_varLevelFromVarname( vnl_varNameList3D( jvar )))
+        call readTrialField(varInterphr_T, varInterphr_VV, vnl_varNameList3D( jvar ), vnl_varLevelFromVarname( vnl_varNameList3D( jvar )))
 
-         if ( numColumns > 0 ) then
+        if ( numColumns > 0 ) then
 
-           if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
-           do jlev = 1, nlevtrl_T
-             if( mpi_myid == 0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
-           end do
+          if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
+          do jlev = 1, nlevtrl_T
+            if( mpi_myid == 0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+          end do
              
-           call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
+          call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
 
-         end if
+        end if
 
-       end select
+      end select
     end do
 
     if ( col_varExist( 'TT' ) .and. col_varExist( 'HU' ) .and. col_varExist( 'P0' )) then
