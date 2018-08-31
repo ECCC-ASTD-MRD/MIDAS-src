@@ -555,8 +555,30 @@ contains
           if ( lon_r4 < 0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
           if (lon_r4 >= 2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
-            lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
-            lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+          lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
+          lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+
+          !- Check for unrealistic values of lat-lon
+          if ( lon_deg_r4 < 0.0   .or. lon_deg_r4 > 360.0 .or. &
+               lat_deg_r4 < -90.0 .or. lat_deg_r4 > 90.0 ) then
+
+            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS for unrealistic lat-lon values, ', jobs
+            write(*,*) '  position : ', lat_deg_r4, lon_deg_r4
+
+            idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+            idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
+            do jdata = idata, idatend
+              call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+            end do
+            call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                 ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
+
+            ! However, we must assigned a realistic x-y to this point
+            ! to avoid problem later in 's2c_bgcheck_bilin'
+            ypos_r4 = hco_anl%nj/2
+            xpos_r4 = hco_anl%ni/2
+
+          else
 
             !
             !- Find the position in the analysis grid
@@ -607,6 +629,8 @@ contains
                 end if
 
              end if
+
+             end if ! End of 'else' from 'f ( lon_deg_r4 < 0.0   .or. lon_deg_r4 > 360.0 ...'
 
              !- Convert to rotated grid if needed
              if ( col_varExist('UU') .and. col_varExist('VV') .and.  &
