@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Add a new program `obsIO` for testing observation I/O routines (#118 and !108)
 * Introduce module for computing slant path positions (#116 and !109)
 * Include Yin-Yang support in `horizontalCoord_mod` (#134 and !119)
+* Include a custom r.run_in_parallel based on the one available in
+  rpn/utils/16.2.2 but with changes to use /bin/bash instead of
+  /bin/ksh in the script launched in parallel (#136 and !122)
+  * This is to be removed when 'r.run_in_parallel' will be officially
+    released.
 
 ### Changed
 
