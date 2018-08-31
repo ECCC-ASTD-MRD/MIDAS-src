@@ -141,7 +141,7 @@ contains
          obs_famExist( lobsSpaceData, 'SF' ) .or. obs_famExist( lobsSpaceData, 'GP' ) .or. obs_famExist( lobsSpaceData, 'SC' ) .or. &
          obs_famExist( lobsSpaceData, 'PR' ) .or. obs_famExist( lobsSpaceData, 'TM' ) ) then
 
-      call read_obs_erreurs_conv
+      call read_obs_erreurs_conv( lobsSpaceData )
 
     else
 
@@ -494,7 +494,7 @@ contains
   !-----------------------------------------------------------------------------------------
   !-----------------------------------------------------------------------------------------
 
-  subroutine read_obs_erreurs_conv
+  subroutine read_obs_erreurs_conv ( lobsSpaceData )
     ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
     !
     ! Author  : S. Laroche  February 2014
@@ -505,6 +505,8 @@ contains
     ! Purpose: read observation errors (modification of former readcovo subroutine).
 
     implicit none
+    ! argument
+    type(struct_obs) :: lobsSpaceData
 
     external fnom, fclos
     integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat, nulnam
@@ -589,12 +591,14 @@ contains
       write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,4)
     end do
 
-    do jlev = 1,3
-      read(nulstat, '(A)') ligne
-      write(*, '(A)') ligne
-    end do
-    read(nulstat, * ) xstd_sst(1)
-    write(*, '(f8.3)' )  xstd_sst(1)
+    if ( obs_famExist( lobsSpaceData, 'TM' ) )  then
+      do jlev = 1,3
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+      read(nulstat, * ) xstd_sst(1)
+      write(*, '(f8.3)' )  xstd_sst(1)
+    end if
 
     !
     !     Read height assignment errors

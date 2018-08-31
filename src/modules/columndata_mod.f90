@@ -361,9 +361,9 @@ module columnData_mod
 
     ! Height
     case('GZ')
-      if(present(varLevel_opt)) then
-        if(varLevel_opt == 'TH') then
-          if(vcode == 5005 .and. AddGZSfcOffset) then
+      if( present( varLevel_opt ) ) then
+        if( varLevel_opt == 'TH') then
+          if (vcode == 5005 .and. AddGZSfcOffset) then
             status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_r4)
           else
             gz_sfcOffset_r4 = 0.0
@@ -372,44 +372,48 @@ module columnData_mod
           do jobs = 1, columnghr%numCol
             do jlev = 1, nlev_T
               columnghr%gz_T(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-            ! set the surface GZ
-            columnghr%gz_sfc(jobs) = columnghr%gz_T(nlev_T,jobs)
-            ! adjust heights of near-surface GZ
-            columnghr%gz_T(nlev_T,jobs) = columnghr%gz_T(nlev_T,jobs) + real(gz_sfcOffset_r4,8) * RG
-          enddo
+              if ( jlev == nlev_T ) then
+                ! set the surface GZ
+                columnghr%gz_sfc(jobs) = columnghr%gz_T(nlev_T,jobs)
+                ! adjust heights of near-surface GZ
+                columnghr%gz_T(nlev_T,jobs) = columnghr%gz_T(nlev_T,jobs) + real(gz_sfcOffset_r4,8) * RG
+              end if
+            end do
+          end do
         elseif(varLevel_opt == 'MM') then
-          if(vcode == 5005 .and. AddGZSfcOffset) then
-            status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_r4)
+          if( vcode == 5005 .and. AddGZSfcOffset ) then
+            status = vgd_get( columnghr%vco%vgrid,key = 'DHM - height of the diagnostic level (m)', value = gz_sfcOffset_r4 )
           else
             gz_sfcOffset_r4 = 0.0
           endif
-          if(mpi_myid == 0) write(*,*) 'col_fillmvo: GZ offset for near-sfc momentum level is: ', gz_sfcOffset_r4, ' metres'
+          if( mpi_myid == 0 ) write(*,*) 'col_fillmvo: GZ offset for near-sfc momentum level is: ', gz_sfcOffset_r4, ' metres'
           do jobs = 1, columnghr%numCol
             do jlev = 1, nlev_M
-              columnghr%gz_M(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-            ! set the surface GZ
-            columnghr%gz_sfc(jobs) = columnghr%gz_M(nlev_M,jobs)
-            ! adjust heights of near-surface GZ
-            columnghr%gz_M(nlev_M,jobs) = columnghr%gz_M(nlev_M,jobs) + real(gz_sfcOffset_r4,8) * RG
-          enddo
+              columnghr%gz_M( jlev, jobs ) = pvar( jlev, jobs )
+              if ( jlev == nlev_M ) then
+                ! set the surface GZ
+                columnghr%gz_sfc(jobs) = columnghr%gz_M( nlev_M, jobs )
+                ! adjust heights of near-surface GZ
+                columnghr%gz_M( nlev_M, jobs ) = columnghr%gz_M( nlev_M, jobs ) + real( gz_sfcOffset_r4,8 ) * RG
+              end if 
+            end do
+          end do
         else
-          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel_opt)
-        endif
+          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel_opt )
+        end if
       else
         call utl_abort('col_fillmvo: must specify varLevel for GZ!')
-      endif
+      end if
 
     ! All the other variables that are stored in column%all
     case default
-      if(col_varExist(trim(varName))) then
+      if ( col_varExist( trim(varName) )) then
         do jobs = 1, columnghr%numCol
-          column_ptr => col_getColumn(columnghr,jobs,varName)
-          do jlev = 1, col_getNumLev(columnghr,vnl_varLevelFromVarname(varName))
-            column_ptr(jlev) = pvar(jlev,jobs) 
-          enddo
-        enddo
+          column_ptr => col_getColumn( columnghr, jobs, varName )
+          do jlev = 1, col_getNumLev( columnghr, vnl_varLevelFromVarname( varName ) )
+            column_ptr(jlev) = pvar( jlev, jobs ) 
+          end do
+        end do
 
       ! Unknown variable name
       else

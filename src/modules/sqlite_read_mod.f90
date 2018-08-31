@@ -797,12 +797,19 @@ contains
     ierr=fclos( nulnam )
 
     write(*,*)' INSERT INTO SQLITE FILE ELEMENTS :--> ',( itemInsertList(insertItem), insertItem = 1, numberInsertItems )
-    select case(trim(familyType))
-      case('SF','SC','GP')
+
+    select case( trim( familyType ) )
+
+      case( 'SF', 'SC', 'GP' )
+
         query = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
+
       case DEFAULT
+
         query = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
+
     end select
+
     query=trim(query)
     write(*,*) ' === Family Type === ',trim(familyType)
     write(*,*) ' Insert query = ', trim(query)
@@ -841,7 +848,7 @@ contains
         if ( obsIdd == -1 ) then
           if ( llok ) then
             select case(trim(familyType))
-              case('SF','SC','GP')
+              case( 'SF', 'SC', 'GP' )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      ) 

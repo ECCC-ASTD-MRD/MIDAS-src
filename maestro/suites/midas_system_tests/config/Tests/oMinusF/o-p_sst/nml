@@ -2,7 +2,7 @@
    NCONF  = 121,
 /
  &NAMOMF
-   ADDSIGMAO = .FALSE.
+   ADDSIGMAO = .TRUE.
    ADDHBHT   = .FALSE.
 /
  &NAMDIMO
@@ -10,13 +10,11 @@
    NDATAMX=7000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25D0
+  DSTEPOBS = 1.0D0
 /
  &NAMFILT
   NELEMS = 1,
   NLIST(1)=22042,
-  NLIST(2)=12063,
-  NLIST(3)=12163,
   NFLAGS=0,
   NLISTFLG(1)=4,
   NLISTFLG(2)=5,
@@ -30,10 +28,6 @@
 /
  &NAMSTATE
    RHUMIN  = 1.0D-07
-   ANLVAR(1)   ='UU'
-   ANLVAR(2)   ='VV'
-   ANLVAR(3)   ='TT'
-   ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
@@ -369,8 +363,8 @@
    sqlNull = " and obsvalue is not null "
 /
  &NAMSQLsfc
-   numberElem=11
-   listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035,22042"
+   numberElem=1
+   listElem="22042"
    sqlExtraDat=" order by id_obs "
    sqlNull=" and obsvalue is not null "  
 /

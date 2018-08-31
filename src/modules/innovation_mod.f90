@@ -315,7 +315,7 @@ contains
     integer, allocatable :: nobs(:), nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
     integer, allocatable :: nobsgid_mpiglobal(:,:), nobs_mpiglobal(:,:)
     integer, allocatable :: datestamplist(:)
-    real(8), allocatable :: varInterphr_T(:,:), varInterphr_M(:,:), varInterphr_VV(:,:)
+    real(8), allocatable :: varInterphr_T(:,:), varInterphr_M(:,:), varInterphr_VV(:,:), varInterphr_SF(:,:)
     real(4)              :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4
     real(4)              :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8)              :: lat_r8, lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
@@ -390,13 +390,15 @@ contains
     !     Allocate trial field column object and other local arrays
     !
     if ( numColumns > 0 ) then
-      allocate(notag(numColumns,tim_nStepObs))
-      allocate(varInterphr_T(nlevtrl_T,numColumns))
-      allocate(varInterphr_M(nlevtrl_M,numColumns))
-      allocate(varInterphr_VV(nlevtrl_M,numColumns))
-      varInterphr_T(:,:)=0.0d0
-      varInterphr_M(:,:)=0.0d0
-      varInterphr_VV(:,:)=0.0d0
+      allocate(notag( numColumns, tim_nStepObs ))
+      allocate( varInterphr_T ( nlevtrl_T, numColumns ))
+      allocate( varInterphr_M ( nlevtrl_M, numColumns ))
+      allocate( varInterphr_SF( 1        , numColumns ))
+      allocate( varInterphr_VV( nlevtrl_M, numColumns ))
+      varInterphr_T(:,:)  = 0.0d0
+      varInterphr_M(:,:)  = 0.0d0
+      varInterphr_VV(:,:) = 0.0d0
+      varInterphr_SF(:,:) = 0.0d0
     end if
 
     allocate(dlonfld(numColumn_maxmpiglobal))
@@ -518,7 +520,7 @@ contains
                   obs_headElem_i(obsSpaceData,OBS_DAT,jobs),obs_headElem_i(obsSpaceData,OBS_ETM,jobs)
 
           ! put the obs in the first time bin (it has to go somewhere!)
-          stepObsIndex=1.0d0
+          stepObsIndex = 1.0d0
 
           ! flag it as out of time domain and turn off its assimilation flag
           idata = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
@@ -698,13 +700,13 @@ contains
 
       if ( .not. gsv_varExist( varName = vnl_varNameList2D( jvar ))) cycle
 
-      call readTrialField( varInterphr_M, varInterphr_VV, vnl_varNameList2D( jvar ), 'SF' )
+      call readTrialField( varInterphr_SF, varInterphr_VV, vnl_varNameList2D( jvar ), 'SF' )
 
       if ( numColumns > 0 ) then       
         if ( vnl_varNameList2D( jvar ) == 'P0  ') then
-          varInterphr_M(:,:) = varInterphr_M(:,:) * MPC_PA_PER_MBAR_R8
+          varInterphr_SF(:,:) = varInterphr_SF(:,:) * MPC_PA_PER_MBAR_R8
         end if
-        call col_fillmvo(columnhr,varInterphr_M,vnl_varNameList2D(jvar))
+        call col_fillmvo( columnhr, varInterphr_SF, vnl_varNameList2D(jvar))
       end if
 
     end do
@@ -718,15 +720,15 @@ contains
       do jlev = 1, col_getNumLev(columnhr,'MM')
         
         if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
-           jlev, col_getPressure(columnhr,jlev,1,'MM')
+           jlev, col_getPressure( columnhr, jlev, 1, 'MM' )
       end do
       
-      do jlev = 1,col_getNumLev(columnhr,'TH')
+      do jlev = 1, col_getNumLev( columnhr, 'TH' )
         if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
-           jlev,col_getPressure(columnhr,jlev,1,'TH')
+           jlev, col_getPressure( columnhr, jlev, 1, 'TH' )
       end do
      
-      if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: surface Pressure=',col_getElem(columnhr,1,1,'P0')
+      if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: surface Pressure=', col_getElem( columnhr, 1, 1, 'P0' )
 
     end if
     !      
@@ -741,7 +743,7 @@ contains
     if ( numColumns > 0 ) then
        
       varInterphr_M(:,:) = varInterphr_M(:,:) * 10.0d0 * RG
-      call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
+      call col_fillmvo( columnhr, varInterphr_M, 'GZ  ' , 'MM' )
       if (mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_M'
       do jlev = 1,nlevtrl_M
         if (mpi_myid == 0 ) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
@@ -759,7 +761,7 @@ contains
       call col_fillmvo( columnhr, varInterphr_T, 'GZ  ', 'TH')
       if ( mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_TH'
       do jlev = 1, nlevtrl_T
-        if ( mpi_myid == 0 ) write(*,*)'GZ,', jlev, varInterphr_T( jlev, 1 )
+        if ( mpi_myid == 0 ) write(*,*) 'GZ,', jlev, varInterphr_T( jlev, 1 )
       end do
     end if
     !
@@ -911,6 +913,7 @@ contains
       deallocate(varInterphr_T)
       deallocate(varInterphr_M)
       deallocate(varInterphr_VV)
+      deallocate(varInterphr_SF)
     end if
 
     deallocate(datestamplist)
