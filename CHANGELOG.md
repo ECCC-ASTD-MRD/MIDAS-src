@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Add new functionality to read and write observations in sqlite format (#64, #117, !98 and !102)
 * Add a new program `obsIO` for testing observation I/O routines (#118 and !108)
 * Introduce module for computing slant path positions (#116 and !109)
+* Include Yin-Yang support in `horizontalCoord_mod` (#134 and !119)
 
 ### Changed
 
@@ -61,6 +62,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   state must now be supplied) (#67 and !111).
 * The copy of files to RAMDisk is now done directly in the fortran
   code and no longer in the scripts (#133 and !117)
+* Removed namelist variable write_mpi from NAMENKF (#134 and !119)
+* Centralize unit conversion and convert to Kelvin (#134 and !119)
+* Simplify calculations in `windRotation_mod` (#134 and !119)
+* Decrease a threshold for vertical interpolation for TOVS (#134 and !119)
 
 ### Fixed
 
