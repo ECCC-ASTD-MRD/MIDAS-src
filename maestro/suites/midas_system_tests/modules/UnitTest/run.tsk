@@ -75,9 +75,17 @@ else
     cmd=${RUN_PGM}
 fi
 
+[ ! -d obs ] && mkdir obs
+echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
+/bin/cp burpfiles_*/brp*_*_* ./obs || true
+
+echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
+
 SECONDS=0
 ${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 RUNTIME=${SECONDS}
+
+echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 ## If we will not check the runtime, then issue the message now
 if [ -z "${UnitTest_mean_runtime}" ]; then
@@ -97,6 +105,7 @@ done
 ## remove other files created by the execution
 rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
 rm -r mpitmpdir
+[ -d obs ] && rm -r obs
 
 ## put all the rest in 'output'
 mv * ${TASK_OUTPUT}
