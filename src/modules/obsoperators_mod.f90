@@ -43,7 +43,7 @@ module obsOperators_mod
 
   ! public procedures
   public :: oop_setup
-  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
+  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_tskin_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
   character(len=48) :: obsoperMode
@@ -489,9 +489,9 @@ contains
 
   end subroutine oop_sfc_nl
 
-  subroutine oop_sst_nl( columnhr, obsSpaceData, jobs, cdfam)
-    !**s/r oop_sst_nl - Computation of Jo and the residuals to the observations
-    !                 FOR SEA SURFACE TEMPERATURE DATA 
+  subroutine oop_tskin_nl( columnhr, obsSpaceData, jobs, cdfam)
+    !**s/r oop_tskin_nl - Computation of Jo and the residuals to the observations
+    !                 FOR SEA SURFACE TEMPERATURE DATA and possibly the land surface skin temperature 
     implicit none
     ! arguments
     type(struct_columnData) :: columnhr
@@ -502,8 +502,7 @@ contains
     integer :: ivnm, headerIndex, bodyIndex
     real(8) :: obsValue
 
-    ! Temperature lapse rate for extrapolation of gz below model surface
-    write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
+    write(*,*) "Entering subroutine oop_tskin_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -524,12 +523,9 @@ contains
         if ( bodyIndex < 0 ) exit BODY
 
         ! only process observations flagged to be assimilated
-        ! SSN if( obs_bodyElem_i( obsSpaceData, OBS_VCO, bodyIndex ) /= 1 .or.  &
-        !    obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
-        if( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
        
-        ! only process this set of surface observations
-        ivnm = obs_bodyElem_i ( obsSpaceData, OBS_VNM, bodyIndex )
+        ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
  
         if( ivnm /= bufr_sst ) cycle BODY
 
@@ -548,7 +544,7 @@ contains
 
     jobs = 0.5d0 * jobs
 
-  end subroutine oop_sst_nl
+  end subroutine oop_tskin_nl
 
 
   subroutine oop_zzz_nl(columnhr,obsSpaceData,jobs,cdfam)
@@ -1515,8 +1511,8 @@ contains
     call oop_Hchm(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (126)
 
-    call tmg_start(170,'OBS_SST_TLAD')
-    call oop_Hsst(obsAssVal)          ! fill in OBS_WORK : Hdx
+    call tmg_start(170,'OBS_TSKIN_TLAD')
+    call oop_Htskin(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (170)
 
 
@@ -1779,10 +1775,10 @@ contains
     END subroutine oop_Hsf
 
 
-    subroutine oop_Hsst(obsAssVal)
+    subroutine oop_Htskin(obsAssVal)
       !*
-      !* Purpose: Compute simulated sea surface temperature observations from profiled model
-      !*          increments.
+      !* Purpose: Compute simulated sea surface temperature (and later, the land surface skin temperature) observations 
+      !*          from profiled model increments.
       !*          It returns Hdx in OBS_WORK
       !*
       implicit none
@@ -1793,8 +1789,6 @@ contains
       real(8) :: columnVarB
       
       call obs_set_current_body_list( obsSpaceData, 'TM' )
-
-      write(*,*) 'call oop_Hsst...'
 
       BODY: do
         bodyIndex = obs_getBodyIndex( obsSpaceData )
@@ -1816,9 +1810,7 @@ contains
 
       end do BODY
 
-      write(*,*) 'oop_Hsst DONE'
-
-    end subroutine oop_Hsst
+    end subroutine oop_Htskin
 
 
     subroutine oop_Hto(obsAssVal)
@@ -2572,8 +2564,8 @@ contains
     call oop_HTpp
     call tmg_stop (42)
 
-    call tmg_start(171,'OBS_SST_TLAD')
-    call oop_HTsst
+    call tmg_start(171,'OBS_TSKIN_TLAD')
+    call oop_HTtskin
     call tmg_stop (171)      !
 
 
@@ -2814,9 +2806,9 @@ contains
       RETURN
     END subroutine oop_HTsf
 
-    subroutine oop_HTsst
+    subroutine oop_HTtskin
       !*
-      !*** Adjoint of the "vertical" interpolation for SST data files.
+      !*** Adjoint of the "vertical" interpolation for SST data (and land surface skin temperature).
       !*
       implicit none
       real(8) :: residual
@@ -2824,7 +2816,7 @@ contains
       real(8), pointer :: columnTG(:)
 
       call obs_set_current_body_list( obsSpaceData, 'TM' )
-      write(*,*)'call oop_HTsst...'
+
       BODY: do
 
         bodyIndex = obs_getBodyIndex( obsSpaceData )
@@ -2844,9 +2836,8 @@ contains
         end if
 
       end do BODY
-      write(*,*)' oop_HTsst DONE'
 
-    end subroutine oop_HTsst
+    end subroutine oop_HTtskin
 
 
     subroutine oop_HTto

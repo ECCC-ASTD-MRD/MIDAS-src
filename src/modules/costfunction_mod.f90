@@ -24,7 +24,7 @@ module costfunction_mod
   use mpivar_mod
   use obsSpaceData_mod
   use rmatrix_mod
-  use rttov_const
+  use rttov_const, only : inst_name, platform_name
   use tovs_nl_mod
 
   implicit none

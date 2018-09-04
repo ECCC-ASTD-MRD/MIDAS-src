@@ -87,7 +87,6 @@ module sqliteFiles_mod
     delhh = 3.0d0
     call INCDATR (datestamp, istampobs, delhh)
     ier = newdate(datestamp, nbrpdate, inewhh, -3)
-    !nbrphh = ktime / 100
     nbrphh = ktime
     if (nbrphh >= 21 .or. nbrphh < 3 ) then
       nbrphh = 0
