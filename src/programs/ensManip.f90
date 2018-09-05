@@ -64,10 +64,11 @@ program midas_ensManip
   type(struct_gsv) :: statevector_mean, statevector_stddev
   type(struct_gsv) :: statevector_recenteringMean, statevector_alternativeEnsembleMean
 
-  type(struct_vco), pointer :: vco_ens => null()
-  type(struct_hco), pointer :: hco_ens => null()
-  type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ens)          :: ensemble
+
+  type(struct_vco), pointer :: vco => null()
+  type(struct_hco), pointer :: hco => null()
+  type(struct_hco), pointer :: hco_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
   integer              :: memberIndex, stepIndex, numStep
@@ -170,23 +171,31 @@ program midas_ensManip
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for ensemble grid'
 
-  ! Use the first ensemble member to initialize the grid
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile( vco_ens, ensFileName )
+  if (recenter) then
+    ! Filename for recentering mean
+    recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
+    ! Use the first ensemble member to initialize the grid
+    call hco_SetupFromFile( hco, recenteringMeanFileName, ' ', 'RECENTER_ANL_GRID')
+    call vco_setupFromFile( vco, recenteringMeanFileName )
+  else
+    ! Use the first ensemble member to initialize the grid
+    call hco_SetupFromFile( hco, ensFileName, ' ', 'ENSFILEGRID')
+    call vco_setupFromFile( vco, ensFileName )
+  end if
 
-  if ( hco_ens % global ) then
-    call agd_SetupFromHCO( hco_ens ) ! IN
+  if ( hco % global ) then
+    call agd_SetupFromHCO( hco ) ! IN
   else
     !- Setup the LAM analysis grid metrics
-    hco_ens_core => hco_ens
-    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
+    hco_core => hco
+    call agd_SetupFromHCO( hco, hco_core ) ! IN
   end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens, dateStampList)
+  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
@@ -255,10 +264,7 @@ program midas_ensManip
     ! read recentering mean in file '${DATE}_recenteringmean'
     call tmg_start(10,'READ_RECENTERINGMEAN')
 
-    ! Filename for recentering mean
-    recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
-
-    call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
+    call gsv_allocate(statevector_recenteringMean, numStep, hco, vco, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
          hInterpolateDegree_opt = hInterpolationDegree)
 
@@ -280,7 +286,7 @@ program midas_ensManip
       ! Filename for ensemble center
       alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
 
-      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco_ens, vco_ens, &
+      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco, vco, &
            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
            hInterpolateDegree_opt = hInterpolationDegree)
 
