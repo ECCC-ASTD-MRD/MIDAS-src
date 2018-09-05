@@ -502,7 +502,7 @@ contains
     integer :: ivnm, headerIndex, bodyIndex
     real(8) :: obsValue
 
-    write(*,*) "Entering subroutine oop_tskin_nl, family: ", trim(cdfam)
+    write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -2564,7 +2564,7 @@ contains
     call oop_HTpp
     call tmg_stop (42)
 
-    call tmg_start(171,'OBS_TSST_TLAD')
+    call tmg_start(171,'OBS_SST_TLAD')
     call oop_HTsst
     call tmg_stop (171)      !
 
