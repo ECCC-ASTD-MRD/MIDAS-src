@@ -54,29 +54,70 @@ if [ "${fasttmp}" = yes ]; then
             /bin/rm -f obs/${bfile}
         fi
     done
+
+    for file in ${FASTTMPDIR}/obs/obs*; do
+        if [ -f "${file}" ]; then
+            if [[ "${file}" = *.num_headers ]]; then
+                continue
+            fi
+            bfile=${file##*/}
+            fam=$(extract_family ${file})
+            while [ ! -d sqlfiles_${fam}.updated ]; do
+                if [ "${MP_CHILD}" -eq 0 ]; then
+                    /bin/mkdir sqlfiles_${fam}.updated
+                    break
+                fi
+                sleep 1
+            done
+            /bin/cp ${file} sqlfiles_${fam}.updated/${bfile}
+            /bin/rm -f obs/${bfile}
+        fi
+    done
+
 else
-    burpfile_y=$((SEQ_NPEY-MP_CHILD/SEQ_NPEX))
-    burpfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
+    obsfile_y=$((SEQ_NPEY-MP_CHILD/SEQ_NPEX))
+    obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
 
     ## The numbering for files must contain 4 characters padded with '0'.
-    burpfile_y=$(/usr/bin/printf "%0.4d" ${burpfile_y})
-    burpfile_x=$(/usr/bin/printf "%0.4d" ${burpfile_x})
+    obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
+    obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
 
-    for file in ./obs/brp*_${burpfile_x}_${burpfile_y}; do
-        if [[ "${file}" = *.num_headers ]]; then
-            /bin/rm ${file}
-            continue
-        fi
-        bfile=${file##*/}
-        fam=$(extract_family ${file})
-        while [ ! -d burpfiles_${fam}.updated ]; do
-            if [ "${MP_CHILD}" -eq 0 ]; then
-                /bin/mkdir burpfiles_${fam}.updated
-                break
+    for file in ./obs/brp*_${obsfile_x}_${obsfile_y}; do
+        if [ -f "${file}" ]; then
+            if [[ "${file}" = *.num_headers ]]; then
+                /bin/rm ${file}
+                continue
             fi
-            /bin/sleep 1
-        done
-        /bin/mv ${file} burpfiles_${fam}.updated/${bfile}
+            bfile=${file##*/}
+            fam=$(extract_family ${file})
+            while [ ! -d burpfiles_${fam}.updated ]; do
+                if [ "${MP_CHILD}" -eq 0 ]; then
+                    /bin/mkdir burpfiles_${fam}.updated
+                    break
+                fi
+                /bin/sleep 1
+            done
+            /bin/mv ${file} burpfiles_${fam}.updated/${bfile}
+        fi
+    done
+
+    for file in ./obs/obs*_${obsfile_x}_${obsfile_y}; do
+        if [ -f "${file}" ]; then
+            if [[ "${file}" = *.num_headers ]]; then
+                /bin/rm ${file}
+                continue
+            fi
+            bfile=${file##*/}
+            fam=$(extract_family ${file})
+            while [ ! -d sqlfiles_${fam}.updated ]; do
+                if [ "${MP_CHILD}" -eq 0 ]; then
+                    /bin/mkdir sqlfiles_${fam}.updated
+                    break
+                fi
+                /bin/sleep 1
+            done
+            /bin/mv ${file} sqlfiles_${fam}.updated/${bfile}
+        fi
     done
 fi
 
