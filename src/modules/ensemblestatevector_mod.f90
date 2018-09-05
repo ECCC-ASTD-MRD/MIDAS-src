@@ -973,7 +973,7 @@ CONTAINS
   end subroutine ens_recenter
 
   subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
-       etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
+       etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
     !! We want to compute:
@@ -988,6 +988,7 @@ CONTAINS
     real(8)          :: recenteringCoeff
     character(len=*)  :: etiket
     character(len=*)  :: typvar
+    character(len=*)  :: hInterpolationDegree
     type(struct_gsv), optional :: alternativeEnsembleMean_opt
     integer, optional :: numBits_opt
 
@@ -1000,7 +1001,8 @@ CONTAINS
     call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0)
 
     call gsv_allocate(statevector_ensembleControlMember, numStep, hco_ens, vco_ens, &
-         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+         hInterpolateDegree_opt = hInterpolationDegree)
 
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex

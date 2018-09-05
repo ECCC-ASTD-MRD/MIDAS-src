@@ -300,9 +300,9 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
-             ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
+        call ens_recenterControlMember(ensemble,hco,vco,ensFileBaseName,'.', 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
+             hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
@@ -310,9 +310,9 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,ensPathName, 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
-             ensembleTypVarOutput, numBits_opt = numBits)
+        call ens_recenterControlMember(ensemble,hco,vco,ensFileBaseName,ensPathName, 'recentered_', &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
+             hInterpolationDegree, numBits_opt = numBits)
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 
