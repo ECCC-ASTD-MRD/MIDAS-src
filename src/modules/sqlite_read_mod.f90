@@ -626,16 +626,17 @@ contains
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
-    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag, iobs, obsIdo, obsStatus, last_comma
-    integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex, numberUpdateItems
+    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag
+    integer                          :: iobs, obsIdo, obsStatus, last_question
+    integer                          :: ibegin, ilast, ibeginob, ilastob, itemId
+    integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =  10)             :: timeCharacter
     character(len =   3)             :: item, itemUpdateList(15)
-    integer                          :: itemId, updateList(20), fnom, fclos, nulnam, ierr
+    integer                          :: updateList(20), fnom, fclos, nulnam, ierr
     character(len =   9)             :: item2
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
-    integer                          :: ivalue
     real                             :: romp, obsValue
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
     character(len=*), parameter      :: myWarning = '****** '// myName //' WARNING: '
@@ -662,10 +663,6 @@ contains
 
     ! CREATE QUERY  
     itemChar='  '
-    if ( numberUpdateItems == 0) then
-      write(*,*) ' NO UPDATES TO DO : ---- RETURN'
-      return
-    end if
 
     do itemId = 1, numberUpdateItems
       item = itemUpdateList(itemId)
@@ -686,21 +683,18 @@ contains
         case('FGE')
           updateList(itemId) = OBS_HPHT
           item2='fg_error'
-        case('FLG')
-          updateList(itemId) = OBS_FLG
-          item2='flag'
         case DEFAULT
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//': invalid item ' )
       end select
-      itemChar = trim(itemChar)//trim(item2)//trim(' = ? ,')
+      itemChar = ','//trim(itemChar)//trim(item2)//trim(' = ? ')
     end do
 
     back=.true.
-    last_comma  = scan(itemChar, ',', back)
-    item2Char   = itemChar(1:last_comma-1)
+    last_question  = scan(itemChar, '?', back)
+    item2Char   = itemChar(1:last_question)
     itemChar    = item2Char
-    query = ' update data set flag = ? , '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
+    query = ' update data set flag = ? '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
@@ -727,18 +721,11 @@ contains
 
             obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
 
-            if(updateList(itemId) == OBS_FLG)then
-              ivalue = obs_bodyElem_i(obsdat, updateList(itemId), bodyIndex )
+            if ( obsValue /= MPC_missingValue_R8 ) then  
+              romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
-                                   INT_VAR = ivalue )
-              
-            else ! OBS_FLG
-              if ( obsValue /= MPC_missingValue_R8 ) then  
-                romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
-                call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
-                                     REAL_VAR = romp )
-              end if
-            end if ! OBS_FLG
+                                   REAL_VAR = romp )
+            end if
 
           end do ITEMS            
           
