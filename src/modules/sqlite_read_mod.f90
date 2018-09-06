@@ -626,7 +626,7 @@ contains
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
-    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag
+    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsFlag
     integer                          :: iobs, obsIdo, obsStatus, last_question
     integer                          :: ibegin, ilast, ibeginob, ilastob, itemId
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
@@ -713,26 +713,22 @@ contains
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
         obsIdd  = obs_bodyElem_i( obsdat, OBS_IDD, bodyIndex )
-        obsAss  = obs_bodyElem_i( obsdat, OBS_ASS, bodyIndex )
 
-        if ( obsAss == 1 ) then
-          call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
-          ITEMS: do itemId = 1, numberUpdateItems
+        call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
+        ITEMS: do itemId = 1, numberUpdateItems
 
-            obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
 
-            if ( obsValue /= MPC_missingValue_R8 ) then  
-              romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
-                                   REAL_VAR = romp )
-            end if
+          if ( obsValue /= MPC_missingValue_R8 ) then  
+            romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
+            call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
+                                 REAL_VAR = romp )
+          end if
 
-          end do ITEMS            
-          
-          call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
-          call fSQL_exec_stmt (stmt)
+        end do ITEMS            
 
-        end if ! obsAss == 1
+        call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
+        call fSQL_exec_stmt (stmt)
 
       end do BODY
 
