@@ -123,14 +123,14 @@ module varNameList_mod
       integer                      :: jvar,listIndex
 
       listIndex=-1
-      do jvar=1,vnl_numvarmax2D
-        if(varName.eq.vnl_varNameList2d(jvar)) then 
+      do jvar = 1, vnl_numvarmax2D
+        if( varName == vnl_varNameList2d(jvar) ) then 
           listIndex=jvar
           exit
         endif
       enddo
 
-      if(listIndex.le.0) then
+      if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
       endif
 
@@ -146,13 +146,13 @@ module varNameList_mod
 
       listIndex=-1
       do jvar=1,vnl_numvarmax
-        if(varName.eq.vnl_varNameList(jvar)) then 
+        if(varName == vnl_varNameList(jvar)) then 
           listIndex=jvar
           exit
         endif
       enddo
 
-      if(listIndex.le.0) then
+      if(listIndex <= 0) then
         call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
       endif
 
@@ -167,7 +167,7 @@ module varNameList_mod
     !             - Modified search for chemical constituents 
     !          
     !--------------------------------------------------------------------------
-    function vnl_varnameFromVarnum(varNumber,varNumberChm_opt) result(varName)
+    function vnl_varnameFromVarnum( varNumber, varNumberChm_opt ) result(varName)
       implicit none
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
@@ -176,22 +176,24 @@ module varNameList_mod
       
       varName='    '
       select case (varNumber)
-      case(BUFR_NEUU,BUFR_NEUS)
+      case ( BUFR_NEUU, BUFR_NEUS )
         varName='UU'
-      case(BUFR_NEVV,BUFR_NEVS)
+      case( BUFR_NEVV, BUFR_NEVS )
         varName='VV'
-      case(BUFR_NETT,BUFR_NETS)
+      case( BUFR_NETT, BUFR_NETS )
         varName='TT'
-      case(BUFR_NEDZ,BUFR_NEGZ)
+      case( BUFR_NEDZ, BUFR_NEGZ )
         varName='GZ'
-      case(BUFR_NEHU,BUFR_NEHS,BUFR_NEES,BUFR_NESS)
+      case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
         varName='HU'
-      case(BUFR_NEPS,BUFR_NEPN)
+      case( BUFR_NEPS, BUFR_NEPN )
         varName='P0'
-      case(BUFR_NERF,BUFR_NEBD,BUFR_NEZD)
+      case ( BUFR_NERF, BUFR_NEBD, BUFR_NEZD )
         varName='TT'   ! temporarily associate refractivity and ZTD with temperature
-      case(BUFR_NEDW)
+      case (BUFR_NEDW)
         varName='DW'
+      case ( bufr_sst )
+        varname='TG'
       case default
         !
         ! Search for constituents. Identification depends on value and presence of second parameter.

@@ -79,6 +79,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEZW=15035
  ! Doppler wind 
  integer, parameter :: BUFR_NEDW=11200  
+ integer, parameter :: bufr_sst =22042
  
  !
  ! Table C-14: (for Code Table 08046)

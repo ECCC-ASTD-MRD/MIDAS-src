@@ -93,7 +93,7 @@ contains
     integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
 
-    WRITE(*,FMT=9000)
+    write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
 
     !
@@ -223,54 +223,54 @@ contains
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
-       if ( .not. col_varExist(vnl_varNameList2D(jvar)) ) cycle
-       if ( col_getNumCol(columng) > 0 ) then       
-          do columnIndex = 1, col_getNumCol(columng)
-             columng_ptr  => col_getColumn( columng , columnIndex, vnl_varNameList2D(jvar) )
-             columnhr_ptr => col_getColumn( columnhr, columnIndex, vnl_varNameList2D(jvar) )
-             columng_ptr(:) = columnhr_ptr(:)
-          enddo
-       endif
-    enddo
+      if ( .not. col_varExist(vnl_varNameList2D(jvar)) ) cycle
+      if ( col_getNumCol(columng) > 0 ) then       
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr  => col_getColumn( columng , columnIndex, vnl_varNameList2D(jvar) )
+          columnhr_ptr => col_getColumn( columnhr, columnIndex, vnl_varNameList2D(jvar) )
+          columng_ptr(:) = columnhr_ptr(:)
+        end do
+      end if
+    end do
 
     ! calculate pressure profiles on analysis levels
     if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
-       call col_calcPressure(columng)
-       do jlev = 1,col_getNumLev(columng,'MM')
-          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-               jlev,col_getPressure(columng,jlev,1,'MM')
-       end do
-       do jlev = 1,col_getNumLev(columng,'TH')
-          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
-               jlev,col_getPressure(columng,jlev,1,'TH')
-       end do
-       do jlev = 1,col_getNumLev(columng,'MM')
-         if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
-              jlev,col_getPressureDeriv(columng,jlev,1,'MM')
-       end do
-       do jlev = 1,col_getNumLev(columng,'TH')
-          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
-              jlev,col_getPressureDeriv(columng,jlev,1,'TH')
-       end do
+      call col_calcPressure(columng)
+      do jlev = 1, col_getNumLev(columng,'MM')
+        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+           jlev, col_getPressure(columng, jlev, 1, 'MM')
+      end do
+      do jlev = 1, col_getNumLev(columng,'TH')
+        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
+           jlev, col_getPressure(columng, jlev, 1, 'TH')
+      end do
+      do jlev = 1, col_getNumLev(columng,'MM')
+        if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
+           jlev, col_getPressureDeriv(columng, jlev, 1, 'MM')
+      end do
+      do jlev = 1, col_getNumLev(columng,'TH')
+         if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
+            jlev,col_getPressureDeriv(columng,jlev,1,'TH')
+      end do
     endif
 
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
-       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
-       if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
-       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
-    enddo
+      if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
+      if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
+      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
+    end do
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
-       !
-       !- Using T, q and PS to compute GZ for columng
-       !
-       do columnIndex = 1, col_getNumCol(columng)
-          call col_setGZsfc(columng ,columnIndex, col_getGZsfc(columnhr, columnIndex))
-       enddo
-       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
+      !
+      !- Using T, q and PS to compute GZ for columng
+      !
+      do columnIndex = 1, col_getNumCol(columng)
+        call col_setGZsfc(columng ,columnIndex, col_getGZsfc(columnhr, columnIndex))
+      end do
+      if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
     else
-       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+      write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
     call tmg_stop(10)
@@ -315,7 +315,7 @@ contains
     integer, allocatable :: nobs(:), nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
     integer, allocatable :: nobsgid_mpiglobal(:,:), nobs_mpiglobal(:,:)
     integer, allocatable :: datestamplist(:)
-    real(8), allocatable :: varInterphr_T(:,:), varInterphr_M(:,:), varInterphr_VV(:,:)
+    real(8), allocatable :: varInterphr_T(:,:), varInterphr_M(:,:), varInterphr_VV(:,:), varInterphr_SF(:,:)
     real(4)              :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4
     real(4)              :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8)              :: lat_r8, lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
@@ -369,7 +369,7 @@ contains
           write(*,*) 'ITRIAL - File :', trialfile(jstep)
           write(*,*) ' opened as unit file ',nultrl(jstep)
        end if
-    enddo
+    end do
 
     !
     !     Vertical coordinate parameters 
@@ -377,7 +377,7 @@ contains
     vco_trl => col_getVco(columnhr)
     nlevtrl_M = vco_getNumLev(vco_trl,'MM')
     nlevtrl_T = vco_getNumLev(vco_trl,'TH')
-    if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlevtrl_T,' momentum',nlevtrl_M
+    if (mpi_myid == 0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlevtrl_T,' momentum',nlevtrl_M
 
     !
     !     Compute the maximum number of columns over all processors (lat-lon tiles)
@@ -389,15 +389,17 @@ contains
     !
     !     Allocate trial field column object and other local arrays
     !
-    if (numColumns.gt.0) then
-       allocate(notag(numColumns,tim_nStepObs))
-       allocate(varInterphr_T(nlevtrl_T,numColumns))
-       allocate(varInterphr_M(nlevtrl_M,numColumns))
-       allocate(varInterphr_VV(nlevtrl_M,numColumns))
-       varInterphr_T(:,:)=0.0d0
-       varInterphr_M(:,:)=0.0d0
-       varInterphr_VV(:,:)=0.0d0
-    endif
+    if ( numColumns > 0 ) then
+      allocate(notag( numColumns, tim_nStepObs ))
+      allocate( varInterphr_T ( nlevtrl_T, numColumns ))
+      allocate( varInterphr_M ( nlevtrl_M, numColumns ))
+      allocate( varInterphr_SF( 1        , numColumns ))
+      allocate( varInterphr_VV( nlevtrl_M, numColumns ))
+      varInterphr_T(:,:)  = 0.0d0
+      varInterphr_M(:,:)  = 0.0d0
+      varInterphr_VV(:,:) = 0.0d0
+      varInterphr_SF(:,:) = 0.0d0
+    end if
 
     allocate(dlonfld(numColumn_maxmpiglobal))
     allocate(dlatfld(numColumn_maxmpiglobal))
@@ -416,8 +418,8 @@ contains
     !
     call tim_getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
     do jstep = 1,tim_nStepObs
-       ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: datestamplist=',jstep,datestamplist(jstep)
+      ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
+      if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: datestamplist=',jstep,datestamplist(jstep)
     end do
 
     !
@@ -426,11 +428,11 @@ contains
     hco_anl => agd_getHco('CoreGrid')
 
     if ( hco_anl % global ) then
-       xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
-       xposUpperBoundAnl_r4 = + huge(1.0) ! no limit since grid is global (periodic)
+      xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
+      xposUpperBoundAnl_r4 = + huge(1.0) ! no limit since grid is global (periodic)
     else
-       xposLowerBoundAnl_r4 = 1.0
-       xposUpperBoundAnl_r4 = real(hco_anl % ni)
+      xposLowerBoundAnl_r4 = 1.0
+      xposUpperBoundAnl_r4 = real(hco_anl % ni)
     end if
 
     ! setup the information for wind rotation (analysis grid)
@@ -443,22 +445,23 @@ contains
     !
     !- Get horizontal grid parameters to be used to test grid bounds
     !
-    varnameForEZ='NONE'
-    do jvar=1,vnl_numvarmax2D
-       if (gsv_varExist(varName=vnl_varNameList2D(jvar))) then
-          varnameForEZ=vnl_varNameList2D(jvar)
-          exit
-       end if
+    varnameForEZ = 'NONE'
+    do jvar= 1, vnl_numvarmax2D
+      if (gsv_varExist(varName=vnl_varNameList2D(jvar))) then
+         varnameForEZ=vnl_varNameList2D(jvar)
+         exit
+      end if
     end do
     if (trim(varnameForEZ) == 'NONE' ) then
-       do jvar=1,vnl_numvarmax3D
-          if (gsv_varExist(varName=vnl_varNameList3D(jvar))) then
-             varnameForEZ=vnl_varNameList3D(jvar)
-             exit
-          end if
-       end do
+      do jvar=1,vnl_numvarmax3D
+        if (gsv_varExist(varName=vnl_varNameList3D(jvar))) then
+           varnameForEZ=vnl_varNameList3D(jvar)
+           exit
+        end if
+      end do
     end if
-    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: varname for determining grid =',trim(varnameForEZ)
+
+    if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: varname for determining grid =',trim(varnameForEZ)
 
     if ( (1+mpi_myid) <= tim_nStepObs ) then
       ! already open (possibly on ram disk)
@@ -470,7 +473,7 @@ contains
       nultrl_forEZ = 0
       ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
       ierr = fstouv(nultrl_forEZ,'RND+OLD')
-    endif
+    end if
 
     dateo  = -1
     cletiket = ' '
@@ -482,11 +485,11 @@ contains
                   ni_trl, nj_trl, nk_trl,                                & ! OUT
                   dateo, cletiket, ip1, ip2, ip3, cltypvar, varnameForEZ ) ! IN
 
-    if (key < 0) then
-       write(*,*)
-       write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nultrl_forEZ = ',nultrl_forEZ
-       write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Unable to find trial field = ',varnameForEZ
-       call utl_abort('INN_SETUPBACKGROUNDCOLUMNS')
+    if (key < 0 ) then
+      write(*,*)
+      write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nultrl_forEZ = ',nultrl_forEZ
+      write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Unable to find trial field = ',varnameForEZ
+      call utl_abort('INN_SETUPBACKGROUNDCOLUMNS')
     end if
 
     ierr = fstprm( key,                                                     & ! IN
@@ -501,71 +504,71 @@ contains
 
     do jstep = 1,tim_nStepObs
 
-       dlonfld(:)=0.0d0
-       dlatfld(:)=0.0d0
+      dlonfld(:)=0.0d0
+      dlatfld(:)=0.0d0
 
-       do jobs=1, obs_numheader(obsSpaceData)
+      do jobs = 1, obs_numheader(obsSpaceData)
 
-          call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-               obs_headElem_i(obsSpaceData,OBS_DAT,jobs),  &
-               obs_headElem_i(obsSpaceData,OBS_ETM,jobs),tim_nstepobs)
+        call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
+             obs_headElem_i(obsSpaceData,OBS_DAT,jobs),  &
+             obs_headElem_i(obsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
           ! check if obs is outside of assimilation window when jstep = 1
-          if (jstep.eq.1 .and.  &
-               (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(tim_nstepobs,8)) ) then
-             write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Observation time outside assimilation window: ',  &
+        if ( jstep == 1 .and.  &
+           ( stepobsIndex < 1.0 .or. stepObsIndex > real(tim_nstepobs,8)) ) then
+          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Observation time outside assimilation window: ',  &
                   obs_headElem_i(obsSpaceData,OBS_DAT,jobs),obs_headElem_i(obsSpaceData,OBS_ETM,jobs)
 
-             ! put the obs in the first time bin (it has to go somewhere!)
-             stepObsIndex=1.0d0
+          ! put the obs in the first time bin (it has to go somewhere!)
+          stepObsIndex = 1.0d0
 
-             ! flag it as out of time domain and turn off its assimilation flag
-             idata = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
-             idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
-             do jdata = idata, idatend
-                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
-             end do
-             call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
-                  ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
-          end if
+          ! flag it as out of time domain and turn off its assimilation flag
+          idata = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+          idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
+          do jdata = idata, idatend
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+          end do
+          call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+               ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
+        end if
 
-          if ( nint(stepObsIndex) == jstep ) then
+        if ( nint(stepObsIndex) == jstep ) then
 
-             nobs(jstep) = nobs(jstep) + 1
-             notag(nobs(jstep),jstep) = jobs
+          nobs(jstep) = nobs(jstep) + 1
+          notag(nobs(jstep),jstep) = jobs
 
-             !- Get LatLon of observation location
-             lat_r8=obs_headElem_r(obsSpaceData,OBS_LAT,jobs)
-             lon_r8=obs_headElem_r(obsSpaceData,OBS_LON,jobs)
-             lat_r4=real(lat_r8)
-             lon_r4=real(lon_r8)
-             if (lon_r4.lt.0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
-             if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
+          !- Get LatLon of observation location
+          lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,jobs)
+          lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,jobs)
+          lat_r4 = real(lat_r8)
+          lon_r4 = real(lon_r8)
+          if ( lon_r4 < 0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
+          if (lon_r4 >= 2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
-             lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
-             lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+            lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
+            lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
 
-             !
-             !- Find the position in the analysis grid
-             !
-             ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
-                  lat_deg_r4, lon_deg_r4, 1)
+            !
+            !- Find the position in the analysis grid
+            !
+            ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
+                 lat_deg_r4, lon_deg_r4, 1)
 
-             !- Test if the obs is outside the analysis grid
-             if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
-                  xpos_r4 > xposUpperBoundAnl_r4  .or. &
-                  ypos_r4 < 1.0                   .or. &
-                  ypos_r4 > real(hco_anl % nj) ) then
+            !- Test if the obs is outside the analysis grid
+            if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
+               xpos_r4 > xposUpperBoundAnl_r4  .or. &
+               ypos_r4 < 1.0                   .or. &
+               ypos_r4 > real(hco_anl % nj) ) then
 
-                if ( hco_anl % global ) then
-                   ! Modify latitude if we have an observation at or near the poles
-                   write(*,*) ''
-                   write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
-                   write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+             if ( hco_anl % global ) then
+               ! Modify latitude if we have an observation at or near the poles
+               write(*,*) ''
+               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
+               write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                   !- Move the observation to the nearest grid point
-                   if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
-                   if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
+               !- Move the observation to the nearest grid point
+               if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
+                 if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
 
                    ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
                         lat_deg_r4, lon_deg_r4, & ! OUT
@@ -579,31 +582,32 @@ contains
                    call obs_headSet_r(obsSpaceData,OBS_LON,jobs, lon_r8) ! IN
 
                 else
-                   ! The observation is outside the domain
-                   ! In LAM Analysis mode we must discard this observation
-                   write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
-                   write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+                  ! The observation is outside the domain
+                  ! In LAM Analysis mode we must discard this observation
+                  write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
+                  write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                   idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
-                   idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
-                   do jdata = idata, idatend
-                      call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
-                   end do
-                   call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
-                        ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
+                  idata   = obs_headElem_i( obsSpaceData, OBS_RLN, jobs)
+                  idatend = obs_headElem_i( obsSpaceData, OBS_NLV, jobs) + idata -1
+                  do jdata = idata, idatend
+                    call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+                  end do
+                  call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                       ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
                 end if
 
              end if
 
              !- Convert to rotated grid if needed
-             if (hco_anl % rotated) then
-                call uvr_RotateLatLon( uvr_tlad, 1,      & ! IN
-                                       lat_rot, lon_rot, & ! OUT (radians)
-                                       lat_r8, lon_r8,   & ! IN  (radians)
-                                       'ToLatLonRot')      ! IN
+             if ( col_varExist('UU') .and. col_varExist('VV') .and.  &
+                  hco_anl%rotated ) then
+               call uvr_RotateLatLon( uvr_tlad, 1,      & ! IN
+                                      lat_rot, lon_rot, & ! OUT (radians)
+                                      lat_r8, lon_r8,   & ! IN  (radians)
+                                      'ToLatLonRot')      ! IN
              else
-                lat_rot = lat_r8
-                lon_rot = lon_r8
+               lat_rot = lat_r8
+               lon_rot = lon_r8
              end if
 
              !- Store the above 3 pairs of values in column structure
@@ -615,42 +619,42 @@ contains
              !
              !- Find the position in the trial field grid
              !
-             ierr=gdxyfll(EZscintID_trl, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+             ierr = gdxyfll(EZscintID_trl, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
              if ( xpos_r4 >= 1.0 .and. xpos_r4 <= real(ni_trl) .and.  &
                   ypos_r4 >= 1.0 .and. ypos_r4 <= real(nj_trl) ) then
 
-                dlonfld(nobs(jstep)) = lon_r8
-                dlatfld(nobs(jstep)) = lat_r8
-                if (dlonfld(nobs(jstep)).lt.0.0d0)  &
-                     dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
-                     2*MPC_PI_R8
-                if (dlonfld(nobs(jstep)).ge.2.0d0*MPC_PI_R8)  &
-                     dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
-                     2*MPC_PI_R8
+               dlonfld(nobs(jstep)) = lon_r8
+               dlatfld(nobs(jstep)) = lat_r8
+               if (dlonfld(nobs(jstep)) < 0.0d0)  &
+                   dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
+                   2*MPC_PI_R8
+                if (dlonfld(nobs(jstep)) >= 2.0d0*MPC_PI_R8)  &
+                    dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
+                    2*MPC_PI_R8
                 dlonfld(nobs(jstep))=dlonfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
                 dlatfld(nobs(jstep))=dlatfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
 
              else
-                ! The observation is outside the domain
-                ! With a LAM trial field we must discard this observation
-                write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the TRIAL field domain, ', jobs
-                write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+               ! The observation is outside the domain
+               ! With a LAM trial field we must discard this observation
+               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the TRIAL field domain, ', jobs
+               write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
-                idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
-                do jdata = idata, idatend
-                   call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
-                end do
-                call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
-                     ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
+               idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+               idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
+               do jdata = idata, idatend
+                 call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+               end do
+               call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                    ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
 
-                ! However, we must assigned a realistic lat-lon to this point
-                ! to avoid problem later in Hx computation.
-                ierr=gdllfxy(EZscintID_trl, lat_deg_r4, lon_deg_r4, real(ni_trl)/2.0,  &
-                     real(nj_trl)/2.0, 1) ! Middle of the domain
-                dlonfld(nobs(jstep)) = real(lon_deg_r4,8)
-                dlatfld(nobs(jstep)) = real(lat_deg_r4,8)
+               ! However, we must assigned a realistic lat-lon to this point
+               ! to avoid problem later in Hx computation.
+               ierr=gdllfxy(EZscintID_trl, lat_deg_r4, lon_deg_r4, real(ni_trl)/2.0,  &
+                    real(nj_trl)/2.0, 1) ! Middle of the domain
+               dlonfld(nobs(jstep)) = real(lon_deg_r4,8)
+               dlatfld(nobs(jstep)) = real(lat_deg_r4,8)
              end if
 
           end if
@@ -677,196 +681,199 @@ contains
        call utl_cxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
 
        do jlatlontile = 1,mpi_nprocs
-          if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
-             nobsgid_mpiglobal(jstep,jlatlontile) = utl_ezgdef(nobs_mpiglobal(jstep,jlatlontile),  &
-                  1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,  &
-                  dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile),  &
-                  dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile))
-          else
-             !write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: NO OBS found for this time/lat bin =',jstep,jlatlontile
-             nobsgid_mpiglobal(jstep,jlatlontile) = -999
-          end if
+         if (nobs_mpiglobal(jstep,jlatlontile) > 0) then
+           nobsgid_mpiglobal(jstep,jlatlontile) = utl_ezgdef(nobs_mpiglobal(jstep,jlatlontile),  &
+                1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,  &
+                dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile),  &
+                dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile))
+         else
+           !write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: NO OBS found for this time/lat bin =',jstep,jlatlontile
+           nobsgid_mpiglobal(jstep,jlatlontile) = -999
+         end if
        end do
 
     end do ! jstep
 
     !
-    !     reading 2D fields
+    ! reading 2D fields
     !
-    do jvar=1,vnl_numvarmax2D
-       if (.not.gsv_varExist(varName=vnl_varNameList2D(jvar))) cycle
+    do jvar = 1, vnl_numvarmax2D
 
-       call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
+      if ( .not. gsv_varExist( varName = vnl_varNameList2D( jvar ))) cycle
 
-       if (numColumns.gt.0) then       
-          if (vnl_varNameList2D(jvar).eq.'P0  ') then
-             varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
-          endif
-          call col_fillmvo(columnhr,varInterphr_M,vnl_varNameList2D(jvar))
-       endif
+      call readTrialField( varInterphr_SF, varInterphr_VV, vnl_varNameList2D( jvar ), 'SF' )
 
-    enddo
+      if ( numColumns > 0 ) then       
+        if ( vnl_varNameList2D( jvar ) == 'P0  ') then
+          varInterphr_SF(:,:) = varInterphr_SF(:,:) * MPC_PA_PER_MBAR_R8
+        end if
+        call col_fillmvo( columnhr, varInterphr_SF, vnl_varNameList2D(jvar))
+      end if
 
+    end do
     !
-    !     Derive the pressure fields at observation points
+    ! Derive the pressure fields at observation points
     !      
     if (numColumns > 0 .and. col_varExist('P0')) then
-       call col_calcPressure(columnhr)
 
-       do jlev = 1,col_getNumLev(columnhr,'MM')
-          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
-               jlev,col_getPressure(columnhr,jlev,1,'MM')
-       end do
-       do jlev = 1,col_getNumLev(columnhr,'TH')
-          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
-               jlev,col_getPressure(columnhr,jlev,1,'TH')
-       end do
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: surface Pressure=',col_getElem(columnhr,1,1,'P0')
+      call col_calcPressure(columnhr)
+
+      do jlev = 1, col_getNumLev(columnhr,'MM')
+        
+        if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
+           jlev, col_getPressure( columnhr, jlev, 1, 'MM' )
+      end do
+      
+      do jlev = 1, col_getNumLev( columnhr, 'TH' )
+        if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
+           jlev, col_getPressure( columnhr, jlev, 1, 'TH' )
+      end do
+     
+      if (mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: surface Pressure=', col_getElem( columnhr, 1, 1, 'P0' )
 
     end if
-
     !      
     !     Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
     !
     write(*,*)' ----- Initializing GZ ----'
-
     !
     !     Lire les GZ des niveaux Momentum
     !
-    call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM',noUpperGZ)
+    call readTrialField( varInterphr_M, varInterphr_VV, 'GZ  ', 'MM' , noUpperGZ )
 
-    if (numColumns.gt.0) then       
-       varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
-       call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_M'
-       do jlev = 1,nlevtrl_M
-          if (mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
-       enddo
-    endif
+    if ( numColumns > 0 ) then
+       
+      varInterphr_M(:,:) = varInterphr_M(:,:) * 10.0d0 * RG
+      call col_fillmvo( columnhr, varInterphr_M, 'GZ  ' , 'MM' )
+      if (mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_M'
+      do jlev = 1,nlevtrl_M
+        if (mpi_myid == 0 ) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
+      end do
+
+    end if
 
     !
     !     Lire les GZ des niveaux Thermodynamique
     !
-    call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH',noUpperGZ)
+    call readTrialField( varInterphr_T, varInterphr_VV, 'GZ  ', 'TH', noUpperGZ )
 
-    if (numColumns.gt.0) then       
-       varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
-       call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_TH'
-       do jlev = 1,nlevtrl_T
-          if (mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
-       enddo
-    endif
-
+    if ( numColumns > 0 ) then       
+      varInterphr_T(:,:) = varInterphr_T(:,:) * 10.0d0 * RG
+      call col_fillmvo( columnhr, varInterphr_T, 'GZ  ', 'TH')
+      if ( mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_TH'
+      do jlev = 1, nlevtrl_T
+        if ( mpi_myid == 0 ) write(*,*) 'GZ,', jlev, varInterphr_T( jlev, 1 )
+      end do
+    end if
     !
     !     Now all of the other 3D variables
     !
-    do jvar=1, vnl_numvarmax3D
+    do jvar = 1, vnl_numvarmax3D
 
-       if (.not.gsv_varExist(varName=vnl_varNameList3D(jvar))) cycle
+      if ( .not. gsv_varExist( varName = vnl_varNameList3D( jvar ))) cycle
 
-       if (vnl_varNameList3D(jvar).eq.'VV') cycle  ! to avoid cycle for VV
+      if (vnl_varNameList3D(jvar) == 'VV') cycle  ! to avoid cycle for VV
 
-       select case ( vnl_varNameList3D(jvar) )
+      select case ( vnl_varNameList3D(jvar) )
           !
           !       Variables sur les niveaux momentum
           !
-       case ('UU')
-          write(*,*)' ----- Initializing UU and VV  ----'
+      case ('UU')
+        write(*,*)' ----- Initializing UU and VV  ----'
+        call readTrialField( varInterphr_M, varInterphr_VV, 'UV  ', 'MM')
 
-          call readTrialField(varInterphr_M,varInterphr_VV,'UV  ','MM')
+        if ( numColumns > 0 ) then       
 
-          if (numColumns.gt.0) then       
+          if ( mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlevtrl_M
+            
+          do jlev = 1, nlevtrl_M
+            if ( mpi_myid == 0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
+          end do
+          
+          if ( mpi_myid == 0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: VV ,nlev= ',nlevtrl_M
+          do jlev = 1, nlevtrl_M
+            if ( mpi_myid == 0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
+          end do
 
-             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlevtrl_M
-             do jlev = 1,nlevtrl_M
-                if (mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
-             enddo
-             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: VV ,nlev= ',nlevtrl_M
-             do jlev = 1,nlevtrl_M
-                if (mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
-             enddo
+          call col_fillmvo( columnhr, varInterphr_M , 'UU  ' )
+          call col_fillmvo( columnhr, varInterphr_VV, 'VV  ' )
 
-             call col_fillmvo(columnhr,varInterphr_M,'UU  ')
-             call col_fillmvo(columnhr,varInterphr_VV,'VV  ')
+          ! conversion from knots to m/s
+          do jobs = 1, numColumns
+          
+            column_ptr => col_getColumn( columnhr, jobs, 'UU')
+            do jlev = 1, col_getNumLev( columnhr, 'MM')
+              column_ptr( jlev ) = column_ptr( jlev ) * MPC_M_PER_S_PER_KNOT_R8
+            end do
+            column_ptr => col_getColumn( columnhr, jobs, 'VV' )
+            do jlev = 1, col_getNumLev( columnhr, 'MM' )
+              column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
+            end do
+          end do
 
-             ! conversion from knots to m/s
-             do jobs=1,numColumns
-                column_ptr => col_getColumn(columnhr,jobs,'UU')
-                do jlev=1,col_getNumLev(columnhr,'MM')
-                   column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
-                enddo
-                column_ptr => col_getColumn(columnhr,jobs,'VV')
-                do jlev=1,col_getNumLev(columnhr,'MM')
-                   column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
-                enddo
-             enddo
+        endif
+        !
+        !       Variable sur les niveaux thermodynamiques
+        !
+      case ('TT','HU')
+        write(*,*)' ----- Initializing ',vnl_varNameList3D(jvar),' ----'
 
-          endif
+        call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
-          !
-          !       Variable sur les niveaux thermodynamiques
-          !
-       case ('TT','HU')
-          write(*,*)' ----- Initializing ',vnl_varNameList3D(jvar),' ----'
+        if ( numColumns > 0 ) then       
 
-          call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
+          if ( mpi_myid == 0 ) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:',vnl_varNameList3D(jvar)
+          do jlev = 1, nlevtrl_T
+            if ( mpi_myid == 0 ) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+          end do
 
-          if (numColumns.gt.0) then       
+          call col_fillmvo( columnhr, varInterphr_T, vnl_varNameList3D( jvar ))
 
-             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:',vnl_varNameList3D(jvar)
-             do jlev = 1,nlevtrl_T
-                if (mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
-             enddo
-
-             call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-
-             if (vnl_varNameList3D(jvar).eq.'TT  ') then
-                ! conversion from Celcius to Kelvin
-                do jobs=1,numColumns
-                   column_ptr => col_getColumn(columnhr,jobs,'TT')
-                   do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
-                   enddo
-                enddo
-             elseif (vnl_varNameList3D(jvar).eq.'HU  ') then
-               ! Imposing a minimum value for HU (legacy)
-                do jobs=1,numColumns
-                   column_ptr => col_getColumn(columnhr,jobs,'HU')
-                   do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=max(column_ptr(jlev),col_rhumin)
-                   enddo
-                enddo
-             endif
-
-          endif
-
-       case default
-
-          call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))
-
-          if(numColumns.gt.0) then
-
-             if(mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
-             do jlev = 1,nlevtrl_T
-                if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
-             enddo
-             
-             call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-
+          if (vnl_varNameList3D(jvar) == 'TT  ') then
+            ! conversion from Celcius to Kelvin
+            do jobs = 1, numColumns
+              column_ptr => col_getColumn( columnhr, jobs, 'TT' )
+              do jlev = 1, col_getNumLev( columnhr, 'TH' )
+                column_ptr(jlev) = column_ptr(jlev) + MPC_K_C_DEGREE_OFFSET_R8
+              end do
+            end do
+          else if (vnl_varNameList3D(jvar) == 'HU  ') then
+            ! Imposing a minimum value for HU (legacy)
+            do jobs = 1, numColumns
+              column_ptr => col_getColumn(columnhr,jobs,'HU')
+              do jlev = 1, col_getNumLev(columnhr,'TH')
+                column_ptr(jlev)=max(column_ptr(jlev),col_rhumin)
+              end do
+            end do
           end if
+        end if
 
-       end select
-    enddo
+      case default
 
-    if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
+        call readTrialField(varInterphr_T, varInterphr_VV, vnl_varNameList3D( jvar ), vnl_varLevelFromVarname( vnl_varNameList3D( jvar )))
+
+        if ( numColumns > 0 ) then
+
+          if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
+          do jlev = 1, nlevtrl_T
+            if( mpi_myid == 0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+          end do
+             
+          call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
+
+        end if
+
+      end select
+    end do
+
+    if ( col_varExist( 'TT' ) .and. col_varExist( 'HU' ) .and. col_varExist( 'P0' )) then
        !
        !- Using T, q and PS to compute GZ for columnhr
        !
-       if (noUpperGZ .and. (col_getNumLev(columnhr,'MM') > 1) ) then
-          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
-          call tt2phi(columnhr)
-       endif
+       if ( noUpperGZ .and. ( col_getNumLev( columnhr, 'MM' ) > 1) ) then
+         write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
+         call tt2phi( columnhr )
+       end if
     else
        write(*,*) ':inn_setupBackgroundColumns  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
@@ -875,20 +882,22 @@ contains
     !- Close the files
     !
     do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
-       ierr=fstfrm(nultrl(jstep))  
-       ierr=fclos(nultrl(jstep))  
-       ierr = ram_remove(trialfile(jstep))
-    enddo
+      ierr=fstfrm(nultrl(jstep))  
+      ierr=fclos(nultrl(jstep))  
+      ierr = ram_remove(trialfile(jstep))
+    end do
 
     !
     !- Deallocate the local arrays
     !
-    if (numColumns.gt.0) then       
-       deallocate(notag)
-       deallocate(varInterphr_T)
-       deallocate(varInterphr_M)
-       deallocate(varInterphr_VV)
-    endif
+    if ( numColumns > 0 ) then       
+      deallocate(notag)
+      deallocate(varInterphr_T)
+      deallocate(varInterphr_M)
+      deallocate(varInterphr_VV)
+      deallocate(varInterphr_SF)
+    end if
+
     deallocate(datestamplist)
     deallocate(nobs,nobs_maxmpiglobal)
     deallocate(nultrl)
@@ -950,7 +959,7 @@ contains
       !
       ! Determine the type and number of vertical levels
       !
-      if (trim(varName_in).eq.'UV') then
+      if (trim(varName_in) == 'UV') then
          varName='UU  '
       else
          varName=varName_in
@@ -973,18 +982,18 @@ contains
       !
       ! Check if too few GZ levels are in file, if so then just read surface
       !
-      if (trim(varName).eq.'GZ' .and. present(noUpperGZ_opt)) then
-         ierr = fstinl(nultrl_forEZ, ni, nj, nk, -1, ' ', -1, -1, -1, &
-              ' ','GZ',keys, numkeys, maxnumkeys)
-         write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
-         if (numkeys.lt.nlevel) then
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
-            noUpperGZ_opt = .true.
-         else
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
-            noUpperGZ_opt = .false.
-         endif
-      endif
+      if (trim(varName) == 'GZ' .and. present(noUpperGZ_opt)) then
+        ierr = fstinl(nultrl_forEZ, ni, nj, nk, -1, ' ', -1, -1, -1, &
+             ' ','GZ',keys, numkeys, maxnumkeys)
+        write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
+        if (numkeys < nlevel) then
+          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
+          noUpperGZ_opt = .true.
+        else
+          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
+          noUpperGZ_opt = .false.
+        end if
+      end if
 
       !
       ! Determine grid size and EZSCINT ID
@@ -1000,7 +1009,7 @@ contains
            ni, nj, nk,                                       & ! OUT
            dateo, cletiket, ip1, ip2, ip3, cltypvar, varName ) ! IN
 
-      if (key < 0) then
+      if ( key < 0 ) then
          write(6,*)
          write(6,*) 'INN_SETUPBACKGROUNDCOLUMNS: Unable to find trial field = ',varName
          call utl_abort('INN_SETUPBACKGROUNDCOLUMNS')
@@ -1036,85 +1045,90 @@ contains
 
             if (nobs_maxmpiglobal(jstep) <= 0) cycle STEP_LOOP1
 
-            if (trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
+            if (trim(varName) == 'GZ'.and.jlev == nlevel) then
                ! use surface level IP1 for GZ (essential for Vcode=5005)
                IIP1 = vco_trl%ip1_sfc
-            elseif (varLevel.eq.'MM') then
+            elseif (varLevel == 'MM') then
                IIP1 = vco_trl%ip1_M(jlev)
-            elseif (varLevel.eq.'TH') then
+            elseif (varLevel == 'TH') then
                IIP1 = vco_trl%ip1_T(jlev)
-            elseif (varLevel.eq.'SF') then
+            elseif (varLevel == 'SF') then
                IIP1 = -1
             else
                call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
             endif
 
-            if (trim(varName).eq.'GZ'.and.present(noUpperGZ_opt)) then
-               if (noUpperGZ_opt.and.jlev.ne.nlevel) then
-                  ! do not try to read GZ above surface if it does not exist
-                  varTrial_r4(:,:) = 0.0
-               else
-                  ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
-                       datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                       cltypvar,varName)
-               endif
-            else
-               ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
-                    datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                    cltypvar,varName)
-            endif
+            if (trim(varName) == 'GZ' .and. present( noUpperGZ_opt )) then
 
-            if (ierr.lt.0)then
-               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-               call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+              if ( noUpperGZ_opt .and. jlev /= nlevel ) then
+                ! do not try to read GZ above surface if it does not exist
+                varTrial_r4(:,:) = 0.0
+              else
+                ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
+                     datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                     cltypvar,varName)
+              end if
+
+            else
+
+              ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
+                  datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                  cltypvar,varName)
+ 
             end if
 
-            if (vnl_varKindFromVarname(varName).eq.'CH') &
+            if (ierr < 0 ) then
+              write(*,2001) varName,iip1,idate(jstep),itime(jstep)
+              call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+            end if
+
+            if (vnl_varKindFromVarname(varName) == 'CH') &
                  call chm_apply_2dfieldr4_transform(vnl_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
 
-            if (varName.eq.'UU') then
-               ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,nk,  &
-                    datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                    cltypvar,'VV')
-               if (ierr.lt.0)then
-                  write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                  call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
-               end if
-            endif
+            if (varName == 'UU' ) then
+              ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,nk,  &
+                  datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                  cltypvar,'VV')
+              if (ierr < 0 ) then
+                write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
+                call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+              end if
+            end if
 
             ! Interpolate to mpiglobal set of columns for a subset of levels
-            do jlatlontile = 1,mpi_nprocs
-               if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
-                  iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
-                  if (trim(varName).eq.'UU') then
+            do jlatlontile = 1, mpi_nprocs
+               if (nobs_mpiglobal(jstep,jlatlontile) > 0 ) then
+                 iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
+                 if (trim(varName) == 'UU' ) then
 
-                     ierr = utl_ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                        varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                        varTrial_r4,varTrial_zero_r4, interpDegree='LINEAR')
-                     ierr = utl_ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                        varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                        varTrial_zero_r4,varTrial_VV_r4, interpDegree='LINEAR')
+                   ierr = utl_ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                      varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                      varTrial_r4,varTrial_zero_r4, interpDegree='LINEAR')
+                   ierr = utl_ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                      varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                      varTrial_zero_r4,varTrial_VV_r4, interpDegree='LINEAR')
 
-                     varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
-                          real(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
-                          real(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
-                     varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
-                          real(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
-                          real(varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
+                   varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
+                        real(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
+                        real(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
+                   varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
+                        real(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
+                        real(varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
 
-                     ! This could replace the code above, but results are changed, so more testing needed
-                     !ierr = utl_ezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                     !                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                     !                    varTrial_r4,varTrial_VV_r4,  &
-                     !                    nobs_mpiglobal(jstep,jlatlontile),ni*nj)
-                  else
-                     ierr = utl_ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                   ! This could replace the code above, but results are changed, so more testing needed
+                   !ierr = utl_ezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                   !                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                   !                    varTrial_r4,varTrial_VV_r4,  &
+                   !                    nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                 else
+                 
+                   ierr = utl_ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
                                        varTrial_r4, interpDegree='LINEAR')
-                  endif
-               endif
-            enddo
+                 end if
+               end if
+            end do
 
-         enddo STEP_LOOP1
+         end do STEP_LOOP1
 
          TILE_LOOP: do jlatlontile = 1,mpi_nprocs
             STEP_LOOP2: do jstep = 1, tim_nStepObs
@@ -1125,56 +1139,58 @@ contains
                tag2 = pe_recv*500 + pe_send + 1000000
 
                if ( mpi_myid == pe_recv ) then
-                  varInterp_recv_r4(:,jstep) = 0.0
-                  varInterp_recv_VV_r4(:,jstep) = 0.0
+                 varInterp_recv_r4(:,jstep) = 0.0
+                 varInterp_recv_VV_r4(:,jstep) = 0.0
                endif
 
                if ( nobs_mpiglobal(jstep,jlatlontile) <= 0 ) cycle STEP_LOOP2
 
                if (pe_send == pe_recv) then
-                  if (mpi_myid == pe_send) then
-                     varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
-                          varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
-                     if (trim(varName) == 'UU') then
-                        varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
-                             varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
-                     endif
-                  endif
+
+                 if (mpi_myid == pe_send) then
+                   varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
+                        varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
+                   if (trim(varName) == 'UU') then
+                      varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
+                           varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
+                   endif
+                 endif
+
                else
-                  if (mpi_myid == pe_send) then
-                     nsize=nobs_mpiglobal(jstep,jlatlontile)
-                     call rpn_comm_send(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
-                          nsize,'mpi_real4',pe_recv,tag,'GRID',ierr)
-                     if (trim(varName).eq.'UU') then
-                        call rpn_comm_send(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
-                             nsize,'mpi_real4',pe_recv,tag2,'GRID',ierr)
-                     endif
-                  endif
+                 if (mpi_myid == pe_send) then
+                   nsize=nobs_mpiglobal(jstep,jlatlontile)
+                   call rpn_comm_send(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
+                        nsize,'mpi_real4',pe_recv,tag,'GRID',ierr)
+                   if (trim(varName) == 'UU' ) then
+                     call rpn_comm_send(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
+                         nsize,'mpi_real4',pe_recv,tag2,'GRID',ierr)
+                   end if
+                 end if
 
-                  if (mpi_myid == pe_recv) then
-                     nsize=nobs_mpiglobal(jstep,jlatlontile)
-                     call rpn_comm_recv(varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
-                          nsize,'mpi_real4',pe_send,tag,'GRID',status,ierr)
-                     if (trim(varName) == 'UU') then
-                        call rpn_comm_recv(varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
-                             nsize,'mpi_real4',pe_send,tag2,'GRID',status,ierr)
-                     endif
-                  endif
-               endif
+                 if (mpi_myid == pe_recv) then
+                   nsize=nobs_mpiglobal(jstep,jlatlontile)
+                   call rpn_comm_recv(varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
+                        nsize,'mpi_real4',pe_send,tag,'GRID',status,ierr)
+                   if (trim(varName) == 'UU') then
+                     call rpn_comm_recv(varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
+                           nsize,'mpi_real4',pe_send,tag2,'GRID',status,ierr)
+                   end if
+                 end if
+               end if
 
-            enddo STEP_LOOP2
-         enddo TILE_LOOP
+            end do STEP_LOOP2
+         end do TILE_LOOP
 
          do jstep = 1, tim_nStepObs
             do jobs = 1, nobs(jstep)
-               varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv_r4(jobs,jstep)
-               if (trim(varName).eq.'UU') then
-                  varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV_r4(jobs,jstep)
-               endif
+              varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv_r4(jobs,jstep)
+              if (trim(varName) == 'UU' ) then
+                varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV_r4(jobs,jstep)
+              end if
             enddo
-         enddo
+         end do
 
-      enddo LEV_LOOP
+      end do LEV_LOOP
 
       deallocate(varTrial_r4,varTrial_VV_r4)
       deallocate(varTrial_zero_r4)
@@ -1203,7 +1219,7 @@ contains
     logical, optional       :: beSilent_opt
 
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
-    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
+    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,ZJOSFCTM
     real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm
     integer :: ierr, get_max_rss
     logical :: lgpdata, beSilent
@@ -1257,11 +1273,13 @@ contains
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
-    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCSF,'SF')
-    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCUA,'UA')
-    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCSC,'SC')
-    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCGP,'GP')
-    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
+    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCSF, 'SF' )
+    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCUA, 'UA' )
+    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCSC, 'SC' )
+    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCGP, 'GP' )
+    call oop_sst_nl( columnhr, obsSpaceData, ZJOSFCTM, 'TM' )
+
+    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP+ZJOSFCTM
     !
     !        TOVS - RADIANCE
     !-------------------------------
@@ -1314,6 +1332,7 @@ contains
       write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
       write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
       write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSURTM  = ',ZJOSFCTM
       write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
       write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
       write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
@@ -1339,11 +1358,13 @@ contains
       call mpi_allreduce_sumreal8scalar(ZJOGPSRO,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCTM,'GRID')
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
       write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
       write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
       write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSURTM  = ',ZJOSFCTM
       write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
       write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
       write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
