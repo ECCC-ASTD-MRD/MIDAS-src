@@ -25,7 +25,7 @@
   DSTEPOBS = 0.25D0
 /
  &NAMFILT
-   NELEMS    = 15,
+   NELEMS    = 16,
    NLIST(1)=11003,
    NLIST(2)=11004,
    NLIST(3)=12192,
@@ -41,6 +41,7 @@
    NLIST(13)=12163,
    NLIST(14)=15036,
    NLIST(15)=15031,
+   NLIST(16)=40030,
    NFLAGS=8,
    NLISTFLG(1)=0,
    NLISTFLG(2)=-1,
@@ -96,8 +97,8 @@
   BBITOFF(3)=5,
   BBITOFF(4)=-5,
   BBITOFF(5)=-8,
-  NELEMS=10,
-  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+  NELEMS=11,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220,40030
 /
  &NAMBURP_FILTER_TOVS
   BNBITSOFF=0,
@@ -115,4 +116,22 @@
   BITEMLIST(2)='OMA',
   BITEMLIST(3)='FGE',
   TYPE_RESUME='BGCKALT'
+/
+ &NAMSQLAL
+  numberElem=2,
+  listElem="40030,5021",
+  sqlExtraDat=" order by id_obs ",
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+ numberUpdateItems=2
+ itemUpdateList(1)='OMP'
+ itemUpdateList(2)='OMA'
+/
+ &namSQLInsert
+  numberInsertItems=0
+  itemInsertList(1)=11215
+  itemInsertList(2)=11216
+  itemInsertList(3)=11003
+  itemInsertList(4)=11004
 /
