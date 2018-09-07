@@ -687,7 +687,7 @@ contains
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//': invalid item ' )
       end select
-      itemChar = ','//trim(itemChar)//trim(item2)//trim(' = ? ')
+      itemChar = trim(itemChar)//','//trim(item2)//trim(' = ? ')
     end do
 
     back=.true.
