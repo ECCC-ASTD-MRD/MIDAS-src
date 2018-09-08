@@ -94,7 +94,7 @@ This version is identical to [3.3.0-rc1].
 * Add chemical consituents capacity (#98, !95 and !89)
 * Make advection modular and flexible (!87 and !99)
 * Improve advection code (#87, #119, !99 and !105)
-* `HU` rather than `LQ` in `gridStateVector` outside `$B$` matrix modules. This
+* `HU` rather than `LQ` in `gridStateVector` outside $`B`$ matrix modules. This
   has significant impact on the results and also requires changes to
   the use of the randomPert program within the EnKF (a background
   state must now be supplied) (#67 and !111).
