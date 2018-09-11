@@ -316,7 +316,7 @@ contains
     character(len=256)  :: obsDirectory
     character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
     character(len=256)               :: fileNamefull
-    logical :: fileExist_L
+    logical :: fileExists
     integer :: fileIndex
 
     write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
@@ -396,17 +396,20 @@ contains
     clvalu(68) = 'obsssm'
     clvalu(69) = 'obsgp'
     clvalu(70) = 'obsch'
-    clvalu(71) = 'obsgl_ssmi'
-    clvalu(72) = 'obsgl_ssmis'
-    clvalu(73) = 'obsgl_amsr2'
-    clvalu(74) = 'obsgl_ascat'
-    clvalu(75) = 'obsgl_avhrr'
-    clvalu(76) = 'obsgl_cis'
+    clvalu(71) = 'brpgl_ssmi'
+    clvalu(72) = 'brpgl_ssmis'
+    clvalu(73) = 'brpgl_amsr2'
+    clvalu(74) = 'brpgl_ascat'
+    clvalu(75) = 'brpgl_avhrr'
+    clvalu(76) = 'brpgl_cisA'
+    clvalu(77) = 'brpgl_cisI'
+    clvalu(78) = 'brpgl_cisL'
+    clvalu(79) = 'brpgl_cisR'
     ! file name for CMA format used by EnKF
-    clvalu(77) = 'cmaheader'
+    clvalu(80) = 'cmaheader'
     ! Sea Surface Temperature data file name
-    clvalu(78) = 'brpsst'
-    clvalu(79) = 'obsal'
+    clvalu(81) = 'brpsst'
+    clvalu(82) = 'obsal'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -485,10 +488,13 @@ contains
     cfami(74)  = 'GL'
     cfami(75)  = 'GL'
     cfami(76)  = 'GL'
+    cfami(77)  = 'GL'
+    cfami(78)  = 'GL'
+    cfami(79)  = 'GL'
     ! dummy family type for CMA, since it contains all families
-    cfami(77)  = 'XX'
-    cfami(78)  = 'TM'
-    cfami(79)  = 'AL'
+    cfami(80)  = 'XX'
+    cfami(81)  = 'TM'
+    cfami(82)  = 'AL'
 
     obsDirectory = 'obs'
 
@@ -501,14 +507,14 @@ contains
       fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
 
-      inquire(file=trim(fileNameFull),exist=isExist_L)
-      if (.not. fileExist_L ) then
+      inquire(file=trim(fileNameFull),exist=fileExists)
+      if (.not. fileExists ) then
         fileName=trim(obsDirectory)//'/'//trim(clvalu(fileIndex))
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
-        inquire(file=trim(fileNameFull), exist=isExist_L)
+        inquire(file=trim(fileNameFull), exist=fileExists)
       end if
 
-      if ( fileExist_L ) then
+      if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
