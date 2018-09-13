@@ -78,6 +78,7 @@ fi
 [ ! -d obs ] && mkdir obs
 echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
 /bin/cp burpfiles_*/brp*_*_* ./obs || true
+/bin/cp sqlfiles_*/obs*_*_* ./obs || true
 
 echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
