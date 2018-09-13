@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+* (Nothing yet)
+
+## [3.3.0-rc1]
+
+### Added
+
 * The program 'ensManip' can now compute the standard deviation of an
   ensemble of forecasts and recenter the ensemble forecasts around a
   specified mean (#55, #65, #104, #131, !48, !52, !94 and !116).
@@ -178,7 +190,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc1...HEAD
+[3.3.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0-rc1
 [3.2.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.1...v_3.2.2
 [3.2.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.0...v_3.2.1
 [3.2.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.0.4...v_3.2.0
