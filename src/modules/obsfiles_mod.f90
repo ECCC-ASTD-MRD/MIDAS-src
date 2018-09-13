@@ -50,6 +50,7 @@ module obsFiles_mod
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
+  public :: obsf_thinFiles
 
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
@@ -211,6 +212,40 @@ contains
   end subroutine obsf_writeFiles
 
 
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to reduce the number of observation data
+  !!
+  !! *Note*:    operates only on SQL files. Issues a warning for other file types
+  !!
+  !--------------------------------------------------------------------------
+  subroutine obsf_thinFiles(obsSpaceData)
+    implicit none
+    ! arguments
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    ! locals
+    integer :: fileIndex
+    character(len=10) :: obsFileType
+
+    if(.not.initialized) call utl_abort( &
+                                'obsf_thinFiles: obsFiles_mod not initialized!')
+
+    call obsf_determineFileType(obsFileType)
+    if ( obsFileType /= 'SQLITE' ) then
+      write(*,*)"WARNING:  observation thinning cannot be done with a BURP file."
+      write(*,*)"          No observation has been removed from the data base."
+      return
+    end if
+
+    do fileIndex = 1, obsf_nfiles
+      call sqlf_thinFile(obsSpaceData, obsf_cfilnam(fileIndex), &
+                         obsf_cfamtyp(fileIndex), fileIndex)
+
+    end do
+  end subroutine obsf_thinFiles
+
+
   subroutine obsf_writeHX(obsSpaceData, HXensT_mpiglobal)
     implicit none
     ! arguments
@@ -365,6 +400,7 @@ contains
     clvalu(71) = 'cmaheader'
     ! Sea Surface Temperature data file name
     clvalu(72) = 'brpsst'
+    clvalu(73) = 'obsal'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -440,6 +476,7 @@ contains
     ! dummy family type for CMA, since it contains all families
     cfami(71)  = 'XX'
     cfami(72)  = 'TM'
+    cfami(73)  = 'AL'
 
     obsDirectory = 'obs'
 

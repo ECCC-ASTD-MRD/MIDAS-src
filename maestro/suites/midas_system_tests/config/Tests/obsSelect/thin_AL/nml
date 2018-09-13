@@ -1,0 +1,48 @@
+ &NAMFILT
+   NELEMS    = 16,
+   NLIST(1)=11003,
+   NLIST(2)=11004,
+   NLIST(3)=12192,
+   NLIST(4)=10192,
+   NLIST(5)=10194,
+   NLIST(6)=12001,
+   NLIST(7)=10004,
+   NLIST(8)=10051,
+   NLIST(9)=12004,
+   NLIST(10)=11215,
+   NLIST(11)=11216,
+   NLIST(12)=12203,
+   NLIST(13)=12163,
+   NLIST(14)=15036,
+   NLIST(15)=15031,
+   NLIST(16)=40030,
+   NFLAGS=8,
+   NLISTFLG(1)=0,
+   NLISTFLG(2)=-1,
+   NLISTFLG(3)=-2,
+   NLISTFLG(4)=-3,
+   NLISTFLG(5)=-4,
+   NLISTFLG(6)=-5,
+   NLISTFLG(7)=-6,
+   NLISTFLG(8)=-7,
+   RLIMLVHU=70.,
+/
+ &NAMDIMO
+   NMXOBS=200000,
+   NDATAMX=2000000,
+/
+ &THIN_ALADIN
+  keepNthVertical=3
+/
+ &NAMSQLAL
+  numberElem=2,
+  listElem="40030,5021",
+  sqlExtraDat=" order by id_obs ",
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+  numberUpdateItems=0
+/
+ &namSQLInsert
+  numberInsertItems=0
+/

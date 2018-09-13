@@ -35,7 +35,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_thinFile
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -206,5 +206,37 @@ module sqliteFiles_mod
     call tmg_stop(97)
 
   end subroutine sqlf_updateFile
+
+
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to reduce the number of observation data in an SQL file
+  !!
+  !--------------------------------------------------------------------------
+  subroutine sqlf_thinFile(obsSpaceData, fileName, familyType, fileIndex)
+    implicit none
+    ! arguments
+    type (struct_obs), intent(inout) :: obsSpaceData
+    character(len=*),  intent(in) :: fileName
+    character(len=*),  intent(in) :: familyType
+    integer,           intent(in) :: fileIndex
+
+    ! locals
+    character(len=*), parameter :: myName = 'sqlf_thinFile'
+
+    call tmg_start(96,'POST_THINSQL')
+    write(*,*) myName//' Starting'
+    write(*,*) myName//': FileName   : ',trim(fileName)
+    write(*,*) myName//': FamilyType : ',FamilyType
+
+    call sqlr_thinSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+
+    write(*,*)' '
+    write(*,*)'================================================='
+    write(*,*)'                '//trim(myName)//'    END               '
+    write(*,*)'================================================='
+    write(*,*)' '
+    call tmg_stop(96)
+  end subroutine sqlf_thinFile
 
 end module sqliteFiles_mod

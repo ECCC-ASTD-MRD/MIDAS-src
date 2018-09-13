@@ -37,7 +37,8 @@ implicit none
 save
 
 private
-public  :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
+public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
+public :: sqlr_thinSqlite
 
 contains
   
@@ -164,6 +165,7 @@ contains
     namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
@@ -232,6 +234,12 @@ contains
         read(nulnam, nml = NAMSQLpr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
+      case ( 'al' )
+        vertCoordFact = 1
+        vertCoordType = 1
+        read(nulnam, nml = NAMSQLal, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLal )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
@@ -606,22 +614,25 @@ contains
   end subroutine sqlr_handleError
 
   
-  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber )
+  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
     implicit none
     ! arguments
-    type(fSQL_DATABASE)              :: db
-    type (struct_obs), intent(inout) :: obsdat
-    character(len=*)                 :: fileName   
-    character(len=*)                 :: familyType ! Observation Family Type 
-    integer                          :: fileNumber  ! FILE NUMBER ASSOCIATED WITH db
+    type(fSQL_DATABASE),intent(inout):: db
+    type (struct_obs),  intent(inout) :: obsdat
+    character(len=*),   intent(in)    :: fileName   
+    character(len=*),   intent(in)    :: familyType ! Observation Family Type 
+    integer         ,   intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
+
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
-    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsAss, obsFlag, iobs, obsIdo, obsStatus, last_comma
-    integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex, numberUpdateItems
+    integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsFlag
+    integer                          :: iobs, obsIdo, obsStatus, last_question
+    integer                          :: ibegin, ilast, ibeginob, ilastob, itemId
+    integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =  10)             :: timeCharacter
     character(len =   3)             :: item, itemUpdateList(15)
-    integer                          :: itemId, updateList(20), fnom, fclos, nulnam, ierr
+    integer                          :: updateList(20), fnom, fclos, nulnam, ierr
     character(len =   9)             :: item2
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
@@ -638,6 +649,7 @@ contains
     itemUpdateList(:) = ''
     numberUpdateItems = 0
 
+    ! Read the namelist for directives
     nulnam = 0
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam,nml = namSQLUpdate, iostat = ierr )
@@ -651,10 +663,6 @@ contains
 
     ! CREATE QUERY  
     itemChar='  '
-    if ( numberUpdateItems == 0) then
-      write(*,*) ' NO UPDATES TO DO : ---- RETURN'
-      return
-    end if
 
     do itemId = 1, numberUpdateItems
       item = itemUpdateList(itemId)
@@ -675,21 +683,18 @@ contains
         case('FGE')
           updateList(itemId) = OBS_HPHT
           item2='fg_error'
-        case('FLG')
-          updateList(itemId) = OBS_FLG
-          item2='flag'
         case DEFAULT
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//': invalid item ' )
       end select
-      itemChar = trim(itemChar)//trim(item2)//trim(' = ? ,')
+      itemChar = trim(itemChar)//','//trim(item2)//trim(' = ? ')
     end do
 
     back=.true.
-    last_comma  = scan(itemChar, ',', back)
-    item2Char   = itemChar(1:last_comma-1)
+    last_question  = scan(itemChar, '?', back)
+    item2Char   = itemChar(1:last_question)
     itemChar    = item2Char
-    query = ' update data set flag = ? , '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
+    query = ' update data set flag = ? '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
     call fSQL_prepare( db, query , stmt, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
@@ -708,27 +713,22 @@ contains
 
         obsFlag = obs_bodyElem_i( obsdat, OBS_FLG, bodyIndex )
         obsIdd  = obs_bodyElem_i( obsdat, OBS_IDD, bodyIndex )
-        obsAss  = obs_bodyElem_i( obsdat, OBS_ASS, bodyIndex )
 
-        if ( obsAss == 1 ) then
-          call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
-          ITEMS: do itemId = 1, numberUpdateItems
+        call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = obsFlag  )
+        ITEMS: do itemId = 1, numberUpdateItems
 
-            obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
 
-            if ( obsValue /= MPC_missingValue_R8 ) then  
+          if ( obsValue /= MPC_missingValue_R8 ) then  
+            romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
+            call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, &
+                                 REAL_VAR = romp )
+          end if
 
-              romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
+        end do ITEMS            
 
-            end if
-
-          end do ITEMS            
-          
-          call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
-          call fSQL_exec_stmt (stmt)
-
-        end if ! obsAss == 1
+        call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
+        call fSQL_exec_stmt (stmt)
 
       end do BODY
 
@@ -885,5 +885,48 @@ contains
     write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_insertSqlite
+
+
+  !--------------------------------------------------------------------------
+  !!
+  !! *Purpose*: to flagged (bit 11 set) observations in an SQL file
+  !!
+  !--------------------------------------------------------------------------
+  subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
+    implicit none
+    ! arguments
+    type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
+    type(struct_obs),    intent(inout) :: obsdat
+    character(len=*),    intent(in) :: familyType
+    character(len=*),    intent(in) :: fileName
+    integer,             intent(in) :: fileNumber
+
+    ! locals
+    character(len=*), parameter :: myName = 'sqlr_thinSqlite'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+    character(len = 128) :: query
+    type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
+    type(fSQL_STATUS)    :: status
+
+    call fSQL_open(db, fileName, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      write(*,*) myError, fSQL_errmsg(status)
+    end if
+
+    ! Mark for deletion all records with bit 11 (0x800) set
+    query = ' delete from data where flag & 800;'
+    call fSQL_prepare(db, query, statement, status)
+    if (fSQL_error(status) /= FSQL_OK) &
+      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(statement)
+    call fSQL_finalize(statement)
+    call fSQL_commit(db)
+
+    write(*,*)'  closed database -->', trim(FileName)
+    call fSQL_close( db, status )
+  end subroutine sqlr_thinSqlite
 
 end module sqliteRead_mod

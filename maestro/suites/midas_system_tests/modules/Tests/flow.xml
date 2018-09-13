@@ -1,6 +1,7 @@
 <MODULE name="Tests">
   <SUBMITS sub_name="var"/>
   <SUBMITS sub_name="oMinusF"/>
+  <SUBMITS sub_name="obsSelect"/>
   <SUBMITS sub_name="ensManip"/>
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
@@ -106,6 +107,14 @@
     </FAMILY>
     <SUBMITS sub_name="o-p_sst"/>
     <FAMILY  name="o-p_sst">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+
+  <FAMILY  name="obsSelect">
+    <SUBMITS sub_name="thin_AL"/>
+    <FAMILY  name="thin_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
