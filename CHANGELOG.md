@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Variational bias correction functionality have been added (#41 and !43)
 * Add a 2D mode (#32, #51, !45)
 * Add assimilation of SST observations (code is `22042`) (#111 and !123)
+* Add a `thinning_mod` fortran module (#110 and !120)
 * First step towards controlling precision (#47, !46)
 * Benjamin Menetrier's localization lengthscale diagnostics is now
   available in global and lam mode in calcstats (#31 and !34)
