@@ -20,10 +20,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-* The program 'ensManip' can now compute the standard deviation of an
+* The program `ensManip` can now compute the standard deviation of an
   ensemble of forecasts and recenter the ensemble forecasts around a
   specified mean (#55, #65, #104, #131, !48, !52, !94 and !116).
-* A program 'addIncrement' has been added (#38, #53, #54, #123, #126, !102, !41, !47, !100, !106 and !115)
+* A program `addIncrement` has been added (#38, #53, #54, #123, #126, !102, !41, !47, !100, !106 and !115)
   * The namelist `NAMADDINC` has been renamed `NAMINC`.  The namelist
     variable `CETIKINC` in namelist `NAMMIN` has been moved to
     `NAMINC` with name `ETIKET_REBM`. The namelist variable
@@ -55,15 +55,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Add a new program `obsIO` for testing observation I/O routines (#118 and !108)
 * Introduce module for computing slant path positions (#116 and !109)
 * Include Yin-Yang support in `horizontalCoord_mod` (#134 and !119)
-* Include a custom r.run_in_parallel based on the one available in
-  rpn/utils/16.2.2 but with changes to use /bin/bash instead of
-  /bin/ksh in the script launched in parallel (#136 and !122)
-  * This is to be removed when 'r.run_in_parallel' will be officially
-    released.
+* Include a custom `r.run_in_parallel` based on the one available in
+  `rpn/utils/16.2.2` but with changes to use `/bin/bash` instead of
+  `/bin/ksh` in the script launched in parallel (#136 and !122)
+   * This is to be removed when `r.run_in_parallel` will be officially
+     released.
 
 ### Changed
 
-* Using RTTOV-12 v1.1 from which 'lapack.o' has been removed to use
+* Using RTTOV-12 v1.1 from which `lapack.o` has been removed to use
   the system library which is faster
 * The directories have been reorganized (#50, !42)
 * Relax constraints on MPI topology (#49, !44)
@@ -120,14 +120,14 @@ RTTOV-12.
 
 ### Fixed
 
-- Fix a bug which affects 'BURP_update' (#66 and #79)
+- Fix a bug which affects `BURP_update` (#66 and #79)
 
 ## [3.1.0] - 2018-01-28
 
 This version will be ignored.
 
 Since the release `v_3.0.5` has changed the results, we should have
-tagged it 'v_3.1.0' to follow semantic versioning.
+tagged it `v_3.1.0` to follow semantic versioning.
 
 ## [3.0.5] - 2018-01-12
 
@@ -136,7 +136,7 @@ ignored.
 
 ### Changed
 
-Using 'rttov/12v1.1' which does not contain 'lapack.o'.  We want to
+Using `rttov/12v1.1` which does not contain `lapack.o`.  We want to
 use the system librairies.  This does not impact the timings but the
 results are very sligthly changed.
 
@@ -177,7 +177,7 @@ This is the initial version delivered in final cycles for the GDPS 6.1 project i
 - Includes backward comptatible changes to conventional observations by Stéphane Laroche
 
 ### Changed
-- Introducing the use of RTTOV-12 library (release '1.0) (non backward compatible) (Sylvain Heilliette)
+- Introducing the use of RTTOV-12 library (release `1.0`) (non backward compatible) (Sylvain Heilliette)
 - Using `cmda/libs/16.2-6`
 - Reduce memory usage for IR bgck by a factor of 5
 
