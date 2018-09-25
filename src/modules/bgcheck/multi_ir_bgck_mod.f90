@@ -3448,16 +3448,13 @@ contains
     !****************************
     real (8),parameter :: freqavhrr(NIR)= (/0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03/)
     integer,save :: indxavhrr(NIR)
-    logical ,save :: FIRST=.true.
     integer :: i,pos(1)
     !*************************************************************8
-    if (FIRST) then
-      do I=1,NIR
-        pos = minloc ( abs (freqiasi(:) - freqavhrr(I)) )
-        indxavhrr(i) = pos(1)
-      end do
-      FIRST = .false.
-    end if
+    do I=1,NIR
+      pos = minloc ( abs (freqiasi(:) - freqavhrr(I)) )
+      indxavhrr(i) = pos(1)
+    end do
+
     do I=1,NIR
       avhrr_surfem1(i) = iasi_surfem1(indxavhrr(i))
     end do
