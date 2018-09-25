@@ -44,10 +44,11 @@ module variableTransforms_mod
   public :: vtr_setup, vtr_transform
 
   logical                   :: huTrialsInitialized  = .false.
+  logical                   :: gzTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv) :: statevector_trial_hu
+  type(struct_gsv) :: statevector_trial_hu, statevector_trial_gz
 
   ! module interfaces
   interface vtr_transform
@@ -67,6 +68,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_in
     
     if (huTrialsInitialized) return
+    if (gzTrialsInitialized) return
 
     write(*,*) 'vtr_setup: starting'
 
@@ -95,9 +97,20 @@ CONTAINS
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_hu )  ! IN/OUT
-      call gsv_calcPressure( statevector_trial_hu )
 
       huTrialsInitialized = .true.
+    case ('GZ')
+      ! initialize statevector_trial_gz on analysis grid
+      call gsv_allocate(statevector_trial_gz, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/), allocPressure_opt=.true. )
+
+      ! read trial files using default horizontal interpolation degree
+      call gsv_readTrials( statevector_trial_gz )  ! IN/OUT
+      call gsv_calcPressure( statevector_trial_gz )
+
+      gzTrialsInitialized = .true.
     case default
       call utl_abort('vtr_setupTrials: unknown variable ='//trim(varName))
     end select
