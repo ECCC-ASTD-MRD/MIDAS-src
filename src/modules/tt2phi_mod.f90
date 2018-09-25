@@ -409,7 +409,263 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   type(struct_gsv) :: statevector,statevector_trial
 
+  integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl,numStep,stepIndex,latIndex,lonIndex
+  real(8) :: hu,tt,ratioP1,delLnP_M1,delLnP_T1,delThick_lev_T,delLnP_M_lev_T,delLnP_M_lev_Tm1
+  real(8), pointer     :: delGz_M(:,:,:,:),delGz_T(:,:,:,:),delTT(:,:,:,:),delHU(:,:,:,:),delP0(:,:,:,:)
+  real(8), pointer     :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:)
+  type(struct_vco), pointer :: vco_anl
+
+  real(8), allocatable, save :: coeff_M_TT(:,:,:,:), coeff_M_HU(:,:,:,:), coeff_M_P0(:,:,:,:), &
+                                coeff_T_TT(:,:,:), coeff_T_HU(:,:,:), coeff_T_P0(:,:,:)
+  logical, save :: firstTime = .true.
+
+  call tmg_start(161,'tt2phi_tl_gsv MAZIAR')
+
   write(*,*) 'MAZIAR IS HERE!'
+
+  vco_anl => gsv_getVco(statevector_trial)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+
+  nlev_T = gsv_getNumLev(statevector_trial,'TH')
+  nlev_M = gsv_getNumLev(statevector_trial,'MM')
+  numStep = statevector_trial%numstep
+
+  if(Vcode_anl .eq. 5002) then
+
+    if(firstTime) then
+      ! initialize and save coefficients for increased efficiency (assumes no relinearization)
+      firstTime = .false.
+
+      allocate(coeff_M_TT(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+      allocate(coeff_M_HU(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+      allocate(coeff_M_P0(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+
+      allocate(coeff_T_TT(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          numStep))
+      allocate(coeff_T_HU(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          numStep))
+      allocate(coeff_T_P0(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          numStep))
+
+      hu_ptr => gsv_getField_r8(statevector_trial,'HU')
+      tt_ptr => gsv_getField_r8(statevector_trial,'TT')
+
+      write(*,*) 'MAZIAR: test gsv tt unit at sfc:'
+      write(*,*) tt_ptr(1,1,nlev_T,1)
+
+      do stepIndex = 1, numStep
+        do lev_T = 1, (nlev_T-1)
+          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+              if ( lev_T == 1 ) then 
+                ! compute coefficients for GZ on only the top thermo level
+                delLnP_M1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,1,stepIndex) / &
+                            statevector_trial%P_M(lonIndex,latIndex,1,stepIndex)
+                delLnP_T1 = statevector_trial%dP_dPsfc_T(lonIndex,latIndex,1,stepIndex) / &
+                            statevector_trial%P_T(lonIndex,latIndex,1,stepIndex)
+
+                ratioP1 = log( statevector_trial%P_M(lonIndex,latIndex,1,stepIndex) / &
+                               statevector_trial%P_T(lonIndex,latIndex,1,stepIndex) ) 
+                hu = hu_ptr(lonIndex,latIndex,1,stepIndex)
+                tt = tt_ptr(lonIndex,latIndex,1,stepIndex)
+
+                coeff_T_TT(lonIndex,latIndex,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
+                coeff_T_HU(lonIndex,latIndex,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / max(hu,MPC_MINIMUM_HU_R8)
+                coeff_T_P0(lonIndex,latIndex,stepIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M1-delLnP_T1) * fotvt8(tt,hu)
+              else
+                ! compute coefficients for GZ on momentum levels
+                delLnP_M_lev_T = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T,stepIndex) / &
+                                 statevector_trial%P_M(lonIndex,latIndex,lev_T,stepIndex)
+
+                delLnP_M_lev_Tm1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T-1,stepIndex) / &
+                                   statevector_trial%P_M(lonIndex,latIndex,lev_T-1,stepIndex)
+
+
+                ratioP1 = log( statevector_trial%P_M(lonIndex,latIndex,lev_T  ,stepIndex) / &
+                               statevector_trial%P_M(lonIndex,latIndex,lev_T-1,stepIndex) )
+                hu = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                tt = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
+
+                coeff_M_TT(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
+                coeff_M_HU(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / max(hu,MPC_MINIMUM_HU_R8)
+                coeff_M_P0(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M_lev_T - delLnP_M_lev_Tm1) * fotvt8(tt,hu)
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+
+    endif
+
+    ! loop over all lat/lon/step
+    delGz_M => gsv_getField_r8(statevector,'GZ_M')
+    delGz_T => gsv_getField_r8(statevector,'GZ_T')
+    delTT => gsv_getField_r8(statevector,'TT')
+    delHU => gsv_getField_r8(statevector,'HU')
+    delP0 => gsv_getField_r8(statevector,'P0')
+
+    ! ensure increment at sfc is zero (fixed height level)
+    delGz_M(:,:,nlev_M,:) = 0.0d0
+    delGz_T(:,:,nlev_T,:) = 0.0d0
+
+!!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T)
+
+    ! compute GZ increment on momentum levels above the surface
+    do stepIndex = 1, numStep
+      do lev_M = (nlev_M-1), 1, -1
+        do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+          do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+            lev_T = lev_M+1 ! thermo level just below momentum level being computed
+
+            delThick_lev_T = coeff_M_TT(lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                             coeff_M_HU(lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+                             coeff_M_P0(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
+
+            delGz_M(lonIndex,latIndex,lev_M,stepIndex) = delGz_M(lonIndex,latIndex,lev_M+1,stepIndex) + delThick_lev_T
+          enddo
+        enddo
+      enddo
+    enddo
+
+    ! compute GZ increment on thermo levels by simple averaging, except for top level
+    do stepIndex = 1, numStep
+      do lev_T = 1, (nlev_T-1)
+        do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+          do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+            lev_M = lev_T ! momentum level just below thermo level being computed
+
+            if ( lev_T == 1) then
+              ! compute GZ increment for top thermo level (from top momentum level)
+              delGz_T(lonIndex,latIndex,lev_T,stepIndex) = delGz_M(lonIndex,latIndex,lev_T,stepIndex) +  &
+                                 coeff_T_TT(lonIndex,latIndex,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                                 coeff_T_HU(lonIndex,latIndex,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+                                 coeff_T_P0(lonIndex,latIndex,stepIndex) * delP0(lonIndex,latIndex,lev_T,stepIndex)
+
+            else
+              ! compute GZ increment for other levels
+              delGz_T(lonIndex,latIndex,lev_T,stepIndex) = 0.5d0*( delGz_M(lonIndex,latIndex,lev_M-1,stepIndex) + &
+                                                                   delGz_M(lonIndex,latIndex,lev_M  ,stepIndex) )
+            endif
+
+          enddo
+        enddo
+      enddo
+    enddo
+
+
+!!$OMP END PARALLEL DO
+
+  elseif(Vcode_anl .eq. 5005) then
+
+    if(firstTime) then
+      ! initialize and save coefficients for increased efficiency (assumes no relinearization)
+      firstTime = .false.
+
+      allocate(coeff_M_TT(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+      allocate(coeff_M_HU(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+      allocate(coeff_M_P0(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                          statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                          nlev_T,numStep))
+
+      hu_ptr => gsv_getField_r8(statevector_trial,'HU')
+      tt_ptr => gsv_getField_r8(statevector_trial,'TT')
+
+      write(*,*) 'MAZIAR: test gsv tt unit at sfc:'
+      write(*,*) tt_ptr(1,1,nlev_T,1)
+
+      do stepIndex = 1, numStep
+        do lev_T = 1, (nlev_T-1)
+          do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+            do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+              ! compute coefficients for GZ on momentum levels
+              delLnP_M_lev_T = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T+1,stepIndex) / &
+                               statevector_trial%P_M(lonIndex,latIndex,lev_T+1,stepIndex)
+
+              delLnP_M_lev_Tm1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T,stepIndex) / &
+                                 statevector_trial%P_M(lonIndex,latIndex,lev_T,stepIndex)
+
+
+              ratioP1 = log( statevector_trial%P_M(lonIndex,latIndex,lev_T+1,stepIndex) / &
+                             statevector_trial%P_M(lonIndex,latIndex,lev_T  ,stepIndex) )
+              hu = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
+              tt = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
+
+              coeff_M_TT(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
+              coeff_M_HU(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0) / max(hu,MPC_MINIMUM_HU_R8)
+              coeff_M_P0(lonIndex,latIndex,lev_T,stepIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M_lev_T - delLnP_M_lev_Tm1) * fotvt8(tt,hu)
+            enddo
+          enddo
+        enddo
+      enddo
+
+    endif
+
+    ! loop over all lat/lon/step
+    delGz_M => gsv_getField_r8(statevector,'GZ_M')
+    delGz_T => gsv_getField_r8(statevector,'GZ_T')
+    delTT => gsv_getField_r8(statevector,'TT')
+    delHU => gsv_getField_r8(statevector,'HU')
+    delP0 => gsv_getField_r8(statevector,'P0')
+
+    ! ensure increment at sfc is zero (fixed height level)
+    delGz_M(:,:,nlev_M,:) = 0.0d0
+    delGz_T(:,:,nlev_T,:) = 0.0d0
+
+!!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T)
+
+    ! compute GZ increment on momentum levels above the surface
+    do stepIndex = 1, numStep
+      do lev_M = (nlev_M-1), 1, -1
+        do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+          do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+            lev_T = lev_M ! thermo level just below momentum level being computed
+
+            delThick_lev_T = coeff_M_TT(lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                             coeff_M_HU(lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+                             coeff_M_P0(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
+
+            delGz_M(lonIndex,latIndex,lev_M,stepIndex) = delGz_M(lonIndex,latIndex,lev_M+1,stepIndex) + delThick_lev_T
+          enddo
+        enddo
+      enddo
+    enddo
+
+    ! compute GZ increment on thermo levels by simple averaging, except for top level
+    do stepIndex = 1, numStep
+      do lev_T = 1, (nlev_T-1)
+        do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
+          do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
+            lev_M = lev_T+1 ! momentum level just below thermo level being computed
+            delGz_T(lonIndex,latIndex,lev_T,stepIndex) = 0.5d0*( delGz_M(lonIndex,latIndex,lev_M-1,stepIndex) + &
+                                                                 delGz_M(lonIndex,latIndex,lev_M  ,stepIndex) )
+          enddo
+        enddo
+      enddo
+    enddo
+
+!!$OMP END PARALLEL DO
+
+  endif
+
+  write(*,*) 'delGz_T='
+  write(*,*) delGz_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  write(*,*) 'delGz_M='
+  write(*,*) delGz_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+
+  call tmg_stop(161)
 
 end subroutine tt2phi_tl_gsv
 
