@@ -75,10 +75,10 @@ contains
         column_mean%gz_sfc(:,:) = column_mean%gz_sfc(:,:) +  &
                                 multFactor * columns(memberIndex)%gz_sfc(:,:)
 
-        column_mean%pressure_T(:,:) = column_mean%pressure_T(:,:) +  &
-                                      multFactor * columns(memberIndex)%pressure_T(:,:)
-        column_mean%pressure_M(:,:) = column_mean%pressure_M(:,:) +  &
-                                      multFactor * columns(memberIndex)%pressure_M(:,:)
+        column_mean%P_T(:,:) = column_mean%P_T(:,:) +  &
+                                      multFactor * columns(memberIndex)%P_T(:,:)
+        column_mean%P_M(:,:) = column_mean%P_M(:,:) +  &
+                                      multFactor * columns(memberIndex)%P_M(:,:)
 
         column_mean%dP_dPsfc_T(:,:) = column_mean%dP_dPsfc_T(:,:) +  &
                                       multFactor * columns(memberIndex)%dP_dPsfc_T(:,:)
@@ -147,15 +147,15 @@ contains
         columns(memberIndex)%all(:,:) = columns(memberIndex)%all(:,:) -  &
                                         column_mean%all(:,:)
 
-        columns(memberIndex)%gz_T(:,:) = columns(memberIndex)%gz_T(:,:) -  &
-                                         column_mean%gz_T(:,:)
-        columns(memberIndex)%gz_M(:,:) = columns(memberIndex)%gz_M(:,:) -  &
-                                         column_mean%gz_M(:,:)
+        columns(memberIndex)%GZ_T(:,:) = columns(memberIndex)%GZ_T(:,:) -  &
+                                         column_mean%GZ_T(:,:)
+        columns(memberIndex)%GZ_M(:,:) = columns(memberIndex)%GZ_M(:,:) -  &
+                                         column_mean%GZ_M(:,:)
 
-        columns(memberIndex)%pressure_T(:,:) = columns(memberIndex)%pressure_T(:,:) -  &
-                                      column_mean%pressure_T(:,:)
-        columns(memberIndex)%pressure_M(:,:) = columns(memberIndex)%pressure_M(:,:) -  &
-                                      column_mean%pressure_M(:,:)
+        columns(memberIndex)%P_T(:,:) = columns(memberIndex)%P_T(:,:) -  &
+                                        column_mean%P_T(:,:)
+        columns(memberIndex)%P_M(:,:) = columns(memberIndex)%P_M(:,:) -  &
+                                      column_mean%P_M(:,:)
 
     end do
 

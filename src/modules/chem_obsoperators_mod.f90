@@ -566,7 +566,7 @@ contains
     if (col_varExist('TT').and.col_varExist('HU').and.col_varExist('P0')) then     
        ! GZ would have been generated in the call to sugomobs. 
        ! Convert from geopotential to geopotential height.
-       col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
+       col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ_T')
        obsoper%gz(1:nmodlev) = col_ptr_gzb(1:nmodlev)/RG
     else
        obsoper%gz(:) = -1.

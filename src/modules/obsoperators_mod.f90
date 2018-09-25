@@ -3079,7 +3079,12 @@ contains
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
             ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             varLevel = vnl_varLevelFromVarnum(ityp)
-            gz_column  => col_getColumn(column,headerIndex,'GZ',varLevel)
+
+            if ( varLevel == 'TH' ) then
+              gz_column  => col_getColumn(column,headerIndex,'GZ_T')
+            else
+              gz_column  => col_getColumn(column,headerIndex,'GZ_M')
+            end if
             uu_column  => col_getColumn(column,headerIndex,'UU')
             vv_column  => col_getColumn(column,headerIndex,'VV')
             all_column => col_getColumn(column,headerIndex)

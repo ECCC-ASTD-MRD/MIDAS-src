@@ -1114,7 +1114,7 @@ contains
              ! Height coordinate
              
              nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
-             gz_mod => col_getColumn(columng,headerIndex,'GZ','TH') ! geopotential
+             gz_mod => col_getColumn(columng,headerIndex,'GZ_T') ! geopotential
                 
              allocate(pres_mod(nlev_mod))
                
@@ -2038,7 +2038,7 @@ contains
             OmP_mean = 0.0d0
             OmA_rms = 0.0d0
             OmA_mean = 0.0d0
-	    
+    
             write(unit,'(2X, I3, 2(2X, F11.4), 2X, I6, 6(2X, ES11.4))') &
                  level,pres1,pres2,counts(ilev),obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
          else
@@ -2051,15 +2051,15 @@ contains
             
             OmA_rms = sqrt(max(0.0D0, sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1)) / counts(ilev) ))
             OmA_mean = sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / counts(ilev)
-	    
-	    ! write(unit,'(2X, I3, 2(2X, F11.4), 6(2X, ES11.4))') &
+    
+            ! write(unit,'(2X, I3, 2(2X, F11.4), 6(2X, ES11.4))') &
             !     level,pres1,pres2,obs_mean,obs_std,OmP_rms/obs_mean,OmP_mean/obs_sum,OmA_rms/obs_mean,OmA_mean/obs_sum
-	    
-	    write(unit,'(2X, I3, 2(2X, F11.4), 2X, I6, 6(2X, ES11.4))') &
+    
+            write(unit,'(2X, I3, 2(2X, F11.4), 2X, I6, 6(2X, ES11.4))') &
                   level,pres1,pres2,counts(ilev),obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
 
          end if
-	 
+ 
       end do
 
       write(unit,*)

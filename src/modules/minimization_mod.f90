@@ -1024,7 +1024,7 @@ CONTAINS
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local_opt=.true.)
+                         mpi_local_opt=.true., allocGZ_opt=.true., allocPressure_opt=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

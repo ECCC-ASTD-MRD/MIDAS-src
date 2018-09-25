@@ -215,6 +215,12 @@ CONTAINS
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable P0 must be allocated in gridstatevector')
       end if
+      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_M must be allocated in gridstatevector')
+      end if
       call TTHUtoGZ_tl(statevector)
 
     case default

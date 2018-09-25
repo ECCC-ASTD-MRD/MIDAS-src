@@ -185,7 +185,7 @@ contains
     real(8), allocatable :: logzhu_tl(:,:)
     real(8), allocatable :: zt       (:,:)
     real(8), allocatable :: zhu      (:,:)
-    real(8), allocatable :: logzhu   (:,:)	
+    real(8), allocatable :: logzhu   (:,:)
     real(8), allocatable :: qoext    (:,:)
     real(8), allocatable :: zps_tl   (:)
     real(8), allocatable :: xpres    (:)
@@ -370,7 +370,7 @@ contains
         delHU => col_getColumn(column,headerIndex,'HU')
         TTb => col_getColumn(columng,headerIndex,'TT')
         HUb => col_getColumn(columng,headerIndex,'HU')
-        Pres => col_getColumn(columng,headerIndex,'PRES','TH')
+        Pres => col_getColumn(columng,headerIndex,'P_T')
         do jl = 1, nlv_T
           zt_tl (jl,count_profile) = delTT(jl)
           zhu_tl(jl,count_profile) = delHU(jl)
@@ -414,13 +414,13 @@ contains
              zt(:,jn:jn),zps_tl(jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn))
 
-	logzhu(:,jn) = log( zhu(:,jn) )	
-	logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
+        logzhu(:,jn) = log( zhu(:,jn) )
+        logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
         call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),logzhu_tl(:,jn:jn), &
              logzhu(:,jn:jn),zps_tl(jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo_tl(:,jn:jn))
 
-	huo_tl(:,jn) = loghuo_tl(:,jn) * qoext(jpmotop:nlevels,jn)
+        huo_tl(:,jn) = loghuo_tl(:,jn) * qoext(jpmotop:nlevels,jn)
 
 
       end do
@@ -659,7 +659,7 @@ contains
     
     real(8), allocatable :: to_ad    (:,:)
     real(8), allocatable :: huo_ad   (:,:)
-    real(8), allocatable :: loghuo_ad   (:,:)	
+    real(8), allocatable :: loghuo_ad   (:,:)
     real(8), allocatable :: toext_ad (:,:)
     real(8), allocatable :: qoext_ad (:,:)
     real(8), allocatable :: zvlev    (:,:)
@@ -814,7 +814,7 @@ contains
         
         TTb => col_getColumn(columng,headerIndex,'TT')
         HUb => col_getColumn(columng,headerIndex,'HU')
-        Pres => col_getColumn(columng,headerIndex,'PRES','TH')
+        Pres => col_getColumn(columng,headerIndex,'P_T')
         do level_index = 1, nlv_T
           zt   (level_index,count_profile) = TTb(level_index)
           zhu  (level_index,count_profile) = HUb(level_index)
@@ -1011,10 +1011,10 @@ contains
              jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
         
 
-        logzhu(:,profile_index) = log( zhu(:,profile_index) ) 	
+        logzhu(:,profile_index) = log( zhu(:,profile_index) ) 
         logzhu_ad(:,profile_index) = 0.d0
         loghuo_ad(:,profile_index) = 0.d0
-	loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
+        loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
         call ppo_IntAvgAd(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
              logzhu_ad(:,profile_index:profile_index), logzhu(:,profile_index:profile_index), &
              zps_ad(profile_index:profile_index), nlv_T,nlv_T,1, &
@@ -1054,7 +1054,7 @@ contains
       deallocate (iptobs_header,stat= alloc_status(1) )
       deallocate (to_ad    ,stat= alloc_status(2) )
       deallocate (huo_ad   ,stat= alloc_status(3) )
-      deallocate (loghuo_ad,stat= alloc_status(4) )	
+      deallocate (loghuo_ad,stat= alloc_status(4) )
       deallocate (toext_ad ,stat= alloc_status(5) )
       deallocate (qoext_ad ,stat= alloc_status(6) )
       deallocate (zvlev    ,stat= alloc_status(7) )

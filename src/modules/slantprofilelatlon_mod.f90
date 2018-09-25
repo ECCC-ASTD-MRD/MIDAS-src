@@ -67,6 +67,7 @@ contains
     real(8), allocatable :: latSlantPath(:), lonSlantPath(:), gzColInMetres(:)
     real(8), pointer :: GZ_column(:)
     character(len=2) :: varLevel
+    character(len=*) :: varName
 
     print *, 'start slp_calcLatLon:'
 
@@ -90,7 +91,7 @@ contains
       elevAngRad = 0.5d0 * MPC_PI_R8 - satZenRad
 
       obsCordGlb  = RA * (/ cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad) , sin(obsLatRad) /)
-      unitz = (/  cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad)	, sin(obsLatRad) /)
+      unitz = (/  cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad)  , sin(obsLatRad) /)
       unitx = (/ -sin(obsLonRad) , cos(obsLonRad) , 0.d0 /)
       unity = (/ -sin(obsLatRad)*cos(obsLonRad) , -sin(obsLatRad)*sin(obsLonRad) , cos(obsLatRad) /)
 
@@ -102,8 +103,10 @@ contains
       do varLevelIndex = 1, 2
         if (varLevelIndex == 1) then
           varLevel = 'TH'
+          varName = 'GZ_T'
         else
           varLevel = 'MM'
+          varName = 'GZ_M'
         end if
 
         numLevels = col_getNumLev(column,varLevel)
@@ -116,7 +119,7 @@ contains
         gzColInMetres(:) = 0.0
 
         ! unit: m
-        GZ_column  => col_getColumn(column,indexHeader,'GZ',varLevel)
+        GZ_column  => col_getColumn(column,indexHeader,varName,varLevel)
         gzColInMetres(:) = GZ_column(:)
 
         do levelIndex = 1, numLevels
