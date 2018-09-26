@@ -2,6 +2,10 @@
 
 set -ex
 
+date_cmd=/bin/date
+
+echo starting var.sh at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+
 SECONDS=0
 
 fasttmp=${1}
@@ -18,8 +22,10 @@ fi
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
 
+echo starting ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 ${RUN_PGM}
+echo ending ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 echo "The program itself took ${SECONDS} seconds"
 
 SECONDS=0
@@ -127,4 +133,4 @@ if [ "${fasttmp}" = yes ]; then
 fi
 
 echo "The finalization took ${SECONDS} seconds"
-echo "Ending var.sh at $(/bin/date +%Y%m%d:%H:%M:%S.%N)"
+echo "ending var.sh at $(/bin/date +%Y%m%d:%H:%M:%S.%N)"
