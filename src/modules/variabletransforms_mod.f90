@@ -513,7 +513,7 @@ CONTAINS
 
     if ( .not. trialsInitialized ) call vtr_setupTrials()
 
-    call tt2phi_tl(statevector,statevector_trial)
+    call tt2phi_tl(statevector, statevector_trial_gz)
 
   end subroutine TTHUtoGZ_tl
 
