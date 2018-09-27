@@ -2101,4 +2101,32 @@ contains
 
   end subroutine s2c_column_hbilin   
 
+  !------------------------------------------------------------
+  ! getFieldsWithHalo
+  !------------------------------------------------------------
+  function getFieldsWithHalo(varName) result(allFieldsWithHalo)
+    implicit none
+    character(len=*), intent(in) :: varName
+    real(8), pointer :: allFieldsWithHalo(:,:,:,:)
+
+    select case (trim(varName))
+    case('P_T')
+      allFieldsWithHalo => fieldsWithHalo_P_T
+
+    case('P_M')
+      allFieldsWithHalo => fieldsWithHalo_P_M
+
+    case('GZ_T')
+      allFieldsWithHalo => fieldsWithHalo_GZ_T
+
+    case('GZ_M')
+      allFieldsWithHalo => fieldsWithHalo_GZ_M
+
+    case('ALL')
+      allFieldsWithHalo => fieldsWithHalo
+    end select
+
+  end function getFieldsWithHalo
+
+
 end module stateToColumn_mod

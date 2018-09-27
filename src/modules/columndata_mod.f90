@@ -294,8 +294,9 @@ contains
     character(len=*), intent(in) :: varName
     logical                      :: varExist 
 
-    if(trim(varName) == 'gz_T' .or. trim(varName) == 'gz_M' .or. &
-       trim(varName) == 'P_T'  .or. trim(varName) == 'P_M') then
+    if(trim(varName) == 'GZ_T' .or. trim(varName) == 'GZ_M' .or. &
+       trim(varName) == 'P_T'  .or. trim(varName) == 'P_M' .or. &
+       trim(varName) == 'ALL') then
       ! pressure and height always available
       varExist = .true.
     elseif(nmvoexist(vnl_varListIndex(varName))) then
@@ -572,6 +573,9 @@ contains
 
           case('GZ_M')
             allColumns => column%GZ_M(:,:)
+
+          case('ALL')
+            allColumns => column%all(:,:)
 
           case default
             ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1

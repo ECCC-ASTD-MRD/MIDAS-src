@@ -73,9 +73,12 @@ module gridStateVector_mod
     logical             :: gzSfcPresent = .false.
     real(8), pointer    :: gzSfc(:,:) => null()  ! surface GZ, if VarsLevs then only on proc 0
     ! Add calculation of the GZ/P  
-    real(8),pointer    :: GZ_T(:,:,:,:),GZ_M(:,:,:,:) => null()
-    real(8),pointer    :: P_T(:,:,:,:),P_M(:,:,:,:) => null()
-    real(8),pointer    :: dP_dPsfc_T(:,:,:,:),dP_dPsfc_M(:,:,:,:) => null()
+    real(8),pointer    :: GZ_T(:,:,:,:) => null()
+    real(8),pointer    :: GZ_M(:,:,:,:) => null()
+    real(8),pointer    :: P_T(:,:,:,:) => null()
+    real(8),pointer    :: P_M(:,:,:,:) => null()
+    real(8),pointer    :: dP_dPsfc_T(:,:,:,:) => null()
+    real(8),pointer    :: dP_dPsfc_M(:,:,:,:) => null()
     ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.  ! a wind component is present on this mpi task
@@ -218,13 +221,15 @@ module gridStateVector_mod
     logical                      :: varExist 
 
     if( present(statevector_opt) ) then
-      if      (trim(varName) == 'GZ_T' .and. associated(statevector_opt%GZ_T)) then
-        varExist = .true.
-      else if (trim(varName) == 'GZ_M' .and. associated(statevector_opt%GZ_M)) then
-        varExist = .true.
-      else if (trim(varName) == 'P_T' .and. associated(statevector_opt%P_T)) then
-        varExist = .true.
-      else if (trim(varName) == 'P_M' .and. associated(statevector_opt%P_M)) then
+      if      (trim(varName) == 'GZ_T' ) then
+        varExist = associated(statevector_opt%GZ_T)
+      else if (trim(varName) == 'GZ_M' ) then
+        varExist = associated(statevector_opt%GZ_M)
+      else if (trim(varName) == 'P_T' ) then
+        varExist = associated(statevector_opt%P_T)
+      else if (trim(varName) == 'P_M' ) then
+        varExist = associated(statevector_opt%P_M)
+      else if (trim(varName) == 'ALL') then
         varExist = .true.
       else
         if ( statevector_opt%varExistList(vnl_varListIndex(varName)) ) then
@@ -2099,6 +2104,9 @@ module gridStateVector_mod
 
         case('GZ_M')
           field(lon1:,lat1:,1:,1:) => statevector%GZ_M(:,:,:,:)
+
+        case('ALL')
+          field(lon1:,lat1:,k1:,1:) => statevector%gd_r8(:,:,:,:)
 
         case default ! all other variable names
           ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
