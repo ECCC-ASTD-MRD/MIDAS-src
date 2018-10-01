@@ -243,8 +243,6 @@ program midas_var
     ! get final increment
     call inc_getIncrement(controlVector_incr,statevector_incr,cvm_nvadim)
 
-    deallocate(controlVector_incr)
-
     ! output the analysis increment
     call tmg_start(6,'WRITEINCR')
     call inc_writeIncrement(statevector_incr) ! IN
@@ -268,6 +266,10 @@ program midas_var
       clmsg = 'REBM_DONE'
       call utl_writeStatus(clmsg)
     end if
+
+    ! write the Hessian
+    call min_writeHessian(controlVector_incr)
+    deallocate(controlVector_incr)
 
     ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
     call var_calcOmA(statevector_incr,trlColumnOnAnlLev,obsSpaceData,obsAssVal=3)

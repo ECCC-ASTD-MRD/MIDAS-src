@@ -21,7 +21,7 @@
 !!            subroutine that evaluates the cost function and its gradient.
 !!
 !--------------------------------------------------------------------------
-MODULE minimization_mod
+module minimization_mod
   use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -54,7 +54,7 @@ MODULE minimization_mod
   ! public variables
   public              :: min_niter,min_nsim
   ! public procedures
-  public              :: min_Setup, min_minimize !, min_diagHBHt
+  public              :: min_Setup, min_minimize, min_writeHessian
 
   type struct_dataptr
     type(struct_obs),pointer        :: obsSpaceData
@@ -63,7 +63,6 @@ MODULE minimization_mod
   end type struct_dataptr
 
   logical             :: initialized = .false.
-  real*8, pointer     :: dg_vbar(:)
 
   integer             :: envar_loop   ! environment variable
 
@@ -77,6 +76,13 @@ MODULE minimization_mod
   character(len=20)   :: preconFileNameOut = './pm1q'  
   character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'  
   integer             :: n1gc = 3
+
+  ! variables stored for later call to min_writeHessian
+  real(8), allocatable :: vatra(:)
+  real(8), pointer :: dg_vbar(:)
+  real(8) :: zeps1, zdf1
+  integer :: itertot, isimtot, iztrl(5), imode
+  logical :: llvazx
 
   ! namelist variables
   INTEGER NVAMAJ,NITERMAX,NSIMMAX
@@ -101,7 +107,7 @@ MODULE minimization_mod
 
 CONTAINS
 
-  SUBROUTINE min_setup(nvadim_mpilocal_in)
+  subroutine min_setup(nvadim_mpilocal_in)
     implicit none
     integer :: nvadim_mpilocal_in
 
@@ -172,7 +178,7 @@ CONTAINS
 
     initialized=.true.
 
-  END SUBROUTINE min_setup
+  end subroutine min_setup
 
   subroutine min_minimize(columng,obsSpaceData,vazx)
     implicit none
@@ -210,12 +216,12 @@ CONTAINS
 
 
 
-  SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
-    !
-    ! Purpose:
-    ! 3D/En VAR minimization
-    !
-      IMPLICIT NONE
+  subroutine quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
+      !
+      ! Purpose:
+      ! 3D/En VAR minimization
+      !
+      implicit none
 
       type(struct_columnData),target :: column,columng
       type(struct_obs),target :: obsSpaceData
@@ -227,19 +233,18 @@ CONTAINS
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
-      integer :: izs(1),iztrl(5)
+      integer :: izs(1)
       real    :: zzsunused(1)
 
       real*8,allocatable :: vazg(:)
-      real*8,allocatable :: vatra(:)
 
       real*8 :: dlds(1)
-      logical :: lltest, llvarqc, lldf1, lrdvatra, llvazx, llxbar
+      logical :: lltest, llvarqc, lldf1, lrdvatra, llxbar
 
-      integer :: imode, itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc, jj
-      integer :: ierr, itertot, isimdone, isimtot, jdata, isimnovqc
+      integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc, jj
+      integer :: ierr, isimdone, jdata, isimnovqc
       integer :: ibrpstamp, isim3d, ilen
-      real*8 :: zjsp, zxmin, zdf1, zeps0, zeps1
+      real*8 :: zjsp, zxmin, zeps0
       real*8 :: dlgnorm, dlxnorm, zjotov
 
       integer fnom,fclos, remove_c
@@ -477,15 +482,6 @@ CONTAINS
           end do
         endif
 
-        ! Write out the Hessian to file
-        if(lwrthess) then
-          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-          call hessianIO (preconFileNameOut,1,  &
-            min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
-            iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        endif
-
       else
 
         ! no analysis performed for ensemble mean, ensure mean increment is zero
@@ -506,14 +502,37 @@ CONTAINS
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(lvarqc) call vqc_listrej(obsSpaceData)
 
-      ! deallocate the control vector related arrays
+      ! deallocate the gradient
       deallocate(vazg)
+      deallocate(dataptr_int)
+      if ( .not. lwrthess ) then
+        deallocate(vatra)
+        deallocate(dg_vbar)
+      end if
+
+  end subroutine quasiNewtonMinimization
+
+
+  subroutine min_writeHessian(vazx)
+    implicit none
+
+    real(8) :: vazx(:)
+
+    if ( nitermax > 0 .and. lwrthess) then
+      ! Write out the Hessian to file
+      if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call hessianIO (preconFileNameOut,1,  &
+        min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
+        iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
+      if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    endif
+
+    if ( lwrthess ) then
       deallocate(vatra)
       deallocate(dg_vbar)
+    end if
 
-      deallocate(dataptr_int)
-
-  END SUBROUTINE quasiNewtonMinimization
+  end subroutine min_writeHessian
 
 
   subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
@@ -540,11 +559,11 @@ CONTAINS
     character(len=2)   :: trialTimeIndex_str
     integer :: stamp_last, ndate, ntime, ierr, newdate
     real(8),allocatable :: vazg(:)
-    real(8) :: zjsp, zxmin, zdf1, zeps1
+    real(8) :: zjsp, zxmin, zdf1
     real(8) :: dlds(1)
     real :: zzsunused(1)
     integer :: iztrl(:), dataptr_int(:)
-    integer :: nulout, impres, imode, itertot, simtot, indic
+    integer :: nulout, impres, simtot, indic
     logical :: llvazx = .false.
 
     ! check if user wants to compute any perturbed analyses
@@ -935,7 +954,7 @@ CONTAINS
   end subroutine calcRandomPert
 
 
-  SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
+  subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
     implicit none
     ! Argument declarations
     integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -1065,10 +1084,10 @@ CONTAINS
 
     if(mpi_myid == 0) write(*,*) 'end of simvar'
 
-  END SUBROUTINE simvar
+  end subroutine simvar
 
 
-  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
+  subroutine DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
     !***s/r DSCALQN: inner product in canonical space
     !*    ------------------- 
     !**    Purpose: interface for the inner product to be used
@@ -1094,10 +1113,10 @@ CONTAINS
 
     CALL PRSCAL(KDIM,PX,PY,DDSC)
     RETURN
-  END SUBROUTINE DSCALQN
+  end subroutine DSCALQN
 
 
-  SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
+  subroutine PRSCAL(KDIM,PX,PY,DDSC)
     !***s/r PRSCAL: inner product in canonical space
     !*
     !*Author  : P. Gauthier *ARMA/AES  January 27, 1993
@@ -1134,10 +1153,10 @@ CONTAINS
     call tmg_stop(71)
 
     RETURN
-  END SUBROUTINE PRSCAL
+  end subroutine PRSCAL
 
 
-  SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
+  subroutine DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
     !***s/r DCANAB  - Change of variable associated with the canonical
     !*     .         inner product
     !*
@@ -1164,10 +1183,10 @@ CONTAINS
     ENDDO
 
     RETURN
-  END SUBROUTINE DCANAB
+  end subroutine DCANAB
 
 
-  SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
+  subroutine DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
     !***s/r DCANONB  - Change of variable associated with the canonical
     !*     .          inner product
     !*
@@ -1194,10 +1213,10 @@ CONTAINS
     ENDDO
 
     RETURN
-  END SUBROUTINE DCANONB
+  end subroutine DCANONB
 
 
-  SUBROUTINE hessianIO (cfname,status,                       &
+  subroutine hessianIO (cfname,status,                       &
           nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
           iztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
 
@@ -1467,7 +1486,7 @@ CONTAINS
       call tmg_stop(94)
     endif
 
-  END SUBROUTINE hessianIO
+  end subroutine hessianIO
 
   subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)
   implicit none
@@ -1532,4 +1551,4 @@ CONTAINS
   return
   end subroutine grtest2
 
-END MODULE minimization_mod
+end module minimization_mod
