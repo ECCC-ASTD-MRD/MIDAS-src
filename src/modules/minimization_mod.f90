@@ -118,7 +118,7 @@ CONTAINS
 
     if(nvadim_mpilocal_in.ne.cvm_nvadim) then
       write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
-      call utl_abort('aborting in min_setup: control vector dimension not consistent')
+      call utl_abort('min_setup: control vector dimension not consistent')
     endif
 
     nvadim_mpilocal=nvadim_mpilocal_in
@@ -278,20 +278,19 @@ CONTAINS
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call utl_abort('aborting in quasiNewtonMinimization')
+        call utl_abort('min quasiNewtonMinimization')
       endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call utl_abort('aborting in quasiNewtonMinimization')
+        call utl_abort('min quasiNewtonMinimization')
       endif
 
       allocate(vatra(nmtra),stat=ierr)
-      if(ierr.ne.0.or.nmtra.le.0) then
+      if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
-        write(*,*) 'minimization: nmtra=',nmtra
-        call utl_abort('aborting in quasiNewtonMinimization')
+        call utl_abort('min quasiNewtonMinimization')
       endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through qna_n1qn3 to simvar
@@ -302,7 +301,7 @@ CONTAINS
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call utl_abort('aborting in quasiNewtonMinimization')
+        call utl_abort('min quasiNewtonMinimization')
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
@@ -432,7 +431,8 @@ CONTAINS
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode not equal to 1 or 4")
+            write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
+            call utl_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
           endif
         endif
 
@@ -1274,7 +1274,7 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
       call tmg_start(94,'MIN_WRITEHESS')
     else
-      call utl_abort("min_hessianIO: status not valid ")
+      call utl_abort('min_hessianIO: status not valid ')
     endif
 
     call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
@@ -1302,14 +1302,14 @@ CONTAINS
          else
             write(*,*)
             write(*,*) 'min_hessianIO : Only V5 Hessian are supported, found ', trim(cl_version)
-            call utl_abort("min_hessianIO")
+            call utl_abort('min_hessianIO')
          endif
 
          if (i1gc == 3 .and. i1gc == k1gc) then
             write(*,*) trim(cl_version),' M1QN3'
          else
             write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-            call utl_abort("min_hessianIO: Inconsistant input hessian")
+            call utl_abort('min_hessianIO: Inconsistant input hessian')
          endif
 
          call tmg_start(98,'MIN_READHESS_IO')
@@ -1320,7 +1320,7 @@ CONTAINS
          call tmg_stop(98)
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-            call utl_abort("min_hessianIO : ERROR, size of V5 Hessian not consistent")
+            call utl_abort('min_hessianIO : ERROR, size of V5 Hessian not consistent')
          endif
 
       end if
@@ -1477,7 +1477,7 @@ CONTAINS
       !- Close the Hessian matrix file
       if (mpi_myid == 0) ierr = fclos(ireslun)
     else
-      call utl_abort("min_hessianIO: status not valid")
+      call utl_abort('min_hessianIO: status not valid')
     endif
 
     if (status == 0) then
