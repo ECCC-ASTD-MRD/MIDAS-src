@@ -259,6 +259,16 @@ contains
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
       if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
+
+      ! Imposing a minimum value for HU
+      if ( vnl_varNameList3D(jvar) == 'HU  ') then
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr => col_getColumn(columng,columnIndex,'HU')
+          do jlev=1,col_getNumLev(columng,'TH')
+            columng_ptr(jlev) = max(columng_ptr(jlev),col_rhumin)
+          enddo
+        end do
+      end if
     end do
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
