@@ -42,44 +42,31 @@ extract_family () {
 }
 
 if [ "${fasttmp}" = yes ]; then
-    for file in ${FASTTMPDIR}/obs/brp*; do
-        if [ -f "${file}" ]; then
-            if [[ "${file}" = *.num_headers ]]; then
-                continue
-            fi
-            bfile=${file##*/}
-            fam=$(extract_family ${file})
-            while [ ! -d burpfiles_${fam}.updated ]; do
-                if [ "${MP_CHILD}" -eq 0 ]; then
-                    /bin/mkdir burpfiles_${fam}.updated
-                    break
+    for prefix in brp obs sql; do
+        for file in ${FASTTMPDIR}/obs/${prefix}*; do
+            if [ -f "${file}" ]; then
+                if [[ "${file}" = *.num_headers ]]; then
+                    continue
                 fi
-                /bin/sleep 1
-            done
-            /bin/cp ${file} burpfiles_${fam}.updated/${bfile}
-            /bin/rm -f obs/${bfile}
-        fi
-    done
-
-    for file in ${FASTTMPDIR}/obs/obs*; do
-        if [ -f "${file}" ]; then
-            if [[ "${file}" = *.num_headers ]]; then
-                continue
-            fi
-            bfile=${file##*/}
-            fam=$(extract_family ${file})
-            while [ ! -d sqlfiles_${fam}.updated ]; do
-                if [ "${MP_CHILD}" -eq 0 ]; then
-                    /bin/mkdir sqlfiles_${fam}.updated
-                    break
+                bfile=${file##*/}
+                fam=$(extract_family ${file})
+                if [ "${prefix}" = brp ]; then
+                    updated_dir=burpfiles_${fam}.updated
+                else
+                    updated_dir=${prefix}files_${fam}.updated
                 fi
-                sleep 1
-            done
-            /bin/cp ${file} sqlfiles_${fam}.updated/${bfile}
-            /bin/rm -f obs/${bfile}
-        fi
+                while [ ! -d "${updated_dir}" ]; do
+                    if [ "${MP_CHILD}" -eq 0 ]; then
+                        /bin/mkdir ${updated_dir}
+                        break
+                    fi
+                    /bin/sleep 1
+                done
+                /bin/cp ${file} ${updated_dir}
+                /bin/rm -f obs/${bfile}
+            fi
+        done
     done
-
 else
     obsfile_y=$((SEQ_NPEY-MP_CHILD/SEQ_NPEX))
     obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
@@ -88,42 +75,30 @@ else
     obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
     obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
 
-    for file in ./obs/brp*_${obsfile_x}_${obsfile_y}; do
-        if [ -f "${file}" ]; then
-            if [[ "${file}" = *.num_headers ]]; then
-                /bin/rm ${file}
-                continue
-            fi
-            bfile=${file##*/}
-            fam=$(extract_family ${file})
-            while [ ! -d burpfiles_${fam}.updated ]; do
-                if [ "${MP_CHILD}" -eq 0 ]; then
-                    /bin/mkdir burpfiles_${fam}.updated
-                    break
+    for prefix in brp obs sql; do
+        for file in ./obs/${prefix}*_${obsfile_x}_${obsfile_y}; do
+            if [ -f "${file}" ]; then
+                if [[ "${file}" = *.num_headers ]]; then
+                    /bin/rm ${file}
+                    continue
                 fi
-                /bin/sleep 1
-            done
-            /bin/mv ${file} burpfiles_${fam}.updated/${bfile}
-        fi
-    done
-
-    for file in ./obs/obs*_${obsfile_x}_${obsfile_y}; do
-        if [ -f "${file}" ]; then
-            if [[ "${file}" = *.num_headers ]]; then
-                /bin/rm ${file}
-                continue
-            fi
-            bfile=${file##*/}
-            fam=$(extract_family ${file})
-            while [ ! -d sqlfiles_${fam}.updated ]; do
-                if [ "${MP_CHILD}" -eq 0 ]; then
-                    /bin/mkdir sqlfiles_${fam}.updated
-                    break
+                bfile=${file##*/}
+                fam=$(extract_family ${file})
+                if [ "${prefix}" = brp ]; then
+                    updated_dir=burpfiles_${fam}.updated
+                else
+                    updated_dir=${prefix}files_${fam}.updated
                 fi
-                /bin/sleep 1
-            done
-            /bin/mv ${file} sqlfiles_${fam}.updated/${bfile}
-        fi
+                while [ ! -d "${updated_dir}" ]; do
+                    if [ "${MP_CHILD}" -eq 0 ]; then
+                        /bin/mkdir "${updated_dir}"
+                        break
+                    fi
+                    /bin/sleep 1
+                done
+                /bin/mv ${file} ${updated_dir}/${bfile}
+            fi
+        done
     done
 fi
 
