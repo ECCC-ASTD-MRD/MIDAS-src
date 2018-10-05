@@ -99,7 +99,7 @@ for file in ${TASK_INPUT}/inputs/*; do
     bfile=$(basename ${file})
     ## habituellement, les fichiers 'brp' ou 'sql' sont mis a jour alors on ne les efface pas pour les garder.
     if [ -f "${file}" ]; then
-        if [[ "${bfile}" == brp* || "${bfile}" == sql* ]]; then
+        if [[ "${bfile}" == brp* || "${bfile}" == sql* || "${bfile}" == obs* ]]; then
             continue
         fi
     fi
