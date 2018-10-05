@@ -71,6 +71,7 @@ function check_result {
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
+                maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	        rm fstcomp.list fstcomp.list.grep rfrn
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
@@ -78,6 +79,7 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
 		    not_validating="yes"
+                    maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	        fi
 	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
@@ -184,7 +186,11 @@ EOF
     fi ## Fin du 'if [ "${cmp_not_identical}" = yes ]'
 
     if [ -n "${not_validating}" ]; then
-	message="The file ${live} does not validate with method '${method}'!"
+        if [ "${method}" = fstcomp -a -n "${maxerror}" ]; then
+            message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror})"
+        else
+	    message="The file ${file} does not validate with method '${method}'!"
+        fi
 	echo "${message}"
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox  -m "${message}"
 	NOT_VALIDATING="yes"
