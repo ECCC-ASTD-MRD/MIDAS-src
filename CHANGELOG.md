@@ -8,13 +8,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
 ### Changed
+
+ * (Nothing yet)
 
 ### Fixed
 
+ * (Nothing yet)
+
 ### Removed
 
-* (Nothing yet)
+ * (Nothing yet)
+
+## [3.3.0-rc3]: Unreleased
+
+### Fixed
+
+* A fix was done to control the minimum value for 'HU' after
+  interpolating profiles from background state levels to analysis
+  levels (#144 and !127).  This is affecting very weakly the results of
+  most test for program `midas-var`.
+
+## [3.3.0-rc2]
+
+This version is identical to [3.3.0-rc1].
 
 ## [3.3.0-rc1]
 
@@ -190,7 +209,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc3...HEAD
+[3.3.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc2...v_3.3.0-rc3
+[3.3.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc1...v_3.3.0-rc2
 [3.3.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0-rc1
 [3.2.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.1...v_3.2.2
 [3.2.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.0...v_3.2.1
