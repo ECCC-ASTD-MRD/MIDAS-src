@@ -32,8 +32,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   ensemble members will be interpolated on the same grid has the
   recentering mean.
 
+### Changed
+
+* Write the hessian after 'rebm', 'rehm' and 'anlm' files (#142 and !126)
+
 ### Fixed
 
+* Fix 'get_avhrr_emiss' when some channels are missing (#140 and !125)
 * A fix was done to control the minimum value for 'HU' after
   interpolating profiles from background state levels to analysis
   levels (#144 and !127).  This is affecting very weakly the results of
