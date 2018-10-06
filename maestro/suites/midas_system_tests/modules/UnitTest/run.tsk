@@ -97,9 +97,9 @@ fi
 ## remove inputs
 for file in ${TASK_INPUT}/inputs/*; do
     bfile=$(basename ${file})
-    ## habituellement, les fichiers 'brp' ou 'sql' sont mis a jour alors on ne les efface pas pour les garder.
-    if [ -f "${file}" ]; then
-        if [[ "${bfile}" == brp* || "${bfile}" == sql* || "${bfile}" == obs* ]]; then
+    ## habituellement, les fichiers 'brp', 'sql' ou 'sqlfiles' sont mis a jour alors on ne les efface pas pour les garder
+    if [[ "${bfile}" == brp* || "${bfile}" == sql* || "${bfile}" == obsfiles* ]]; then
+        if [ -f "${file}" ]; then
             continue
         fi
     fi
