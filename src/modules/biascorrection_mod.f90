@@ -31,6 +31,7 @@ MODULE biascorrection_mod
   use mpivar_mod
   use tovs_nl_mod
   use timeCoord_mod
+  use columnData_mod
 
   implicit none
   save
@@ -193,13 +194,14 @@ CONTAINS
   !---------------------------------------
   ! bias_calcBias_tl
   !---------------------------------------- 
-  SUBROUTINE bias_calcBias_tl(cv_in,cv_dim,obsColumnIndex,obsSpaceData)
+  SUBROUTINE bias_calcBias_tl(cv_in,cv_dim,obsColumnIndex,obsSpaceData,columnhr)
     implicit none
 
     integer  :: cv_dim
     real(8)  :: cv_in(cv_dim)
     integer  :: obsColumnIndex
     type(struct_obs)  :: obsSpaceData
+    type(struct_columnData) :: columnhr
 
     integer  :: index_header,index_body,iobs, indxtovs, idatyp
     integer  :: iSensor,iChannel,iPredictor,index_cv
@@ -212,7 +214,7 @@ CONTAINS
     if ( .not. lvarbc ) return
 
     if ( firstTime ) then
-      call bias_getTrialPredictors(obsSpaceData)
+      call bias_getTrialPredictors(obsSpaceData,columnhr)
       call bias_calcMeanPredictors(obsSpaceData)
       firstTime = .false.
     end if
@@ -286,39 +288,17 @@ CONTAINS
 
   END SUBROUTINE bias_calcBias_tl
 
+ 
   !----------------------
   ! bias_getTrialPredictors
   !----------------------
-  SUBROUTINE bias_getTrialPredictors(obsSpaceData)
+  SUBROUTINE bias_getTrialPredictors(obsSpaceData,columnhr)
     implicit none
-
+    type(struct_columnData) :: columnhr
     type(struct_obs)  :: obsSpaceData
-    character(len=80)  :: trialfilename="./trlp"
-    integer  :: iSensor,iPredictor
-    integer  :: ierr,nulfst,iset
-    integer  :: fnom,fclos,fstouv,fstfrm,vezgdef,ezdefset
-    integer  :: fstinf,fstprm,fstlir,ezqkdef
-    integer  :: index_header, idatyp
-    integer  :: obsgid,trlgid
-    real(8)  :: lat_r8,lon_r8
-    real(8), allocatable  ::  dlonfld(:), dlatfld(:)
-    real(8)  :: zig1,zig2,zig3,zig4
-    integer  :: ig1obs,ig2obs,ig3obs,ig4obs
-    character(len=1)  :: clgrtyp
-    character(len=2)  :: cltypvar
-    character(len=4)  :: varName
-    character(len=12) :: cletiket
-    integer  :: key,dateo,ip1,ip2,ip3,ni,nj,nk
-    integer  :: deet,npas,nbits,datyp,ig1,ig2,ig3,ig4,swa,lng,dltf,ubc,extra1,extra2,extra3
-    real(8), allocatable  :: varTrial1(:,:),varTrial2(:,:)
-    real(8), allocatable  :: varTrial3(:,:)
-
-    integer           :: timeIndex
-    character(len=80) :: trialfile
-    character(len=2)  :: flnum
-    integer  :: nultrlm
-    logical  :: trialExists, FileExists
-
+    integer  :: index_header, idatyp, nobs
+    real(8)  :: gz1, gz2
+ 
     ! count number of tovs locations
     nobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -329,239 +309,91 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER 
       nobs = nobs + 1
     end do HEADER
-    allocate(dlonfld(nobs),dlatfld(nobs))
-
-    ! define "Y" grid of observations for ezscint
-    nobs = 0
-    call obs_set_current_header_list(obsSpaceData,'TO')
-    HEADER2: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER2
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
-
-      nobs = nobs + 1
-
-      lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,index_header)
-      lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,index_header)
-      if ( lon_r8 < 0.0d0 ) lon_r8 = lon_r8 + 2*MPC_PI_R8
-      if ( lon_r8 >= 2.0d0*MPC_PI_R8 ) lon_r8 = lon_r8 - 2*MPC_PI_R8
-      dlatfld(nobs) = lat_r8*MPC_DEGREES_PER_RADIAN_R8
-      dlonfld(nobs) = lon_r8*MPC_DEGREES_PER_RADIAN_R8
-
-    end do HEADER2
-
-    zig1 = 0.0D0
-    zig2 = 0.0D0
-    zig3 = 1.0D0
-    zig4 = 1.0D0
-    call utl_cxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
-
+    
     if ( nobs > 0 ) then
-      obsgid = utl_ezgdef(nobs,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,dlonfld(:),dlatfld(:))
+      allocate(trialGZ300m1000(nobs))
+      allocate(trialGZ50m200(nobs))
+      allocate(trialGZ5m50(nobs))
+      allocate(trialGZ1m10(nobs))
+      allocate(trialTG(nobs))
     else
       write(*,*) 'bias_getTrialPredictors: NO OBS found'
-      obsgid = -999
+      return
     end if
 
-    ! read trial fields
-    nulfst = 0
-    trialfilename = './trlp'
+    nobs = 0
 
-    inquire(file=trim(trialfilename), exist=FileExists)
-    write(*,*) 'bias_getTrialfile', FileExists
-    ierr = fnom(nulfst,trialfilename,'RND+OLD+R/O',0)
-    if ( ierr /= 0 ) then
-      write(*,*) 'bias_getTrialPredictors: trialfilename=',trialfilename
-      call utl_abort('bias_getTrialPredictors: Error opening trial file')
-    end if
-    ierr = fstouv(nulfst,'RND+OLD')
-    write(*,*) 'bias_getTrialPredictors: FileName=', trialfilename 
-    write(*,*) 'bias_getTrialPredictors: opened as unit # ',nulfst ! Determine grid size and EZSCINT ID for GZ
-    dateo  = -1
-    cletiket = ' '
-    ip1    = -1
-    ip2    = -1
-    ip3    = -1
-    cltypvar = ' '
-    varName = 'GZ'
-    key = fstinf( nulfst,                                    & ! IN
-                  ni,nj,nk,                                  & ! OUT
-                  dateo,cletiket,ip1,ip2,ip3,cltypvar,varName )! IN
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field = ',varName
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    ierr = fstprm( key,                                               & ! IN
-                   dateo, deet, npas, ni, nj, nk, nbits,              & ! OUT
-                   datyp, ip1, ip2, ip3, cltypvar, varName, cletiket, & ! OUT
-                   clgrtyp, ig1, ig2, ig3,                            & ! OUT
-                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )   ! OUT
-    trlgid = ezqkdef(ni,nj,clgrtyp,ig1,ig2,ig3,ig4,nulfst)
-    write(*,*) 'bias_getTrialPredictors: trlgid=',trlgid,ni,nj
+    call obs_set_current_header_list(obsSpaceData,'TO')
 
-    iset = ezdefset(obsgid,trlgid)
+    HEADER2: do
+      index_header = obs_getHeaderIndex(obsSpaceData)
+      if ( index_header < 0 ) exit HEADER
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER2 
+      nobs = nobs + 1
 
-    allocate(varTrial1(ni,nj))
-    allocate(varTrial2(ni,nj))
-    allocate(trialGZ300m1000(nobs))
-    allocate(trialGZ50m200(nobs))
-    allocate(trialGZ5m50(nobs))
-    allocate(trialGZ1m10(nobs))
-    allocate(trialTG(nobs))
+      gz1 = logInterpGZ(columnhr,index_header,1000.d0)
+      gz2 = logInterpGZ(columnhr,index_header,300.d0)
+      
+      trialGZ300m1000(nobs) = gz2 - gz1
 
-    ! GZ300 - GZ1000
-    varName= 'GZ'
-    ip1 = 300
-    key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    ip1 = 1000
-    key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ300m1000, varTrial1, interpDegree='LINEAR')
-    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ300-GZ1000')
+      gz1 = logInterpGZ(columnhr,index_header,200.d0)
+      gz2 = logInterpGZ(columnhr,index_header,50.d0)
 
-    ! GZ50 - GZ200
-    varName = 'GZ'
-    ip1 = 50
-    key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    ip1 = 200
-    key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ50m200, varTrial1, interpDegree='LINEAR')
-    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ50-GZ200')
+      trialGZ50m200(nobs) = gz2 - gz1
 
-    ! GZ5 - GZ50
-    varName = 'GZ'
-    ip1 = 1900 ! 5hPa
-    key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    ip1 = 50
-    key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ5m50, varTrial1, interpDegree='LINEAR')
-    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ5-GZ50')
+      gz1 = gz2
+      gz2 = logInterpGZ(columnhr,index_header,5.d0)
 
-    ! GZ1 - GZ10
-    varName = 'GZ'
-    ip1 = 1820  ! 1hPa
-    key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    ip1 = 10
-    key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors')
-    end if
-    varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ1m10, varTrial1, interpDegree='LINEAR')
-    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ1-GZ10')
+      trialGZ5m50(nobs) = gz2 - gz1
 
-    ! Determine grid size and EZSCINT ID for TG
+      gz1 = logInterpGZ(columnhr,index_header,10.d0)
+      gz2 = logInterpGZ(columnhr,index_header,1.d0)
 
-    timeIndex = nint((real(tim_nStepObs,8)+1.0d0)/2.0d0)
-    write(flnum,'(I2.2)') timeIndex
-    trialfile = './trlm_'//trim(flnum)
+      trialGZ1m10(nobs) = gz2 - gz1
 
-    inquire(file=trim(trialfile),exist=trialExists)
+      trialTG(nobs) = col_getElem(columnhr,1,index_header,'TG')
 
-    if ( .not.trialExists ) then
-      write(*,*) 'File missing for bias_getTrialPredictors_forTG=',trialfile
-      call utl_abort('bias_getTrialPredictors_forTG:DID NOT FIND THE MODEL-LEVEL TRIAL FIELD FILE')
-    else
-      nultrlm = 0 
-      ierr = fnom(nultrlm,trim(trialfile),'RND+OLD+R/O',0)
-      if ( ierr /= 0 ) then
-        write(*,*) 'bias_getTrialPredictors_forTG: trialfilename=',trialfile
-        call utl_abort('bias_getTrialPredictors_forTG: Error opening trial file')
-      end if
-      ierr = fstouv(nultrlm,'RND+OLD')
-      write(*,*) 'bias_getTrialPredictors_forTG :', trialfile
-      write(*,*) 'opened as unit file ', nultrlm
-    end if
-
-    dateo  = -1
-    cletiket = ' '
-    ip1    = -1
-    ip2    = -1
-    ip3    = -1
-    cltypvar = ' '
-    varName = 'TG'
-    key = fstinf( nultrlm,                                    & ! IN
-                  ni,nj,nk,                                  & ! OUT
-                  dateo,cletiket,ip1,ip2,ip3,cltypvar,varName )! IN
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors: Unable to find trial field = ',varName
-      call utl_abort('bias_getTrialPredictors: Unable to find trial field')
-    end if
-    ierr = fstprm( key,                                               & ! IN
-                   dateo, deet, npas, ni, nj, nk, nbits,              & ! OUT
-                   datyp, ip1, ip2, ip3, cltypvar, varName, cletiket, & ! OUT
-                   clgrtyp, ig1, ig2, ig3,                            & ! OUT
-                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )   ! OUT
-    trlgid = ezqkdef(ni,nj,clgrtyp,ig1,ig2,ig3,ig4,nultrlm)
-    write(*,*) 'bias_getTrialPredictors_forTG: trlgid=',trlgid,ni,nj
-
-    allocate(varTrial3(ni,nj))
-
-    iset = ezdefset(obsgid,trlgid)
-
-    ! TG (skin temperature)
-    varName = 'TG'
-    ip1 = -1
-    key = utl_fstlir(varTrial3,nultrlm,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if ( key < 0 ) then
-      write(*,*) 'bias_getTrialPredictors_forTG: Unable to find trial field - varname,ip1= ',varName,ip1
-      call utl_abort('bias_getTrialPredictors_forTG')
-    end if
-    ierr = utl_ezsint(trialTG, varTrial3, interpDegree='LINEAR')
-    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors_forTG: error interpolating TG')
+    end do HEADER2
 
     if ( trialTG(1) > 150.0d0) then
       write(*,*) 'bias_getTrialPredictors_forTG: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
-    ierr = fstfrm(nulfst)
-    ierr = fclos(nulfst)
-
-    ierr = fstfrm(nultrlm)
-    ierr = fclos(nultrlm)
-
-    deallocate(dlonfld)
-    deallocate(dlatfld)
-    deallocate(varTrial1)
-    deallocate(varTrial2)
-    deallocate(varTrial3)
-
     write(*,*) 'bias_getTrialPredictors done'
 
+  contains
+
+    function logInterpGZ(columnhr,headerIndex,P) result(gz)
+      integer,intent(in) :: headerIndex
+      Real(8), intent(in) :: P
+      Real(8), intent(out) :: gz
+      type(struct_columnData),intent(inout) :: columnhr
+
+      integer :: jk, nlev, ik
+      real(8) :: zpt,zpb
+      real(8),pointer :: col_ptr(:)
+
+      IK = 1
+      nlev = COL_GETNUMLEV(COLUMNHR,'TH')
+      do JK = 2,NLEV - 1
+        ZPT = col_getPressure(COLUMNHR,JK,headerIndex,'TH')* MPC_MBAR_PER_PA_R8
+        if( P > ZPT ) IK = JK
+      end do
+      ZPT = col_getPressure(COLUMNHR,IK,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+      ZPB = col_getPressure(COLUMNHR,IK+1,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+
+      zwb  = log(p/zpt) / log(zpb/zpt)
+      zwt  = 1.d0 - zwb
+      col_ptr=>col_getColumn(columnhr,headerIndex,'GZ','TH')
+
+      gz = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
+   
+    end subroutine logInterpGZ
+
   END SUBROUTINE bias_getTrialPredictors
+
 
   !---------------------------------------
   ! bias_cvToCoeff
