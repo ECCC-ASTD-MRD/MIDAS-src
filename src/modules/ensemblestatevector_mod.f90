@@ -972,7 +972,7 @@ CONTAINS
 
   end subroutine ens_recenter
 
-  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
+  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
        etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
@@ -983,7 +983,7 @@ CONTAINS
     type(struct_ens) :: ens
     type(struct_vco), pointer :: vco_ens
     type(struct_hco), pointer :: hco_ens
-    character(len=*) :: ensFileName, ensPathName, ensFileNamePrefix
+    character(len=*) :: ensPathName, ensFileNamePrefix
     type(struct_gsv) :: recenteringMean
     real(8)          :: recenteringCoeff
     character(len=*)  :: etiket
@@ -995,6 +995,7 @@ CONTAINS
     ! locals
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
+    character(len=256) :: ensFileName
 
     numStep = ens%statevector_work%numStep
 
