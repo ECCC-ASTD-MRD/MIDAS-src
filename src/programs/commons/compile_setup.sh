@@ -74,7 +74,7 @@ echo "... loading eccc/mrd/rpn/anl/rttov/12v1.1"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.1/${COMP_ARCH}
 
 COMPF_GLOBAL="-openmp -mpi"
-OPTF="=-check =noarg_temp_created"
+OPTF="=-check =noarg_temp_created =-no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     OPTF="=-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
