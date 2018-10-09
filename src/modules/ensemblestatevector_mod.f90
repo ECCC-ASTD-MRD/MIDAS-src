@@ -1026,7 +1026,7 @@ CONTAINS
   ! ens_readEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
-                              hco_file_opt, vco_file_opt, varNames_opt)
+                              vco_file_opt, varNames_opt)
     implicit none
 
     ! arguments
@@ -1035,7 +1035,6 @@ CONTAINS
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
     character(len=*), optional :: varNames_opt(:)
-    type(struct_hco), pointer, optional :: hco_file_opt
     type(struct_vco), pointer, optional :: vco_file_opt
 
     ! locals
@@ -1119,13 +1118,8 @@ CONTAINS
 
     ! Set up hco and vco for ensemble files
     call fln_ensFileName(ensFileName, ensPathName, 1, copyToRamDisk_opt=.false.)
-    if (present(hco_file_opt)) then
-      hco_file => hco_file_opt
-    else
-      nullify(hco_file)
-      call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
-    end if
-
+    nullify(hco_file)
+    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then
       ! use the input vertical grid provided
       vco_file => vco_file_opt
@@ -1322,9 +1316,7 @@ CONTAINS
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
-    if ( .not. present(hco_file_opt) ) then
-      call hco_deallocate(hco_file)
-    end if
+    call hco_deallocate(hco_file)
     if ( .not. present(vco_file_opt) ) then
       call vco_deallocate(vco_file)
     end if
