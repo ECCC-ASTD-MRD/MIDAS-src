@@ -77,6 +77,7 @@ program midas_ensManip
   integer              :: get_max_rss
 
   character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
+  character(len=256)  :: controlMemberFileNameIn, controlMemberFileNameOut
   character(len=256), parameter  :: targetGridFileName = './targetgrid'
 
   logical             :: makeBiPeriodic, targetGridFileExist
@@ -284,6 +285,11 @@ program midas_ensManip
 
     call tmg_stop(10)
 
+    if (recenterEnsembleControlMember) then
+      call fln_ensFileName( controlMemberFileNameIn, ensPathName, memberIndex = 0, shouldExist_opt = .true.)
+      call fln_ensFileName( controlMemberFileNameout, '.', memberIndex = 0, ensFileNamePrefix_opt = 'recentered_', shouldExist_opt = .false.)
+    endif
+
     if (trim(alternativeEnsembleMean) /= '') then
       ! read ensemble center in file '${ensFileBaseName}_${alternativeEnsembleMean}'
       call tmg_start(11,'READ_ALTERNATIVEENSEMBLEMEAN')
@@ -312,7 +318,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,ensPathName, 'recentered_', &
+        call ens_recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout, &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
              hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
@@ -322,7 +328,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,ensPathName, 'recentered_', &
+        call ens_recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout, &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
              hInterpolationDegree, numBits_opt = numBits)
       end if
