@@ -972,7 +972,7 @@ CONTAINS
 
   end subroutine ens_recenter
 
-  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
+  subroutine ens_recenterControlMember(ens,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
        etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
@@ -981,8 +981,6 @@ CONTAINS
 
     ! arguments
     type(struct_ens) :: ens
-    type(struct_vco), pointer :: vco_ens
-    type(struct_hco), pointer :: hco_ens
     character(len=*) :: ensPathName, ensFileNamePrefix
     type(struct_gsv) :: recenteringMean
     real(8)          :: recenteringCoeff
@@ -1001,7 +999,7 @@ CONTAINS
 
     call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0)
 
-    call gsv_allocate(statevector_ensembleControlMember, numStep, hco_ens, vco_ens, &
+    call gsv_allocate(statevector_ensembleControlMember, numStep, ens%statevector_work%hco, ens%statevector_work%vco, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
          hInterpolateDegree_opt = hInterpolationDegree)
 

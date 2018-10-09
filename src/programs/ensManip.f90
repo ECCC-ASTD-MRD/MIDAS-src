@@ -319,7 +319,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco,vco,'.', 'recentered_', &
+        call ens_recenterControlMember(ensemble,'.', 'recentered_', &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
              hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
@@ -329,7 +329,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco,vco,ensPathName, 'recentered_', &
+        call ens_recenterControlMember(ensemble,ensPathName, 'recentered_', &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
              hInterpolationDegree, numBits_opt = numBits)
       end if
