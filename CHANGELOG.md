@@ -27,10 +27,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 * The program `ensManip` can now read a file `targetgrid` in the
-  working directory on which grid the ensemble members will be
-  interpolated and recentered (#138 and !128).  By default, the
-  ensemble members will be interpolated on the same grid has the
-  recentering mean.
+  working directory on which grid all fields will be interpolated
+  (#138 and !128).  By default, all files will be interpolated on the
+  grid of the ensemble.
 
 ### Changed
 

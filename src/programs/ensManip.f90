@@ -180,19 +180,10 @@ program midas_ensManip
     call hco_SetupFromFile( hco, targetGridFileName, ' ', 'RECENTER_ANL_GRID')
     call vco_setupFromFile( vco, targetGridFileName )
   else
-    if (recenter) then
-      ! Filename for recentering mean
-      recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
-      if (mpi_myid == 0) write(*,*) '                using the recenteringMean grid '
-      ! Use the first ensemble member to initialize the grid
-      call hco_SetupFromFile( hco, recenteringMeanFileName, ' ', 'RECENTER_ANL_GRID')
-      call vco_setupFromFile( vco, recenteringMeanFileName )
-    else
-      ! Use the first ensemble member to initialize the grid
-      if (mpi_myid == 0) write(*,*) '                using the ensemble grid '
-      call hco_SetupFromFile( hco, ensFileName, ' ', 'ENSFILEGRID')
-      call vco_setupFromFile( vco, ensFileName )
-    end if
+    ! Use the first ensemble member to initialize the grid
+    if (mpi_myid == 0) write(*,*) '                using the ensemble grid '
+    call hco_SetupFromFile( hco, ensFileName, ' ', 'ENSFILEGRID')
+    call vco_setupFromFile( vco, ensFileName )
   end if
 
   if ( hco % global ) then
@@ -275,6 +266,8 @@ program midas_ensManip
   if (recenter) then
     ! read recentering mean in file '${DATE}_recenteringmean'
     call tmg_start(10,'READ_RECENTERINGMEAN')
+
+    recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
 
     call gsv_allocate(statevector_recenteringMean, numStep, hco, vco, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
