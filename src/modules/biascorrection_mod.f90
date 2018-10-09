@@ -327,7 +327,7 @@ CONTAINS
 
     HEADER2: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER
+      if ( index_header < 0 ) exit HEADER2
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER2 
       nobs = nobs + 1
@@ -361,6 +361,11 @@ CONTAINS
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
+    trialGZ300m1000(:) = 0.01d0 * trialGZ300m1000(:) ! conversion from to
+    trialGZ50m200(:) = 0.01d0 * trialGZ50m200(:)
+    trialGZ5m50(:) = 0.01d0 * trialGZ5m50(:)
+    trialGZ1m10(:) = 0.01d0 *  trialGZ1m10(:)
+
     write(*,*) 'bias_getTrialPredictors done'
 
   contains
@@ -368,11 +373,11 @@ CONTAINS
     function logInterpGZ(columnhr,headerIndex,P) result(gz)
       integer,intent(in) :: headerIndex
       Real(8), intent(in) :: P
-      Real(8), intent(out) :: gz
+      Real(8) :: gz
       type(struct_columnData),intent(inout) :: columnhr
 
       integer :: jk, nlev, ik
-      real(8) :: zpt,zpb
+      real(8) :: zpt, zpb, zwt, zwb
       real(8),pointer :: col_ptr(:)
 
       IK = 1
@@ -390,7 +395,7 @@ CONTAINS
 
       gz = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    
-    end subroutine logInterpGZ
+    end function logInterpGZ
 
   END SUBROUTINE bias_getTrialPredictors
 
