@@ -457,7 +457,7 @@ CONTAINS
 
     gst(gstID)%nk = maxlevels_in
     ! 2D MPI decomposition: split levels across npex
-    call mpivar_setup_levels_npex(maxlevels_in, myLevBeg, myLevEnd, myLevCount)
+    call mpivar_setup_levels(maxlevels_in, myLevBeg, myLevEnd, myLevCount)
     write(*,*) 'gst_setup: myLevBeg,End,Count=', myLevBeg, myLevEnd, myLevCount
 
     !!! Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)

@@ -308,8 +308,8 @@ contains
           call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
        ! 2D MPI decomposition: split levels across npex
-       call mpivar_setup_levels_npex( maxlevels_opt,                                       & ! IN
-                                      lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
+       call mpivar_setup_levels( maxlevels_opt,                                       & ! IN
+                                 lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
 
     case default
        write(*,*)

@@ -38,7 +38,7 @@ module mpivar_mod
   ! public procedures
   public :: mpivar_setup_latbands, mpivar_setup_lonbands
   public :: mpivar_setup_m, mpivar_setup_n
-  public :: mpivar_setup_levels_npex, mpivar_setup_levels_npey
+  public :: mpivar_setup_levels
   public :: mpivar_setup_varslevels
   public :: mpivar_myidXfromLon, mpivar_myidYfromLat
 
@@ -70,12 +70,12 @@ module mpivar_mod
       myLatEnd = (1 + mpi_myidy) * latPerPEmin
     else
       myLatEnd = nj
-    endif
+    end if
     latPerPE = myLatEnd - myLatBeg + 1
     call rpn_comm_allreduce(latPerPE,latPerPEmax,1,'MPI_INTEGER','MPI_MAX','NS',ierr)
 
     if( firstCall ) then
-      write(*,*) 'mpivar_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
+      write(*,'(a,4i8)') 'mpivar_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
            latPerPE, latPerPEmax, myLatBeg, myLatEnd
       firstCall = .false.
     end if
@@ -91,8 +91,8 @@ module mpivar_mod
       else
         myLatHalfBeg_opt = min(myLatBeg, 1 + nj - myLatEnd)
         myLatHalfEnd_opt = njlath
-      endif
-    endif
+      end if
+    end if
 
     if( present(divisible_opt) ) then
       divisible_opt = (latPerPEmin * mpi_npey == nj)
@@ -134,7 +134,7 @@ module mpivar_mod
     call rpn_comm_allreduce(lonPerPE,lonPerPEmax,1,'MPI_INTEGER','MPI_MAX','EW',ierr)
 
     if( firstCall ) then
-      write(*,*) 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
+      write(*,'(a,4i8)') 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
            lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
       firstCall = .false.
     end if
@@ -164,19 +164,15 @@ module mpivar_mod
     implicit none
     integer :: ntrunc, mymBeg, mymEnd, mymSkip, mymCount, jm
 
-    if((ntrunc + 1) < mpi_npey) then
-      write(*,*) 'mpivar_setup_m: NPEY (=',mpi_npey,') ',  &
-                 'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
-      call utl_abort('mpivar_setup_m')
-    endif
-
     mymBeg = mpi_myidy
     mymEnd = ntrunc
     mymSkip = mpi_npey
     mymCount = 0
     do jm = mymBeg, mymEnd, mymSkip
       mymCount = mymCount + 1
-    enddo
+    end do
+
+    write(*,'(a,4i8)') 'mpivar_setup_m: mymBeg, mymEnd, mymSkip, mymCount = ', mymBeg, mymEnd, mymSkip, mymCount
 
   end subroutine mpivar_setup_m
 
@@ -187,101 +183,64 @@ module mpivar_mod
     implicit none
     integer :: ntrunc, mynBeg, mynEnd, mynSkip, mynCount, jn
 
-    if((ntrunc + 1) < mpi_npex) then
-      write(*,*) 'mpivar_setup_n: NPEX (=',mpi_npex,') ',  &
-                 'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
-      call utl_abort('mpivar_setup_n')
-    endif
-
     mynBeg = mpi_myidx
     mynEnd = ntrunc
     mynSkip = mpi_npex
     mynCount = 0
     do jn = mynBeg, mynEnd, mynSkip
       mynCount = mynCount + 1
-    enddo
+    end do
+
+    write(*,'(a,4i8)') 'mpivar_setup_n: mynBeg, mynEnd, mynSkip, mynCount = ', mynBeg, mynEnd, mynSkip, mynCount
 
   end subroutine mpivar_setup_n
 
 
-  subroutine mpivar_setup_levels_npey(numlevels, myLevBeg, myLevEnd, myLevCount)
-    ! Purpose: compute parameters that define the mpi distribution of
-    !          levels over tasks in Y direction (npey)
-    implicit none
-    integer :: numlevels, myLevBeg, myLevEnd, myLevCount
-    integer :: jlev, jproc
-    integer :: myLevCounts(mpi_npey)
-
-    if(numlevels < mpi_npey) then
-      write(*,*) 'mpivar_setup_levels_npey: NPEY (=',mpi_npey,') ',  &
-                 'must be less than or equal to number of levels (=',numlevels,')!'
-      call utl_abort('mpivar_setup_levels_npey')
-    endif
-
-    myLevCounts(:) = 0
-    do jproc = 1, mpi_npey
-      do jlev = jproc, numlevels, mpi_npey
-        myLevCounts(jproc) = myLevCounts(jproc) + 1
-      enddo
-    enddo
-    myLevCount = myLevCounts(mpi_myidy + 1)
-
-    myLevBeg = 1
-    do jproc = 1, mpi_myidy
-      myLevBeg = myLevBeg + myLevCounts(jproc)
-    enddo
-    myLevEnd = myLevBeg + myLevCount - 1
-
-  end subroutine mpivar_setup_levels_npey
-
-
-  subroutine mpivar_setup_levels_npex(numlevels, myLevBeg, myLevEnd, myLevCount)
+  subroutine mpivar_setup_levels(numlevels, myLevBeg, myLevEnd, myLevCount)
     ! Purpose: compute parameters that define the mpi distribution of
     !          levels over tasks in X direction (npex)
     implicit none
     integer :: numlevels, myLevBeg, myLevEnd, myLevCount
     integer :: jlev, jproc, factor
     integer :: myLevCounts(mpi_npex)
-    logical :: makeEven = .true. ! for simplicity (for now) always divide into even number of levels per MPI task
 
-    if(numlevels < mpi_npex) then
-      write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &
-                 'must be less than or equal to number of levels (=',numlevels,')!'
-      call utl_abort('mpivar_setup_levels_npex')
-    endif
-
-    if(makeEven) then
-      if(mod(numlevels, 2) /= 0) then
-        write(*,*) 'mpivar_setup_levels_npex: total number of levels is not even, now=', numlevels
-        write(*,*) '                          therefore, if global grid, may not be able to do '
-        write(*,*) '                          transforms of vor/div <-> u/v'
-        factor = 1
-      else
-        factor = 2
-      endif
-    else 
+    ! when possible, always divide into even number of levels per MPI task
+    if(mod(numlevels, 2) /= 0) then
+      write(*,*) 'mpivar_setup_levels: total number of levels is not even, now=', numlevels
+      write(*,*) '                     therefore, if global grid, may not be able to do '
+      write(*,*) '                     transforms of vor/div <-> u/v'
       factor = 1
-    endif
+    else
+      factor = 2
+    end if
 
     myLevCounts(:) = 0
     do jproc = 1, mpi_npex
       do jlev = jproc, (numlevels / factor), mpi_npex
         myLevCounts(jproc) = myLevCounts(jproc) + 1
-      enddo
-    enddo
+      end do
+    end do
     do jproc = 1, mpi_npex
       myLevCounts(jproc) = myLevCounts(jproc) * factor
-    enddo
+    end do
 
     myLevCount = myLevCounts(mpi_myidx + 1)
 
-    myLevBeg = 1
-    do jproc = 1, mpi_myidx
-      myLevBeg = myLevBeg + myLevCounts(jproc)
-    enddo
-    myLevEnd = myLevBeg + myLevCount - 1
+    if (myLevCount > 0) then
+      myLevBeg = 1
+      do jproc = 1, mpi_myidx
+        myLevBeg = myLevBeg + myLevCounts(jproc)
+      end do
+      myLevEnd = myLevBeg + myLevCount - 1
+    else
+      myLevBeg = 1
+      myLevEnd = 0
+    end if
 
-  end subroutine mpivar_setup_levels_npex
+    write(*,'(a,3i8)') 'mpivar_setup_levels: myLevBeg, myLevEnd, myLevCount = ',  &
+         myLevBeg, myLevEnd, myLevCount
+
+  end subroutine mpivar_setup_levels
 
 
   subroutine mpivar_setup_varslevels(numk, mykBeg, mykEnd, mykCount)
@@ -295,15 +254,15 @@ module mpivar_mod
     do jproc = 1, mpi_nprocs
       do jk = jproc, numk, mpi_nprocs
         mykCounts(jproc) = mykCounts(jproc) + 1
-      enddo
-    enddo
+      end do
+    end do
 
     mykCount = mykCounts(mpi_myid + 1)
 
     mykBeg = 1
     do jproc = 1, mpi_myid
       mykBeg = mykBeg + mykCounts(jproc)
-    enddo
+    end do
     mykEnd = mykBeg + mykCount - 1
 
   end subroutine mpivar_setup_varslevels

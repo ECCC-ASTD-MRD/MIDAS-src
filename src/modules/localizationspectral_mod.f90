@@ -156,7 +156,7 @@ CONTAINS
     lsp(id)%nTrunc=nTrunc
     lsp(id)%dlon = hco_loc%dlon
 
-    call mpivar_setup_levels_npex(lsp(id)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
+    call mpivar_setup_levels(lsp(id)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                               1,"MPI_INTEGER","mpi_max","GRID",ierr)
     nEnsOverDimension_out     = mpi_npex * maxMyMemberCount
