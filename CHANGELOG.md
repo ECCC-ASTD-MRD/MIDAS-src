@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   interpolating profiles from background state levels to analysis
   levels (#144 and !127).  This is affecting very weakly the results of
   most test for program `midas-var`.
+* Reject observations with unrealistic lat-lon values (#137 and !128)
 
 ## [3.3.0-rc2]
 
