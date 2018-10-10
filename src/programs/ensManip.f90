@@ -64,10 +64,11 @@ program midas_ensManip
   type(struct_gsv) :: statevector_mean, statevector_stddev
   type(struct_gsv) :: statevector_recenteringMean, statevector_alternativeEnsembleMean
 
-  type(struct_vco), pointer :: vco_ens => null()
-  type(struct_hco), pointer :: hco_ens => null()
-  type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ens)          :: ensemble
+
+  type(struct_vco), pointer :: vco => null()
+  type(struct_hco), pointer :: hco => null()
+  type(struct_hco), pointer :: hco_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
   integer              :: memberIndex, stepIndex, numStep
@@ -76,8 +77,10 @@ program midas_ensManip
   integer              :: get_max_rss
 
   character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
+  character(len=256)  :: controlMemberFileNameIn, controlMemberFileNameOut
+  character(len=256), parameter  :: targetGridFileName = './targetgrid'
 
-  logical             :: makeBiPeriodic
+  logical             :: makeBiPeriodic, targetGridFileExist
 
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
@@ -91,10 +94,11 @@ program midas_ensManip
   logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
-  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean, ensembleEtiketOutput, ensembleTypVarOutput, &
-                        output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean,                  & 
+                        ensembleEtiketOutput, ensembleTypVarOutput, hInterpolationDegree,             &
+                        output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations,  &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
-                        recenterEnsembleControlMember, ensembleControlMemberEtiket, hInterpolationDegree
+                        recenterEnsembleControlMember, ensembleControlMemberEtiket
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -130,7 +134,7 @@ program midas_ensManip
   ensembleEtiketOutput          = 'ENSRECENTER'
   ensembleEtiketOutputAppendMemberNumber = .false.
   ensembleControlMemberEtiket   = 'ENSCTLMEM'
-  recenterEnsembleControlMember    = .false.
+  recenterEnsembleControlMember = .false.
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -138,7 +142,7 @@ program midas_ensManip
   numBits                       = 16
   recenter                      = .false.
   recentering_coeff             = 1.0
-  hInterpolationDegree             = 'CUBIC' ! or "LINEAR" or "NEAREST"
+  hInterpolationDegree          = 'CUBIC' ! or "LINEAR" or "NEAREST"
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -166,27 +170,36 @@ program midas_ensManip
   !- 2.3 Initialize variables of the model states
   call gsv_setup
 
-  !- 2.4 Initialize the Ensemble grid
+  !- 2.4 Initialize the target grid
   if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for ensemble grid'
+  if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for the target grid'
 
-  ! Use the first ensemble member to initialize the grid
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile( vco_ens, ensFileName )
+  inquire(file=trim(targetGridFileName), exist=targetGridFileExist)
+  if ( targetGridFileExist ) then
+    ! Use the provided grid template to initialize the grid
+    if (mpi_myid == 0) write(*,*) '                using the provided grid template '
+    call hco_SetupFromFile( hco, targetGridFileName, ' ', 'RECENTER_ANL_GRID')
+    call vco_setupFromFile( vco, targetGridFileName )
+  else
+    ! Use the first ensemble member to initialize the grid
+    if (mpi_myid == 0) write(*,*) '                using the ensemble grid '
+    call hco_SetupFromFile( hco, ensFileName, ' ', 'ENSFILEGRID')
+    call vco_setupFromFile( vco, ensFileName )
+  end if
 
-  if ( hco_ens % global ) then
-    call agd_SetupFromHCO( hco_ens ) ! IN
+  if ( hco % global ) then
+    call agd_SetupFromHCO( hco ) ! IN
   else
     !- Setup the LAM analysis grid metrics
-    hco_ens_core => hco_ens
-    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
+    hco_core => hco
+    call agd_SetupFromHCO( hco, hco_core ) ! IN
   end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens, dateStampList)
+  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
@@ -255,12 +268,11 @@ program midas_ensManip
     ! read recentering mean in file '${DATE}_recenteringmean'
     call tmg_start(10,'READ_RECENTERINGMEAN')
 
-    ! Filename for recentering mean
     recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
 
-    call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
-         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-         hInterpolateDegree_opt = hInterpolationDegree)
+    call gsv_allocate(statevector_recenteringMean, numStep, hco, vco, &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                      hInterpolateDegree_opt = hInterpolationDegree)
 
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
@@ -273,6 +285,11 @@ program midas_ensManip
 
     call tmg_stop(10)
 
+    if (recenterEnsembleControlMember) then
+      call fln_ensFileName( controlMemberFileNameIn, ensPathName, memberIndex = 0, shouldExist_opt = .true.)
+      call fln_ensFileName( controlMemberFileNameout, '.', memberIndex = 0, ensFileNamePrefix_opt = 'recentered_', shouldExist_opt = .false.)
+    endif
+
     if (trim(alternativeEnsembleMean) /= '') then
       ! read ensemble center in file '${ensFileBaseName}_${alternativeEnsembleMean}'
       call tmg_start(11,'READ_ALTERNATIVEENSEMBLEMEAN')
@@ -280,9 +297,9 @@ program midas_ensManip
       ! Filename for ensemble center
       alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
 
-      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco_ens, vco_ens, &
-           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-           hInterpolateDegree_opt = hInterpolationDegree)
+      call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco, vco, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        hInterpolateDegree_opt = hInterpolationDegree)
 
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
@@ -296,13 +313,14 @@ program midas_ensManip
       call tmg_stop(11)
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,&
+                        alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
-             ensembleTypVarOutput, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
+        call ens_recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout, &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
+             hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
@@ -310,9 +328,9 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,ensPathName, 'recentered_', &
-             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
-             ensembleTypVarOutput, numBits_opt = numBits)
+        call ens_recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout, &
+             statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
+             hInterpolationDegree, numBits_opt = numBits)
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 

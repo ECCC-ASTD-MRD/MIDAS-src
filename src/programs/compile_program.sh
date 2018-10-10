@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+if [ $# -lt 1 ]; then
+    echo "compile_program.sh: You must give at least one argument which is the program the compile"
+    exit 1
+fi
 program=$(basename $1 .f90)
 mode=$2
 

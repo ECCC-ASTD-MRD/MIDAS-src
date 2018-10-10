@@ -24,8 +24,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [3.3.0-rc3]: Unreleased
 
+### Added
+
+* The program `ensManip` can now read a file `targetgrid` in the
+  working directory on which grid all fields will be interpolated
+  (#138 and !128).  By default, all files will be interpolated on the
+  grid of the ensemble.
+
+### Changed
+
+* Write the hessian after 'rebm', 'rehm' and 'anlm' files (#142 and !126)
+
 ### Fixed
 
+* Fix 'get_avhrr_emiss' when some channels are missing (#140 and !125)
 * A fix was done to control the minimum value for 'HU' after
   interpolating profiles from background state levels to analysis
   levels (#144 and !127).  This is affecting very weakly the results of
@@ -94,7 +106,7 @@ This version is identical to [3.3.0-rc1].
 * Add chemical consituents capacity (#98, !95 and !89)
 * Make advection modular and flexible (!87 and !99)
 * Improve advection code (#87, #119, !99 and !105)
-* `HU` rather than `LQ` in `gridStateVector` outside `$B$` matrix modules. This
+* `HU` rather than `LQ` in `gridStateVector` outside $`B`$ matrix modules. This
   has significant impact on the results and also requires changes to
   the use of the randomPert program within the EnKF (a background
   state must now be supplied) (#67 and !111).

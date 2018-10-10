@@ -2144,7 +2144,7 @@ module gridStateVector_mod
     if ( readSubsetOfLevels ) then
       ! use the output vertical grid provided to read only a subset of the verical levels
       write(*,*)
-      write(*,*) 'gsv_readFromFile: read only a subset of the verical levels'
+      write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels'
       call vco_deallocate(vco_file)
       vco_file => statevector_out%vco
     else

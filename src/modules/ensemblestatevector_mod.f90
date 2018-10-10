@@ -42,7 +42,7 @@ MODULE ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
   public :: ens_copyToStateWork, ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
@@ -972,8 +972,8 @@ CONTAINS
 
   end subroutine ens_recenter
 
-  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
-       etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
+  subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
+       etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
 
     !! We want to compute:
@@ -981,13 +981,12 @@ CONTAINS
 
     ! arguments
     type(struct_ens) :: ens
-    type(struct_vco), pointer :: vco_ens
-    type(struct_hco), pointer :: hco_ens
-    character(len=*) :: ensFileName, ensPathName, ensFileNamePrefix
+    character(len=*) :: fileNameIn, fileNameOut
     type(struct_gsv) :: recenteringMean
     real(8)          :: recenteringCoeff
     character(len=*)  :: etiket
     character(len=*)  :: typvar
+    character(len=*)  :: hInterpolationDegree
     type(struct_gsv), optional :: alternativeEnsembleMean_opt
     integer, optional :: numBits_opt
 
@@ -997,14 +996,13 @@ CONTAINS
 
     numStep = ens%statevector_work%numStep
 
-    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0)
-
-    call gsv_allocate(statevector_ensembleControlMember, numStep, hco_ens, vco_ens, &
-         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+    call gsv_allocate(statevector_ensembleControlMember, numStep, ens%statevector_work%hco, ens%statevector_work%vco, &
+         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+         hInterpolateDegree_opt = hInterpolationDegree)
 
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
-      call gsv_readFromFile( statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
+      call gsv_readFromFile( statevector_ensembleControlMember, trim(fileNameIn), ' ', ' ',  &
                              stepIndex_opt=stepIndex, unitConversion_opt=.true.,  &
                              containsFullField_opt=.true. )
     end do
@@ -1012,20 +1010,17 @@ CONTAINS
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
          ensembleControlMember_opt = statevector_ensembleControlMember)
 
-    call fln_ensFileName( ensFileName, '.', memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &
-         shouldExist_opt = .false.)
-
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
-      call gsv_writeToFile( statevector_ensembleControlMember, ensFileName, etiket, &
+      call gsv_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
                             stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
                             containsFullField_opt = .true. )
     end do
 
     call gsv_deallocate(statevector_ensembleControlMember)
 
-  end subroutine ens_recenterControlMember
+  end subroutine ens_recenterState
 
   !--------------------------------------------------------------------------
   ! ens_readEnsemble
