@@ -26,6 +26,7 @@ MODULE biascorrection_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
+  use EarthConstants_mod ! (for RG)
   use obsSpaceData_mod
   use controlVector_mod
   use mpivar_mod
