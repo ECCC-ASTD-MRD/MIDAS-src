@@ -361,10 +361,10 @@ CONTAINS
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
-    trialGZ300m1000(:) = 0.01d0 * trialGZ300m1000(:) ! conversion from to
-    trialGZ50m200(:) = 0.01d0 * trialGZ50m200(:)
-    trialGZ5m50(:) = 0.01d0 * trialGZ5m50(:)
-    trialGZ1m10(:) = 0.01d0 *  trialGZ1m10(:)
+    trialGZ300m1000(:) = (1.d0/RG/10.d0) * trialGZ300m1000(:) ! conversion from to
+    trialGZ50m200(:) = (1.d0/RG/10.d0) * trialGZ50m200(:)
+    trialGZ5m50(:) = (1.d0/RG/10.d0) * trialGZ5m50(:)
+    trialGZ1m10(:) =  (1.d0/RG/10.d0) *  trialGZ1m10(:)
 
     write(*,*) 'bias_getTrialPredictors done'
 
