@@ -304,7 +304,7 @@ contains
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
-     case( 'gl' )
+      case( 'gl' )
         read(nulnam, nml = NAMSQLgl, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
@@ -326,7 +326,6 @@ contains
 
     write(cfgSqlite, '(i6)' ) bitsFlagOff
     csqlcrit=trim(" (flag & "//cfgSqlite)//" = 0 "
-    write(cfgSqlite, '(i6)' ) bitsFlagOn
 
     if ( numberBitsOn > 0 ) then
       write(cfgSqlite, '(i6)' ) bitsFlagOn
@@ -445,6 +444,9 @@ contains
         end if
 
       else if ( trim(familyType) == 'GL' ) then
+
+         ! Nothing more to read for GL now.
+         ! It does not have the obsStatus column.
 
       else  ! familyType = CONV
 
@@ -582,7 +584,7 @@ contains
     write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
-    write(*,*) myName//' end subroutine: ', myName
+    write(*,*) 'end subroutine: ', myName
 
   end subroutine sqlr_readSqlite
 
