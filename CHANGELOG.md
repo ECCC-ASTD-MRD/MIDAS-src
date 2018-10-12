@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
-## [3.3.0-rc3]: Unreleased
+## [3.3.0-rc3]:
 
 ### Added
 
