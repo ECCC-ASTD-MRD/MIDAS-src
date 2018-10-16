@@ -26,6 +26,18 @@ or if one is interested in the `master` branch:
 clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 
+## Getting code related to operational system
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/1.1
+clone_projet --no-central -c v_3.2 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.2
+```
+
+## Getting code related to the latest final cycle version or installed in parallel run
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/1.1
+clone_projet --no-central -c v_3.3 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.3
+```
+
 # Compiling a single program
 
 To compile a program for a given platform, one has to do:
