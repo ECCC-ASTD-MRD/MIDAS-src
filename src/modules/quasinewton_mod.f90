@@ -42,17 +42,17 @@
       double precision sign,den,anum,t,f,fp,ta,fa,fpa,tlower,tupper
 !     
 !     --- variables locales
-c     
+!     
       double precision z1,b,discri
-c     
+!     
 !     Using f and fp at t and ta, computes new t by cubic formula
 !     safeguarded inside [tlower,tupper].
-c     
+!     
       z1=fp+fpa-3.d0*(fa-f)/(ta-t)
       b=z1+fp
-c     
+!     
 !     first compute the discriminant (without overflow)
-c     
+!     
       if (dabs(z1).le.1.d0) then
          discri=z1*z1-fp*fpa
       else
@@ -74,9 +74,9 @@ c
          if (fp.ge.0.d0) t=tlower
          go to 900
       endif
-c     
+!     
 !     discriminant nonnegative, compute solution (without overflow)
-c     
+!     
       discri=dsqrt(discri)
  120  if (t-ta.lt.0.d0) discri=-discri
       sign=(t-ta)/dabs(t-ta)
@@ -96,10 +96,10 @@ c
 !     return
       end subroutine
 
-      subroutine ddd (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,jmax,
-     &                precos,diag,ybar,sbar,izs,rzs,dzs)
+      subroutine ddd (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,jmax, &
+                      precos,diag,ybar,sbar,izs,rzs,dzs)
 !----
-c
+!
 !     calcule le produit H.g ou
 !         . H est une matrice construite par la formule de bfgs inverse
 !           a nm memoires a partir de la matrice diagonale diag
@@ -107,40 +107,40 @@ c
 !           est donne par prosca
 !           (cf. J. Nocedal, Math. of Comp. 35/151 (1980) 773-782)
 !         . g est un vecteur de dimension n (en general le gradient)
-c
+!
 !     la matrice diag apparait donc comme un preconditionneur diagonal
-c
+!
 !     depl = g (en entree), = H g (en sortie)
-c
+!
 !     la matrice H est memorisee par les vecteurs des tableaux
 !     ybar, sbar et les pointeurs jmin, jmax
-c
+!
 !     alpha(nm) est une zone de travail
-c
+!
 !     izs(1),rzs(1),dzs(1) sont des zones de travail pour prosca
-c
+!
 !----
-c
+!
 !         arguments
-c
+!
       logical sscale
       integer n,nm,jmin,jmax,izs(1)
       real rzs(1)
-      double precision depl(n),precos,diag(n),alpha(nm),ybar(n,1),
-     &    sbar(n,1),aux(n),dzs(1)
+      double precision depl(n),precos,diag(n),alpha(nm),ybar(n,1), &
+          sbar(n,1),aux(n),dzs(1)
       external prosca,dtonb,dtcab
-c
+!
 !         variables locales
-c
+!
       integer jfin,i,j,jp
       double precision r,ps
-c
+!
       call tmg_start(72,'DDD')
       jfin=jmax
       if (jfin.lt.jmin) jfin=jmax+nm
-c
+!
 !         phase de descente
-c
+!
       do 100 j=jfin,jmin,-1
           jp=j
           if (jp.gt.nm) jp=jp-nm
@@ -153,9 +153,9 @@ c
 20        continue
 !$OMP END PARALLEL DO
 100   continue
-c
+!
 !         preconditionnement
-c
+!
       if (sscale) then
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 150 i=1,n
@@ -171,9 +171,9 @@ c
 !$OMP END PARALLEL DO
           call dtcab (n,aux,depl,izs,rzs,dzs)
       endif
-c
+!
 !         remontee
-c
+!
       do 200 j=jmin,jfin
           jp=j
           if (jp.gt.nm) jp=jp-nm
@@ -189,37 +189,37 @@ c
       !return
       end subroutine ddd
 
-      subroutine ddds (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,
-     &                 jmax,precos,diag,ybar,sbar,izs,rzs,dzs)
+      subroutine ddds (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin, &
+                       jmax,precos,diag,ybar,sbar,izs,rzs,dzs)
 !----
-c
+!
 !     This subroutine has the same role as ddd (computation of the
 !     product H.g). It supposes however that the (y,s) pairs are not
 !     stored in core memory, but on a devise chosen by the user.
 !     The access to this devise is performed via the subroutine dystbl.
-c
+!
 !----
-c
+!
 !         arguments
-c
+!
       logical sscale
       integer n,nm,jmin,jmax,izs(1)
       real rzs(1)
-      double precision depl(n),precos,diag(n),alpha(nm),ybar(n),sbar(n),
-     &    aux(n),dzs(1)
+      double precision depl(n),precos,diag(n),alpha(nm),ybar(n),sbar(n), &
+          aux(n),dzs(1)
       external prosca,dtonb,dtcab
-c
+!
 !         variables locales
-c
+!
       integer jfin,i,j,jp
       double precision r,ps
-c
+!
       call tmg_start(72,'DDD')
       jfin=jmax
       if (jfin.lt.jmin) jfin=jmax+nm
-c
+!
 !         phase de descente
-c
+!
       do 100 j=jfin,jmin,-1
           jp=j
           if (jp.gt.nm) jp=jp-nm
@@ -231,9 +231,9 @@ c
               depl(i)=depl(i)-r*ybar(i)
 20        continue
 100   continue
-c
+!
 !         preconditionnement
-c
+!
       if (sscale) then
           do 150 i=1,n
               depl(i)=depl(i)*precos
@@ -245,9 +245,9 @@ c
   151     continue
           call dtcab (n,aux,depl,izs,rzs,dzs)
       endif
-c
+!
 !         remontee
-c
+!
       do 200 j=jmin,jfin
           jp=j
           if (jp.gt.nm) jp=jp-nm
@@ -264,40 +264,40 @@ c
 
       subroutine dystbl (store,ybar,sbar,n,j)
 !----
-c
+!
 !     This subroutine should store (if store = .true.) or restore
 !     (if store = .false.) a pair (ybar,sbar) at or from position
 !     j in memory. Be sure to have 1 <= j <= m, where m in the number
 !     of updates specified by subroutine mupdts.
-c
+!
 !     The subroutine is used only when the (y,s) pairs are not
 !     stored in core memory in the arrays ybar(.,.) and sbar(.,.).
 !     In this case, the subroutine has to be written by the user.
-c
+!
 !----
-c
+!
 !         arguments
-c
+!
       logical store
       integer n,j
       double precision ybar(n),sbar(n)
-c
+!
       !return
       end subroutine dystbl
 
       subroutine mupdts (sscale,inmemo,n,m,nrz)
-c
+!
 !         arguments
-c
+!
       logical sscale,inmemo
       integer n,m,nrz
 !----
-c
+!
 !     On entry:
 !       sscale: .true. if scalar initial scaling,
 !               .false. if diagonal initial scaling
 !       n:      number of variables
-c
+!
 !     This routine has to return:
 !       m:      the number of updates to form the approximate Hessien H,
 !       inmemo: .true., if the vectors y and s used to form H are stored
@@ -306,9 +306,9 @@ c
 !                  instance).
 !     When inmemo=.false., the routine `dystbl', which stores and
 !     restores (y,s) pairs, has to be rewritten.
-c
+!
 !----
-c
+!
       if (n.eq.0) then
          m=0
       else
@@ -322,9 +322,9 @@ c
       ! return
       end subroutine mupdts
 
-      subroutine qna_n1qn3 (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,
-     /     epsg,impres,io,mode,niter,nsim,iz,dz,ndz,
-     /     izs,rzs,dzs)
+      subroutine qna_n1qn3 (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
+           epsg,impres,io,mode,niter,nsim,iz,dz,ndz, &
+           izs,rzs,dzs)
 !---- 
 !     
 !     N1QN3, Version 2.0c, June 1995
@@ -403,23 +403,22 @@ c
       write(io,*) 'N1QN3: calling modified MPI version of modulopt!!!'
       write(io,*) '--------------------------------------------------'
 
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
-     &                        "mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
+                              "mpi_max","GRID",ierr)
 
-      if (impres.ge.1)
-     /     write (io,900) n,dxmin,df1,epsg,niter,nsim,impres
- 900  format (/" N1QN3 (Version 2.0c, June 1995): entry point"/
-     /     5x,"dimension of the problem (n):",i9/
-     /     5x,"absolute precision on x (dxmin):",d9.2/
-     /     5x,"expected decrease for f (df1):",d9.2/
-     /     5x,"relative precision on g (epsg):",d9.2/
-     /     5x,"maximal number of iterations (niter):",i6/
-     /     5x,"maximal number of simulations (nsim):",i6/
-     /     5x,"printing level (impres):",i4)
-
-      if (ntotal.le.0.or.niter.le.0.or.nsim.le.0.or.dxmin.le.0.d+0.or.
-     &     epsg.le.0.d+0.or.epsg.gt.1.d+0.or.mode.lt.0.or. 
-     &     mode.gt.3) then
+      if (impres.ge.1) &
+           write (io,900) n,dxmin,df1,epsg,niter,nsim,impres
+ 900  format (/" N1QN3 (Version 2.0c, June 1995): entry point"/ &
+           5x,"dimension of the problem (n):",i9/  &
+           5x,"absolute precision on x (dxmin):",d9.2/ &
+           5x,"expected decrease for f (df1):",d9.2/ &
+           5x,"relative precision on g (epsg):",d9.2/ &
+           5x,"maximal number of iterations (niter):",i6/ &
+           5x,"maximal number of simulations (nsim):",i6/ &
+           5x,"printing level (impres):",i4)
+      if (ntotal.le.0.or.niter.le.0.or.nsim.le.0.or.dxmin.le.0.d+0.or. &
+           epsg.le.0.d+0.or.epsg.gt.1.d+0.or.mode.lt.0.or.  &
+           mode.gt.3) then
          mode=2
          write (io,901)
  901     format (/" >>> n1qn3: inconsistent call")
@@ -438,8 +437,8 @@ c
          sscale=.true.
       endif
 !     
-      if ( n.gt.0 .and. 
-     +     ((ndz.lt.5*n+1).or.((.not.sscale).and.(ndz.lt.6*n+1))) ) then
+      if ( n.gt.0 .and. &
+           ((ndz.lt.5*n+1).or.((.not.sscale).and.(ndz.lt.6*n+1))) ) then
          mode=2
          write (io,902)
  902     format (/" >>> n1qn3: not enough memory allocated")
@@ -449,8 +448,8 @@ c
 !---- Compute m
 !     
       call mupdts (sscale,inmemo,n,m,ndz)
-      call rpn_comm_allreduce(m,m_max,1,"mpi_integer",
-     &                        "mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(m,m_max,1,"mpi_integer", &
+                              "mpi_max","GRID",ierr)
       if (m.ne.m_max) then
          write(io,*) 'replacing value of m, ',m,' with ',m_max
          m=m_max
@@ -473,9 +472,9 @@ c
       ntravu=2*(2+mmemo)*n
       if (sscale) ntravu=ntravu-n
       write (io,903) ndz,ntravu,m
- 903  format (/5x,"allocated memory (ndz) :",i9/
-     /     5x,"used memory :           ",i9/
-     /     5x,"number of updates :     ",i9)
+ 903  format (/5x,"allocated memory (ndz) :",i9/ &
+           5x,"used memory :           ",i9/ &
+           5x,"number of updates :     ",i9)
       if (ndz.lt.ntravu) then
          mode=2
          write (io,902)
@@ -501,10 +500,10 @@ c
       else
          iaux=0
          if (sscale) iaux=1
-!         if (iz(1).ne.n.or.iz(2).ne.iaux.or.iz(3).ne.m.or.iz(4).lt.1
-!     &        .or.iz(5).lt.1.or.iz(4).gt.iz(3).or.iz(5).gt.iz(3)) then
-         if (iz(2).ne.iaux.or.iz(3).ne.m.or.iz(4).lt.1
-     &        .or.iz(5).lt.1.or.iz(4).gt.iz(3).or.iz(5).gt.iz(3)) then
+!         if (iz(1).ne.n.or.iz(2).ne.iaux.or.iz(3).ne.m.or.iz(4).lt.1 &
+!              .or.iz(5).lt.1.or.iz(4).gt.iz(3).or.iz(5).gt.iz(3)) then
+         if (iz(2).ne.iaux.or.iz(3).ne.m.or.iz(4).lt.1 &
+              .or.iz(5).lt.1.or.iz(4).gt.iz(3).or.iz(5).gt.iz(3)) then
             mode=2
             write(*,*) 'iz=',iz(:)
             write(*,*) 'n,iaux,m=',n,iaux,m
@@ -533,115 +532,115 @@ c
 !     
 !---- call the optimization code
 !     
-      call n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,epsg,
-     /     impres,io,mode,niter,nsim,inmemo,iz(3),iz(4),iz(5),
-     /     dz(id),dz(igg),dz(idiag),dz(iaux),
-     /     dz(iybar),dz(isbar),izs,rzs,dzs)
+      call n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,epsg, &
+           impres,io,mode,niter,nsim,inmemo,iz(3),iz(4),iz(5), &
+           dz(id),dz(igg),dz(idiag),dz(iaux), &
+           dz(iybar),dz(isbar),izs,rzs,dzs)
 !     
 !---- impressions finales
 !     
       if (impres.ge.1) write (io,905) mode,niter,nsim,epsg
- 905  format (/,1x,79("-")/
-     /     /" n1qn3: output mode is ",i2
-     /     /5x,"number of iterations: ",i4
-     /     /5x,"number of simulations: ",i6
-     /     /5x,"realized relative precision on g: ",d9.2)
+ 905  format (/,1x,79("-")/  &
+           /" n1qn3: output mode is ",i2 &
+           /5x,"number of iterations: ",i4 &
+           /5x,"number of simulations: ",i6 &
+           /5x,"realized relative precision on g: ",d9.2)
       call prosca (n,x,x,ps,izs,rzs,dzs)
       d1=dsqrt(ps)
       call prosca (n,g,g,ps,izs,rzs,dzs)
       d2=dsqrt(ps)
       if (impres.ge.1) write (io,906) d1,f,d2
- 906  format (5x,"norm of x = ",d15.8
-     /     /5x,"f         = ",d15.8
-     /     /5x,"norm of g = ",d15.8)
+ 906  format (5x,"norm of x = ",d15.8 &
+           /5x,"f         = ",d15.8 &
+           /5x,"norm of g = ",d15.8) 
       !return
       end subroutine qna_n1qn3
 
-      subroutine n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,
-     /                   epsg,impres,io,mode,niter,nsim,inmemo,m,jmin,
-     /                   jmax,d,gg,diag,aux,ybar,sbar,izs,rzs,dzs)
+      subroutine n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
+                         epsg,impres,io,mode,niter,nsim,inmemo,m,jmin, &
+                         jmax,d,gg,diag,aux,ybar,sbar,izs,rzs,dzs)
 !----
-c
+!
 !     Code d'optimisation proprement dit.
-c
+!
 !----
-c
+!
 !         arguments
-c
+!
       logical inmemo
       integer n,impres,io,mode,niter,nsim,m,jmin,jmax,izs(1)
       real rzs(1)
-      double precision x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n),
-     &    aux(n),ybar(n,1),sbar(n,1),dzs(1)
+      double precision x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n), &
+          aux(n),ybar(n,1),sbar(n,1),dzs(1)
       external simul,prosca,dtonb,dtcab
-c
+!
 !         variables locales
-c
+!
       logical sscale,cold,warm,ntotal
       integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
-      double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff,
-     &     preco,precos,ys,den,
-     &     dk,dk1,ps,ps2,hp0
-c
+      double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
+           preco,precos,ys,den, &
+           dk,dk1,ps,ps2,hp0
+!
 !         parametres
-c
+!
       double precision rm1,rm2
       parameter (rm1=0.0001d+0,rm2=0.9d+0)
       double precision pi
       parameter (pi=3.1415927d+0)
       double precision rmin
-c
+!
 !---- initialisation
-c
+!
       call tmg_start(73,'N1QN3A')
       rmin=1.d-20
-c
+!
       sscale=.true.
       if (mod(mode,2).eq.0) sscale=.false.
-c
+!
       warm=.false.
       if (mode/2.eq.1) warm=.true.
       cold=.not.warm
-c
+!
       itmax=niter
       niter=0
       isim=1
       eps1=1.d+0
-c
-      call rpn_comm_allreduce(impres,impresmax,1,"mpi_integer",
-     &                        "mpi_max","GRID",ierr)
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
-     &                        "mpi_max","GRID",ierr)
-c
+!
+      call rpn_comm_allreduce(impres,impresmax,1,"mpi_integer", &
+                              "mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
+                              "mpi_max","GRID",ierr)
+!
       call tmg_stop(73)
       call prosca (n,g,g,ps,izs,rzs,dzs)
       call tmg_start(73,'N1QN3A')
       gnorm=dsqrt(ps)
       if (impres.ge.1) write (io,900) f,gnorm
-  900 format (5x,"f         = ",d15.8
-     /       /5x,"norm of g = ",d15.8)
+  900 format (5x,"f         = ",d15.8 &
+             /5x,"norm of g = ",d15.8)
       if (gnorm.lt.rmin) then
           mode=2
           if (impres.ge.1) write (io,901)
           goto 1000
       endif
   901 format (/" >>> n1qn3a: initial gradient is too small")
-c
+!
 !     --- initialisation pour ddd
-c
+!
       if (cold) then
           jmin=1
           jmax=0
       endif
       jcour=1
       if (inmemo) jcour=jmax
-c
+!
 !     --- mise a l'echelle de la premiere direction de descente
-c
+!
       if (cold) then
-c
+!
 !         --- use Fletcher's scaling and initialize diag to 1.
-c
+!
           precos=2.d+0*df1/gnorm**2
           do 10 i=1,n
               d(i)=-g(i)*precos
@@ -650,9 +649,9 @@ c
           if (impres.ge.5) write(io,902) precos
   902     format (/" n1qn3a: descent direction -g: precon = ",d10.3)
       else
-c
+!
 !         --- use the matrix stored in [diag and] the (y,s) pairs
-c
+!
           if (sscale) then
               call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
@@ -664,17 +663,17 @@ c
   11      continue
           if (inmemo) then
               call tmg_stop(73)
-              call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                 precos,diag,ybar,sbar,izs,rzs,dzs)
+              call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
+                       precos,diag,ybar,sbar,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
           else
               call tmg_stop(73)
-              call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                  precos,diag,ybar,sbar,izs,rzs,dzs)
+              call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
+                         precos,diag,ybar,sbar,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
           endif
       endif
-c
+!
       if (impres.eq.3) then
           write(io,903)
           write(io,904)
@@ -682,9 +681,9 @@ c
       if (impres.eq.4) write(io,903)
   903 format (/,1x,79("-"))
   904 format (1x)
-c
+!
 !     --- initialisation pour nlis0
-c
+!
       tmax=1.d+20
       call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
@@ -694,12 +693,12 @@ c
           if (impres.ge.1) write (io,905) niter,hp0
           goto 1000
       endif
-  905 format (/" >>> n1qn3 (iteration ",i2,"): "
-     /        /5x," the search direction d is not a ",
-     /         "descent direction: (g,d) = ",d12.5)
-c
+  905 format (/" >>> n1qn3 (iteration ",i2,"): " &
+              /5x," the search direction d is not a ", &
+               "descent direction: (g,d) = ",d12.5)
+!
 !     --- compute the angle (-g,d)
-c
+!
       if (warm.and.impresmax.ge.5) then
           call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
@@ -713,15 +712,15 @@ c
           d1=ps*180.d+0/pi
           if(impres.ge.5) write (io,906) sngl(d1)
       endif
-  906 format (/" n1qn3: descent direction d: ",
-     /        "angle(-g,d) = ",f5.1," degrees")
-c
+  906 format (/" n1qn3: descent direction d: ", &
+              "angle(-g,d) = ",f5.1," degrees")
+!
 !---- Debut de l'iteration. on cherche x(k+1) de la forme x(k) + t*d,
 !     avec t > 0. On connait d.
-c
+!
 !         Debut de la boucle: etiquette 100,
 !         Sortie de la boucle: goto 1000.
-c
+!
 100   niter=niter+1
       if (impres.lt.0) then
           if (mod(niter,-impres).eq.0) then
@@ -734,93 +733,93 @@ c
       if (impres.ge.5) write(io,903)
       if (impres.ge.4) write(io,904)
       if (impres.ge.3) write (io,910) niter,isim,f,hp0
-  910 format (" n1qn3: iter ",i3,", simul ",i3,
-     /        ", f=",d15.8,", h'(0)=",d12.5)
+  910 format (" n1qn3: iter ",i3,", simul ",i3, &
+              ", f=",d15.8,", h'(0)=",d12.5)
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
       do 101 i=1,n
           gg(i)=g(i)
 101   continue
 !$OMP END PARALLEL DO
       ff=f
-c
+!
 !     --- recherche lineaire et nouveau point x(k+1)
-c
+!
       if (impres.ge.5) write (io,911)
   911 format (/" n1qn3: line search")
-c
+!
 !         --- calcul de tmin
-c
+!
       tmin=0.d+0
       do 200 i=1,n
           tmin=max(tmin,dabs(d(i)))
 200   continue
       call tmg_start(79,'QN_COMM')
-      call rpn_comm_allreduce(tmin,tmin_mpiglobal,1,
-     &                        "mpi_double_precision",
-     &                        "mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(tmin,tmin_mpiglobal,1, &
+                              "mpi_double_precision", &
+                              "mpi_max","GRID",ierr)
       tmin = tmin_mpiglobal
       call tmg_stop(79)
 
       tmin=dxmin/tmin
       t=1.d+0
       d1=hp0
-c
+!
       call tmg_stop(73)
-      call nlis0 (n,simul,prosca,x,f,d1,t,tmin,tmax,d,g,rm2,rm1,
-     /           impres,io,moderl,isim,nsim,aux,izs,rzs,dzs)
+      call nlis0 (n,simul,prosca,x,f,d1,t,tmin,tmax,d,g,rm2,rm1, &
+                 impres,io,moderl,isim,nsim,aux,izs,rzs,dzs)
       call tmg_start(73,'N1QN3A')
-c
+!
 !         --- nlis0 renvoie les nouvelles valeurs de x, f et g
-c
+!
       if (moderl.ne.0) then
           if (moderl.lt.0) then
-c
+!
 !             --- calcul impossible
 !                 t, g: ou les calculs sont impossibles
 !                 x, f: ceux du t_gauche (donc f <= ff)
-c
+!
               mode=moderl
           elseif (moderl.eq.1) then
-c
+!
 !             --- descente bloquee sur tmax
 !                 [sortie rare (!!) d'apres le code de nlis0]
-c
+!
               mode=3
               if (impres.ge.1) write(io,912) niter
-  912         format (/" >>> n1qn3 (iteration ",i3,
-     /                "): line search blocked on tmax: ",
-     /                "decrease the scaling")
+  912         format (/" >>> n1qn3 (iteration ",i3, &
+                      "): line search blocked on tmax: ", &
+                      "decrease the scaling")
           elseif (moderl.eq.4) then
-c
+!
 !             --- nsim atteint
 !                 x, f: ceux du t_gauche (donc f <= ff)
-c
+!
               mode=5
           elseif (moderl.eq.5) then
-c
+!
 !             --- arret demande par l'utilisateur (indic = 0)
 !                 x, f: ceux en sortie du simulateur
-c
+!
               mode=0
           elseif (moderl.eq.6) then
-c
+!
 !             --- arret sur dxmin ou appel incoherent
 !                 x, f: ceux du t_gauche (donc f <= ff)
-c
+!
               mode=6
           endif
           goto 1000
       endif
-c
+!
 ! NOTE: stopping tests are now done after having updated the matrix, so
 ! that update information can be stored in case of a later warm restart
-c
+!
 !     --- mise a jour de la matrice
-c
+!
       if (m.gt.0) then
-c
+!
 !         --- mise a jour des pointeurs
-c
+!
           jmax=jmax+1
           if (jmax.gt.m) jmax=jmax-m
           if ((cold.and.niter.gt.m).or.(warm.and.jmin.eq.jmax)) then
@@ -828,9 +827,9 @@ c
               if (jmin.gt.m) jmin=jmin-m
           endif
           if (inmemo) jcour=jmax
-c
+!
 !         --- y, s et (y,s)
-c
+!
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 400 i=1,n
               sbar(i,jcour)=t*d(i)
@@ -843,8 +842,8 @@ c
               call tmg_start(73,'N1QN3A')
               dk1=dsqrt(ps)
               if (impres.ge.5.and.niter.gt.1) write (io,930) dk1/dk
-  930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ",
-     /                d12.5)
+  930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ", &
+                      d12.5)
               dk=dk1
           endif
           call tmg_stop(73)
@@ -853,14 +852,14 @@ c
           if (ys.le.0.d+0) then
               mode=7
               if (impres.ge.1) write (io,931) niter,ys
-  931         format (/" >>> n1qn3 (iteration ",i2,
-     /                "): the scalar product (y,s) = ",d12.5
-     /                /27x,"is not positive")
+  931         format (/" >>> n1qn3 (iteration ",i2, &
+                      "): the scalar product (y,s) = ",d12.5 &
+                      /27x,"is not positive")
               goto 1000
           endif
-c
+!
 !         --- ybar et sbar
-c
+!
           d1=dsqrt(1.d+0/ys)
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 410 i=1,n
@@ -871,28 +870,28 @@ c
           call tmg_stop(73)
           if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
           call tmg_start(73,'N1QN3A')
-c
+!
 !         --- compute the scalar or diagonal preconditioner
-c
+!
           if (impres.ge.5) write(io,932)
   932     format (/" n1qn3: matrix update:")
-c
+!
 !             --- Here is the Oren-Spedicato factor, for scalar scaling
-c
+!
           if (sscale) then
               call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
               precos=1.d+0/ps
-c
+!
               if (impres.ge.5) write (io,933) precos
   933         format (5x,"Oren-Spedicato factor = ",d10.3)
-c
+!
 !             --- Scale the diagonal to Rayleigh's ellipsoid.
 !                 Initially (niter.eq.1) and for a cold start, this is
 !                 equivalent to an Oren-Spedicato scaling of the
 !                 identity matrix.
-c
+!
           else
               call tmg_stop(73)
               call dtonb (n,ybar(1,jcour),aux,izs,rzs,dzs)
@@ -914,10 +913,10 @@ c
                   diag(i)=diag(i)*d1
   421         continue
 !$OMP END PARALLEL DO
-c
+!
 !             --- update the diagonal
 !                 (gg is used as an auxiliary vector)
-c
+!
               call tmg_stop(73)
               call dtonb (n,sbar(1,jcour),gg,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
@@ -931,17 +930,17 @@ c
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 431 i=1,n
-                  diag(i)=1.d0/
-     &                   (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
+                  diag(i)=1.d0/ &
+                         (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
                   if (diag(i).le.0.d0) then
                       if (impres.ge.5) write (io,935) i,diag(i),rmin
                       diag(i)=rmin
                   endif
   431         continue
 !$OMP END PARALLEL DO
-  935         format (/" >>> n1qn3-WARNING: diagonal element ",i8,
-     &                 " is negative (",d10.3,"), reset to ",d10.3)
-c
+  935         format (/" >>> n1qn3-WARNING: diagonal element ",i8, &
+                       " is negative (",d10.3,"), reset to ",d10.3)
+!
               if (impresmax.ge.5) then
                   ps=0.d0
                   do 440 i=1,n
@@ -952,7 +951,7 @@ c
                   call tmg_stop(79)
                   ps=ps/ntotal
                   preco=ps
-c
+!
                   ps2=0.d0
                   do 441 i=1,n
                       ps2=ps2+(diag(i)-ps)**2
@@ -962,20 +961,20 @@ c
                   call tmg_stop(79)
                   ps2=dsqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
-  936             format (5x,"updated diagonal: average value = ",d10.3,
-     &                   ", sqrt(variance) = ",d10.3)
+  936             format (5x,"updated diagonal: average value = ",d10.3, &
+                         ", sqrt(variance) = ",d10.3)
               endif
           endif
       endif
-c
+!
 !     --- tests d'arret
-c
+!
       call tmg_stop(73)
       call prosca(n,g,g,ps,izs,rzs,dzs)
       call tmg_start(73,'N1QN3A')
       eps1=ps
       eps1=dsqrt(eps1)/gnorm
-c
+!
       if (impres.ge.5) write (io,940) eps1
   940 format (/" n1qn3: stopping criterion on g: ",d12.5)
       if (eps1.lt.epsg) then
@@ -985,20 +984,20 @@ c
       if (niter.eq.itmax) then
           mode=4
           if (impres.ge.1) write (io,941) niter
-  941     format (/" >>> n1qn3 (iteration ",i3,
-     /            "): maximal number of iterations")
+  941     format (/" >>> n1qn3 (iteration ",i3, &
+                  "): maximal number of iterations")
           goto 1000
       endif
       if (isim.gt.nsim) then
           mode=5
           if (impres.ge.1) write (io,942) niter,isim
-  942     format (/" >>> n1qn3 (iteration ",i3,"): ",i6,
-     /            " simulations (maximal number reached)")
+  942     format (/" >>> n1qn3 (iteration ",i3,"): ",i6, &
+                  " simulations (maximal number reached)")
           goto 1000
       endif
-c
+!
 !     --- calcul de la nouvelle direction de descente d = - H.g
-c
+!
       if (m.eq.0) then
           preco=2.d0*(ff-f)/(eps1*gnorm)**2
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
@@ -1014,20 +1013,20 @@ c
 !$OMP END PARALLEL DO
           if (inmemo) then
               call tmg_stop(73)
-              call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                  precos,diag,ybar,sbar,izs,rzs,dzs)
+              call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
+                        precos,diag,ybar,sbar,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
           else
               call tmg_stop(73)
-              call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                   precos,diag,ybar,sbar,izs,rzs,dzs)
+              call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
+                         precos,diag,ybar,sbar,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
           endif
       endif
-c
+!
 !         --- test: la direction d est-elle de descente ?
 !             hp0 sera utilise par nlis0
-c
+!
       call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
       call tmg_start(73,'N1QN3A')
@@ -1050,13 +1049,13 @@ c
           d1=d1*180.d0/pi
           if (impres.ge.5) write (io,906) sngl(d1)
       endif
-c
+!
 !---- on poursuit les iterations
-c
+!
       goto 100
-c
+!
 !---- retour
-c
+!
  1000 continue
       nsim=isim
       epsg=eps1
@@ -1065,50 +1064,49 @@ c
 
       end subroutine n1qn3a
 
-      subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g,
-     1                  amd,amf,imp,io,logic,nap,napmax,x,izs,rzs,dzs)
+      subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g, &
+                        amd,amf,imp,io,logic,nap,napmax,x,izs,rzs,dzs)
 ! ----
-c
+!
 !     nlis0 + minuscules + commentaires
 !     + version amelioree (XII 88): interpolation cubique systematique
 !       et anti-overflows
 !     + declaration variables (II/89, JCG).
 !     + barr is also progressively decreased (12/93, CL & JChG).
 !       barmul is set to 5.
-c
+!
 !     ----------------------------------------------------------------
-c
+!
 !        en sortie logic =
-c
+!
 !        0          descente serieuse
 !        1          descente bloquee
 !        4          nap > napmax
 !        5          retour a l'utilisateur
 !        6          fonction et gradient pas d'accord
 !        < 0        contrainte implicite active
-c
+!
 ! ----
-c
+!
 ! --- arguments
-c
+!
       external simul,prosca
       integer n,imp,io,logic,nap,napmax,izs(*)
       real rzs(*)
-      double precision xn(n),fn,fpn,t,tmin,tmax,d(n),g(n),amd,amf,x(n),
-     /    dzs(*)
-c
+      double precision xn(n),fn,fpn,t,tmin,tmax,d(n),g(n),amd,amf,x(n),dzs(*)
+!
 ! --- variables locales
-c
+!
       logical lfound,lfound2
       integer i,indic,indica,indicd,ierr,ntotal
-      double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,
-     / fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
-c
+      double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
+       fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
+!
       call tmg_start(74,'NLIS0')
- 1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2,
-     1 7h  tmin=,d9.2,6h tmax=,d9.2)
- 1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,
-     1   "step",11x,"functions",5x,"derivatives")
+ 1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2, &
+       7h  tmin=,d9.2,6h tmax=,d9.2)
+ 1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,  &
+         "step",11x,"functions",5x,"derivatives")
  1002 format (4x,6h nlis0,37x,d10.3,2d11.3)
  1003 format (4x,6h nlis0,d14.3,2d11.3)
  1004 format (4x,6h nlis0,37x,d10.3,7h indic=,i3)
@@ -1116,11 +1114,11 @@ c
  1006 format (4x,6h nlis0,14x,d18.8,12h      indic=,i3)
  1007 format (/4x,6h mlis0,10x,"tmin forced to tmax")
  1008 format (/4x,6h mlis0,10x,"inconsistent call")
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
-     &                        "mpi_max","GRID",ierr)
-      if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0
-     1 .and. tmax.gt.0.d0 .and. amf.gt.0.d0
-     1 .and. amd.gt.amf .and. amd.lt.1.d0) go to 5
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
+                              "mpi_max","GRID",ierr)
+      if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
+       .and. tmax.gt.0.d0 .and. amf.gt.0.d0 &
+       .and. amd.gt.amf .and. amd.lt.1.d0) go to 5
       logic=6
       go to 999
     5 tesf=amf*fpn
@@ -1138,9 +1136,9 @@ c
       fpa=fpn
       call prosca (n,d,d,ps,izs,rzs,dzs)
       d2=ps
-c
+!
 !               elimination d'un t initial ridiculement petit
-c
+!
       if (t.gt.tmin) go to 20
       t=tmin
       if (t.le.tmax) go to 20
@@ -1156,15 +1154,15 @@ c
           logic=1
       endif
       if (imp.ge.4) write (io,1000) fpn,d2,tmin,tmax
-c
+!
 !     --- nouveau x
-c
+!
       do 50 i=1,n
           x(i)=xn(i)+t*d(i)
    50 continue
-c
+!
 ! --- boucle
-c
+!
   100 nap=nap+1
       if(nap.gt.napmax) then
           logic=4
@@ -1175,16 +1173,16 @@ c
           go to 999
       endif
       indic=4
-c
+!
 !     --- appel simulateur
-c
+!
       call tmg_stop(74)
       call simul(indic,n,x,f,g,izs,rzs,dzs)
       call tmg_start(74,'NLIS0')
       if(indic.eq.0) then
-c
+!
 !         --- arret demande par l'utilisateur
-c
+!
           logic=5
           fn=f
           do 170 i=1,n
@@ -1193,9 +1191,9 @@ c
           go to 999
       endif
       if(indic.lt.0) then
-c
+!
 !         --- les calculs n'ont pas pu etre effectues par le simulateur
-c
+!
           td=t
           indicd=indic
           logic=0
@@ -1203,14 +1201,14 @@ c
           t=tg+0.1d0*(td-tg)
           go to 905
       endif
-c
+!
 !     --- les tests elementaires sont faits, on y va
-c
+!
       call prosca (n,d,g,ps,izs,rzs,dzs)
       fp=ps
-c
+!
 !     --- premier test de Wolfe
-c
+!
       ffn=f-fn
       if(ffn.gt.t*tesf) then
           td=t
@@ -1221,33 +1219,33 @@ c
           if(imp.ge.4) write (io,1002) t,ffn,fp
           go to 500
       endif
-c
+!
 !     --- test 1 ok, donc deuxieme test de Wolfe
-c
+!
       if(imp.ge.4) write (io,1003) t,ffn,fp
       if(fp.gt.tesd) then
           logic=0
           go to 320
       endif
       if (logic.eq.0) go to 350
-c
+!
 !     --- test 2 ok, donc pas serieux, on sort
-c
+!
   320 fn=f
       do 330 i=1,n
           xn(i)=x(i)
   330 continue
       go to 999
-c
-c
-c
+!
+!
+!
   350 tg=t
       fg=f
       fpg=fp
       if(td.ne.0.d0) go to 500
-c
+!
 !              extrapolation
-c
+!
       taa=t
       gauche=(1.d0+barmin)*t
       droite=10.d0*t
@@ -1257,9 +1255,9 @@ c
       logic=1
       t=tmax
       go to 900
-c
+!
 !              interpolation
-c
+!
   500 if(indica.le.0) then
           ta=t
           t=0.9d0*tg+0.1d0*td
@@ -1277,22 +1275,22 @@ c
         else
           barr=dmin1(barmul*barr,barmax)
       endif
-c
+!
 ! --- fin de boucle
 !     - t peut etre bloque sur tmax
 !       (venant de l'extrapolation avec logic=1)
-c
+!
   900 fa=f
       fpa=fp
   905 indica=indic
-c
+!
 ! --- faut-il continuer ?
-c
+!
       if (td.eq.0.d0) go to 950
       if (td-tg.lt.tmin) go to 920
-c
+!
 !     --- limite de precision machine (arret de secours) ?
-c
+!
       lfound=.false.
       do i=1,n
           z=xn(i)+t*d(i)
@@ -1302,22 +1300,22 @@ c
           endif
       enddo
       call tmg_start(79,'QN_COMM')
-      call rpn_comm_allreduce(lfound,lfound2,1,"mpi_logical",
-     $     "mpi_lor","GRID",ierr)
+      call rpn_comm_allreduce(lfound,lfound2,1,"mpi_logical", &
+           "mpi_lor","GRID",ierr)
       call tmg_stop(79)
       if(lfound2) go to 950
-c
+!
 ! --- arret sur dxmin ou de secours
-c
+!
   920 logic=6
-c
+!
 !     si indicd<0, derniers calculs non faits par simul
-c
+!
       if (indicd.lt.0) logic=indicd
-c
+!
 !     si tg=0, xn = xn_depart,
 !     sinon on prend xn=x_gauche qui fait decroitre f
-c
+!
       if (tg.eq.0.d0) go to 940
       fn=fg
       do 930 i=1,n
@@ -1328,9 +1326,9 @@ c
       if (logic.eq.6) write (io,1005) td,fd,fpd
       if (logic.eq.7) write (io,1006) td,indicd
       go to 999
-c
+!
 !               recopiage de x et boucle
-c
+!
   950 do 960 i=1,n
   960 x(i)=xn(i)+t*d(i)
       go to 100

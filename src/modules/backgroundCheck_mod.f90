@@ -15,6 +15,132 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
+!! MODULE backgroundCheck_mod (prefix='bgck')
+!!
+!! *Purpose*: Contains subroutines related to the background check 
+!!
+!--------------------------------------------------------------------------
+module backgroundCheck_mod
+  use mathPhysConstants_mod
+  use bufr_mod
+  use obsSpaceData_mod
+  use gps_mod
+  use utilities_mod
+  use mpivar_mod
+  use columnData_mod
+  use obsSpaceDiag_mod
+  use obsFiles_mod
+  use earthConstants_mod
+  use verticalCoord_mod
+  use computeHBHT_mod
+  implicit none
+  private
+
+  ! public procedures
+  public :: bgck_bgcheck_conv, bgck_bgcdata, bgck_bgcgpsro
+
+
+  contains
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Do background check on all conventionnal observations
+!!
+!! @author P. Koclas *CMC/CMDA  Nov 1998
+!!
+!! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
+!!           - Added call to BGCDATA for chemical constituents
+!!           - Added loop over bgfam list
+!!
+!!           Y. Rochon (ARQI/AQRD) June 2016
+!!           - Added call to osd_ObsSpaceDiag
+!!
+!!           S. Laroche (ARMA/MRD) October 2017
+!!           - New option NEW_BGCK_SW for AMVs
+!!
+!--------------------------------------------------------------------------
+subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
+
+  IMPLICIT NONE
+
+  type(struct_obs)        :: obsSpaceData  ! Observation-related data
+  type(struct_columnData) :: columng       !
+  type(struct_columnData) :: columnhr      ! 
+
+  integer :: j, jdata
+  real(8) :: zjo
+
+  integer            :: nulNam, ier, fnom, fclos
+  character(len=256) :: namFile
+  logical            :: NEW_BGCK_SW
+
+  character(len=2), dimension(11) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM' /)
+      
+  call tmg_start(3,'BGCHECK_CONV')
+
+  write(*,FMT=9000)
+9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
+
+  NEW_BGCK_SW = .false.
+
+  NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
+  namFile=trim("flnml")
+  nulNam=0
+  ier = FNOM( NULNAM, NAMFILE, 'R/O', 0 )
+
+  read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
+  if ( ier /= 0 ) then
+    write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
+  end if
+
+  ier = fclos(nulNam)
+
+  write(*,*) 'new_bgck_sw = ',new_bgck_sw
+
+
+!     CALCULATE HBHT (sigma_B in observation space)
+!     ----------------------------------------------
+!
+  call hbht_compute( columng,   &   ! IN
+                     columnhr,  &   ! IN
+                     obsSpaceData ) ! INOUT
+
+!
+!     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+!     ----------------------------------------------
+
+  do j = 1, size( bgfam )
+    ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
+    if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL bgck_bgcdata( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
+  end do
+
+  if (obs_famExist(obsSpaceData,'RO')) CALL bgck_bgcgpsro( columnhr , obsSpaceData )
+
+! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+! computations controlled by NAMOSD namelist in flnml)
+
+  call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
+
+!
+!     Write out contents of obsSpaceData into observation files
+!
+  CALL obsf_writeFiles(obsSpaceData)
+
+  if (mpi_myid == 0 ) then
+    do j =1, min(1,obs_numHeader(obsSpaceData))
+      call obs_prnthdr(obsSpaceData,j)
+      call obs_prntbdy(obsSpaceData,j)
+    end do
+  end if
+
+  ! deallocate obsSpaceData
+  call obs_finalize(obsSpaceData)
+
+  call tmg_stop(3)
+
+end subroutine bgck_bgcheck_conv
+
+
+!--------------------------------------------------------------------------
 !! *Purpose*:  Calculate a background check for a data family
 !!             AND SET the appropriate quality control flags in
 !!             obsSpaceData
@@ -42,13 +168,8 @@
 !!            simultaneously.
 !!
 !--------------------------------------------------------------------------
-      SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
+      SUBROUTINE bgck_bgcdata(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
 
-      use MathPhysConstants_mod
-      use bufr_mod
-      use obsSpaceData_mod
-      use gps_mod
-      use utilities_mod
       IMPLICIT NONE
 !*
 !C NOTE 1: YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
@@ -62,7 +183,7 @@
       REAL*8 PJO,zsum,zsumo
       CHARACTER*2 CDFAM
       LOGICAL :: new_bgck_sw
-      INTEGER IFLAG,INAM,ISETFLAG,INDEX_HEADER,IDBURP
+      INTEGER IFLAG,INAM,INDEX_HEADER,IDBURP
       INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
       INTEGER J,J2,JJ,JD,INDEX_BODY,icoun
       INTEGER INOBS, INREJ, INZOBS, INZREJ
@@ -391,4 +512,341 @@
          write(*,*) ' icoun meanzoer',icoun,zsumo/icoun
       endif
 
-      END SUBROUTINE BGCDATA
+      END SUBROUTINE bgck_bgcdata
+
+
+!--------------------------------------------------------------------------
+!!  *Purpose*: Set background check flag on GPSRO data if ABS(O-P)/P is too large
+!!
+!!  @author P. KOCLAS. Mar 2008
+!!  Modified: 
+!!            -J.M. Aparicio, Dec 2012.
+!!                -Simplified and adapted to both refractivity and bending angle data
+!!
+!--------------------------------------------------------------------------
+      SUBROUTINE bgck_bgcgpsro(lcolumnhr,lobsSpaceData)
+      IMPLICIT NONE
+
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_trl
+      REAL*8 HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
+
+      INTEGER INDEX_HEADER, JD
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, INDEX_BODY
+      INTEGER JL, JH,  NGPSLEV
+      INTEGER NH, NH1, stat, iversion
+
+      LOGICAL  LSTAG
+
+
+      LSTAG = .FALSE.
+      vco_trl => col_getVco(lcolumnhr)
+      stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      if (iversion .eq. 5002) LSTAG = .TRUE. 
+      
+      WRITE(*,*)'ENTER BGCSGPSRO'
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
+      NGPSLEV=col_getNumLev(lcolumnhr,'TH')
+!C
+!C     Loop over all files
+!C
+      ! loop over all header indices of the 'RO' family
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+!C     
+!C     * Process only refractivity data (codtyp 169)
+!C
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+         IF ( IDATYP .EQ. 169 ) THEN
+!C
+!C     *    Basic geometric variables of the profile:
+!C
+            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+!C
+!C     *    Loops over data in the observation
+!C
+            IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+            IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+!C
+!C     *    Scan for requested assimilations, and count them
+!C
+            DO INDEX_BODY= IDATA, IDATEND
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                  HNH1 = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                  IF (LEVELGPSRO.EQ.1) HNH1 = HNH1-Rad
+!C
+!C     *          Increment OMF = Y - H(x)
+!C
+                  ZOMF = obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+!C
+!C     *          Observation value    Y
+!C
+                  ZOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                  ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                  ZMHX = ZOBS-ZOMF
+!C
+!C     *          Reference order of magnitude value:
+!C
+                  IF (LEVELGPSRO.EQ.1) THEN
+                     ZREF = 0.025d0*exp(-HNH1/6500.d0)
+                  ELSE
+                     IF (NUMGPSSATS .GE. 1) THEN
+                       ZREF = 300.d0*exp(-HNH1/6500.d0)
+                     ELSE
+                       ZREF = ZMHX
+                     ENDIF
+                  ENDIF
+!C                           
+!C     *          OMF Tested criteria:
+!C
+                  IF (NUMGPSSATS .GE. 1) THEN
+                    IF (DABS(ZOMF)/ZREF.GT.BGCKBAND .OR. DABS(ZOMF)/ZOER.GT.3.d0) THEN
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
+                    ENDIF
+                  ELSE
+                    IF (DABS(ZOMF)/ZREF.GT.BGCKBAND) THEN
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
+                      WRITE(*,'(A40,F10.0,3F12.4)') ' REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
+                    ENDIF                  
+                  ENDIF
+                  
+               ENDIF
+            ENDDO
+         ENDIF
+
+      ENDDO HEADER
+
+      WRITE(*,*)'EXIT BGCSGPSRO'
+      RETURN
+      
+      END SUBROUTINE bgck_bgcgpsro
+
+
+!--------------------------------------------------------------------------
+!! *Purpose*:  Set BACKGROUND CHECK FLAGS According to values set in a table.
+!!             Original values in table come from ecmwf.
+!!
+!! @author P. Koclas *CMC/CMSV  September 1998
+!!
+!! Arguments:
+!!     -KVNAM= VARIABLE NAME ( BURP )
+!!     -KODTYP=BURP CODE TYPE
+!!     -CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+!!     -ZLEV = LEVEL
+!!     -zbgchk=NORMALIZED BACKGROUND DEPARTURE
+!!     -lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
+!!
+!--------------------------------------------------------------------------
+      function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
+
+      IMPLICIT NONE
+      integer isetflag
+      integer kvnam,kodtyp
+      real*8 zlev
+      real*8 zbgchk
+      character*2 cdfam
+      logical lmodif1020
+
+      real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3)
+      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
+      real*8 zchcrit(3)
+
+      isetflag=0
+
+! ASSUME CVCORD = GEMHYB
+         zttcrit(1) = 9.00D0
+         zttcrit(2) = 16.00D0
+         zttcrit(3) = 25.00D0
+
+         zuvcrit(1) = 10.00D0
+         zuvcrit(2) = 20.00D0
+         zuvcrit(3) = 30.00D0
+
+         zescrit(1) = 10.00D0
+         zescrit(2) = 20.00D0
+         zescrit(3) = 30.00D0
+
+         zpscrit(1) = 9.00D0
+         zpscrit(2) = 16.00D0
+         zpscrit(3) = 25.00D0
+
+         zpncrit(1) = 10.00D0
+         zpncrit(2) = 20.00D0
+         zpncrit(3) = 30.00D0
+
+         zswcrit(1) = 10.00D0
+         zswcrit(2) = 20.00D0
+         zswcrit(3) = 30.00D0
+
+         ztscrit(1) = 5.00D0
+         ztscrit(2) = 25.00D0
+         ztscrit(3) = 30.00D0
+
+         zdzcrit(1) = 2.25D0
+         zdzcrit(2) = 5.06D0
+         zdzcrit(3) = 7.56D0
+
+         zgzcrit(1) = 12.25D0
+         zgzcrit(2) = 25.00D0
+         zgzcrit(3) = 36.00D0
+
+         zzdcrit(1) = 9.00D0
+         zzdcrit(2) = 16.00D0
+         zzdcrit(3) = 25.00D0
+
+         zchcrit(1) = 9.00D0
+         zchcrit(2) = 16.00D0
+         zchcrit(3) = 25.00D0
+
+         if ( kodtyp .eq. 37 ) then
+           zuvcrit(2)=25.D0
+         else
+           zuvcrit(2)=20.D0
+         endif
+!C
+!C     SET FLAG FOR HEIGHTS
+!C
+      if ( kvnam .eq. BUFR_NEGZ ) then
+         if (      zbgchk .gt. zgzcrit(1) .and. zbgchk .lt. zgzcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zgzcrit(2) .and. zbgchk .lt. zgzcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zgzcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR TEMPERATURE
+!C
+      if ( kvnam .eq. BUFR_NETT ) then
+         if (      zbgchk .gt. zttcrit(1) .and. zbgchk .lt. zttcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zttcrit(2) .and. zbgchk .lt. zttcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zttcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR SATEMS
+!C
+      if ( kvnam .eq. BUFR_NEDZ ) then
+         if (      zbgchk .gt. zdzcrit(1) .and. zbgchk .lt. zdzcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zdzcrit(2) .and. zbgchk .lt. zdzcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zdzcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR WIND COMPONENTS
+!C
+      if ( kvnam .eq. BUFR_NEUU .or. kvnam .eq. BUFR_NEVV ) then
+         if (      zbgchk .gt. zuvcrit(1) .and. zbgchk .lt. zuvcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zuvcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zuvcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR SURFACE WIND COMPONENTS
+!C
+      if ( kvnam .eq. BUFR_NEUS .or. kvnam .eq. BUFR_NEVS ) then
+         if (      zbgchk .gt. zswcrit(1) .and. zbgchk .lt. zswcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zswcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zswcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR DEW POINT DEPRESSION
+!C
+      if ( kvnam .eq. BUFR_NEES ) then
+         if (      zbgchk .gt. zescrit(1) .and. zbgchk .lt. zescrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zescrit(2) .and. zbgchk .lt. zescrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zescrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR SURFACE PRESSURE
+!C
+      if ( kvnam .eq. BUFR_NEPS ) then
+         if (      zbgchk .gt. zpscrit(1) .and. zbgchk .lt. zpscrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zpscrit(2) .and. zbgchk .lt. zpscrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zpscrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR MEAN SEA LEVEL PRESSURE
+!C
+      if ( kvnam .eq. BUFR_NEPN ) then
+         if (      zbgchk .gt. zpncrit(1) .and. zbgchk .lt. zpncrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zpncrit(2) .and. zbgchk .lt. zpncrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zpncrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR SURFACE TEMPERATURE
+!C
+      if ( kvnam .eq. BUFR_NETS ) then
+         if (      zbgchk .gt. ztscrit(1) .and. zbgchk .lt. ztscrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. ztscrit(2) .and. zbgchk .lt. ztscrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. ztscrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR GB-GPS ZENITH DELAY
+!C
+      if ( kvnam .eq. BUFR_NEZD ) then
+         if (      zbgchk .gt. zzdcrit(1) .and. zbgchk .lt. zzdcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zzdcrit(2) .and. zbgchk .lt. zzdcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zzdcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR CHEMICAL CONSTITUENTS
+!C
+      if ( cdfam .eq. 'CH' ) then
+         if (      zbgchk .gt. zchcrit(1) .and. zbgchk .lt. zchcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zchcrit(2) .and. zbgchk .lt. zchcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zchcrit(3) )then
+              isetflag =3
+         endif
+      endif
+
+      return
+      end function isetflag
+
+
+end module backgroundCheck_mod

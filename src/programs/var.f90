@@ -53,6 +53,7 @@ program midas_var
   use increment_mod
   use residual_mod
   use stateToColumn_mod
+  use backgroundCheck_mod
 
   implicit none
 
@@ -154,7 +155,7 @@ program midas_var
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
-    call bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+    call bgck_bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
 
   ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   else if ( trim(varMode) == 'bgckIR' ) then
