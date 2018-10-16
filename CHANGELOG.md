@@ -22,39 +22,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
-## [3.3.0-rc3]:
-
-### Added
-
-* The program `ensManip` can now read a file `targetgrid` in the
-  working directory on which grid all fields will be interpolated
-  (#138 and !128).  By default, all files will be interpolated on the
-  grid of the ensemble.
-
-### Changed
-
-* Write the hessian after 'rebm', 'rehm' and 'anlm' files (#142 and !126)
-
-### Fixed
-
-* Fix 'get_avhrr_emiss' when some channels are missing (#140 and !125)
-* A fix was done to control the minimum value for 'HU' after
-  interpolating profiles from background state levels to analysis
-  levels (#144 and !127).  This is affecting very weakly the results of
-  most test for program `midas-var`.
-* Reject observations with unrealistic lat-lon values (#137 and !128)
-
-## [3.3.0-rc2]
-
-This version is identical to [3.3.0-rc1].
-
-## [3.3.0-rc1]
+## [3.3.0]:
 
 ### Added
 
 * The program `ensManip` can now compute the standard deviation of an
   ensemble of forecasts and recenter the ensemble forecasts around a
   specified mean (#55, #65, #104, #131, !48, !52, !94 and !116).
+* The program `ensManip` can now read a file `targetgrid` in the
+  working directory on which grid all fields will be interpolated
+  (#138 and !128).  By default, all files will be interpolated on the
+  grid of the ensemble.
 * A program `addIncrement` has been added (#38, #53, #54, #123, #126, !102, !41, !47, !100, !106 and !115)
   * The namelist `NAMADDINC` has been renamed `NAMINC`.  The namelist
     variable `CETIKINC` in namelist `NAMMIN` has been moved to
@@ -117,6 +95,7 @@ This version is identical to [3.3.0-rc1].
 * Centralize unit conversion and convert to Kelvin (#134 and !119)
 * Simplify calculations in `windRotation_mod` (#134 and !119)
 * Decrease a threshold for vertical interpolation for TOVS (#134 and !119)
+* Write the hessian after 'rebm', 'rehm' and 'anlm' files (#142 and !126)
 
 ### Fixed
 
@@ -128,10 +107,12 @@ This version is identical to [3.3.0-rc1].
 * Fix to statetocolumn_mod in the extremely rare case where a
   processor had some observations before the load balancing but none
   after (#129 and !113)
-
-### Removed
-
-* (Nothing yet)
+* Fix 'get_avhrr_emiss' when some channels are missing (#140 and !125)
+* A fix was done to control the minimum value for 'HU' after
+  interpolating profiles from background state levels to analysis
+  levels (#144 and !127).  This is affecting very weakly the results of
+  most test for program `midas-var`.
+* Reject observations with unrealistic lat-lon values (#137 and !128)
 
 ## [3.2.2] - 2018-05-09
 
@@ -222,10 +203,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc3...HEAD
-[3.3.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc2...v_3.3.0-rc3
-[3.3.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0-rc1...v_3.3.0-rc2
-[3.3.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0-rc1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0...HEAD
+[3.3.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0
 [3.2.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.1...v_3.2.2
 [3.2.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.0...v_3.2.1
 [3.2.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.0.4...v_3.2.0
