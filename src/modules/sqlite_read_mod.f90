@@ -166,6 +166,7 @@ contains
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
@@ -201,12 +202,14 @@ contains
     vertCoordfact  = 1
     columnsData = " id_data, id_obs, vcoord, varno, obsvalue, flag "
     if ( trim(familyType) == 'TO' ) then      
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, status, id_stn, id_sat, land_sea, instrument, zenith, solar_zenith "
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, id_sat, land_sea, instrument, zenith, solar_zenith "
       vertCoordType = 3
+    else if ( trim(familyType) == 'GL' ) then
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else
-      columnsHeader = " id_obs, lat, lon, codtyp, date, time, status, id_stn, elev"  
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
     end if
-    
+
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     select case(trim(rdbSchema))
@@ -301,6 +304,10 @@ contains
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
+      case( 'gl' )
+        read(nulnam, nml = NAMSQLgl, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
@@ -318,16 +325,15 @@ contains
     end do
 
     write(cfgSqlite, '(i6)' ) bitsFlagOff
-    csqlcrit=trim("  flag & "//cfgSqlite)//" = 0 "
-    write(cfgSqlite, '(i6)' ) bitsFlagOn
+    csqlcrit=trim(" (flag & "//cfgSqlite)//" = 0 "
 
     if ( numberBitsOn > 0 ) then
       write(cfgSqlite, '(i6)' ) bitsFlagOn
-      csqlcrit = trim(CSQLcrit)//trim(" and flag & "//cfgSqlite)
-      csqlcrit = trim(CSQLcrit)//" = "//cfgSqlite
+      csqlcrit = trim(csqlcrit)//trim(" and flag & "//cfgSqlite)
+      csqlcrit = trim(csqlcrit)//" = "//cfgSqlite
     end if
 
-    csqlcrit = trim(CSQLcrit)//" and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
+    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
     queryData= "select "//columnsData
     queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlLimit)//";"
     queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
@@ -352,9 +358,11 @@ contains
     write(*,*) myName//' DEBUT numheader  =', obs_numHeader(obsdat)
     write(*,*) myName//' DEBUT numbody    =', obs_numBody(obsdat)
     call fSQL_get_many (  stmt2, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
-    write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns, rdbSchema, trim(queryData)
+    write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
+    write(*,*) myName//'  rdbSchema = ', rdbSchema
     write(*,*)' ========================================== '
     allocate( matdata(numberRows, numberColumns) )
+    matdata = 0.0
     call fSQL_fill_matrix ( stmt2, matdata )
     call fSQL_free_mem    ( stmt2 )
     call fSQL_finalize    ( stmt2 )
@@ -385,17 +393,17 @@ contains
       instrument = MPC_missingValue_INT
       azimuth = MPC_missingValue_INT; azimuthReal = MPC_missingValue_R8  
 
-      call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo     )
-      call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat       )
-      call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon       )
+      call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo    )
+      call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
+      call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = obsLon    )
       call fSQL_get_column( stmt, COL_INDEX = 4, INT_VAR   = codeType  )
-      call fSQL_get_column( stmt, COL_INDEX = 5, INT_VAR   = obsDate      )
-      call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime      )
-      call fSQL_get_column( stmt, COL_INDEX = 7, INT_VAR   = obsStatus    )
-      call fSQL_get_column( stmt, COL_INDEX = 8, CHAR_VAR  = idStation )
+      call fSQL_get_column( stmt, COL_INDEX = 5, INT_VAR   = obsDate   )
+      call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime   )
+      call fSQL_get_column( stmt, COL_INDEX = 7, CHAR_VAR  = idStation )
 
       if ( trim(familyType) == 'TO' ) then
 
+        call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR   = obsStatus )
         call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
         call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
         call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument, INT_MISSING=MPC_missingValue_INT  )
@@ -435,8 +443,14 @@ contains
           instrument = obsu_cvt_obs_instrum(sensor)
         end if
 
+      else if ( trim(familyType) == 'GL' ) then
+
+         ! Nothing more to read for GL now.
+         ! It does not have the obsStatus column.
+
       else  ! familyType = CONV
 
+        call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
         call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
         elevReal=elev
 
@@ -567,10 +581,10 @@ contains
     write(*,*)  myName//' FIN numbody    =', obs_numBody(obsdat)
     write(*,*)  myName//' fin header '
     timeCharacter = sqlr_query(db,"select time('now')")
-    write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter,rdbSchema
+    write(*,*) myName//' END OF QUERY TIME IS = ', timeCharacter
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
-    write(*,*) myName//' end subroutine: ', rdbSchema
+    write(*,*) 'end subroutine: ', myName
 
   end subroutine sqlr_readSqlite
 
@@ -657,11 +671,12 @@ contains
     if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
     ierr = fclos( nulnam )
 
-    write(*,'(3a,i8)') myName//': Family Type   = ', trim(familyType), ' number of items to update: ', numberUpdateItems
-    write(*,*)         myName//': File Name     = ', trim(fileName)
-    write(*,*)         myName//': Missing Value = ', MPC_missingValue_R8    
+    write(*,*) myName//': Family Type   = ', trim(familyType)
+    write(*,*) myName//': Number of items to update: ', numberUpdateItems
+    write(*,*) myName//': File Name     = ', trim(fileName)
+    write(*,*) myName//': Missing Value = ', MPC_missingValue_R8    
 
-    ! CREATE QUERY  
+    ! CREATE QUERY
     itemChar='  '
 
     do itemId = 1, numberUpdateItems
@@ -725,7 +740,7 @@ contains
                                  REAL_VAR = romp )
           end if
 
-        end do ITEMS            
+        end do ITEMS
 
         call fSQL_bind_param(stmt, PARAM_INDEX = numberUpdateItems + 2, INT_VAR  = obsIdd )
         call fSQL_exec_stmt (stmt)
@@ -733,26 +748,32 @@ contains
       end do BODY
 
     end do HEADER
-    
-    call fSQL_finalize( stmt )
-    ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABBLE
-    query = ' update header set status  = ? where id_obs = ? '
-    call fSQL_prepare( db, query , stmt, stat)
-    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
-    
-    HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
 
-      obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-      if ( obsIdf /= fileNumber ) cycle HEADER2
-      obsIdo    = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
-      obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
-      call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
-      call fSQL_exec_stmt ( stmt)
-
-    end do HEADER2
-    
     call fSQL_finalize( stmt )
+
+    if ( trim(familyType) /= 'GL' ) then
+
+       ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABLE
+       query = ' update header set status  = ? where id_obs = ? '
+       call fSQL_prepare( db, query , stmt, stat)
+       if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
+
+       HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
+
+          obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
+          if ( obsIdf /= fileNumber ) cycle HEADER2
+          obsIdo    = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
+          obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex )
+          call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsStatus )
+          call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
+          call fSQL_exec_stmt ( stmt)
+
+       end do HEADER2
+    
+       call fSQL_finalize( stmt )
+
+    end if
+
     call fSQL_commit(db)
     write(*,*) myName//' End ===================  ', trim(familyType)
 

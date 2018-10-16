@@ -4,7 +4,7 @@
   obsIOFactor = 1.5
 /
  &NAMDIMO
-   NMXOBS=10000,
+   NMXOBS=20000,
    NDATAMX=80000,
 /
  &NAMCODTYP
@@ -12,6 +12,12 @@
  &NAMSQLua
   numberElem=11
   listElem="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
+  sqlExtraDat=" order by id_obs "
+  sqlNull=" and obsvalue is not null "
+/
+ &NAMSQLgl
+  numberElem=4
+  listElem="20222,20237,21199,21169"
   sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /

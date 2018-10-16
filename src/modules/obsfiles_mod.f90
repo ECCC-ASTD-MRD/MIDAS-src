@@ -316,7 +316,7 @@ contains
     character(len=256)  :: obsDirectory
     character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
     character(len=256)               :: fileNamefull
-    logical :: isExist_L 
+    logical :: fileExists
     integer :: fileIndex
 
     write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
@@ -396,11 +396,20 @@ contains
     clvalu(68) = 'obsssm'
     clvalu(69) = 'obsgp'
     clvalu(70) = 'obsch'
+    clvalu(71) = 'obsgl_ssmi'
+    clvalu(72) = 'obsgl_ssmis'
+    clvalu(73) = 'obsgl_amsr2'
+    clvalu(74) = 'obsgl_ascat'
+    clvalu(75) = 'obsgl_avhrr'
+    clvalu(76) = 'obsgl_cisA'
+    clvalu(77) = 'obsgl_cisI'
+    clvalu(78) = 'obsgl_cisL'
+    clvalu(79) = 'obsgl_cisR'
     ! file name for CMA format used by EnKF
-    clvalu(71) = 'cmaheader'
+    clvalu(80) = 'cmaheader'
     ! Sea Surface Temperature data file name
-    clvalu(72) = 'brpsst'
-    clvalu(73) = 'obsal'
+    clvalu(81) = 'brpsst'
+    clvalu(82) = 'obsal'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -473,10 +482,19 @@ contains
     cfami(68)  = 'MI'
     cfami(69)  = 'GP'
     cfami(70)  = 'CH'
+    cfami(71)  = 'GL'
+    cfami(72)  = 'GL'
+    cfami(73)  = 'GL'
+    cfami(74)  = 'GL'
+    cfami(75)  = 'GL'
+    cfami(76)  = 'GL'
+    cfami(77)  = 'GL'
+    cfami(78)  = 'GL'
+    cfami(79)  = 'GL'
     ! dummy family type for CMA, since it contains all families
-    cfami(71)  = 'XX'
-    cfami(72)  = 'TM'
-    cfami(73)  = 'AL'
+    cfami(80)  = 'XX'
+    cfami(81)  = 'TM'
+    cfami(82)  = 'AL'
 
     obsDirectory = 'obs'
 
@@ -489,14 +507,14 @@ contains
       fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
 
-      inquire(file=trim(fileNameFull),exist=isExist_L)
-      if (.not. isExist_L ) then
+      inquire(file=trim(fileNameFull),exist=fileExists)
+      if (.not. fileExists ) then
         fileName=trim(obsDirectory)//'/'//trim(clvalu(fileIndex))
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
-        inquire(file=trim(fileNameFull), exist=isExist_L)
+        inquire(file=trim(fileNameFull), exist=fileExists)
       end if
 
-      if ( isExist_L ) then
+      if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
@@ -539,12 +557,12 @@ contains
       call utl_abort('obsf_determineFileType: No observation files found')
     end if
 
-    write(*,*) 'obsf_setupFileNames: read obs file that exists on mpi task id: ', procID
+    write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
 
     if ( mpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
 
     call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
-    write(*,*) 'obsf_setupFileNames: obsFileType = ', obsFileType
+    write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
 
@@ -576,7 +594,7 @@ contains
       else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
         obsFiletype = 'BURP'
       else
-        call utl_abort('obsf_determineFileType: unknown obs file type')
+        call utl_abort('obsf_determineSplitFileType: unknown obs file type')
       end if
 
     end if
