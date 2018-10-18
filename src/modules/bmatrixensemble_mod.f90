@@ -406,7 +406,7 @@ CONTAINS
     !- 2.6 Localization
     if ( trim(ben_mode) == 'Analysis' ) then
 
-      call mpivar_setup_levels_npex(nEns,myMemberBeg,myMemberEnd,myMemberCount)
+      call mpivar_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
       call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
       nEnsOverDimension = mpi_npex * maxMyMemberCount
@@ -1114,8 +1114,8 @@ CONTAINS
     !- Setup a spectral transform for filtering (nk = nEnsOverDimension)
     !
 
-    call mpivar_setup_levels_npex(nEns,                                  & ! IN
-                                  myMemberBeg,myMemberEnd,myMemberCount)   ! OUT
+    call mpivar_setup_levels(nEns,                                  & ! IN
+                             myMemberBeg,myMemberEnd,myMemberCount)   ! OUT
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                             1,"MPI_INTEGER","mpi_max","GRID",ierr)
     nEnsOverDimension  = mpi_npex * maxMyMemberCount
