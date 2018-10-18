@@ -309,10 +309,14 @@ c
 c
 !----
 c
-      if (sscale) then
-          m=(nrz-3*n)/(2*n)
+      if (n.eq.0) then
+         m=0
       else
-          m=(nrz-4*n)/(2*n)
+         if (sscale) then
+            m=(nrz-3*n)/(2*n)
+         else
+            m=(nrz-4*n)/(2*n)
+         endif
       endif
       inmemo=.true.
       ! return
@@ -389,7 +393,8 @@ c
 !     variables locales
 !     
       logical inmemo,sscale
-      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo
+      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal,ierr
+      integer m_max
       double precision d1,d2,ps
 !     
 !---- impressions initiales et controle des arguments
@@ -397,6 +402,9 @@ c
       write(io,*) '--------------------------------------------------'
       write(io,*) 'N1QN3: calling modified MPI version of modulopt!!!'
       write(io,*) '--------------------------------------------------'
+
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
+     &                        "mpi_max","GRID",ierr)
 
       if (impres.ge.1)
      /     write (io,900) n,dxmin,df1,epsg,niter,nsim,impres
@@ -408,11 +416,12 @@ c
      /     5x,"maximal number of iterations (niter):",i6/
      /     5x,"maximal number of simulations (nsim):",i6/
      /     5x,"printing level (impres):",i4)
-      if (n.le.0.or.niter.le.0.or.nsim.le.0.or.dxmin.le.0.d+0.or.
+
+      if (ntotal.le.0.or.niter.le.0.or.nsim.le.0.or.dxmin.le.0.d+0.or.
      &     epsg.le.0.d+0.or.epsg.gt.1.d+0.or.mode.lt.0.or. 
      &     mode.gt.3) then
          mode=2
-         if (impres.ge.1) write (io,901)
+         write (io,901)
  901     format (/" >>> n1qn3: inconsistent call")
          return
       endif
@@ -429,9 +438,10 @@ c
          sscale=.true.
       endif
 !     
-      if ((ndz.lt.5*n+1).or.((.not.sscale).and.(ndz.lt.6*n+1))) then
+      if ( n.gt.0 .and. 
+     +     ((ndz.lt.5*n+1).or.((.not.sscale).and.(ndz.lt.6*n+1))) ) then
          mode=2
-         if (impres.ge.1) write (io,902)
+         write (io,902)
  902     format (/" >>> n1qn3: not enough memory allocated")
          return
       endif
@@ -439,12 +449,18 @@ c
 !---- Compute m
 !     
       call mupdts (sscale,inmemo,n,m,ndz)
+      call rpn_comm_allreduce(m,m_max,1,"mpi_integer",
+     &                        "mpi_max","GRID",ierr)
+      if (m.ne.m_max) then
+         write(io,*) 'replacing value of m, ',m,' with ',m_max
+         m=m_max
+      endif
 !     
 !     --- Check the value of m (if (y,s) pairs in core, m will be >= 1)
 !     
       if (m.lt.1) then
          mode=2
-         if (impres.ge.1) write (io,9020)
+         write (io,9020)
  9020    format (/" >>> n1qn3: m is set too small in mupdts")
          return
       endif
@@ -456,13 +472,13 @@ c
 !     
       ntravu=2*(2+mmemo)*n
       if (sscale) ntravu=ntravu-n
-      if (impres.ge.1) write (io,903) ndz,ntravu,m
+      write (io,903) ndz,ntravu,m
  903  format (/5x,"allocated memory (ndz) :",i9/
      /     5x,"used memory :           ",i9/
      /     5x,"number of updates :     ",i9)
       if (ndz.lt.ntravu) then
          mode=2
-         if (impres.ge.1) write (io,902)
+         write (io,902)
          return
       endif
 !     
@@ -561,7 +577,7 @@ c
 c
 !         variables locales
 c
-      logical sscale,cold,warm
+      logical sscale,cold,warm,ntotal
       integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
       double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff,
      &     preco,precos,ys,den,
@@ -593,6 +609,8 @@ c
       eps1=1.d+0
 c
       call rpn_comm_allreduce(impres,impresmax,1,"mpi_integer",
+     &                        "mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
      &                        "mpi_max","GRID",ierr)
 c
       call tmg_stop(73)
@@ -932,7 +950,7 @@ c
                   call tmg_start(79,'QN_COMM')
                   call mpi_allreduce_sumreal8scalar(ps,"GRID")
                   call tmg_stop(79)
-                  ps=ps/n
+                  ps=ps/ntotal
                   preco=ps
 c
                   ps2=0.d0
@@ -942,7 +960,7 @@ c
                   call tmg_start(79,'QN_COMM')
                   call mpi_allreduce_sumreal8scalar(ps2,"GRID")
                   call tmg_stop(79)
-                  ps2=dsqrt(ps2/n)
+                  ps2=dsqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3,
      &                   ", sqrt(variance) = ",d10.3)
@@ -1082,7 +1100,7 @@ c
 ! --- variables locales
 c
       logical lfound,lfound2
-      integer i,indic,indica,indicd, ierr
+      integer i,indic,indica,indicd,ierr,ntotal
       double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,
      / fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 c
@@ -1098,7 +1116,9 @@ c
  1006 format (4x,6h nlis0,14x,d18.8,12h      indic=,i3)
  1007 format (/4x,6h mlis0,10x,"tmin forced to tmax")
  1008 format (/4x,6h mlis0,10x,"inconsistent call")
-      if (n.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0
+      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer",
+     &                        "mpi_max","GRID",ierr)
+      if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0
      1 .and. tmax.gt.0.d0 .and. amf.gt.0.d0
      1 .and. amd.gt.amf .and. amd.lt.1.d0) go to 5
       logic=6
