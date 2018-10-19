@@ -809,7 +809,6 @@ contains
 
     implicit none
 
-    integer, parameter :: bufr_avgkern=15044
     integer, parameter :: ndim=2
 
     integer :: istnid
