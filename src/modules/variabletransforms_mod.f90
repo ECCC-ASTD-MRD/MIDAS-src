@@ -196,8 +196,6 @@ CONTAINS
 
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
-    real(4), parameter :: humin_r4 = 1.0E-7
-    real(8), parameter :: humin_r8 = 1.0D-7
 
     if ( statevector%dataKind == 8 ) then
 
@@ -209,7 +207,7 @@ CONTAINS
         do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
             do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),humin_r8))
+              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),MPC_MINIMUM2_HU_R8))
             end do
           end do
         end do
@@ -226,7 +224,7 @@ CONTAINS
         do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
             do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),humin_r4))
+              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),MPC_MINIMUM2_HU_R4))
             end do
           end do
         end do
