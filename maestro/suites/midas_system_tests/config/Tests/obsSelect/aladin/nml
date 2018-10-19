@@ -125,8 +125,8 @@
   TYPE_RESUME='BGCKALT'
 /
  &NAMSQLAL
-  numberElem=2,
-  listElem="40030,5021",
+  numberElem=12,
+  listElem="5021,40030,10004,12001,40029,40030,40031,40032,40033,40034,40036,40037",
   sqlExtraDat=" order by id_obs ",
   sqlNull=" and obsvalue is not null "
 /
