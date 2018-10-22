@@ -40,6 +40,7 @@ program midas_ominusf
   use tovs_nl_mod
   use obsErrors_mod
   use obsOperators_mod
+  use computeHBHT_mod
   implicit none
 
   type(struct_obs),       target  :: obsSpaceData
@@ -189,7 +190,7 @@ program midas_ominusf
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
     ! 2.3 Compute the background errors in observation space
-    call compute_HBHT(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+    call hbht_compute(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
   end if
 
   ! 2.4 Write the results

@@ -77,6 +77,7 @@ midasAbs=midas-${program}_${ORDENV_PLAT}-${revnum}.Abs
 # LIBAPPL defined in "src_files" script
 LIBSYS="hpcoperf sqlite3"
 LIBRMN=rmnMP
+. ${programsDir}/src_files/compile_setup_${program}.sh
 . ${programsDir}/src_files/src_files_${program}.sh
 
 if [ $mode == full ] ; then
@@ -90,7 +91,6 @@ if [ $mode == full ] ; then
   fi
   cp -f ${modulesDir}/*.f* ${compiledir}/
   cp -f ${modulesDir}/shared/*.f*90 ${compiledir}/
-  cp -f ${modulesDir}/bgcheck/*.f*90 ${compiledir}/
 
   cd ${compiledir}
 
