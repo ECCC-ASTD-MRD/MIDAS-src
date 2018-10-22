@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -ne 1 -a $# -ne 2 ]; then
+    echo "The script $0 only accepts one or two arguments"
+    echo "    $0 sqlitefile [table file prefix]"
+    exit 1
+fi
+filein=$1
+if [ $# -eq 2 ]; then
+    fileout=${2}
+else
+    fileout=${filein}
+fi
+
+# obtain list of tables in the file
+tablelist=$(echo .tables | sqlite3 ${filein})
+
+# loop over all tables
+for table in ${tablelist}; do
+    echo "select * from ${table};" | sqlite3 -header -column ${filein} > ${fileout}_${table}.dat
+done
