@@ -94,6 +94,7 @@ MODULE advection_mod
   real(8) :: steeringFlowDelTsec, steeringFlowFactor
 
   type(struct_hco), pointer :: hco
+  type(struct_vco), pointer :: vco
 
   logical :: nlat_equalAcrossMpiTasks, nlon_equalAcrossMpiTasks
 
@@ -125,6 +126,7 @@ CONTAINS
     type(struct_gsv), optional :: statevector_steeringFlow_opt
 
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, jsubStep, stepIndexSF, stepIndexAF, ierr
+    integer :: levIndexBelow, levIndexAbove
     integer :: gdxyfll, gdllfxy
     integer :: nsize, latIndex_mpiglobal, lonIndex_mpiglobal
     integer :: alfa, nLevType
@@ -141,7 +143,7 @@ CONTAINS
     real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     real(4) :: xpos_r4, ypos_r4, xposTH_r4, yposTH_r4
-    real(4) :: lonMMk_deg_r4, lonMMkm1_deg_r4, latMMk_deg_r4, latMMkm1_deg_r4, lonTH_deg_r4, latTH_deg_r4 
+    real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4 
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
 
     character(len=64) :: filename
@@ -164,8 +166,8 @@ CONTAINS
     
     allocate(adv%timeStepIndexSource(numStepAdvectedField))
 
-    if (vco_in%Vcode /= 5002 ) then
-      call utl_abort('adv_setup: Only vCode=5002 is currently supported!')
+    if (vco_in%Vcode /= 5002 .and. vco_in%Vcode /= 5005 ) then
+      call utl_abort('adv_setup: Only vCode 5002 and 5005 are currently supported!')
     end if
 
     select case(trim(levTypeList))
@@ -224,8 +226,9 @@ CONTAINS
     hco => hco_in
     adv%ni = hco%ni
     adv%nj = hco%nj
-    adv%nLev_M = vco_in%nLev_M
-    adv%nLev_T = vco_in%nLev_T
+    vco => vco_in
+    adv%nLev_M = vco%nLev_M
+    adv%nLev_T = vco%nLev_T
 
     call mpivar_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
          divisible_opt=nlat_equalAcrossMpiTasks)
@@ -298,7 +301,7 @@ CONTAINS
                      real(stepIndexSF-1,8)*steeringFlowDelThour)
       end do
 
-      call gsv_allocate(statevector_steeringFlow,numStepSteeringFlow, hco, vco_in, &
+      call gsv_allocate(statevector_steeringFlow,numStepSteeringFlow, hco, vco, &
                         dateStampList_opt=dateStampListSteeringFlow, &
                         varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true., &
                         hInterpolateDegree_opt='LINEAR')
@@ -455,7 +458,7 @@ CONTAINS
           do latIndex0 = adv%myLatBeg, adv%myLatEnd
             do lonIndex0 = adv%myLonBeg, adv%myLonEnd
 
-              if (levIndex == 1) then
+              if (levIndex == 1 .and. vco%Vcode == 5002) then
                 ! use top momentum level amplitudes for top thermo level
                 xposTH_r4 = xposMM_r4(stepIndexAF,lonIndex0,latIndex0,1)
                 yposTH_r4 = yposMM_r4(stepIndexAF,lonIndex0,latIndex0,1)
@@ -465,27 +468,35 @@ CONTAINS
                 yposTH_r4 = yposMM_r4(stepIndexAF,lonIndex0,latIndex0,adv%nLev_M)
               else
                 ! for other levels, interpolate momentum positions to get thermo positions (as in GEM)
-                ierr = gdllfxy(hco%EZscintID, latMMk_deg_r4  , lonMMk_deg_r4, &
-                               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex  ), &
-                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex  ), 1) 
+                if (vco%Vcode == 5002) then
+                  levIndexBelow = levIndex
+                  levIndexAbove = levIndex-1
+                else
+                  levIndexBelow = levIndex+1
+                  levIndexAbove = levIndex
+                end if
 
-                ierr = gdllfxy(hco%EZscintID, latMMkm1_deg_r4, lonMMkm1_deg_r4, &
-                               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex-1), &
-                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex-1), 1)
+                ierr = gdllfxy(hco%EZscintID, latMMbelow_deg_r4, lonMMbelow_deg_r4, &
+                               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexBelow), &
+                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexBelow), 1) 
 
-                if (lonMMk_deg_r4   < 0.0) lonMMk_deg_r4   = lonMMk_deg_r4   + 360.0
-                if (lonMMkm1_deg_r4 < 0.0) lonMMkm1_deg_r4 = lonMMkm1_deg_r4 + 360.0
+                ierr = gdllfxy(hco%EZscintID, latMMabove_deg_r4, lonMMabove_deg_r4, &
+                               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexAbove), &
+                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexAbove), 1)
 
-                if ( abs(lonMMk_deg_r4 - lonMMkm1_deg_r4) > 180.0 ) then
-                  if (lonMMk_deg_r4 > 180.0 ) then
-                    lonMMk_deg_r4   = lonMMk_deg_r4   - 360.0
+                if (lonMMbelow_deg_r4 < 0.0) lonMMbelow_deg_r4 = lonMMbelow_deg_r4 + 360.0
+                if (lonMMabove_deg_r4 < 0.0) lonMMabove_deg_r4 = lonMMabove_deg_r4 + 360.0
+
+                if ( abs(lonMMbelow_deg_r4 - lonMMabove_deg_r4) > 180.0 ) then
+                  if (lonMMbelow_deg_r4 > 180.0 ) then
+                    lonMMbelow_deg_r4 = lonMMbelow_deg_r4 - 360.0
                   else
-                    lonMMkm1_deg_r4 = lonMMkm1_deg_r4 - 360.0
+                    lonMMabove_deg_r4 = lonMMabove_deg_r4 - 360.0
                   end if
                 end if
-                lonTH_deg_r4 = 0.5 * (lonMMk_deg_r4 + lonMMkm1_deg_r4)
+                lonTH_deg_r4 = 0.5 * (lonMMbelow_deg_r4 + lonMMabove_deg_r4)
                 if (lonTH_deg_r4 < 0.0) lonTH_deg_r4 = lonTH_deg_r4 + 360.0
-                latTH_deg_r4 = 0.5 * (latMMk_deg_r4 + latMMkm1_deg_r4)
+                latTH_deg_r4 = 0.5 * (latMMbelow_deg_r4 + latMMabove_deg_r4)
 
                 ierr = gdxyfll(hco%EZscintID, xposTH_r4, yposTH_r4, &
                                latTH_deg_r4, lonTH_deg_r4, 1)
@@ -562,6 +573,7 @@ CONTAINS
     integer :: stepIndexSF, nsize, ierr 
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
     integer :: lonIndex_mpiglobal, latIndex_mpiglobal
+    integer :: levIndexBelow, levIndexAbove
 
     real(8) :: uu, vv, latAdvect
 
@@ -582,7 +594,7 @@ CONTAINS
       ! Vertical interpolation is needed...
       ! The adopted approach follows the vertical interpolation for the amplitude fields in bMatrixEnsemble_mod
       do stepIndexSF = 1, numStepSteeringFlow
-        if (levIndex == 1) then
+        if (levIndex == 1 .and. vco%Vcode == 5002) then
           ! use top momentum level amplitudes for top thermo level
           uu_steeringFlow_ThermoLevel(:,:) = uu_steeringFlow_ptr4d(:,:,1,stepIndexSF)
           vv_steeringFlow_ThermoLevel(:,:) = vv_steeringFlow_ptr4d(:,:,1,stepIndexSF)
@@ -592,12 +604,19 @@ CONTAINS
           vv_steeringFlow_ThermoLevel(:,:) = vv_steeringFlow_ptr4d(:,:,nLev_M,stepIndexSF)
         else
           ! for other levels, interpolate momentum winds to get thermo winds
+          if (vco%Vcode == 5002) then
+            levIndexBelow = levIndex
+            levIndexAbove = levIndex-1
+          else
+            levIndexBelow = levIndex+1
+            levIndexAbove = levIndex
+          end if
           !$OMP PARALLEL DO PRIVATE (latIndex)
           do latIndex = myLatBeg, myLatEnd
-            uu_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( uu_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexSF) + &
-                 uu_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexSF) )
-            vv_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( vv_steeringFlow_ptr4d(:,latIndex,levIndex-1,stepIndexSF) + &
-                 vv_steeringFlow_ptr4d(:,latIndex,levIndex,stepIndexSF) )
+            uu_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( uu_steeringFlow_ptr4d(:,latIndex,levIndexAbove,stepIndexSF) + &
+                 uu_steeringFlow_ptr4d(:,latIndex,levIndexBelow,stepIndexSF) )
+            vv_steeringFlow_ThermoLevel(:,latIndex) = 0.5d0*( vv_steeringFlow_ptr4d(:,latIndex,levIndexAbove,stepIndexSF) + &
+                 vv_steeringFlow_ptr4d(:,latIndex,levIndexBelow,stepIndexSF) )
           end do
           !$OMP END PARALLEL DO
         end if
