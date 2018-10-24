@@ -53,7 +53,7 @@ module aladin_mod
     real(8) :: hlos
 
     hlos = azimuth * MPC_RADIANS_PER_DEGREE_R8
-    ala_aladin = vv*cos(hlos) + uu*sin(hlos)
+    ala_aladin = -vv*cos(hlos) - uu*sin(hlos)
 
   end function ala_aladin
 
@@ -79,7 +79,7 @@ module aladin_mod
 
     ! The satellite supplies the azimuth in degrees
     hlos = azimuth * MPC_RADIANS_PER_DEGREE_R8
-    ala_aladin_tl = del_vv*cos(hlos) + del_uu*sin(hlos)
+    ala_aladin_tl = -del_vv*cos(hlos) - del_uu*sin(hlos)
 
   end function ala_aladin_tl
 
@@ -107,8 +107,8 @@ module aladin_mod
     ! The satellite supplies the azimuth in degrees
     hlos = azimuth * MPC_RADIANS_PER_DEGREE_R8
 
-    del_uu     = del_uu + del_aladin*sin(hlos)
-    del_vv     = del_vv + del_aladin*cos(hlos)
+    del_uu     = del_uu - del_aladin*sin(hlos)
+    del_vv     = del_vv - del_aladin*cos(hlos)
     del_aladin = 0
   end subroutine ala_aladin_ad
 
