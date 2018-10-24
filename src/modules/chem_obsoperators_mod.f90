@@ -406,7 +406,7 @@ contains
             case(0)
             
                ! Store OmP in OBS_OMP and add to Jo(x_background) of CH.   
-                            
+                           
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
 
@@ -1171,6 +1171,8 @@ contains
 !!v           - Added use of varName and consideration of ug/kg for model fields
 !!v           M. Sitwell, ARQI/AQRD, April 2016
 !!v           - Moved nonlinear transformations into chm_transform_profile
+!!v           Y. Rochon, ARQI/AQRD, Oct 2018
+!!v           - Updated to latest set of BUFR_UNIT_* in bufr_mod.f90
 !!
 !! Further changes required for generalization 
 !!
@@ -1180,7 +1182,7 @@ contains
 !! Comments:
 !!
 !!v     A. Standard model/analysis species field provided as mass mixing 
-!!v        ratio in ug/kg (ppb). Conversion to ppb is pplied when this is 
+!!v        ratio in ug/kg (ppb). Conversion to ppb is applied when this is 
 !!v        not the case except for AOD and surface emissions.
 !!v        As this is hardcoded, any changes in analysis variable must
 !!v        be reflected by correspondingly modifying this module.
@@ -1193,7 +1195,22 @@ contains
 !!v          (3) variables such as T and P from background field at each
 !!v              iteration
 !!
-!! Coefficients related to unit conversion
+!!v     C. The baseline integral observation operator can be interpreted as being 
+!!v        integrals of the gas partial pressure, giving products in kg/m^2, 
+!!v        e.g. with sample discretized layer integrals
+!!v
+!!v               (mass density) * dz = - d(gas partial pressure)/g 
+!!v                                   = - [rho(gas)/rho(air)]*dP/g
+!!v                                   = - 1E-9 * [mass mixing ratio in parts per billion (ppb)]*dP/g 
+!!v
+!!v        The actual integration in pressure (in Pascal) is performed outside this routine.
+!!v        For integral products in kg/m^2, the output of this routine is to be in mmr/(m/s^2) 
+!!v        (mmr=mass mixing ratio), which is equivalent to (1E-9 ug/kg)/(m/s^2) and kg/(m^2*Pa). 
+!!v        Therefore, the input value in ug/kg has to be multiplied by 1E-9/g (g=RG below).
+!!v
+!!v        For integral products in other units, additional conversion factors are to also be applied.
+!!
+!!v     D. Coefficients related to unit conversion
 !!
 !!v        rho_stp=1.293                     Air density at STP (1.293 kg/m^3)
 !!v        RG=9.807 (=g)                     Acceleration due to gravity (m/s^2)
@@ -1210,7 +1227,8 @@ contains
 !!v                                                       = n*[m_air*0.001*Rd]*T
 !!v                                                       = nRT
 !!
-!!v      C. List should be revised following changes to the 'tableburp' file.
+!!v      E. List should be revised following changes to the 'tableburp' file.
+!!
 !--------------------------------------------------------------------------
   subroutine chm_convert_units(obsoper,model_col,ppb_opt)
   
@@ -1251,7 +1269,7 @@ contains
        if (any(obsoper%varno .eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2,  &
                     BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2,   &
                     BUFR_UNIT_NumberDensity, BUFR_UNIT_MolarDensity, & 
-                    BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, BUFR_UNIT_PartPress3, &
+                    BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
                     BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                     BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2 /) )) &
             call utl_abort("chm_convert_units: BUFR # " // trim(utl_str(obsoper%varno)) // " is not valid for PM" )
@@ -1261,12 +1279,16 @@ contains
        exp_T = exp_T+1 ! multiply by T
        exp_P = exp_P-1 ! divide by P
        
-    else if (obsoper%varname(1:1).ne.'T') then
+    !t For temporary conversion from vmr to ug/kg when the input trial fields
+    !t are in vmr instead of ug/kg, uncomment the lines below with !!t.
+    !t See similar statement in bmatrixchem_mod.f90
+    
+    !!t else if (obsoper%varname(1:1).eq.'T') then
        
-       ! Conversion from vmr to ug/kg
+    !!t   ! Conversion from vmr to ug/kg
        
-       zcoef = zcoef * 1.E9 * chm_setup_get_float('amu',obsoper%constituent_id) &
-            /MPC_MOLAR_MASS_DRY_AIR_R8
+    !!t    zcoef = zcoef * 1.E9 * chm_setup_get_float('amu',obsoper%constituent_id) &
+    !!t        /MPC_MOLAR_MASS_DRY_AIR_R8
 
     end if
   
@@ -1274,50 +1296,68 @@ contains
 
     if (.not.ppb_out) then
        select case (obsoper%varno)
-       case(BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4) 
-      
-          ! For conversion of ppb*dP integral to DU
-          ! (integral in dP introduced later by the observation operator)
-          !
-          ! 1 DU equivalent to number density at STP for a column of 1E-5 m. 
-          ! Number density at STP = Na*rho_stp/m_air.
-          ! Hence 1 DU equivalent to Na*rho_stp/m_air * 1E-5 m (= 2.69E20 molecules/m^2)
-          !
-          ! Number of DU for gas = integral in Z of gas number density (over all altitudes) 
-          !                        divided by [Na*rho_stp/m_air * 1E-5 m]   
-          !                      = - integral in P of gas number density / [g*rho(air)] 
-          !                        divided by [Na*rho_stp/m_air * 1E-5 m]   
-          !          
-          ! Number density of gas = Na*rho(gas)/m_gas 
-          !                      
-          ! Number of DU for gas = - integral in P of [rho(gas)/rho(air)]*1E5*/g/rho_stp*m_air/m_gas
-          !                        = - integral in P of mass mixing ratio * [1E5*m_air/m_gas/g/rho_stp]
-          
-          zcoef = zcoef * 1.E-4 * MPC_MOLAR_MASS_DRY_AIR_R8 &
-               /chm_setup_get_float('amu',obsoper%constituent_id)/RG/rho_stp
-        
-       case(BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2)
-          
-          ! For conversion of ppb*dP integral to molecules/m^2
-          ! (integral in dP introduced later by the observation operator)
-          ! 
-          ! integral in Z of number density = - integral in P of number density / [g*rho(air)] 
-          !                                 = - integral in P of Na*[rho(gas)/rho(air)]/g/m_air
-        
-          zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/RG &
-               /chm_setup_get_float('amu',obsoper%constituent_id)
-
+       
+       ! The first four cases below are for integral observations which
+       ! require a conversion, in this routine, from ug/kg to the units of 
+       ! the integrand values for integrals in pressure (Pascal). Comment C above.
+       ! Note: 1 ug/kg = 1 ppb = 1E9 mmr (mass mixing ratio)
+       
        case(BUFR_UNIT_IntegDens, BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3) 
         
-          ! For conversion of ppb*dP integral to kg/m^2
-          ! (integral in dP introduced later by the observation operator)
-          ! 
-          ! integral in Z of density = - integral in P of rho(gas) / [g*rho(air)] 
-          !                          = - integral in P of [rho(gas)/rho(air)]/g
-          
+          ! For conversion from ug/kg to integrand values in kg/(m^2*Pa) 
+          ! Note: 1 kg/(m^2**Pa) = = 1 mmr / RG = 1E-9 ug/kg / RG 
+          !
           zcoef = zcoef * 1.E-9 / RG
           
-       case(BUFR_UNIT_Density, BUFR_UNIT_Density2, BUFR_UNIT_Density3, &
+       case(BUFR_UNIT_IntegMolarDens) 
+        
+          ! For conversion from ug/kg to integrand values in moles/(m^2*Pa)
+          ! Note: 1 moles/(m^2*Pa) = 1E-9 ug/kg / [RG * (1E-3 kg/g * m_gas)]
+          !
+          ! To convert from kg/m^2 for the gas to moles/m^2, one must 
+          ! divide by the molar mass of the gas in kg/mole.
+          !
+          ! Note: One u or Da (unified atomic mass unit or dalton) is numerically equivalent to 1 g/mole.
+          ! So 1 kg is equivalent to (1E3/(atomic mass)) moles
+          
+          zcoef = zcoef * 1.E-6 / (RG*chm_setup_get_float('amu',obsoper%constituent_id))
+          
+       case(BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2)
+          
+          ! For conversion from ug/kg to integrand values in molecules/(m^2*Pa)
+          ! Note: 1 molecule/(m^2*Pa) = 1E-9 ug/kg * Na / [RG * (1E-3 kg/g * m_gas)]
+          ! 
+          ! To convert from kg/m^2 for the gas to molecules/m^2, one must 
+          ! divide by the gas molar mass (kg/mole) and multiply by the Avogrado number          
+
+          zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8 &
+               / (RG*chm_setup_get_float('amu',obsoper%constituent_id))
+
+       case(BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4) 
+      
+          ! For conversion from ug/kg to integrand values in DU/Pa
+          ! Note: 1 DU/Pa =  1E-9 ug/kg / [RG * m_gas * rho_stp/m_air * 1E-5 m] 
+          !
+          ! 1 DU = 0.01 mm of gas at STP = 1E-5 m of gas at STP
+          !      = integral of gas number density at STP over 1E-5 m.
+          !      = Na*P/(RT) * 1E-5   at STP  (Na=Avogadro's number)
+          !      = Na*(molar density) * 1E-5   at STP
+          !      = Na*rho(STP)/(molar mass) * 1E-5 m
+          !      = integral of air number density at STP over 1E-5 m.
+          !      = Na*rho(air,STP)/m_air * 1.E-5 m
+          !               
+          ! Hence 1 DU equivalent to Na*rho_stp/m_air * 1E-5 m (= 2.69E20 molecules/m^2)
+          !
+          ! To convert from kg/m^2 for the gas to molecules/m^2, one must 
+          ! divide by the gas molar mass (kg/mole) and multiply by the Avogrado number 
+          !
+          ! To convert from molecules/m^2 to DU, one must divide by 2.69E20 or (Na*rho_stp/m_air * 1E-5).
+          ! So for conversion from kg/m^2 to DU, must divide by (m_gas*rho_stp/m_air * 1E-5)       
+          
+          zcoef = zcoef * 1.E-4 * MPC_MOLAR_MASS_DRY_AIR_R8 &
+                /(chm_setup_get_float('amu',obsoper%constituent_id)*RG*rho_stp)
+        
+       case(BUFR_UNIT_Density, BUFR_UNIT_Density2, &
             BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity)
 
           ! For conversion from ug/kg to kg/m^3
@@ -1334,7 +1374,7 @@ contains
      
           zcoef = zcoef * 1.E-9 
      
-       case(BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, BUFR_UNIT_PartPress3) 
+       case(BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2) 
      
           ! For conversion from ug/kg to partial pressure (PA)
           !
@@ -1359,7 +1399,7 @@ contains
 
        case(BUFR_UNIT_MolarDensity)
           
-          ! For conversion from ug/kg to mol/m^3
+          ! For conversion from ug/kg to moles/m^3
           !
           ! Mole density of gas = rho(gas)/m_gas = rho(air) * mass mixing ratio /m_gas
           !                       = P/Rd/T * mass mixing ratio /m_gas
@@ -1371,7 +1411,7 @@ contains
 
        case(BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2)
           
-          ! For conversion from ug/kg to vmr (or mole/mole)
+          ! For conversion from ug/kg to vmr (or moles/mole)
           
           zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8 &
                /chm_setup_get_float('amu',obsoper%constituent_id)
@@ -1423,7 +1463,7 @@ contains
     case('TT')
  
        select case (varno)
-       case(BUFR_UNIT_Density,BUFR_UNIT_Density2,BUFR_UNIT_Density3,BUFR_UNIT_AirDensity, &
+       case(BUFR_UNIT_Density,BUFR_UNIT_Density2,BUFR_UNIT_AirDensity, &
             BUFR_UNIT_PMDensity,BUFR_UNIT_NumberDensity,BUFR_UNIT_MolarDensity)
           needed = .true.
        case default

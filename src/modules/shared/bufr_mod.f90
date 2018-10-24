@@ -108,6 +108,12 @@ module bufr_mod
  ! Element denoting exponents accompanying obs bufr element
  integer, parameter :: BUFR_SCALE_EXPONENT      = 8090
  
+ ! Element used for denoting averaging kernel elements 
+ integer, parameter :: BUFR_AVGKERN      = 25143
+ 
+ ! Element denoting error correlation matrix elements
+ integer, parameter :: BUFR_CORREL      = 33205
+ 
  ! Elements for units of constituent observations
  !
  ! When needed, used in tandem with BUFR_NECH_* identifying the consituent
@@ -118,7 +124,7 @@ module bufr_mod
  ! be specific to certain constituents and some being local elements devised
  ! prior to official elements being assigned. While a single set would be
  ! sufficient, all are included for completeness. A sufficient set might be
- ! 15008,15026,13002,15022,15230,15023,15024,15010,15029,15198,15009,15021,15028.
+ ! 15008,15026,13002,15022,15207,15027,15003,15029,15198,15201,15021,15202,15024,15028.
 
  integer, parameter :: BUFR_UNIT_VMR            = 15008   ! Volume mixing ratio (vmr)
  integer, parameter :: BUFR_UNIT_VMR2           = 15208   ! Volume mixing ratio  
@@ -126,16 +132,14 @@ module bufr_mod
  integer, parameter :: BUFR_UNIT_MolePerMole2   = 15197   ! Mixing ratio (mole/mole)
  integer, parameter :: BUFR_UNIT_MMR            = 13002   ! Mass mixing ratio (kg/kg)
  integer, parameter :: BUFR_UNIT_MMR2           = 13001   ! Humidity mass mixing ratio (kg/kg) - same as above
- integer, parameter :: BUFR_UNIT_NumberDensity  = 15022   ! Number density (1/m^3) 
+ integer, parameter :: BUFR_UNIT_NumberDensity  = 15207   ! Number density (1/m^3) 
  integer, parameter :: BUFR_UNIT_MolarDensity   = 15230   ! Molar density (mole/m^3)  
- integer, parameter :: BUFR_UNIT_Density        = 15023   ! Density (kg/m^3)
- integer, parameter :: BUFR_UNIT_Density2       = 15027   ! Pollutant concentration in kg/m^3 - same as above
- integer, parameter :: BUFR_UNIT_Density3       = 15223   ! Concentration = Density (kg/m^3) 
+ integer, parameter :: BUFR_UNIT_Density        = 15027   ! Concentration in kg/m^3
+ integer, parameter :: BUFR_UNIT_Density2       = 15223   ! Concentration = Density (kg/m^3) 
  integer, parameter :: BUFR_UNIT_AirDensity     = 15194   ! Air density (kg/m^3) 
  integer, parameter :: BUFR_UNIT_PMDensity      = 15195   ! Density of PM2.5 (kg/m^3)  
- integer, parameter :: BUFR_UNIT_PartPress      = 15010   ! Partial pressure in Pa
- integer, parameter :: BUFR_UNIT_PartPress2     = 15003   ! Ozone partial pressure in Pa (same as above)
- integer, parameter :: BUFR_UNIT_PartPress3     = 15199   ! Partial pressure in Pa (same as above)
+ integer, parameter :: BUFR_UNIT_PartPress      = 15003   ! Partial pressure in Pa (not just for ozone)
+ integer, parameter :: BUFR_UNIT_PartPress2     = 15199   ! Partial pressure in Pa (same as above)
  integer, parameter :: BUFR_UNIT_MR_NVaerosol   = 15055   ! Non-volatile aerosol mixing ratio (unitless)  
  integer, parameter :: BUFR_UNIT_ExtinctCoef    = 15029   ! Extinction coefficient (1/m)
  
@@ -145,11 +149,12 @@ module bufr_mod
  integer, parameter :: BUFR_UNIT_DU2            = 15001   ! Total ozone in DU (same as above) - applicable for all
  integer, parameter :: BUFR_UNIT_DU3            = 15005   ! Partial column for ozone in DU (same as above) - applicable for all
  integer, parameter :: BUFR_UNIT_DU4            = 15045   ! Partial column for SO2 in DU (same as above) - applicable for all
- integer, parameter :: BUFR_UNIT_IntegND        = 15009   ! Integrated number density (1/m^2)
+ integer, parameter :: BUFR_UNIT_IntegND        = 15201   ! Integrated number density (1/m^2)
  integer, parameter :: BUFR_UNIT_IntegND2       = 15012   ! Electron density per m^2 (1/m^2) 
- integer, parameter :: BUFR_UNIT_IntegDens      = 15021   ! Integrated density (kg/m^2) - same as above
+ integer, parameter :: BUFR_UNIT_IntegDens      = 15021   ! Integrated density (kg/m^2)
  integer, parameter :: BUFR_UNIT_IntegDens2     = 15020   ! Integrated density for ozone (kg/m^2; same as above) - applicable to all
  integer, parameter :: BUFR_UNIT_IntegDens3     = 15200   ! Integrated density (kg/m^2)
+ integer, parameter :: BUFR_UNIT_IntegMolarDens = 15202   ! Integrated molar density (mole/m^2)
 
  integer, parameter :: BUFR_UNIT_OptDepth       = 15024   ! Optical depth (unitless)
  integer, parameter :: BUFR_UNIT_OptDepth2      = 15196   ! Optical depth (unitless)
@@ -189,14 +194,14 @@ contains
       
       if (any(varNumber.eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2, &
                                BUFR_UNIT_MMR, BUFR_UNIT_MMR2, BUFR_UNIT_NumberDensity, BUFR_UNIT_MolarDensity,  &
-                               BUFR_UNIT_Density, BUFR_UNIT_Density2, BUFR_UNIT_Density3, &
+                               BUFR_UNIT_Density, BUFR_UNIT_Density2, &
                                BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity, &
                                BUFR_UNIT_OptDepth, BUFR_UNIT_OptDepth2, BUFR_UNIT_OptDepth3, BUFR_UNIT_MR_NVaerosol, &
-                               BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, BUFR_UNIT_PartPress3, &
+                               BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
                                BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                                BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, &
                                BUFR_UNIT_IntegDens, BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, &
-                               BUFR_UNIT_ExtinctCoef, BUFR_UNIT_PhotoDissoc /) )) then          
+                               BUFR_UNIT_IntegMolarDens, BUFR_UNIT_ExtinctCoef, BUFR_UNIT_PhotoDissoc /) )) then          
           var_chm=.true.
       else         
           var_chm=.false.
@@ -227,7 +232,7 @@ contains
  
   if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                             BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &
-                            BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3 /) )) then      
+                            BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, BUFR_UNIT_IntegMolarDens /) )) then      
       bufr_IsIntegral=.true.     
   else
       bufr_IsIntegral=.false.

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+* Use constituent BUFR elements from official tableburp file released 30 Sept 2018
 
 ### Fixed
 
