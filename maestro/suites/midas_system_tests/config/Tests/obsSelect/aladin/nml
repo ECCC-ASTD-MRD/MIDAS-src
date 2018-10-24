@@ -1,5 +1,5 @@
  &NAMCT0
-   NCONF  =  101,
+   NCONF  =  141,
 /
  &NAMBHI
    SCALEFACTOR   = 100*1.0D0
@@ -8,7 +8,14 @@
    SCALEFACTOR   = 100*0.0D0
 /
  &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 10,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
    LVARQC=.FALSE.,
+   NWOQCV=5
 /
  &NAMSTATE
    RHUMIN  = 1.0D-07
@@ -122,6 +129,8 @@
   listElem="40030,5021",
   sqlExtraDat=" order by id_obs ",
   sqlNull=" and obsvalue is not null "
+/
+ &NAMINC
 /
  &namSQLUpdate
  numberUpdateItems=2
