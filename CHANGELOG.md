@@ -12,13 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-* MIDAS has been updated to make use of the constituent BUFR elements from 
-  the official tableburp file released on 30 September 2018. Modules with
-  BUFR element changes: `shared/bufr_mod.f90`, `chem_obsoperators_mod.f90`, 
-  `chem_setup_mod.f90.`
-* Added `commented out` lines for ozone trial field in vmr (units will usually 
-  be expected to be in micro-gram/kg): `bmatrixchem_mod.f90`, 
-  `chem_obsoperators_mod.f90` (see lines with `!t`). 
+* Use constituent BUFR elements from official tableburp file released 30 Sept 2018
 
 ### Fixed
 
