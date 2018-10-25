@@ -191,14 +191,15 @@ program midas_advector
   !- 3.1 Forward advection
   if (trim(direction) == 'forward'          .or. &
       trim(direction) == 'forward-backward' ) then
-    call gsv_readFromFile(statevector,fileToAdvec,' ',' ',stepIndex_opt=1)
+    call gsv_readFromFile(statevector,fileToAdvec,' ',' ',stepIndex_opt=1, &
+                          unitConversion_opt=.false.)
 
     call adv_statevector_tl( statevector,  & ! INOUT
                              adv_forward )   ! IN
 
     do stepIndex = 1, advectedFieldNumStep
-      call gsv_writeToFile(statevector,'./advectedFields.fst','FORWARD',    & ! IN
-                           stepIndex_opt=stepIndex)! IN
+      call gsv_writeToFile(statevector,'./advectedFields.fst','FORWARD',     & ! IN
+                           stepIndex_opt=stepIndex, unitConversion_opt=.false.)! IN
     end do
   end if
 
@@ -208,22 +209,23 @@ program midas_advector
                              adv_backward )  ! IN
 
     do stepIndex = 1, advectedFieldNumStep
-      call gsv_writeToFile(statevector,'./advectedFields.fst','FORW_BACK',   & ! IN
-                           stepIndex_opt=stepIndex) ! IN
+      call gsv_writeToFile(statevector,'./advectedFields.fst','FORW_BACK',    & ! IN
+                           stepIndex_opt=stepIndex, unitConversion_opt=.false.) ! IN
     end do
   end if
 
   !- 3.2 Backward advection
   if (trim(direction) == 'backward'          .or. &
       trim(direction) == 'backward-forward' ) then
-    call gsv_readFromFile(statevector,fileToAdvec,' ',' ',stepIndex_opt=advectedFieldNumStep)
+    call gsv_readFromFile(statevector,fileToAdvec,' ',' ',stepIndex_opt=advectedFieldNumStep, &
+                          unitConversion_opt=.false.)
 
     call adv_statevector_tl( statevector,  & ! INOUT
                              adv_backward )  ! IN
 
     do stepIndex = 1, advectedFieldNumStep
-      call gsv_writeToFile(statevector,'./advectedFields.fst','BACKWARD', & ! IN
-                           stepIndex_opt=stepIndex)                         ! IN
+      call gsv_writeToFile(statevector,'./advectedFields.fst','BACKWARD',     & ! IN
+                           stepIndex_opt=stepIndex, unitConversion_opt=.false.) ! IN
     end do
   end if
 
@@ -233,8 +235,8 @@ program midas_advector
                              adv_forward )   ! IN
 
     do stepIndex = 1, advectedFieldNumStep
-      call gsv_writeToFile(statevector,'./advectedFields.fst','BACK_FORW', & ! IN
-                           stepIndex_opt=stepIndex)                          ! IN
+      call gsv_writeToFile(statevector,'./advectedFields.fst','BACK_FORW',    & ! IN
+                           stepIndex_opt=stepIndex, unitConversion_opt=.false.) ! IN
     end do
   end if
 
