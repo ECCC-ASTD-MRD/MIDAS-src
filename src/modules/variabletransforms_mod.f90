@@ -85,7 +85,7 @@ CONTAINS
                       varNames_opt=trialVarNamesToRead )
 
     ! read trial files using default horizontal interpolation degree
-    call gsv_readTrials( statevector_trial )  ! IN/OUT
+    call gsv_readTrials( statevector_trial, removeFromRamDisk_opt=.true. )  ! IN/OUT
 
     call tmg_stop(92)
 

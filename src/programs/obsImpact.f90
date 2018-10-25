@@ -56,9 +56,6 @@ program midas_obsimpact
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
-  type(struct_gsv)               :: stateVector
-  type(struct_hco), pointer      :: hco_trl => null()
-  type(struct_vco), pointer      :: vco_trl => null()
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
@@ -76,10 +73,9 @@ program midas_obsimpact
   real(8)             :: leadTime, repsg, rdf1fac
   character(len=256)  :: forecastPath
   character(len=4)    :: fsoMode
-  character(len=20)   :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
 
   NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
-  NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode, timeInterpType_nl
+  NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
 
@@ -122,18 +118,7 @@ program midas_obsimpact
   !
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                     allocGZsfc_opt=.true. )
-  call tmg_start(9,'readTrials')
-  call gsv_readTrials( stateVector )
-  call tmg_stop(9)
-  call tmg_start(8,'s2c_nl')
-  call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,   &
-               moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
-  call tmg_stop(8)
-  call gsv_deallocate(stateVector)
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -194,7 +179,6 @@ contains
     rdf1fac  = 0.25d0
     forecastPath = './forecasts'
     fsoMode  = 'HFSO' 
-    timeInterpType_nl='NEAREST'
 
     ! read in the namelist NAMFSO
     nulnam = 0
@@ -243,20 +227,6 @@ contains
     !- Initialize constants
     !
     if (mpi_myid.eq.0) call mpc_printConstants(6)
-
-    !
-    ! - Set horizontal coordinate for trial file
-    !
-    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
-
-    !
-    !- Set vertical coordinate parameters from !! record in trial file
-    !
-    if (mpi_myid.eq.0) write(*,*)''
-    if (mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
-    call vco_SetupFromFile( vco_trl,     & ! OUT
-                            './trlm_01')   ! IN
-    call col_setVco(trlColumnOnTrlLev,vco_trl)
 
     !
     !- Initialize variables of the model states
@@ -308,7 +278,6 @@ contains
     !- Memory allocation for background column data
     !
     call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances

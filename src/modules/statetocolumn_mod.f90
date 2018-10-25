@@ -279,7 +279,7 @@ contains
     interpInfo%hco => stateVector%hco
 
     ! setup the information for wind rotation
-    if ( gsv_varExist(stateVector,'UU') .and. gsv_varExist(stateVector,'VV') .and.  &
+    if ( (gsv_varExist(varName='UU') .or. gsv_varExist(varName='VV')) .and.  &
          stateVector%hco%rotated ) then
       call uvr_Setup( interpInfo%uvr, & ! INOUT
                       stateVector%hco ) ! IN 
@@ -547,8 +547,9 @@ contains
             interpInfo%allLonIndex(indexBeg + 3) = ilonP1
 
             ! compute the rotated lat, lon
-            if ( interpInfo%hco%rotated .and. gsv_varExist(statevector,'UU') .and.  &
-                 gsv_varExist(statevector,'VV') ) then
+            if ( interpInfo%hco%rotated .and.  &
+                 (gsv_varExist(varName='UU') .or.  &
+                  gsv_varExist(varName='VV')) ) then
               lat = interpInfo%allLat(headerIndex, stepIndex, procIndex)
               lon = interpInfo%allLon(headerIndex, stepIndex, procIndex)
               call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
@@ -598,7 +599,6 @@ contains
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
-    logical :: verbose = .true.
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, header2Index
@@ -779,7 +779,6 @@ contains
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
-    logical :: verbose = .true.
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, header2Index
@@ -945,20 +944,20 @@ contains
   !---------------------------------------------------------
   ! s2c_nl
   !---------------------------------------------------------
-  subroutine s2c_nl( stateVector, obsSpaceData, column, &
-                     dealloc_opt, moveObsAtPole_opt, timeInterpType_opt )
+  subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
+                     dealloc_opt, moveObsAtPole_opt )
     implicit none
 
     ! arguments
     type(struct_gsv)           :: stateVector
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column
+    character(len=*)           :: timeInterpType
+    character(len=*), optional :: varName_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
-    character(len=*), optional :: timeInterpType_opt
 
     ! locals
-    logical :: verbose = .true.
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, iset, header2Index, varIndex
@@ -966,7 +965,6 @@ contains
     integer :: s1, s2, s3, s4, index1, index2, index3, index4
     real(8) :: gzSfc_col
     real(8) :: weight
-    character(len=20)    :: timeInterpType
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:), ptr4d_UV_r4(:,:,:,:)
@@ -977,8 +975,6 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: beSilent, dealloc, moveObsAtPole
-
-    logical, save        :: firstCall = .true.
 
     write(*,*) 's2c_nl: STARTING'
 
@@ -1002,18 +998,13 @@ contains
       moveObsAtPole = .false.
     end if
 
-    if ( present(timeInterpType_opt) ) then
-      timeInterpType = timeInterpType_opt
-    else
-      timeInterpType = 'LINEAR'
-    end if
-
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     if ( .not. interpInfo_nl%initialized ) then
+      call tmg_start(192,'S2CNL_SETUPS')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
       call s2c_latLonChecks( obsSpaceData, moveObsAtPole )
@@ -1026,6 +1017,7 @@ contains
           write(*,*) 's2c_nl: stepIndex, allNumHeader2 = ', stepIndex, interpInfo_nl%allNumHeader2(stepIndex,:)
         end do
       end if
+      call tmg_stop(192)
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1041,8 +1033,8 @@ contains
 
     allocate(cols_send_1proc(numHeaderMax))
 
-    ! set contents of column to zero
-    allCols_ptr => col_getAllColumns(column)
+    ! set contents of column to zero (1 variable or all)
+    allCols_ptr => col_getAllColumns(column,varName_opt)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
     ptr4d_r4    => gsv_getField_r4(stateVector)
@@ -1057,11 +1049,9 @@ contains
 
     kCount = 0
     K_LOOP: do kIndex = stateVector%mykBeg, mykEndExtended
-
       kCount = kCount + 1
 
       if ( kIndex <= stateVector%mykEnd ) then
-
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         call tmg_start(140,'S2CNL_HINTERP')
@@ -1096,6 +1086,7 @@ contains
         !$OMP END PARALLEL DO
         call tmg_stop(140)
 
+        call tmg_start(193,'S2CNL_COPYSEND')
         ! interpolate in time to the columns destined for all procs and one level/variable
         PROC_LOOP2: do procIndex = 1, mpi_nprocs
           cols_send_1proc(:) = 0.0d0
@@ -1112,6 +1103,7 @@ contains
           end do STEP_LOOP2
           cols_send(:,procIndex) = cols_send_1proc(:)
         end do PROC_LOOP2
+        call tmg_stop(193)
 
       else
 
@@ -1135,6 +1127,7 @@ contains
       end if
       call tmg_stop(142)
 
+      call tmg_start(194,'S2CNL_COPYRECV')
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
       PROC_LOOP3: do procIndex = 1, mpi_nprocs
@@ -1145,9 +1138,11 @@ contains
         end do
       end do PROC_LOOP3
       !$OMP END PARALLEL DO
+      call tmg_stop(194)
 
     end do K_LOOP
 
+    call tmg_start(195,'S2CNL_GZSFC')
     ! Interpolate surface GZ separately, only exists on mpi task 0
     PROC0: if ( mpi_myid == 0 ) then
       varName = 'GZ'
@@ -1208,42 +1203,7 @@ contains
     do headerIndex = 1, numHeader
       call col_setGZsfc(column, headerIndex, cols_recv(headerIndex,1))
     end do
-
-    ! Do final preparations of columnData objects (compute GZ and pressure)
-    if (col_varExist('P0')) then
-      beSilent = .true.
-      if ( firstCall ) beSilent = .false.
-      call col_calcPressure(column,beSilent_opt=beSilent)
-    end if
-
-    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') .and. col_getNumLev(column,'MM') > 1 ) then
-      beSilent = .true.
-      if ( firstCall ) beSilent = .false.
-      call tt2phi(column,beSilent_opt=beSilent)
-    end if
-
-    if ( verbose .and. firstCall .and. numHeader > 0 ) then
-      write(*,*) '======================='
-      write(*,*) 'Contents of column:'
-      do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. col_varExist(varName) ) cycle
-        if ( trim(varName) == 'GZ' ) cycle
-        column_ptr => col_getColumn(column,1,varName)
-        write(*,*) 'column ', trim(varName), ' = ', column_ptr(:)
-      end do
-      write(*,*) '======================='
-
-      do levIndex = 1, col_getNumLev(column,'MM')
-        write(*,*) 's2c_nl: levIndex, col_getPressure(column,levIndex,1,MM) = ',  &
-                   levIndex,col_getPressure(column,levIndex,1,'MM')
-      end do
-      do levIndex = 1, col_getNumLev(column,'MM')
-        write(*,*) 's2c_nl: levIndex, col_getHeight(column,levIndex,1,MM) = ',  &
-                   levIndex,col_getHeight(column,levIndex,1,'MM')
-      end do
-    end if
+    call tmg_stop(195)
 
     deallocate(field2d_UV)
     deallocate(field2d)
@@ -1266,7 +1226,9 @@ contains
       deallocate(interpInfo_nl%bigIndexBeg)
       deallocate(interpInfo_nl%bigIndexEnd)
       deallocate(interpInfo_nl%allNumHeader2)
+      call oti_dealloc(interpInfo_nl%oti)
 
+      interpInfo_nl%initialized = .false.
     end if
 
     ! impose a lower limit on HU
@@ -1277,7 +1239,6 @@ contains
       end do
     end if
 
-    firstCall = .false.
     write(*,*) 's2c_nl: FINISHED'
 
   end subroutine s2c_nl
@@ -1416,7 +1377,6 @@ contains
           if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) + weight * fieldVV_in(ilon, ilat)
 
         end do
-
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%allLat(headerIndex, stepIndex, procIndex)

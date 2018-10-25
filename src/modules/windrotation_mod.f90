@@ -56,15 +56,20 @@ module windRotation_mod
     type(struct_uvr), pointer    :: uvr
     type(struct_hco), intent(in) :: hco_in
 
+    if ( associated(uvr) ) then
+      if ( uvr%initialized ) then
+        write(*,*) 'uvr_setup: already initialized, returning'
+        return
+      else
+        call utl_abort('uvr_setup: the supplied non-null uvr pointer is not initialized!')
+      end if
+    end if
+
     !
     !-  Compute the rotation matrices (grd_rot_8 and grd_rotinv_8)
     !
     write(*,*)
     write(*,*) 'uvr_Setup: Starting...  for grid type = ', hco_in%grtyp
-
-    if ( associated(uvr) ) then
-      call utl_abort('uvr_setup: the supplied uvr pointer is not null!')
-    endif
 
     allocate(uvr)
 

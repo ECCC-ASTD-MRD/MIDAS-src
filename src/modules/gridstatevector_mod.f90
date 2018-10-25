@@ -74,7 +74,6 @@ module gridStateVector_mod
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.
     integer             :: myUVkBeg, myUVkEnd, myUVkCount
-    integer, pointer    :: allUVkCount(:), allUVkBeg(:), allUVkEnd(:)
     real(8), pointer    :: gdUV_r8(:,:,:,:) => null()
     real(4), pointer    :: gdUV_r4(:,:,:,:) => null()
     integer(2), pointer :: gdUV_i2(:,:,:,:) => null()
@@ -507,28 +506,24 @@ module gridStateVector_mod
     end if
 
     statevector%UVComponentPresent = .false.
-    if ( statevector%mpi_distribution == 'VarsLevs' ) then
+    ! complementary wind component needed if mpi distribution could mean 
+    ! that both components are not available on same mpi task, or the statevector
+    ! was allocated with only one of the components
+    if ( statevector%mpi_distribution == 'VarsLevs' .or.   &
+         (gsv_varExist(statevector,'UU') .and. .not. gsv_varExist(statevector,'VV')) .or. &
+         (gsv_varExist(statevector,'VV') .and. .not. gsv_varExist(statevector,'UU')) ) then
       statevector%myUVkCount = 0
       statevector%myUVkBeg = 0
       statevector%myUVkEnd = -1
       do kIndex = statevector%mykBeg, statevector%mykEnd
         if ( gsv_getVarNameFromK(statevector,kIndex) == 'UU' .or.  &
-            gsv_getVarNameFromK(statevector,kIndex) == 'VV' ) then
+             gsv_getVarNameFromK(statevector,kIndex) == 'VV' ) then
           statevector%UVComponentPresent = .true.
           if ( statevector%myUVkBeg == 0 ) statevector%myUVkBeg = kIndex
           statevector%myUVkEnd = kIndex
           statevector%myUVkCount = statevector%myUVkCount + 1
         end if
       end do
-      allocate(statevector%allUVkCount(mpi_nprocs))
-      call rpn_comm_allgather(statevector%myUVkCount,1,'mpi_integer',       &
-                              statevector%allUVkCount,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkBeg(mpi_nprocs))
-      call rpn_comm_allgather(statevector%myUVkBeg,1,'mpi_integer',       &
-                              statevector%allUVkBeg,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkEnd(mpi_nprocs))
-      call rpn_comm_allgather(statevector%myUVkEnd,1,'mpi_integer',       &
-                              statevector%allUVkEnd,1,'mpi_integer','grid',ierr)
     end if
 
     if ( statevector%mpi_local ) then
@@ -2750,8 +2745,9 @@ module gridStateVector_mod
         end if
 
         ! When mpi distribution could put UU on a different mpi task than VV
-        ! here we re-read the corresponding UV component and store it
-        if (statevector%mpi_distribution == 'VarsLevs') then
+        ! or only one wind component present in statevector
+        ! then we re-read the corresponding UV component and store it
+        if ( statevector%UVComponentPresent ) then
           if (varName == 'UU') then
             ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
@@ -4697,10 +4693,11 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(stateVector_trial)
+  subroutine gsv_readTrials(stateVector_trial, removeFromRamDisk_opt)
     implicit none
 
     type(struct_gsv)     :: stateVector_trial
+    logical, optional    :: removeFromRamDisk_opt
 
     type(struct_gsv)     :: stateVector_1step_r4
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
@@ -4753,6 +4750,7 @@ module gridStateVector_mod
         write(*,*) 'gsv_readTrials: reading background for time step: ',stepIndexToRead, dateStamp
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+        call tmg_start(187,'READTRIALS_11')
         ! identify which trial file corresponds with current datestamp
         ikey = 0
         do trialIndex = 1, maxNumTrials
@@ -4769,6 +4767,7 @@ module gridStateVector_mod
           ierr = fclos(nulTrial)
           if (ikey.gt.0) exit
         end do
+        call tmg_stop(187)
 
         if ( ikey <= 0 .or. .not.fileExists ) then 
           write(*,*) 'stepIndexToRead, dateStamp = ', stepIndexToRead, dateStamp
@@ -4791,7 +4790,9 @@ module gridStateVector_mod
 
         ! remove from ram disk to save some space
         call tmg_start(189,'READTRIALS_RAM')
-        ierr = ram_remove(fileName)
+        if ( present(removeFromRamDisk_opt) ) then
+          if ( removeFromRamDisk_opt ) ierr = ram_remove(fileName)
+        end if
         call tmg_stop(189)
       end if ! I read a time step
       call tmg_stop(180)
@@ -4822,58 +4823,123 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_transposeStepToVarsLevs
   !--------------------------------------------------------------------------
-  subroutine gsv_transposeStepToVarsLevs(stateVector_1step, stateVector_VarsLevs, stepIndexBeg)
+  subroutine gsv_transposeStepToVarsLevs(stateVector_1step_r4, stateVector_VarsLevs, stepIndexBeg)
     implicit none
     ! arguments
-    type(struct_gsv) :: stateVector_1step, stateVector_VarsLevs
+    type(struct_gsv) :: stateVector_1step_r4, stateVector_VarsLevs
     integer :: stepIndexBeg
 
     ! locals
-    integer :: ierr, maxkCount, yourID
+    integer :: ierr, maxkCount, numStepInput, numkToSend, stepIndexInput
     integer :: nsize
     integer :: displs(mpi_nprocs), nsizes(mpi_nprocs)
+    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
     integer :: kIndexUU, kIndexVV, kIndex, kIndex2, levUV, procIndex, stepIndex
-    logical :: thisProcIsAsender
-    real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:)
-    real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:), fieldUV_out_r4(:,:,:,:)
+    logical :: thisProcIsAsender(mpi_nprocs)
+    real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
+    real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
+    real(4), pointer     :: fieldUV_in_r4(:,:,:,:), fieldUV_out_r4(:,:,:,:)
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
+    call tmg_start(186,'READTRIALS_BARR')
     call rpn_comm_barrier('GRID',ierr)
-    if ( mpi_myid == 0 ) write(*,*) 'gsv_transposeStepToVarsLevs: Starting'
+    call tmg_stop(186)
+    write(*,*) 'gsv_transposeStepToVarsLevs: Starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! first do surface GZ, just need to copy over on task 0, assuming task 0 read a file
     if ( mpi_myid == 0 .and. stateVector_VarsLevs%gzSfcPresent ) then
-      if ( .not.stateVector_1step%allocated ) then
+      if ( .not.stateVector_1step_r4%allocated ) then
         call utl_abort('gsv_transposeStepToVarsLevs: Problem with GZsfc')
       end if
-      stateVector_VarsLevs%gzSfc(:,:) = stateVector_1step%gzSfc(:,:)
+      stateVector_VarsLevs%gzSfc(:,:) = stateVector_1step_r4%gzSfc(:,:)
     end if
 
+    ! determine which tasks have something to send and let everyone know
+    do procIndex = 1, mpi_nprocs
+      thisProcIsAsender(procIndex) = .false.
+      if ( mpi_myid == (procIndex-1) .and. stateVector_1step_r4%allocated ) then
+        thisProcIsAsender(procIndex) = .true.
+      end if
+      call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
+                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+    end do
+    write(*,*) 'gsv_transposeStepToVarsLevs: thisProcIsAsender = ', thisProcIsAsender(:)
+
+    numStepInput = 0
+    do procIndex = 1, mpi_nprocs
+      if ( thisProcIsAsender(procIndex) ) numStepInput = numStepInput + 1
+    end do
+    write(*,*) 'gsv_transposeStepToVarsLevs: numStepInput = ', numStepInput
+
     maxkCount = maxval(stateVector_VarsLevs%allkCount(:))
-    allocate(gd_recv_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
-    gd_recv_r4(:,:) = 0.0
-    if ( stateVector_1step%allocated ) then
-      allocate(gd_send_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,mpi_nprocs))
+    numkToSend = min(mpi_nprocs,stateVector_VarsLevs%nk)
+    allocate(gd_recv_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numStepInput))
+    gd_recv_r4(:,:,:) = 0.0
+    if ( stateVector_1step_r4%allocated ) then
+      allocate(gd_send_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numkToSend))
     else
       allocate(gd_send_r4(1,1,1))
     end if
     gd_send_r4(:,:,:) = 0.0
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     field_out_r4 => gsv_getField_r4(stateVector_VarsLevs)
+
+    ! prepare for alltoallv
+    nsize = stateVector_VarsLevs%ni * stateVector_VarsLevs%nj
+
+    do procIndex = 1, mpi_nprocs
+      senddispls(procIndex) = (procIndex-1)*nsize
+    end do
+
+    ! only send the data from tasks with data, same amount to all
+    sendsizes(:) = 0
+    if ( stateVector_1step_r4%allocated ) then
+      do procIndex = 1, numkToSend
+        sendsizes(procIndex) = nsize
+      end do
+    end if
+    senddispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+    end do
+
+    ! all tasks recv only from those with data
+    recvsizes(:) = 0
+    if ( (1+mpi_myid) <= numkToSend ) then
+      do procIndex = 1, mpi_nprocs
+        if ( thisProcIsAsender(procIndex) ) then
+          recvsizes(procIndex) = nsize
+        end if
+      end do
+    end if
+    recvdispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+    end do
+
+    write(*,*) 'sendsizes = ', sendsizes(:)
+    write(*,*) 'senddispls= ', senddispls(:)
+    write(*,*) 'recvsizes = ', recvsizes(:)
+    write(*,*) 'recvdispls= ', recvdispls(:)
 
     do kIndex = 1, maxkCount
 
       ! prepare the complete 1 timestep for sending on all tasks that read something
-      if ( stateVector_1step%allocated ) then
+      if ( stateVector_1step_r4%allocated ) then
 
         call tmg_start(181,'READTRIALS_2')
-        field_in_r4 => gsv_getField_r4(stateVector_1step)
-        !$OMP PARALLEL DO PRIVATE(yourid,kIndex2)
-        do yourid = 0, (mpi_nprocs-1)
-          kIndex2 = kIndex + stateVector_VarsLevs%allkBeg(yourid+1) - 1
-          if ( kIndex2 <= stateVector_VarsLevs%allkEnd(yourid+1) ) then
-            gd_send_r4(:,:,yourid+1) =  &
-                field_in_r4(:,:,kIndex2,1)
+        field_in_r4 => gsv_getField_r4(stateVector_1step_r4)
+        !$OMP PARALLEL DO PRIVATE(procIndex,kIndex2)
+        do procIndex = 1, mpi_nprocs
+          kIndex2 = kIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
+          if ( kIndex2 <= stateVector_VarsLevs%allkEnd(procIndex) ) then
+            if( procIndex > numkToSend ) then
+              write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
+              call utl_abort('ERROR: with numkToSend?')
+            end if
+            gd_send_r4(:,:,procIndex) = field_in_r4(:,:,kIndex2,1)
           end if
         end do
         !$OMP END PARALLEL DO
@@ -4881,117 +4947,82 @@ module gridStateVector_mod
 
       end if
 
-      ! distribute from each task with something to all tasks
+      call tmg_start(182,'READTRIALS_31')
+      call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4,  &
+                         gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, mpi_comm_grid, ierr)
+      call tmg_stop(182)
+
+      call tmg_start(183,'READTRIALS_4')
       stepIndex = stepIndexBeg - 1
+      stepIndexInput = 0
       do procIndex = 1, mpi_nprocs
-
-        ! determine if this task has something to send and let everyone else know
-        thisProcIsAsender = .false.
-        if ( mpi_myid == (procIndex-1) .and. stateVector_1step%allocated ) then
-          thisProcIsAsender = .true.
-        end if
-        call rpn_comm_bcast(thisProcIsAsender, 1, 'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
-
-        if ( .not. thisProcIsAsender ) cycle
+        ! skip if this task has nothing to send
+        if ( .not. thisProcIsAsender(procIndex) ) cycle
 
         stepIndex = stepIndex + 1
         if ( stepIndex > stateVector_VarsLevs%numStep ) then
           call utl_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
         end if
 
-        call tmg_start(182,'READTRIALS_3')
-        nsize = stateVector_VarsLevs%ni * stateVector_VarsLevs%nj
-        do yourid = 0, (mpi_nprocs-1)
-          displs(yourid+1) = yourid*nsize
-          nsizes(yourid+1) = nsize
-        end do
-        call rpn_comm_scatterv(gd_send_r4, nsizes, displs, 'mpi_real4', &
-                               gd_recv_r4, nsize, 'mpi_real4', &
-                               procIndex-1, 'grid', ierr)
-
-        call tmg_stop(182)
-
-        call tmg_start(183,'READTRIALS_4')
+        ! all tasks copy the received step data into correct slot
         kIndex2 = kIndex + stateVector_VarsLevs%mykBeg - 1
         if ( kIndex2 <= stateVector_VarsLevs%mykEnd ) then
-          field_out_r4(:,:,kIndex2,stepIndex) =   &
-            gd_recv_r4(:,:)
+          stepIndexInput = stepIndexInput + 1
+          field_out_r4(:,:,kIndex2,stepIndex) = gd_recv_r4(:,:,stepIndexInput)
         end if
-        call tmg_stop(183)
+      end do
+      call tmg_stop(183)
 
-      end do ! procIndex
     end do ! kIndex
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! also do extra transpose for complementary wind components when grid is rotated
-    if ( gsv_varExist(stateVector_VarsLevs, 'UU') .and. gsv_varExist(stateVector_VarsLevs, 'VV') .and. &
-         stateVector_VarsLevs%hco%rotated ) then
-
+    ! also do extra transpose for complementary wind components when wind component present
+    if ( gsv_varExist(stateVector_VarsLevs, 'UU') .or. gsv_varExist(stateVector_VarsLevs, 'VV') ) then
       call tmg_start(184,'READTRIALS_5')
 
       if ( stateVector_VarsLevs%UVComponentPresent ) then
         fieldUV_out_r4 => gsv_getFieldUV_r4(stateVector_VarsLevs)
       end if
-      gd_recv_r4(:,:) = 0.0
 
       do kIndex = 1, maxkCount
 
         ! prepare the complete 1 timestep for sending on all tasks that read something
-        if ( stateVector_1step%allocated ) then
+        if ( stateVector_1step_r4%allocated ) then
 
-          field_in_r4 => gsv_getField_r4(stateVector_1step)
-          !$OMP PARALLEL DO PRIVATE(yourid,kIndex2,levUV)
-          do yourid = 0, (mpi_nprocs-1)
-            kIndex2 = kIndex + stateVector_VarsLevs%allkBeg(yourid+1) - 1
-            if ( kIndex2 <= stateVector_VarsLevs%allkEnd(yourid+1) ) then
-              ! switch kIndex2 to complementary wind component
-              if ( gsv_getVarNameFromK(stateVector_VarsLevs,kIndex2) == 'UU' ) then
-                levUV = gsv_getLevFromK(stateVector_VarsLevs, kIndex2)
-                kIndex2 = levUV + gsv_getOffsetFromVarName(stateVector_VarsLevs,'VV')
-              else if ( gsv_getVarNameFromK(stateVector_VarsLevs,kIndex2) == 'VV' ) then
-                levUV = gsv_getLevFromK(stateVector_VarsLevs, kIndex2)
-                kIndex2 = levUV + gsv_getOffsetFromVarName(stateVector_VarsLevs,'UU')
-              else
-                cycle
-              end if
-              gd_send_r4(:,:,yourid+1) =  &
-                  field_in_r4(:,:,kIndex2,1)
+          fieldUV_in_r4 => gsv_getFieldUV_r4(stateVector_1step_r4)
+          !$OMP PARALLEL DO PRIVATE(procIndex,kIndex2,levUV)
+          do procIndex = 1, mpi_nprocs
+            kIndex2 = kIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
+            if ( kIndex2 <= stateVector_VarsLevs%allkEnd(procIndex) ) then
+              gd_send_r4(:,:,procIndex) =  &
+                  fieldUV_in_r4(:,:,kIndex2,1)
             end if
           end do
           !$OMP END PARALLEL DO
 
         end if
 
-        nsize = stateVector_VarsLevs%ni * stateVector_VarsLevs%nj
-        do yourid = 0, (mpi_nprocs-1)
-          displs(yourid+1) = yourid*nsize
-          nsizes(yourid+1) = nsize
-        end do
+        call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4,  &
+                           gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, mpi_comm_grid, ierr)
 
         stepIndex = stepIndexBeg - 1
+        stepIndexInput = 0
         do procIndex = 1, mpi_nprocs
-
-          ! determine if this task has something to send and let everyone else know
-          thisProcIsAsender = .false.
-          if ( mpi_myid == (procIndex-1) .and. stateVector_1step%allocated ) then
-            thisProcIsAsender = .true.
-          end if
-          call rpn_comm_bcast(thisProcIsAsender, 1, 'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
-          if ( .not. thisProcIsAsender ) cycle
+          ! skip if this task has nothing to send
+          if ( .not. thisProcIsAsender(procIndex) ) cycle
 
           stepIndex = stepIndex + 1
-
-          call rpn_comm_scatterv(gd_send_r4, nsizes, displs, 'mpi_real4', &
-                                 gd_recv_r4, nsize, 'mpi_real4', &
-                                 procIndex-1, 'grid', ierr)
-
-          kIndex2 = kIndex + stateVector_VarsLevs%mykBeg - 1
-          if ( kIndex2 >= stateVector_VarsLevs%myUVkBeg .and.  &
-               kIndex2 <= stateVector_VarsLevs%myUVkEnd ) then
-            fieldUV_out_r4(:,:,kIndex2,stepIndex) =   &
-              gd_recv_r4(:,:)
+          if ( stepIndex > stateVector_VarsLevs%numStep ) then
+            call utl_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
           end if
 
-        end do ! procIndex
+          ! all tasks copy the received step data into correct slot
+          kIndex2 = kIndex + stateVector_VarsLevs%mykBeg - 1
+          if ( kIndex2 <= stateVector_VarsLevs%myUVkEnd ) then
+            stepIndexInput = stepIndexInput + 1
+            fieldUV_out_r4(:,:,kIndex2,stepIndex) = gd_recv_r4(:,:,stepIndexInput)
+          end if
+        end do
 
       end do ! kIndex
       call tmg_stop(184)
@@ -5000,6 +5031,9 @@ module gridStateVector_mod
 
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'gsv_transposeStepToVarsLevs: Finished'
 
   end subroutine gsv_transposeStepToVarsLevs
 

@@ -44,6 +44,7 @@ program midas_ensembleH
   use obsErrors_mod
   use obsOperators_mod
   use innovation_mod
+  use tt2phi_mod
   implicit none
 
   type(struct_obs), target             :: obsSpaceData
@@ -199,11 +200,10 @@ program midas_ensembleH
   do memberIndex = 1, nEns
     write(*,*) ''
     write(*,*) 'midas-ensembleH: read member ', memberIndex
-    call fln_ensFileName( ensFileName, ensPathName, memberIndex )
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex, copyToRamDisk_opt=.false.  )
     call tmg_start(3,'READ_ENSEMBLE')
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', readGZsfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
-    ierr = ram_remove(ensFileName)
     call tmg_stop(3)
 
     write(*,*) ''
@@ -214,7 +214,17 @@ program midas_ensembleH
     else
       dealloc = .false.
     end if
-    call s2c_nl( stateVector, obsSpaceData, columns(memberIndex), dealloc_opt=dealloc )
+    call s2c_nl( stateVector, obsSpaceData, columns(memberIndex), timeInterpType='LINEAR', dealloc_opt=dealloc )
+    ! Do final preparations of columnData objects (compute GZ and pressure)
+    beSilent = .true.
+    if ( memberIndex == 1 ) beSilent = .false.
+    if (col_varExist('P0')) then
+      call col_calcPressure(columns(memberIndex),beSilent_opt=beSilent)
+    end if
+    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
+         col_varExist('P0') .and. col_getNumLev(columns(memberIndex),'MM') > 1 ) then
+      call tt2phi(columns(memberIndex),beSilent_opt=beSilent)
+    end if
     call tmg_stop(6)
   end do
   call gsv_deallocate( stateVector )

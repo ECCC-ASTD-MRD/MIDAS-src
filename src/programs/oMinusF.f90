@@ -48,12 +48,9 @@ program midas_ominusf
   type(struct_obs),       target  :: obsSpaceData
   type(struct_columnData),target  :: trlColumnOnAnlLev
   type(struct_columnData),target  :: trlColumnOnTrlLev
-  type(struct_gsv)                :: stateVector
   type(struct_vco),       pointer :: vco_anl  => null()
-  type(struct_vco),       pointer :: vco_trl  => null()
   type(struct_hco),       pointer :: hco_anl  => null()
   type(struct_hco),       pointer :: hco_core => null()
-  type(struct_hco),       pointer :: hco_trl  => null()
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
@@ -62,12 +59,10 @@ program midas_ominusf
   integer :: datestamp, get_max_rss, headerIndex, ierr
   integer :: fnom, fclos, nulnam
 
-  character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
-
   ! Namelist
   logical :: addHBHT  
   logical :: addSigmaO
-  NAMELIST /NAMOMF/addHBHT,addSigmaO,timeInterpType_nl
+  NAMELIST /NAMOMF/addHBHT,addSigmaO
 
   write(*,*) " --------------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM midas-oMinusF ---"
@@ -92,7 +87,6 @@ program midas_ominusf
   !- 1.0 Namelist
   addHBHT   = .false. ! default value
   addSigmaO = .false. 
-  timeInterpType_nl='NEAREST'
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -120,17 +114,10 @@ program midas_ominusf
   !- 1.6 Constants
   if (mpi_myid == 0) call mpc_printConstants(6)
 
-  !- 1.7 Setup a column vector following the background vertical grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)' set vcoord parameters for background grid'
-  call vco_SetupFromFile( vco_trl,             & ! OUT
-                          trim(trialFileName) )  ! IN
-  call col_setVco(trlColumnOnTrlLev,vco_trl)
-
-  !- 1.8 Variables of the model states
+  !- 1.7 Variables of the model states
   call gsv_setup
 
-  !- 1.9 Set the horizontal domain
+  !- 1.8 Set the horizontal domain
   if ( addHBHT ) then
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS') ! IN
     if ( hco_anl % global ) then
@@ -146,49 +133,36 @@ program midas_ominusf
     call agd_SetupFromHCO( hco_anl ) ! IN
   end if
 
-  ! 1.10 Setup a column vector following the analysis vertical grid
+  ! 1.9 Setup a column vector following the analysis vertical grid
   if ( addHBHT ) then
     call vco_SetupFromFile(vco_anl,        & ! OUT
                            './analysisgrid') ! IN
     call col_setVco(trlColumnOnAnlLev,vco_anl)
   end if
 
-  !- 1.11 Setup and read observations
+  !- 1.10 Setup and read observations
   call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'OminusF') ! IN
 
-  !- 1.12 Setup observation operators
+  !- 1.11 Setup observation operators
   call oop_setup('OminusF') ! IN
 
-  !- 1.13 Basic setup of columnData module
+  !- 1.12 Basic setup of columnData module
   call col_setup
 
-  !- 1.14 Memory allocation for background column data
-  call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  !- 1.13 Memory allocation for background column data
   if ( addHBHT ) then
     call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
   end if
 
   if ( addSigmaO ) then
-    !- 1.15 Initialize the observation error covariances
+    !- 1.14 Initialize the observation error covariances
     write(*,*)
     write(*,*) '> midas-OminusF: Adding sigma_O'
     call oer_setObsErrors(obsSpaceData, 'OminusF')
   end if
 
-  !- 1.16 Reading, horizontal interpolation and unit conversions of the 3D background fields
-  call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ', 'Trial' )
-  call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                     allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
-  call tmg_start(9,'readTrials')
-  call gsv_readTrials( stateVector )
-  call tmg_stop(9)
-  call tmg_start(8,'s2c_nl')
-  call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
-               moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
-  call tmg_stop(8)
-  call gsv_deallocate(stateVector)
+  !- 1.15 Reading, horizontal interpolation and unit conversions of the 3D background fields
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   write(*,*)
   write(*,*) '> midas-OminusF: setup - END'

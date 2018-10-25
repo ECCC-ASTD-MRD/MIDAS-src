@@ -58,14 +58,9 @@ program midas_diagHBHt
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
-  type(struct_gsv)               :: stateVector
-  type(struct_hco), pointer      :: hco_trl => null()
-  type(struct_vco), pointer      :: vco_trl => null()
 
   character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
-  character(len=20) :: timeInterpType_nl = 'NEAREST' ! 'NEAREST' or 'LINEAR'
-
 
   istamp = exdb('diagHBHt','DEBUT','NON')
 
@@ -97,18 +92,7 @@ program midas_diagHBHt
 
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                     allocGZsfc_opt=.true. )
-  call tmg_start(9,'readTrials')
-  call gsv_readTrials( stateVector )
-  call tmg_stop(9)
-  call tmg_start(8,'s2c_nl')
-  call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
-               moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
-  call tmg_stop(8)
-  call gsv_deallocate(stateVector)
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -198,20 +182,6 @@ contains
     if(mpi_myid.eq.0) call mpc_printConstants(6)
 
     !
-    ! - Set horizontal coordinate for trial file
-    !
-    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
-
-    !
-    !- Set vertical coordinate parameters from !! record in trial file
-    !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-    call vco_SetupFromFile( vco_trl,     & ! OUT
-                            './trlm_01')   ! IN
-    call col_setVco(trlColumnOnTrlLev,vco_trl)
-
-    !
     !- Initialize variables of the model states
     !
     call gsv_setup
@@ -263,7 +233,6 @@ contains
     !- Memory allocation for background column data
     !
     call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances

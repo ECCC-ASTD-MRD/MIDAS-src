@@ -257,7 +257,6 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       call col_setVco(lcolumn,col_getVco(lcolumng))
       call col_allocate(lcolumn,col_getNumCol(lcolumng))
-      call col_copyLatLon(lcolumng,lcolumn)
 !
 !     Set the value of OBS_LYR required by setfge routines
 !
@@ -681,7 +680,6 @@ subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
   !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
   call col_setVco(column,vco_anl)
   call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-  call col_copyLatLon(columng,column)
 
   !- 1.5 Create a working a array to sum H ensPert HT
   allocate(HBHT_ens(obs_numBody(obsSpaceData)))

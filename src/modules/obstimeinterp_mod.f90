@@ -34,7 +34,7 @@ module obsTimeInterp_mod
   public :: struct_oti
 
   ! public procedures
-  public :: oti_setup, oti_initialized
+  public :: oti_setup, oti_initialized, oti_dealloc
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal
   public :: oti_timeInterpWeightAllZero
@@ -270,6 +270,20 @@ contains
     if (mpi_myid == 0) write(*,*) ' '
 
   end subroutine oti_setup
+
+
+  subroutine oti_dealloc(oti)
+    implicit none
+
+    ! arguments
+    type(struct_oti), pointer :: oti
+
+    if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
+    if (associated(oti%timeInterpWeightMpiGlobal)) deallocate(oti%timeInterpWeightMpiGlobal)
+    oti%initialized = .false.
+    nullify(oti)
+
+  end subroutine oti_dealloc
 
 
   subroutine oti_setupMpiGlobal(oti)

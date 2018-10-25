@@ -31,8 +31,8 @@ module innovation_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use obsOperators_mod
-  use EarthConstants_mod
-  use MathPhysConstants_mod
+  use earthConstants_mod
+  use mathPhysConstants_mod
   use mpivar_mod
   use horizontalCoord_mod
   use columnData_mod
@@ -47,18 +47,19 @@ module innovation_mod
   use tovs_nl_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
-  use chem_setup_mod, only: chm_setup, chm_apply_2dfieldr4_transform
+  use chem_setup_mod
   use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod
   use bufr_mod
+  use statetocolumn_mod
   implicit none
   save
   private
 
   ! public procedures
   public :: inn_setupObs, inn_computeInnovation
-  public :: inn_perturbObs, inn_setupBackgroundColumnsAnl
+  public :: inn_perturbObs, inn_setupBackgroundColumns, inn_setupBackgroundColumnsAnl
 
   character(len=48) :: innovationMode
 
@@ -204,6 +205,90 @@ contains
     end if
 
   end subroutine inn_setupobs
+
+
+  subroutine inn_setupBackgroundColumns(columnhr,obsSpaceData)
+    implicit none
+
+    ! arguments
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: obsSpaceData
+
+    ! locals
+    type(struct_gsv)          :: stateVector_trial
+    type(struct_hco), pointer :: hco_trl => null()
+    type(struct_vco), pointer :: vco_trl => null()
+    integer                   :: varIndex, ierr, nulnam, fnom, fclos
+    character(len=4)          :: varNamesToRead(1), lastVarNameToRead
+    logical                   :: deallocInterpInfo, removeFromRamDisk
+
+    character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
+    NAMELIST /NAMINN/timeInterpType_nl
+
+    timeInterpType_nl='NEAREST'
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    if(ierr /= 0) call utl_abort('inn_setupBackgroundColumns: Error opening file flnml')
+    read(nulnam,nml=naminn,iostat=ierr)
+    if(ierr /= 0) write(*,*) 'WARNING: namelist block NAMINN not found, use the default values'
+    write(*,nml=naminn)
+    ierr = fclos(nulnam)
+
+    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+
+    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
+    call vco_SetupFromFile( vco_trl, './trlm_01' )
+    call col_setVco(columnhr,vco_trl)
+    call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
+
+    do varIndex = 1, vnl_numvarmax
+      varNamesToRead(1) = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(varName=varNamesToRead(1)) ) cycle
+      lastVarNameToRead = varNamesToRead(1)
+    end do
+
+    do varIndex = 1, vnl_numvarmax
+      varNamesToRead(1) = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(varName=varNamesToRead(1)) ) cycle
+      write(*,*) 'Starting innovation calculation for variable ', trim(varNamesToRead(1))
+
+      ! free up space when reading last variable
+      if ( varNamesToRead(1) == lastVarNameToRead ) then
+        removeFromRamDisk = .true.
+        deallocInterpInfo = .true.
+      else
+        removeFromRamDisk = .false.
+        deallocInterpInfo = .false.
+      end if
+
+      call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                         mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
+                         allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                         varNames_opt=varNamesToRead )
+      call tmg_start(9,'readTrials')
+      call gsv_readTrials( stateVector_trial, removeFromRamDisk_opt=removeFromRamDisk )
+      call tmg_stop(9)
+      call tmg_start(8,'s2c_nl')
+      call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
+                   varName_opt=varNamesToRead(1), moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
+      call tmg_stop(8)
+      call gsv_deallocate(stateVector_trial)
+    end do
+
+    ! Do final preparations of columnData objects (compute GZ and pressure)
+    if (col_varExist('P0')) then
+      call col_calcPressure(columnhr)
+    end if
+    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
+         col_varExist('P0') .and. col_getNumLev(columnhr,'MM') > 1 ) then
+      call tt2phi(columnhr)
+    end if
+
+    call tmg_stop(10)
+
+  end subroutine inn_setupBackgroundColumns
 
 
   subroutine inn_setupBackgroundColumnsAnl(columnhr,columng)

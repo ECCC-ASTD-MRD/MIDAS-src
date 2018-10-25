@@ -65,22 +65,18 @@ program midas_var
   type(struct_obs),        target  :: obsSpaceData
   type(struct_columnData), target  :: trlColumnOnAnlLev
   type(struct_columnData), target  :: trlColumnOnTrlLev
-  type(struct_gsv)                 :: stateVector
   type(struct_gsv)                 :: statevector_incr
-  type(struct_hco), pointer        :: hco_trl => null()
-  type(struct_vco), pointer        :: vco_trl => null()
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_vco), pointer        :: vco_anl => null()
 
-  real*8,allocatable :: controlVector_incr(:)
+  real(8), allocatable :: controlVector_incr(:)
 
-  character(len=9) :: clmsg
+  character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
 
   logical :: writeAnalysis
-  character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
 
-  NAMELIST /NAMCT0/nconf,writeAnalysis,timeInterpType_nl
+  NAMELIST /NAMCT0/nconf,writeAnalysis
 
   integer :: nulnam, fnom, fclos, get_max_rss
 
@@ -108,7 +104,6 @@ program midas_var
   ! 1. Top level setup
   nconf             = 141
   writeAnalysis = .false.
-  timeInterpType_nl='NEAREST'
 
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -153,28 +148,7 @@ program midas_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
-    call tmg_start(9,'readTrials')
-    call gsv_readTrials( stateVector )
-    call tmg_stop(9)
-    call tmg_start(8,'s2c_nl')
-    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,   &
-                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
-    call tmg_stop(8)
-    call gsv_deallocate(stateVector)
-
-    ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
-
-    ! Do the background check and output the observation data files
-    call bgck_bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   else if ( trim(varMode) == 'bgckIR' ) then
@@ -188,18 +162,7 @@ program midas_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
-    call tmg_start(9,'readTrials')
-    call gsv_readTrials( stateVector )
-    call tmg_stop(9)
-    call tmg_start(8,'s2c_nl')
-    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
-                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl  )
-    call tmg_stop(8)
-    call gsv_deallocate(stateVector)
+    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
@@ -247,18 +210,7 @@ program midas_var
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
-    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
-    call tmg_start(9,'readTrials')
-    call gsv_readTrials( stateVector )
-    call tmg_stop(9)
-    call tmg_start(8,'s2c_nl')
-    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
-                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
-    call tmg_stop(8)
-    call gsv_deallocate(stateVector)
+    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -402,10 +354,6 @@ contains
     !
     if(mpi_myid.eq.0) call mpc_printConstants(6)
 
-    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
-    call vco_SetupFromFile( vco_trl, './trlm_01' )
-    call col_setVco(trlColumnOnTrlLev,vco_trl)
-
     !
     !- Initialize variables of the model states
     !
@@ -458,7 +406,6 @@ contains
     !- Memory allocation for background column data
     !
     call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances
