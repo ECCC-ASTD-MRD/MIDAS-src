@@ -646,7 +646,6 @@ contains
       if (ierr.eq.6) then
          obsFiletype = 'BURP'
       else
-
          unitFile = 0
          ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
          read(unitFile,'(A)') fileStart
