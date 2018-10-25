@@ -116,26 +116,10 @@ contains
       flag           = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex  )
       if(btest(flag,BIT9))cycle BODY
 
-      headerIndex    = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
-      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN , headerIndex)
-      bodyIndexEnd =   obs_headElem_i(obsdat, OBS_NLV , headerIndex) &
-                     + bodyIndexStart - 1
-      level          = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex  )
-
-      ! Scan  body indices for the profile ID 'observed' at that level
-      newProfileId=PROFILE_NOT_FOUND
-      BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-        if (obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex2 ) == BUFR_NEPR .and. &
-            obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex2 ) == level &
-           ) then
-          ! Profile ID found.  Obtain the value of this variable.
-          newProfileId = obs_bodyElem_i(obsdat, OBS_VAR, bodyIndex2 )
-          exit BODY_SUPP ! Stop searching for the profile ID
-        end if
-      end do BODY_SUPP
+      headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
+      newProfileId = obs_headElem_i(obsdat, OBS_PRFL, headerIndex)
 
       countKeepN=countKeepN + 1
-
       if(     countKeepN == keepNthVertical &
          .OR. new_column() &
         )then
