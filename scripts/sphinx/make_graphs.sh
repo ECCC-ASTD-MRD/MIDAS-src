@@ -75,7 +75,7 @@ for index1 in `seq 1 ${numModules}`; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}.gv
-  echo "label=\"Read boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "label=\"Red boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/modules/${modulename}.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
@@ -157,7 +157,7 @@ for program in ${programfilelist}; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/programs/${programname}.gv
-  echo "label=\"Read boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/programs/${programname}.gv
+  echo "label=\"Red boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/programs/${programname}.gv
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv
