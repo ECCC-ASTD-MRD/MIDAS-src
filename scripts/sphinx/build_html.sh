@@ -2,6 +2,9 @@
 
 set -e
 
+# CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY)
+do_graphs=yes
+
 # SELECT WHICH FORTRAN SOURCE FILES TO INCLUDE IN DOCUMENTATION
 
 codedir=${1:-../../src}
@@ -63,10 +66,44 @@ cat > ./programs/${program_name}.rst <<EOF
 ==========================================
 $program_name
 ==========================================
+EOF
+
+if [ "${do_graphs}" = "yes" ]; then
+cat >> ./programs/${program_name}.rst <<EOF
+    **Dependency Diagrams:** \`1-Level <level1/${program_name}.png>\`_, \`2-Level <level2/${program_name}.png>\`_, \`3-Level <level3/${program_name}.png>\`_
+
+EOF
+fi
+
+cat >> ./programs/${program_name}.rst <<EOF
 
     .. f:autoprogram:: $program_name
 
 EOF
+
+if [ "${do_graphs}" = "yes" ]; then
+cat >> ./programs/${program_name}.rst <<EOF
+
+    **Dependency Diagrams:**
+
+    .. figure:: /level1/${program_name}.png
+        :height: 100px
+
+        1-Level Dependency Diagram
+
+    .. figure:: /level2/${program_name}.png
+        :height: 100px
+
+        2-Level Dependency Diagram
+
+    .. figure:: /level3/${program_name}.png
+        :height: 100px
+
+        3-Level Dependency Diagram
+
+EOF
+fi
+
 done
 
 
@@ -80,9 +117,44 @@ cat > ./modules/${module_name}.rst <<EOF
 $module_name
 ==========================================
 
+EOF
+
+if [ "${do_graphs}" = "yes" ]; then
+cat >> ./modules/${module_name}.rst <<EOF
+
+    **Dependency Diagrams:** \`1-Level <level1/${module_name}.png>\`_, \`2-Level <level2/${module_name}.png>\`_, \`3-Level <level3/${module_name}.png>\`_
+EOF
+fi
+
+cat >> ./modules/${module_name}.rst <<EOF
+
     .. f:automodule:: $module_name
 
 EOF
+
+if [ "${do_graphs}" = "yes" ]; then
+cat >> ./modules/${module_name}.rst <<EOF
+
+    **Dependency Diagrams:**
+
+    .. figure:: /level1/${module_name}.png
+        :height: 100px
+
+        1-Level Dependency Diagram
+
+    .. figure:: /level2/${module_name}.png
+        :height: 100px
+
+        2-Level Dependency Diagram
+
+    .. figure:: /level3/${module_name}.png
+        :height: 100px
+
+        3-Level Dependency Diagram
+
+EOF
+fi
+
 done
 
 revision=$(git describe --always --dirty=_M 2>/dev/null)
@@ -150,11 +222,11 @@ Indices and tables
 
 EOF
 
+rm -fR _build
+mkdir _build
 
 # RUN SPHYNX TO BUILD HTML FILES
 
-rm -fR _build
-mkdir _build
 PYTHONPATH="$PYTHONPATH:${PWD}/lib/python2.7:${PWD}/lib/python2.7/sphinx_fortran-1.0.1-py2.7.egg"
 #sphinx-build -b html ./ ./_build
 make html
@@ -164,6 +236,28 @@ make html
 [ -d "${htmldir}" ] && rm -rf ${htmldir}
 mkdir -p ${htmldir}
 mv _build/html/* ${htmldir}
+
+# GENERATE DEPENDENCY GRAPHS
+
+if [ "${do_graphs}" = "yes" ]; then
+  ./make_graphs.sh 1 $PWD/_build/html/graphs
+  mkdir -p ${htmldir}/programs/level1
+  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level1/
+  mkdir -p ${htmldir}/modules/level1
+  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level1/
+
+  ./make_graphs.sh 2 $PWD/_build/html/graphs
+  mkdir -p ${htmldir}/programs/level2
+  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level2/
+  mkdir -p ${htmldir}/modules/level2
+  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level2/
+
+  ./make_graphs.sh 3 $PWD/_build/html/graphs
+  mkdir -p ${htmldir}/programs/level3
+  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level3/
+  mkdir -p ${htmldir}/modules/level3
+  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level3/
+fi
 
 echo "The HTML are in ${htmldir}"
 # CLEAN UP
