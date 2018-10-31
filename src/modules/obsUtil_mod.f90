@@ -491,6 +491,7 @@ module obsUtil_mod
     real    :: vcordsf2
 
     vcordsf2 = 0.
+    type = -1
     if ( codtyp == codtyp_get_codtyp('temppilot')      .or. codtyp == codtyp_get_codtyp('tempsynop')       .or. &
          codtyp == codtyp_get_codtyp('pilotsynop')     .or. codtyp == codtyp_get_codtyp('temppilotsynop')  .or. &
          codtyp == codtyp_get_codtyp('pilot')          .or. codtyp == codtyp_get_codtyp('pilotmobil')      .or. &

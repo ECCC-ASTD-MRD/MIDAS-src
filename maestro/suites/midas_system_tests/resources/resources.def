@@ -1,5 +1,5 @@
 # Machine stuff
-FRONTEND=eccc-ppp1
+FRONTEND=eccc-ppp2
 BACKEND=brooks
 
 BACKEND_DEFAULT_Q=development
