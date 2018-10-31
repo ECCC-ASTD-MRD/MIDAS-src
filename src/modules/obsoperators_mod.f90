@@ -28,7 +28,6 @@ module obsOperators_mod
   use columnData_mod 
   use bufr_mod
   use physicsFunctions_mod
-  use aladin_mod
   use gps_mod
   use mpi_mod
   use mpivar_mod
@@ -396,9 +395,10 @@ contains
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt
-    real(8) :: zlev,zpt,zpb,zomp,azimuth
+    real(8) :: zlev,zpt,zpb,zomp
     real(8) :: columnVarB,columnVarT
     character(len=2) :: varLevel
+    real(8) :: azimuth ! HLOS wind direction CW from true north
     real(8) :: uuLyr, vvLyr   ! wind on layer, OBS_LYR
     real(8) :: uuLyr1,vvLyr1  ! wind on layer plus 1
 
@@ -445,7 +445,8 @@ contains
                        + bodyIndexStart - 1
         BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
           if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)) then
-            azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+            azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                    * MPC_RADIANS_PER_DEGREE_R8
             exit BODY_SUPP
           end if
         end do BODY_SUPP
@@ -455,8 +456,9 @@ contains
         vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
         vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
 
-        columnVarB=ala_aladin(uuLyr1, vvLyr1, azimuth)
-        columnVarT=ala_aladin(uuLyr,  vvLyr,  azimuth)
+        ! Apply the nonlinear aladin observation operator
+        columnVarB= -vvLyr1*cos(azimuth) - uuLyr1*sin(azimuth)
+        columnVarT= -vvLyr *cos(azimuth) - uuLyr *sin(azimuth)
 
       !else if(<another type of observation>
       end if
@@ -2263,7 +2265,8 @@ contains
       INTEGER J,bodyIndex,ITYP
       REAL*8 ZVAR,ZDA1,ZDA2
       REAL*8 ZWB,ZWT
-      real(8) :: ZLEV,ZPT,ZPB,ZDENO,azimuth
+      real(8) :: ZLEV,ZPT,ZPB,ZDENO
+      real(8) :: azimuth ! HLOS wind direction CW from true north
       real(8) :: columnVarB,columnVarT,columngVarB,columngVarT
       integer, parameter :: NUMFAMILY=2
       character(len=2) :: listFamily(NUMFAMILY),varLevel
@@ -2314,27 +2317,25 @@ contains
               BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
                 if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
                                                bodyIndex2))then
-                  azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                          * MPC_RADIANS_PER_DEGREE_R8
                   exit BODY_SUPP
                 end if
               end do BODY_SUPP
 
-              columnVarB=ala_aladin_tl( &
-                                    col_getElem(column,IK+1,headerIndex,'UU'), &
-                                    col_getElem(column,IK+1,headerIndex,'VV'), &
-                                    azimuth)
-              columnVarT=ala_aladin_tl( &
-                                    col_getElem(column,IK  ,headerIndex,'UU'), &
-                                    col_getElem(column,IK  ,headerIndex,'VV'), &
-                                    azimuth)
-              columngVarB=ala_aladin( &
-                                   col_getElem(columng,IK+1,headerIndex,'UU'), &
-                                   col_getElem(columng,IK+1,headerIndex,'VV'), &
-                                   azimuth)
-              columngVarT=ala_aladin( &
-                                   col_getElem(columng,IK  ,headerIndex,'UU'), &
-                                   col_getElem(columng,IK  ,headerIndex,'VV'), &
-                                   azimuth)
+              ! Apply the tangent-linear aladin observation operator
+              columnVarB=-col_getElem(column,IK+1,headerIndex,'VV')*cos(azimuth)&
+                         -col_getElem(column,IK+1,headerIndex,'UU')*sin(azimuth)
+              columnVarT=-col_getElem(column,IK  ,headerIndex,'VV')*cos(azimuth)&
+                         -col_getElem(column,IK  ,headerIndex,'UU')*sin(azimuth)
+
+              ! Apply the nonlinear aladin observation operator
+              columngVarB= &
+                      - col_getElem(columng,IK+1,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,IK+1,headerIndex,'UU')*sin(azimuth)
+              columngVarT= &
+                      - col_getElem(columng,IK  ,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,IK  ,headerIndex,'UU')*sin(azimuth)
 
             else
               columnVarB=col_getElem(column,IPB,headerIndex)
@@ -3198,14 +3199,15 @@ contains
       !*    -------------------
       !*
       !*     Purpose: based on vint3d to build the adjoint of the
-      !*              vertical interpolation of geometric-height based data, including
-      !*              profiler data and aladin wind data.
+      !*              vertical interpolation of geometric-height based data,
+      !*              including profiler data and aladin wind data.
       !*
       implicit none
       INTEGER IPB,IPT
       REAL(8) :: ZRES,ZDA1,ZDA2,ZDENO,columngVarB,columngVarT
       REAL(8) :: ZWB,ZWT,deltaAladin
-      REAL(8) :: ZLEV,ZPT,ZPB,azimuth
+      real(8) :: azimuth ! HLOS wind direction CW from true north
+      REAL(8) :: ZLEV,ZPT,ZPB
       INTEGER :: headerIndex,IK,ITYP
       INTEGER :: bodyIndex, familyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
       real(8), pointer :: gz_column(:),all_column(:),uu_column(:),vv_column(:)
@@ -3257,29 +3259,27 @@ contains
               BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
                 if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
                                                bodyIndex2))then
-                  azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                          * MPC_RADIANS_PER_DEGREE_R8
                   exit BODY_SUPP
                 end if
               end do BODY_SUPP
 
+              ! Apply the adjoint of the aladin observation operator
               deltaAladin=zwb*zres
-              call ala_aladin_ad(uu_column(ik+1),  &
-                                 vv_column(ik+1),  &
-                                 deltaAladin,         &
-                                 azimuth)
-              deltaAladin=zwt*zres
-              call ala_aladin_ad(uu_column(ik),  &
-                                 vv_column(ik),  &
-                                 deltaAladin,         &
-                                 azimuth)
-              columngVarB=ala_aladin( &
-                                   col_getElem(columng,ik+1,headerIndex,'UU'), &
-                                   col_getElem(columng,ik+1,headerIndex,'VV'), &
-                                   azimuth)
-              columngVarT=ala_aladin( &
-                                   col_getElem(columng,ik,headerIndex,'UU'), &
-                                   col_getElem(columng,ik,headerIndex,'VV'), &
-                                   azimuth)
+              uu_column(ik+1) = uu_column(ik+1) - deltaAladin*sin(azimuth)
+              vv_column(ik+1) = vv_column(ik+1) - deltaAladin*cos(azimuth)
+              uu_column(ik  ) = uu_column(ik  ) - deltaAladin*sin(azimuth)
+              vv_column(ik  ) = vv_column(ik  ) - deltaAladin*cos(azimuth)
+              deltaAladin=0
+
+              ! Apply the nonlinear aladin observation operator
+              columngVarB= &
+                      - col_getElem(columng,ik+1,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,ik+1,headerIndex,'UU')*sin(azimuth)
+              columngVarT= &
+                      - col_getElem(columng,ik  ,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,ik  ,headerIndex,'UU')*sin(azimuth)
             else
               columngVarB=col_getElem(columng,IPB,headerIndex)
               columngVarT=col_getElem(columng,IPT,headerIndex)
