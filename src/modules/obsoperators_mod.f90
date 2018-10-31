@@ -393,11 +393,11 @@ contains
     character(len=*), optional, intent(in)    :: cdfam
 
     integer :: headerIndex,bodyIndex,ilyr,ivnm
+    integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp,azimuth
     real(8) :: columnVarB,columnVarT
-    character(len=4) :: varName
     character(len=2) :: varLevel
     real(8) :: uuLyr, vvLyr   ! wind on layer, OBS_LYR
     real(8) :: uuLyr1,vvLyr1  ! wind on layer plus 1
@@ -431,7 +431,6 @@ contains
       headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
 
       ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-      varName = vnl_varnameFromVarnum(ivnm)
       varLevel = vnl_varLevelFromVarnum(ivnm)
       zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
       zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
@@ -439,13 +438,26 @@ contains
       zwt  = 1.d0 - zwb
 
       if(ivnm == BUFR_NEAL) then
+        ! Scan body indices for the azimuth
+        azimuth=0.0d0
+        bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
+                       + bodyIndexStart - 1
+        BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+          if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)) then
+            azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+            exit BODY_SUPP
+          end if
+        end do BODY_SUPP
+
         uuLyr =col_getElem(columnhr,ilyr,  headerIndex,'UU')
         uuLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU')
         vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
         vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
-        azimuth=obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+
         columnVarB=ala_aladin(uuLyr1, vvLyr1, azimuth)
         columnVarT=ala_aladin(uuLyr,  vvLyr,  azimuth)
+
       !else if(<another type of observation>
       end if
 
@@ -2247,6 +2259,7 @@ contains
 
       INTEGER IPB,IPT
       INTEGER headerIndex,IK,familyIndex
+      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
       INTEGER J,bodyIndex,ITYP
       REAL*8 ZVAR,ZDA1,ZDA2
       REAL*8 ZWB,ZWT
@@ -2274,7 +2287,6 @@ contains
             ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
             IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
             ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
             varLevel = vnl_varLevelFromVarnum(ityp)
             IPT  = IK + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
@@ -2294,6 +2306,19 @@ contains
               call utl_abort('Aborting in oop_H')
 
             else if(ityp == BUFR_NEAL) then
+              ! Scan body indices for the azimuth
+              azimuth=0.0d0
+              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
+                            + bodyIndexStart - 1
+              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+                if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
+                                               bodyIndex2))then
+                  azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+                  exit BODY_SUPP
+                end if
+              end do BODY_SUPP
+
               columnVarB=ala_aladin_tl( &
                                     col_getElem(column,IK+1,headerIndex,'UU'), &
                                     col_getElem(column,IK+1,headerIndex,'VV'), &
@@ -3182,7 +3207,7 @@ contains
       REAL(8) :: ZWB,ZWT,deltaAladin
       REAL(8) :: ZLEV,ZPT,ZPB,azimuth
       INTEGER :: headerIndex,IK,ITYP
-      INTEGER :: bodyIndex, familyIndex
+      INTEGER :: bodyIndex, familyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
       real(8), pointer :: gz_column(:),all_column(:),uu_column(:),vv_column(:)
       integer, parameter :: NUMFAMILY=2
       character(len=2) :: listFamily(NUMFAMILY),varLevel
@@ -3204,7 +3229,6 @@ contains
               .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
             ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            azimuth = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
             varLevel = vnl_varLevelFromVarnum(ityp)
             gz_column  => col_getColumn(column,headerIndex,'GZ',varLevel)
             uu_column  => col_getColumn(column,headerIndex,'UU')
@@ -3225,6 +3249,19 @@ contains
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
             if(ityp == BUFR_NEAL) then
+              ! Scan body indices for the azimuth
+              azimuth=0.0d0
+              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
+                            + bodyIndexStart - 1
+              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+                if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
+                                               bodyIndex2))then
+                  azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+                  exit BODY_SUPP
+                end if
+              end do BODY_SUPP
+
               deltaAladin=zwb*zres
               call ala_aladin_ad(uu_column(ik+1),  &
                                  vv_column(ik+1),  &

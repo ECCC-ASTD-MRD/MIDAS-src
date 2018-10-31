@@ -842,9 +842,10 @@ end subroutine hbht_compute_ensemble
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
       INTEGER J,INDEX_BODY
+      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-      real(8) :: hlos, fge_uu, fge_vv, fge_fam
+      real(8) :: azimuth, fge_uu, fge_vv, fge_fam
       character(len=2) :: varLevel
 
       ! loop over all header indices of the CDFAM family
@@ -866,8 +867,6 @@ end subroutine hbht_compute_ensemble
                     obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == 1 )then
                   ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                   varLevel = vnl_varLevelFromVarnum(ityp)
-                  hlos=obs_headElem_i(lobsSpaceData,OBS_AZA,index_header) &
-                       * MPC_RADIANS_PER_DEGREE_R8
 
                   ! Interpolate the background-covariance statistics
                   IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) /= 0)THEN
@@ -894,7 +893,24 @@ end subroutine hbht_compute_ensemble
 
                   ! First-Guess Error Variance
                   if(cdfam == 'AL')then
-                     fge_fam =sqrt((fge_vv*cos(hlos))**2 + (fge_uu*sin(hlos))**2)
+                    ! Scan body indices for the azimuth
+                    bodyIndexStart= obs_headElem_i(lobsSpaceData, OBS_RLN, &
+                                                   index_header)
+                    bodyIndexEnd  = obs_headElem_i(lobsSpaceData, OBS_NLV, &
+                                                   index_header)&
+                                  + bodyIndexStart - 1
+                    BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+                      if(obs_bodyElem_i(lobsSpaceData, OBS_VNM, bodyIndex2) &
+                         == 5021)then
+                        azimuth=obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex2)&
+                                * MPC_RADIANS_PER_DEGREE_R8
+                        exit BODY_SUPP
+                      end if
+                    end do BODY_SUPP
+
+                    fge_fam =sqrt((fge_vv*cos(azimuth))**2 + &
+                                  (fge_uu*sin(azimuth))**2)
+
                   else if(cdfam == 'PR')then
                      fge_fam =   ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) &
                                + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)
