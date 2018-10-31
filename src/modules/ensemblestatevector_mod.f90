@@ -227,8 +227,6 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
 
-    write(*,*) 'in ens_deallocate, dataKind = ', ens%dataKind
-
     if (ens%dataKind == 8) then
       do jk = k1, k2
         deallocate( ens%allLev_r8(jk)%onelevel )

@@ -22,11 +22,23 @@ cd $ORIG_PWD
 
 # SELECT WHICH FORTRAN SOURCE FILES TO INCLUDE IN DOCUMENTATION
 
-# ALL PROGRAM FILES
+# GENERATE LIST OF ALL PROGRAMS
+
 program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
+numPrograms=0
+for file in $program_filelist ; do  
+  numPrograms=$((numPrograms + 1))
+  program_name=`grep -i '^program ' $file | awk '{print $2}'`
+  program_name_lc=`echo $program_name |tr '[:upper:]' '[:lower:]'`
+  echo ADDING THIS PROGRAM TO THE LIST: $program_name_lc
+  program_names[$numPrograms]="$program_name_lc"
+  program_files[$numPrograms]="$file"
+  program_bfiles[$numPrograms]=`basename "$file"`
+done
+echo "Number of programs = $numPrograms"
 
 # SMALL NUMBER OF MODULE FILES (THE REST STILL NEED TO BE MODIFIED)
-module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/mpi_mod.f90 $codedir/modules/mpivar_mod.f90 $codedir/modules/gridstatevector_mod.f90  $codedir/modules/minimization_mod.f90`
+module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/mpi_mod.f90 $codedir/modules/mpivar_mod.f90 $codedir/modules/gridstatevector_mod.f90 $codedir/modules/minimization_mod.f90 $codedir/modules/statetocolumn_mod.f90`
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
@@ -56,10 +68,10 @@ end module ${modulenames[$index]}
 EOF
 done
 
-for file in $program_filelist ; do  
-  echo ADDING THIS FILE TO src_files: $file
+for filenum in `seq 1 $numPrograms` ; do  
+  echo ADDING THIS FILE TO src_files: ${program_files[$filenum]}
   cd _src_files
-  ln -s ../$file ./
+  ln -s ../${program_files[$filenum]} ./
   cd ../
 done
 for file in $module_filelist ; do  
@@ -71,56 +83,65 @@ for file in $module_filelist ; do
   cd ../
 done
 
-# GENERATE LIST OF ALL PROGRAMS
-
-program_list=''
-for file in $program_filelist ; do  
-  program_name=`grep -i '^program ' $file | awk '{print $2}'`
-  program_name_lc=`echo $program_name |tr '[:upper:]' '[:lower:]'`
-  echo ADDING THIS PROGRAM TO THE LIST: $program_name_lc
-  program_list="$program_list $program_name_lc"
-done
+rm -fR programs
+mkdir programs
+rm -fR modules
+mkdir modules
 
 # GENERATE THE RST FILES FOR THE MAIN PROGRAMS
 
-rm -fR programs
-mkdir programs
-for program_name in $program_list ; do
-cat > ./programs/${program_name}.rst <<EOF
+for filenum in `seq 1 $numPrograms` ; do
+
+cat > ./programs/${program_names[$filenum]}_src.rst <<EOF
 ==========================================
-$program_name
+${program_names[$filenum]} source
 ==========================================
+
+    .. literalinclude:: ../_src_files/${program_bfiles[$filenum]}
+       :language: fortran
+       :linenos:
+
+EOF
+
+
+cat > ./programs/${program_names[$filenum]}.rst <<EOF
+==========================================
+${program_names[$filenum]}
+==========================================
+
+    :doc:\`link to source code <${program_names[$filenum]}_src>\`
+
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-cat >> ./programs/${program_name}.rst <<EOF
-    **Dependency Diagrams:** \`1-Level <level1/${program_name}.png>\`_, \`2-Level <level2/${program_name}.png>\`_, \`3-Level <level3/${program_name}.png>\`_
+cat >> ./programs/${program_names[$filenum]}.rst <<EOF
+    **Dependency Diagrams:** \`1-Level <level1/${program_names[$filenum]}.png>\`_, \`2-Level <level2/${program_names[$filenum]}.png>\`_, \`3-Level <level3/${program_names[$filenum]}.png>\`_
 
 EOF
 fi
 
-cat >> ./programs/${program_name}.rst <<EOF
+cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 
-    .. f:autoprogram:: $program_name
+    .. f:autoprogram:: ${program_names[$filenum]}
 
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-cat >> ./programs/${program_name}.rst <<EOF
+cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 
     **Dependency Diagrams:**
 
-    .. figure:: /level1/${program_name}.png
+    .. figure:: /level1/${program_names[$filenum]}.png
         :height: 100px
 
         1-Level Dependency Diagram
 
-    .. figure:: /level2/${program_name}.png
+    .. figure:: /level2/${program_names[$filenum]}.png
         :height: 100px
 
         2-Level Dependency Diagram
 
-    .. figure:: /level3/${program_name}.png
+    .. figure:: /level3/${program_names[$filenum]}.png
         :height: 100px
 
         3-Level Dependency Diagram
@@ -133,15 +154,26 @@ done
 
 # GENERATE THE RST FILES FOR THE MODULES
 
-rm -fR modules
-mkdir modules
 for index in `seq 1 $numModules`; do
 module_name=${modulenames[$index]}
+
+cat > ./modules/${module_name}_src.rst <<EOF
+==========================================
+${module_name} source
+==========================================
+
+    .. literalinclude:: ../_src_files/${filenames[$index]}
+       :language: fortran
+       :linenos:
+
+EOF
 
 cat > ./modules/${module_name}.rst <<EOF
 ==========================================
 $module_name
 ==========================================
+
+    :doc:\`link to source code <${module_name}_src>\`
 
 EOF
 
@@ -223,8 +255,8 @@ Programs
 
 EOF
 
-for program_name in $program_list ; do
-  echo "   programs/$program_name" >> index.rst
+for filenum in `seq 1 $numPrograms` ; do
+  echo "   programs/${program_names[filenum]}" >> index.rst
 done
 
 

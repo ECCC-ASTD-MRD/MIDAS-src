@@ -32,7 +32,8 @@ module obsFilter_mod
   use tovs_nl_mod
   use gps_mod
   use utilities_mod
-  use chem_setup_mod, only: chm_setup_get_str
+  use varNameList_mod
+  use chem_setup_mod
   implicit none
   save
   private

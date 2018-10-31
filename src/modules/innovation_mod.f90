@@ -220,7 +220,7 @@ contains
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: varIndex, ierr, nulnam, fnom, fclos
     character(len=4)          :: varNamesToRead(1), lastVarNameToRead
-    logical                   :: deallocInterpInfo, removeFromRamDisk
+    logical                   :: deallocInterpInfo, removeFromRamDisk, allocGZsfc
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
@@ -242,40 +242,19 @@ contains
     call col_setVco(columnhr,vco_trl)
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
-    do varIndex = 1, vnl_numvarmax
-      varNamesToRead(1) = vnl_varNameList(varIndex)
-      if ( .not. gsv_varExist(varName=varNamesToRead(1)) ) cycle
-      lastVarNameToRead = varNamesToRead(1)
-    end do
+    allocGZsfc = .true.
+    removeFromRamDisk = .true.
+    deallocInterpInfo = .true.
 
-    do varIndex = 1, vnl_numvarmax
-      varNamesToRead(1) = vnl_varNameList(varIndex)
-      if ( .not. gsv_varExist(varName=varNamesToRead(1)) ) cycle
-      write(*,*) 'Starting innovation calculation for variable ', trim(varNamesToRead(1))
-
-      ! free up space when reading last variable
-      if ( varNamesToRead(1) == lastVarNameToRead ) then
-        removeFromRamDisk = .true.
-        deallocInterpInfo = .true.
-      else
-        removeFromRamDisk = .false.
-        deallocInterpInfo = .false.
-      end if
-
-      call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                         allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                         varNames_opt=varNamesToRead )
-      call tmg_start(9,'readTrials')
-      call gsv_readTrials( stateVector_trial, removeFromRamDisk_opt=removeFromRamDisk )
-      call tmg_stop(9)
-      call tmg_start(8,'s2c_nl')
-      call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
-                   varName_opt=varNamesToRead(1), moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
-      call tmg_stop(8)
-      call gsv_deallocate(stateVector_trial)
-    end do
+    call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
+                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR' )
+    call gsv_zero( stateVector_trial )
+    call gsv_readTrials( stateVector_trial, removeFromRamDisk_opt=removeFromRamDisk )
+    call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
+                 moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
+    call gsv_deallocate(stateVector_trial)
 
     ! Do final preparations of columnData objects (compute GZ and pressure)
     if (col_varExist('P0')) then

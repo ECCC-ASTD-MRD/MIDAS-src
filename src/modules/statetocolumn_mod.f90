@@ -14,17 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE stateToColumn (prefix='s2c' category='3. High-level transformations')
-!!
-!! *Purpose*: Tangent-linear and adjoint of bilinear interpolation to 
-!!            between a gridStateVector object and a columnData object.
-!!
-!!            The 'nl' version is also now included which is used for
-!!            calculating the innovation.
-!!
-!--------------------------------------------------------------------------
 module stateToColumn_mod
+  !
+  ! MODULE stateToColumn (prefix='s2c' category='3. High-level transformations')
+  !
+  ! **Purpose:** 
+  ! Non-linear, tangent-linear and adjoint versions of
+  ! horizontal-temporal interpolation between a gridStateVector object
+  ! and a columnData object.
+  !
   use mathPhysConstants_mod
   use mpi_mod
   use mpivar_mod 
@@ -75,26 +73,24 @@ module stateToColumn_mod
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
 
-  ! hardcode type of time interpolation for increment, user selectable for innovation
-  character(len=20), parameter :: timeInterpType_tlad = 'LINEAR'
+  character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, external    :: get_max_rss
 
 contains 
 
-
   !---------------------------------------------------------
   ! s2c_latLonChecks
   !---------------------------------------------------------
   subroutine s2c_latLonChecks(obsSpaceData, moveObsAtPole)
-    !
-    ! Purpose: Check the lat/lon of observations and modify if necessary
+    ! **Purpose:** 
+    ! Check the lat/lon of observations and modify if necessary
     !
     implicit none
 
     ! arguments
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: moveObsAtPole
+    type(struct_obs) :: obsSpaceData
+    logical          :: moveObsAtPole
 
     ! locals
     type(struct_hco), pointer :: hco_anl
@@ -207,6 +203,11 @@ contains
   !---------------------------------------------------------
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   timeInterpType, rejectOutsideObs )
+    ! **Purpose:** 
+    ! Setup all of the information needed to quickly
+    ! perform the horizontal interpolation to the observation 
+    ! locations.
+    !
     implicit none
 
     ! arguments
@@ -590,6 +591,10 @@ contains
   ! s2c_tl
   !---------------------------------------------------------
   subroutine s2c_tl( statevector, column, columng, obsSpaceData )
+    ! **Purpose:** 
+    ! Tangent linear version of the horizontal
+    ! interpolation, used for the increment (or perturbations).
+    !
     implicit none
 
     ! arguments
@@ -604,7 +609,7 @@ contains
     integer :: procIndex, nsize, ierr, header2Index
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(8), pointer     :: ptr4d(:,:,:,:), ptr4d_UV(:,:,:,:)
+    real(8), pointer     :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
@@ -612,21 +617,20 @@ contains
     character(len=4)     :: varName
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
+    call tmg_start(167,'S2C_TL')
 
-    call tmg_start(162,'S2CTL_BARR')
+    call tmg_start(160,'S2C_BARR')
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(162)
+    call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
       call utl_abort('s2c_tl_new: stateVector must be allocated')
     end if
 
-    call tmg_start(151,'S2CTL_VARSLEVS')
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs' )
-    call gsv_transposeLatLonToVarsLevs( statevector, statevector_VarsLevs )
-    call tmg_stop(151)
+    call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -656,9 +660,6 @@ contains
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
     ptr4d => gsv_getField_r8(stateVector_VarsLevs)
-    if ( stateVector_VarsLevs%UVComponentPresent ) then
-      ptr4d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs)
-    end if
 
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
@@ -668,8 +669,11 @@ contains
       kCount = kCount + 1
 
       if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-
         varName = gsv_getVarNameFromK(statevector,kIndex)
+
+        if ( varName == 'UU' .or. varName == 'VV' ) then
+          ptr3d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs,kIndex)
+        end if
 
         call tmg_start(161,'S2CTL_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
@@ -682,11 +686,11 @@ contains
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                ptr4d(:,:,kIndex,stepIndex), ptr4d_UV(:,:,kIndex,stepIndex),  &
+                                ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
                                 interpInfo_tlad, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
                 call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                ptr4d_UV(:,:,kIndex,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
+                                ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                 interpInfo_tlad, stepIndex, procIndex )
               else
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
@@ -703,12 +707,12 @@ contains
         PROC_LOOP2: do procIndex = 1, mpi_nprocs
           cols_send_1proc(:) = 0.0d0
           STEP_LOOP2: do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index, weight)
-            do headerIndex = 1, interpInfo_tlad%allNumHeader2(stepIndex, procIndex)
-              header2Index = interpInfo_tlad%allHeaderIndex(headerIndex,stepIndex,procIndex)
-              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,header2Index,stepIndex,procIndex)
-              cols_send_1proc(header2Index) = cols_send_1proc(header2Index) &
-                            + weight * cols_hint(headerIndex,stepIndex,procIndex)
+            !$OMP PARALLEL DO PRIVATE (header2Index, headerIndex, weight)
+            do header2Index = 1, interpInfo_tlad%allNumHeader2(stepIndex, procIndex)
+              headerIndex = interpInfo_tlad%allHeaderIndex(header2Index,stepIndex,procIndex)
+              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,headerIndex,stepIndex,procIndex)
+              cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
+                            + weight * cols_hint(header2Index,stepIndex,procIndex)
 
             end do
             !$OMP END PARALLEL DO
@@ -723,9 +727,9 @@ contains
 
       end if ! if kIndex <= mykEnd
 
-      call tmg_start(162,'S2CTL_BARR')
+      call tmg_start(160,'S2C_BARR')
       call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(162)
+      call tmg_stop(160)
 
       call tmg_start(163,'S2CTL_ALLTOALL')
       ! mpi communication: alltoall for one level/variable
@@ -764,12 +768,18 @@ contains
 
     call gsv_deallocate( statevector_VarsLevs )
 
+    call tmg_stop(167)
+
   end subroutine s2c_tl
 
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
   subroutine s2c_ad( statevector, column, columng, obsSpaceData )
+    ! **Purpose:** 
+    ! Adjoint version of the horizontal interpolation,
+    ! used for the cost function gradient with respect to the increment.
+    !
     implicit none
 
     ! arguments
@@ -785,16 +795,17 @@ contains
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
-    real(8), pointer     :: ptr4d(:,:,:,:), ptr4d_UV(:,:,:,:)
+    real(8), pointer     :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
+    call tmg_start(168,'S2C_AD')
 
-    call tmg_start(172,'S2CAD_BARR')
+    call tmg_start(160,'S2C_BARR')
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(172)
+    call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
       call utl_abort('s2c_ad_new: stateVector must be allocated')
@@ -836,10 +847,6 @@ contains
     allCols_ptr => col_getAllColumns(column)
 
     ptr4d => gsv_getField_r8(stateVector_VarsLevs)
-    if ( stateVector_VarsLevs%UVComponentPresent ) then
-      ptr4d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs)
-    end if
-
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
@@ -858,11 +865,11 @@ contains
       end do PROC_LOOP3
       !$OMP END PARALLEL DO
 
-      call tmg_start(172,'S2CAD_BARR')
+      call tmg_start(160,'S2C_BARR')
       call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(172)
+      call tmg_stop(160)
 
-      call tmg_start(173,'S2CAD_ALLTOALL')
+      call tmg_start(164,'S2CAD_ALLTOALL')
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mpi_nprocs > 1) then
@@ -871,11 +878,14 @@ contains
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
-      call tmg_stop(173)
+      call tmg_stop(164)
 
       if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-
         varName = gsv_getVarNameFromK(statevector,kIndex)
+
+        if ( varName == 'UU' .or. varName == 'VV' ) then
+          ptr3d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs,kIndex)
+        end if
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         PROC_LOOP2: do procIndex = 1, mpi_nprocs
@@ -893,7 +903,7 @@ contains
           end do STEP_LOOP2
         end do PROC_LOOP2
 
-        call tmg_start(170,'S2CAD_HINTERP')
+        call tmg_start(162,'S2CAD_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         STEP_LOOP: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP
@@ -904,11 +914,11 @@ contains
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                  ptr4d(:,:,kIndex,stepIndex), ptr4d_UV(:,:,kIndex,stepIndex),  &
+                                  ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
                                   interpInfo_tlad, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
                 call myezuvintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                  ptr4d_UV(:,:,kIndex,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
+                                  ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                   interpInfo_tlad, stepIndex, procIndex )
               else
                 call myezsintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
@@ -919,7 +929,7 @@ contains
 
         end do STEP_LOOP
         !$OMP END PARALLEL DO
-        call tmg_stop(170)
+        call tmg_stop(162)
 
       end if ! if kIndex <= mykEnd
 
@@ -929,15 +939,15 @@ contains
     deallocate(cols_send)
     deallocate(cols_recv)
 
-    call tmg_start(172,'S2CAD_BARR')
+    call tmg_start(160,'S2C_BARR')
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(172)
+    call tmg_stop(160)
 
-    call tmg_start(152,'S2CAD_VARSLEVS')
-    call gsv_transposeLatLonToVarsLevsAd( statevector_VarsLevs, statevector )
-    call tmg_stop(152)
+    call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
     call gsv_deallocate( statevector_VarsLevs )
+
+    call tmg_stop(168)
 
   end subroutine s2c_ad
 
@@ -946,6 +956,11 @@ contains
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
                      dealloc_opt, moveObsAtPole_opt )
+    ! **Purpose:** 
+    ! Non-linear version of the horizontal interpolation,
+    ! used for a full field (usually the background state when computing
+    ! the innovation vector).
+    !
     implicit none
 
     ! arguments
@@ -967,7 +982,7 @@ contains
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
-    real(4), pointer     :: ptr4d_r4(:,:,:,:), ptr4d_UV_r4(:,:,:,:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:), ptr3d_UV_r4(:,:,:)
     real(8), allocatable :: field2d(:,:), field2d_UV(:,:)
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
@@ -975,6 +990,8 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: beSilent, dealloc, moveObsAtPole
+
+    call tmg_start(169,'S2C_NL')
 
     write(*,*) 's2c_nl: STARTING'
 
@@ -1004,7 +1021,7 @@ contains
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     if ( .not. interpInfo_nl%initialized ) then
-      call tmg_start(192,'S2CNL_SETUPS')
+      call tmg_start(165,'S2CNL_SETUPS')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
       call s2c_latLonChecks( obsSpaceData, moveObsAtPole )
@@ -1017,7 +1034,7 @@ contains
           write(*,*) 's2c_nl: stepIndex, allNumHeader2 = ', stepIndex, interpInfo_nl%allNumHeader2(stepIndex,:)
         end do
       end if
-      call tmg_stop(192)
+      call tmg_stop(165)
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1038,9 +1055,6 @@ contains
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
     ptr4d_r4    => gsv_getField_r4(stateVector)
-    if ( stateVector%UVComponentPresent ) then
-      ptr4d_UV_r4 => gsv_getFieldUV_r4(stateVector)
-    end if
 
     allocate(field2d(stateVector%ni,stateVector%nj))
     allocate(field2d_UV(stateVector%ni,stateVector%nj))
@@ -1054,7 +1068,11 @@ contains
       if ( kIndex <= stateVector%mykEnd ) then
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
-        call tmg_start(140,'S2CNL_HINTERP')
+        if ( varName == 'UU' .or. varName == 'VV' ) then
+          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector,kIndex)
+        end if
+
+        call tmg_start(166,'S2CNL_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, field2d, field2d_UV, procIndex, yourNumHeader)
         STEP_LOOP: do stepIndex = 1, numStep
           if ( maxval(interpInfo_nl%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP
@@ -1062,7 +1080,7 @@ contains
           ! copy over field
           field2d(:,:) = real(ptr4d_r4(:,:,kIndex,stepIndex),8)
           if ( varName == 'UU' .or. varName == 'VV' ) then
-            field2d_UV(:,:) = real(ptr4d_UV_r4(:,:,kIndex,stepIndex),8)
+            field2d_UV(:,:) = real(ptr3d_UV_r4(:,:,stepIndex),8)
           end if
 
           ! interpolate to the columns destined for all procs for all steps and one level/variable
@@ -1084,9 +1102,8 @@ contains
 
         end do STEP_LOOP
         !$OMP END PARALLEL DO
-        call tmg_stop(140)
+        call tmg_stop(166)
 
-        call tmg_start(193,'S2CNL_COPYSEND')
         ! interpolate in time to the columns destined for all procs and one level/variable
         PROC_LOOP2: do procIndex = 1, mpi_nprocs
           cols_send_1proc(:) = 0.0d0
@@ -1103,7 +1120,6 @@ contains
           end do STEP_LOOP2
           cols_send(:,procIndex) = cols_send_1proc(:)
         end do PROC_LOOP2
-        call tmg_stop(193)
 
       else
 
@@ -1112,11 +1128,10 @@ contains
 
       end if ! if kIndex <= mykEnd
 
-      call tmg_start(150,'S2CNL_BARR')
+      call tmg_start(160,'S2C_BARR')
       call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(150)
+      call tmg_stop(160)
 
-      call tmg_start(142,'S2CNL_ALLTOALL')
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mpi_nprocs > 1) then
@@ -1125,9 +1140,7 @@ contains
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
-      call tmg_stop(142)
 
-      call tmg_start(194,'S2CNL_COPYRECV')
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
       PROC_LOOP3: do procIndex = 1, mpi_nprocs
@@ -1138,72 +1151,73 @@ contains
         end do
       end do PROC_LOOP3
       !$OMP END PARALLEL DO
-      call tmg_stop(194)
 
     end do K_LOOP
 
-    call tmg_start(195,'S2CNL_GZSFC')
     ! Interpolate surface GZ separately, only exists on mpi task 0
-    PROC0: if ( mpi_myid == 0 ) then
-      varName = 'GZ'
-      STEP_LOOP_GZ: do stepIndex = 1, numStep
+    GZsfcPresent: if ( stateVector%GZsfcPresent ) then
 
-        if ( maxval(interpInfo_nl%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP_GZ
+      PROC0: if ( mpi_myid == 0 ) then
+        varName = 'GZ'
+        STEP_LOOP_GZ: do stepIndex = 1, numStep
 
-        ! interpolate to the columns destined for all procs for all steps and one level/variable
-        !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
-        PROC_LOOP_GZ: do procIndex = 1, mpi_nprocs
-          yourNumHeader = interpInfo_nl%allNumHeader2(stepIndex,procIndex)
-          if ( yourNumHeader > 0 ) then
-            ptr2d_r8 => gsv_getGZsfc(stateVector)
-            call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                           ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
+          if ( maxval(interpInfo_nl%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP_GZ
 
-          end if
-        end do PROC_LOOP_GZ
-        !$OMP END PARALLEL DO
+          ! interpolate to the columns destined for all procs for all steps and one level/variable
+          !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
+          PROC_LOOP_GZ: do procIndex = 1, mpi_nprocs
+            yourNumHeader = interpInfo_nl%allNumHeader2(stepIndex,procIndex)
+            if ( yourNumHeader > 0 ) then
+              ptr2d_r8 => gsv_getGZsfc(stateVector)
+              call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
+                             ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
 
-      end do STEP_LOOP_GZ
-
-      ! interpolate in time to the columns destined for all procs and one level/variable
-      PROC_LOOP_GZ2: do procIndex = 1, mpi_nprocs
-        cols_send(:,procIndex) = 0.0d0
-        STEP_LOOP_GZ2: do stepIndex = 1, numStep
-          !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index)
-          do headerIndex = 1, interpInfo_nl%allNumHeader2(stepIndex, procIndex)
-            header2Index = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
-            ! just copy, since surface GZ same for all time steps
-            cols_send(header2Index,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
-          end do
+            end if
+          end do PROC_LOOP_GZ
           !$OMP END PARALLEL DO
-        end do STEP_LOOP_GZ2
-      end do PROC_LOOP_GZ2
 
-    end if PROC0
+        end do STEP_LOOP_GZ
 
-    ! mpi communication: scatter data from task 0
-    nsize = numHeaderMax
-    if(mpi_nprocs > 1) then
-      allocate(displs(mpi_nprocs))
-      allocate(nsizes(mpi_nprocs))
-      do procIndex = 1, mpi_nprocs
-        displs(procIndex) = (procIndex - 1) * nsize
-        nsizes(procIndex) = nsize
+        ! interpolate in time to the columns destined for all procs and one level/variable
+        PROC_LOOP_GZ2: do procIndex = 1, mpi_nprocs
+          cols_send(:,procIndex) = 0.0d0
+          STEP_LOOP_GZ2: do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index)
+            do headerIndex = 1, interpInfo_nl%allNumHeader2(stepIndex, procIndex)
+              header2Index = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
+              ! just copy, since surface GZ same for all time steps
+              cols_send(header2Index,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
+            end do
+            !$OMP END PARALLEL DO
+          end do STEP_LOOP_GZ2
+        end do PROC_LOOP_GZ2
+
+      end if PROC0
+
+      ! mpi communication: scatter data from task 0
+      nsize = numHeaderMax
+      if(mpi_nprocs > 1) then
+        allocate(displs(mpi_nprocs))
+        allocate(nsizes(mpi_nprocs))
+        do procIndex = 1, mpi_nprocs
+          displs(procIndex) = (procIndex - 1) * nsize
+          nsizes(procIndex) = nsize
+        end do
+        call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
+                               cols_recv, nsize, 'MPI_REAL8', &
+                               0, 'GRID', ierr)
+        deallocate(displs)
+        deallocate(nsizes)
+
+      else
+        cols_recv(:,1) = cols_send(:,1)
+      end if
+
+      do headerIndex = 1, numHeader
+        call col_setGZsfc(column, headerIndex, cols_recv(headerIndex,1))
       end do
-      call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
-                             cols_recv, nsize, 'MPI_REAL8', &
-                             0, 'GRID', ierr)
-      deallocate(displs)
-      deallocate(nsizes)
 
-    else
-      cols_recv(:,1) = cols_send(:,1)
-    end if
-
-    do headerIndex = 1, numHeader
-      call col_setGZsfc(column, headerIndex, cols_recv(headerIndex,1))
-    end do
-    call tmg_stop(195)
+    end if GZsfcPresent
 
     deallocate(field2d_UV)
     deallocate(field2d)
@@ -1241,12 +1255,18 @@ contains
 
     write(*,*) 's2c_nl: FINISHED'
 
+    call tmg_stop(169)
+
   end subroutine s2c_nl
 
   ! -------------------------------------------------
   ! myezsint: Scalar field horizontal interpolation
   ! -------------------------------------------------
   subroutine myezsint( column_out, varName, field_in, interpInfo, stepIndex, procIndex ) 
+    ! **Purpose:** 
+    ! Scalar horizontal interpolation, replaces the
+    ! ezsint routine from rmnlib.
+    !
     implicit none
 
     ! arguments
@@ -1291,6 +1311,9 @@ contains
   ! myezsintad: Adjoint of scalar field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezsintad( column_in, varName, field_out, interpInfo, stepIndex, procIndex ) 
+    ! **Purpose:** 
+    ! Adjoint of the scalar horizontal interpolation.
+    !
     implicit none
 
     ! arguments
@@ -1333,6 +1356,10 @@ contains
   ! myezuvint: Vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
+    ! **Purpose:** 
+    ! Vector horizontal interpolation, replaces the
+    ! ezuvint routine from rmnlib.
+    !
     implicit none
 
     ! arguments
@@ -1409,6 +1436,9 @@ contains
   ! myezuvint: Adjoint of vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvintad( column_in, varName, fieldUU_out, fieldVV_out, interpInfo, stepIndex, procIndex ) 
+    ! **Purpose:** 
+    ! Adjoint of the vector horizontal interpolation.
+    !
     implicit none
 
     ! arguments
@@ -1481,14 +1511,17 @@ contains
   end subroutine myezuvintad
 
   !------------------------------------------------------------------
-  ! getPositionXY: modified version of the ezscint routine GDXYFLL
-  ! For a Yin-Yang grid, this version explicitly computes the rotated 
-  ! grid lat-lon and uses this to decide if the returned position should
-  ! come from Yin or Yang - this seems to improve the consistency
-  ! when using our own bilinear interpolation versus ezsint
+  ! getPositionXY
   !------------------------------------------------------------------
   function getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
+    ! **Purpose:** 
+    ! Compute the grid XY position from a lat-lon. This
+    ! simply calls the ezsint routine gdxyfll for simple grids. For
+    ! Yin-Yan grids it can return locations from both the Yin and Yan
+    ! subgrids when in the overlap region, depending on the logical 
+    ! variable `useSingleValueOverlap`.
+    !
     implicit none
 
     ! arguments
@@ -1506,6 +1539,9 @@ contains
     integer :: ni, nj, ig1, ig2, ig3, ig4, ilon, ilat
     real :: lonrot, latrot
     real, allocatable :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
+
+    ! this controls which approach to use for interpolation within the YIN-YAN overlap
+    logical :: useSingleValueOverlap = .true.  
 
     numSubGrids = ezget_nsubgrids(gdid)
     xpos2_r4 = -999.0
@@ -1547,41 +1583,55 @@ contains
       deallocate(ax_yin,ay_yin)
       subGridIndex = 1
 
-      if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+      if ( useSingleValueOverlap ) then
 
-        ! Outside YIN, therefore use YANG (assume it is inside YANG)
-        ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-        ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-        subGridIndex = 2
-
-      else
-
-        ! inside YIN, check if also inside YANG
-        allocate(ax_yan(ni),ay_yan(nj))
-        ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
-        ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
-        if ( ilon >= 1 .and. (ilon+1) <= ni ) then
-          lonrot = ax_yan(ilon) + (ax_yan(ilon+1) - ax_yan(ilon)) * (xpos2_r4 - ilon)
-        else
-          lonrot = -999.0
-        end if
-        ilat = floor(ypos2_r4)
-        if ( ilat >= 1 .and. (ilat+1) <= nj ) then
-          latrot = ay_yan(ilat) + (ay_yan(ilat+1) - ay_yan(ilat)) * (ypos2_r4 - ilat)
-        else
-          latrot = -999.0
-        end if
-        deallocate(ax_yan,ay_yan)
+        ! this approach is most similar to how ezsint works, preferentially take YIN
 
         if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! outside YANG, only inside YIN
-          xpos2_r4 = -999.0
-          ypos2_r4 = -999.0
-          subGridIndex = 1
+          ! Outside YIN, therefore use YANG (assume it is inside YANG)
+          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
+          subGridIndex = 2
         else
-          ! inside both YIN and YANG
-          ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 3
+          subGridIndex = 1
+        end if
+
+      else ! not useSingleValueOverlap
+
+        ! this approach returns both the YIN and YAN locations when point is inside both
+
+        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+          ! Outside YIN, therefore use YANG (assume it is inside YANG)
+          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
+          subGridIndex = 2
+        else
+          ! inside YIN, check if also inside YANG
+          allocate(ax_yan(ni),ay_yan(nj))
+          ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
+          ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
+          if ( ilon >= 1 .and. (ilon+1) <= ni ) then
+            lonrot = ax_yan(ilon) + (ax_yan(ilon+1) - ax_yan(ilon)) * (xpos2_r4 - ilon)
+          else
+            lonrot = -999.0
+          end if
+          ilat = floor(ypos2_r4)
+          if ( ilat >= 1 .and. (ilat+1) <= nj ) then
+            latrot = ay_yan(ilat) + (ay_yan(ilat+1) - ay_yan(ilat)) * (ypos2_r4 - ilat)
+          else
+            latrot = -999.0
+          end if
+          deallocate(ax_yan,ay_yan)
+          if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
+            ! outside YANG, only inside YIN
+            xpos2_r4 = -999.0
+            ypos2_r4 = -999.0
+            subGridIndex = 1
+          else
+            ! inside both YIN and YANG
+            ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
+            subGridIndex = 3
+          end if
         end if
 
       end if
@@ -1598,13 +1648,15 @@ contains
 
   end function getPositionXY
 
-  !------------------------------------------------------------------
-  ! s2c_bgcheck_bilin:
-  ! Special version of s2c_tl used for background check. This should
-  ! be replaced by direct call to s2c_tl. It is not general enough to
-  ! be used for new analysis variables.
-  !------------------------------------------------------------------
+  !---------------------------------------------------------
+  ! s2c_bgcheck_bilin
+  !---------------------------------------------------------
   subroutine s2c_bgcheck_bilin(column,statevector,obsSpaceData)
+    ! **Purpose:**
+    ! Special version of s2c_tl used for background check. This should
+    ! be replaced by direct call to s2c_tl. It is not general enough to
+    ! be used for new analysis variables.
+    !
     implicit none
   
     ! arguments
@@ -1756,50 +1808,38 @@ contains
   
   end subroutine s2c_bgcheck_bilin
 
-
   !--------------------------------------------------------------------------
   ! s2c_column_hbilin  
   !--------------------------------------------------------------------------
   subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat,plong,plat,vprof,vlevout,nlevout)
+    ! **Purpose:** 
+    ! Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
+    ! Assumes vertical interpolation not needed or already done.
     !
-    ! Author:  Y. Rochon, Nov 2015 
+    ! This version can be used with fields that are not part of the background state,
+    ! such as climatologies.
     !
-    ! Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
-    !          Assumes vertical interpolation not needed or already done.
+    ! This version does not depend in column_data and gridstatevector modules.
     !
-    !          This version can be used with fields that are not part of the background state,
-    !          such as climatologies.
+    ! **Author:** Y. Rochon, Nov 2015 
     !
-    !          This version does not depend in column_data and gridstatevector modules.
-    !
-    ! Arguments:
-    !
-    !   Input
-    !      
-    !     field(nlong,nlat,nlev)  3D field
-    !     nlong         number or latitudes
-    !     nlat          number of longitudes
-    !     nlev          number of vertical levels
-    !     xlong         longitudes (radians)
-    !     xlat          latitudes (radians)
-    !     vlev          vertical levels of input field (in pressure)
-    !     plat          target latitude (radian)
-    !     plong         target longitude (radians) 
-    !     nlevout       Number of target vertical levels
-    !     vlevout       Target vertical levels (in pressure)
-    !
-    !   Output
-    !
-    !     vprof(nlev)   Profile at (plong,plat) 
-    !
-    !-------------------------------------------------------------------------------------------  
     implicit none
 
-    integer, intent(in) :: nlong,nlat,nlev,nlevout
-    real(8), intent(in) :: field(nlong,nlat,nlev),vlev(nlev),xlong(nlong),xlat(nlat),plong,plat
-    real(8), intent(in) :: vlevout(nlevout)
-    real(8), intent(out) :: vprof(nlevout)
+    ! arguments:
+    integer, intent(in) :: nlong            ! number or longitudes
+    integer, intent(in) :: nlat             ! number or latitudes
+    integer, intent(in) :: nlev             ! number of vertical levels
+    integer, intent(in) :: nlevout          ! number of target vertical levels
+    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
+    real(8), intent(in) :: vlev(nlev)       ! vertical levels of input field (in pressure)
+    real(8), intent(in) :: xlong(nlong)     ! longitudes (radians)
+    real(8), intent(in) :: xlat(nlat)       ! latitudes (radians)
+    real(8), intent(in) :: plong            ! target longitude (radians)
+    real(8), intent(in) :: plat             ! target latitude (radian)
+    real(8), intent(in) :: vlevout(nlevout) ! target vertical levels (in pressure)
+    real(8), intent(out) :: vprof(nlevout)  ! profile at (plong,plat)
     
+    ! locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
     integer :: ilev,ilon,ilat,i,j
 
@@ -1852,14 +1892,14 @@ contains
        
       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
-      vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
-                       + DLW2 * field(ilon+1,ilat,ilev) &
-                       + DLW3 * field(ilon,ilat+1,ilev) &
-                       + DLW4 * field(ilon+1,ilat+1,ilev)) &
-         + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
-                       + DLW2 * field(ilon+1,ilat,ilev+1) &
-                       + DLW3 * field(ilon,ilat+1,ilev+1) &
-                       + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
+      vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev)      &
+                      + DLW2 * field(ilon+1,ilat,ilev)    &
+                      + DLW3 * field(ilon,ilat+1,ilev)    &
+                      + DLW4 * field(ilon+1,ilat+1,ilev)) &
+        + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1)    &
+                      + DLW2 * field(ilon+1,ilat,ilev+1)  &
+                      + DLW3 * field(ilon,ilat+1,ilev+1)  &
+                      + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
     end do
         
   end subroutine s2c_column_hbilin   

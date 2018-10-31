@@ -76,8 +76,6 @@ CONTAINS
   subroutine vtr_setupTrials()
     implicit none
 
-    call tmg_start(92,'VTR_READTRIALS')
-
     ! initialize statevector_trial on analysis grid
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -86,8 +84,6 @@ CONTAINS
 
     ! read trial files using default horizontal interpolation degree
     call gsv_readTrials( statevector_trial, removeFromRamDisk_opt=.true. )  ! IN/OUT
-
-    call tmg_stop(92)
 
     trialsInitialized = .true.
     

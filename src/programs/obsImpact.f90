@@ -63,8 +63,10 @@ program midas_obsimpact
   type(struct_obs),pointer        :: obsSpaceData_ptr
   type(struct_columnData),pointer :: columng_ptr
   type(struct_columnData),pointer :: column_ptr
-  logical             :: initialized = .false.
-  integer             :: nmtra, fso_nsim, nvadim_mpilocal
+  type(struct_vco),pointer        :: vco_anl => null()
+  type(struct_hco),pointer        :: hco_anl => null()
+  type(struct_hco),pointer        :: hco_core => null()
+  integer             :: fso_nsim, nvadim_mpilocal, dateStamp
   integer,external    :: get_max_rss
   real(8),allocatable :: vhat(:)
 
@@ -93,6 +95,8 @@ program midas_obsimpact
 
   call tmg_start(1,'MAIN')
 
+  call tmg_start(2,'PREMIN')
+
   if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
   end if
@@ -103,22 +107,108 @@ program midas_obsimpact
   !- 1. Settings 
   !
   obsColumnMode  = 'VAR'
+  obsMpiStrategy = 'LIKESPLITFILES'
 
-  ! Do initial set up
+  !- Do initial set up
   call tmg_start(2,'PREMIN')
   call fso_setup
- 
-  obsMpiStrategy = 'LIKESPLITFILES'
-  
-  call var_setup('VAR') ! obsColumnMode
+
+  !
+  !- Initialize the Temporal grid
+  !
+  call tim_setup
+  !     
+  !- Initialize burp file names and set datestamp
+  !
+  call obsf_setup( dateStamp, 'FSO' )
+  if ( dateStamp > 0 ) then
+    call tim_setDatestamp(datestamp)     ! IN
+  else
+    call utl_abort('obsImpact: Problem getting dateStamp from observation file')
+  end if
+  !
+  !- Initialize constants
+  !
+  if (mpi_myid.eq.0) call mpc_printConstants(6)
+
+  !
+  !- Initialize variables of the model states
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  !
+  !- Initialize the Analysis grid
+  !
+  if (mpi_myid.eq.0) write(*,*)''
+  if (mpi_myid.eq.0) write(*,*)'obsImpact: Set hco parameters for analysis grid'
+  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+
+  if ( hco_anl % global ) then
+    call agd_SetupFromHCO( hco_anl ) ! IN
+  else
+    !- Iniatilized the core (Non-Exteded) analysis grid
+    call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+    !- Setup the LAM analysis grid metrics
+    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+  end if
+
+  !     
+  !- Initialisation of the analysis grid vertical coordinate from analysisgrid file !
+  call vco_SetupFromFile( vco_anl,        & ! OUT
+                          './analysisgrid') ! IN
+
+  call col_setVco(trlColumnOnAnlLev,vco_anl)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Setup and read observations
+  !
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Setup observation operators
+  !
+  call oop_setup('FSO') ! IN
+
+  !
+  !- Basic setup of columnData module
+  !
+  call col_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Memory allocation for background column data
+  !
+  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+
+  !
+  !- Initialize the observation error covariances
+  !
+  call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Reading and horizontal interpolation of the 3D trial fields
+  !
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+
+  !
+  !- Initialize the background-error covariance, also sets up control vector module (cvm)
+  !
+  call bmat_setup(hco_anl,vco_anl)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  ! - Initialize the gridded variable transform module
+  !
+  call vtr_setup(hco_anl,vco_anl)
+
   call tmg_stop(2)
 
   !
-  !- 2. configuration of job 
+  !- 2. Do the actual job
   !
-  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -190,113 +280,9 @@ contains
 
     call ben_setFsoLeadTime(leadTime)
     fso_nsim = 0
-    initialized = .true.
 
   end subroutine fso_setup
  
-  subroutine var_setup(obsColumnMode)
-    implicit none
-
-    character (len=*) :: obsColumnMode
-    integer :: datestamp
-    type(struct_vco),pointer :: vco_anl => null()
-    type(struct_hco),pointer :: hco_anl => null()
-    type(struct_hco),pointer :: hco_core => null()
-
-    integer :: get_max_rss
-
-    write(*,*) ''
-    write(*,*) '-----------------------------------'
-    write(*,*) '-- Starting subroutine var_setup --'
-    write(*,*) '-----------------------------------'
-
-    !
-    !- Initialize the Temporal grid
-    !
-    call tim_setup
-    !     
-    !- Initialize burp file names and set datestamp
-    !
-    call obsf_setup( dateStamp, 'FSO' )
-    if ( dateStamp > 0 ) then
-      call tim_setDatestamp(datestamp)     ! IN
-    else
-      call utl_abort('var_setup: Problem getting dateStamp from observation file')
-    end if
-    !
-    !- Initialize constants
-    !
-    if (mpi_myid.eq.0) call mpc_printConstants(6)
-
-    !
-    !- Initialize variables of the model states
-    !
-    call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    !
-    !- Initialize the Analysis grid
-    !
-    if (mpi_myid.eq.0) write(*,*)''
-    if (mpi_myid.eq.0) write(*,*)'var_setup : Set hco parameters for analysis grid'
-    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-
-    if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
-    else
-      !- Iniatilized the core (Non-Exteded) analysis grid
-      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
-
-    !     
-    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file !
-    call vco_SetupFromFile( vco_anl,        & ! OUT
-                            './analysisgrid') ! IN
-
-    call col_setVco(trlColumnOnAnlLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Setup and read observations
-    !
-    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Setup observation operators
-    !
-    call oop_setup('FSO') ! IN
-
-    !
-    !- Basic setup of columnData module
-    !
-    call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Memory allocation for background column data
-    !
-    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-
-    !
-    !- Initialize the observation error covariances
-    !
-    call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize the background-error covariance, also sets up control vector module (cvm)
-    !
-    call bmat_setup(hco_anl,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    ! - Initialize the gridded variable transform module
-    !
-    call vtr_setup(hco_anl,vco_anl)
-
-  end subroutine var_setup
 
   subroutine fso_ensemble(columng,obsSpaceData)
     implicit none
@@ -480,7 +466,7 @@ contains
     real(8),dimension(nvadim)       :: vhat, zhat
     real(8),allocatable             :: gradJ(:), vatra(:)
     ! for minimization
-    integer                         :: imode, itermax, isimmax, indic,nvadim
+    integer                         :: imode, itermax, isimmax, indic,nvadim, nmtra
     real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
     integer                         :: impres, iztrl(10), intunused(1)
     real                            :: rspunused(1)

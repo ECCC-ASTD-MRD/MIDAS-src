@@ -150,6 +150,16 @@ program midas_var
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+    call tmg_stop(2)
+
+    ! Do the background check and output the observation data files
+    call bgck_bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+
   ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   else if ( trim(varMode) == 'bgckIR' ) then
     if(mpi_myid == 0) write(*,*) 'MIDAS-VAR: HYPERSPECTRAL IR BGCHECK MODE'
@@ -183,6 +193,10 @@ program midas_var
     call var_setup('VAR') ! obsColumnMode
     call tmg_stop(2)
 
+    ! Read trials and horizontally interpolate to columns
+    call tmg_start(2,'PREMIN')
+    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
+
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
@@ -207,10 +221,6 @@ program midas_var
     !
     call min_setup( cvm_nvadim ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
