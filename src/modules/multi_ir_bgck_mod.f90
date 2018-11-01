@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE multi_ir_bgcheck (prefix= irbg)
+!! MODULE multi_ir_bgcheck (prefix='irbg')
 !!
 !! *Purpose*: VARIABLES FOR MULTISPECTRAL INFRARED BACKGROUND CHECK
 !!            AND QUALITY CONTROL.
@@ -3438,7 +3438,7 @@ contains
   end subroutine FMIN
 
   subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,avhrr_surfem1)
-    ! choisi l'emissivité d'un canal IASI proche pour AVHRR
+    ! choisi l'emissivite d'un canal IASI proche pour AVHRR
     ! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
     implicit none
     integer ,intent(in) :: nchaniasi

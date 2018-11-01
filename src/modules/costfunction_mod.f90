@@ -21,6 +21,7 @@
 !!
 !--------------------------------------------------------------------------
 module costfunction_mod
+  use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
   use rmatrix_mod

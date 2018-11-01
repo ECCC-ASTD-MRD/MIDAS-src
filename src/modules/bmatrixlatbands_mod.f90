@@ -24,6 +24,7 @@
 !!
 !--------------------------------------------------------------------------
 module bMatrixLatBands_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod

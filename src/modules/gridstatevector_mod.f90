@@ -14,14 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE gridStateVector (prefix='gsv')
-!!
-!! *Purpose*: The grid-point state vector and related information.
-!!
-!--------------------------------------------------------------------------
 module gridStateVector_mod
+  !
+  ! MODULE gridStateVector (prefix='gsv')
+  !
+  ! **Purpose**: The grid-point state vector and related information.
+  !
   use mpi, only : mpi_status_size ! this is the mpi library module
+  use mpi_mod
   use mpivar_mod
   use earthConstants_mod
   use varNameList_mod
@@ -55,14 +55,10 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist
   public :: gsv_multEnergyNorm, gsv_dotProduct
   public :: gsv_field3d_hbilin
-  ! public entities accessed through inheritance
-  public :: struct_vco, vco_setupFromFile
-  public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum, vnl_varLevelFromVarname
-  public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
-  public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_gsv
+    ! This is the derived type of the statevector object
+
     ! These are the main data storage arrays
     real(8), pointer    :: gd_r8(:,:,:,:) => null()
     real(8), pointer    :: gd3d_r8(:,:,:) => null()
@@ -4381,7 +4377,6 @@ module gridStateVector_mod
     ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
     !         Bulk of content originally in vtr_setupTrials.
     ! 
-    !---------------------------------------------------------------------------
     implicit none
 
     ! arguments
@@ -4802,8 +4797,6 @@ module gridStateVector_mod
     !
     !   KindFound     Logical indicating if var kind found 
     !
-    !-------------------------------------------------------------------------
-
     implicit none
     character(len=*) :: varKind
     logical :: KindFound
@@ -5142,8 +5135,6 @@ module gridStateVector_mod
   !
   !     fieldout(nlongout,nlatout,nlevout)   3D field
   !
-  !-------------------------------------------------------------------------------------------  
-
     implicit none
 
     integer, intent(in) :: nlong,nlat,nlev,nlevout,nlongout,nlatout

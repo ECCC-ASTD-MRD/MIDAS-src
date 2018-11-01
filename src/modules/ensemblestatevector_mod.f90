@@ -23,6 +23,7 @@
 !--------------------------------------------------------------------------
 MODULE ensembleStateVector_mod
   use ramDisk_mod
+  use mpi_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod

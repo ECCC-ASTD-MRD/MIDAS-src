@@ -24,6 +24,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE BmatrixHI_mod
+  use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod

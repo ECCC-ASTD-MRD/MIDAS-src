@@ -25,7 +25,8 @@
 !--------------------------------------------------------------------------
 module rMatrix_mod
   use rttov_interfaces_mod
-  use mpivar_mod,  only  : mpi_myid
+  use mpi_mod
+  use mpivar_mod
   use rttov_const, only  : errorstatus_success
   use utilities_mod
   implicit none

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE chem_postproc_mod
+!! MODULE chem_postproc_mod (prefix='chm')
 !!
 !! *Purpose*: Provides post-analysis routines.
 !!

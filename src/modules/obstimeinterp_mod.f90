@@ -21,6 +21,7 @@
 !!
 !--------------------------------------------------------------------------
 module obsTimeInterp_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   use timecoord_mod

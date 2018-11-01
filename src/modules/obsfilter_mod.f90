@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module obsFilter_mod
+  use mpi_mod
   use mpivar_mod
   use EarthConstants_mod
   use MathPhysConstants_mod

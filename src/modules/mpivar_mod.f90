@@ -14,13 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE mpivar (prefix="mpivar")
-!!
-!! *Purpose*: Subroutine and public variables related to the mpi decomposition
-!!            specific to the MIDAS code. Depends on the more general mpi_mod module.
-!!
-!--------------------------------------------------------------------------
 module mpivar_mod
   !
   ! MODULE mpivar (prefix="mpivar")
@@ -41,13 +34,6 @@ module mpivar_mod
   public :: mpivar_setup_levels
   public :: mpivar_setup_varslevels
   public :: mpivar_myidXfromLon, mpivar_myidYfromLat
-
-  ! public variables through inheritance
-  public :: mpi_myid, mpi_nprocs, mpi_npex, mpi_npey, mpi_myidx, mpi_myidy
-  public :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID, mpi_doBarrier
-  public :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
-  ! public procedures through inheritance
-  public :: mpi_initialize, mpi_getptopo, mpi_allreduce_sumreal8scalar
 
   contains
 

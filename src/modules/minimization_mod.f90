@@ -25,15 +25,20 @@ module minimization_mod
   use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
+  use verticalCoord_mod
   use columnData_mod
   use obsSpaceData_mod
   use obsSpaceDiag_mod
   use controlVector_mod
+  use mpi_mod
   use mpivar_mod
   use horizontalCoord_mod
   use analysisGrid_mod
   use gridStateVector_mod
   use bmatrix_mod
+  use bmatrixhi_mod
+  use bmatrixchem_mod
+  use bmatrixEnsemble_mod
   use stateToColumn_mod
   use variableTransforms_mod
   use varNameList_mod

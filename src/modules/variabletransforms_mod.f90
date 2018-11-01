@@ -33,6 +33,7 @@ module variableTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private

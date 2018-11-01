@@ -23,6 +23,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE localizationSpectral_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   use globalSpectralTransform_mod

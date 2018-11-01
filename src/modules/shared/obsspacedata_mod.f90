@@ -1300,6 +1300,9 @@ end module ObsDataColumn_mod
 
 
 module ObsSpaceData_mod
+   !
+   ! MODULE obsSpaceData_mod (prefix='obs')
+   !
    use codePrecision_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod

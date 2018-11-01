@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE increment_mod
+  use mpi_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod

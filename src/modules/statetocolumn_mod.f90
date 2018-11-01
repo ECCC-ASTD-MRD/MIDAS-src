@@ -26,6 +26,7 @@
 !--------------------------------------------------------------------------
 module stateToColumn_mod
   use mathPhysConstants_mod
+  use mpi_mod
   use mpivar_mod 
   use gridstatevector_mod
   use obsSpaceData_mod

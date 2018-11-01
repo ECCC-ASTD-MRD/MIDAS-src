@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module computeHBHT_mod
+  use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -43,6 +44,7 @@ module computeHBHT_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use bMatrixEnsemble_mod
+  use varNameList_mod
   implicit none
   private
 

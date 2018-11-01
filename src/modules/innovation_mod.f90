@@ -38,6 +38,7 @@ module innovation_mod
   use columnData_mod
   use varNameList_mod
   use analysisGrid_mod
+  use verticalCoord_mod
   use gridStateVector_mod
   use windRotation_mod
   use tt2phi_mod

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE chem_obsoperators_mod
+!! MODULE chem_obsoperators_mod (prefix='chm')
 !!
 !! *Purpose*: Provides observation operator routines.
 !!

@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module localization_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   use localizationSpectral_mod

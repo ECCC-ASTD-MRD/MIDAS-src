@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module HorizontalCoord_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use utilities_mod

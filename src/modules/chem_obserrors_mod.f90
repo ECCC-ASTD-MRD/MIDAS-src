@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE chem_obserrors_mod
+!! MODULE chem_obserrors_mod (prefix='chm')
 !!
 !! *Purpose*: Provides routines regarding observation error standard deviations.
 !!

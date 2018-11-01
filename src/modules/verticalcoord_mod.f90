@@ -34,7 +34,8 @@ module verticalCoord_mod
   ! public procedures
   public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_subsetOrNot, vco_levelMatchingList
-  ! public entities accessed through inheritance
+
+  ! public entities accessed through inheritance (from module vgrid_descriptors)
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_vco

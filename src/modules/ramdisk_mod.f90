@@ -14,12 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE ramDisk_mod (prefix='ram')
-!!
-!! *Purpose*: Control the file manipulations/enquiries on the RAM disk
-!!
-!--------------------------------------------------------------------------
 module ramDisk_mod
   !
   ! MODULE ramDisk_mod (prefix='ram')

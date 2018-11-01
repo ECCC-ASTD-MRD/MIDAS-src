@@ -14,12 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE utilities_mod (prefix="utl")
-!!
-!! *Purpose*: A place to collect numerous simple utlity routines
-!!
-!--------------------------------------------------------------------------
 module utilities_mod
   !
   ! MODULE utilities_mod (prefix='utl')
@@ -789,30 +783,30 @@ contains
     character(len=*) :: cdvar
     character(len=*) :: cdetiket
     !
-    !*    Purpose: Get 3D grid parameters for a specific trial field
+    ! **Purpose:** Get 3D grid parameters for a specific trial field
     !              and check for consitancies between grid parameters
     !              of the levels.
     !
     !Arguments
     !
     ! Input:
-    !     cdvar   : variable name to get the vertical levels from
-    !     kstampv : valid date time stamp of the variable
-    !     knmaxlev: maximum number of levels
-    !     kinmpg  : file unit of trial field
-    !     ktrials :  number of trial files.  
+    !    * cdvar   : variable name to get the vertical levels from
+    !    * kstampv : valid date time stamp of the variable
+    !    * knmaxlev: maximum number of levels
+    !    * kinmpg  : file unit of trial field
+    !    * ktrials :  number of trial files.  
     !
     ! Output:
-    !     kip1s(knmaxlev) : list of ip1s of variable cdvar
-    !     kip2            : ip2 for variable cdvar
-    !     kip3            : ip3 for variable cdvar
-    !     knlev           : number of levels of variable cdvar
-    !     cdetiket        : etiket of field cdvar
-    !     cdtypvar        : typvar of field cdvar
-    !     kgid            : handle of the field descriptor
-    !     kip1style       : style in which ip1 is encoded (15 or 31 bits)
-    !     kip1kind        : kind of vertical coord encoded in ip1
-    !     koutmpg         : the unit which contains the selected records.  
+    !    * kip1s(knmaxlev) : list of ip1s of variable cdvar
+    !    * kip2            : ip2 for variable cdvar
+    !    * kip3            : ip3 for variable cdvar
+    !    * knlev           : number of levels of variable cdvar
+    !    * cdetiket        : etiket of field cdvar
+    !    * cdtypvar        : typvar of field cdvar
+    !    * kgid            : handle of the field descriptor
+    !    * kip1style       : style in which ip1 is encoded (15 or 31 bits)
+    !    * kip1kind        : kind of vertical coord encoded in ip1
+    !    * koutmpg         : the unit which contains the selected records.  
     !
     integer :: fstinl,fstprm,ezqkdef,newdate
     integer :: ini,inj,ink,jlev,ier
@@ -974,11 +968,11 @@ contains
     !
     ! Input
     !  
-    !      filename      filename
-    !      unit          unit number to use or 0 to let fnom set value
+    !     * filename      filename
+    !     * unit          unit number to use or 0 to let fnom set value
     !
     ! Output
-    !      unit          unit number associated with file
+    !     * unit          unit number associated with file
     !
     implicit none
 
@@ -1053,11 +1047,11 @@ contains
     ! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
     !
     ! Input:
-    !   id1         reference stnid
-    !   id2         stnid being verified
+    !  * id1         reference stnid
+    !  * id2         stnid being verified
     !
     ! Output:
-    !   same        logical indicating if id1 and id2 match
+    !  * same        logical indicating if id1 and id2 match
     !     
     implicit none
 
@@ -1302,27 +1296,25 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
     ! 
-    !   Purpose: Get element ID from a list of accumulating character 
-    !            strings (e.g. stnids). 
+    !   **Purpose:** Get element ID from a list of accumulating character strings (e.g. stnids). 
     !
-    !            Called by filt_topoChm in filterobs_mod.ftn90
+    !   Called by filt_topoChm in filterobs_mod.ftn90
     !
     !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
     !    
     !   Input:
     !
-    !       Nmax            Max allowed dimension.
-    !       NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
-    !       CList           Input list of accumulated character strings
-    !          for uni and multi-level data.
-    !       cstringin       Input character string
-    !       nobslev         Number of elements in profile associated to cstringin.
+    !   * Nmax            Max allowed dimension.
+    !   * NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
+    !   * CList           Input list of accumulated character strings for uni and multi-level data.
+    !   * cstringin       Input character string
+    !   * nobslev         Number of elements in profile associated to cstringin.
     !
     !   Output:
     !
-    !       NListSize       Updated number of identified IDs
-    !       CList           Updated list of accumulated character strings
-    !       elemId          Index of cstringin within CList_chm
+    !   * NListSize       Updated number of identified IDs
+    !   * CList           Updated list of accumulated character strings
+    !   * elemId          Index of cstringin within CList_chm
     !        
     implicit none
 
@@ -1390,16 +1382,16 @@ contains
     !
     !   Input:
     !
-    !       Nmax         Max allowed dimension.
-    !       NListSize    Input number of IDs (must be >=0 and <=Nmax)
-    !       IdList       Input list of accumulated IDs.
-    !       id           Input id for individual obs 
+    !      * Nmax         Max allowed dimension.
+    !      * NListSize    Input number of IDs (must be >=0 and <=Nmax)
+    !      * IdList       Input list of accumulated IDs.
+    !      * id           Input id for individual obs 
     !
     !   Output:
     !
-    !       NListSize    Updated number of IDs 
-    !       IdList       Updated list of accumulated IDs.
-    !       elemId       Index of id within List
+    !      * NListSize    Updated number of IDs 
+    !      * IdList       Updated list of accumulated IDs.
+    !      * elemId       Index of id within List
     !     
     implicit none
 
@@ -1440,7 +1432,7 @@ contains
     !
     ! Revision: 
     !
-    ! Purpose:  Read specified field from standard RPN/fst file. Could be one
+    ! **Purpose:**  Read specified field from standard RPN/fst file. Could be one
     !           to all levels depending on the input iip1,iip2,iip3 values
     !
     !           Currently assumes lat/long (or Gaussian) type grids.
@@ -1449,22 +1441,22 @@ contains
     !
     ! IN
     !
-    !     fname    input filename
-    !     varName  search nomvar
-    !     iip1     search ip1
-    !     iip2     search ip2
-    !     iip3     search ip3
-    !     etiketi  search etiket
+    !    * fname    input filename
+    !    * varName  search nomvar
+    !    * iip1     search ip1
+    !    * iip2     search ip2
+    !    * iip3     search ip3
+    !    * etiketi  search etiket
     !
     ! OUT
     !
-    !     ni,nj     ni,nj values
-    !     nkeys     number of records satisfying search criteria
-    !     array     (ni,nj,nkeys) data arrray
-    !     xlat_opt  1D latitude array (optional)
-    !     xlong_opt 1D longitude array (optional)
-    !     lvls_opt  1D vertical coordinate array (optional)
-    !     kind_opt  vertical coordinate type according to convip (optional)
+    !    * ni,nj     ni,nj values
+    !    * nkeys     number of records satisfying search criteria
+    !    * array     (ni,nj,nkeys) data arrray
+    !    * xlat_opt  1D latitude array (optional)
+    !    * xlong_opt 1D longitude array (optional)
+    !    * lvls_opt  1D vertical coordinate array (optional)
+    !    * kind_opt  vertical coordinate type according to convip (optional)
     !
     implicit none
 

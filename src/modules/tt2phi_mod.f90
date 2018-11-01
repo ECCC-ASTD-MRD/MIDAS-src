@@ -28,6 +28,7 @@ module tt2phi_mod
   use physicsFunctions_mod
   use earthConstants_mod
   use columnData_mod
+  use verticalCoord_mod
   use utilities_mod
   implicit none
   save

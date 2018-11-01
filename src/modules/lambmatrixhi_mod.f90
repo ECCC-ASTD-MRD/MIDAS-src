@@ -23,6 +23,7 @@
 !!
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
+  use mpi_mod
   use mpivar_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -31,6 +32,7 @@ module LamBMatrixHI_mod
   use analysisGrid_mod
   use utilities_mod
   use variableTransforms_mod
+  use varNameList_mod
   implicit none
   save
   private

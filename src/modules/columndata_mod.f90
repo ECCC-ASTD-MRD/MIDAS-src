@@ -45,11 +45,6 @@ module columnData_mod
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
-  ! public entities accessed through inheritance
-  public :: struct_vco, vco_SetupFromFile, vco_getNumLev
-  public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
-
   type struct_columnData
     integer           :: numCol
     logical           :: allocated=.false.

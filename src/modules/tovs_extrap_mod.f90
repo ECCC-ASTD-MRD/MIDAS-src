@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tovs_extrap (prefix= no standard prefix)
+!! MODULE tovs_extrap (prefix='')
 !!
 !! *Purpose*: Old code for extrapolation of temperature, when model top was
 !!            still at 10hPa, to extend up to 0.1hPa for calls to RTTOV.

@@ -21,6 +21,7 @@
 !!
 !--------------------------------------------------------------------------
 module obsErrors_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -33,6 +34,7 @@ module obsErrors_mod
   use gps_mod
   use columnData_mod
   use rmatrix_mod
+  use varNameList_mod
   implicit none
   save
   private

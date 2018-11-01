@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE varqc (prefix="")
+!! MODULE varqc (prefix='vqc')
 !!
 !! *Purpose*: Procedures related to variational quality control including
 !!            hard-coded values that determine how quickly the observation

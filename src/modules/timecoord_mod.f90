@@ -21,6 +21,7 @@
 !!
 !--------------------------------------------------------------------------
 module timeCoord_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   implicit none
