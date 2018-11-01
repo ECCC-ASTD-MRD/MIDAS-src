@@ -92,13 +92,15 @@ program midas_ensManip
   character(len=256) :: ensPathName, alternativeEnsembleMean
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
   logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
+  logical  :: imposeRttovHuLimits, imposeSaturationLimit
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean,                  & 
                         ensembleEtiketOutput, ensembleTypVarOutput, hInterpolationDegree,             &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations,  &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
-                        recenterEnsembleControlMember, ensembleControlMemberEtiket
+                        recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
+                        imposeRttovHuLimits, imposeSaturationLimit
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -142,7 +144,9 @@ program midas_ensManip
   numBits                       = 16
   recenter                      = .false.
   recentering_coeff             = 1.0
-  hInterpolationDegree          = 'CUBIC' ! or "LINEAR" or "NEAREST"
+  hInterpolationDegree          = 'LINEAR' ! or "CUBIC" or "NEAREST"
+  imposeRttovHuLimits           = .false.
+  imposeSaturationLimit         = .false.
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -199,7 +203,8 @@ program midas_ensManip
 
   !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList)
+  call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList, &
+                    hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
@@ -314,23 +319,27 @@ program midas_ensManip
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
       call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,&
-                        alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
+                        alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, &
+                        imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
         call ens_recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout, &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
-             hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits)
+             hInterpolationDegree, alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits, &
+             imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,&
+                        imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
         call ens_recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout, &
              statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, ensembleTypVarOutput, &
-             hInterpolationDegree, numBits_opt = numBits)
+             hInterpolationDegree, numBits_opt = numBits, imposeRttovHuLimits_opt=imposeRttovHuLimits, &
+             imposeSaturationLimit_opt=imposeSaturationLimit)
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 

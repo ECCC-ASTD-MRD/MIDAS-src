@@ -33,6 +33,7 @@ MODULE ensembleStateVector_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
+  use humidityLimits_mod
   implicit none
   save
   private
@@ -40,7 +41,7 @@ MODULE ensembleStateVector_mod
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
-  public :: ens_copyToStateWork, ens_getOneLevMean_r8
+  public :: ens_copyToStateWork, ens_insertFromStateWork, ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
   public :: ens_computeStdDev, ens_copyEnsStdDev
@@ -73,6 +74,7 @@ MODULE ensembleStateVector_mod
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
     integer                       :: numSubEns
     character(len=256)            :: enspathname
+    character(len=12)             :: hInterpolateDegree='UNSPECIFIED' ! 'LINEAR' or 'CUBIC' or 'NEAREST'
   end type struct_ens
 
 CONTAINS
@@ -81,7 +83,8 @@ CONTAINS
   ! ens_allocate
   !--------------------------------------------------------------------------
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
-                          dateStampList, varNames_opt, dataKind_opt)
+                          dateStampList, varNames_opt, dataKind_opt, &
+                          hInterpolateDegree_opt)
     implicit none
 
     ! arguments
@@ -92,6 +95,7 @@ CONTAINS
     integer :: dateStampList(:)
     character(len=*), optional :: varNames_opt(:)  ! allow specification of assigned variables
     integer, optional          :: dataKind_opt
+    character(len=*), optional :: hInterpolateDegree_opt
     ! locals
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
@@ -103,10 +107,18 @@ CONTAINS
 
     if ( present(dataKind_opt) ) ens%dataKind = dataKind_opt
 
+    if ( present(hInterpolateDegree_opt) ) then
+      ! set the horizontal interpolation degree
+      ens%hInterpolateDegree = trim(hInterpolateDegree_opt)
+    else
+      ens%hInterpolateDegree = 'LINEAR' ! default, for legacy purposes
+    end if
+
     call gsv_allocate( ens%statevector_work, &
                        numStep, hco_ens, vco_ens,  &
                        datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                       varNames_opt=VarNames_opt, dataKind_opt=ens%dataKind )
+                       varNames_opt=VarNames_opt, dataKind_opt=ens%dataKind, &
+                       hInterpolateDegree_opt = hInterpolateDegree_opt)
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -404,6 +416,43 @@ CONTAINS
     end if
 
   end subroutine ens_copyToStateWork
+
+  !--------------------------------------------------------------------------
+  ! ens_insertFromStateWork
+  !--------------------------------------------------------------------------
+  subroutine ens_insertFromStateWork(ens, memberIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+    integer          :: memberIndex
+
+    ! locals
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    integer          :: k1, k2, jk, numStep, stepIndex
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    if (ens%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+        end do
+      end do
+    else if (ens%dataKind == 4) then
+      ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+        end do
+      end do
+    end if
+
+  end subroutine ens_insertFromStateWork
 
   !--------------------------------------------------------------------------
   ! ens_getOneLev_r4
@@ -907,7 +956,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt)
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt,&
+                          imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
     implicit none
 
     !! We want to compute:
@@ -918,12 +968,25 @@ CONTAINS
     type(struct_gsv) :: recenteringMean
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
+    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
 
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
+    logical :: imposeRttovHuLimits, imposeSaturationLimit
+
+    if (present(imposeRttovHuLimits_opt)) then
+      imposeRttovHuLimits = imposeRttovHuLimits_opt
+    else
+      imposeRttovHuLimits = .false.
+    end if
+    if (present(imposeSaturationLimit_opt)) then
+      imposeSaturationLimit = imposeSaturationLimit_opt
+    else
+      imposeSaturationLimit = .false.
+    end if
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -970,10 +1033,30 @@ CONTAINS
     end do
     !$OMP END PARALLEL DO
 
+    if (imposeSaturationLimit .or. imposeSaturationLimit) then
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'ens_recenter: limits will be imposed on the humidity'
+      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+
+      if (present(ensembleControlMember_opt)) then
+        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ensembleControlMember_opt)
+        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ensembleControlMember_opt)
+      else
+        do memberIndex = 1, ens%numMembers
+          call ens_copyToStateWork    (ens, memberIndex)
+          if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
+          if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
+          call ens_insertFromStateWork(ens, memberIndex)
+        end do
+      end if
+    end if
+
   end subroutine ens_recenter
 
   subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
-       etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt)
+       etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
+       imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
     implicit none
 
     !! We want to compute:
@@ -989,10 +1072,23 @@ CONTAINS
     character(len=*)  :: hInterpolationDegree
     type(struct_gsv), optional :: alternativeEnsembleMean_opt
     integer, optional :: numBits_opt
+    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
 
     ! locals
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
+    logical :: imposeRttovHuLimits, imposeSaturationLimit
+
+    if (present(imposeRttovHuLimits_opt)) then
+      imposeRttovHuLimits = imposeRttovHuLimits_opt
+    else
+      imposeRttovHuLimits = .false.
+    end if
+    if (present(imposeSaturationLimit_opt)) then
+      imposeSaturationLimit = imposeSaturationLimit_opt
+    else
+      imposeSaturationLimit = .false.
+    end if
 
     numStep = ens%statevector_work%numStep
 
@@ -1008,7 +1104,8 @@ CONTAINS
     end do
 
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
-         ensembleControlMember_opt = statevector_ensembleControlMember)
+                      ensembleControlMember_opt = statevector_ensembleControlMember, &
+                      imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
 
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
@@ -1176,18 +1273,18 @@ CONTAINS
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                         varNames_opt = varNames_opt, dataKind_opt = 4,  &
-                        hInterpolateDegree_opt = 'LINEAR')
+                        hInterpolateDegree_opt = ens%hInterpolateDegree)
       if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                           varNames_opt = varNames_opt, dataKind_opt = 4,  &
-                          hInterpolateDegree_opt = 'LINEAR')
+                          hInterpolateDegree_opt = ens%hInterpolateDegree)
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                           varNames_opt = varNames_opt, dataKind_opt = 4, &
-                          hInterpolateDegree_opt = 'LINEAR')
+                          hInterpolateDegree_opt = ens%hInterpolateDegree)
       end if
       
       do memberIndex = 1, ens%numMembers
