@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE verticalcoord (prefix="vco")
+!! MODULE verticalcoord (prefix="vco" category='7')
 !!
 !! *Purpose*: Derived type and procedures related to the vertical levels including
 !!            a pointer to the associated VGRID descriptor

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE sqliteFiles (prefix="sqlite")
+!! MODULE sqliteFiles (prefix="sqlite" category='6')
 !!
 !! *Purpose*: To store the filenames of the sqlite observation files and call
 !!            subroutines in readSqlite to read and update sqlite files.

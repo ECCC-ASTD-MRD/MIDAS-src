@@ -16,7 +16,7 @@
 
 module ramDisk_mod
   !
-  ! MODULE ramDisk_mod (prefix='ram')
+  ! MODULE ramDisk_mod (prefix='ram' category='7')
   !
   ! **Purpose**: Control the file manipulations/enquiries on the RAM disk
   !

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsErrors (prefix="oer")
+!! MODULE obsErrors (prefix="oer" category='5')
 !!
 !! *Purpose*: Subroutines to set up the observation error standard deviations.
 !!

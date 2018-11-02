@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE menetrierDiag_mod (prefix="bmd")
+!! MODULE menetrierDiag_mod (prefix="bmd" category='1')
 !!
 !! *Purpose*: Compute optimal localization radii according to the theory 
 !!            developped by Benjamin Menetrier (Meteo-France) and reported

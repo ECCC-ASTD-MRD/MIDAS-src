@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tovs_lin (prefix='tvslin')
+!! MODULE tovs_lin (prefix='tvslin' category='4')
 !!
 !! *Purpose*: Derived types, public variables and procedures related to the 
 !!            tangent-linear and adjoint versions of RTTOV

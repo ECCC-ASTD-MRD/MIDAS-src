@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE sqliteRead (prefix= "sqlr")
+!! MODULE sqliteRead (prefix= "sqlr" category='6')
 !!
 !! *Purpose*: To read and update SQLITE observation files. Data is stored in 
 !!            obsSpaceData object.

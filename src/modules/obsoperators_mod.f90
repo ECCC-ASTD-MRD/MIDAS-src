@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsOperators (prefix="oop")
+!! MODULE obsOperators (prefix="oop" category='4')
 !!
 !! *Purpose*: All observation operators, including nonlinear, tangent-linear
 !!            and adjoint versions.

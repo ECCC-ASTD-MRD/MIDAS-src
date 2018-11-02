@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE rMatrix (prefix="rmat")
+!! MODULE rMatrix (prefix="rmat" category='5')
 !!
 !! *Purpose*: Module to handle non diagonal observation error covariance
 !!            matrices for assimilation of radiances

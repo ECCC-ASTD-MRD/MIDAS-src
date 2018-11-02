@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tovs_nl (prefix='tvs')
+!! MODULE tovs_nl (prefix='tvs' category='4')
 !!
 !! *Purpose*: Derived types, public variables and procedures related to the nonlinear
 !!            version of RTTOV

@@ -1,6 +1,6 @@
 MODULE EarthConstants_mod
    !
-   ! MODULE earthConstants_mod (prefix='')
+   ! MODULE earthConstants_mod (prefix='' category='8')
    !
    ! The following constants should ultimately be taken from module
    ! modgps02wgs84const OR module modgps06gravity.  They have been placed here

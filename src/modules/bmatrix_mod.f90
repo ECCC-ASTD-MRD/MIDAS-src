@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE bMatrix (prefix="bmat")
+!! MODULE bMatrix (prefix="bmat" category='5')
 !!
 !! *Purpose*: A higher-level module that takes care of calling subroutines 
 !!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.

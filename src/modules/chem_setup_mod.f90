@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !-----------------------------------------------------------------------------
-!! MODULE chem_setup_mod (prefix='chm')
+!! MODULE chem_setup_mod (prefix='chm' category='4')
 !!         
 !! *Purpose*: Provides pre-processing (setup) routines and 
 !!            related tools reqarding observation averaging kernels, 

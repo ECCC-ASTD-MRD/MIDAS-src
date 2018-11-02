@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE randumNumber_mod (prefix="rng")
+!! MODULE randumNumber_mod (prefix="rng" category='7')
 !!
 !! *Purpose*: A Gaussian random number generator (RNG) module
 !!

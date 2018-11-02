@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE bMatrixHI (prefix="bhi")
+!! MODULE bMatrixHI (prefix="bhi" category='5')
 !!
 !! *Purpose*: Performs transformation from control vector to analysis increment 
 !!            using the background-error covariance matrix based on homogeneous

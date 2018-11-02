@@ -34,69 +34,52 @@ declare -a levels=("")
 declare -a levelsfilename=("")
 
 # build a list of modules used by the main program
-rm -f $ORIG_PWD/src_files/full_tree_${programname}.dat
 uses1=`grep -i '^ *use *.*_mod' programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
 for use1 in $uses1; do 
   echo $use1
-  echo $use1 >> $ORIG_PWD/src_files/full_tree_${programname}.dat
   level=1; levels[$level]="${levels[$level]} $use1"
   index1=${modulename_index[$use1]}
   for use2 in ${useslist[$index1]}; do
-    echo " --- $use2" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
     level=2; levels[$level]="${levels[$level]} $use2"
     index2=${modulename_index[$use2]}
     for use3 in ${useslist[$index2]}; do
-      echo " --- --- $use3" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
       level=3; levels[$level]="${levels[$level]} $use3"
       index3=${modulename_index[$use3]}
       for use4 in ${useslist[$index3]}; do
-        echo " --- --- --- $use4" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
         level=4; levels[$level]="${levels[$level]} $use4"
         index4=${modulename_index[$use4]}
         for use5 in ${useslist[$index4]}; do
-          echo " --- --- --- --- $use5" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
           level=5; levels[$level]="${levels[$level]} $use5"
           index5=${modulename_index[$use5]}
           for use6 in ${useslist[$index5]}; do
-            echo " --- --- --- --- --- $use6" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
             level=6; levels[$level]="${levels[$level]} $use6"
             index6=${modulename_index[$use6]}
             for use7 in ${useslist[$index6]}; do
-              echo " --- --- --- --- --- --- $use7" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
               level=7; levels[$level]="${levels[$level]} $use7"
               index7=${modulename_index[$use7]}
               for use8 in ${useslist[$index7]}; do
-                echo " --- --- --- --- --- --- --- $use8" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                 level=8; levels[$level]="${levels[$level]} $use8"
                 index8=${modulename_index[$use8]}
                 for use9 in ${useslist[$index8]}; do
-                  echo " --- --- --- --- --- --- --- --- $use9" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                   level=9; levels[$level]="${levels[$level]} $use9"
                   index9=${modulename_index[$use9]}
                   for use10 in ${useslist[$index9]}; do
-                    echo " --- --- --- --- --- --- --- --- --- $use10" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                     level=10; levels[$level]="${levels[$level]} $use10"
                     index10=${modulename_index[$use10]}
                     for use11 in ${useslist[$index10]}; do
-                      echo " --- --- --- --- --- --- --- --- --- --- $use11" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                       level=11; levels[$level]="${levels[$level]} $use11"
                       index11=${modulename_index[$use11]}
                       for use12 in ${useslist[$index11]}; do
-                        echo " --- --- --- --- --- --- --- --- --- --- --- $use12" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                         level=12; levels[$level]="${levels[$level]} $use12"
                         index12=${modulename_index[$use12]}
                         for use13 in ${useslist[$index12]}; do
-                          echo " --- --- --- --- --- --- --- --- --- --- --- --- $use13" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                           level=13; levels[$level]="${levels[$level]} $use13"
                           index13=${modulename_index[$use13]}
                           for use14 in ${useslist[$index13]}; do
-                            echo " --- --- --- --- --- --- --- --- --- --- --- --- --- $use14" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                             level=14; levels[$level]="${levels[$level]} $use14"
                             index14=${modulename_index[$use14]}
                             for use15 in ${useslist[$index14]}; do
-                              echo " --- --- --- --- --- --- --- --- --- --- --- --- --- --- $use15" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                               level=15; levels[$level]="${levels[$level]} $use15"
-                              echo " ******************************************************" >> $ORIG_PWD/src_files/full_tree_${programname}.dat
                               echo " ERROR: More than 15 levels of dependencies found in program ${program}"
                               echo " ERROR: to generate src_files for this program, increase the"
                               echo " ERROR: number of levels in the scripts."

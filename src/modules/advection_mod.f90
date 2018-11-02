@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE advection (prefix="adv")
+!! MODULE advection (prefix="adv" category='3')
 !!
 !! *Purpose*: To perform forward and/or backward advection (based on 
 !!            semi-lagrangian trajectories) for both gridStateVector and

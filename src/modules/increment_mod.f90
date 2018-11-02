@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE increment (prefix="inc")
+!! MODULE increment (prefix="inc" category='1')
 !!
 !! *Purpose*: To add a 4D increment to a given 4D background/reference state
 !!            and to output the results

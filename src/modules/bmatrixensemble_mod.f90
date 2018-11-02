@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE BmatrixEnsemble (prefix="ben")
+!! MODULE BmatrixEnsemble (prefix="ben" category='5')
 !!
 !! *Purpose*: Performs transformation from control vector to analysis increment 
 !!            using the spatially localized ensemble covariance matrix. This 

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE varNameList (prefix="vnl")
+!! MODULE varNameList (prefix="vnl" category='7')
 !!
 !! *Purpose*: Contains a list of all possible variable names that can be used 
 !!            as analysis variables along with additional information for each and

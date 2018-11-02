@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE localizationSpectral (prefix="lsp")
+!! MODULE localizationSpectral (prefix="lsp" category='5')
 !!
 !! *Purpose*: To compute localized 3D gridpoint amplitude fields for each 
 !!            ensemble member from a given (1D) control vector of 

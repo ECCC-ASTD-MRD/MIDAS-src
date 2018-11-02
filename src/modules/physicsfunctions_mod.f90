@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE physicsFunctions (prefix='phf')
+!! MODULE physicsFunctions (prefix='phf' category='7')
 !!
 !! *Purpose*: A collection of basic functions for various purposes 
 !!            (e.g. computing saturation vapour pressure)

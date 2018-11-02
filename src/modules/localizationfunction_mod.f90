@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE localizationFunction (prefix="lfn")
+!! MODULE localizationFunction (prefix="lfn" category='5')
 !!
 !! *Purpose*: To store various functions for horizontal and vertical 
 !!            covariance localization. Lengtscale estimation for function available in

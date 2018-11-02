@@ -16,7 +16,7 @@
 
 module utilities_mod
   !
-  ! MODULE utilities_mod (prefix='utl')
+  ! MODULE utilities_mod (prefix='utl' category='7')
   !
   ! **Purpose**: A place to collect numerous simple utlity routines
   !

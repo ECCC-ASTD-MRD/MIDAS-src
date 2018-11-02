@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tt2phi (prefix="tt2phi")
+!! MODULE tt2phi (prefix="tt2phi" category='3')
 !!
 !! *Purpose*: Subroutines for computing GZ from TT, HU and P0. Nonlinear, tangent-
 !!            linear and adjoint versions of this transformation are included in separate

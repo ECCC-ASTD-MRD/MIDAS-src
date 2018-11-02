@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE codtyp (prefix="codtyp")
+!! MODULE codtyp (prefix="codtyp" category='8')
 !!
 !! *Purpose*: Reads a list of codtype definitions (codes that define various
 !!            types of observations) from the namelist and makes them avaiable

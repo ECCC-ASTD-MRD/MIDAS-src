@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE gps (prefix='gps')
+!! MODULE gps (prefix='gps' category='4')
 !!
 !! Note: prefix not used for all public variables
 !!

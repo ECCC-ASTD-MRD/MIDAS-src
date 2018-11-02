@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE columnData (prefix="col")
+!! MODULE columnData (prefix="col" category='2')
 !!
 !! *Purpose*: A derived type and related procedures for storing and manipulating
 !!            vertical columns of analysis variables on model or analysis grid levels.

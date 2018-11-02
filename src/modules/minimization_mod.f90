@@ -14,14 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE minimization (prefix="min")
-!!
-!! *Purpose*: Minimization for variational assimilation, including the
-!!            subroutine that evaluates the cost function and its gradient.
-!!
-!--------------------------------------------------------------------------
 module minimization_mod
+  !
+  ! MODULE minimization (prefix="min" category='1')
+  !
+  ! **Purpose:** 
+  ! Minimization for variational assimilation, including the
+  ! subroutine that evaluates the cost function and its gradient.
+  !
   use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
@@ -222,9 +222,8 @@ CONTAINS
 
 
   subroutine quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
-      !
-      ! Purpose:
-      ! 3D/En VAR minimization
+      ! **Purpose:**
+      ! 3D/En-VAR minimization
       !
       implicit none
 
@@ -541,10 +540,11 @@ CONTAINS
 
 
   subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
-    implicit none
-    ! Purpose: use QNA_N1QN3 minimization to perform analysis step on 
-    !          ensemble perturbations
+    ! **Purpose:** 
+    ! Use QNA_N1QN3 minimization to perform analysis step on ensemble perturbations
     !
+    implicit none
+
     ! arguments
     real(8)                        :: vatra(:)
     type(struct_columnData),target :: column,columng
@@ -789,15 +789,18 @@ CONTAINS
 
 
   subroutine calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
+    ! **Purpose:**
+    ! Compute additive inflation random perturbations for VarEnKF
     !
-    ! Author:
-    ! Revisions:
-    !           Y. Rochon, ARQI, Oct 2016
-    !           - Added consideration of constituent fields (kind 'CH') without 
-    !             adding a new logical pertBchmOnly
-    !           - Loop over all fields instead of over 3D and 2D fields separately.
-    !             Prevents necessity of 2D fields being ordered after 3D fields for
-    !             constituents (i.e. related to icount index).
+    ! **Revisions:**
+    !
+    ! 1. Y. Rochon, ARQI, Oct 2016
+    !
+    !    * Added consideration of constituent fields (kind 'CH') without 
+    !      adding a new logical pertBchmOnly
+    !    * Loop over all fields instead of over 3D and 2D fields separately.
+    !      Prevents necessity of 2D fields being ordered after 3D fields for
+    !      constituents (i.e. related to icount index).
     ! 
     implicit none
     type(struct_gsv) :: statevector_randpert
@@ -1093,19 +1096,19 @@ CONTAINS
 
 
   subroutine DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
-    !***s/r DSCALQN: inner product in canonical space
-    !*    ------------------- 
-    !**    Purpose: interface for the inner product to be used
-    !*     .        by the minimization subroutines QNA_N1QN3.
-    !*
-    !*Arguments
-    !*     i : KDIM      : dimension of the vectors
-    !*     i : PX, PY    : vector for which <PX,PY> is being calculated
-    !*     o : DDSC      : result of the inner product
-    !*     --------------
-    !*     i :  KZS(1)   : unused working space for INTEGER  (not used)
-    !*     i :  PZS(1)   : unused working space for REAL     (not used)
-    !*     i : PDZS(1)   : unused working space for REAL*8   (not used)
+    ! **Purpose:** 
+    ! Interface for the inner product to be used
+    ! by the minimization subroutines QNA_N1QN3.
+    !
+    ! Arguments
+    !
+    ! * i : KDIM      : dimension of the vectors
+    ! * i : PX, PY    : vector for which <PX,PY> is being calculated
+    ! * o : DDSC      : result of the inner product
+    ! * i :  KZS(1)   : unused working space for INTEGER  (not used)
+    ! * i :  PZS(1)   : unused working space for REAL     (not used)
+    ! * i : PDZS(1)   : unused working space for REAL*8   (not used)
+    !
     IMPLICIT NONE
 
     REAL PZS(1)
@@ -1122,19 +1125,15 @@ CONTAINS
 
 
   subroutine PRSCAL(KDIM,PX,PY,DDSC)
-    !***s/r PRSCAL: inner product in canonical space
-    !*
-    !*Author  : P. Gauthier *ARMA/AES  January 27, 1993
-    !**    Purpose: evaluation of the inner product used in the
-    !*     .        minimization
-    !*
-    !*Arguments
-    !*     i : KDIM     : dimension of the vectors
-    !*     i : PX, PY   : vector for which <PX,PY> is being calculated
-    !*     o : DDSC     : result of the inner product
-    !*
-    !* Implicit argument: SCALP(KDIM) assumed to be unity
-
+    ! **Purpose:**
+    ! Evaluation of the inner product used in the minimization
+    !
+    ! Arguments
+    !
+    ! * i : KDIM     : dimension of the vectors
+    ! * i : PX, PY   : vector for which <PX,PY> is being calculated
+    ! * o : DDSC     : result of the inner product
+    !
     IMPLICIT NONE
 
     INTEGER KDIM, J, RR, IERR
@@ -1162,18 +1161,14 @@ CONTAINS
 
 
   subroutine DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
-    !***s/r DCANAB  - Change of variable associated with the canonical
-    !*     .         inner product
-    !*
-    !*Author    JM Belanger CMDA/SMC   May 2001
-    !*     .    Double precision version based on single precision CTCAB.
-    !*          Refered to  as dummy argument DTCAB by QNA_N1QN3 minimization
-    !*          package.
-    !*    -------------------
-    !**    Purpose: to compute PX = L^-1 * Py with L related to the inner product
-    !*     .        <PX,PY> = PX^t  L^t  L PY
-    !*     .        (see the modulopt documentation aboutn DTCAB)
-    !*     NOTE: L is assumed to be the identity!
+    ! **Purpose:** 
+    ! Change of variable associated with the canonical inner product
+    !
+    ! * PX = L^-1 * Py with L related to the inner product
+    ! * <PX,PY> = PX^t  L^t  L PY
+    ! * (see the modulopt documentation aboutn DTCAB)
+    ! * NOTE: L is assumed to be the identity!
+    !
     IMPLICIT NONE
 
     INTEGER KDIM, KZS(1)
@@ -1192,19 +1187,13 @@ CONTAINS
 
 
   subroutine DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
-    !***s/r DCANONB  - Change of variable associated with the canonical
-    !*     .          inner product
-    !*
-    !*Author    JM Belanger CMDA/SMC  May 2001
-    !*     .    Double precision version based on single precision CANONB.
-    !*          Refered to as dummy argument DTONB by QNA_N1QN3 minimization
-    !*          package.
-    !*    -------------------
-    !**    Purpose: to compute PY = L * PX with L related to the inner product
-    !*     .        <PX,PY> = PX^t  L^t  L PY
-    !*     .        (see the modulopt documentation about DTONB)
-    !*     .
-
+    ! **Purpose:** 
+    ! Change of variable associated with the canonical inner product
+    !
+    ! * PY = L * PX with L related to the inner product
+    ! * <PX,PY> = PX^t  L^t  L PY
+    ! * (see the modulopt documentation about DTONB)
+    !
     IMPLICIT NONE
     INTEGER KDIM, KZS(1)
     REAL PZS(1)
@@ -1224,29 +1213,28 @@ CONTAINS
   subroutine hessianIO (cfname,status,                       &
           nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
           iztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
-
-    !***s/r hessianIO  - Read-Write VAZXBAR and VATRA on file
-    !*
-    !*
-    !*Author  : M. Tanguay RPN January 2005
-    !*
-    !*Arguments
-    !*     i   cfname    : precon file
-    !*     i   status    : = 0 if READ, = 1 if WRITE
-    !*     i   nsim      : Number of simulations in QNA_N1QN3
-    !*     io  kbrpstamp : Date
-    !*     i   zeps1     : Parameter in QNA_N1QN3
-    !*     i   zdf1      : Parameter in QNA_N1QN3
-    !*     i   itertot   : Parameter in QNA_N1QN3
-    !*     i   isimtot   : Parameter in QNA_N1QN3
-    !*     i   iztrl     : Localisation parameters for Hessian
-    !*     i   vatra     : Hessian
-    !*     i   vazxbar   : Vazx of previous loop
-    !*     i   vazx      : Current state of the minimization
-    !*     i   llxbar    : read in vaxzbar if dates are compatible
-    !*     i   llvazx    : Logical to read vazx
-    !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3)
-    !*     o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
+    ! **Purpose:** 
+    ! Read-Write Hessian and increment (possibly for outer loop) on a file
+    !
+    ! Arguments:
+    !
+    ! * i   cfname    : precon file
+    ! * i   status    : = 0 if READ, = 1 if WRITE
+    ! * i   nsim      : Number of simulations in QNA_N1QN3
+    ! * io  kbrpstamp : Date
+    ! * i   zeps1     : Parameter in QNA_N1QN3
+    ! * i   zdf1      : Parameter in QNA_N1QN3
+    ! * i   itertot   : Parameter in QNA_N1QN3
+    ! * i   isimtot   : Parameter in QNA_N1QN3
+    ! * i   iztrl     : Localisation parameters for Hessian
+    ! * i   vatra     : Hessian
+    ! * i   vazxbar   : Vazx of previous loop
+    ! * i   vazx      : Current state of the minimization
+    ! * i   llxbar    : read in vaxzbar if dates are compatible
+    ! * i   llvazx    : Logical to read vazx
+    ! * i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3)
+    ! * o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
+    !
     IMPLICIT NONE
 
     logical llxbar,llvazx
@@ -1494,6 +1482,12 @@ CONTAINS
   end subroutine hessianIO
 
   subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)
+  ! **Purpose:**
+  ! to compare the variation of the functional against what the gradient
+  ! gives for small changes in the control variable. This test should be
+  ! accurate for values as small as DLALPHA =  SQRT(machine precision).
+  ! (see Courtier, 1987)
+  !
   implicit none
   ! Dummies
   integer, intent(in) :: na_dim ! Size of the control vector
@@ -1503,12 +1497,6 @@ CONTAINS
   integer, intent(inout) :: dataptr(:)
   real*8,  intent(in), dimension(na_dim) :: da_x0 ! Control vector
   external simul ! simulator: return cost function estimate and its gradient
-  !
-  !Purpose:
-  !to compare the variation of the functional against what the gradient
-  !gives for small changes in the control variable. This test should be
-  !accurate for values as small as DLALPHA =  SQRT(machine precision).
-  !(see Courtier, 1987)
 
   integer :: nl_indic, nl_j,ierr
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE codePrecision (prefix="pre")
+!! MODULE codePrecision (prefix="pre" category='8')
 !!
 !! *Purpose*: A higher-level module to specify the precision, mostly for 
 !!            floating point variables

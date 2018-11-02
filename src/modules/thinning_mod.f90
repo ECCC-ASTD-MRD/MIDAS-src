@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE thinning (prefix="thn")
+!! MODULE thinning (prefix="thn" category='1')
 !!
 !! *Purpose*: Using observation-type specific algorithms, set bit 11 of 'flag'
 !!            on data that are not to be assimilated.

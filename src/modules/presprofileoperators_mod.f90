@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE presProfileOperators (prefix="ppo")
+!! MODULE presProfileOperators (prefix="ppo" category='7')
 !!
 !! *Purpose*: Vertical interpolation subroutines, including the special routines
 !!            designed to interpolate to the (widely spaced) RTTOV pressure levels.

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE controlVector (prefix='cvm')
+!! MODULE controlVector (prefix='cvm' category='2')
 !!
 !! *Purpose*: The control vector and related information.  
 !!

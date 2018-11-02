@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsTimeInterp (prefix="oti")
+!! MODULE obsTimeInterp (prefix="oti" category='7')
 !!
 !! *Purpose*: To store public variables and procedures related to the time coordinate.
 !!

@@ -27,6 +27,7 @@
 program midas_obsio
   use ramDisk_mod
   use utilities_mod
+  use mpi_mod
   use mpiVar_mod
   use timeCoord_mod
   use obsSpaceData_mod

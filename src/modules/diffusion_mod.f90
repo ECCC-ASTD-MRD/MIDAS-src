@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE diffusion (prefix="diff")
+!! MODULE diffusion (prefix="diff" category='3')
 !!
 !! *Purpose*: 
 !! Storage for data required by the diffusion operator used to model

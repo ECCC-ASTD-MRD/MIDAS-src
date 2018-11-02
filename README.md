@@ -53,6 +53,11 @@ sub-directory `src/programs`.
 The listing of the compilation will let you know where the program
 binary is.
 
+**Note, if the compilation fails due to a change in the dependencies** between
+the main program and modules or among the modules, the `src_files` files
+can be automatically updated by running the script `make_src_files.sh` that is 
+located in the same directory as the main programs.
+
 # Compiling all the programs
 
 To compile the programs used in this code, use the commands

@@ -99,7 +99,7 @@
 !--------------------------------------------------------------------------
 MODULE BmatrixChem_mod 
   !
-  ! MODULE BmatrixChem_mod (prefix='bchm')
+  ! MODULE BmatrixChem_mod (prefix='bchm' category='5')
   !
   use mpi_mod
   use mpivar_mod

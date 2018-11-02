@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE computeHBHT_mod (prefix='hbht')
+!! MODULE computeHBHT_mod (prefix='hbht' category='1')
 !!
 !! *Purpose*: Contains subroutines for computing the background error 
 !!            variance in observation space

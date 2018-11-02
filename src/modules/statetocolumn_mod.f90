@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE stateToColumn (prefix="s2c")
+!! MODULE stateToColumn (prefix="s2c" category='3')
 !!
 !! *Purpose*: Tangent-linear and adjoint of bilinear interpolation to 
 !!            between a gridStateVector object and a columnData object.

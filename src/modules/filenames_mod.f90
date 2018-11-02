@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE fileNames_mod (prefix="fln")
+!! MODULE fileNames_mod (prefix="fln" category='7')
 !!
 !! *Purpose*: Routines related to file names
 !!

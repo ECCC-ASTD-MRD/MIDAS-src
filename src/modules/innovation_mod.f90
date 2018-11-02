@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE innovation_mod (prefix="inn")
+!! MODULE innovation_mod (prefix="inn" category='1')
 !!
 !! *Purpose*: Several high-level subroutines used to compute the innovations,
 !!            that is, the observation-minus-background values. This includes

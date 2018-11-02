@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE spectralFilter_mod (prefix="spf")
+!! MODULE spectralFilter_mod (prefix="spf" category='7')
 !!
 !! *Purpose*: This module contains a subroutine for computing spectral filter functions
 !!

@@ -16,7 +16,7 @@
 
 module mpivar_mod
   !
-  ! MODULE mpivar (prefix="mpivar")
+  ! MODULE mpivar (prefix="mpivar" category='7')
   !
   ! **Purpose**: Subroutine and public variables related to the mpi decomposition
   ! specific to the MIDAS code. Depends on the more general mpi_mod module.

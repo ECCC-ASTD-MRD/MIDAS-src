@@ -9,6 +9,9 @@
 !             HeaderIndex,etc.-necessarily a row index
 
 module IndexListDepot_mod
+   !
+   ! MODULE indexListDepot_mod (prefix='ild' category='7')
+   !
    ! PURPOSE:
    !    The raison d'etre of this module is to support ObsSpaceData_mod in
    !    facilitating the traversal of a selection of the rows in its table.  The
@@ -305,6 +308,9 @@ end module IndexListDepot_mod
 
 
 module ObsColumnNames_mod
+   !
+   ! MODULE obsColumnNames_mod (prefix='obs' category='7')
+   !
    ! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
    !        In fact, if fortran allowed it, ObsColumnNames_mod would be
    !        'contain'ed inside the ObsSpaceData_mod module.  For this reason, and
@@ -604,6 +610,9 @@ end module ObsColumnNames_mod
 
 
 module ObsDataColumn_mod
+   !
+   ! MODULE obsDataColumn_mod (prefix='odc' category='7')
+   !
    ! This module is used exclusively by the obsSpaceData module which follows
    ! in this file. The derived type is used to represent a "column" of
    ! observation data in an instance of the struct_obs defined in obsSpaceData.
@@ -1301,7 +1310,7 @@ end module ObsDataColumn_mod
 
 module ObsSpaceData_mod
    !
-   ! MODULE obsSpaceData_mod (prefix='obs')
+   ! MODULE obsSpaceData_mod (prefix='obs' category='2')
    !
    use codePrecision_mod
    use ObsColumnNames_mod

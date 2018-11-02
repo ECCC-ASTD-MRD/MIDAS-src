@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE humidityLimits_mod (prefix="qlim")
+!! MODULE humidityLimits_mod (prefix="qlim" category='1')
 !!
 !! *Purpose*: Various manipulations of humidity-related quantities.
 !!
