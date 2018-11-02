@@ -30,15 +30,18 @@ module humidityLimits_mod
   implicit none
   save
   private
-  
+
   ! public procedures
   public :: qlim_gsvSaturationLimit, qlim_gsvRttovLimit
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
 
-  contains
+contains
 
-    subroutine qlim_gsvSaturationLimit(statevector)
+  !--------------------------------------------------------------------------
+  ! qlim_gsvSaturationLimit
+  !--------------------------------------------------------------------------
+  subroutine qlim_gsvSaturationLimit(statevector)
     !
     ! Purpose:
     !          impose saturation limit on humidity variable of a statevector
@@ -50,22 +53,25 @@ module humidityLimits_mod
 
     if( .not. gsv_varExist(statevector,'HU') ) then
       if( mpi_myid == 0 ) write(*,*) 'qlim_gsvSaturationLimit: statevector does not ' // &
-                                     'contain humidity ... doing nothing'
+           'contain humidity ... doing nothing'
       return
     end if
 
     if ( statevector%dataKind == 8 ) then
-      call saturationLimit_r8(statevector)
+      call qlim_gsvSaturationLimit_r8(statevector)
     else if ( statevector%dataKind == 4 ) then
-      call saturationLimit_r4(statevector)
+      call qlim_gsvSaturationLimit_r4(statevector)
     else
       call utl_abort('qlim_gsvSaturationLimit: only compatible with single or double precision ' // &
-                     'data.')
+           'data.')
     end if
 
   end subroutine qlim_gsvSaturationLimit
 
-  subroutine saturationLimit_r8(statevector)
+  !--------------------------------------------------------------------------
+  ! qlim_gsvSaturationLimit_r8
+  !--------------------------------------------------------------------------
+  subroutine qlim_gsvSaturationLimit_r8(statevector)
     !
     ! Purpose:
     !          impose saturation limit on humidity variable of a r8 statevector
@@ -82,8 +88,8 @@ module humidityLimits_mod
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if ( statevector%dataKind /= 8 ) then
-      call utl_abort('saturationLimit_r8: only compatible with double precision ' // &
-                     'data.')
+      call utl_abort('qlim_gsvSaturationLimit_r8: only compatible with double precision ' // &
+           'data.')
     end if
 
     vco_ptr => gsv_getVco(statevector)
@@ -104,10 +110,10 @@ module humidityLimits_mod
       psfc(:,:) = psfc_ptr(:,:,1,stepIndex)
       nullify(pressure)
       ierr = vgd_levels(vco_ptr%vgrid,           &
-                        ip1_list=vco_ptr%ip1_T,  &
-                        levels=pressure,         &
-                        sfc_field=psfc, &
-                        in_log=.false.)
+           ip1_list=vco_ptr%ip1_T,  &
+           levels=pressure,         &
+           sfc_field=psfc, &
+           in_log=.false.)
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
@@ -131,9 +137,12 @@ module humidityLimits_mod
 
     end do ! stepIndex
 
-  end subroutine saturationLimit_r8
+  end subroutine qlim_gsvSaturationLimit_r8
 
-  subroutine saturationLimit_r4(statevector)
+  !--------------------------------------------------------------------------
+  ! qlim_gsvSaturationLimit_r4
+  !--------------------------------------------------------------------------
+  subroutine qlim_gsvSaturationLimit_r4(statevector)
     !
     ! Purpose:
     !          impose saturation limit on humidity variable of a r4 statevector
@@ -150,8 +159,8 @@ module humidityLimits_mod
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if ( statevector%dataKind /= 4 ) then
-      call utl_abort('saturationLimit_r4: only compatible with single precision ' // &
-                     'data.')
+      call utl_abort('qlim_gsvSaturationLimit_r4: only compatible with single precision ' // &
+           'data.')
     end if
 
     vco_ptr => gsv_getVco(statevector)
@@ -172,10 +181,10 @@ module humidityLimits_mod
       psfc(:,:) = real(psfc_ptr(:,:,1,stepIndex),8)
       nullify(pressure)
       ierr = vgd_levels(vco_ptr%vgrid,           &
-                        ip1_list=vco_ptr%ip1_T,  &
-                        levels=pressure,         &
-                        sfc_field=psfc, &
-                        in_log=.false.)
+           ip1_list=vco_ptr%ip1_T,  &
+           levels=pressure,         &
+           sfc_field=psfc, &
+           in_log=.false.)
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
       do levIndex = lev1, lev2
         do latIndex = lat1, lat2
@@ -199,8 +208,11 @@ module humidityLimits_mod
 
     end do ! stepIndex
 
-  end subroutine saturationLimit_r4
+  end subroutine qlim_gsvSaturationLimit_r4
 
+  !--------------------------------------------------------------------------
+  ! qlim_gsvRttovLimit
+  !--------------------------------------------------------------------------
   subroutine qlim_gsvRttovLimit(statevector)
     !
     ! Purpose:
@@ -209,49 +221,17 @@ module humidityLimits_mod
     implicit none
     type(struct_gsv) :: statevector
 
+    integer          :: levIndex, numLev_rttov
+    real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
+    character(len=256) :: fileName
+    integer :: fnom, fclos, ierr, nulfile
+
     write(*,*) 'qlim_gsvRttovLimit: STARTING'
 
-    if( .not. gsv_varExist(statevector,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: statevector does not ' // &
-                                     'contain humidity ... doing nothing'
+    if ( .not. gsv_varExist(statevector,'HU') ) then
+      if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: statevector does not ' // &
+           'contain humidity ... doing nothing'
       return
-    end if
-
-    if ( statevector%dataKind == 8 ) then
-      call rttovLimit_r8(statevector)
-    else if ( statevector%dataKind == 4 ) then
-      call rttovLimit_r4(statevector)
-    else
-      call utl_abort('qlim_gsvSaturationLimit: only compatible with single or double precision ' // &
-                     'data.')
-    end if
-
-
-  end subroutine qlim_gsvRttovLimit
-
-  subroutine rttovLimit_r8(statevector)
-    !
-    ! Purpose:
-    !          impose RTTOV limits on humidity
-    !
-    implicit none
-    type(struct_gsv) :: statevector
-    type(struct_vco), pointer :: vco_ptr
-    real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
-    real(8), pointer :: pressure(:,:,:)
-    real(8)          :: hu, hu_modified
-    real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr, nulfile
-    integer          :: lonIndex, latIndex, levIndex, stepIndex, numLev_rttov
-    integer          :: ni, nj, numLev
-    real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
-    real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
-    character(len=256) :: fileName
-    integer :: fnom, fclos
-
-    if( statevector%dataKind /= 8 ) then
-      call utl_abort('rttovLimit_r8: only compatible with double precision ' // &
-                     'data.')
     end if
 
     ! Read in RTTOV humidity limits
@@ -259,12 +239,12 @@ module humidityLimits_mod
     nulfile = 0
     ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
     if( ierr /= 0 ) then
-      write(*,*) 'fileName = ', fileName
+      if ( mpi_myid == 0 ) write(*,*) 'fileName = ', fileName
       call utl_abort('qlim_gsvRttovLimit: error opening the humidity limits file')
     end if
 
     read(nulfile,*) numLev_rttov
-    write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
+    if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
     allocate(press_rttov(numLev_rttov))
     allocate(qmin_rttov(numLev_rttov))
     allocate(qmax_rttov(numLev_rttov))
@@ -278,9 +258,52 @@ module humidityLimits_mod
 
     write(*,*) ' '
     do levIndex = 1, numLev_rttov
-      write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-        levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
+      if ( mpi_myid == 0 ) write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+           levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
     end do
+
+    if ( statevector%dataKind == 8 ) then
+      call qlim_gsvRttovLimit_r8(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+    else if ( statevector%dataKind == 4 ) then
+      call qlim_gsvRttovLimit_r4(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+    else
+      call utl_abort('qlim_gsvSaturationLimit: only compatible with single or double precision ' // &
+           'data.')
+    end if
+
+    deallocate(qmax_rttov)
+    deallocate(qmin_rttov)
+    deallocate(press_rttov)
+
+  end subroutine qlim_gsvRttovLimit
+
+  !--------------------------------------------------------------------------
+  ! qlim_gsvRttovLimit_r8
+  !--------------------------------------------------------------------------
+  subroutine qlim_gsvRttovLimit_r8(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+    !
+    ! Purpose:
+    !          impose RTTOV limits on humidity
+    !
+    implicit none
+    type(struct_gsv) :: statevector
+    integer, intent(in) :: numLev_rttov
+    real(8), intent(in) :: press_rttov(numLev_rttov), qmin_rttov(numLev_rttov), qmax_rttov(numLev_rttov)
+
+    type(struct_vco), pointer :: vco_ptr
+    real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
+    real(8), pointer :: pressure(:,:,:)
+    real(8)          :: hu, hu_modified
+    real(8), allocatable :: psfc(:,:)
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
+    integer          :: lonIndex, latIndex, levIndex, stepIndex
+    integer          :: ni, nj, numLev, ierr
+    real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
+
+    if( statevector%dataKind /= 8 ) then
+      call utl_abort('qlim_gsvRttovLimit_r8: only compatible with double precision ' // &
+           'data.')
+    end if
 
     vco_ptr => gsv_getVco(statevector)
     lq_ptr => gsv_getField_r8(statevector,'HU')
@@ -305,14 +328,14 @@ module humidityLimits_mod
       psfc(:,:) = psfc_ptr(:,:,1,stepIndex)
       nullify(pressure)
       ierr = vgd_levels(vco_ptr%vgrid,           &
-                        ip1_list=vco_ptr%ip1_T,  &
-                        levels=pressure,         &
-                        sfc_field=psfc, &
-                        in_log=.false.)
+           ip1_list=vco_ptr%ip1_T,  &
+           levels=pressure,         &
+           sfc_field=psfc, &
+           in_log=.false.)
 
       ! Interpolate RTTOV limits onto model levels
-      call lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                        ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
+      call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
+           ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
 
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
       do levIndex = lev1, lev2
@@ -338,60 +361,35 @@ module humidityLimits_mod
     deallocate( qmin3D_rttov )
     deallocate( qmax3D_rttov )
 
-  end subroutine rttovLimit_r8
+  end subroutine qlim_gsvRttovLimit_r8
 
-  subroutine rttovLimit_r4(statevector)
+  !--------------------------------------------------------------------------
+  ! qlim_gsvRttovLimit_r4
+  !--------------------------------------------------------------------------
+  subroutine qlim_gsvRttovLimit_r4(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
     !
     ! Purpose:
     !          impose RTTOV limits on humidity
     !
     implicit none
     type(struct_gsv) :: statevector
+    integer, intent(in) :: numLev_rttov
+    real(8), intent(in) :: press_rttov(numLev_rttov), qmin_rttov(numLev_rttov), qmax_rttov(numLev_rttov)
+
     type(struct_vco), pointer :: vco_ptr
     real(4), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, hu_modified
     real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr, nulfile
-    integer          :: lonIndex, latIndex, levIndex, stepIndex, numLev_rttov
-    integer          :: ni, nj, numLev
-    real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
+    integer          :: lonIndex, latIndex, levIndex, stepIndex
+    integer          :: ni, nj, numLev, ierr
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
-    character(len=256) :: fileName
-    integer :: fnom, fclos
 
     if( statevector%dataKind /= 4 ) then
-      call utl_abort('rttovLimit_r4: only compatible with single precision ' // &
-                     'data.')
+      call utl_abort('qlim_gsvRttovLimit_r4: only compatible with single precision ' // &
+           'data.')
     end if
-
-    ! Read in RTTOV humidity limits
-    fileName = "rttov_h2o_limits.dat"
-    nulfile = 0
-    ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
-    if( ierr /= 0 ) then
-      write(*,*) 'fileName = ', fileName
-      call utl_abort('qlim_gsvRttovLimit: error opening the humidity limits file')
-    end if
-
-    read(nulfile,*) numLev_rttov
-    write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
-    allocate(press_rttov(numLev_rttov))
-    allocate(qmin_rttov(numLev_rttov))
-    allocate(qmax_rttov(numLev_rttov))
-    do levIndex = 1, numLev_rttov
-      read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
-    end do
-    ierr = fclos(nulfile)
-    press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
-    qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
-    qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
-
-    write(*,*) ' '
-    do levIndex = 1, numLev_rttov
-      write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-        levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
-    end do
 
     vco_ptr => gsv_getVco(statevector)
     lq_ptr => gsv_getField_r4(statevector,'HU')
@@ -416,14 +414,14 @@ module humidityLimits_mod
       psfc(:,:) = real(psfc_ptr(:,:,1,stepIndex),8)
       nullify(pressure)
       ierr = vgd_levels(vco_ptr%vgrid,           &
-                        ip1_list=vco_ptr%ip1_T,  &
-                        levels=pressure,         &
-                        sfc_field=psfc, &
-                        in_log=.false.)
+           ip1_list=vco_ptr%ip1_T,  &
+           levels=pressure,         &
+           sfc_field=psfc, &
+           in_log=.false.)
 
       ! Interpolate RTTOV limits onto model levels
-      call lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                        ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
+      call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
+           ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
 
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
       do levIndex = lev1, lev2
@@ -449,10 +447,13 @@ module humidityLimits_mod
     deallocate( qmin3D_rttov )
     deallocate( qmax3D_rttov )
 
-  end subroutine rttovLimit_r4
+  end subroutine qlim_gsvRttovLimit_r4
 
-  subroutine lintv_minmax(press_src, qmin_src, qmax_src, numLev_src, &
-                          ni_dest, nj_dest, numLev_dest, press_dest, qmin_dest, qmax_dest)
+  !--------------------------------------------------------------------------
+  ! qlim_lintv_minmax
+  !--------------------------------------------------------------------------
+  subroutine qlim_lintv_minmax(press_src, qmin_src, qmax_src, numLev_src, &
+       ni_dest, nj_dest, numLev_dest, press_dest, qmin_dest, qmax_dest)
     !Arguments
     !     i   press_src(numLev_src)    : Vertical levels, pressure (source)
     !     i   qmin/max_src(numLev_src)   : Vectors to be interpolated (source)
@@ -535,6 +536,6 @@ module humidityLimits_mod
       end do ! ii
     end do ! jj
 
-  end subroutine lintv_minmax
+  end subroutine qlim_lintv_minmax
 
 end module humidityLimits_mod

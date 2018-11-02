@@ -41,7 +41,7 @@ MODULE ensembleStateVector_mod
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
-  public :: ens_copyToStateWork, ens_insertFromStateWork, ens_getOneLevMean_r8
+  public :: ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
   public :: ens_computeStdDev, ens_copyEnsStdDev
@@ -418,9 +418,9 @@ CONTAINS
   end subroutine ens_copyToStateWork
 
   !--------------------------------------------------------------------------
-  ! ens_insertFromStateWork
+  ! ens_copyFromStateWork
   !--------------------------------------------------------------------------
-  subroutine ens_insertFromStateWork(ens, memberIndex)
+  subroutine ens_copyFromStateWork(ens, memberIndex)
     implicit none
 
     ! arguments
@@ -452,7 +452,7 @@ CONTAINS
       end do
     end if
 
-  end subroutine ens_insertFromStateWork
+  end subroutine ens_copyFromStateWork
 
   !--------------------------------------------------------------------------
   ! ens_getOneLev_r4
@@ -1047,13 +1047,16 @@ CONTAINS
           call ens_copyToStateWork    (ens, memberIndex)
           if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
           if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
-          call ens_insertFromStateWork(ens, memberIndex)
+          call ens_copyFromStateWork(ens, memberIndex)
         end do
       end if
     end if
 
   end subroutine ens_recenter
 
+  !--------------------------------------------------------------------------
+  ! ens_recenterState
+  !--------------------------------------------------------------------------
   subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
        etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
        imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
