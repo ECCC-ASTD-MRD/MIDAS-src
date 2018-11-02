@@ -674,6 +674,9 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
+    logical :: useNewGZ
+
+    useNewGZ = .true.
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -717,6 +720,18 @@ contains
     ! set contents of column to zero
     allCols_ptr => col_getAllColumns(column)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
+
+    !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
+    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
+        .and. gsv_varExist(statevector,'P0') ) then
+       call tmg_start(36,'INTERP_TT2PHI_TL')
+       if ( .not. useNewGZ ) then
+         call tt2phi_tl(column,columng)
+       else
+         call tt2phi_gpsro_tl(column,columng)
+       endif
+       call tmg_stop(36)
+    end if
 
     ptr4d => gsv_getField_r8(stateVector_VarsLevs)
 
@@ -859,6 +874,9 @@ contains
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
+    logical :: useNewGZ_ad
+
+    useNewGZ_ad = .true.
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call tmg_start(168,'S2C_AD')
