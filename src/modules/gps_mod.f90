@@ -42,7 +42,7 @@ module gps_mod
   ! public procedures
   public :: gps_setupro, gps_iprofile_from_index
   public :: gps_setupgb, gps_i_from_index
-  public :: gps_struct1sw, gps_bndopv1, gps_refopv, gps_structztd, gps_ztdopv, gps_pw
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd, gps_ztdopv, gps_pw
 
 
 !modgps00base
@@ -63,7 +63,7 @@ module gps_mod
   integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
-  integer(i4), parameter :: ngpscvmx  = 2*ngpssize+1
+  integer(i4), parameter :: ngpscvmx  = 3*ngpssize+1
 
   
 !modgps01ctphys
@@ -305,6 +305,7 @@ module gps_mod
      type(gps_diff)    , dimension(ngpssize)          :: qst
      type(gps_diff)    , dimension(ngpssize)          :: rst
      type(gps_diff)    , dimension(ngpssize)          :: gst
+     type(gps_diff)    , dimension(ngpssize)          :: z
 
      logical                                         :: bbst
      type(gps_diff)    , dimension(ngpssize)          :: dst
@@ -826,7 +827,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printGZ)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -855,6 +856,8 @@ contains
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+
+    logical, optional :: printGZ
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -958,11 +961,139 @@ contains
        ! Height increment
        !
        z   = (-p_Rd/Rgh) * tvm * dx
+       prf%z(i) = z
        prf%gst(i) = prf%gst(i+1) + z
     enddo
 
+    if ( present(printGZ) ) then
+      if ( printGZ ) then
+        write(*,*) 'MAZIAR: gps_struct1sw, AL_T='
+        write(*,*) prf%gst(1:ngpslev)%Var
+
+        printGZ = .false.
+      end if
+    end if
+
     prf%bbst=.false.
   end subroutine gps_struct1sw
+
+  subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
+       rP0,rPP,rDP,rTT,rHU,rAL,rUU,rVV,prf,printGZ)
+    integer(i4)     , intent(in)  :: ngpslev
+    real(dp)        , intent(in)  :: rLat
+    real(dp)        , intent(in)  :: rLon
+    real(dp)        , intent(in)  :: rAzm
+    real(dp)        , intent(in)  :: rMT
+    real(dp)        , intent(in)  :: Rad
+    real(dp)        , intent(in)  :: geoid
+    real(dp)        , intent(in)  :: rP0
+    real(dp)        , intent(in)  :: rPP (ngpssize)
+    real(dp)        , intent(in)  :: rDP (ngpssize)
+    real(dp)        , intent(in)  :: rTT (ngpssize)
+    real(dp)        , intent(in)  :: rHU (ngpssize)
+    real(dp)        , intent(in)  :: rAL (ngpssize)
+    real(dp)        , intent(in)  :: rUU (ngpssize)
+    real(dp)        , intent(in)  :: rVV (ngpssize)
+
+    type(gps_profile), intent(out) :: prf
+
+    integer(i4)                   :: i
+
+
+    real(dp), parameter           :: delta = 0.6077686814144_dp
+
+    type(gps_diff)                 :: cmp(ngpssize)
+    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
+    type(gps_diff)                 :: p, t, q, x
+    type(gps_diff)                 :: tr, z
+    type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
+    type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+
+    logical, optional :: printGZ
+
+    prf%ngpslev = ngpslev
+    prf%rLat    = rLat
+    prf%rLon    = rLon
+    prf%rAzm    = rAzm
+    prf%rMT     = rMT
+    prf%Rad     = Rad
+    prf%geoid   = geoid
+    call gpsRadii(rLat, prf%RadN, prf%RadM)
+
+    !
+    ! Fill pressure placeholders:
+    !
+    prf%P0%Var               = 0.01_dp*rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(3*ngpslev+1) = 0.01_dp
+    do i=1,ngpslev
+       prf%pst(i)%Var               = 0.01_dp*rPP(i)
+       prf%pst(i)%DVar              = 0._dp
+       prf%pst(i)%DVar(3*ngpslev+1) = 0.01_dp*rDP(i)
+    enddo
+
+    !
+    ! Fill temperature placeholders:
+    !
+    do i = 1, ngpslev
+       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%DVar              = 0._dp
+       prf%tst(i)%DVar(i)           = 1._dp
+    enddo
+
+    !
+    ! Fill moisture placeholders:
+    !
+    do i = 1, ngpslev
+       prf%qst(i)%Var               = rHU(i)
+       prf%qst(i)%DVar              = 0._dp
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    enddo
+
+    !
+    ! Fill altitude placeholders:
+    !
+    do i = 1, ngpslev
+       prf%gst(i)%Var                 = rAL(i)
+       prf%gst(i)%DVar                = 0._dp
+       prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
+    enddo
+
+    ! Compressibility:
+    do i = 1, ngpslev
+       cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
+    enddo
+
+    ! Refractivity:
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       x  = p_wa*q/(1._dp+p_wb*q)
+
+       ! Densities (molar, total, dry, water vapor):
+       mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (p_md/1000._dp)
+       dw = mold * x         * (p_mw/1000._dp)
+       ! Aparicio (2011) expression
+       tr = p_TC/t-1._dp
+       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       n0 = (nd1+nw1)
+       prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+    enddo
+
+    if ( present(printGZ) ) then
+      if ( printGZ ) then
+        write(*,*) 'MAZIAR: gps_struct1sw_v2, AL_T='
+        write(*,*) prf%gst(1:ngpslev)%Var
+
+        printGZ = .false.
+      end if
+    end if
+
+    prf%bbst=.false.
+  end subroutine gps_struct1sw_v2
 
   function gpscompressibility(p,t,q)
     type(gps_diff), intent(in)  :: p,t,q

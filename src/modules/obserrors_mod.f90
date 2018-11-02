@@ -35,6 +35,7 @@ module obsErrors_mod
   use columnData_mod
   use rmatrix_mod
   use varNameList_mod
+  use tt2phi_mod
   implicit none
   save
   private
@@ -1406,6 +1407,7 @@ contains
     REAL*8, allocatable :: ZDP(:)
     REAL*8, allocatable :: ZTT(:)
     REAL*8, allocatable :: ZHU(:)
+    REAL*8, allocatable :: zAL(:)
     REAL*8, allocatable :: ZUU(:)
     REAL*8, allocatable :: ZVV(:)
     !
@@ -1433,6 +1435,7 @@ contains
     allocate(ZDP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
+    allocate(zAL (NGPSLEV))
     allocate(ZUU (NGPSLEV))
     allocate(ZVV (NGPSLEV))
     !
@@ -1444,6 +1447,10 @@ contains
     allocate( ZERR (GPSRO_MAXPRFSIZE) )
     allocate( RSTV (GPSRO_MAXPRFSIZE) )
     allocate( ZMHX (GPSRO_MAXPRFSIZE) )
+
+    ! call tt2phi to populate altitude (is it needed??)
+    call tt2phi(lcolumnhr)
+
     !
     !     Loop over all header indices of the 'RO' family:
     !
@@ -1493,7 +1500,7 @@ contains
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
-          zMT  = zMT * RG / gpsgravitysrf(sLat)
+          !zMT  = zMT * RG / gpsgravitysrf(sLat)
           zP0  = col_getElem(lcolumnhr,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
@@ -1507,6 +1514,7 @@ contains
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
           end do
+         zAL = col_getColumn(lcolumnhr,headerIndex,'GZ','TH') / RG
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
                col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
@@ -1529,7 +1537,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -1656,6 +1664,7 @@ contains
     deallocate(zVV)
     deallocate(zUU)
     deallocate(zHU)
+    deallocate(zAL)
     deallocate(zTT)
     deallocate(zDP)
     deallocate(zPP)

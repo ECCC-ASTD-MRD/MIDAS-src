@@ -37,9 +37,8 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  use verticalCoord_mod
-  use varNameList_mod
-
+  use tt2phi_mod
+  
   implicit none
   save
   private
@@ -879,6 +878,7 @@ contains
     real(8), allocatable :: zdp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
+    real(8), allocatable :: zAL(:)
     real(8), allocatable :: zuu(:)
     real(8), allocatable :: zvv(:)
     real(8) :: zp0, zmt
@@ -890,6 +890,7 @@ contains
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
+    logical, save :: printGZ = .true.
 
     write(*,*)'ENTER oop_gpsro_nl'
     !
@@ -901,6 +902,7 @@ contains
     allocate(zdp(ngpslev))
     allocate(ztt(ngpslev))
     allocate(zhu(ngpslev))
+    allocate(zAL(ngpslev))
     allocate(zuu(ngpslev))
     allocate(zvv(ngpslev))
 
@@ -911,6 +913,9 @@ contains
     !  allocate( rstvp(gpsro_maxprfsize) )
     !  allocate( rstvm(gpsro_maxprfsize) )
     !end if
+
+    ! call tt2phi to populate altitude (is it needed??)
+    !call tt2phi(columnhr)
 
     jobs = 0.0d0
 
@@ -969,7 +974,7 @@ contains
        lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
        azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
        slat = sin(zlat)
-       zmt  = zmt * RG / gpsgravitysrf(slat)
+       !zmt  = zmt * RG / gpsgravitysrf(slat)
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, ngpslev
           !
@@ -980,6 +985,7 @@ contains
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
        end do
+       zAL = col_getColumn(columnhr,headerIndex,'GZ','TH') / RG
 
        if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
             col_getPressure(columnhr,1,headerIndex,'MM')) then
@@ -1002,7 +1008,8 @@ contains
        !     
        ! GPS profile structure:
        !
-       call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+       if ( printGZ ) call tt2phi_gpsro_1Col(columnhr,headerIndex)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf,printGZ)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -1107,6 +1114,7 @@ contains
     deallocate(zvv)
     deallocate(zuu)
     deallocate(zhu)
+    deallocate(zAL)
     deallocate(ztt)
     deallocate(zdp)
     deallocate(zpp)
@@ -2153,19 +2161,25 @@ contains
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
       REAL*8, allocatable :: zHU(:)
+      REAL*8, allocatable :: zAL(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
+      real(8), allocatable :: delAL_T(:)
+      real(8) :: coeff_T_P0_local
+
       REAL*8 zMT,radw
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
+      REAL*8 incVector (ngpscvmx), coeffVector(ngpscvmx) 
 
       INTEGER IDATYP
-      INTEGER JL, JV, NGPSLEV, NWNDLEV, stat1, JJ
+      INTEGER JL, jll, JV, NGPSLEV, NWNDLEV, stat1, JJ
       integer :: headerIndex, bodyIndex, iProfile
       type(struct_index_list), pointer :: local_current_list
 
-      LOGICAL  ASSIM, LFIRST
+      LOGICAL  ASSIM, firstheader, LFIRST
+      logical, save :: printGZ_tl = .true.
 
       INTEGER NH, NH1
       TYPE(GPS_PROFILE)           :: PRF
@@ -2179,18 +2193,24 @@ contains
       NGPSLEV=col_getNumLev(column,'TH')
       NWNDLEV=col_getNumLev(column,'MM')
       LFIRST=.FALSE.
-      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+      !if ( .NOT.allocated(gps_vRO_Jacobian) ) then
          LFIRST = .TRUE.
+
+         allocate(delAL_T(NGPSLEV))
+
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
          allocate(zTT (NGPSLEV))
          allocate(zHU (NGPSLEV))
+         allocate(zAL (NGPSLEV))
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,3*NGPSLEV+1))
          allocate(gps_vRO_lJac    (gps_numROProfiles))
          gps_vRO_lJac=.false.
+      end if
 
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
@@ -2199,12 +2219,13 @@ contains
          !C            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
          !C            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
          !C         END IF
-      end if
+      !end if
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
+      firstheader = .true.
       !##$omp parallel default(shared) &
       !##$omp private(headerIndex,idatyp,assim,nh,local_current_list,bodyIndex) &
       !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
@@ -2247,7 +2268,7 @@ contains
                !C
                !C     *       Profile at the observation location:
                !C
-               if (.not.gps_vRO_lJac(iProfile)) then
+               !if (.not.gps_vRO_lJac(iProfile)) then
                   !C
                   !C     *          Basic geometric variables of the profile:
                   !C
@@ -2267,7 +2288,7 @@ contains
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columng,1,headerIndex,'P0')
                   DO JL = 1, NGPSLEV
                      !C
@@ -2279,6 +2300,7 @@ contains
                      zTT(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
                      zHU(JL) = col_getElem(columng,JL,headerIndex,'HU')
                   END DO
+                  zAL = col_getColumn(columng,headerIndex,'GZ','TH') / RG
 
                   if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
                        col_getPressure(columng,1,headerIndex,'MM')) then
@@ -2301,7 +2323,7 @@ contains
                   !C     
                   !C     *          GPS profile structure:
                   !C
-                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf)
                   !C
                   !C     *          Prepare the vector of all the observations:
                   !C
@@ -2331,10 +2353,34 @@ contains
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   END IF
                   DO NH1=1,NH
-                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:3*NGPSLEV+1)
                   END DO
                   gps_vRO_lJac(iProfile)=.true.
-               end if
+               !end if
+
+               ! print dGZ for test (for the first headerIndex)
+               if ( printGZ_tl .and. firstheader ) then
+                 write(*,*) 'headerIndex=', headerIndex
+                 call tt2phi_gpsro_tl_1Col(column,columng,headerIndex)
+
+                 DO JL = 1, NGPSLEV
+                    incVector(JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
+                    incvector(NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
+                 END DO
+                 incVector(2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH') / RG
+                 incVector(3*NGPSLEV+1) = col_getElem(COLUMN,1 ,headerIndex,'P0')
+
+                 delAL_T(:) = 0.0D0
+                 do jl = ngpslev-1, 1, -1
+                   coeffVector(1:3*ngpslev+1) = prf%gst(jl)%DVar(1:3*ngpslev+1)
+                   do jll = 1, 3*ngpslev+1
+                     delAL_T(jl) = delAL_T(jl) + coeffVector(jll) * incVector(jll)
+                   enddo
+                 enddo
+                 write(*,*) 'MAZIAR: oop_Hro, delAL_T:'
+                 write(*,*) delAL_T(1:ngpslev)
+               endif 
+
                !C
                !C     *       Local vector state
                !C
@@ -2342,7 +2388,8 @@ contains
                   DX (        JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
                END DO
-               DX (2*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
+               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH') / RG
+               DX (3*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
                !C     *       Loop over all body indices for this headerIndex:
@@ -2359,9 +2406,14 @@ contains
                      !C     *             Evaluate H(xb)DX
                      !C
                      ZMHXL = 0.d0
-                     DO JV = 1, 2*NGPSLEV+1
+                     DO JV = 1, 3*NGPSLEV+1
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      END DO
+
+                     if ( firstheader ) then
+                        if ( NH1 == 1 ) write(*,*) 'MAZIAR oop_Hro, headerIndex, delAL_T, dN:'
+                        write(*,*) headerIndex,delAL_T(NH1),ZMHXL
+                     endif
                      !C
                      !C     *             Store in CMA
                      !C
@@ -2370,6 +2422,7 @@ contains
                END DO BODY_3
             END IF ASSIMILATE
          END IF DATYP
+         firstheader = .false.
       END DO HEADER
       !##$omp end parallel
 
@@ -2385,10 +2438,15 @@ contains
          deallocate(zVV)
          deallocate(zUU)
          deallocate(zHU)
+         deallocate(zAL)
          deallocate(zTT)
          deallocate(zDP)
          deallocate(zPP)
       END IF
+
+      deallocate(delAL_T)
+      deallocate(gps_vRO_Jacobian)
+      deallocate(gps_vRO_lJac)
 
       !C      WRITE(*,*)'EXIT oop_Hro'
       RETURN
@@ -2848,6 +2906,10 @@ contains
     type(struct_vco), pointer :: vco_anl
     logical, save :: firstTime = .true.
 
+    logical :: useNewGZ_ad
+
+    useNewGZ_ad = .true.
+
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_HT- Adjoint of linearized observation operators'
     end if
@@ -3249,23 +3311,216 @@ contains
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
 
-      REAL*8 zLat, Lat
+      REAL*8 zLat, Lat, sLat
+      REAL*8 zLon, Lon
       REAL*8 zAzm, Azm
       INTEGER IAZM, ISAT
-      REAL*8 Rad, Geo, HNH1
+      REAL*8 Rad, Geo, WFGPS, HNH1
       REAL*8 zP0, zMT
+      REAL*8, allocatable :: zPP(:)
+      REAL*8, allocatable :: zDP(:)
+      REAL*8, allocatable :: zTT(:)
+      REAL*8, allocatable :: zHU(:)
+      REAL*8, allocatable :: zUU(:)
+      REAL*8, allocatable :: zVV(:)
 
       REAL*8 ZINC, ZOER
 
       real*8, pointer :: tt_column(:),hu_column(:),ps_column(:)
       INTEGER IDATYP
-      INTEGER JL, NGPSLEV
+      INTEGER JL, jll, JV, NGPSLEV, NWNDLEV, stat1, JJ
       integer :: headerIndex, bodyIndex, iProfile
       type(struct_index_list), pointer :: local_current_list
 
-      LOGICAL  ASSIM, LUSE
+      LOGICAL  ASSIM, firstheader, LUSE, LFIRST
 
       INTEGER NH, NH1
+      TYPE(GPS_PROFILE)           :: PRF
+      REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
+      TYPE(GPS_DIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
+
+      integer :: obsAssVal
+      obsAssVal = 1
+
+      ! calculate jacobians (similar to oop_Hro)
+      NGPSLEV=col_getNumLev(column,'TH')
+      NWNDLEV=col_getNumLev(column,'MM')
+      LFIRST=.FALSE.
+      !if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+         LFIRST = .TRUE.
+
+         allocate(zPP (NGPSLEV))
+         allocate(zDP (NGPSLEV))
+         allocate(zTT (NGPSLEV))
+         allocate(zHU (NGPSLEV))
+         allocate(zUU (NGPSLEV))
+         allocate(zVV (NGPSLEV))
+
+      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(gps_vRO_lJac    (gps_numROProfiles))
+         gps_vRO_lJac=.false.
+      end if
+
+         allocate( H    (GPSRO_MAXPRFSIZE) )
+         allocate( AZMV (GPSRO_MAXPRFSIZE) )
+         allocate( RSTV (GPSRO_MAXPRFSIZE) )
+         !C         IF (LEVELGPSRO == 1) THEN
+         !C            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
+         !C            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
+         !C         END IF
+      !end if
+      !C
+      !C    Loop over all header indices of the 'RO' family (Radio Occultation)
+      !C
+      ! Set the header list (start at the beginning of the list)
+      call obs_set_current_header_list(obsSpaceData,'RO')
+      !##$omp parallel default(shared) &
+      !##$omp private(headerIndex,idatyp,assim,nh,local_current_list,bodyIndex) &
+      !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
+      !##$omp private(zlat,zlon,lat,lon,azm,slat) &
+      !##$omp private(stat1,jl,zpp,zdp,ztt,zhu,zuu,zvv,prf,dx) &
+      !##$omp private(h,azmv,rstv,rstvp,rstvm,nh1,zmhxl,jv)
+      nullify(local_current_list)
+      HEADER0: do
+         headerIndex = obs_getHeaderIndex(obsSpaceData)
+         if (headerIndex < 0) exit HEADER0
+         !C
+         !C     * Process only refractivity data (codtyp 169)
+         !C
+         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+         DATYP0: IF ( IDATYP == 169 ) THEN
+            !C
+            !C     *    Scan for requested data values of the profile, and count them
+            !C
+            ASSIM = .FALSE.
+            NH = 0
+            !C
+            !C     *    Loop over all body indices for this headerIndex:
+            !C     *    (start at the beginning of the list)
+            !C
+            call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                 current_list=local_current_list)
+            BODY0: do 
+               bodyIndex = obs_getBodyIndex(local_current_list)
+               if (bodyIndex < 0) exit BODY0
+               IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+               END IF
+            END DO BODY0
+            !C
+            !C     *    If assimilations are requested, prepare and apply the observation operator
+            !C
+            ASSIMILATE0: IF (ASSIM) THEN
+               iProfile=gps_iprofile_from_index(headerIndex)
+               !C
+               !C     *       Profile at the observation location:
+               !C
+               !if (.not.gps_vRO_lJac(iProfile)) then
+                  !C
+                  !C     *          Basic geometric variables of the profile:
+                  !C
+                  zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+                  zLon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+                  IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+                  ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
+                  Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+                  Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
+                  zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+                  zMT  = col_getGZsfc(columng,headerIndex)/RG
+                  WFGPS= 0.d0
+                  DO JJ=1,NUMGPSSATS
+                     IF (ISAT == IGPSSAT(JJ)) WFGPS=WGPS(JJ)
+                  END DO
+                  Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+                  Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+                  Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+                  sLat = sin(zLat)
+                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zP0  = col_getElem(columng,1,headerIndex,'P0')
+                  DO JL = 1, NGPSLEV
+                     !C
+                     !C     *             Profile x_b
+                     !C
+                     zPP(JL) = col_getPressure(columng,JL,headerIndex,'TH')
+                     !C     *             True implementation of zDP (dP/dP0)
+                     zDP(JL) = col_getPressureDeriv(columng,JL,headerIndex,'TH')
+                     zTT(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
+                     zHU(JL) = col_getElem(columng,JL,headerIndex,'HU')
+                  END DO
+
+                  if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
+                       col_getPressure(columng,1,headerIndex,'MM')) then
+                     ! case with top thermo level above top momentum level (Vcode=5002)
+                     do jl = 1, nwndlev
+                        zuu(jl) = col_getElem(columng,jl  ,headerIndex,'UU') * p_knot
+                        zvv(jl) = col_getElem(columng,jl  ,headerIndex,'VV') * p_knot
+                     end do
+                  else
+                     ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+                     do jl = 1, nwndlev-1
+                        zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU') * p_knot
+                        zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV') * p_knot
+                     end do
+                     zuu(nwndlev) = zuu(nwndlev-1)
+                     zvv(nwndlev) = zuu(nwndlev-1)
+                  end if
+                  zuu(ngpslev) = zuu(nwndlev)
+                  zvv(ngpslev) = zuu(nwndlev)
+                  !C     
+                  !C     *          GPS profile structure:
+                  !C
+                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  !C
+                  !C     *          Prepare the vector of all the observations:
+                  !C
+                  NH1 = 0
+                  call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                       current_list=local_current_list)
+                  BODY_2: do 
+                     bodyIndex = obs_getBodyIndex(local_current_list)
+                     if (bodyIndex < 0) exit BODY_2
+                     IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+                        NH1      = NH1 + 1
+                        H(NH1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                        AZMV(NH1)= zAzm
+                     END IF
+                  END DO BODY_2
+                  !C
+                  !C     *          Apply the observation operator:
+                  !C
+                  IF (LEVELGPSRO == 1) THEN
+                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
+                     !C                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
+                     !C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
+                     !C                     do nh1 = 1, nh
+                     !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
+                     !C                     end do
+                  ELSE
+                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
+                  END IF
+                  DO NH1=1,NH
+                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                  END DO
+                  gps_vRO_lJac(iProfile)=.true.
+               !end if
+
+            END IF ASSIMILATE0
+         END IF DATYP0
+      END DO HEADER0
+
+      deallocate( RSTV )
+      deallocate( AZMV )
+      deallocate( H    )
+
+      deallocate(zVV)
+      deallocate(zUU)
+      deallocate(zHU)
+      deallocate(zTT)
+      deallocate(zDP)
+      deallocate(zPP)
+
       !C      WRITE(*,*)'ENTER oop_HTro'
       !C
       !C     * 1.  Initializations
@@ -3277,6 +3532,7 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
+      firstheader = .true.
       !##$omp parallel default(shared) &
       !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
       !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
@@ -3375,12 +3631,386 @@ contains
             hu_column(JL) = DPJO0(JL+NGPSLEV)
          END DO
          ps_column(1) = DPJO0(1+2*NGPSLEV)
+
+         ! print delTT/delHU/delP0 
+         if ( firstheader ) then
+           write(*,*) 'MAZIAR: oop_HTro, delTT/delHU/delP0 for headerIndex=', headerIndex
+           write(*,*) tt_column(:)
+           write(*,*) hu_column(:)
+           write(*,*) ps_column(:)
+         endif
+         firstheader = .false.
+
       END DO HEADER
       !##$omp end parallel
+
+      deallocate(gps_vRO_Jacobian)
+      deallocate(gps_vRO_lJac)
 
       !C      WRITE(*,*)'EXIT oop_HTro'
       RETURN
     END subroutine oop_HTro
+
+
+    SUBROUTINE oop_HTro_v2
+      !*
+      !* Purpose: Compute the adjoint operator for GPSRO observations.
+      !*
+      !*Author  : J. M. Aparicio Jan 2004
+      !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
+      !*    -------------------
+      use IndexListDepot_mod, only : struct_index_list
+      implicit none
+
+      REAL*8 DPJO0(ngpscvmx)
+      REAL*8 DPJO1(ngpscvmx)
+
+      REAL*8 zLat, Lat, sLat
+      REAL*8 zLon, Lon
+      REAL*8 zAzm, Azm
+      INTEGER IAZM, ISAT
+      REAL*8 Rad, Geo, WFGPS, HNH1
+      REAL*8 zP0, zMT
+      REAL*8, allocatable :: zPP(:)
+      REAL*8, allocatable :: zDP(:)
+      REAL*8, allocatable :: zTT(:)
+      REAL*8, allocatable :: zHU(:)
+      REAL*8, allocatable :: zAL(:)
+      REAL*8, allocatable :: zUU(:)
+      REAL*8, allocatable :: zVV(:)
+
+      REAL*8 ZINC, ZOER
+
+      real*8, pointer :: tt_column(:),hu_column(:),AL_column(:),ps_column(:)
+      INTEGER IDATYP
+      INTEGER JL, jll, JV, NGPSLEV, NWNDLEV, stat1, JJ
+      integer :: headerIndex, bodyIndex, iProfile
+      type(struct_index_list), pointer :: local_current_list
+
+      LOGICAL  ASSIM, firstheader, LUSE, LFIRST
+
+      INTEGER NH, NH1
+      TYPE(GPS_PROFILE)           :: PRF
+      REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
+      TYPE(GPS_DIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
+
+      integer :: obsAssVal
+      obsAssVal = 1
+
+      ! calculate jacobians (similar to oop_Hro)
+      NGPSLEV=col_getNumLev(column,'TH')
+      NWNDLEV=col_getNumLev(column,'MM')
+      LFIRST=.FALSE.
+      !if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+         LFIRST = .TRUE.
+
+         allocate(zPP (NGPSLEV))
+         allocate(zDP (NGPSLEV))
+         allocate(zTT (NGPSLEV))
+         allocate(zHU (NGPSLEV))
+         allocate(zAL (NGPSLEV))
+         allocate(zUU (NGPSLEV))
+         allocate(zVV (NGPSLEV))
+
+      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,3*NGPSLEV+1))
+         allocate(gps_vRO_lJac    (gps_numROProfiles))
+         gps_vRO_lJac=.false.
+      end if
+
+         allocate( H    (GPSRO_MAXPRFSIZE) )
+         allocate( AZMV (GPSRO_MAXPRFSIZE) )
+         allocate( RSTV (GPSRO_MAXPRFSIZE) )
+         !C         IF (LEVELGPSRO == 1) THEN
+         !C            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
+         !C            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
+         !C         END IF
+      !end if
+      !C
+      !C    Loop over all header indices of the 'RO' family (Radio Occultation)
+      !C
+      ! Set the header list (start at the beginning of the list)
+      call obs_set_current_header_list(obsSpaceData,'RO')
+      !##$omp parallel default(shared) &
+      !##$omp private(headerIndex,idatyp,assim,nh,local_current_list,bodyIndex) &
+      !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
+      !##$omp private(zlat,zlon,lat,lon,azm,slat) &
+      !##$omp private(stat1,jl,zpp,zdp,ztt,zhu,zuu,zvv,prf,dx) &
+      !##$omp private(h,azmv,rstv,rstvp,rstvm,nh1,zmhxl,jv)
+      nullify(local_current_list)
+      HEADER0: do
+         headerIndex = obs_getHeaderIndex(obsSpaceData)
+         if (headerIndex < 0) exit HEADER0
+         !C
+         !C     * Process only refractivity data (codtyp 169)
+         !C
+         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+         DATYP0: IF ( IDATYP == 169 ) THEN
+            !C
+            !C     *    Scan for requested data values of the profile, and count them
+            !C
+            ASSIM = .FALSE.
+            NH = 0
+            !C
+            !C     *    Loop over all body indices for this headerIndex:
+            !C     *    (start at the beginning of the list)
+            !C
+            call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                 current_list=local_current_list)
+            BODY0: do 
+               bodyIndex = obs_getBodyIndex(local_current_list)
+               if (bodyIndex < 0) exit BODY0
+               IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+               END IF
+            END DO BODY0
+            !C
+            !C     *    If assimilations are requested, prepare and apply the observation operator
+            !C
+            ASSIMILATE0: IF (ASSIM) THEN
+               iProfile=gps_iprofile_from_index(headerIndex)
+               !C
+               !C     *       Profile at the observation location:
+               !C
+               !if (.not.gps_vRO_lJac(iProfile)) then
+                  !C
+                  !C     *          Basic geometric variables of the profile:
+                  !C
+                  zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+                  zLon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+                  IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+                  ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
+                  Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+                  Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
+                  zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+                  zMT  = col_getGZsfc(columng,headerIndex)/RG
+                  WFGPS= 0.d0
+                  DO JJ=1,NUMGPSSATS
+                     IF (ISAT == IGPSSAT(JJ)) WFGPS=WGPS(JJ)
+                  END DO
+                  Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+                  Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+                  Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+                  sLat = sin(zLat)
+                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zP0  = col_getElem(columng,1,headerIndex,'P0')
+                  DO JL = 1, NGPSLEV
+                     !C
+                     !C     *             Profile x_b
+                     !C
+                     zPP(JL) = col_getPressure(columng,JL,headerIndex,'TH')
+                     !C     *             True implementation of zDP (dP/dP0)
+                     zDP(JL) = col_getPressureDeriv(columng,JL,headerIndex,'TH')
+                     zTT(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
+                     zHU(JL) = col_getElem(columng,JL,headerIndex,'HU')
+                  END DO
+                  zAL = col_getColumn(columng,headerIndex,'GZ','TH') / RG
+
+                  if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
+                       col_getPressure(columng,1,headerIndex,'MM')) then
+                     ! case with top thermo level above top momentum level (Vcode=5002)
+                     do jl = 1, nwndlev
+                        zuu(jl) = col_getElem(columng,jl  ,headerIndex,'UU') * p_knot
+                        zvv(jl) = col_getElem(columng,jl  ,headerIndex,'VV') * p_knot
+                     end do
+                  else
+                     ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+                     do jl = 1, nwndlev-1
+                        zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU') * p_knot
+                        zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV') * p_knot
+                     end do
+                     zuu(nwndlev) = zuu(nwndlev-1)
+                     zvv(nwndlev) = zuu(nwndlev-1)
+                  end if
+                  zuu(ngpslev) = zuu(nwndlev)
+                  zvv(ngpslev) = zuu(nwndlev)
+                  !C     
+                  !C     *          GPS profile structure:
+                  !C
+                  call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf)
+                  !C
+                  !C     *          Prepare the vector of all the observations:
+                  !C
+                  NH1 = 0
+                  call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                       current_list=local_current_list)
+                  BODY_2: do 
+                     bodyIndex = obs_getBodyIndex(local_current_list)
+                     if (bodyIndex < 0) exit BODY_2
+                     IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+                        NH1      = NH1 + 1
+                        H(NH1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                        AZMV(NH1)= zAzm
+                     END IF
+                  END DO BODY_2
+                  !C
+                  !C     *          Apply the observation operator:
+                  !C
+                  IF (LEVELGPSRO == 1) THEN
+                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
+                     !C                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
+                     !C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
+                     !C                     do nh1 = 1, nh
+                     !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
+                     !C                     end do
+                  ELSE
+                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
+                  END IF
+                  DO NH1=1,NH
+                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:3*NGPSLEV+1)
+                  END DO
+                  gps_vRO_lJac(iProfile)=.true.
+               !end if
+
+            END IF ASSIMILATE0
+         END IF DATYP0
+      END DO HEADER0
+
+      deallocate( RSTV )
+      deallocate( AZMV )
+      deallocate( H    )
+
+      deallocate(zVV)
+      deallocate(zUU)
+      deallocate(zHU)
+      deallocate(zAL)
+      deallocate(zTT)
+      deallocate(zDP)
+      deallocate(zPP)
+
+      !C      WRITE(*,*)'ENTER oop_HTro_v2'
+      !C
+      !C     * 1.  Initializations
+      !C     *     ---------------
+      !C
+      NGPSLEV=col_getNumLev(column,'TH')
+      !C
+      !C    Loop over all header indices of the 'RO' family (Radio Occultation)
+      !C
+      ! Set the header list (start at the beginning of the list)
+      call obs_set_current_header_list(obsSpaceData,'RO')
+      firstheader = .true.
+      !##$omp parallel default(shared) &
+      !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
+      !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
+      !##$omp private(nh1,zinc,zoer,dpjo1) &
+      !##$omp private(tt_column,hu_column,ps_column)
+      nullify(local_current_list)
+      HEADER: do
+         headerIndex = obs_getHeaderIndex(obsSpaceData)
+         if (headerIndex < 0) exit HEADER
+
+         DPJO0 = 0.d0
+         !C
+         !C     * Process only refractivity data (codtyp 169)
+         !C
+         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+         DATYP: IF ( IDATYP == 169 ) THEN
+            !C
+            !C     *    Scan for requested data values of the profile, and count them
+            !C
+            ASSIM = .FALSE.
+            NH = 0
+            !C
+            !C     *    Loop over all body indices for this headerIndex:
+            !C     *    (start at the beginning of the list)
+            !C
+            call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                 current_list=local_current_list)
+            BODY: do 
+               bodyIndex = obs_getBodyIndex(local_current_list)
+               if (bodyIndex < 0) exit BODY
+
+               LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
+               IF ( LUSE ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+               END IF
+            END DO BODY
+            !C
+            !C     *    If assimilations are requested, prepare and apply the observation operator
+            !C
+            ASSIMILATE: IF (ASSIM) THEN
+               iProfile=gps_iprofile_from_index(headerIndex)
+               !C
+               !C     *    Basic geometric variables of the profile:
+               !C
+               zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+               IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+               ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
+               Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+               Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
+               zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+               zMT  = col_getGZsfc(columng,headerIndex)/RG
+               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+               !C
+               !C     *       Perform the (H(xb)DX-Y')/S operation
+               !C
+               NH1 = 0
+               !C
+               !C     *       Loop over all body indices for this headerIndex:
+               !C     *       (start at the beginning of the list)
+               !C
+               call obs_set_current_body_list(obsSpaceData, headerIndex, &
+                    current_list=local_current_list)
+               BODY_3: do 
+                  bodyIndex = obs_getBodyIndex(local_current_list)
+                  if (bodyIndex < 0) exit BODY_3
+
+                  LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
+                  IF ( LUSE ) THEN
+                     NH1 = NH1 + 1
+                     !C
+                     !C     *             Normalized increment
+                     !C
+                     ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+                     !                     ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                     !C
+                     !C     *             O-F Tested criteria:
+                     !C
+                     DPJO1(1:3*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
+                     !C
+                     !C     *             Accumulate the gradient of the observation cost function:
+                     !C
+                     DPJO0(1:3*NGPSLEV+1) = DPJO0(1:3*NGPSLEV+1) + DPJO1(1:3*NGPSLEV+1)
+                  END IF
+               END DO BODY_3
+            END IF ASSIMILATE
+         END IF DATYP
+         !C
+         !C     * Store H* (HX - Z)/SIGMA in COMMVO
+         !C
+         tt_column => col_getColumn(column,headerIndex,'TT')
+         hu_column => col_getColumn(column,headerIndex,'HU')
+         AL_column => col_getColumn(column,headerIndex,'GZ','TH')
+         ps_column => col_getColumn(column,headerIndex,'P0')
+         DO JL = 1, NGPSLEV
+            tt_column(JL) = DPJO0(JL)
+            hu_column(JL) = DPJO0(JL+NGPSLEV)
+            AL_column(JL) = DPJO0(JL+2*NGPSLEV) / RG
+         END DO
+         ps_column(1) = DPJO0(1+3*NGPSLEV)
+
+         ! print delTT/delHU/delP0 
+         if ( firstheader ) then
+           write(*,*) 'MAZIAR: oop_HTro_v2, delTT/delHU/delAL/delP0 for headerIndex=', headerIndex
+           write(*,*) tt_column(:)
+           write(*,*) hu_column(:)
+           write(*,*) AL_column(:)
+           write(*,*) ps_column(:)
+         endif
+         firstheader = .false.
+
+      END DO HEADER
+      !##$omp end parallel
+
+      deallocate(gps_vRO_Jacobian)
+      deallocate(gps_vRO_lJac)
+
+      !C      WRITE(*,*)'EXIT oop_HTro_v2'
+      RETURN
+    END subroutine oop_HTro_v2
 
 
     SUBROUTINE oop_HTzp
