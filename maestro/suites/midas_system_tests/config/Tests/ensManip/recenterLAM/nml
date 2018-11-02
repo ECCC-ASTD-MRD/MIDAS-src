@@ -8,7 +8,9 @@
    ensembleEtiketOutput = 'ENSRECENTER'
    ensembleEtiketOutputAppendMemberNumber = .false.
    ensembleControlMemberEtiket   = 'ENSCTLMEM'
-   hInterpolationDegree = 'CUBIC'
+   hInterpolationDegree = 'LINEAR'
+   imposeRttovHuLimits   = T
+   imposeSaturationLimit = T
 /
  &NAMTIME
   DSTEPOBSINC = 6.0d0
