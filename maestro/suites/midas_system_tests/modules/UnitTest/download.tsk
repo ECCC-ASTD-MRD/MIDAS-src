@@ -1,8 +1,7 @@
 #!/bin/ksh
-#!/bin/ksh
 
 if [ -L ${TASK_OUTPUT}/live_results ]; then
-    target=$(readlink ${TASK_OUTPUT}/live_results)
+    target=$(${TASK_BIN} readlink ${TASK_OUTPUT}/live_results)
     ssh ${target%%:*} "set -ex; if [ -d ${target##*:} ]; then rm -r ${target##*:}; mkdir ${target##*:}; fi"
 else
     target=${TASK_OUTPUT}/live_results
