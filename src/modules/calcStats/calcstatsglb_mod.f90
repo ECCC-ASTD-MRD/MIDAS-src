@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE CalcStatsGlb (prefix="csg")
+!! MODULE CalcStatsGlb (prefix="csg" category='1. High-level functionality')
 !!
 !! *Purpose*: Compute homogeneous and isotropic background error covariances 
 !!            from forecast error estimate in model variable space (global version).
@@ -24,10 +24,11 @@
 module calcstatsglb_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod
-  use MathPhysConstants_mod
-  use HorizontalCoord_mod
+  use mathPhysConstants_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
   use varNameList_mod
-  use EarthConstants_mod, only: RA
+  use earthConstants_mod, only: RA
   use utilities_mod
   use spectralFilter_mod
   use menetrierDiag_mod

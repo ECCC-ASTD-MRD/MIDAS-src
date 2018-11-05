@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsOperators (prefix="oop")
+!! MODULE obsOperators (prefix="oop" category='4. Observation operators')
 !!
 !! *Purpose*: All observation operators, including nonlinear, tangent-linear
 !!            and adjoint versions.
@@ -29,6 +29,7 @@ module obsOperators_mod
   use bufr_mod
   use physicsFunctions_mod
   use gps_mod
+  use mpi_mod
   use mpivar_mod
   use timeCoord_mod
   use obsFilter_mod
@@ -36,7 +37,9 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  
+  use verticalCoord_mod
+  use varNameList_mod
+
   implicit none
   save
   private

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE stateToColumn (prefix="s2c")
+!! MODULE stateToColumn (prefix="s2c" category='3. High-level transformations')
 !!
 !! *Purpose*: Tangent-linear and adjoint of bilinear interpolation to 
 !!            between a gridStateVector object and a columnData object.
@@ -26,6 +26,7 @@
 !--------------------------------------------------------------------------
 module stateToColumn_mod
   use mathPhysConstants_mod
+  use mpi_mod
   use mpivar_mod 
   use gridstatevector_mod
   use obsSpaceData_mod

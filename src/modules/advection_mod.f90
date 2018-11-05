@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE advection (prefix="adv")
+!! MODULE advection (prefix="adv" category='3. High-level transformations')
 !!
 !! *Purpose*: To perform forward and/or backward advection (based on 
 !!            semi-lagrangian trajectories) for both gridStateVector and
@@ -24,6 +24,7 @@
 !--------------------------------------------------------------------------
 MODULE advection_mod
   use ramDisk_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use EarthConstants_mod
@@ -33,6 +34,7 @@ MODULE advection_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private

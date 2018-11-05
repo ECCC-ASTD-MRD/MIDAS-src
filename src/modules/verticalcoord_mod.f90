@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE verticalcoord (prefix="vco")
+!! MODULE verticalcoord (prefix="vco" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: Derived type and procedures related to the vertical levels including
 !!            a pointer to the associated VGRID descriptor
@@ -34,7 +34,8 @@ module verticalCoord_mod
   ! public procedures
   public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_subsetOrNot, vco_levelMatchingList
-  ! public entities accessed through inheritance
+
+  ! public entities accessed through inheritance (from module vgrid_descriptors)
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_vco

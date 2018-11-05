@@ -15,17 +15,17 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE analysisGrid (prefix="agd")
+!! MODULE analysisGrid (prefix="agd" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: Performs horizontal grid-point variable transforms 
 !!            for the limited-area computational analysis grids (extended and non-extended).
 !!
 !--------------------------------------------------------------------------
 module analysisGrid_mod
-  use earthconstants_mod, only : RA
-  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8,  &
-                                   MPC_DEGREES_PER_RADIAN_R4, MPC_PI_R4
+  use earthconstants_mod
+  use MathPhysConstants_mod
   use horizontalCoord_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   implicit none

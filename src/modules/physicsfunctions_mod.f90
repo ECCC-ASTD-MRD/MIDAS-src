@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE physicsFunctions (prefix= no standard prefix)
+!! MODULE physicsFunctions (prefix='phf' category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: A collection of basic functions for various purposes 
 !!            (e.g. computing saturation vapour pressure)

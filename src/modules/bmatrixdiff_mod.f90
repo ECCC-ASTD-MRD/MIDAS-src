@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE bMatrixDiff (prefix="bdiff")
+!! MODULE bMatrixDiff (prefix="bdiff" category='5. B and R matrices')
 !!
 !! *Purpose*: Performs transformation from control vector to analysis increment 
 !!            using the background-error covariance matrix based on correlations
@@ -23,6 +23,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE BmatrixDiff_mod
+  use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod

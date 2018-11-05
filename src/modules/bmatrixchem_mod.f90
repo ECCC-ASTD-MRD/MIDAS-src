@@ -17,7 +17,7 @@
 !! MODULE bMatrixChem_mod:  Contains routines involving preparation and application
 !!                      of background-error covariance matrix(ces). Matrix
 !!                      based on horizontally homogeneous/isotropic
-!!                      correlations.  prefix="bchm_" used for routines in 
+!!                      correlations.  prefix "bchm_" used for routines in 
 !!                      this module ("chm_" in other modules).
 !!
 !! *Purpose*: Holds routines for (1) reading and preparing the static bacground 
@@ -97,7 +97,11 @@
 !!    globalSpectralTransform, ....
 !!
 !--------------------------------------------------------------------------
-MODULE BmatrixChem_mod
+MODULE BmatrixChem_mod 
+  !
+  ! MODULE BmatrixChem_mod (prefix='bchm' category='5. B and R matrices')
+  !
+  use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE bMatrix (prefix="bmat")
+!! MODULE bMatrix (prefix="bmat" category='5. B and R matrices')
 !!
 !! *Purpose*: A higher-level module that takes care of calling subroutines 
 !!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.
@@ -30,6 +30,7 @@
 !!v              for constituents not yet included.
 !--------------------------------------------------------------------------
 module BMatrix_mod
+  use mpi_mod
   use mpivar_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
@@ -37,6 +38,7 @@ module BMatrix_mod
   use bMatrixDiff_mod
   use bMatrixLatBands_mod
   use controlVector_mod
+  use verticalCoord_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
@@ -50,11 +52,6 @@ module BMatrix_mod
   ! public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
   public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4, bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
-  ! public procedures through inheritance
-  public :: bhi_getScaleFactor, ben_getScaleFactor, bchm_getScaleFactor, bdiff_getScaleFactor
-  public :: bhi_truncateCV, bchm_truncateCV
-  public :: ben_getnEns, ben_getPerturbation
-  public :: ben_setFsoLeadTime
 
   logical :: globalGrid = .true.
   integer, parameter :: numBmat = 5

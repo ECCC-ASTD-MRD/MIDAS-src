@@ -16,7 +16,7 @@
 
 
 !--------------------------------------------------------------------------
-!     MODULE quasinewton_mod,(prefix="qna")
+!     MODULE quasinewton_mod,(prefix="qna" category='1. High-level functionality')
 !     
 !     Purpose: the module version of the modulopt/n1qn3 library
 !     

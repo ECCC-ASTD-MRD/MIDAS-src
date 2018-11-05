@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE innovation_mod (prefix="inn")
+!! MODULE innovation_mod (prefix="inn" category='1. High-level functionality')
 !!
 !! *Purpose*: Several high-level subroutines used to compute the innovations,
 !!            that is, the observation-minus-background values. This includes
@@ -38,6 +38,7 @@ module innovation_mod
   use columnData_mod
   use varNameList_mod
   use analysisGrid_mod
+  use verticalCoord_mod
   use gridStateVector_mod
   use windRotation_mod
   use tt2phi_mod

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE LamSpectralTransform (prefix="lst")
+!! MODULE LamSpectralTransform (prefix="lst" category='3. High-level transformations')
 !! 
 !! *Purpose*: Bi-Fourier spectral transform for limited area applications.
 !!            Depends on ffft8 and setfft8 routines in ARMNLIB.
@@ -23,8 +23,9 @@
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
   use mpi
+  use mpi_mod
   use mpivar_mod
-  use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
+  use MathPhysConstants_mod
   use earthconstants_mod,    only: RA
   use utilities_mod
   implicit none

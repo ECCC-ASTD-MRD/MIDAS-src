@@ -29,6 +29,7 @@
 program midas_thinning
   use ramDisk_mod
   use utilities_mod
+  use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
   use obsFiles_mod

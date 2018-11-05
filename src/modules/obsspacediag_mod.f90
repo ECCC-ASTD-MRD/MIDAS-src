@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsSpaceDiag (prefix="osd")
+!! MODULE obsSpaceDiag (prefix="osd" category='1. High-level functionality')
 !!
 !! *Purpose*: Some experimental procedures for computing various diagnostics 
 !!            in observation space.
@@ -35,6 +35,7 @@ module obsSpaceDiag_mod
 !
 !
 !-------------------------------------------------------------------------------------------
+  use mpi_mod
   use mpivar_mod
   use bufr_mod
   use codtyp_mod
@@ -46,8 +47,12 @@ module obsSpaceDiag_mod
   use controlVector_mod
   use obsSpaceData_mod
   use columnData_mod
+  use verticalCoord_mod
   use gridStateVector_mod
   use bMatrix_mod
+  use bMatrixHi_mod
+  use bMatrixEnsemble_mod
+  use bMatrixChem_mod
   use varNameList_mod
   use stateToColumn_mod
   use randomNumber_mod

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE rttov_interfaces_mod (no prefix)
+!! MODULE rttov_interfaces_mod (prefix='' category='8. Global constants and interfaces')
 !!
 !! *Purpose*: 'include' all of the needed files containing the interfaces
 !!            for the rttov library subroutines. This allows all other 

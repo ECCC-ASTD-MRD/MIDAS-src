@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tovs_lin (prefix= no defined prefix)
+!! MODULE tovs_lin (prefix='tvslin' category='4. Observation operators')
 !!
 !! *Purpose*: Derived types, public variables and procedures related to the 
 !!            tangent-linear and adjoint versions of RTTOV
@@ -28,6 +28,7 @@ module tovs_lin_mod
   use rttov_const ,only : gas_unit_specconc
   use parkind1, only : jpim, jprb
 
+  use verticalCoord_mod
   use tovs_nl_mod
   use utilities_mod
   use MathPhysConstants_mod

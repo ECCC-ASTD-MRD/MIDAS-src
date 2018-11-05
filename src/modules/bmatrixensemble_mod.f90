@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE BmatrixEnsemble (prefix="ben")
+!! MODULE BmatrixEnsemble (prefix="ben" category='5. B and R matrices')
 !!
 !! *Purpose*: Performs transformation from control vector to analysis increment 
 !!            using the spatially localized ensemble covariance matrix. This 
@@ -24,6 +24,7 @@
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble_mod
   use ramDisk_mod
+  use mpi_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod

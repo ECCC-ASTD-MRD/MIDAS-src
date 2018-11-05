@@ -16,6 +16,8 @@
 
 module obsSubSpaceData_mod
 !
+! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
+!
 ! PURPOSE: Repository of obs space structures, arrays, and routines specific to obs 
 !          data pertinent to subspaces of the overall ObsSpaceData. Most tools are
 !          independent of ObsSpaceData and can be used by themselves for the users's

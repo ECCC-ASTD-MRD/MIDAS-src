@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE tovs_nl (prefix= no defined prefix)
+!! MODULE tovs_nl (prefix='tvs' category='4. Observation operators')
 !!
 !! *Purpose*: Derived types, public variables and procedures related to the nonlinear
 !!            version of RTTOV
@@ -74,6 +74,7 @@ module tovs_nl_mod
   use tovs_extrap_mod
   use mod_rttov_emis_atlas
   use rMatrix_mod 
+  use verticalCoord_mod
 
   implicit none
   save

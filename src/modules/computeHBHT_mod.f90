@@ -15,13 +15,14 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE computeHBHT_mod (prefix='hbht')
+!! MODULE computeHBHT_mod (prefix='hbht' category='1. High-level functionality')
 !!
 !! *Purpose*: Contains subroutines for computing the background error 
 !!            variance in observation space
 !!
 !--------------------------------------------------------------------------
 module computeHBHT_mod
+  use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -43,6 +44,7 @@ module computeHBHT_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use bMatrixEnsemble_mod
+  use varNameList_mod
   implicit none
   private
 

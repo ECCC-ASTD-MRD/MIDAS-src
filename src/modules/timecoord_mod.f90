@@ -15,12 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE timeCoord (prefix="tim")
+!! MODULE timeCoord (prefix="tim" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: To store public variables and procedures related to the time coordinate.
 !!
 !--------------------------------------------------------------------------
 module timeCoord_mod
+  use mpi_mod
   use mpivar_mod
   use utilities_mod
   implicit none

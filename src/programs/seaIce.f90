@@ -31,6 +31,7 @@ program midas_seaIce
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use varNameList_mod
   use ramDisk_mod
   use bmatrix_mod
 

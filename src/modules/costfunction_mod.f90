@@ -15,12 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE utilities_mod,(prefix="cfn")
+!! MODULE utilities_mod,(prefix="cfn" category='1. High-level functionality')
 !!
 !! *Purpose*: To compute Jo term
 !!
 !--------------------------------------------------------------------------
 module costfunction_mod
+  use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
   use rmatrix_mod

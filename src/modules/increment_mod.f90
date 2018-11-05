@@ -15,13 +15,14 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE increment (prefix="inc")
+!! MODULE increment (prefix="inc" category='1. High-level functionality')
 !!
 !! *Purpose*: To add a 4D increment to a given 4D background/reference state
 !!            and to output the results
 !!
 !--------------------------------------------------------------------------
 MODULE increment_mod
+  use mpi_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod

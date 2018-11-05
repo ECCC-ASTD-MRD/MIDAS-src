@@ -15,20 +15,21 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !-----------------------------------------------------------------------------------------
-!! MODULE biascorrection (Variational bias correction.  prefix="bias")
+!! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
 !!
 !! *Purpose*: Performs the variational bias correction for satellite radiance data 
 !! 
 !!
 !!
 !-----------------------------------------------------------------------------------------
-MODULE biascorrection_mod
+MODULE biasCorrection_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
   use EarthConstants_mod ! (for RG)
   use obsSpaceData_mod
   use controlVector_mod
+  use mpi_mod
   use mpivar_mod
   use tovs_nl_mod
   use timeCoord_mod
@@ -1184,4 +1185,4 @@ CONTAINS
 
   end function SatNameinCoeffFile
 
-END MODULE biascorrection_mod
+END MODULE biasCorrection_mod

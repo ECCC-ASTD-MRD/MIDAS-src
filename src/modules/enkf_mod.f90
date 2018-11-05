@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE enkf (prefix="enkf")
+!! MODULE enkf (prefix="enkf" category='1. High-level functionality')
 !!
 !! *Purpose*: Implementation of the EnKF in MIDAS.
 !!

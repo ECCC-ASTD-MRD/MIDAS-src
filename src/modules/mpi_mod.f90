@@ -14,15 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE mpi (prefix="mpi")
-!!
-!! *Purpose*: Subroutine and public variables related to general aspects of mpi.
-!!
-!--------------------------------------------------------------------------
 module mpi_mod
   !
-  ! MODULE mpi (prefix='mpi')
+  ! MODULE mpi (prefix='mpi' category='7. Low-level data objects and utilities')
   !
   ! **Purpose**: Subroutine and public variables related to general aspects of mpi.
   !

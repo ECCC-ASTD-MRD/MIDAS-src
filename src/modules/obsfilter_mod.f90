@@ -15,13 +15,14 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsFilter (prefix="filt")
+!! MODULE obsFilter (prefix="filt" category='1. High-level functionality')
 !!
 !! *Purpose*: Various types of filters that are applied to the observations
 !!            mostly to reject them so they will not be assimilated.
 !!
 !--------------------------------------------------------------------------
 module obsFilter_mod
+  use mpi_mod
   use mpivar_mod
   use EarthConstants_mod
   use MathPhysConstants_mod

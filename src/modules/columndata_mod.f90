@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE columnData (prefix="col")
+!! MODULE columnData (prefix="col" category='2. High-level data objects')
 !!
 !! *Purpose*: A derived type and related procedures for storing and manipulating
 !!            vertical columns of analysis variables on model or analysis grid levels.
@@ -44,11 +44,6 @@ module columnData_mod
   public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
-
-  ! public entities accessed through inheritance
-  public :: struct_vco, vco_SetupFromFile, vco_getNumLev
-  public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_columnData
     integer           :: numCol

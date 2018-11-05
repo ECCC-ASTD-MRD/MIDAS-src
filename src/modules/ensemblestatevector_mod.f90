@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE ensembleStateVector (prefix="ens")
+!! MODULE ensembleStateVector (prefix="ens" category='2. High-level data objects')
 !!
 !! *Purpose*: Store and manipulate ensemble of state vectors and 
 !!            the ensemble mean.
@@ -23,6 +23,7 @@
 !--------------------------------------------------------------------------
 MODULE ensembleStateVector_mod
   use ramDisk_mod
+  use mpi_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod

@@ -15,12 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsErrors (prefix="oer")
+!! MODULE obsErrors (prefix="oer" category='5. B and R matrices')
 !!
 !! *Purpose*: Subroutines to set up the observation error standard deviations.
 !!
 !--------------------------------------------------------------------------
 module obsErrors_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -33,6 +34,7 @@ module obsErrors_mod
   use gps_mod
   use columnData_mod
   use rmatrix_mod
+  use varNameList_mod
   implicit none
   save
   private

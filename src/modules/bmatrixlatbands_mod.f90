@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE bMatrixLatBands (prefix="blb")
+!! MODULE bMatrixLatBands (prefix="blb" category='5. B and R matrices')
 !!
 !! *Purpose*: Performs transformation from control vector to analysis increment 
 !!            using the background-error covariance matrix based on homogeneous
@@ -24,6 +24,7 @@
 !!
 !--------------------------------------------------------------------------
 module bMatrixLatBands_mod
+  use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod

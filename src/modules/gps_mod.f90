@@ -15,7 +15,9 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE gps (prefix="gps", but not used for all public variables)
+!! MODULE gps (prefix='gps' category='4. Observation operators')
+!!
+!! Note: prefix not used for all public variables
 !!
 !! *Purpose*: Code related to GPS-RO and ground-based GPS observation operators. 
 !!

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE CalcStatsLam (prefix="csl")
+!! MODULE CalcStatsLam (prefix="csl" category='1. High-level functionality')
 !!
 !! *Purpose*: Compute homogeneous and isotropic background error covariances 
 !!            from forecast error estimate in model variable space (limited-area version).
@@ -23,9 +23,10 @@
 !--------------------------------------------------------------------------
 module calcstatslam_mod
   use gridStateVector_mod
-  use LamSpectralTransform_mod
+  use lamSpectralTransform_mod
   use analysisGrid_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
   use localizationFunction_mod
   use utilities_mod
   use menetrierDiag_mod

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE variableTransforms (prefix='vtr')
+!! MODULE variableTransforms (prefix='vtr' category='3. High-level transformations')
 !!
 !! *Purpose*: To store various functions for variable transforms using inputs from
 !!            gridStateVector(s). Outputs are also placed in a GridStateVector.
@@ -33,6 +33,7 @@ module variableTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private

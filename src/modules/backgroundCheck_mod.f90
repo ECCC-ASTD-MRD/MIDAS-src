@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE backgroundCheck_mod (prefix='bgck')
+!! MODULE backgroundCheck_mod (prefix='bgck' category='1. High-level functionality')
 !!
 !! *Purpose*: Contains subroutines related to the background check 
 !!
@@ -26,6 +26,7 @@ module backgroundCheck_mod
   use obsSpaceData_mod
   use gps_mod
   use utilities_mod
+  use mpi_mod
   use mpivar_mod
   use columnData_mod
   use obsSpaceDiag_mod
