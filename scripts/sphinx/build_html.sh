@@ -260,7 +260,9 @@ cat >> index.rst << 'EOF'
 Additional information
 ======================
 
-**Namelists:** Information is `here on the definition of all namelists. <namelists.html>`_
+* Namelists: Information is `here on the definition of all namelists. <namelists.html>`_
+
+* TMG timing blocks: Information is :doc:`here on the numbering and labelling of all TMG timing blocks. <tmg_information>`
 
 Indices and tables
 ==================
@@ -269,6 +271,40 @@ Indices and tables
 * :ref:`search`
 
 EOF
+
+# GENERATE TMG TIMING BLOCK INFORMATION
+
+cat > tmg_information.rst << 'EOF'
+
+TMG Timing block information
+============================
+
+======================================== ============= =================================
+Filename                                 Block Number  Block Label
+======================================== ============= =================================
+EOF
+
+cd $SRCDIR
+tmgstrings=`grep -ir 'tmg_start(' | sed "s/['\"]//g" | sed 's/\!//g' | sed 's/ //g' | sed 's/:.*(/,/g' | sed 's/)//g' | awk -F',' '{ print $2 "," $1 "," $3}' | sort -u | sort -n`
+for tmgstring in $tmgstrings; do
+  filename=`echo $tmgstring |cut -f2 -d','`
+  filename=`basename $filename`
+  if (( ${#filename} > 40 )); then
+    filename2="${filename:0:40}"
+  else
+    filename2=$filename
+  fi
+  filename_fmt=`printf "%-40s" "$filename2"`
+  tmgnumber=`echo $tmgstring |cut -f1 -d','`
+  tmgnumber_fmt=`printf "%-13s" "$tmgnumber"`
+  tmglabel=`echo $tmgstring |cut -f3 -d','`
+  tmglabel_fmt=`printf "%-30s" "$tmglabel"`
+  echo "$filename_fmt $tmgnumber_fmt $tmglabel_fmt" >> ${ORIG_PWD}/tmg_information.rst
+done
+cd $ORIG_PWD
+
+echo "======================================== ============= =================================" >> tmg_information.rst
+
 
 rm -fR _build
 mkdir _build
@@ -306,6 +342,8 @@ if [ "${do_graphs}" = "yes" ]; then
   mkdir -p ${htmldir}/modules/level3
   mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level3/
 fi
+
+# GENERATE NAMELIST INFORMATION
 
 if [ "${do_namelists}" = "yes" ]; then
   ./make_namelists.sh ${codedir} ${htmldir} > namelist_listing.txt
