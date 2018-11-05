@@ -7,9 +7,10 @@ set -e
 codedir=${1:-../../src}
 htmldir=${2:-~/public_html/midas_sphinx}
 
-# CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY)
+# CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
 do_graphs=yes
+do_namelists=yes
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
@@ -202,6 +203,9 @@ statement will be included. It can be formatted using *reStructuredText*.
 A primer on this markup language can be found here:
 
 http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+
+https://matplotlib.org/sampledoc/cheatsheet.html
+
 EOF
 
 cat >> index.rst << EOF
@@ -253,6 +257,11 @@ done # category_index
 
 cat >> index.rst << 'EOF'
 
+Additional information
+======================
+
+**Namelists:** Information is `here on the definition of all namelists. <namelists.html>`_
+
 Indices and tables
 ==================
 
@@ -296,6 +305,10 @@ if [ "${do_graphs}" = "yes" ]; then
   mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level3/
   mkdir -p ${htmldir}/modules/level3
   mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level3/
+fi
+
+if [ "${do_namelists}" = "yes" ]; then
+  ./make_namelists.sh ${codedir} ${htmldir} > namelist_listing.txt
 fi
 
 echo
