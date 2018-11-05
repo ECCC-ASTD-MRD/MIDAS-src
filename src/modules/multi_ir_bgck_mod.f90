@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE multi_ir_bgcheck (prefix='irbg' category='1')
+!! MODULE multi_ir_bgcheck (prefix='irbg' category='1. High-level functionality')
 !!
 !! *Purpose*: VARIABLES FOR MULTISPECTRAL INFRARED BACKGROUND CHECK
 !!            AND QUALITY CONTROL.

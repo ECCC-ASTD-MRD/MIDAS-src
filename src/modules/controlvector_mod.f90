@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE controlVector (prefix='cvm' category='2')
+!! MODULE controlVector (prefix='cvm' category='2. High-level data objects')
 !!
 !! *Purpose*: The control vector and related information.  
 !!

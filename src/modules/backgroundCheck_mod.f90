@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE backgroundCheck_mod (prefix='bgck' category='1')
+!! MODULE backgroundCheck_mod (prefix='bgck' category='1. High-level functionality')
 !!
 !! *Purpose*: Contains subroutines related to the background check 
 !!

@@ -16,7 +16,7 @@
 
 module mpi_mod
   !
-  ! MODULE mpi (prefix='mpi' category='7')
+  ! MODULE mpi (prefix='mpi' category='7. Low-level data objects and utilities')
   !
   ! **Purpose**: Subroutine and public variables related to general aspects of mpi.
   !

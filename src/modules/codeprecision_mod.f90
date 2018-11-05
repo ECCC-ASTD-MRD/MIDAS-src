@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE codePrecision (prefix="pre" category='8')
+!! MODULE codePrecision (prefix="pre" category='8. Global constants and interfaces')
 !!
 !! *Purpose*: A higher-level module to specify the precision, mostly for 
 !!            floating point variables

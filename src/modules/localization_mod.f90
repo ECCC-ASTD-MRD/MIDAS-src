@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! module localization (prefix="loc" category='5')
+!! module localization (prefix="loc" category='5. B and R matrices')
 !!
 !! *Purpose*: Master module for the computation of localized 3D gridpoint amplitude 
 !!            fields for each ensemble member from a given (1D) control vector

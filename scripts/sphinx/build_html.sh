@@ -49,7 +49,7 @@ mkdir _src_files
 for index in `seq 1 $numModules`; do
 cat >> _src_files/${filenames[$index]} <<EOF
 module ${modulenames[$index]}
-! MODULE ${modulenames[$index]} (prefix='${prefixes[$index]}' category='${categories[$index]}')
+! MODULE ${modulenames[$index]} (prefix='${prefixes[$index]}' category='${categories[$index]}. ${module_category[${categories[$index]}]}')
 !
 ! **Purpose:** Temporary place holder for modules that have not yet been modified
 end module ${modulenames[$index]}

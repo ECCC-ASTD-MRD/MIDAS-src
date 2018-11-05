@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE slantprofilelatlon (prefix="slp" category='7')
+!! MODULE slantprofilelatlon (prefix="slp" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: calculation of latitudes/longitudes on slant-path based on ColumnData.
 !!

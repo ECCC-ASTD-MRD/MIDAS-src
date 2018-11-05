@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE timeCoord (prefix="tim" category='7')
+!! MODULE timeCoord (prefix="tim" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: To store public variables and procedures related to the time coordinate.
 !!

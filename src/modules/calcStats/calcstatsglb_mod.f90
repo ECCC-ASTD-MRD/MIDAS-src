@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE CalcStatsGlb (prefix="csg" category='1')
+!! MODULE CalcStatsGlb (prefix="csg" category='1. High-level functionality')
 !!
 !! *Purpose*: Compute homogeneous and isotropic background error covariances 
 !!            from forecast error estimate in model variable space (global version).

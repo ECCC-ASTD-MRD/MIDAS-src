@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !!
-!! MODULE bufr_mod (prefix='bufr' category='8')
+!! MODULE bufr_mod (prefix='bufr' category='8. Global constants and interfaces')
 !!
 !! This module contains information that is needed from the
 !! Binary Universal Format for the Representation of meteorological data, 

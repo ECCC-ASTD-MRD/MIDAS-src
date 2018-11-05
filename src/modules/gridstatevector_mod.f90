@@ -16,7 +16,7 @@
 
 module gridStateVector_mod
   !
-  ! MODULE gridStateVector (prefix='gsv' category='2')
+  ! MODULE gridStateVector (prefix='gsv' category='2. High-level data objects')
   !
   ! **Purpose**: The grid-point state vector and related information.
   !

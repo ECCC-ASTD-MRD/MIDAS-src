@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !-----------------------------------------------------------------------------------------
-!! MODULE biasCorrection_mod (prefix="bias" category='1')
+!! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
 !!
 !! *Purpose*: Performs the variational bias correction for satellite radiance data 
 !! 

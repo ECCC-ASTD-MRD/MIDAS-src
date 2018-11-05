@@ -16,7 +16,7 @@
 
 module minimization_mod
   !
-  ! MODULE minimization (prefix="min" category='1')
+  ! MODULE minimization (prefix="min" category='1. High-level functionality')
   !
   ! **Purpose:** 
   ! Minimization for variational assimilation, including the

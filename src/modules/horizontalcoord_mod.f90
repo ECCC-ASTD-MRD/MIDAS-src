@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE HorizontalCoord (prefix="hco" category='7')
+!! MODULE HorizontalCoord (prefix="hco" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: Derived type and procedures related to the horizontal grid 
 !!            coordinate for various grids (global and limited area).

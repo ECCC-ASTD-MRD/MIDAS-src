@@ -10,7 +10,7 @@
 
 module IndexListDepot_mod
    !
-   ! MODULE indexListDepot_mod (prefix='ild' category='7')
+   ! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects and utilities')
    !
    ! PURPOSE:
    !    The raison d'etre of this module is to support ObsSpaceData_mod in
@@ -309,7 +309,7 @@ end module IndexListDepot_mod
 
 module ObsColumnNames_mod
    !
-   ! MODULE obsColumnNames_mod (prefix='obs' category='7')
+   ! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects and utilities')
    !
    ! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
    !        In fact, if fortran allowed it, ObsColumnNames_mod would be
@@ -611,7 +611,7 @@ end module ObsColumnNames_mod
 
 module ObsDataColumn_mod
    !
-   ! MODULE obsDataColumn_mod (prefix='odc' category='7')
+   ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
    !
    ! This module is used exclusively by the obsSpaceData module which follows
    ! in this file. The derived type is used to represent a "column" of
@@ -1310,7 +1310,7 @@ end module ObsDataColumn_mod
 
 module ObsSpaceData_mod
    !
-   ! MODULE obsSpaceData_mod (prefix='obs' category='2')
+   ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
    !
    use codePrecision_mod
    use ObsColumnNames_mod

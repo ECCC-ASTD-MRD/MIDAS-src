@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsSpaceDiag (prefix="osd" category='1')
+!! MODULE obsSpaceDiag (prefix="osd" category='1. High-level functionality')
 !!
 !! *Purpose*: Some experimental procedures for computing various diagnostics 
 !!            in observation space.

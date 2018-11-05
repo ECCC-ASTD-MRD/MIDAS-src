@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsErrors (prefix="oer" category='5')
+!! MODULE obsErrors (prefix="oer" category='5. B and R matrices')
 !!
 !! *Purpose*: Subroutines to set up the observation error standard deviations.
 !!

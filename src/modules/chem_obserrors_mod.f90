@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE chem_obserrors_mod (prefix='chm' category='5')
+!! MODULE chem_obserrors_mod (prefix='chm' category='5. B and R matrices')
 !!
 !! *Purpose*: Provides routines regarding observation error standard deviations.
 !!

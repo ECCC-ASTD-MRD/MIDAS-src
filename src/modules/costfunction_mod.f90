@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE utilities_mod,(prefix="cfn" category='1')
+!! MODULE utilities_mod,(prefix="cfn" category='1. High-level functionality')
 !!
 !! *Purpose*: To compute Jo term
 !!

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE CalcStatsLam (prefix="csl" category='1')
+!! MODULE CalcStatsLam (prefix="csl" category='1. High-level functionality')
 !!
 !! *Purpose*: Compute homogeneous and isotropic background error covariances 
 !!            from forecast error estimate in model variable space (limited-area version).

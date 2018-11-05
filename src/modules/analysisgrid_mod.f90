@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE analysisGrid (prefix="agd" category='7')
+!! MODULE analysisGrid (prefix="agd" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: Performs horizontal grid-point variable transforms 
 !!            for the limited-area computational analysis grids (extended and non-extended).

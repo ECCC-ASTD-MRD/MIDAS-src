@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE ensembleStateVector (prefix="ens" category='2')
+!! MODULE ensembleStateVector (prefix="ens" category='2. High-level data objects')
 !!
 !! *Purpose*: Store and manipulate ensemble of state vectors and 
 !!            the ensemble mean.

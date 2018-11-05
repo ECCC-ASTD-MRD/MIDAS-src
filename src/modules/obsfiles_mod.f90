@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE obsFiles_mod (prefix="obsf" category='6')
+!! MODULE obsFiles_mod (prefix="obsf" category='6. Observation input/output')
 !!
 !! *Purpose*: High-level module to handle reading/writing of observations that
 !!            can be stored in one of several different formats. Currently, the

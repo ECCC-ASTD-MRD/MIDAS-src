@@ -11,7 +11,7 @@ MODULE MathPhysConstants_mod
   implicit none
   public
   !-----------------------------------------------------------------------------
-  ! MODULE MathPhysConstants_mod (prefix='mpc' category='8')  
+  ! MODULE MathPhysConstants_mod (prefix='mpc' category='8. Global constants and interfaces')  
   !
   ! Purpose: To supply mathematical and physical constants in a universal,
   !          reliable fashion.

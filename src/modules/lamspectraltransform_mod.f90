@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE LamSpectralTransform (prefix="lst" category='3')
+!! MODULE LamSpectralTransform (prefix="lst" category='3. High-level transformations')
 !! 
 !! *Purpose*: Bi-Fourier spectral transform for limited area applications.
 !!            Depends on ffft8 and setfft8 routines in ARMNLIB.

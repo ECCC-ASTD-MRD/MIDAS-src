@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE windRotation (prefix='uvr' category='3')
+!! MODULE windRotation (prefix='uvr' category='3. High-level transformations')
 !!
 !! *Purpose*: To transform winds FROM the rotated spherical 
 !!            coordinate system TO the non-rotated spherical coordinate system.

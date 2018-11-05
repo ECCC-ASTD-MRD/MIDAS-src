@@ -16,7 +16,7 @@
 
 module utilities_mod
   !
-  ! MODULE utilities_mod (prefix='utl' category='7')
+  ! MODULE utilities_mod (prefix='utl' category='7. Low-level data objects and utilities')
   !
   ! **Purpose**: A place to collect numerous simple utlity routines
   !
