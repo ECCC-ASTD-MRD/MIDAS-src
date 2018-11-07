@@ -780,8 +780,8 @@ subroutine tt2phi(columnghr,beSilent_opt) !{{{
 
       ! Gravity acceleration 
       h0  = AL_T(lev_T+1)
-      Eot = 2 * WGS_OmegaPrime * cLat * rUU
-      Eot2= (rUU ** 2 + rVV ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * rUU
+      Eot2= ((p_knot*rUU) ** 2 + (p_knot*rVV) ** 2) / WGS_a
       Rgh = gpsgravityalt(sLat, h0) - Eot - Eot2
       dh  = (-p_Rd / Rgh) * tvm * ratioP
       Rgh = gpsgravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
@@ -829,8 +829,8 @@ subroutine tt2phi(columnghr,beSilent_opt) !{{{
 
       ! Gravity acceleration 
       h0  = AL_T(1)
-      Eot = 2 * WGS_OmegaPrime * cLat * rUU
-      Eot2= (rUU ** 2 + rVV ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * rUU
+      Eot2= ((p_knot*rUU) ** 2 + (p_knot*rVV) ** 2) / WGS_a
       Rgh = gpsgravityalt(sLat, h0) - Eot - Eot2
       dh  = (-p_Rd / Rgh) * tvm * ratioP
       Rgh = gpsgravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
