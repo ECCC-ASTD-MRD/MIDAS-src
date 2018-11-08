@@ -305,7 +305,6 @@ module gps_mod
      type(gps_diff)    , dimension(ngpssize)          :: qst
      type(gps_diff)    , dimension(ngpssize)          :: rst
      type(gps_diff)    , dimension(ngpssize)          :: gst
-     type(gps_diff)    , dimension(ngpssize)          :: z
 
      logical                                         :: bbst
      type(gps_diff)    , dimension(ngpssize)          :: dst
@@ -827,7 +826,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printGZ)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -856,8 +855,6 @@ contains
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
-
-    logical, optional :: printGZ
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -961,24 +958,14 @@ contains
        ! Height increment
        !
        z   = (-p_Rd/Rgh) * tvm * dx
-       prf%z(i) = z
        prf%gst(i) = prf%gst(i+1) + z
     enddo
-
-    if ( present(printGZ) ) then
-      if ( printGZ ) then
-        write(*,*) 'MAZIAR: gps_struct1sw, AL_T='
-        write(*,*) prf%gst(1:ngpslev)%Var
-
-        printGZ = .false.
-      end if
-    end if
 
     prf%bbst=.false.
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rAL,rUU,rVV,prf,printGZ)
+       rP0,rPP,rDP,rTT,rHU,rAL,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -1008,8 +995,6 @@ contains
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
-
-    logical, optional :: printGZ
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -1082,15 +1067,6 @@ contains
        n0 = (nd1+nw1)
        prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     enddo
-
-    if ( present(printGZ) ) then
-      if ( printGZ ) then
-        write(*,*) 'MAZIAR: gps_struct1sw_v2, AL_T='
-        write(*,*) prf%gst(1:ngpslev)%Var
-
-        printGZ = .false.
-      end if
-    end if
 
     prf%bbst=.false.
   end subroutine gps_struct1sw_v2

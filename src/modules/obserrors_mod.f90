@@ -1500,7 +1500,7 @@ contains
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
-          !zMT  = zMT * RG / gpsgravitysrf(sLat)
+          zMT  = zMT * RG / gpsgravitysrf(sLat)
           zP0  = col_getElem(lcolumnhr,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !

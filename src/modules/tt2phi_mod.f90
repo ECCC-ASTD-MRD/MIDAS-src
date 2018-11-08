@@ -41,7 +41,6 @@ module tt2phi_mod
   public :: tt2phi_gpsro_ad
 
   ! constants from gps_mod {{{
-  real(8), parameter :: delta = 0.6077686814144D0
 
   ! Avogadro constant:
   real(8), parameter :: p_Avog = 6.02214129D23        ! From CODATA
@@ -62,7 +61,6 @@ module tt2phi_mod
   real(8), parameter :: WGS_OmegaPrime = 7292115.1467D-11
 
   ! Units and scales:
-  real(8), parameter :: p_TC    = 273.15D0
   real(8), parameter :: p_knot  = 0.514444D0
 
   ! Semimajor axis (a) (m)                             [*Defining constant*]
@@ -83,6 +81,12 @@ module tt2phi_mod
   ! m = omega^2 a^2 b / GM
   real(8), parameter :: WGS_m = 0.00344978650684D0
   ! }}}
+
+  ! private module variables
+  real(8), allocatable, save :: coeff_T_TT(:,:), coeff_T_HU(:,:)
+  real(8), allocatable, save :: coeff_T_P0(:,:), coeff_T_P0_dP(:,:)
+  real(8), allocatable, save :: ratioP(:,:), ratioP1(:)
+  real(8), allocatable, save :: diff_delLnP_T(:,:), diff_delLnP_M1(:)
 
 contains
 !
@@ -718,8 +722,6 @@ subroutine tt2phi(columnghr,beSilent_opt) !{{{
   allocate(AL_T(nlev_T))
   allocate(AL_M(nlev_M))
 
-  write(*,*) 'MAZIAR: tt2phi_gpsro, Vcode=', Vcode
-
   ! loop over all columns
   do columnIndex = 1, col_getNumCol(columnghr)
 
@@ -843,16 +845,6 @@ subroutine tt2phi(columnghr,beSilent_opt) !{{{
     ! compute GZ 
     gz_T(1:nlev_T) = AL_T(1:nlev_T) * RG
     gz_M(1:nlev_M) = AL_M(1:nlev_M) * RG
-
-    if ( columnIndex == 1 ) then
-
-      write(*,*) 'MAZIAR: tt2phi_gpsro, gz_T=', gz_T
-      write(*,*) 'MAZIAR: tt2phi_gpsro, gz_M=', gz_M
-
-      write(*,*) 'MAZIAR: tt2phi_gpsro, AL_M/AL_T='
-      write(*,*) AL_M
-      write(*,*) AL_T
-    endif
 
   enddo
 
@@ -1046,30 +1038,18 @@ subroutine tt2phi_gpsro_tl(column,columng) !{{{
   !Author  : M. Buehner, February 2014
   !
   !Revision 001 : M. Bani Shahabadi, October 2018
-  !          - adaptation of GPSRO calculation of delGZ
+  !          - adaptation of GPSRO calculation of delAL
   !
   implicit none
 
   type(struct_columnData) :: column, columng
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
-  integer :: lev_gps, levCompare
-  real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop
+  real(8) :: ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:)
-  real(8), allocatable :: delLnP_T(:)
-  real(8)              :: delLnPsfc 
   real(8), pointer     :: gz_T(:),gz_M(:)
   real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delHU(:),delP0(:)
-  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos
-  real(8) :: h0, Rgh, sLat, cLat
   type(struct_vco), pointer :: vco_anl
-
-  real(8), allocatable, save :: coeff_T_TT(:,:), coeff_T_HU(:,:), coeff_T_P0(:,:), &
-                                ratioP(:,:), ratioP1(:), &
-                                diff_delLnP_T(:,:), diff_delLnP_M1(:), & 
-                                coeff_T_P0_dP(:,:)
-
-  logical, save :: firstTime = .true.
 
   vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -1078,92 +1058,9 @@ subroutine tt2phi_gpsro_tl(column,columng) !{{{
   nlev_M = col_getNumLev(columng,'MM')
 
   allocate(delThick(nlev_T-1))
-  allocate(delLnP_T(nlev_T))
 
-  if(firstTime) then
-    ! initialize and save coefficients for increased efficiency (assumes no relinearization)
-    firstTime = .false.
-
-    allocate(coeff_T_TT   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_HU   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_P0   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_P0_dP(nlev_T,col_getNumCol(columng)))
-
-    allocate(ratioP       (nlev_T-1,col_getNumCol(columng)))
-    allocate(diff_delLnP_T(nlev_T-1,col_getNumCol(columng)))
-
-    allocate(ratioP1(col_getNumCol(columng)))
-    allocate(diff_delLnP_M1(col_getNumCol(columng)))
-
-    coeff_T_TT(:,:) = 0.0D0
-    coeff_T_HU(:,:) = 0.0D0
-    coeff_T_P0(:,:) = 0.0D0
-    coeff_T_P0_dP(:,:) = 0.0D0
-    ratioP(:,:) = 0.0D0
-    ratioP1(:) = 0.0D0
-    diff_delLnP_T(:,:) = 0.0D0
-    diff_delLnP_M1(:) = 0.0D0
-
-    write(*,*) 'MAZIAR: tt2phi_gpsro_tl, Vcode_anl=',Vcode_anl,',coef done.'
-
-    do columnIndex = 1, col_getNumCol(columng)
-
-      gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
-
-      ! latitude/longitude
-      call col_getLatLon(columng, columnIndex,                  & ! IN
-                          rLat, rLon, ypos, xpos, LatRot, LonRot )! OUT
-      sLat = sin(rLat)
-      cLat = cos(rLat)
-
-      ! compute thermo level properties
-      do lev_T = 1,nlev_T
-        delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')/  &
-                         col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        hu = col_getElem(columng,lev_T,columnIndex,'HU')
-        tt = col_getElem(columng,lev_T,columnIndex,'TT')
-        Pr = col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        cmp = gpscompressibility(Pr,tt,hu)
-        cmp_TT = gpscompressibility_TT(Pr,tt,hu)
-        cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-        cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,lev_T,columnIndex,'TH'))
-
-        ! Gravity acceleration 
-        h0  = gz_T(lev_T) / RG
-        Rgh = gpsgravityalt(sLat, h0)
-
-        coeff_T_TT(lev_T,columnIndex) = (p_Rd / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT)
-        coeff_T_HU(lev_T,columnIndex) = (p_Rd / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU)
-        coeff_T_P0(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp
-        coeff_T_P0_dP(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp_P0
-      enddo
-
-      ! compute layer properties (between two adjacent thermo levels)
-      do lev_T = 1,nlev_T-1
-        ratioP(lev_T,columnIndex) = log( col_getPressure(columng,lev_T+1,columnIndex,'TH') /  &
-                                         col_getPressure(columng,lev_T  ,columnIndex,'TH') )
-        diff_delLnP_T(lev_T,columnIndex) = delLnP_T(lev_T+1) - delLnP_T(lev_T)
-      enddo
-
-      ! compute the property of the top layer (between first momentum and first thermo level for Vcode=5005)
-      if (Vcode_anl == 5005) then
-
-        ratioP1(columnIndex)      = log( col_getPressure(columng,1,columnIndex,'TH') /  &
-                                         col_getPressure(columng,1,columnIndex,'MM') )
-
-        delLnP_M1 = col_getPressureDeriv(columng,1,columnIndex,'MM') / &
-                         col_getPressure(columng,1,columnIndex,'MM')
-        delLnP_T1 = col_getPressureDeriv(columng,1,columnIndex,'TH') / &
-                         col_getPressure(columng,1,columnIndex,'TH')
-        diff_delLnP_M1(columnIndex) = delLnP_T1 - delLnP_M1
-
-      endif
-
-    enddo
-
-  endif
+  ! generate the height coefficients
+  call calcAltitudeCoeff(columng)
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,gz_M,gz_T,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,ScaleFactorBottom,ScaleFactorTop)
   do columnIndex = 1, col_getNumCol(columng)
@@ -1235,18 +1132,10 @@ subroutine tt2phi_gpsro_tl(column,columng) !{{{
 
     endif
 
-    ! print del altitude
-    if ( columnIndex == 1 ) then
-      write(*,*) 'MAZIAR: tt2phi_gpsro_tl, delGZ_M/delGZ_T (columnIndex=1):'
-      write(*,*) delGz_M(1:nlev_M)
-      write(*,*) delGz_T(1:nlev_T)
-    endif
-
   enddo
 !$OMP END PARALLEL DO
 
   deallocate(delThick)
-  deallocate(delLnP_T)
 
 end subroutine tt2phi_gpsro_tl !}}}
 
@@ -1273,7 +1162,6 @@ subroutine tt2phi_gpsro_tl_1Col(column,columng,columnIndex) !{{{
   type(struct_columnData) :: column, columng
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
-  integer :: lev_gps, levCompare
   real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:)
   real(8), allocatable :: delLnP_T(:)
@@ -1490,31 +1378,19 @@ subroutine tt2phi_gpsro_ad(column,columng) !{{{
   !Author  : M. Buehner, February 2014
   !
   !Revision 001 : M. Bani Shahabadi, October 2018
-  !          - adaptation of GPSRO calculation of delGZ
+  !          - adaptation of GPSRO calculation of delAL
   !
   implicit none
 
   type(struct_columnData) :: column,columng
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
-  integer :: lev_gps, levCompare
-  real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop
+  real(8) :: ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:)
-  real(8), allocatable :: delLnP_T(:)
-  real(8)              :: delLnPsfc 
   real(8), pointer     :: gz_T(:),gz_M(:)
   real(8), allocatable :: delGz_M(:),delGz_T(:)
   real(8), pointer     :: delGz_M_in(:),delGz_T_in(:),delTT(:),delHU(:),delP0(:)
-  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos
-  real(8) :: h0, Rgh, sLat, cLat
   type(struct_vco), pointer :: vco_anl
-
-  real(8), allocatable, save :: coeff_T_TT(:,:), coeff_T_HU(:,:), coeff_T_P0(:,:), &
-                                ratioP(:,:), ratioP1(:), &
-                                diff_delLnP_T(:,:), diff_delLnP_M1(:), & 
-                                coeff_T_P0_dP(:,:)
-
-  logical, save :: firstTime = .true.
 
   vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -1523,93 +1399,11 @@ subroutine tt2phi_gpsro_ad(column,columng) !{{{
   nlev_M = col_getNumLev(columng,'MM')
 
   allocate(delThick(0:nlev_T-1))
-  allocate(delLnP_T(nlev_T))
-
   allocate(delGz_M(nlev_M))
   allocate(delGz_T(nlev_T))
 
-  if(firstTime) then
-    ! initialize and save coefficients for increased efficiency (assumes no relinearization)
-    firstTime = .false.
-
-    allocate(coeff_T_TT   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_HU   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_P0   (nlev_T,col_getNumCol(columng)))
-    allocate(coeff_T_P0_dP(nlev_T,col_getNumCol(columng)))
-
-    allocate(ratioP       (nlev_T-1,col_getNumCol(columng)))
-    allocate(diff_delLnP_T(nlev_T-1,col_getNumCol(columng)))
-
-    allocate(ratioP1(col_getNumCol(columng)))
-    allocate(diff_delLnP_M1(col_getNumCol(columng)))
-
-    coeff_T_TT(:,:) = 0.0D0
-    coeff_T_HU(:,:) = 0.0D0
-    coeff_T_P0(:,:) = 0.0D0
-    coeff_T_P0_dP(:,:) = 0.0D0
-    ratioP(:,:) = 0.0D0
-    ratioP1(:) = 0.0D0
-    diff_delLnP_T(:,:) = 0.0D0
-    diff_delLnP_M1(:) = 0.0D0
-
-    do columnIndex = 1, col_getNumCol(columng)
-
-      gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
-
-      ! latitude/longitude
-      call col_getLatLon(columng, columnIndex,                  & ! IN
-                          rLat, rLon, ypos, xpos, LatRot, LonRot )! OUT
-      sLat = sin(rLat)
-      cLat = cos(rLat)
-
-      ! compute thermo level properties
-      do lev_T = 1,nlev_T
-        delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')/  &
-                         col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        hu = col_getElem(columng,lev_T,columnIndex,'HU')
-        tt = col_getElem(columng,lev_T,columnIndex,'TT')
-        Pr = col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        cmp = gpscompressibility(Pr,tt,hu)
-        cmp_TT = gpscompressibility_TT(Pr,tt,hu)
-        cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-        cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,lev_T,columnIndex,'TH'))
-
-        ! Gravity acceleration 
-        h0  = gz_T(lev_T) / RG
-        Rgh = gpsgravityalt(sLat, h0)
-
-        coeff_T_TT(lev_T,columnIndex) = (p_Rd / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT)
-        coeff_T_HU(lev_T,columnIndex) = (p_Rd / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU)
-        coeff_T_P0(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp
-        coeff_T_P0_dP(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp_P0
-      enddo
-
-      ! compute layer properties (between two adjacent thermo levels)
-      do lev_T = 1,nlev_T-1
-        ratioP(lev_T,columnIndex) = log( col_getPressure(columng,lev_T+1,columnIndex,'TH') /  &
-                                         col_getPressure(columng,lev_T  ,columnIndex,'TH') )
-        diff_delLnP_T(lev_T,columnIndex) = delLnP_T(lev_T+1) - delLnP_T(lev_T)
-      enddo
-
-      ! compute the property of the top layer (between first momentum and first thermo level for Vcode=5005)
-      if (Vcode_anl == 5005) then
-
-        ratioP1(columnIndex)      = log( col_getPressure(columng,1,columnIndex,'TH') /  &
-                                         col_getPressure(columng,1,columnIndex,'MM') )
-
-        delLnP_M1 = col_getPressureDeriv(columng,1,columnIndex,'MM') / &
-                         col_getPressure(columng,1,columnIndex,'MM')
-        delLnP_T1 = col_getPressureDeriv(columng,1,columnIndex,'TH') / &
-                         col_getPressure(columng,1,columnIndex,'TH')
-        diff_delLnP_M1(columnIndex) = delLnP_T1 - delLnP_M1
-
-      endif
-
-    enddo
-
-  endif
+  ! generate the height coefficients
+  call calcAltitudeCoeff(columng)
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,delGz_M_in,delGz_T_in,gz_M,gz_T,ScaleFactorBottom,ScaleFactorTop)
   do columnIndex = 1, col_getNumCol(columng)
@@ -1684,23 +1478,137 @@ subroutine tt2phi_gpsro_ad(column,columng) !{{{
 
     enddo
 
-    !! print delTT/delHU/delP0
-    !if ( columnIndex == 1 ) then
-    !  write(*,*) 'MAZIAR: tt2phi_gpsro_ad, delTT/delHU/delP0 (columnIndex=1):'
-    !  write(*,*) delTT(1:nlev_T)
-    !  write(*,*) delHU(1:nlev_T)
-    !  write(*,*) delP0(1:nlev_T)
-    !endif
-
   enddo
 !$OMP END PARALLEL DO
 
   deallocate(delThick)
-  deallocate(delLnP_T)
   deallocate(delGz_M)
   deallocate(delGz_T)
 
 end subroutine tt2phi_gpsro_ad !}}}
+
+
+subroutine calcAltitudeCoeff(columng) ! {{{
+  !
+  !**s/r calcAltitudeCoef - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
+  !
+  !Author  : M. Bani Shahabadi, Oct 2018
+  !          - based on the original tt2phi_tl/tt2phi_ad by Mark Buehner 
+  !
+  implicit none
+
+  type(struct_columnData) :: columng
+
+  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
+  real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop
+  real(8), allocatable :: delLnP_T(:)
+  real(8)              :: delLnPsfc 
+  real(8), pointer     :: gz_T(:),gz_M(:)
+  real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delHU(:),delP0(:)
+  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos
+  real(8) :: h0, Rgh, sLat, cLat
+  type(struct_vco), pointer :: vco_anl
+
+  logical, save :: firstTimeAltCoeff = .true.
+
+  if ( .not. firstTimeAltCoeff ) return
+
+  Write(*,*) "Entering subroutine calcAltitudeCoef"
+
+  ! initialize and save coefficients for increased efficiency (assumes no relinearization)
+  firstTimeAltCoeff = .false.
+
+  vco_anl => col_getVco(columng)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+
+  nlev_T = col_getNumLev(columng,'TH')
+  nlev_M = col_getNumLev(columng,'MM')
+
+  allocate(delLnP_T(nlev_T))
+
+  ! saved arrays
+  allocate(coeff_T_TT   (nlev_T,col_getNumCol(columng)))
+  allocate(coeff_T_HU   (nlev_T,col_getNumCol(columng)))
+  allocate(coeff_T_P0   (nlev_T,col_getNumCol(columng)))
+  allocate(coeff_T_P0_dP(nlev_T,col_getNumCol(columng)))
+
+  allocate(ratioP       (nlev_T-1,col_getNumCol(columng)))
+  allocate(diff_delLnP_T(nlev_T-1,col_getNumCol(columng)))
+
+  allocate(ratioP1(col_getNumCol(columng)))
+  allocate(diff_delLnP_M1(col_getNumCol(columng)))
+
+  coeff_T_TT(:,:) = 0.0D0
+  coeff_T_HU(:,:) = 0.0D0
+  coeff_T_P0(:,:) = 0.0D0
+  coeff_T_P0_dP(:,:) = 0.0D0
+  ratioP(:,:) = 0.0D0
+  ratioP1(:) = 0.0D0
+  diff_delLnP_T(:,:) = 0.0D0
+  diff_delLnP_M1(:) = 0.0D0
+
+  do columnIndex = 1, col_getNumCol(columng)
+
+    gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
+
+    ! latitude/longitude
+    call col_getLatLon(columng, columnIndex,                  & ! IN
+                        rLat, rLon, ypos, xpos, LatRot, LonRot )! OUT
+    sLat = sin(rLat)
+    cLat = cos(rLat)
+
+    ! compute thermo level properties
+    do lev_T = 1,nlev_T
+      delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')/  &
+                       col_getPressure(columng,lev_T,columnIndex,'TH')
+
+      hu = col_getElem(columng,lev_T,columnIndex,'HU')
+      tt = col_getElem(columng,lev_T,columnIndex,'TT')
+      Pr = col_getPressure(columng,lev_T,columnIndex,'TH')
+
+      cmp = gpscompressibility(Pr,tt,hu)
+      cmp_TT = gpscompressibility_TT(Pr,tt,hu)
+      cmp_HU = gpscompressibility_HU(Pr,tt,hu)
+      cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,lev_T,columnIndex,'TH'))
+
+      ! Gravity acceleration 
+      h0  = gz_T(lev_T) / RG
+      Rgh = gpsgravityalt(sLat, h0)
+
+      coeff_T_TT(lev_T,columnIndex) = (p_Rd / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT)
+      coeff_T_HU(lev_T,columnIndex) = (p_Rd / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU)
+      coeff_T_P0(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp
+      coeff_T_P0_dP(lev_T,columnIndex) = (p_Rd / Rgh) * fotvt8(tt,hu) * cmp_P0
+    enddo
+
+    ! compute layer properties (between two adjacent thermo levels)
+    do lev_T = 1,nlev_T-1
+      ratioP(lev_T,columnIndex) = log( col_getPressure(columng,lev_T+1,columnIndex,'TH') /  &
+                                       col_getPressure(columng,lev_T  ,columnIndex,'TH') )
+      diff_delLnP_T(lev_T,columnIndex) = delLnP_T(lev_T+1) - delLnP_T(lev_T)
+    enddo
+
+    ! compute the property of the top layer (between first momentum and first thermo level for Vcode=5005)
+    if (Vcode_anl == 5005) then
+
+      ratioP1(columnIndex)      = log( col_getPressure(columng,1,columnIndex,'TH') /  &
+                                       col_getPressure(columng,1,columnIndex,'MM') )
+
+      delLnP_M1 = col_getPressureDeriv(columng,1,columnIndex,'MM') / &
+                       col_getPressure(columng,1,columnIndex,'MM')
+      delLnP_T1 = col_getPressureDeriv(columng,1,columnIndex,'TH') / &
+                       col_getPressure(columng,1,columnIndex,'TH')
+      diff_delLnP_M1(columnIndex) = delLnP_T1 - delLnP_M1
+
+    endif
+
+  enddo
+
+  deallocate(delLnP_T)
+
+  Write(*,*) "Exit subroutine calcAltitudeCoef"
+
+end subroutine calcAltitudeCoeff ! }}}
 
 
 function gpscompressibility(p,t,q)
@@ -1721,7 +1629,7 @@ function gpscompressibility(p,t,q)
 
   x  = p_wa * q / (1.D0 + p_wb * q)
   ! Estimate, from CIPM, Picard (2008)
-  tc = t - p_TC
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
   pt = p / t
   tc2= tc * tc
   x2 = x * x
@@ -1748,7 +1656,7 @@ function gpscompressibility_TT(p,t,q)
   x  = p_wa * q / (1.D0 + p_wb * q)
   d_x  = 0.0D0
   ! Estimate, from CIPM, Picard (2008)
-  tc = t - p_TC
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
   d_tc = 1.D0
   pt = p / t
   d_pt = - p / t**2
@@ -1781,7 +1689,7 @@ function gpscompressibility_HU(p,t,q)
   x  = p_wa * q / (1.D0+p_wb*q)
   d_x  = p_wa * (1.0D0 / (1.D0+p_wb*q) - q / (1.D0+p_wb*q)**2 * p_wb * 1.0D0)
   ! Estimate, from CIPM, Picard (2008)
-  tc = t - p_TC
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
   d_tc = 0.0D0
   pt = p / t
   d_pt = 0.0D0
@@ -1814,7 +1722,7 @@ function gpscompressibility_P0(p,t,q,dpdp0)
   x  = p_wa * q / (1.D0+p_wb*q)
   d_x  = 0.0D0
   ! Estimate, from CIPM, Picard (2008)
-  tc = t - p_TC
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
   d_tc = 0.0D0
   pt = p / t
   d_pt = dpdp0 / t

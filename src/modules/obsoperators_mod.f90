@@ -890,7 +890,6 @@ contains
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
-    logical, save :: printGZ = .true.
 
     write(*,*)'ENTER oop_gpsro_nl'
     !
@@ -913,9 +912,6 @@ contains
     !  allocate( rstvp(gpsro_maxprfsize) )
     !  allocate( rstvm(gpsro_maxprfsize) )
     !end if
-
-    ! call tt2phi to populate altitude (is it needed??)
-    !call tt2phi(columnhr)
 
     jobs = 0.0d0
 
@@ -974,7 +970,7 @@ contains
        lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
        azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
        slat = sin(zlat)
-       !zmt  = zmt * RG / gpsgravitysrf(slat)
+       zmt  = zmt * RG / gpsgravitysrf(slat)
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, ngpslev
           !
@@ -1008,8 +1004,7 @@ contains
        !     
        ! GPS profile structure:
        !
-       if ( printGZ ) call tt2phi_gpsro_1Col(columnhr,headerIndex)
-       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf,printGZ)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -2164,22 +2159,17 @@ contains
       REAL*8, allocatable :: zAL(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      real(8), allocatable :: delAL_T(:)
-      real(8) :: coeff_T_P0_local
-
       REAL*8 zMT,radw
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
-      REAL*8 incVector (ngpscvmx), coeffVector(ngpscvmx) 
 
       INTEGER IDATYP
-      INTEGER JL, jll, JV, NGPSLEV, NWNDLEV, stat1, JJ
+      INTEGER JL, JV, NGPSLEV, NWNDLEV, stat1, JJ
       integer :: headerIndex, bodyIndex, iProfile
       type(struct_index_list), pointer :: local_current_list
 
-      LOGICAL  ASSIM, firstheader, LFIRST
-      logical, save :: printGZ_tl = .true.
+      LOGICAL  ASSIM, LFIRST
 
       INTEGER NH, NH1
       TYPE(GPS_PROFILE)           :: PRF
@@ -2195,9 +2185,6 @@ contains
       LFIRST=.FALSE.
       !if ( .NOT.allocated(gps_vRO_Jacobian) ) then
          LFIRST = .TRUE.
-
-         allocate(delAL_T(NGPSLEV))
-
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
          allocate(zTT (NGPSLEV))
@@ -2225,7 +2212,6 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      firstheader = .true.
       !##$omp parallel default(shared) &
       !##$omp private(headerIndex,idatyp,assim,nh,local_current_list,bodyIndex) &
       !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
@@ -2288,7 +2274,7 @@ contains
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columng,1,headerIndex,'P0')
                   DO JL = 1, NGPSLEV
                      !C
@@ -2357,30 +2343,6 @@ contains
                   END DO
                   gps_vRO_lJac(iProfile)=.true.
                !end if
-
-               ! print dGZ for test (for the first headerIndex)
-               if ( printGZ_tl .and. firstheader ) then
-                 write(*,*) 'headerIndex=', headerIndex
-                 call tt2phi_gpsro_tl_1Col(column,columng,headerIndex)
-
-                 DO JL = 1, NGPSLEV
-                    incVector(JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
-                    incvector(NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
-                 END DO
-                 incVector(2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH') / RG
-                 incVector(3*NGPSLEV+1) = col_getElem(COLUMN,1 ,headerIndex,'P0')
-
-                 delAL_T(:) = 0.0D0
-                 do jl = ngpslev-1, 1, -1
-                   coeffVector(1:3*ngpslev+1) = prf%gst(jl)%DVar(1:3*ngpslev+1)
-                   do jll = 1, 3*ngpslev+1
-                     delAL_T(jl) = delAL_T(jl) + coeffVector(jll) * incVector(jll)
-                   enddo
-                 enddo
-                 write(*,*) 'MAZIAR: oop_Hro, delAL_T:'
-                 write(*,*) delAL_T(1:ngpslev)
-               endif 
-
                !C
                !C     *       Local vector state
                !C
@@ -2409,11 +2371,6 @@ contains
                      DO JV = 1, 3*NGPSLEV+1
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      END DO
-
-                     if ( firstheader ) then
-                        if ( NH1 == 1 ) write(*,*) 'MAZIAR oop_Hro, headerIndex, delAL_T, dN:'
-                        write(*,*) headerIndex,delAL_T(NH1),ZMHXL
-                     endif
                      !C
                      !C     *             Store in CMA
                      !C
@@ -2422,7 +2379,6 @@ contains
                END DO BODY_3
             END IF ASSIMILATE
          END IF DATYP
-         firstheader = .false.
       END DO HEADER
       !##$omp end parallel
 
@@ -2444,7 +2400,6 @@ contains
          deallocate(zPP)
       END IF
 
-      deallocate(delAL_T)
       deallocate(gps_vRO_Jacobian)
       deallocate(gps_vRO_lJac)
 
@@ -2905,10 +2860,6 @@ contains
     type(struct_obs) :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     logical, save :: firstTime = .true.
-
-    logical :: useNewGZ_ad
-
-    useNewGZ_ad = .true.
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_HT- Adjoint of linearized observation operators'
@@ -3793,7 +3744,7 @@ contains
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columng,1,headerIndex,'P0')
                   DO JL = 1, NGPSLEV
                      !C
@@ -3890,7 +3841,7 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      firstheader = .true.
+      !firstheader = .true.
       !##$omp parallel default(shared) &
       !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
       !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
@@ -3991,16 +3942,6 @@ contains
             AL_column(JL) = DPJO0(JL+2*NGPSLEV) / RG
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
-
-         ! print delTT/delHU/delP0 
-         if ( firstheader ) then
-           write(*,*) 'MAZIAR: oop_HTro_v2, delTT/delHU/delAL/delP0 for headerIndex=', headerIndex
-           write(*,*) tt_column(:)
-           write(*,*) hu_column(:)
-           write(*,*) AL_column(:)
-           write(*,*) ps_column(:)
-         endif
-         firstheader = .false.
 
       END DO HEADER
       !##$omp end parallel
