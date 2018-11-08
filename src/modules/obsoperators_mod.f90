@@ -437,7 +437,8 @@ contains
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
 
-      if(ivnm == BUFR_NEAL) then
+      select case (ivnm)
+      case (BUFR_NEAL) ! Aladin HLOS wind observation
         ! Scan body indices for the azimuth
         azimuth=0.0d0
         bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -460,8 +461,21 @@ contains
         columnVarB= -vvLyr1*cos(azimuth) - uuLyr1*sin(azimuth)
         columnVarT= -vvLyr *cos(azimuth) - uuLyr *sin(azimuth)
 
-      !else if(<another type of observation>
-      end if
+        ! For aladin data, the temperature and pressure are really *reference*
+        ! values.  They must not be assimilated.  Mark them so.
+      case (BUFR_NETT)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+      case (BUFR_NEPS)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+
+      case default
+        ! If there are other unidentified observation types, don't treat them
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+
+      end select
 
       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
       jobs = jobs + zomp*zomp/(zoer*zoer)
