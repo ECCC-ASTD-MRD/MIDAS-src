@@ -998,7 +998,6 @@ contains
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
-       zAL = col_getColumn(columnhr,headerIndex,'GZ','TH') / RG
 
        if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
             col_getPressure(columnhr,1,headerIndex,'MM')) then
@@ -3046,6 +3045,11 @@ contains
       !*
       !*Author  : J. M. Aparicio Jan 2004
       !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
+      !
+      ! revision 02: M. Bani Shahabadi, Nov 2018
+      !            - Calculation of the Jacobians is done separately in 
+      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
+      !              placed here in the observation operator.
       !*    -------------------
       use IndexListDepot_mod, only : struct_index_list
       implicit none
@@ -3053,13 +3057,7 @@ contains
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
 
-      REAL*8 zLat, Lat
-      REAL*8 zAzm, Azm
-      INTEGER IAZM, ISAT
-      REAL*8 Rad, Geo, HNH1
-      REAL*8 zP0, zMT
-
-      REAL*8 ZINC, ZOER
+      REAL*8 ZINC
 
       real*8, pointer :: tt_column(:),hu_column(:),AL_column(:),ps_column(:)
       INTEGER IDATYP
@@ -3070,22 +3068,20 @@ contains
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
-      !C      WRITE(*,*)'ENTER oop_HTro'
-      !C
+
       !C     * 1.  Initializations
       !C     *     ---------------
       !C
       NGPSLEV=col_getNumLev(column,'TH')
+
+      ! call to calculate the GPSRO Jacobians
+      call oop_calcGPSROJacobian(columng,obsSpaceData)
+
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      !##$omp parallel default(shared) &
-      !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
-      !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
-      !##$omp private(nh1,zinc,zoer,dpjo1) &
-      !##$omp private(tt_column,hu_column,ps_column)
       nullify(local_current_list)
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -3124,17 +3120,6 @@ contains
             ASSIMILATE: IF (ASSIM) THEN
                iProfile=gps_iprofile_from_index(headerIndex)
                !C
-               !C     *    Basic geometric variables of the profile:
-               !C
-               zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-               IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-               ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
-               Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
-               Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
-               zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-               zMT  = col_getGZsfc(columng,headerIndex)/RG
-               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
-               !C
                !C     *       Perform the (H(xb)DX-Y')/S operation
                !C
                NH1 = 0
@@ -3155,7 +3140,6 @@ contains
                      !C     *             Normalized increment
                      !C
                      ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-                     !                     ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
                      !C
                      !C     *             O-F Tested criteria:
                      !C
@@ -3182,11 +3166,9 @@ contains
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
-      !##$omp end parallel
 
-      !C      WRITE(*,*)'EXIT oop_HTro'
       RETURN
-    END subroutine oop_HTro_v2
+    END subroutine oop_HTro
 
 
     SUBROUTINE oop_HTzp

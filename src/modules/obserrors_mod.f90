@@ -1628,7 +1628,6 @@ contains
             ZVV(JL) = 0.d0
             zALT(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
           end do
-         zAL = col_getColumn(lcolumnhr,headerIndex,'GZ','TH') / RG
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
                col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
