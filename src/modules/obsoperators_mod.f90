@@ -909,7 +909,6 @@ contains
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
-    logical, save :: printGZ = .true.
 
     write(*,*)'ENTER oop_gpsro_nl'
     !
@@ -932,9 +931,6 @@ contains
     !  allocate( rstvp(gpsro_maxprfsize) )
     !  allocate( rstvm(gpsro_maxprfsize) )
     !end if
-
-    ! call tt2phi to populate altitude (is it needed??)
-    !call tt2phi(columnhr)
 
     jobs = 0.0d0
 
@@ -2156,7 +2152,6 @@ contains
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
-      REAL*8 incVector (ngpscvmx), coeffVector(ngpscvmx) 
 
       INTEGER IDATYP
       INTEGER JL, JV, NGPSLEV, NWNDLEV
@@ -2251,7 +2246,6 @@ contains
                END DO BODY_3
             END IF ASSIMILATE
          END IF DATYP
-         firstheader = .false.
       END DO HEADER
 
       RETURN
@@ -2523,10 +2517,6 @@ contains
     type(struct_obs) :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     logical, save :: firstTime = .true.
-
-    logical :: useNewGZ_ad
-
-    useNewGZ_ad = .true.
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_HT- Adjoint of linearized observation operators'
@@ -3191,7 +3181,7 @@ contains
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  !zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(columng,1,headerIndex,'P0')
                   DO JL = 1, NGPSLEV
                      !C
@@ -3288,7 +3278,7 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      firstheader = .true.
+      !firstheader = .true.
       !##$omp parallel default(shared) &
       !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
       !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
@@ -3389,16 +3379,6 @@ contains
             AL_column(JL) = DPJO0(JL+2*NGPSLEV) / RG
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
-
-         ! print delTT/delHU/delP0 
-         if ( firstheader ) then
-           write(*,*) 'MAZIAR: oop_HTro_v2, delTT/delHU/delAL/delP0 for headerIndex=', headerIndex
-           write(*,*) tt_column(:)
-           write(*,*) hu_column(:)
-           write(*,*) AL_column(:)
-           write(*,*) ps_column(:)
-         endif
-         firstheader = .false.
 
       END DO HEADER
       !##$omp end parallel

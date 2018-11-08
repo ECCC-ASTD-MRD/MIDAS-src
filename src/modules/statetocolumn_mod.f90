@@ -725,11 +725,7 @@ contains
     if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
         .and. gsv_varExist(statevector,'P0') ) then
        call tmg_start(36,'INTERP_TT2PHI_TL')
-       if ( .not. useNewGZ ) then
-         call tt2phi_tl(column,columng)
-       else
-         call tt2phi_gpsro_tl(column,columng)
-       endif
+       call tt2phi_gpsro_tl(column,columng)
        call tmg_stop(36)
     end if
 
