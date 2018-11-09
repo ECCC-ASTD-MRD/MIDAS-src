@@ -846,6 +846,12 @@ subroutine tt2phi(columnghr,beSilent_opt) !{{{
     gz_T(1:nlev_T) = AL_T(1:nlev_T) * RG
     gz_M(1:nlev_M) = AL_M(1:nlev_M) * RG
 
+    ! remove the height offset for the diagnostic levels for backward compatibility only
+    if ( Vcode == 5005 .and. .not.columnghr%addGZsfcOffset ) then
+      gz_T(nlev_T) = col_getGZsfc(columnghr,columnIndex)
+      gz_M(nlev_M) = col_getGZsfc(columnghr,columnIndex)
+    end if
+
   enddo
 
   deallocate(tv)
