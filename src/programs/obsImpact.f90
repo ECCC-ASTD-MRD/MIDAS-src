@@ -110,7 +110,6 @@ program midas_obsimpact
   obsMpiStrategy = 'LIKESPLITFILES'
 
   !- Do initial set up
-  call tmg_start(2,'PREMIN')
   call fso_setup
 
   !
@@ -203,8 +202,6 @@ program midas_obsimpact
   ! - Initialize the gridded variable transform module
   !
   call vtr_setup(hco_anl,vco_anl)
-
-  call tmg_stop(2)
 
   !
   !- 2. Do the actual job

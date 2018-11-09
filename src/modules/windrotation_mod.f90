@@ -33,7 +33,7 @@ module windRotation_mod
   public :: struct_uvr
 
   ! Public Subroutines
-  public :: uvr_Setup, uvr_RotateWind, uvr_RotateWindAdj, uvr_RotateLatLon
+  public :: uvr_setup, uvr_rotateWind_nl, uvr_rotateWind_tl, uvr_rotateWind_ad, uvr_rotateLatLon
 
   integer, parameter :: msize = 3
   integer, parameter :: maxNumSubGrid = 2
@@ -47,9 +47,9 @@ module windRotation_mod
   contains
 
   !--------------------------------------------------------------------------
-  ! uvr_Setup
+  ! uvr_setup
   !--------------------------------------------------------------------------
-  subroutine uvr_Setup( uvr, hco_in )
+  subroutine uvr_setup( uvr, hco_in )
     implicit none
 
     ! arguments
@@ -69,7 +69,7 @@ module windRotation_mod
     !-  Compute the rotation matrices (grd_rot_8 and grd_rotinv_8)
     !
     write(*,*)
-    write(*,*) 'uvr_Setup: Starting...  for grid type = ', hco_in%grtyp
+    write(*,*) 'uvr_setup: Starting...  for grid type = ', hco_in%grtyp
 
     allocate(uvr)
 
@@ -95,9 +95,9 @@ module windRotation_mod
     uvr%initialized = .true.
 
     write(*,*)
-    write(*,*) 'uvr_Setup: Done!'
+    write(*,*) 'uvr_setup: Done!'
 
-  end subroutine uvr_Setup
+  end subroutine uvr_setup
 
   !--------------------------------------------------------------------------
   ! SUGRDPAR
@@ -247,9 +247,77 @@ module windRotation_mod
   end subroutine mxma8x
 
   !--------------------------------------------------------------------------
-  ! uvr_rotateWind
+  ! uvr_rotateWind_nl
   !--------------------------------------------------------------------------
-  subroutine uvr_rotateWind( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
+  subroutine uvr_rotateWind_nl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
+    !
+    ! Go from tangential wind components from one sphere to another
+    ! (same origin!). Original ezsint version used for computing innovation.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_uvr), pointer :: uvr
+    integer, intent(in)       :: subGridIndex
+    real(8), intent(in)       :: Lat, Lon       ! In radians
+    real(8), intent(in)       :: LatRot, LonRot ! In radians
+    real(8), intent(inout)    :: uwind, vwind
+    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
+
+    ! locals
+    integer :: index1, index2
+    real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslat, sinlat, coslon, sinlon, C, D
+    real(8) :: xyz(msize), uvcart(msize)
+
+    if ( .not. uvr%initialized ) then
+      write(*,*)
+      call utl_abort('uvr_rotateWind_nl: WindRotation module is not initialize')
+    endif
+
+    coslatr = cos(LatRot)
+    sinlatr = sin(LatRot)
+    coslonr = cos(LonRot)
+    sinlonr = sin(LonRot)
+    coslat  = cos(Lat)
+    sinlat  = sin(Lat)
+    coslon  = cos(Lon)
+    sinlon  = sin(Lon)
+    
+    if ( trim(mode) == 'ToMetWind' ) then 
+
+      xyz(1) = -uwind*sinlonr - vwind*coslonr*sinlatr
+      xyz(2) =  uwind*coslonr - vwind*sinlonr*sinlatr
+      xyz(3) =                  vwind*coslatr
+    
+      uvcart(:) = 0.0d0
+      do index2 = 1, msize
+        do index1 = 1, msize
+          uvcart(index1) = uvcart(index1) +   &
+               uvr%grd_rotinv_8(index1,index2,subGridIndex)*xyz(index2)
+        end do
+      end do
+
+      uwind  = uvcart(2)*coslon - uvcart(1)*sinlon
+      C      = uvcart(1)*coslon + uvcart(2)*sinlon
+      D      = sqrt( C**2 + uvcart(3)**2 )
+      vwind  = sign( D, uvcart(3)*coslat - C*sinlat )
+
+    else if ( trim(mode) == 'ToRotWind' ) then
+      write(*,*) 
+      call utl_abort('uvr_rotateWind_nl: mode ToRotWind is not available yet')
+    else
+      write(*,*) 
+      write(*,*) 'uvr_rotateWind_nl: Unknown transform name: ', trim(mode)
+      write(*,*) '                mode = ToMetWind or ToRotWind'
+      call utl_abort('uvr_rotateWind_nl')
+    end if
+
+  end subroutine uvr_rotateWind_nl
+
+  !--------------------------------------------------------------------------
+  ! uvr_rotateWind_tl
+  !--------------------------------------------------------------------------
+  subroutine uvr_rotateWind_tl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
     ! Go from tangential wind components from one sphere to another
     ! (same origin!). Fast version used by Variational analysis. 
@@ -271,7 +339,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_RotateWind: WindRotation module is not initialize')
+      call utl_abort('uvr_rotateWind_tl: WindRotation module is not initialize')
     endif
 
     coslatr = cos(LatRot)
@@ -283,10 +351,9 @@ module windRotation_mod
     if ( Lat /= 0.0d0 ) then
       rsinlat = 1.0d0/sin(Lat)
     else
-      !write(*,*) 'rotateWind: latitude is zero!', Lat
-      rsinlat = 1.0d0/sin(1.0d-8)
+      call utl_abort('uvr_rotateWind_tl: cannot be used for points on the equator')
     end if
-    
+
     if ( trim(mode) == 'ToMetWind' ) then 
 
       xyz(1) = -uwind*sinlonr - vwind*coslonr*sinlatr
@@ -306,20 +373,20 @@ module windRotation_mod
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*) 
-      call utl_abort('uvr_RotateWind: mode ToRotWind is not available yet')
+      call utl_abort('uvr_rotateWind_tl: mode ToRotWind is not available yet')
     else
       write(*,*) 
-      write(*,*) 'uvr_RotateWind: Unknown transform name: ', trim(mode)
+      write(*,*) 'uvr_rotateWind_tl: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
-      call utl_abort('uvr_RotateWind')
+      call utl_abort('uvr_rotateWind_tl')
     end if
 
-  end subroutine uvr_RotateWind
+  end subroutine uvr_rotateWind_tl
 
 !--------------------------------------------------------------------------
-! uvr_rotateWindAdj
+! uvr_rotateWind_ad
 !--------------------------------------------------------------------------
-  subroutine uvr_rotateWindAdj( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
+  subroutine uvr_rotateWind_ad( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
     ! Adjoint of : Go from tangential wind components from one sphere to another
     ! (same origin!). Fast version used by Variational analysis. 
@@ -341,7 +408,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_RotateWindAdj: WindRotation module is not initialize')
+      call utl_abort('uvr_rotateWind_ad: WindRotation module is not initialize')
     endif
 
     coslatr = cos(LatRot)
@@ -353,8 +420,7 @@ module windRotation_mod
     if ( Lat /= 0.0d0 ) then
       rsinlat = 1.0d0/sin(Lat)
     else
-      !write(*,*) 'rotateWindAdj: latitude is zero!', Lat
-      rsinlat = 1.0d0/sin(1.0d-8)
+      call utl_abort('uvr_rotateWind_ad: cannot be used for points on the equator')
     end if
 
     if ( trim(mode) == 'ToMetWind' ) then 
@@ -375,15 +441,15 @@ module windRotation_mod
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*) 
-      call utl_abort('uvr_RotateWindAdj: mode ToRotWind is not available yet')
+      call utl_abort('uvr_rotateWind_ad: mode ToRotWind is not available yet')
     else
       write(*,*) 
-      write(*,*) 'uvr_RotateWindAdj: Unknown transform name: ', trim(mode)
+      write(*,*) 'uvr_rotateWind_ad: Unknown transform name: ', trim(mode)
       write(*,*) '                   mode = ToMetWind or ToRotWind'
-      call utl_abort('uvr_RotateWindAdj')
+      call utl_abort('uvr_rotateWind_ad')
     end if
 
-  end subroutine uvr_RotateWindAdj
+  end subroutine uvr_rotateWind_ad
 
   !--------------------------------------------------------------------------
   ! uvr_rotateLatLon
@@ -408,7 +474,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_RotateLatLon: WindRotation module is not initialize')
+      call utl_abort('uvr_rotateLatLon: WindRotation module is not initialize')
     endif
 
     rLon = LonIn * MPC_DEGREES_PER_RADIAN_R8 ! To degress
@@ -427,9 +493,9 @@ module windRotation_mod
                 msize, msize)           ! IN
     else
       write(*,*) 
-      write(*,*) 'uvr_RotateLatLon: Unknown transform name: ', trim(mode)
+      write(*,*) 'uvr_rotateLatLon: Unknown transform name: ', trim(mode)
       write(*,*) '                  mode = ToLatLonRot or ToLatLon'
-      call utl_abort('uvr_RotateLatLon')
+      call utl_abort('uvr_rotateLatLon')
     end if
 
     call carall( LonOut, LatOut, & ! OUT
@@ -438,7 +504,7 @@ module windRotation_mod
     LonOut = LonOut * MPC_RADIANS_PER_DEGREE_R8 ! To radians
     LatOut = LatOut * MPC_RADIANS_PER_DEGREE_R8 ! To radians
 
-  end subroutine uvr_RotateLatLon
+  end subroutine uvr_rotateLatLon
 
   !--------------------------------------------------------------------------
   ! carall

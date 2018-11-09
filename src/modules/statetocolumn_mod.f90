@@ -685,13 +685,13 @@ contains
             yourNumHeader = interpInfo_tlad%allNumHeader2(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
-                call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
-                                interpInfo_tlad, stepIndex, procIndex )
+                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
+                                   ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
+                                   interpInfo_tlad, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
-                call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
-                                interpInfo_tlad, stepIndex, procIndex )
+                call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
+                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
+                                   interpInfo_tlad, stepIndex, procIndex )
               else
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, stepIndex, procIndex )
@@ -913,13 +913,13 @@ contains
             yourNumHeader = interpInfo_tlad%allNumHeader2(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
-                call myezuvintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                  ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
-                                  interpInfo_tlad, stepIndex, procIndex )
+                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
+                                   ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
+                                   interpInfo_tlad, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
-                call myezuvintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                  ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
-                                  interpInfo_tlad, stepIndex, procIndex )
+                call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
+                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
+                                   interpInfo_tlad, stepIndex, procIndex )
               else
                 call myezsintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, stepIndex, procIndex )
@@ -1088,11 +1088,11 @@ contains
             yourNumHeader = interpInfo_nl%allNumHeader2(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
-                call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                field2d, field2d_UV, interpInfo_nl, stepIndex, procIndex )
+                call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
+                                   field2d, field2d_UV, interpInfo_nl, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
-                call myezuvint( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                field2d_UV, field2d, interpInfo_nl, stepIndex, procIndex )
+                call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
+                                   field2d_UV, field2d, interpInfo_nl, stepIndex, procIndex )
               else
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                field2d, interpInfo_nl, stepIndex, procIndex )
@@ -1353,9 +1353,9 @@ contains
   end subroutine myezsintad
 
   ! -------------------------------------------------------------
-  ! myezuvint: Vector field horizontal interpolation
+  ! myezuvint_nl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezuvint( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
+  subroutine myezuvint_nl( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
     ! **Purpose:** 
     ! Vector horizontal interpolation, replaces the
     ! ezuvint routine from rmnlib.
@@ -1411,12 +1411,12 @@ contains
           latRot = interpInfo%allLatRot(subGridIndex, headerIndex, stepIndex, procIndex)
           lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, stepIndex, procIndex)
 
-          call uvr_RotateWind( interpInfo%uvr,            & ! IN
-                               subGridIndex,              & ! IN
-                               interpUU(subGridIndex),    & ! INOUT
-                               interpVV(subGridIndex),    & ! INOUT
-                               lat, lon, latRot, lonRot,  & ! IN
-                               'ToMetWind' )                ! IN
+          call uvr_rotateWind_nl( interpInfo%uvr,            & ! IN
+                                  subGridIndex,              & ! IN
+                                  interpUU(subGridIndex),    & ! INOUT
+                                  interpVV(subGridIndex),    & ! INOUT
+                                  lat, lon, latRot, lonRot,  & ! IN
+                                  'ToMetWind' )                ! IN
         end if
 
       end do SUBGRID_LOOP
@@ -1430,12 +1430,92 @@ contains
 
     end do HEADER_LOOP
 
-  end subroutine myezuvint
+  end subroutine myezuvint_nl
 
   ! -------------------------------------------------------------
-  ! myezuvint: Adjoint of vector field horizontal interpolation
+  ! myezuvint_tl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezuvintad( column_in, varName, fieldUU_out, fieldVV_out, interpInfo, stepIndex, procIndex ) 
+  subroutine myezuvint_tl( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
+    ! **Purpose:** 
+    ! Vector horizontal interpolation, replaces the
+    ! ezuvint routine from rmnlib.
+    !
+    implicit none
+
+    ! arguments
+    real(8)                 :: column_out(:)
+    character(len=*)        :: varName
+    real(8)                 :: fieldUU_in(:,:), fieldVV_in(:,:)
+    type(struct_interpInfo) :: interpInfo
+    integer                 :: stepIndex, procIndex
+
+    ! locals
+    integer :: ilon, ilat, indexBeg, indexEnd, gridptIndex, headerIndex
+    integer :: numColumn, subGridIndex
+    real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
+    real(8) :: lat, lon, latRot, lonRot, weight
+    logical :: doUU, doVV
+
+    numColumn = size( column_out )
+
+    doUU = (trim(varName) == 'UU' .or. interpInfo%hco%rotated)
+    doVV = (trim(varName) == 'VV' .or. interpInfo%hco%rotated)
+
+    HEADER_LOOP: do headerIndex = 1, numColumn
+
+      interpUU(:) = 0.0d0
+      interpVV(:) = 0.0d0
+
+      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+
+        indexBeg = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexEnd = interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+
+        if ( indexEnd < IndexBeg ) cycle SUBGRID_LOOP
+
+        ! Interpolate the model UU to the obs point
+        do gridptIndex = indexBeg, indexEnd
+
+          ilon = interpInfo%allLonIndex(gridptIndex)
+          ilat = interpInfo%allLatIndex(gridptIndex)
+          weight = interpInfo%allInterpWeight(gridptIndex)
+
+          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) + weight * fieldUU_in(ilon, ilat)
+          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) + weight * fieldVV_in(ilon, ilat)
+
+        end do
+        ! now rotate the wind vector
+        if ( interpInfo%hco%rotated ) then
+          lat = interpInfo%allLat(headerIndex, stepIndex, procIndex)
+          lon = interpInfo%allLon(headerIndex, stepIndex, procIndex)
+          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, stepIndex, procIndex)
+          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, stepIndex, procIndex)
+
+          call uvr_rotateWind_tl( interpInfo%uvr,            & ! IN
+                                  subGridIndex,              & ! IN
+                                  interpUU(subGridIndex),    & ! INOUT
+                                  interpVV(subGridIndex),    & ! INOUT
+                                  lat, lon, latRot, lonRot,  & ! IN
+                                  'ToMetWind' )                ! IN
+        end if
+
+      end do SUBGRID_LOOP
+
+      ! return only the desired component
+      if ( trim(varName) == 'UU' ) then
+        column_out(headerIndex) = sum(interpUU(:))
+      else
+        column_out(headerIndex) = sum(interpVV(:))
+      end if
+
+    end do HEADER_LOOP
+
+  end subroutine myezuvint_tl
+
+  ! -------------------------------------------------------------
+  ! myezuvint_ad: Adjoint of vector field horizontal interpolation
+  ! -------------------------------------------------------------
+  subroutine myezuvint_ad( column_in, varName, fieldUU_out, fieldVV_out, interpInfo, stepIndex, procIndex ) 
     ! **Purpose:** 
     ! Adjoint of the vector horizontal interpolation.
     !
@@ -1484,7 +1564,7 @@ contains
           latRot = interpInfo%allLatRot(subGridIndex, headerIndex, stepIndex, procIndex)
           lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, stepIndex, procIndex)
 
-          call uvr_RotateWindAdj( interpInfo%uvr,           & ! IN 
+          call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN 
                                   subGridIndex,             & ! IN
                                   interpUU(subGridIndex),   & ! INOUT
                                   interpVV(subGridIndex),   & ! INOUT
@@ -1508,7 +1588,7 @@ contains
 
     end do HEADER_LOOP
 
-  end subroutine myezuvintad
+  end subroutine myezuvint_ad
 
   !------------------------------------------------------------------
   ! getPositionXY

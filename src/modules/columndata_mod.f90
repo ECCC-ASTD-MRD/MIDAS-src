@@ -43,7 +43,7 @@ module columnData_mod
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
   public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
-  public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
+  public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
     integer           :: numCol
@@ -287,120 +287,6 @@ contains
   end subroutine col_deallocate
 
 
-  subroutine col_fillmvo(columnghr,pvar,varName,varLevel_opt)
-    !
-    !**s/r fillmvo - Fill in values for a complete set of columns at once
-    !
-    !Arguments
-    !
-    !       input:
-    !             columnghr          : HR or BG column object
-    !             VARNAME (character*4): NOMVAR of the state variable
-    !             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
-    implicit none
-
-    type(struct_columnData) :: columnghr
-    real(8)          :: pvar(:,:)
-    character(len=*) :: varName
-    character(len=*), optional :: varLevel_opt
-
-    integer jobs, jlev, status, vcode, nlev_M, nlev_T
-    real(8), pointer :: column_ptr(:)
-    real :: gz_sfcOffset_r4
-
-    status = vgd_get(columnghr%vco%vgrid,key='ig_1 - vertical coord code',value=vcode)
-    nlev_M = col_getNumLev(columnghr,'MM')
-    nlev_T = col_getNumLev(columnghr,'TH')
-
-    ! Pressure
-    select case(trim(varName))
-    case('PRES')
-      if(present(varLevel_opt)) then
-        if(varLevel_opt == 'TH') then
-          do jobs = 1, columnghr%numCol
-            do jlev = 1, nlev_T
-              columnghr%pressure_T(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        elseif(varLevel_opt == 'MM') then
-          do jobs = 1, columnghr%numCol
-            do jlev = 1, nlev_M
-              columnghr%pressure_M(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        else
-          call utl_abort('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel_opt)
-        endif
-      else
-        call utl_abort('col_fillmvo: must specify varLevel for Pressure!')
-      endif
-
-    ! Height
-    case('GZ')
-      if( present( varLevel_opt ) ) then
-        if( varLevel_opt == 'TH') then
-          if (vcode == 5005 .and. AddGZSfcOffset) then
-            status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_r4)
-          else
-            gz_sfcOffset_r4 = 0.0
-          endif
-          if(mpi_myid == 0) write(*,*) 'col_fillmvo: GZ offset for near-sfc thermo level is:   ', gz_sfcOffset_r4, ' metres'
-          do jobs = 1, columnghr%numCol
-            do jlev = 1, nlev_T
-              columnghr%gz_T(jlev,jobs) = pvar(jlev,jobs)
-              if ( jlev == nlev_T ) then
-                ! set the surface GZ
-                columnghr%gz_sfc(jobs) = columnghr%gz_T(nlev_T,jobs)
-                ! adjust heights of near-surface GZ
-                columnghr%gz_T(nlev_T,jobs) = columnghr%gz_T(nlev_T,jobs) + real(gz_sfcOffset_r4,8) * RG
-              end if
-            end do
-          end do
-        elseif(varLevel_opt == 'MM') then
-          if( vcode == 5005 .and. AddGZSfcOffset ) then
-            status = vgd_get( columnghr%vco%vgrid,key = 'DHM - height of the diagnostic level (m)', value = gz_sfcOffset_r4 )
-          else
-            gz_sfcOffset_r4 = 0.0
-          endif
-          if( mpi_myid == 0 ) write(*,*) 'col_fillmvo: GZ offset for near-sfc momentum level is: ', gz_sfcOffset_r4, ' metres'
-          do jobs = 1, columnghr%numCol
-            do jlev = 1, nlev_M
-              columnghr%gz_M( jlev, jobs ) = pvar( jlev, jobs )
-              if ( jlev == nlev_M ) then
-                ! set the surface GZ
-                columnghr%gz_sfc(jobs) = columnghr%gz_M( nlev_M, jobs )
-                ! adjust heights of near-surface GZ
-                columnghr%gz_M( nlev_M, jobs ) = columnghr%gz_M( nlev_M, jobs ) + real( gz_sfcOffset_r4,8 ) * RG
-              end if 
-            end do
-          end do
-        else
-          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel_opt )
-        end if
-      else
-        call utl_abort('col_fillmvo: must specify varLevel for GZ!')
-      end if
-
-    ! All the other variables that are stored in column%all
-    case default
-      if ( col_varExist( trim(varName) )) then
-        do jobs = 1, columnghr%numCol
-          column_ptr => col_getColumn( columnghr, jobs, varName )
-          do jlev = 1, col_getNumLev( columnghr, vnl_varLevelFromVarname( varName ) )
-            column_ptr(jlev) = pvar( jlev, jobs ) 
-          end do
-        end do
-
-      ! Unknown variable name
-      else
-        call utl_abort('col_fillmvo: Unknown variable name: ' // varName)
-      endif
-
-    end select
-
-  END SUBROUTINE col_fillmvo
-
-
   function col_varExist(varName) result(varExist)
     implicit none
     character(len=*), intent(in) :: varName
@@ -443,7 +329,7 @@ contains
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
-    integer :: jobs, status
+    integer :: headerIndex, status
     logical                   :: beSilent
 
     if ( col_getNumCol(column) <= 0 ) return
@@ -453,8 +339,8 @@ contains
     endif
 
     allocate(Psfc(1,col_getNumCol(column)))
-    do jobs = 1,col_getNumCol(column)
-      Psfc(1,jobs) = col_getElem(column,1,jobs,'P0')
+    do headerIndex = 1,col_getNumCol(column)
+      Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     enddo
 
     if ( present(beSilent_opt) ) then
@@ -470,7 +356,7 @@ contains
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    call col_fillmvo(column,zppobs2,'PRES','MM')
+    column%pressure_M(:,:) = zppobs2(:,:)
     if (associated(zppobs1))  deallocate(zppobs1)
     deallocate(zppobs2)
 
@@ -479,7 +365,7 @@ contains
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    call col_fillmvo(column,zppobs2,'PRES','TH')
+    column%pressure_T(:,:) = zppobs2(:,:)
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
