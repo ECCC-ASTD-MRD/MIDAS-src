@@ -138,13 +138,16 @@ contains
       LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
       if ( LLOK ) then
-        if (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) /= BUFR_NEDZ ) then
+        IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
+        ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
+        if ( ITYP /= BUFR_NEDZ ) then
           ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
+          IF ( ITYP == BUFR_NEBD ) THEN
+             ZLEV = ZLEV - obs_headElem_r(obsSpaceData,OBS_TRAD,IOBS)
+          ENDIF
         else
           call utl_abort('oop_vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
         end if
-        IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
-        ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
         if (bufr_IsAtmosConstituent(ITYP)) then
           varLevel = vnl_varLevelFromVarnum(ITYP, &
                      obs_headElem_i(obsSpaceData,OBS_CHM,IOBS))
