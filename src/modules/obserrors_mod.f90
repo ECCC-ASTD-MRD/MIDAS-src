@@ -35,7 +35,6 @@ module obsErrors_mod
   use columnData_mod
   use rmatrix_mod
   use varNameList_mod
-  use tt2phi_mod
   implicit none
   save
   private
@@ -1562,10 +1561,6 @@ contains
     allocate( ZERR (GPSRO_MAXPRFSIZE) )
     allocate( RSTV (GPSRO_MAXPRFSIZE) )
     allocate( ZMHX (GPSRO_MAXPRFSIZE) )
-
-    ! call tt2phi to populate altitude (is it needed??)
-    call tt2phi(lcolumnhr)
-
     !
     !     Loop over all header indices of the 'RO' family:
     !
