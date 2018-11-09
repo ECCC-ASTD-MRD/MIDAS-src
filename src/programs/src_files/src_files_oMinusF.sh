@@ -10,4 +10,4 @@ SRC_FILES="$SRC_FILES chem_setup_mod.f90 ensemblestatevector_mod.f90 gps_mod.f90
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 localizationspectral_mod.f90 obsfilter_mod.f90"
 SRC_FILES="$SRC_FILES advection_mod.f90 chem_obserrors_mod.f90 chem_obsoperators_mod.f90 localization_mod.f90 spectralfilter_mod.f90 tovs_lin_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixensemble_mod.f90 bmatrixhi_mod.f90 multi_ir_bgck_mod.f90 obserrors_mod.f90 obsoperators_mod.f90 randomnumber_mod.f90"
-SRC_FILES="$SRC_FILES computeHBHT_mod.f90 innovation_mod.f90"
+SRC_FILES="$SRC_FILES computeHBHT_mod.f90 innovation_mod.f90 ominusf_mod.f90"
