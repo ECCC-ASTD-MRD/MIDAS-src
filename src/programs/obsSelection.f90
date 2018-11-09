@@ -22,6 +22,7 @@
 !--------------------------------------------------------------------------
 program midas_obsSelection
   use oMinusF_mod
+  use backgroundCheck_mod
   use obsSpaceData_mod
   use columnData_mod
   use obsFiles_mod
@@ -61,23 +62,10 @@ program midas_obsSelection
   call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
                    'bgckConv', addHBHT=.true., addSigmaO=.true.)
 
-  
-  ! 2.2 Compute the background errors in observation space
-  call compute_HBHT(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
 
-  ! 2.3 Write the results
-
-  ! 2.3.1 Into the listings
-  write(*,*)
-  write(*,*) '> midas-OminusF: printing the FIRST header and body'
-  do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
-    call obs_prnthdr(obsSpaceData,headerIndex)
-    call obs_prntbdy(obsSpaceData,headerIndex)
-  end do
-  ! 2.3.2 Into the observation files
-  write(*,*)
-  write(*,*) '> midas-OminusF: writing to file'
-  call obsf_writeFiles(obsSpaceData)
+  ! 2.2 Perform the background check
+  !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
+  call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData)
 
   !
   !- 3.  Ending
