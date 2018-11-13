@@ -158,8 +158,12 @@ CONTAINS
     type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
 
     real(8) :: pSurfRef, delT_hour
-    real(8) :: advectFactorFSOFcst
-    real(8) :: advectFactorAssimWindow
+
+    integer,parameter   :: maxNumLevels=200
+    real(8) :: advectFactorFSOFcst(maxNumLevels)
+    real(8) :: advectFactorAssimWindow(maxNumLevels)
+
+    real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
 
     real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
 
@@ -204,10 +208,10 @@ CONTAINS
     vLocalize(:)          =   -1.0d0
     vLocalize(1)          =    2.0d0
     ctrlVarHumidity       = 'LQ'
-    advectFactorFSOFcst   =   0.0D0
-    advectTypeAssimWindow   = 'amplitude'
+    advectFactorFSOFcst(:)=   0.0D0
+    advectTypeAssimWindow = 'amplitude'
     advectStartTimeIndexAssimWindow = 'first'
-    advectFactorAssimWindow =   0.0D0
+    advectFactorAssimWindow(:)=   0.0D0
     removeSubEnsMeans     = .false.
     keepAmplitude         = .false. 
 
@@ -536,7 +540,7 @@ CONTAINS
     !- 3.3 Pre-compute everything for advection in FSO mode
     if (fsoLeadTime > 0.0D0) then
       amp3dStepIndexFSOFcst = 1
-      if ( advectFactorFSOFcst == 0.0D0 .or. numStep == 1) then
+      if ( sum(advectFactorFSOFcst(:)) == 0.0D0 .or. numStep == 1) then
         if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated for FSO'
         advectAmplitudeFSOFcst = .false.
         numStepAmplitudeFSOFcst = 1
@@ -545,6 +549,8 @@ CONTAINS
         advectAmplitudeFSOFcst = .true.
         numStepAmplitudeFSOFcst = 2
         numStepAdvectFSOFcst = nint(fsoLeadTime/6.0D0) + 1
+        allocate(advectFactorFSOFcst_M(vco_ens%nLev_M))
+        advectFactorFSOFcst_M(:) = advectFactorFSOFcst(1:vco_ens%nLev_M)
         allocate(dateStampListAdvectedFields(numStepAmplitudeFSOFcst))
         dateStampListAdvectedFields(1) = tim_getDatestamp()
         dateStampListAdvectedFields(2) = dateStampList(numStep)
@@ -553,15 +559,16 @@ CONTAINS
         call adv_setup( adv_amplitudeFSOFcst,                                   & ! OUT
                         'fromFirstTimeIndex', hco_ens, vco_ens,                 & ! IN
                         numStepAmplitudeFSOFcst, dateStampListAdvectedFields,   & ! IN
-                        numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst,   & ! IN
+                        numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst_M, & ! IN
                         'MMLevsOnly',                                           & ! IN
                         steeringFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
         call tmg_stop(135)
+        deallocate(advectFactorFSOFcst_M)
       end if
     end if
 
     !- 3.4 Pre-compute everything for advection in ANALYSIS mode
-    if ( advectFactorAssimWindow == 0.0D0 .or. numStep == 1) then
+    if ( sum(advectFactorAssimWindow(:)) == 0.0D0 .or. numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated in ANALYSIS mode'
 
       advectAmplitudeAssimWindow = .false.
@@ -572,6 +579,8 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection activated in ANALYSIS mode'
 
       delT_hour                 = tim_dstepobsinc
+      allocate(advectFactorAssimWindow_M(vco_ens%nLev_M))
+      advectFactorAssimWindow_M(:) = advectFactorAssimWindow(1:vco_ens%nLev_M)
       allocate(dateStampListAdvectedFields(numStep))
       dateStampListAdvectedFields(:) = dateStampList(:)
       call gsv_allocate(statevector_ensMean4D, numStep, hco_ens, vco_ens, &
@@ -601,11 +610,11 @@ CONTAINS
           write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
           call utl_abort('ben_setup')
         end select
-        call adv_setup( adv_amplitudeAssimWindow,                                     & ! OUT
-                        direction, hco_ens, vco_ens,                                  & ! IN
-                        numStepAmplitudeAssimWindow, dateStampListAdvectedFields,     & ! IN
-                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'MMLevsOnly', statevector_steeringFlow_opt = statevector_ensMean4D )       ! IN
+        call adv_setup( adv_amplitudeAssimWindow,                                          & ! OUT
+                        direction, hco_ens, vco_ens,                                       & ! IN
+                        numStepAmplitudeAssimWindow, dateStampListAdvectedFields,          & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M,    & ! IN
+                        'MMLevsOnly', statevector_steeringFlow_opt = statevector_ensMean4D ) ! IN
 
       case('ensPertAnlInc')
         if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
@@ -632,17 +641,17 @@ CONTAINS
           call utl_abort('ben_setup')
         end select
 
-        call adv_setup( adv_ensPerts,                                                 & ! OUT
-                        directionEnsPerts, hco_ens, vco_ens,                          & ! IN
-                        numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
-                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D ) ! IN
+        call adv_setup( adv_ensPerts,                                                   & ! OUT
+                        directionEnsPerts, hco_ens, vco_ens,                            & ! IN
+                        numStepAdvectAssimWindow, dateStampListAdvectedFields,          & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M, & ! IN
+                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D )   ! IN
 
-        call adv_setup( adv_analInc,                                                  & ! OUT
-                        directionAnlInc, hco_ens, vco_ens,                            & ! IN
-                        numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
-                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D ) ! IN
+        call adv_setup( adv_analInc,                                                    & ! OUT
+                        directionAnlInc, hco_ens, vco_ens,                              & ! IN
+                        numStepAdvectAssimWindow, dateStampListAdvectedFields,          & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow_M, & ! IN
+                        'allLevs', statevector_steeringFlow_opt=statevector_ensMean4D )   ! IN
 
       case default
         write(*,*)
@@ -651,6 +660,8 @@ CONTAINS
       end select
 
       call tmg_stop(136)
+
+      deallocate(advectFactorAssimWindow_M)
 
       !- If wanted, write the ensemble mean
       if (advDiagnostic) then

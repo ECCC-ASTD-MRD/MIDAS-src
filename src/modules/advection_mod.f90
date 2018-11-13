@@ -93,7 +93,9 @@ MODULE advection_mod
   real(8), allocatable :: uu_steeringFlow_ThermoLevel(:,:)
   real(8), allocatable :: vv_steeringFlow_ThermoLevel(:,:)
 
-  real(8) :: steeringFlowDelTsec, steeringFlowFactor
+  real(8), allocatable :: steeringFlowFactor(:)
+
+  real(8) :: steeringFlowDelTsec
 
   type(struct_hco), pointer :: hco
   type(struct_vco), pointer :: vco
@@ -123,7 +125,8 @@ CONTAINS
     character(len=*), optional, intent(in) :: steeringFlowFilename_opt
     integer, intent(in) :: numStepAdvectedField, numStepSteeringFlow_in
     integer, intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
-    real(8), intent(in) :: steeringFlowFactor_in, steeringFlowDelThour
+    real(8), intent(in) :: steeringFlowFactor_in(vco_in%nLev_M)
+    real(8), intent(in) :: steeringFlowDelThour
 
     type(struct_gsv), optional :: statevector_steeringFlow_opt
 
@@ -162,10 +165,15 @@ CONTAINS
     !
     !- 1.  Set low-level variables
     !
-    numStepSteeringFlow = numStepSteeringFlow_in
-    steeringFlowFactor  = steeringFlowFactor_in
-    adv%nTimeStep       = numStepAdvectedField
-    
+    numStepSteeringFlow   = numStepSteeringFlow_in
+    adv%nTimeStep         = numStepAdvectedField
+
+    allocate(steeringFlowFactor(vco_in%nLev_M))
+    do levIndex = 1, vco_in%nLev_M
+      steeringFlowFactor(levIndex) = steeringFlowFactor_in(levIndex)
+      write(*,*) 'adv_setup: steeringFlowFactor = ', levIndex, steeringFlowFactor(levIndex)
+    end do
+
     allocate(adv%timeStepIndexSource(numStepAdvectedField))
 
     if (vco_in%Vcode /= 5002 .and. vco_in%Vcode /= 5005 ) then
@@ -408,7 +416,7 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
 
       call processSteeringFlow(levTypeIndex, levIndex,                                         & ! IN
-                               uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! IN
+                               uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! OUT
                                adv%nLev_M, adv%nLev_T, myLatBeg, myLatEnd)                       ! IN
 
       do stepIndexAF = 1, numStepAdvectedField
@@ -421,8 +429,8 @@ CONTAINS
         do latIndex0 = adv%myLatBeg, adv%myLatEnd
           do lonIndex0 = adv%myLonBeg, adv%myLonEnd
 
-            call calcTrajectory(xpos_r4, ypos_r4,                                       & ! OUT
-                                latIndex0, lonIndex0, stepIndexSF_start, stepIndexSF_end) ! IN
+            call calcTrajectory(xpos_r4, ypos_r4,                                                 & ! OUT
+                                latIndex0, lonIndex0, levIndex, stepIndexSF_start, stepIndexSF_end) ! IN
 
             if ( nLevType >= THindex ) then
               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex) = xpos_r4
@@ -565,8 +573,8 @@ CONTAINS
   ! processSteeringFlow
   !--------------------------------------------------------------------------
   SUBROUTINE processSteeringFlow (levTypeIndex, levIndex, &
-                                   uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, &
-                                   nLev_M, nLev_T, myLatBeg, myLatEnd)
+                                  uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, &
+                                  nLev_M, nLev_T, myLatBeg, myLatEnd)
     implicit none
     integer, intent(in) :: levTypeIndex, levIndex, nLev_M, nLev_T, myLatBeg, myLatEnd
     real(8) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
@@ -663,8 +671,8 @@ CONTAINS
         vv = maxval(abs(vv_steeringFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
       end if
       numSubStep(latIndex) = max( 1,  &
-           nint( (steeringFlowDelTsec * steeringFlowFactor * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
-           nint( (steeringFlowDelTsec * steeringFlowFactor * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
+           nint( (steeringFlowDelTsec * steeringFlowFactor(levIndex) * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
+           nint( (steeringFlowDelTsec * steeringFlowFactor(levIndex) * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
     end do
     if (mpi_myid == 0) write(*,*) 'min and max of numSubStep',minval(numSubStep(:)),maxval(numSubStep(:))
 
@@ -674,11 +682,12 @@ CONTAINS
   ! calcTrajectory
   !--------------------------------------------------------------------------
   SUBROUTINE calcTrajectory(xpos_r4, ypos_r4, latIndex0, lonIndex0, &
-                            stepIndexSF_start, stepIndexSF_end)
+                            levIndex, stepIndexSF_start, stepIndexSF_end)
     implicit none
 
     real(4), intent(out) :: xpos_r4, ypos_r4
     integer, intent(in)  :: latIndex0, lonIndex0, stepIndexSF_start, stepIndexSF_end
+    integer, intent(in)  :: levIndex
 
     integer :: subStepIndex, stepIndexSF, ierr, gdxyfll, latIndex, lonIndex
     integer :: alfa, ni, nj,  stepIndex_direction, stepIndex_first, stepIndex_last
@@ -744,8 +753,8 @@ CONTAINS
                (1-alfa)*vv_steeringFlow_mpiGlobal(stepIndexSF+1,lonIndex,latIndex) ) &
                /RA
           ! apply user-specified scale factor to advecting winds
-          uu = steeringFlowFactor * uu
-          vv = steeringFlowFactor * vv
+          uu = steeringFlowFactor(levIndex) * uu
+          vv = steeringFlowFactor(levIndex) * vv
 
           ! compute next position
           lonAdvect = lonAdvect + real(stepIndex_direction,8)*subDelT*uu  ! in radians
@@ -773,8 +782,8 @@ CONTAINS
           vv_p = Scoef * uu + Gcoef * vv 
 
           ! apply user-specified scale factor to advecting winds
-          uu_p = steeringFlowFactor * uu_p ! in m/s
-          vv_p = steeringFlowFactor * vv_p
+          uu_p = steeringFlowFactor(levIndex) * uu_p ! in m/s
+          vv_p = steeringFlowFactor(levIndex) * vv_p
 
           ! compute next position (in rotated coord system)
           lonAdvect_p = lonAdvect_p + real(stepIndex_direction,8)*subDelT*uu_p/(RA*cos(latAdvect_p))  ! in radians

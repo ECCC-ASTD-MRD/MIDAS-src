@@ -153,6 +153,8 @@ if [ $mode == full ] ; then
   fi
   cp ${midasAbs} ${absdir}/
 
+  rm -rf ${compiledir}
+
 elif [ $mode == abs ] ; then
 
   rm -f ${midasAbs}

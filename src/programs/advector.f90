@@ -49,9 +49,11 @@ program midas_advector
   integer :: fnom, fclos, ierr, nulnam, stepIndex, mode
   integer :: get_max_rss, newdate, dateStamp, yyyymmdd, hhmmsshh
 
-  real(8) :: advectFactor
-
   integer,allocatable :: dateStampListAdvectedFields(:)
+
+  integer,parameter   :: maxNumLevels=200
+
+  real(8), allocatable :: advectFactor_M(:)
 
   ! Namelist variables
   character(len=256)  :: steeringFlowFile
@@ -61,6 +63,7 @@ program midas_advector
   integer             :: dateStart
   integer             :: advectedFieldNumStep, steeringFlowNumStep
   real(8)             :: advectedFieldDelThour, steeringFlowDelThour
+  real(8)             :: advectFactor(maxNumLevels)
 
   namelist /namadvector/ fileToAdvec, steeringFlowFile, nEns, &
                          advectedFieldNumStep, advectedFieldDelThour, &
@@ -89,7 +92,7 @@ program midas_advector
   fileToAdvec           = 'missing'
   steeringFlowFile      = 'missing'
   direction             = 'backward-forward'
-  advectFactor          = 0.75d0
+  advectFactor(:)       = 0.75d0
   nEns                  = 1
   advectedFieldNumStep  = 2
   steeringFlowNumStep   = 2
@@ -162,25 +165,30 @@ program midas_advector
   !
   !- 2.  Setup the advection
   !
+  allocate(advectFactor_M(vco%nLev_M))
+  advectFactor_M(:) = advectFactor(1:vco%nLev_T)
+
   if (trim(direction) == 'forward'          .or. &
       trim(direction) == 'backward-forward' .or. &
       trim(direction) == 'forward-backward' ) then
-    call adv_setup( adv_forward,                                              & ! OUT
-                    'fromFirstTimeIndex', hco, vco,                           & ! IN
-                    advectedFieldNumStep, dateStampListAdvectedFields,        & ! IN
-                    steeringFlowNumStep, steeringFlowDelThour, advectFactor,  & ! IN
-                    'allLevs', steeringFlowFilename_opt=steeringFlowFile )      ! IN
+    call adv_setup( adv_forward,                                               & ! OUT
+                    'fromFirstTimeIndex', hco, vco,                            & ! IN
+                    advectedFieldNumStep, dateStampListAdvectedFields,         & ! IN
+                    steeringFlowNumStep, steeringFlowDelThour, advectFactor_M, & ! IN
+                    'allLevs', steeringFlowFilename_opt=steeringFlowFile )       ! IN
   end if
 
   if (trim(direction) == 'backward'         .or. &
       trim(direction) == 'backward-forward' .or. &
       trim(direction) == 'forward-backward' ) then
-    call adv_setup( adv_backward,                                             & ! OUT
-                    'fromLastTimeIndex', hco, vco,                            & ! IN
-                    advectedFieldNumStep, dateStampListAdvectedFields,        & ! IN
-                    steeringFlowNumStep, steeringFlowDelThour, advectFactor,  & ! IN
-                    'allLevs', steeringFlowFilename_opt=steeringFlowFile )      ! IN
+    call adv_setup( adv_backward,                                              & ! OUT
+                    'fromLastTimeIndex', hco, vco,                             & ! IN
+                    advectedFieldNumStep, dateStampListAdvectedFields,         & ! IN
+                    steeringFlowNumStep, steeringFlowDelThour, advectFactor_M, & ! IN
+                    'allLevs', steeringFlowFilename_opt=steeringFlowFile )       ! IN
   end if
+
+  deallocate(advectFactor_M)
 
   !
   !- 3.  Read the input file and advect it
