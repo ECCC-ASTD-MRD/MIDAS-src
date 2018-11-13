@@ -7,6 +7,7 @@ if [ $# -lt 1 ]; then
 fi
 program=$(basename $1 .f90)
 mode=$2
+deleteCompileDir=$3
 
 export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
 . ./commons/compile_setup.sh
@@ -32,6 +33,21 @@ else
   echo "..."
   echo "... > Compiling only routine : $mode"
 fi
+
+if [ "$deleteCompileDir" == "" ] ; then
+  echo "..."
+  echo "... !WARNING! no directive given for the deletion of the compilation directory, assuming 'yes'"
+  deleteCompileDir=yes
+fi
+
+if [ $deleteCompileDir == yes ] ; then
+  echo "..."
+  echo "... > the compilation directory will be DELETED after the successful completion of this task"
+else
+  echo "..."
+  echo "... > the compilation directory will be KEPT"
+fi
+
 
 echo "..."
 echo "... > Compiling for an MPI executable"
@@ -153,7 +169,9 @@ if [ $mode == full ] ; then
   fi
   cp ${midasAbs} ${absdir}/
 
-  rm -rf ${compiledir}
+  if [ $deleteCompileDir == yes ] ; then
+      rm -rf ${compiledir}
+  fi
 
 elif [ $mode == abs ] ; then
 
