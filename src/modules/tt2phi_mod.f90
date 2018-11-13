@@ -262,8 +262,8 @@ subroutine tt2phi(columnghr,beSilent_opt)
 
     ! remove the height offset for the diagnostic levels for backward compatibility only
     if ( .not.columnghr%addGZsfcOffset ) then
-      gz_T(nlev_T) = col_getGZsfc(columnghr,columnIndex) / RG
-      gz_M(nlev_M) = col_getGZsfc(columnghr,columnIndex) / RG
+      gz_T(nlev_T) = rMT
+      gz_M(nlev_M) = rMT
     end if
 
   enddo
