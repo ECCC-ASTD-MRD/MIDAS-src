@@ -301,8 +301,10 @@ contains
     character(len=32)   :: directionAnlInc
     character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
 
-    real(8) :: delT_hour, advectFactor
+    real(8) :: advectFactor
     real(8), pointer     :: ens_oneLev(:,:,:,:)
+
+    real(8), allocatable :: advectFactor(:)
 
     integer :: numStepAdvect, numStepReferenceFlow, nEns, memberIndex
 
@@ -318,7 +320,8 @@ contains
     delT_hour = 1.0d0 !tim_dstepobsinc
     numStepAdvect             = tim_nstepobsinc
     numStepReferenceFlow      = 7
-    advectFactor = 0.75D0
+    allocate(advectFactor(vco_anl%nLev_M))
+    advectFactor(:) = 0.75D0
     nEns = 1
 
     call adv_setup( adv_analInc,                                             & ! OUT
@@ -327,6 +330,8 @@ contains
                     numStepReferenceFlow, delT_hour, advectFactor,           & ! IN
                     'MMLevsOnly', steeringFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
 
+    deallocate(advectFactor)
+    
     call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
                       varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ens_Ly, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
