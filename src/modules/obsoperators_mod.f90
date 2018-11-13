@@ -37,7 +37,6 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  use tt2phi_mod
   
   implicit none
   save
@@ -292,7 +291,7 @@ contains
     !
     Write(*,*) "Entering subroutine oop_ppp_nl"
 
-    zgamma = 0.0065D0 / GRAV
+    zgamma = 0.0065D0 / RG
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
     nlev_T = col_getNumLev(columnhr,'TH')
@@ -674,7 +673,7 @@ contains
              ! NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 
              if(ivnm == BUFR_NETS) then
-                zslope = zgamma
+                zslope = zgamma * RG
              else
                 zslope = 0.0d0
              end if
@@ -3162,7 +3161,7 @@ contains
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
-            AL_column(JL) = DPJO0(JL+2*NGPSLEV) / RG
+            AL_column(JL) = DPJO0(JL+2*NGPSLEV)
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
