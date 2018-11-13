@@ -443,7 +443,7 @@ contains
              ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              varLevel = vnl_varLevelFromVarnum(ivnm)
              zdiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
-                  col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)/RG )
+                  col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel) )
              !
              ! apply filter to selected elements
              !
@@ -557,7 +557,7 @@ contains
 
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-          zdiff= ( zval - col_getGZsfc(columnhr,headerIndex) )/RG
+          zdiff= ( zval - col_getGZsfc(columnhr,headerIndex)*RG )/RG
           ! obs is above surface, so it is ok, lets jump to the next obs
           if(zdiff .ge. 0.0d0) cycle BODY
 
@@ -592,7 +592,7 @@ contains
        !   from the model topography in the verification.
 
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-       zdifalt = zStnAlt- col_getGZsfc(columnhr,headerIndex)/RG
+       zdifalt = zStnAlt- col_getGZsfc(columnhr,headerIndex)
 
        ! Set the body list & start at the beginning of the list
        call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -816,7 +816,7 @@ contains
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
        ! ATMOSPHERE
        !
-       zModAlt = col_getGZsfc(columnhr,headerIndex)/RG
+       zModAlt = col_getGZsfc(columnhr,headerIndex)
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
@@ -845,7 +845,7 @@ contains
              !    Accept observation if zlev is within the domain
              !    of the trial field
              zpb = zModAlt
-             zpt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')/RG
+             zpt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
           end if
           if(zlev.lt.zpb ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
@@ -1280,12 +1280,12 @@ contains
              LSAT = .TRUE.
           END IF
           !
-          ZMT = col_getGZsfc(lcolumnhr,index_header)/RG
+          ZMT = col_getGZsfc(lcolumnhr,index_header)
           !
           !     *     Acceptable height limits:
           !
           JL = 1
-          HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+          HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
           HSF = ZMT+SURFMIN
           !
           !     *     Discard low data for METOP/GRAS:
@@ -1445,10 +1445,10 @@ contains
 
       ! Set geopotential height and pressure boundaries.
 
-      zModAlt = col_getGZsfc(columnhr,headerIndex)/RG
+      zModAlt = col_getGZsfc(columnhr,headerIndex)
       zpb=zModAlt
       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-      zpt = col_getHeight(columnhr,1,headerIndex,'MM')/RG
+      zpt = col_getHeight(columnhr,1,headerIndex,'MM')
       zP0 = col_getElem(columnhr,1,headerIndex,'P0')
       zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
 

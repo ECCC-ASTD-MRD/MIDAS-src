@@ -1485,7 +1485,7 @@ contains
           Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
           Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
           zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-          zMT  = col_getGZsfc(lcolumnhr,headerIndex)/RG
+          zMT  = col_getHeight(lcolumnhr,NGPSLEV,headerIndex,'TH')
              !     
              !     *        Profile at the observation location:
              !
@@ -1508,7 +1508,7 @@ contains
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
-            zAL(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH') / RG
+            zAL(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
           end do
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
@@ -1782,7 +1782,7 @@ contains
 
       ZBPSFC = col_getElem( columnhr, 1, headerIndex, 'P0' )
       ZBTSFC = col_getElem( columnhr, nlev_T, headerIndex, 'TT' )
-      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' ) / RG
+      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' )
        !
        !    Loop over all body indices of current report; Set the ZTD error if
        !    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).

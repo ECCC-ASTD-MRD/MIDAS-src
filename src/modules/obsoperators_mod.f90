@@ -37,7 +37,6 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  use tt2phi_mod
   
   implicit none
   save
@@ -170,12 +169,12 @@ contains
           varLevel = vnl_varLevelFromVarnum(ITYP)
         end if
         if (varLevel == 'SF') then
-          ZPT= col_getHeight(columnghr,1,IOBS,'TH')/RG
+          ZPT= col_getHeight(columnghr,1,IOBS,'TH')
           ZPB= col_getGZsfc(columnghr,IOBS)/RG                 
         else
           nlev=col_getNumLev(columnghr,varLevel)
-          ZPT= col_getHeight(columnghr,1,IOBS,varLevel)/RG
-          ZPB= col_getHeight(columnghr,NLEV,IOBS,varLevel)/RG
+          ZPT= col_getHeight(columnghr,1,IOBS,varLevel)
+          ZPB= col_getHeight(columnghr,NLEV,IOBS,varLevel)
         end if
         if ( ZLEV > ZPT ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
@@ -246,7 +245,7 @@ contains
         IK = 1
         nlev=COL_GETNUMLEV(COLUMNGHR,varLevel)
         do JK = 2, NLEV - 1
-          ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)/RG
+          ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)
           if( ZLEV < ZPT ) IK = JK
         end do
         if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
@@ -300,7 +299,7 @@ contains
     !
     Write(*,*) "Entering subroutine oop_ppp_nl"
 
-    zgamma = 0.0065D0 / GRAV
+    zgamma = 0.0065D0 / RG
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
     jobs = 0.d0
@@ -340,11 +339,13 @@ contains
          else
            if (trim(varName) == 'GZ') then
              col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
+             columnVarB=col_ptr(ilyr+1)*RG
+             columnVarT=col_ptr(ilyr  )*RG
            else
              col_ptr=>col_getColumn(columnhr,headerIndex,varName)
+             columnVarB=col_ptr(ilyr+1)
+             columnVarT=col_ptr(ilyr  )
            end if
-           columnVarB=col_ptr(ilyr+1)
-           columnVarT=col_ptr(ilyr  )
          end if
          zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
          jobs = jobs + zomp*zomp/(zoer*zoer)
@@ -624,7 +625,7 @@ contains
 
     Write(*,*) "Entering subroutine oop_sfc_nl"
 
-    zgamma = 0.0065d0 / GRAV
+    zgamma = 0.0065d0 / RG
     zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
 
     jobs = 0.d0
@@ -653,7 +654,7 @@ contains
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          zhhh = zlev * grav
+          zhhh = zlev
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
           if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
@@ -667,7 +668,7 @@ contains
              ! NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 
              if(ivnm == BUFR_NETS) then
-                zslope = zgamma
+                zslope = zgamma * RG
              else
                 zslope = 0.0d0
              end if
@@ -693,7 +694,7 @@ contains
             ! observation. For mean sea level observation, the observation height = 0.
 
             ! 1) Temperature difference = lapse-rate (6.5 degree/km) * height difference (dz)
-            zgamaz = zgamma*(zhhh-col_getGZsfc(columnhr,headerIndex))
+            zgamaz = zgamma*(zhhh*RG-col_getGZsfc(columnhr,headerIndex))
 
             ! 2) Compute the 2m background virtual temperature: Tv = T*(1+0.608*HU)
             ztvg = (1.0d0 + MPC_DELTA_R8 *  &
@@ -980,7 +981,7 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
-          zal(jl) = col_getHeight(columnhr,jl,headerIndex,'TH') / RG
+          zal(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
 
        if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
@@ -1921,7 +1922,7 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / GRAV
+      zgamma = 0.0065d0 / RG
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
       !C
       !C
@@ -1960,7 +1961,7 @@ contains
                !IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               ZHHH = ZLEV * GRAV
+               ZHHH = ZLEV
                IPT  = nlev - 1 + col_getOffsetFromVarno(columng,ityp)
                IPB  = IPT+1
 
@@ -1983,7 +1984,7 @@ contains
                   ZLTV  = columng%OLTV(1,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'TT')  & 
                        + columng%OLTV(2,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'HU')
                   ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                  ZGAMAZ= ZGAMMA*(ZHHH-col_getGZsfc(columng,headerIndex))
+                  ZGAMAZ= ZGAMMA*(ZHHH*RG-col_getGZsfc(columng,headerIndex))
                   ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                   ZDELPS= (col_getElem(COLUMN,1,headerIndex,'P0')*ZCON**ZEXP)
                   ZDELTV= ((col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
@@ -2218,7 +2219,7 @@ contains
                   DX (        JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
                END DO
-               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH') / RG
+               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH')
                DX (3*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
@@ -2304,8 +2305,8 @@ contains
             varLevel = vnl_varLevelFromVarnum(ityp)
             IPT  = IK + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)/RG
-            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
             ZWT  = 1.0D0 - ZWB
@@ -2357,8 +2358,8 @@ contains
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
                     ZWB*columnVarB + ZWT*columnVarT +  &
                     (columngVarB - columngVarT)*  &
-                    (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel)/RG + &
-                     ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)/RG))
+                    (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel) + &
+                     ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)))
           END IF
         END DO BODY
       end do FAMILY
@@ -2489,7 +2490,7 @@ contains
                   write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
                   !BUE              call utl_abort('oop_Hgp')
                end if
-               ZMT  = col_getGZsfc(columng,headerIndex)/RG
+               ZMT  = col_getGZsfc(columng,headerIndex)
                if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
                !c
                CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
@@ -2889,7 +2890,7 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / GRAV
+      zgamma = 0.0065d0 / RG
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
       !C
       !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
@@ -2928,7 +2929,7 @@ contains
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               ZHHH = ZLEV * GRAV
+               ZHHH = ZLEV
                IPT  = nlev - 1 + col_getOffsetFromVarno(columng,ityp)
                IPB  = IPT+1
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
@@ -2956,7 +2957,7 @@ contains
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')
                  ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                 ZGAMAZ= ZGAMMA*(ZHHH-col_getGZsfc(columng,headerIndex))
+                 ZGAMAZ= ZGAMMA*(ZHHH*RG-col_getGZsfc(columng,headerIndex))
                  ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                  ZDELTV= (col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                       *(ZGAMAZ/(ZTVG*ZTVG))
@@ -3217,7 +3218,7 @@ contains
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
-            AL_column(JL) = DPJO0(JL+2*NGPSLEV) / RG
+            AL_column(JL) = DPJO0(JL+2*NGPSLEV)
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
@@ -3279,8 +3280,8 @@ contains
             IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
             IPT  = IK  + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)/RG
-            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
             ZWT  = 1.0D0 - ZWB
@@ -3701,7 +3702,7 @@ contains
             zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
-            zal(jl) = col_getHeight(columng,jl,headerIndex,'TH') / RG
+            zal(jl) = col_getHeight(columng,jl,headerIndex,'TH')
           enddo
 
           if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
