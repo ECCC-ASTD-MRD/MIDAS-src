@@ -505,13 +505,14 @@ contains
         ppbg  = zwb*ppLyr1 + zwt*ppLyr
 
         ! Adjust zvar, the HLOS wind observation, if all attributes are available
-        if(popcnt(found) == 5) &
+        if(popcnt(found) == 5) then
           ! Adjust in situ the HLOS wind data from obsSpaceData to account for
           ! the differences between our T, P forecast fields and those of the NWP
           ! site that calculated the HLOS wind values.  The goal is to produce an
           ! HLOS wind observation as if it had been calculated by us.
           zvar = zvar + (ttbg - tempRef) * dwdt &
                       + (ppbg - presRef) * dwdp
+        end if
 
         ! Apply the nonlinear aladin observation operator
         columnVarB= -vvLyr1*cos(azimuth) - uuLyr1*sin(azimuth)
