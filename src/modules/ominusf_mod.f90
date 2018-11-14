@@ -174,6 +174,9 @@ module oMinusF_mod
         call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
       end if
 
+      call tmg_stop(1)
+      call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
+
     end subroutine omf_oMinusF
 
 end module oMinusF_mod

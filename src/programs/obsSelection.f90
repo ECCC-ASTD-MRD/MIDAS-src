@@ -23,6 +23,7 @@
 program midas_obsSelection
   use oMinusF_mod
   use backgroundCheck_mod
+  use thinning_mod
   use obsSpaceData_mod
   use columnData_mod
   use obsFiles_mod
@@ -68,14 +69,33 @@ program midas_obsSelection
   call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData)
 
   !
-  !- 3.  Ending
+  ! 2.3 Thinning1:  Set bit 11 of flag, one observation type at a time
+  !
+  call thn_thinAladin(obsSpaceData)
+
+  ! 3 Write the results
+
+  ! 3.1 Into the listings
+  write(*,*)
+  write(*,*) '> midas-obsSelection: printing the FIRST header and body'
+  do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
+    call obs_prnthdr(obsSpaceData,headerIndex)
+    call obs_prntbdy(obsSpaceData,headerIndex)
+  end do
+  ! 3.2 Into the observation files
+  write(*,*)
+  write(*,*) '> midas-obsSelection: writing to file'
+  call obsf_writeFiles(obsSpaceData)
+
+  ! Delete the flagged observations, and make the files smaller
+  call obsf_thinFiles(obsSpaceData)
+
+  !
+  ! 4.  Ending
   !
   write(*,*)
-  write(*,*) '> midas-OminusF: Ending'
+  write(*,*) '> midas-obsSelection: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
-
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
   call rpn_comm_finalize(ierr)
 

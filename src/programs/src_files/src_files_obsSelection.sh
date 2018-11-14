@@ -11,4 +11,4 @@ SRC_FILES="$SRC_FILES advection_mod.f90 bmatrixchem_mod.f90 diffusion_mod.f90 lo
 SRC_FILES="$SRC_FILES bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 chem_obserrors_mod.f90 chem_obsoperators_mod.f90 controlvector_mod.f90 lambmatrixhi_mod.f90 tovs_lin_mod.f90"
 SRC_FILES="$SRC_FILES bmatrix_mod.f90 multi_ir_bgck_mod.f90 obserrors_mod.f90 obsoperators_mod.f90"
 SRC_FILES="$SRC_FILES computeHBHT_mod.f90 innovation_mod.f90 obsspacediag_mod.f90"
-SRC_FILES="$SRC_FILES backgroundCheck_mod.f90 ominusf_mod.f90"
+SRC_FILES="$SRC_FILES backgroundCheck_mod.f90 ominusf_mod.f90 thinning_mod.f90"

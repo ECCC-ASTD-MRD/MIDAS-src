@@ -117,6 +117,9 @@
   BITEMLIST(3)='FGE',
   TYPE_RESUME='BGCKALT'
 /
+ &THIN_ALADIN
+  keepNthVertical=3
+/
  &NAMSQLAL
   numberElem=2,
   listElem="40030,5021",

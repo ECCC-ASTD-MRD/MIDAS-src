@@ -96,9 +96,6 @@ program midas_ominusf
   write(*,*) '> midas-OminusF: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
-
   call rpn_comm_finalize(ierr)
 
   if ( mpi_myid == 0 ) then

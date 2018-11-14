@@ -315,18 +315,8 @@ contains
     end do
     deallocate (nobir)
 
-  !     Write out contents of obsSpaceData into BURP files
-  !
-    call obsf_writeFiles(obsSpaceData)
     ! add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
     call ADD_CLOUDPRMS(obsSpaceData)
-    do j =1, min(1,obs_numHeader(obsSpaceData))
-      call obs_prnthdr(obsSpaceData,j)
-      call obs_prntbdy(obsSpaceData,j)
-    end do
-
-    ! deallocate obsSpaceData
-    call obs_finalize(obsSpaceData)
 
     call tmg_stop(3)
 
