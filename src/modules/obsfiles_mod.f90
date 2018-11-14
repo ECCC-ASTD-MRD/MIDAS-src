@@ -166,6 +166,7 @@ contains
   ! locals
   integer           :: fileIndex
   character(len=10) :: obsFileType
+  logical           :: notSQL
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
@@ -183,7 +184,10 @@ contains
     do fileIndex = 1, obsf_nfiles
 
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-      if ( obsFileType == 'BURP'   ) call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      if ( obsFileType == 'BURP'   ) then
+        call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex, notSQL = .true. )
+      end if
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
     end do

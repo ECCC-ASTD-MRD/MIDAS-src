@@ -628,7 +628,7 @@ contains
   end subroutine sqlr_handleError
 
   
-  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
+  subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber )
     implicit none
     ! arguments
     type(fSQL_DATABASE),intent(inout):: db
@@ -636,7 +636,6 @@ contains
     character(len=*),   intent(in)    :: fileName   
     character(len=*),   intent(in)    :: familyType ! Observation Family Type 
     integer         ,   intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
-
     !  locals
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
@@ -780,7 +779,7 @@ contains
   end subroutine sqlr_updateSqlite
 
 
-  subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber )
+  subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber, notSql )
     implicit none
     ! arguments
     type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
@@ -788,15 +787,17 @@ contains
     character(len=*)       :: familyType
     character(len=*)       :: fileName
     integer                :: fileNumber
+    logical, optional      :: notSql
     ! locals
     integer                :: itemInsertList(15), numberInsertItems
-    type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
+    type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
-    real                   :: obsValue, OMA, OMP, OER, FGE, PPP
+    integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr, codeType, date, time 
+    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
-    character(len  = 256)  :: query
-    logical                :: llok    
+    character(len = 256)   :: queryData, queryHeader
+    logical                :: llok
+    character(len= 12 )    :: idStation    
     character(len=*), parameter :: myName = 'sqlr_insertSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
@@ -823,21 +824,28 @@ contains
 
       case( 'SF', 'SC', 'GP' )
 
-        query = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
+        queryData = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
 
       case DEFAULT
 
-        query = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
+        queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
 
     end select
 
-    query=trim(query)
+    queryData=trim(queryData)
     write(*,*) ' === Family Type === ',trim(familyType)
-    write(*,*) ' Insert query = ', trim(query)
+    write(*,*) ' Insert query Data = ', trim(queryData)
 
     call fSQL_begin(db)
-    call fSQL_prepare( db, query , stmt, stat)
+    call fSQL_prepare( db, queryData, stmtData, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+
+    if (present( notSql )) then
+      queryHeader= ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
+      queryHeader=trim(queryHeader)
+      call fSQL_prepare( db, queryHeader, stmtHeader, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    end if
 
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -847,6 +855,29 @@ contains
       obsIdo = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
+
+      if (present( notSql )) then 
+    
+        idStation = obs_elem_c( obsdat, 'STID', headerIndex ) 
+        altitude  = obs_headElem_r( obsdat, OBS_ALT, headerIndex )        
+        lon = obs_headElem_r( obsdat, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+        lat = obs_headElem_r( obsdat, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+        if (  lon > 180. ) lon = lon - 360.
+        codeType = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        date     = obs_headElem_i( obsdat, OBS_DAT, headerIndex )
+        time     = obs_headElem_i( obsdat, OBS_ETM, headerIndex )
+
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = obsIdo )
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 3, REAL_VAR = lat       ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 4, REAL_VAR = lon       ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 5, INT_VAR  = date      ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 6, INT_VAR  = time      ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 7, INT_VAR  = codeType  ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, REAL_VAR = altitude  ) 
+        call fSQL_exec_stmt ( stmtHeader )
+
+      end if
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
 
@@ -870,28 +901,28 @@ contains
           if ( llok ) then
             select case(trim(familyType))
               case( 'SF', 'SC', 'GP' )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = OMA      ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMP      ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE      ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER      ) 
-                call fSQL_exec_stmt ( stmt)
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA      ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP      ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE      ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER      ) 
+                call fSQL_exec_stmt ( stmtData)
               case DEFAULT
-                call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo        )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = OMP           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = FGE           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = OER           ) 
-                call fSQL_exec_stmt ( stmt)
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = obsIdo        )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA           ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP           ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE           ) 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 10,REAL_VAR = OER           ) 
+                call fSQL_exec_stmt ( stmtData)
             end select
             numberInsert = numberInsert + 1
           end if    ! llok
@@ -901,7 +932,7 @@ contains
 
     end do HEADER
 
-    call fSQL_finalize( stmt )
+    call fSQL_finalize( stmtData )
     call fSQL_commit(db)
     write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
 
