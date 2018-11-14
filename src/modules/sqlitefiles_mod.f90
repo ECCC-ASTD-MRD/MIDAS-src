@@ -169,13 +169,14 @@ module sqliteFiles_mod
   end subroutine  sqlf_readFile
 
   
-  subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex)
+  subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex, notSql )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*)                 :: fileName
     character(len=*)                 :: familyType
     integer                          :: fileIndex
+    logical, optional                :: notSql
     ! locals
     integer :: headerIndex
     character(len=*), parameter :: myName = 'sqlf_updateFile'
@@ -184,6 +185,7 @@ module sqliteFiles_mod
 
     call tmg_start(97,'POST_UPDATESQL')
     write(*,*) myName//' Starting'
+    if (present( notSql )) fileName = trim(fileName)//'.rdb'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
     
@@ -193,8 +195,12 @@ module sqliteFiles_mod
       write(*,*) myError, fSQL_errmsg(statusSqlite )
     end if
   
-    call sqlr_updateSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
-    call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    if (present( notSql )) then
+      call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex, notSql )
+    else
+      call sqlr_updateSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+      call sqlr_insertSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    end if
 
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, statusSqlite )
