@@ -301,8 +301,9 @@ contains
     character(len=32)   :: directionAnlInc
     character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
 
-    real(8) :: advectFactor
     real(8), pointer     :: ens_oneLev(:,:,:,:)
+
+    real(8) :: delT_hour
 
     real(8), allocatable :: advectFactor(:)
 
@@ -450,7 +451,9 @@ contains
 
     character(len=32)   :: directionAnlInc
 
-    real(8) :: delT_hour, advectFactor
+    real(8) :: delT_hour
+
+    real(8), allocatable :: advectFactor(:)
 
     integer :: numStepAdvect, numStepReferenceFlow
 
