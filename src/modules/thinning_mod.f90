@@ -112,8 +112,11 @@ contains
       bodyIndex = obs_getBodyIndex(obsdat)
       if (bodyIndex < 0) exit BODY
 
-      ! if datum already rejected, ignore it
-      flag           = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex  )
+      ! If the datum is not being assimilated, ignore it
+      if(0 ==        obs_bodyElem_i(obsdat, OBS_ASS,  bodyIndex)) cycle BODY
+
+      ! If datum already rejected, ignore it
+      flag         = obs_bodyElem_i(obsdat, OBS_FLG,  bodyIndex  )
       if(btest(flag,BIT9))cycle BODY
 
       headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
