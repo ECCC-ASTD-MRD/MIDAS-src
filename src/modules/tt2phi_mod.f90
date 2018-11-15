@@ -1100,7 +1100,7 @@ subroutine calcAltitudeCoeff(columng)
 
       ! Gravity acceleration 
       h0  = gz_T(lev_T)
-      Rgh = gpsgravityalt(sLat, h0)
+      Rgh = phf_gravityalt(sLat, h0)
 
       coeff_T_TT(lev_T,columnIndex) = (p_Rd / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT)
       coeff_T_HU(lev_T,columnIndex) = (p_Rd / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU)
@@ -1262,90 +1262,5 @@ function gpscompressibility_P0(p,t,q,dpdp0)
           2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
 end function gpscompressibility_P0
 
-function gpsgravitysrf(sLat)
-  !  Normal gravity on ellipsoidal surface:
-  !  Input:  Latitude
-  !          sin(Latitude)
-  !
-  !  Output: Normal gravity
-  !          gpsgravitysrf         : m/s2
-  !
-  real(8), intent(in)  :: sLat
-  real(8)              :: gpsgravitysrf
-  
-  real(8)              :: ks2
-  real(8)              :: e2s
-
-  ks2 = WGS_TNGk * sLat*sLat
-  e2s = 1.D0 - WGS_e2 * sLat*sLat
-  gpsgravitysrf = WGS_GammaE * (1.D0 + ks2) / sqrt(e2s)
-end function gpsgravitysrf
-
-function gpsgravityalt(sLat, Altitude)
-  ! Normal gravity above the ellipsoidal surface:
-  ! Input:  Latitude, altitude
-  !         sin(Latitude)
-  !         Altitude               : m
-  !
-  ! Output: Normal gravity
-  !         gpsgravityalt          : m/s2
-  !
-  real(8), intent(in)  :: sLat
-  real(8), intent(in)  :: Altitude
-  real(8)              :: gpsgravityalt
-
-  real(8)              :: C1
-  real(8)              :: C2
-
-  C1 =-2.D0/WGS_a*(1.D0+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
-  C2 = 3.D0/WGS_a**2
-  gpsgravityalt = gpsgravitysrf(sLat)*                                   &
-       (1.D0 + C1 * Altitude + C2 * Altitude**2)
-end function gpsgravityalt
-
-function gpsgeopotential(Latitude, Altitude)
-  ! Geopotential energy at a given point.
-  ! Result is based on the WGS84 approximate expression for the
-  ! gravity acceleration as a function of latitude and altitude,
-  ! integrated with the trapezoidal rule.
-  ! Input:  Latitude, altitude
-  !         Latitude               : rad
-  !         Altitude               : m
-  !
-  ! Output: Geopotential
-  !         gpsgeopotential                              : m2/s2
-  !
-  real(8), intent(in)  :: Latitude
-  real(8), intent(in)  :: Altitude
-  real(8)              :: gpsgeopotential
-
-  real(8)              :: dh, sLat
-  integer               :: n, i
-  real(8), allocatable :: hi(:)
-  real(8), allocatable :: gi(:)
-  
-  dh = 500.D0
-  n = 1 + int(Altitude/dh)
-
-  allocate(hi(0:n))
-  allocate(gi(0:n))
-
-  sLat=sin(Latitude)
-
-  do i = 0, n-1
-     hi(i) = i * dh
-     gi(i) = gpsgravityalt(sLat, hi(i))
-  enddo
-  hi(n) = Altitude
-  gi(n) = gpsgravityalt(sLat, hi(n))
-
-  gpsgeopotential = 0.D0
-  do i = 1, n
-     gpsgeopotential = gpsgeopotential + 0.5D0 * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
-  enddo
-
-  deallocate(hi)
-  deallocate(gi)
-end function gpsgeopotential
 
 end module tt2phi_mod
