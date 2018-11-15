@@ -286,14 +286,16 @@ contains
     character(len=*) :: cdfam
 
     integer :: headerIndex,bodyIndex,ilyr
-    integer :: iass,ixtr,ivco,ivnm
+    integer :: iass,ixtr,ivco,ivnm,nlev_T
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,zexp,zgamma,ztvg
     real(8) :: zlev,zpt,zpb,zomp
-    real(8) :: columnVarB,columnVarT
+    real(8) :: columnVarB,columnVarT,lat
     character(len=4) :: varName
     character(len=2) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
+    real(8), allocatable :: geopotential(:)
+    logical, save :: printGZ = .true.
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
@@ -301,6 +303,9 @@ contains
 
     zgamma = 0.0065D0 / RG
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
+
+    nlev_T = col_getNumLev(columnhr,'TH')
+    allocate(geopotential(nlev_T))
 
     jobs = 0.d0
 
@@ -331,6 +336,7 @@ contains
          zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
          zwb  = log(zlev/zpt)/log(zpb/zpt)
          zwt  = 1.d0 - zwb
+         lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
          if (ivnm == bufr_nees) then
            col_ptr_hu=>col_getColumn(columnhr,headerIndex,'HU')
            col_ptr_tt=>col_getColumn(columnhr,headerIndex,'TT')
@@ -339,8 +345,9 @@ contains
          else
            if (trim(varName) == 'GZ') then
              col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
-             columnVarB=col_ptr(ilyr+1)*RG
-             columnVarT=col_ptr(ilyr  )*RG
+             call phf_alt2geopotential(nlev_T,col_ptr,lat,geopotential,printGZ)
+             columnVarB=geopotential(ilyr+1)
+             columnVarT=geopotential(ilyr  )
            else
              col_ptr=>col_getColumn(columnhr,headerIndex,varName)
              columnVarB=col_ptr(ilyr+1)
@@ -371,6 +378,8 @@ contains
        end if
 
     end do body
+
+    deallocate(geopotential)
 
     jobs = 0.5d0 * jobs
 

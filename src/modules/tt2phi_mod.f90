@@ -60,23 +60,6 @@ module tt2phi_mod
   ! Units and scales:
   real(8), parameter :: p_knot  = 0.514444D0
 
-  ! Semimajor axis (a) (m)                             [*Defining constant*]
-  real(8), parameter :: WGS_a = 6378137.0D0
-
-  ! Theoretical (Normal) Gravity Formula Constant:
-  real(8), parameter :: WGS_TNGk = 0.00193185265241D0
-
-  ! First eccentricity squared:
-  real(8), parameter :: WGS_e2 = 6.69437999014D-3
-
-  ! Theoretical (Normal) Gravity at the equator (m/s2):
-  real(8), parameter :: WGS_GammaE = 9.7803253359D0
-
-  ! Flattening (f)                                     [*Defining constant*]
-  real(8), parameter :: WGS_f = 1.D0 / 298.257223563D0
-
-  ! m = omega^2 a^2 b / GM
-  real(8), parameter :: WGS_m = 0.00344978650684D0
   ! }}}
 
   ! private module variables
@@ -167,13 +150,13 @@ subroutine tt2phi(columnghr,beSilent_opt)
 
     ! compute altitude on bottom thermo level (Vcode=5005)
     if (Vcode == 5002) then
-      Rgh = gpsgravitysrf(sLat)
+      Rgh = phf_gravitysrf(sLat)
       rMT = col_getGZsfc(columnghr,columnIndex) / Rgh
       AL_T(nlev_T) = rMT
     elseif (Vcode == 5005) then
       ratioP  = log(col_getPressure(columnghr,nlev_T,columnIndex,'TH') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
-      Rgh = gpsgravitysrf(sLat)
+      Rgh = phf_gravitysrf(sLat)
       delThick = (-p_Rd / Rgh) * tv(nlev_T) * ratioP
       rMT = col_getGZsfc(columnghr,columnIndex) / Rgh
       AL_T(nlev_T) = rMT + delThick
@@ -198,9 +181,9 @@ subroutine tt2phi(columnghr,beSilent_opt)
       h0  = AL_T(lev_T+1)
       Eot = 2 * WGS_OmegaPrime * cLat * p_knot * rUU
       Eot2= ((p_knot*rUU) ** 2 + (p_knot*rVV) ** 2) / WGS_a
-      Rgh = gpsgravityalt(sLat, h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0) - Eot - Eot2
       dh  = (-p_Rd / Rgh) * tvm * ratioP
-      Rgh = gpsgravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
 
       delThick   = (-p_Rd / Rgh) * tvm * ratioP
       AL_T(lev_T) = AL_T(lev_T+1) + delThick
@@ -247,9 +230,9 @@ subroutine tt2phi(columnghr,beSilent_opt)
       h0  = AL_T(1)
       Eot = 2 * WGS_OmegaPrime * cLat * p_knot * rUU
       Eot2= ((p_knot*rUU) ** 2 + (p_knot*rVV) ** 2) / WGS_a
-      Rgh = gpsgravityalt(sLat, h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0) - Eot - Eot2
       dh  = (-p_Rd / Rgh) * tvm * ratioP
-      Rgh = gpsgravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
 
       delThick   = (-p_Rd / Rgh) * tvm * ratioP
       AL_M(1) = AL_T(1) + delThick
@@ -602,7 +585,7 @@ subroutine calcAltitudeCoeff(columng)
 
       ! Gravity acceleration 
       h0  = gz_T(lev_T)
-      Rgh = gpsgravityalt(sLat, h0)
+      Rgh = phf_gravityalt(sLat, h0)
 
       coeff_T_TT(lev_T,columnIndex) = (p_Rd / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT)
       coeff_T_HU(lev_T,columnIndex) = (p_Rd / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU)
@@ -764,90 +747,5 @@ function gpscompressibility_P0(p,t,q,dpdp0)
           2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
 end function gpscompressibility_P0
 
-function gpsgravitysrf(sLat)
-  !  Normal gravity on ellipsoidal surface:
-  !  Input:  Latitude
-  !          sin(Latitude)
-  !
-  !  Output: Normal gravity
-  !          gpsgravitysrf         : m/s2
-  !
-  real(8), intent(in)  :: sLat
-  real(8)              :: gpsgravitysrf
-  
-  real(8)              :: ks2
-  real(8)              :: e2s
-
-  ks2 = WGS_TNGk * sLat*sLat
-  e2s = 1.D0 - WGS_e2 * sLat*sLat
-  gpsgravitysrf = WGS_GammaE * (1.D0 + ks2) / sqrt(e2s)
-end function gpsgravitysrf
-
-function gpsgravityalt(sLat, Altitude)
-  ! Normal gravity above the ellipsoidal surface:
-  ! Input:  Latitude, altitude
-  !         sin(Latitude)
-  !         Altitude               : m
-  !
-  ! Output: Normal gravity
-  !         gpsgravityalt          : m/s2
-  !
-  real(8), intent(in)  :: sLat
-  real(8), intent(in)  :: Altitude
-  real(8)              :: gpsgravityalt
-
-  real(8)              :: C1
-  real(8)              :: C2
-
-  C1 =-2.D0/WGS_a*(1.D0+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
-  C2 = 3.D0/WGS_a**2
-  gpsgravityalt = gpsgravitysrf(sLat)*                                   &
-       (1.D0 + C1 * Altitude + C2 * Altitude**2)
-end function gpsgravityalt
-
-function gpsgeopotential(Latitude, Altitude)
-  ! Geopotential energy at a given point.
-  ! Result is based on the WGS84 approximate expression for the
-  ! gravity acceleration as a function of latitude and altitude,
-  ! integrated with the trapezoidal rule.
-  ! Input:  Latitude, altitude
-  !         Latitude               : rad
-  !         Altitude               : m
-  !
-  ! Output: Geopotential
-  !         gpsgeopotential                              : m2/s2
-  !
-  real(8), intent(in)  :: Latitude
-  real(8), intent(in)  :: Altitude
-  real(8)              :: gpsgeopotential
-
-  real(8)              :: dh, sLat
-  integer               :: n, i
-  real(8), allocatable :: hi(:)
-  real(8), allocatable :: gi(:)
-  
-  dh = 500.D0
-  n = 1 + int(Altitude/dh)
-
-  allocate(hi(0:n))
-  allocate(gi(0:n))
-
-  sLat=sin(Latitude)
-
-  do i = 0, n-1
-     hi(i) = i * dh
-     gi(i) = gpsgravityalt(sLat, hi(i))
-  enddo
-  hi(n) = Altitude
-  gi(n) = gpsgravityalt(sLat, hi(n))
-
-  gpsgeopotential = 0.D0
-  do i = 1, n
-     gpsgeopotential = gpsgeopotential + 0.5D0 * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
-  enddo
-
-  deallocate(hi)
-  deallocate(gi)
-end function gpsgeopotential
 
 end module tt2phi_mod
