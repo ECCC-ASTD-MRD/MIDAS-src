@@ -1,5 +1,7 @@
 #!/bin/ksh
 
+. ssmuse-sh -d eccc/cmd/cmda/utils/16.2-4
+
 for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     input=$(readlink ${fileinput})
     $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Downloading input: ${input}"
@@ -14,3 +16,20 @@ for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     mv * ${TASK_OUTPUT}
 done
 
+cd ${TASK_OUTPUT}
+
+for directory in burpfiles_*; do
+    if [ -d "${directory}" ]; then
+	obsFamily=${directory#*_}
+	if [[ $obsFamily = to_* ]]
+	then
+	  obsFamily=${obsFamily#*_}
+	fi
+	cd ${directory}
+	rdbgen -f 'emptyFile.rdb' -type ${obsFamily}
+        for files in *; do
+          cp emptyFile.rdb  ${files}'.rdb'
+        done
+	cd ../
+    fi
+done

@@ -166,13 +166,12 @@ contains
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType
-  logical           :: notSQL
+  logical           :: lwritediagsql
   character(len=*), parameter :: myName = 'obsf_writeFiles'
   character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
   character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
   namelist /namwritediag/lwritediagsql
-  lwritediagsql = .false.
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
@@ -181,8 +180,12 @@ contains
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namwritediag,iostat=ierr)
-  if(ierr /= 0) call utl_abort( myError//'Error reading namelist' )
-  if(mpi_myid == 0) write(*,nml = namwritediag)
+  if (ierr /= 0) then
+    write(*,*) myWarning//'ATTENTION !!! namwritediag is missing in the namelist. The default value will be taken.'
+    lwritediagsql = .false.
+  else
+    if (mpi_myid == 0) write(*,nml = namwritediag)
+  end if
   ierr=fclos(nulnam)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
@@ -199,7 +202,7 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( obsFileType == 'BURP'   ) then
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        if (lwritediagsql) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex, notSQL = .true. )
+        if (lwritediagsql) call sqlf_generateSqlFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
       end if
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
