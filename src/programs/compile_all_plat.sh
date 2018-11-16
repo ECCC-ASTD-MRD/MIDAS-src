@@ -16,6 +16,9 @@ else
     exit 1
 fi
 
+COMPILING_MACHINE_PPP=${COMPILING_MACHINE_PPP:-eccc-ppp1}
+COMPILING_MACHINE_SUPER=${COMPILING_MACHINE_SUPER:-brooks}
+
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
 
@@ -33,20 +36,20 @@ yes '' | head -n ${number_of_programs} | ./compile_all.sh
 EOF
 
 #pbs_extra1='-Wblock=true'
-#ord_soumet compile_job -jn ${jobname} -mach brooks    -listing ${PWD} -w 60 -cpus 36
+#ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_SUPER} -listing ${PWD} -w 60 -cpus 36
 
 ## Using as many cpus as there are programs to compile
-jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp1 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
+jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
-## On evite d'attendre en queue en faisant un 'ssh' directement sur 'brooks'
-cat compile_job | ssh brooks bash --login
+## On evite d'attendre en queue en faisant un 'ssh' directement sur '${COMPILING_MACHINE_SUPER}'
+cat compile_job | ssh ${COMPILING_MACHINE_SUPER} bash --login
 rm compile_job
 
 function is_compilation_done {
     set -e
     __is_compilation_done_host__=${1}
 
-    if [ "${__is_compilation_done_host__}" = brooks -o "${__is_compilation_done_host__}" = eccc-ppp1 ]; then
+    if [ "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_SUPER}" -o "${__is_compilation_done_host__}" = "${COMPILING_MACHINE_PPP}" ]; then
         # the jobname is cut with 15 characters by 'jobst'
         jobstname=$(echo ${jobname} | cut -c-15)
     else
@@ -69,7 +72,7 @@ function is_compilation_done {
     unset __is_compilation_done_host__
 }
 
-for host in eccc-ppp1; do
+for host in ${COMPILING_MACHINE_PPP}; do
     is_compilation_done ${host}
 done
 
