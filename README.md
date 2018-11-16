@@ -1,4 +1,4 @@
-# MIDAS Fortran coding standards (under construction):
+# MIDAS Fortran coding standards:
 
 * [List of standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards)
 
