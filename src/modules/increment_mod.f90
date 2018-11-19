@@ -167,7 +167,9 @@ CONTAINS
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocGZsfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree)
+    call tmg_start(180,'INC_READTRIALS')
     call gsv_readTrials(statevector_trial)
+    call tmg_stop(180)
 
     !
     !- Get the increment of Psfc
@@ -242,6 +244,7 @@ CONTAINS
     !
     if(mpi_myid == 0) write(*,*) ''
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: compute the analysis'
+    call tmg_start(181,'INC_COMPUTEANL')
 
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -288,19 +291,23 @@ CONTAINS
       call gsv_add(statevector_incHighRes, statevector_analysis)
 
     end if
+    call tmg_stop(181)
 
     !
     !- Impose limits on humidity analysis and recompute increment
     !
+    call tmg_start(182,'INC_QLIMITS')
     write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
     call qlim_gsvSaturationLimit(statevector_analysis)
     if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis)
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
+    call tmg_stop(182)
 
     !
     !- Write interpolated increment files
     !
+    call tmg_start(183,'INC_WRITEREHM')
     if( writeHiresIncrement ) then
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
@@ -328,10 +335,12 @@ CONTAINS
         end if
       end do
     end if
+    call tmg_stop(183)
 
     !
     !- Write analysis state to file
     !
+    call tmg_start(184,'INC_WRITEANLM')
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
@@ -350,6 +359,7 @@ CONTAINS
                             stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
                             numBits_opt=writeNumBits, containsFullField_opt=.true. )
     end do
+    call tmg_stop(184)
 
     call gsv_deallocate(statevector_analysis)
     if (gsv_varExist(varName='P0')) then
