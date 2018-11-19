@@ -4146,10 +4146,12 @@ module gridStateVector_mod
               work2d_r4(:,:) = work2d_r4(:,:) - MPC_K_C_DEGREE_OFFSET_R4
             end if
 
+            call tmg_start(189,'WRITETOFILE_ECR')
             !- Writing to file
             ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                           ig1, ig2, ig3, ig4, datyp, .false.)
+            call tmg_stop(189)
 
           end if ! iDoWriting
 
