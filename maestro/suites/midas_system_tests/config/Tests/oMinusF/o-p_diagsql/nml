@@ -323,5 +323,5 @@
   TYPE_RESUME='DERIALT'
 /
  &NAMWRITEDIAG
-  lwritediagsql =.TRUE.
+  lwritediagsql=.TRUE.
 / 

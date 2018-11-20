@@ -18,7 +18,11 @@ done
 
 cd ${TASK_OUTPUT}
 
-for directory in burpfiles_*; do
+# if lwritediagsql=.true. in the namelist, the ObsSpaceData content is saved in sqlite files
+# empty sqlite files should be created prior to the fortran code execution using rdbgen -f 'emptyFile.rdb' -type ${obsFamily} 
+if grep -i "lwritediagsql" "${UnitTest_run_namelist}"
+then
+  for directory in burpfiles_*; do
     if [ -d "${directory}" ]; then
 
 	obsFamily=${directory#*_}
@@ -41,3 +45,4 @@ for directory in burpfiles_*; do
 	cd ../
     fi
 done
+fi
