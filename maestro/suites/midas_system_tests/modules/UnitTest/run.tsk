@@ -106,6 +106,14 @@ for file in ${TASK_INPUT}/inputs/*; do
     rm -r ${bfile}
 done
 
+# sauvegarder les fichiers diagnostiiques SQLITE
+[[ -d ${TASK_OUTPUT}"/diagsql" ]] || mkdir ${TASK_OUTPUT}"/diagsql"
+for file in obs/*; do
+    if [[ "${file}" == *rdb ]]; then
+	mv $file ${TASK_OUTPUT}/diagsql
+    fi
+done
+
 ## remove other files created by the execution
 rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
 rm -r mpitmpdir

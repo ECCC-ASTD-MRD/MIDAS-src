@@ -20,11 +20,19 @@ cd ${TASK_OUTPUT}
 
 for directory in burpfiles_*; do
     if [ -d "${directory}" ]; then
+
 	obsFamily=${directory#*_}
-	if [[ $obsFamily = to_* ]]
-	then
+
+	if [[ $obsFamily = to_* ]]; then
 	  obsFamily=${obsFamily#*_}
+	elif [[ $obsFamily = 'ssmis' ]]; then
+	  obsFamily='ssmi' 	
+        elif [[ $obsFamily = 'gp' || $obsFamily = 'sc' || $obsFamily = 'sfc' ]]; then
+	  obsFamily='sf'  
+	elif [[ $obsFamily = 'uan' || $obsFamily = 'uas' ]]; then
+	  obsFamily='ua'
 	fi
+
 	cd ${directory}
 	rdbgen -f 'emptyFile.rdb' -type ${obsFamily}
         for files in *; do

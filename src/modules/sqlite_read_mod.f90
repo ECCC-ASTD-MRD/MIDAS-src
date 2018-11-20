@@ -970,9 +970,9 @@ contains
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    write(*,*)  myName//' --- Starting ---   '
-    write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
-    write(*,*)' fileName -> ', trim(fileName)   
+    write(*,*) myName//' --- Starting ---   '
+    write(*,*) myName//' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
+    write(*,*) myName//' fileName -> ', trim(fileName)   
    
     select case( trim( familyType ) )
 
@@ -990,9 +990,9 @@ contains
     queryHeader= ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
     queryHeader=trim(queryHeader)
 
-    write(*,*) ' === Family Type === ',trim(familyType)
-    write(*,*) ' Insert query Data   = ', trim(queryData)
-    write(*,*) ' Insert query Header = ', trim(queryHeader)
+    write(*,*) myName//' === Family Type === ',trim(familyType)
+    write(*,*) myName//' Insert query Data   = ', trim(queryData)
+    write(*,*) myName//' Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare( db, queryData, stmtData, stat )
@@ -1007,18 +1007,16 @@ contains
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
 
       idObs = idObs + 1
-      obsIdf    = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
-      if ( obsIdf /= fileNumber ) cycle HEADER
       obsRln    = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv    = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
       idStation = obs_elem_c( obsdat, 'STID', headerIndex ) 
-      altitude  = obs_headElem_r( obsdat, OBS_ALT, headerIndex ) ! AS FOR UA,PR,SF and GP. DEFAULT CASE WAS alt = alt + 400. Do we really need it?       
+      altitude  = obs_headElem_r( obsdat, OBS_ALT, headerIndex )      
       lon       = obs_headElem_r( obsdat, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
       lat       = obs_headElem_r( obsdat, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
       if (  lon > 180. ) lon = lon - 360.
       codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
       date      = obs_headElem_i( obsdat, OBS_DAT, headerIndex )
-      time      = obs_headElem_i( obsdat, OBS_ETM, headerIndex )  ! * 100. NO MULTIPLICATION
+      time      = obs_headElem_i( obsdat, OBS_ETM, headerIndex ) * 100.
  
       call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = idObs )
       call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
@@ -1043,34 +1041,32 @@ contains
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex )
 
-        if ( idData > 0 ) then
-          select case(trim(familyType))
-            case( 'SF', 'SC', 'GP' )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs    )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA      ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP      ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE      ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER      ) 
-            case DEFAULT
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs        )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA           ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP           ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE           ) 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 10,REAL_VAR = OER           ) 
-              call fSQL_exec_stmt ( stmtData)
-           end select
-           call fSQL_exec_stmt ( stmtData)
-           numberInsert = numberInsert + 1
-        end if
+        select case(trim(familyType))
+          case( 'SF', 'SC', 'GP' )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs    )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA      ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP      ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE      ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER      ) 
+          case DEFAULT
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA           ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP           ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE           ) 
+            call fSQL_bind_param( stmtData, PARAM_INDEX = 10,REAL_VAR = OER           ) 
+            call fSQL_exec_stmt ( stmtData)
+        end select
+        call fSQL_exec_stmt ( stmtData )
+        numberInsert = numberInsert + 1
 
       end do BODY
 
