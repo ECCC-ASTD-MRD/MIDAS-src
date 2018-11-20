@@ -63,14 +63,15 @@ CONTAINS
     type(struct_gsv) :: statevector_trial, statevector_analysis
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
     type(struct_gsv) :: statevector_PsfcLowRes_varsLevs, statevector_Psfc_varsLevs
+    type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
     integer              :: fclos, fnom, fstopc, ierr
-    integer              :: stepIndex, numStep, middleStep
-    integer              :: nulnam, dateStamp
+    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep, middleStep
+    integer              :: nulnam, dateStamp, numBatch, batchIndex, procToWrite
     integer, allocatable :: dateStampList(:)
     integer              :: get_max_rss
 
@@ -305,61 +306,94 @@ CONTAINS
     call tmg_stop(182)
 
     !
-    !- Write interpolated increment files
+    !- Write out the files in parallel with respect to time steps
     !
-    call tmg_start(183,'INC_WRITEREHM')
-    if( writeHiresIncrement ) then
-      do stepIndex = 1, numStep
-        dateStamp = datestamplist(stepIndex)
-        if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: writing interpolated increment for time step: ',stepIndex, dateStamp
+    call tmg_start(183,'INC_NEWWRITEANLMREHM')
 
+    ! figure out number of batches of time steps for writing
+    numBatch = ceiling(real(stateVector_analysis%numStep) / real(mpi_nprocs))
+    write(*,*) 'inc_computeAndWriteAnalysis: writing will be done by number of batches = ', numBatch
+
+    BATCH: do batchIndex = 1, numBatch
+
+      stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
+      stepIndexEnd = min(stateVector_analysis%numStep, stepIndexBeg + mpi_nprocs - 1)
+      write(*,*) 'inc_computeAndWriteAnalysis: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
+
+      ! figure out which time step I will write, if any (-1 if none)
+      stepIndexToWrite = -1
+      do stepIndex = stepIndexBeg, stepIndexEnd
+        procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
+        if ( procToWrite == mpi_myid ) stepIndexToWrite = stepIndex
+        if ( mpi_myid == 0 ) write(*,*) 'inc_computeAndWriteAnalysis: stepIndex, procToWrite = ', stepIndex, procToWrite
+      end do
+
+      ! determine date and allocate stateVector for storing just 1 time step, if I do writing
+      if ( stepIndexToWrite /= -1 ) then
+
+        dateStamp = stateVector_analysis%dateStampList(stepIndexToWrite)
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
         else
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         endif
+
+        call gsv_allocate( stateVector_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
+                           dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
+                           allocGZsfc_opt=allocGZsfc )
+        call gsv_allocate( stateVector_Psfc_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
+                           dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
+                           varNames_opt=(/'P0'/), allocGZsfc_opt=.true. )
+      end if
+
+      ! transpose ANALYSIS data from Tiles to Steps
+      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_analysis, stepIndexBeg)
+
+      ! write the ANALYSIS file for one timestep on all tasks with data
+      if ( stepIndexToWrite /= -1 ) then
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        anlFileName = './anlm_' // trim(coffset) // 'm'
+        call gsv_writeToFile( statevector_1step_r4, trim(anlFileName), etiket_anlm,  &
+                              typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
+                              numBits_opt=writeNumBits, containsFullField_opt=.true. )
+      end if
+
+      ! transpose INCREMENT data from Tiles to Steps
+      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_incHighRes, stepIndexBeg)
+
+      ! write the INCREMENT file for one timestep on all tasks with data
+      if ( stepIndexToWrite /= -1 ) then
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         incFileName = './rehm_' // trim(coffset) // 'm'
+        call gsv_writeToFile( statevector_1step_r4, trim(incFileName), etiket_rehm,  &
+                              typvar_opt='R', &
+                              numBits_opt=writeNumBits, containsFullField_opt=.false. )
+      end if
 
-        write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-        call gsv_writeToFile( statevector_incHighRes, trim(incFileName), etiket_rehm,  &
-                              stepIndex_opt=stepIndex, typvar_opt='R', numBits_opt=writeNumBits, &
-                              containsFullField_opt=.false. )
+      if (gsv_varExist(varName='P0')) then
 
-        if (gsv_varExist(varName='P0')) then
-          ! Also write analysis value of Psfc and surface GZ to increment file
-          call gsv_writeToFile( statevector_Psfc, trim(incFileName), etiket_rehm,  &
-                                stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=.true., &
-                                numBits_opt=writeNumBits, containsFullField_opt=.false. )
+        ! transpose ANALYSIS PSFC AND GZ_SFC ONLY data from Tiles to Steps
+        call gsv_transposeTilesToStep(stateVector_Psfc_1step_r4, stateVector_Psfc, stepIndexBeg)
+
+        ! Also write analysis value of Psfc and surface GZ to increment file
+        if ( stepIndexToWrite /= -1 ) then
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          incFileName = './rehm_' // trim(coffset) // 'm'
+          call gsv_writeToFile( statevector_Psfc_1step_r4, trim(incFileName), etiket_rehm,  &
+                                typvar_opt='A', writeGZsfc_opt=.true., &
+                                numBits_opt=writeNumBits, containsFullField_opt=.true. )
         end if
-      end do
-    end if
+
+      end if
+
+      if ( stepIndexToWrite /= -1 ) then
+        call gsv_deallocate(stateVector_1step_r4)
+        call gsv_deallocate(stateVector_Psfc_1step_r4)
+      end if
+
+    end do BATCH
     call tmg_stop(183)
-
-    !
-    !- Write analysis state to file
-    !
-    call tmg_start(184,'INC_WRITEANLM')
-    do stepIndex = 1, numStep
-      dateStamp = datestamplist(stepIndex)
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: writing analysis for time step: ',stepIndex, dateStamp
-
-      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      anlFileName = './anlm_' // trim(coffset) // 'm'
-
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-      call gsv_writeToFile( statevector_analysis, trim(anlFileName), etiket_anlm,  &
-                            stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
-                            numBits_opt=writeNumBits, containsFullField_opt=.true. )
-    end do
-    call tmg_stop(184)
 
     call gsv_deallocate(statevector_analysis)
     if (gsv_varExist(varName='P0')) then
