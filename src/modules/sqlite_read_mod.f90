@@ -965,7 +965,8 @@ contains
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
     character(len = 256)   :: queryData, queryHeader
-    character(len= 12 )    :: idStation    
+    character(len = 12 )   :: idStation
+    character(len =  8 )   :: missingValueChar    
     character(len=*), parameter :: myName = 'sqlr_insertDiagSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
