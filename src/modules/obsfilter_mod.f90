@@ -509,6 +509,10 @@ contains
     real(8) :: zStnAlt, zpb, zpt, zdelp
     logical :: llok
 
+    real(8) :: geopotential(1), height(1)
+    integer :: nlev_M
+    real(8) :: lat
+
     if ( .not.beSilent ) then
       write(*,*) ' '
       write(*,*) ' SUBROUTINE filt_topoRAOB '
@@ -528,6 +532,8 @@ contains
     igzacc(:)=0
     igzrej(:)=0
     ibndrej(:)=0
+
+    nlev_M = col_getNumLev(columnhr,'MM')
 
     ! loop over all header indices of the 'UA' family
     call obs_set_current_header_list(obsSpaceData, 'UA')
@@ -555,9 +561,14 @@ contains
           llok = (ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1)
           if (.not. llok ) cycle BODY
 
+          ! convert altitude read from column to geopotential
+          height(1) = col_getHeight(columnhr,nlev_M,headerIndex,'MM')
+          lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+          call phf_alt2geopotential(height,lat,geopotential)
+
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-          zdiff= ( zval - col_getGZsfc(columnhr,headerIndex)*RG )/RG
+          zdiff= ( zval - geopotential(1) )/RG
           ! obs is above surface, so it is ok, lets jump to the next obs
           if(zdiff .ge. 0.0d0) cycle BODY
 

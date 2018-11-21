@@ -1054,33 +1054,66 @@ module physicsFunctions_mod
   end function phf_gravityalt
 
 
-  subroutine phf_alt2geopotential(nlev, altitude, latitude, geopotential, printGZ)
+  subroutine phf_alt2geopotential(altitude, latitude, geopotential, printGZ)
     !**s/r phf_alt2geopotential - Geopotential energy at a given point.
     ! Result is based on the WGS84 approximate expression for the
     ! gravity acceleration as a function of latitude and altitude,
     ! integrated with the trapezoidal rule.
     !
-    ! Input:  nlev, altitude(m), latitude (rad)
+    ! Input:  altitude(m), latitude (rad)
     ! Output: geopotential (m2/s2)
     !
     ! Author : M. Bani Shahabadi, November 2018
     !
-    integer               :: nlev
     real(8), intent(in)   :: altitude(:)
     real(8), intent(in)   :: latitude
     real(8), intent(inout):: geopotential(:)
 
-    real(8)              :: delAlt, aveGravity, sLat, gravity, gravityM1
-    integer              :: i, ilev 
+    integer           :: nlev, nlev500m
+    real(8), allocatable :: alt500m(:), gravity500m(:)
+    real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
+    integer           :: i, ilev 
     logical, optional :: printGZ
     
 
+    nlev = size(altitude)
     sLat = sin(latitude)
 
-    ! At surface, use local gravity to get GZ
-    gravity = phf_gravityalt(sLat,altitude(nlev))
-    geopotential(nlev) = altitude(nlev) * gravity
-    gravityM1 = gravity
+    nlev500m = int(altitude(nlev) / 500.D0)
+    if ( nlev500m >= 1) then
+      allocate(alt500m(0:nlev500m))
+      allocate(gravity500m(0:nlev500m))
+
+      ! Calculate gravity and height of levels for 500m-layers
+      do i = 0, nlev500m
+        alt500m(i) = i * 500.0D0
+        gravity500m(i) = phf_gravityalt(sLat, alt500m(i))
+      enddo
+
+      geopotential(nlev) = 0.0D0
+      ! integrate from surface on the 500m-layers untill below the desired altitude
+      do i = 1, nlev500m
+        delAlt = alt500m(i) - alt500m(i-1)
+        aveGravity = 0.5D0 * (gravity500m(i) + gravity500m(i-1))
+        geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity
+      enddo
+
+      ! Add the contribution from top of the last 500m-layer to the altitude  
+      delAlt = altitude(nlev) - alt500m(nlev500m)
+      aveGravity = 0.5D0 * (phf_gravityalt(sLat, altitude(nlev)) + gravity500m(nlev500m))
+      geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity 
+      gravityM1 = phf_gravityalt(sLat, altitude(nlev))
+
+      deallocate(alt500m)
+      deallocate(gravity500m)
+
+    else
+      ! At surface, use local gravity to get GZ
+      gravity = phf_gravityalt(sLat,altitude(nlev))
+      geopotential(nlev) = altitude(nlev) * gravity
+      gravityM1 = gravity
+
+    endif
 
     ! At upper-levels, integrate on model levels to get GZ 
     do ilev = nlev-1, 1, -1
@@ -1091,11 +1124,13 @@ module physicsFunctions_mod
       gravityM1 = gravity
     enddo
 
-    if ( printGZ ) then
-      write(*,*) 'MAZIAR phf_alt2geopotential, GZ_T:'
-      write(*,*) geopotential(:)
+    if ( present(printGZ) ) then
+      if ( printGZ ) then
+        write(*,*) 'MAZIAR phf_alt2geopotential, GZ_T:'
+        write(*,*) geopotential(:)
 
-      printGZ = .false.
+        printGZ = .false.
+      endif
     endif
 
   end subroutine phf_alt2geopotential

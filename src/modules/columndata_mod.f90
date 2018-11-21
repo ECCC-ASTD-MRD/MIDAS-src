@@ -617,6 +617,8 @@ contains
               onecolumn => column%gz_T(:,headerIndex)
             elseif(varLevel_opt == 'MM') then
               onecolumn => column%gz_M(:,headerIndex)
+            elseif(varLevel_opt == 'SF') then
+              onecolumn => column%gz_sfc(:,headerIndex)
             else
               call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel_opt)         
             endif

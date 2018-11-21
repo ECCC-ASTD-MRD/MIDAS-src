@@ -334,7 +334,7 @@ contains
       !- Using T, q and PS to compute GZ for columng
       !
       do columnIndex = 1, col_getNumCol(columng)
-        call col_setGZsfc(columng ,columnIndex, col_getGZsfc(columnhr, columnIndex))
+        columng%gz_sfc(1,columnIndex) = columnhr%gz_sfc(1,columnIndex)
       end do
       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
     else

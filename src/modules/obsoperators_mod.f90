@@ -170,7 +170,7 @@ contains
         end if
         if (varLevel == 'SF') then
           ZPT= col_getHeight(columnghr,1,IOBS,'TH')
-          ZPB= col_getGZsfc(columnghr,IOBS)/RG                 
+          ZPB= col_getHeight(columnghr,0,IOBS,'SF')
         else
           nlev=col_getNumLev(columnghr,varLevel)
           ZPT= col_getHeight(columnghr,1,IOBS,varLevel)
@@ -295,13 +295,14 @@ contains
     character(len=2) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
     real(8), allocatable :: geopotential(:)
+    real(8) :: heightSfc(1), geopotentialSfc(1)
     logical, save :: printGZ = .true.
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
     Write(*,*) "Entering subroutine oop_ppp_nl"
 
-    zgamma = 0.0065D0 / RG
+    zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
     nlev_T = col_getNumLev(columnhr,'TH')
@@ -345,7 +346,7 @@ contains
          else
            if (trim(varName) == 'GZ') then
              col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
-             call phf_alt2geopotential(nlev_T,col_ptr,lat,geopotential,printGZ)
+             call phf_alt2geopotential(col_ptr,lat,geopotential,printGZ)
              columnVarB=geopotential(ilyr+1)
              columnVarT=geopotential(ilyr  )
            else
@@ -369,7 +370,13 @@ contains
            !     col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
            ztvg = (1.0d0 + MPC_DELTA_R8 * col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))*  &
                 col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
-           zomp = (  zvar - col_getGZsfc(columnhr,headerIndex) -  &
+
+           ! convert height of surface to geopotential
+           heightSfc(1) = col_getHeight(columnhr,0,headerIndex,'SF')
+           lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+           call phf_alt2geopotential(heightSfc,lat,geopotentialSfc)
+
+           zomp = (  zvar - geopotentialSfc(1) -  &
                 ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
            jobs = jobs + zomp*zomp/(zoer*zoer)
            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
@@ -634,8 +641,8 @@ contains
 
     Write(*,*) "Entering subroutine oop_sfc_nl"
 
-    zgamma = 0.0065d0 / RG
-    zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+    zgamma = 0.0065d0
+    zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
 
     jobs = 0.d0
 
@@ -677,7 +684,7 @@ contains
              ! NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 
              if(ivnm == BUFR_NETS) then
-                zslope = zgamma * RG
+                zslope = zgamma
              else
                 zslope = 0.0d0
              end if
@@ -703,7 +710,7 @@ contains
             ! observation. For mean sea level observation, the observation height = 0.
 
             ! 1) Temperature difference = lapse-rate (6.5 degree/km) * height difference (dz)
-            zgamaz = zgamma*(zhhh*RG-col_getGZsfc(columnhr,headerIndex))
+            zgamaz = zgamma*(zhhh-col_getHeight(columnhr,0,headerIndex,'SF'))
 
             ! 2) Compute the 2m background virtual temperature: Tv = T*(1+0.608*HU)
             ztvg = (1.0d0 + MPC_DELTA_R8 *  &
@@ -865,6 +872,12 @@ contains
     !
     !Author  : J. M. Aparicio Jan 2004
     !          Adapted Nov 2012 for both refractivity and bending angle data
+    !
+    !revision 01: M. Bani shahabadi Nov 2018
+    !           - gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
+    !             in gps_diff object w.r.t TT/HU/GZ/P0. The indirect dependency refractivity 
+    !             to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
+    !
     !    -------------------
     !*    Purpose:
     !
@@ -966,7 +979,7 @@ contains
        rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
        geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
        zazm = 0.01d0*iazm / MPC_DEGREES_PER_RADIAN_R8
-       zmt  = col_getGZsfc(columnhr,headerIndex)/RG
+       zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
        wfgps=0.d0
        do jj=1,numgpssats
           if (isat == igpssat(jj)) wfgps=wgps(jj)
@@ -979,8 +992,6 @@ contains
        lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
        lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
        azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
-       slat = sin(zlat)
-       zmt  = zmt * RG / gpsgravitysrf(slat)
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, ngpslev
           !
@@ -1302,7 +1313,7 @@ contains
        lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
        zlat = lat * MPC_DEGREES_PER_RADIAN_R8
        zlon = lon * MPC_DEGREES_PER_RADIAN_R8
-       zmt  = col_getGZsfc(columnhr,headerIndex)/RG
+       zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, nlev_T
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
@@ -1931,8 +1942,8 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / RG
-      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zgamma = 0.0065d0
+      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
       !C
       !C
       list_family(1) = 'UA'
@@ -1993,7 +2004,7 @@ contains
                   ZLTV  = columng%OLTV(1,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'TT')  & 
                        + columng%OLTV(2,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'HU')
                   ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                  ZGAMAZ= ZGAMMA*(ZHHH*RG-col_getGZsfc(columng,headerIndex))
+                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
                   ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                   ZDELPS= (col_getElem(COLUMN,1,headerIndex,'P0')*ZCON**ZEXP)
                   ZDELTV= ((col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
@@ -2499,7 +2510,7 @@ contains
                   write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
                   !BUE              call utl_abort('oop_Hgp')
                end if
-               ZMT  = col_getGZsfc(columng,headerIndex)
+               ZMT = col_getHeight(columng,0,headerIndex,'SF')
                if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
                !c
                CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
@@ -2899,8 +2910,8 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / RG
-      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zgamma = 0.0065d0
+      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
       !C
       !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
       !C     .  ---------------------------------------------------------------
@@ -2966,7 +2977,7 @@ contains
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')
                  ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                 ZGAMAZ= ZGAMMA*(ZHHH*RG-col_getGZsfc(columng,headerIndex))
+                 ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
                  ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                  ZDELTV= (col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                       *(ZGAMAZ/(ZTVG*ZTVG))
@@ -3693,7 +3704,7 @@ contains
           rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
           geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
           zazm = 0.01d0 * iazm / MPC_DEGREES_PER_RADIAN_R8
-          zmt  = col_getGZsfc(columng,headerIndex) / RG
+          zmt  = col_getHeight(columng,0,headerIndex,'SF')
           wfgps= 0.d0
           do jj = 1,numgpssats
             if (isat == igpssat(jj)) wfgps = wgps(jj)
@@ -3701,8 +3712,6 @@ contains
           lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
           lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
           azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
-          slat = sin(zlat)
-          zmt  = zmt * RG / gpsgravitysrf(sLat)
           zp0  = col_getElem(columng,1,headerIndex,'P0')
           do jl = 1, ngpslev
             ! Profile x_b

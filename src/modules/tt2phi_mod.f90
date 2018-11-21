@@ -151,14 +151,14 @@ subroutine tt2phi(columnghr,beSilent_opt)
     ! compute altitude on bottom thermo level (Vcode=5005)
     if (Vcode == 5002) then
       Rgh = phf_gravitysrf(sLat)
-      rMT = col_getGZsfc(columnghr,columnIndex) / Rgh
+      rMT = col_getHeight(columnghr,0,columnIndex,'SF')
       AL_T(nlev_T) = rMT
     elseif (Vcode == 5005) then
       ratioP  = log(col_getPressure(columnghr,nlev_T,columnIndex,'TH') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
       Rgh = phf_gravitysrf(sLat)
       delThick = (-p_Rd / Rgh) * tv(nlev_T) * ratioP
-      rMT = col_getGZsfc(columnghr,columnIndex) / Rgh
+      rMT = col_getHeight(columnghr,0,columnIndex,'SF')
       AL_T(nlev_T) = rMT + delThick
     endif
 
