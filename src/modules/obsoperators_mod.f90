@@ -291,7 +291,7 @@ contains
     !
     Write(*,*) "Entering subroutine oop_ppp_nl"
 
-    zgamma = 0.0065D0 / RG
+    zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
     nlev_T = col_getNumLev(columnhr,'TH')
@@ -673,7 +673,7 @@ contains
              ! NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 
              if(ivnm == BUFR_NETS) then
-                zslope = zgamma * RG
+                zslope = zgamma
              else
                 zslope = 0.0d0
              end if
