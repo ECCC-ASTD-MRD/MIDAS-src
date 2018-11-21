@@ -100,7 +100,6 @@ MODULE MathPhysConstants_mod
 !
 ! <<<<<< C O N S T A N T S   C O N C E R N I N G   T H E   L I M I T A T I O N S   O F   D I G I T A L   C A L C U L A T I O N >>>>>>
    real(8)            ::MPC_MINIMUM_HU_R8                 =  2.500000000000000D-06 !  
-   real(8)            ::MPC_MINIMUM2_HU_R8                =  1.000000000000000D-07 !  
    real(8)            ::MPC_MAXIMUM_ES_R8                 =  3.000000000000000D+01 !  
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
@@ -185,7 +184,6 @@ MODULE MathPhysConstants_mod
 !
 ! <<<<<< C O N S T A N T S   C O N C E R N I N G   T H E   L I M I T A T I O N S   O F   D I G I T A L   C A L C U L A T I O N >>>>>>
    real(4)            ::MPC_MINIMUM_HU_R4                 =  2.500000000000000D-06 !  
-   real(4)            ::MPC_MINIMUM2_HU_R4                =  1.000000000000000D-07 !  
    real(4)            ::MPC_MAXIMUM_ES_R4                 =  3.000000000000000D+01 !  
 
 ! <<<<<< OBS FILE CONSTANTS

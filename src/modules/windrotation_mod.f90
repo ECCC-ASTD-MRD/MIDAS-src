@@ -266,7 +266,7 @@ module windRotation_mod
 
     ! locals
     integer :: index1, index2
-    real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslat, sinlat, coslon, sinlon, C, D
+    real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslat, sinlat, coslon, sinlon, ezCoeff_C, ezCoeff_D
     real(8) :: xyz(msize), uvcart(msize)
 
     if ( .not. uvr%initialized ) then
@@ -298,9 +298,9 @@ module windRotation_mod
       end do
 
       uwind  = uvcart(2)*coslon - uvcart(1)*sinlon
-      C      = uvcart(1)*coslon + uvcart(2)*sinlon
-      D      = sqrt( C**2 + uvcart(3)**2 )
-      vwind  = sign( D, uvcart(3)*coslat - C*sinlat )
+      ezCoeff_C = uvcart(1)*coslon + uvcart(2)*sinlon
+      ezCoeff_D = sqrt( ezCoeff_C**2 + uvcart(3)**2 )
+      vwind     = sign( ezCoeff_D, uvcart(3)*coslat - ezCoeff_C*sinlat )
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*) 

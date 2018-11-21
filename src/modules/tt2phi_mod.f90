@@ -184,15 +184,6 @@ subroutine tt2phi(columnghr,beSilent_opt)
         gz_T(nlev_T) = gz_T(nlev_T) - real(gz_sfcOffset_T_r4,8) * RG
       end if
 
-      !if(columnIndex.eq.1) then
-      !  do lev_M = 1, nlev_M
-      !    write(*,*) 'tt2phi: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
-      !  enddo
-      !  do lev_T = 1, nlev_T
-      !    write(*,*) 'tt2phi: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
-      !  enddo
-      !endif
-
     enddo
 
   endif

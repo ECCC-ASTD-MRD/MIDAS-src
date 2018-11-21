@@ -220,7 +220,7 @@ contains
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: varIndex, ierr, nulnam, fnom, fclos
     character(len=4)          :: varNamesToRead(1), lastVarNameToRead
-    logical                   :: deallocInterpInfo, removeFromRamDisk, allocGZsfc
+    logical                   :: deallocInterpInfo, allocGZsfc
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
@@ -243,7 +243,6 @@ contains
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
     allocGZsfc = .true.
-    removeFromRamDisk = .true.
     deallocInterpInfo = .true.
 
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
@@ -251,7 +250,7 @@ contains
                        mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
                        allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR' )
     call gsv_zero( stateVector_trial )
-    call gsv_readTrials( stateVector_trial, removeFromRamDisk_opt=removeFromRamDisk )
+    call gsv_readTrials( stateVector_trial )
     call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVector_trial)

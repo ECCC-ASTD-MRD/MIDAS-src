@@ -545,12 +545,12 @@ contains
     call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
                              all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
     fileExists = .false.
-    PROCID_LOOP: do procID = 0, (mpi_nprocs-1)
+    procid_loop: do procID = 0, (mpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
         fileExists = .true.
-        exit PROCID_LOOP
+        exit procid_loop
       end if
-    end do PROCID_LOOP
+    end do procid_loop
 
     if ( .not.fileExists ) then
       call utl_abort('obsf_determineFileType: No observation files found')

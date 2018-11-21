@@ -232,15 +232,15 @@ contains
     fileHour = real(prnttime,8)/1000000.0d0
     windowsPerDay = nint(24.0d0 / tim_windowsize)
     foundWindow = .false.
-    WINDOW_LOOP: do windowIndex = 0, windowsPerDay
+    window_loop: do windowIndex = 0, windowsPerDay
       windowBegHour = (real(windowIndex,8) * tim_windowsize) - (tim_windowsize/2.0d0)
       windowEndHour = (real(windowIndex,8) * tim_windowsize) + (tim_windowsize/2.0d0)
       if ( fileHour >= windowBegHour .and. fileHour < windowEndHour ) then
         foundWindow = .true.
         middleHour = real(windowIndex,8) * tim_windowsize
-        exit WINDOW_LOOP
+        exit window_loop
       end if
-    end do WINDOW_LOOP
+    end do window_loop
 
     if ( .not. foundWindow ) then
       write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour

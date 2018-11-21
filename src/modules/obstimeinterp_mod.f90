@@ -34,7 +34,7 @@ module obsTimeInterp_mod
   public :: struct_oti
 
   ! public procedures
-  public :: oti_setup, oti_initialized, oti_dealloc
+  public :: oti_setup, oti_initialized, oti_deallocate
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal
   public :: oti_timeInterpWeightAllZero
@@ -272,7 +272,7 @@ contains
   end subroutine oti_setup
 
 
-  subroutine oti_dealloc(oti)
+  subroutine oti_deallocate(oti)
     implicit none
 
     ! arguments
@@ -283,7 +283,7 @@ contains
     oti%initialized = .false.
     nullify(oti)
 
-  end subroutine oti_dealloc
+  end subroutine oti_deallocate
 
 
   subroutine oti_setupMpiGlobal(oti)

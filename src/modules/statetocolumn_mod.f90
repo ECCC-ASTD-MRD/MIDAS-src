@@ -51,24 +51,24 @@ module stateToColumn_mod
     type(struct_uvr), pointer :: uvr => null() ! windRotation object
     type(struct_oti), pointer :: oti => null() ! obsTimeInterp object
 
-    ! number of obs headers on each proc having a non-zero interp weight for each stepIndex (header2)
-    integer, pointer          :: allNumHeader2(:,:) => null()    ! (step, proc)
+    ! number of obs headers on each proc having a non-zero interp weight for each stepIndex (headerUsed)
+    integer, pointer          :: allNumHeaderUsed(:,:) => null()    ! (step, proc)
 
-    ! actual headerIndex, since the header2 is only for those obs with a non-zero interp weight
-    integer, pointer          :: allHeaderIndex(:,:,:) => null() ! (header2, step, proc)
+    ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
+    integer, pointer          :: allHeaderIndex(:,:,:) => null() ! (headerUsed, step, proc)
 
     ! lat-lon location of observations to be interpolated (only needed to rotate winds)
-    real(8), pointer          :: allLat(:,:,:) => null()         ! (header2, step, proc)
-    real(8), pointer          :: allLon(:,:,:) => null()         ! (header2, step, proc)
-    real(8), pointer          :: allLatRot(:,:,:,:) => null()    ! (subgrid, header2, step, proc)
-    real(8), pointer          :: allLonRot(:,:,:,:) => null()    ! (subgrid, header2, step, proc)
+    real(8), pointer          :: allLat(:,:,:) => null()         ! (headerUsed, step, proc)
+    real(8), pointer          :: allLon(:,:,:) => null()         ! (headerUsed, step, proc)
+    real(8), pointer          :: allLatRot(:,:,:,:) => null()    ! (subGrid, headerUsed, step, proc)
+    real(8), pointer          :: allLonRot(:,:,:,:) => null()    ! (subGrid, headerUsed, step, proc)
 
-    ! interpolation weights and lat/lon indices are accessed via the 'bigIndexBeg/End'
-    integer, pointer          :: bigIndexBeg(:,:,:,:) => null()         ! (subgrid, header2, step, proc)
-    integer, pointer          :: bigIndexEnd(:,:,:,:) => null()         ! (subgrid, header2, step, proc)
-    real(8), pointer          :: allInterpWeight(:)                     ! (bigIndex)
-    integer, pointer          :: allLatIndex(:)                         ! (bigIndex)
-    integer, pointer          :: allLonIndex(:)                         ! (bigIndex)
+    ! interpolation weights and lat/lon indices are accessed via the 'depotIndexBeg/End'
+    integer, pointer          :: depotIndexBeg(:,:,:,:) => null()    ! (subGrid, headerUsed, step, proc)
+    integer, pointer          :: depotIndexEnd(:,:,:,:) => null()    ! (subGrid, headerUsed, step, proc)
+    real(8), pointer          :: interpWeightDepot(:)                ! (depotIndex)
+    integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
+    integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
   end type struct_interpInfo
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
@@ -122,7 +122,7 @@ contains
        xposUpperBoundAnl_r4 = real(hco_anl % ni)
     end if
 
-    HEADER_LOOP: do headerIndex=1, obs_numheader(obsSpaceData)
+    header_loop: do headerIndex=1, obs_numheader(obsSpaceData)
 
       !- Get LatLon of observation location
       lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
@@ -192,7 +192,7 @@ contains
 
       end if
 
-    end do HEADER_LOOP
+    end do header_loop
 
     write(*,*) 's2c_latLonChecks: END'
 
@@ -218,15 +218,17 @@ contains
     character(len=*)           :: timeInterpType
 
     ! locals
-    integer :: numHeader, numHeader2Max, headerIndex, bodyIndex, numStep, stepIndex, ierr, indexBeg, indexEnd
-    integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridpt, numGridptTotal, numHeader2
-    integer :: ilat, ilon, ilat2, ilon2, ilonP1, subGridIndex, subGridForInterp, numSubGridsForInterp
+    integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex
+    integer :: numStep, stepIndex, ierr, indexBeg, indexEnd
+    integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridpt, numGridptTotal, numHeaderUsed
+    integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
+    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: dldx, dldy, xpos, ypos
     integer :: ig1obs, ig2obs, ig3obs, ig4obs
     real(8) :: zig1, zig2, zig3, zig4, stepObsIndex, latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    integer, allocatable :: allNumHeader2(:,:), headerIndexVec(:,:)
+    integer, allocatable :: allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
     integer :: ezgdef, gdllfxy
     logical :: obsOutsideGrid
@@ -247,33 +249,33 @@ contains
     end if
 
     ! First count the number of headers for each stepIndex
-    allocate(allNumHeader2(numStep,mpi_nprocs))
-    allNumHeader2(:,:) = 0
-    STEP_LOOP0: do stepIndex = 1, numStep
-      numHeader2 = 0
+    allocate(allNumHeaderUsed(numStep,mpi_nprocs))
+    allNumHeaderUsed(:,:) = 0
+    do stepIndex = 1, numStep
+      numHeaderUsed = 0
 
-      HEADER_LOOP0: do headerIndex = 1, numHeader
+      header_loop1: do headerIndex = 1, numHeader
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if ( oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0 ) cycle HEADER_LOOP0
+        if ( oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0 ) cycle header_loop1
 
-        numHeader2 = numHeader2 + 1
+        numHeaderUsed = numHeaderUsed + 1
 
-      end do HEADER_LOOP0
+      end do header_loop1
       ! gather the number of obs over all processors for each timestep
-      call rpn_comm_allgather(numHeader2,                 1, 'MPI_INTEGER', &
-                              allNumHeader2(stepIndex,:), 1, 'MPI_INTEGER', &
+      call rpn_comm_allgather(numHeaderUsed,                 1, 'MPI_INTEGER', &
+                              allNumHeaderUsed(stepIndex,:), 1, 'MPI_INTEGER', &
                               'GRID',ierr)
 
-    end do STEP_LOOP0
+    end do
 
-    numHeader2Max = maxval(allNumHeader2(:,:))
-    write(*,*) 's2c_setupInterpInfo: numHeader2Max = ', numHeader2Max
+    numHeaderUsedMax = maxval(allNumHeaderUsed(:,:))
+    write(*,*) 's2c_setupInterpInfo: numHeaderUsedMax = ', numHeaderUsedMax
 
     ! temporary arrays
-    allocate(lonVec_r4(numHeader2Max))
-    allocate(latVec_r4(numHeader2Max))
-    allocate(headerIndexVec(numHeader2Max,numStep))
+    allocate(lonVec_r4(numHeaderUsedMax))
+    allocate(latVec_r4(numHeaderUsedMax))
+    allocate(headerIndexVec(numHeaderUsedMax,numStep))
     headerIndexVec(:,:) = 0
 
     ! copy the horizontal grid object
@@ -287,41 +289,41 @@ contains
     end if
 
     ! allocate arrays that will be returned
-    allocate(interpInfo%allNumHeader2(numStep,mpi_nprocs))
-    allocate(interpInfo%bigIndexBeg(interpInfo%hco%numSubGrid,numHeader2Max,numStep,mpi_nprocs))
-    allocate(interpInfo%bigIndexEnd(interpInfo%hco%numSubGrid,numHeader2Max,numStep,mpi_nprocs))
-    allocate(interpInfo%allHeaderIndex(numHeader2Max,numStep,mpi_nprocs))
-    allocate(interpInfo%allLat(numHeader2Max,numStep,mpi_nprocs))
-    allocate(interpInfo%allLon(numHeader2Max,numStep,mpi_nprocs))
+    allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
+    allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(interpInfo%allLat(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(interpInfo%allLon(numHeaderUsedMax,numStep,mpi_nprocs))
     interpInfo%allHeaderIndex(:,:,:) = 0
     interpInfo%allLat(:,:,:) = 0.0d0
     interpInfo%allLon(:,:,:) = 0.0d0
-    interpInfo%allNumHeader2(:,:) = allNumHeader2(:,:)
+    interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
-      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeader2Max,numStep,mpi_nprocs))
-      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeader2Max,numStep,mpi_nprocs))
+      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
+      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
       interpInfo%allLatRot(:,:,:,:) = 0.0d0
       interpInfo%allLonRot(:,:,:,:) = 0.0d0
     end if
 
-    interpInfo%bigIndexBeg(:,:,:,:) = 0
-    interpInfo%bigIndexEnd(:,:,:,:) = -1
+    interpInfo%depotIndexBeg(:,:,:,:) = 0
+    interpInfo%depotIndexEnd(:,:,:,:) = -1
 
     ! get observation lat-lon onto all mpi tasks
-    STEP_LOOP1: do stepIndex = 1, numStep
-      numHeader2 = 0
+    step_loop2: do stepIndex = 1, numStep
+      numHeaderUsed = 0
 
       lonVec_r4(:) = 0.0
       latVec_r4(:) = 0.0
 
-      HEADER_LOOP: do headerIndex = 1, numHeader
+      header_loop2: do headerIndex = 1, numHeader
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if ( oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0 ) cycle HEADER_LOOP
+        if ( oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0 ) cycle header_loop2
 
-        numHeader2 = numHeader2 + 1
-        headerIndexVec(numHeader2,stepIndex) = headerIndex
+        numHeaderUsed = numHeaderUsed + 1
+        headerIndexVec(numHeaderUsed,stepIndex) = headerIndex
 
         !- Get LatLon of observation location
         lat_r4 = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex), 4)
@@ -329,8 +331,8 @@ contains
         if (lon_r4 <  0.0          ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
         if (lon_r4 >= 2.0*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
-        lonVec_r4(numHeader2) = lon_r4
-        latVec_r4(numHeader2) = lat_r4
+        lonVec_r4(numHeaderUsed) = lon_r4
+        latVec_r4(numHeaderUsed) = lat_r4
 
         ! check for obs outside domain and reject, if requested
         lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
@@ -358,62 +360,66 @@ contains
 
         end if
 
-      end do HEADER_LOOP
+      end do header_loop2
 
       ! gather geographical lat, lon positions of observations from all processors
-      call rpn_comm_allgather(real(latVec_r4,8),                numHeader2Max, 'MPI_REAL8', &
-                              interpInfo%allLat(:,stepIndex,:), numHeader2Max, 'MPI_REAL8', &
+      call rpn_comm_allgather(real(latVec_r4,8),                numHeaderUsedMax, 'MPI_REAL8', &
+                              interpInfo%allLat(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL8', &
                               'GRID', ierr)
-      call rpn_comm_allgather(real(lonVec_r4,8),                numHeader2Max, 'MPI_REAL8', &
-                              interpInfo%allLon(:,stepIndex,:), numHeader2Max, 'MPI_REAL8', &
+      call rpn_comm_allgather(real(lonVec_r4,8),                numHeaderUsedMax, 'MPI_REAL8', &
+                              interpInfo%allLon(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL8', &
                               'GRID', ierr)
 
-    end do STEP_LOOP1
+    end do step_loop2
 
     ! count the total number of grid points for allocation and set up indices
     numGridptTotal = 0
-    STEP_LOOP2: do stepIndex = 1, numStep
+    do stepIndex = 1, numStep
       do procIndex = 1, mpi_nprocs
-        do headerIndex = 1, allNumHeader2(stepIndex,procIndex)
+        do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
-          lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) * MPC_DEGREES_PER_RADIAN_R8)
-          lon_deg_r4 = real(interpInfo%allLon(headerIndex, stepIndex, procIndex) * MPC_DEGREES_PER_RADIAN_R8)
+          lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) *  &
+                       MPC_DEGREES_PER_RADIAN_R8)
+          lon_deg_r4 = real(interpInfo%allLon(headerIndex, stepIndex, procIndex) *  &
+                       MPC_DEGREES_PER_RADIAN_R8)
           ierr = getPositionXY( stateVector%hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
           if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
             ! indices for only 1 subgrid, other will have zeros
-            interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
+            interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
             numGridptTotal = numGridptTotal + 4
-            interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal
+            interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal
           else
             ! locations on both subGrids will be averaged
-            interpInfo%bigIndexBeg(1, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
+            interpInfo%depotIndexBeg(1, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
             numGridptTotal = numGridptTotal + 4
-            interpInfo%bigIndexEnd(1, headerIndex, stepIndex, procIndex) = numGridptTotal
+            interpInfo%depotIndexEnd(1, headerIndex, stepIndex, procIndex) = numGridptTotal
 
-            interpInfo%bigIndexBeg(2, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
+            interpInfo%depotIndexBeg(2, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
             numGridptTotal = numGridptTotal + 4
-            interpInfo%bigIndexEnd(2, headerIndex, stepIndex, procIndex) = numGridptTotal
+            interpInfo%depotIndexEnd(2, headerIndex, stepIndex, procIndex) = numGridptTotal
           end if
 
         end do ! headerIndex
       end do ! procIndex
-    end do STEP_LOOP2
+    end do
 
     ! now that we know the size, allocate main arrays for storing interpolation information
     write(*,*) 's2c_setupInterpInfo: numGridptTotal = ', numGridptTotal
-    allocate( interpInfo%allLatIndex(numGridptTotal) )
-    allocate( interpInfo%allLonIndex(numGridptTotal) )
-    allocate( interpInfo%allInterpWeight(numGridptTotal) )
+    allocate( interpInfo%latIndexDepot(numGridptTotal) )
+    allocate( interpInfo%lonIndexDepot(numGridptTotal) )
+    allocate( interpInfo%interpWeightDepot(numGridptTotal) )
 
-    STEP_LOOP3: do stepIndex = 1, numStep
+    step_loop3: do stepIndex = 1, numStep
       do procIndex = 1, mpi_nprocs
-        do headerIndex = 1, allNumHeader2(stepIndex,procIndex)
+        do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
-          lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) * MPC_DEGREES_PER_RADIAN_R8)
-          lon_deg_r4 = real(interpInfo%allLon(headerIndex, stepIndex, procIndex) * MPC_DEGREES_PER_RADIAN_R8)
+          lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) *  &
+                       MPC_DEGREES_PER_RADIAN_R8)
+          lon_deg_r4 = real(interpInfo%allLon(headerIndex, stepIndex, procIndex) *  &
+                       MPC_DEGREES_PER_RADIAN_R8)
           ierr = getPositionXY( stateVector%hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
@@ -427,8 +433,10 @@ contains
               ypos_r4 = real(stateVector%nj)/2.0
               ierr = gdllfxy(stateVector%hco%EZscintID, lat_deg_r4, lon_deg_r4, &
                              xpos_r4, ypos_r4, 1)
-              interpInfo%allLon(headerIndex, stepIndex, procIndex) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-              interpInfo%allLat(headerIndex, stepIndex, procIndex) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+              interpInfo%allLon(headerIndex, stepIndex, procIndex) =  &
+                   real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+              interpInfo%allLat(headerIndex, stepIndex, procIndex) =  &
+                   real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
             else
               write(*,*) 's2c_setupInterpInfo: Moving OBS that is outside the stateVector domain, ', headerIndex
               write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
@@ -449,51 +457,53 @@ contains
 
           ! Find the lower-left grid point next to the observation
           if ( xpos_r4 /= real(niP1) ) then
-            ilon = floor(xpos_r4)
+            lonIndex = floor(xpos_r4)
           else
-            ilon = floor(xpos_r4) - 1
+            lonIndex = floor(xpos_r4) - 1
           end if
           if ( xpos2_r4 /= real(niP1) ) then
-            ilon2 = floor(xpos2_r4)
+            lonIndex2 = floor(xpos2_r4)
           else
-            ilon2 = floor(xpos2_r4) - 1
+            lonIndex2 = floor(xpos2_r4) - 1
           end if
 
           if ( ypos_r4 /= real(statevector%nj) ) then
-            ilat = floor(ypos_r4)
+            latIndex = floor(ypos_r4)
           else
-            ilat = floor(ypos_r4) - 1
+            latIndex = floor(ypos_r4) - 1
           end if
           if ( ypos2_r4 /= real(statevector%nj) ) then
-            ilat2 = floor(ypos2_r4)
+            latIndex2 = floor(ypos2_r4)
           else
-            ilat2 = floor(ypos2_r4) - 1
+            latIndex2 = floor(ypos2_r4) - 1
           end if
 
           if ( stateVector%hco%grtyp == 'U' ) then
             if ( ypos_r4 /= real(stateVector%nj/2) ) then
-              ilat = floor(ypos_r4)
+              latIndex = floor(ypos_r4)
             else
-              ilat = floor(ypos_r4) - 1
+              latIndex = floor(ypos_r4) - 1
             end if
             if ( ypos2_r4 /= real(stateVector%nj/2) ) then
-              ilat2 = floor(ypos2_r4)
+              latIndex2 = floor(ypos2_r4)
             else
-              ilat2 = floor(ypos2_r4) - 1
+              latIndex2 = floor(ypos2_r4) - 1
             end if
           end if
 
           ! Handle periodicity in longitude
-          ilonP1 = ilon + 1
-          if ( ilonP1 == statevector%ni + 1 ) ilonP1 = 1
+          lonIndexP1 = lonIndex + 1
+          if ( lonIndexP1 == statevector%ni + 1 ) lonIndexP1 = 1
 
           ! Check if location is in between Yin and Yang (should not happen)
           if ( stateVector%hco%grtyp == 'U' ) then
-            if ( ypos_r4 > real(stateVector%nj/2) .and. ypos_r4 < real((stateVector%nj/2)+1) ) then
+            if ( ypos_r4 > real(stateVector%nj/2) .and.  &
+                 ypos_r4 < real((stateVector%nj/2)+1) ) then
               write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
               write(*,*) '   xpos, ypos = ', xpos_r4, ypos_r4
             end if
-            if ( ypos2_r4 > real(stateVector%nj/2) .and. ypos2_r4 < real((stateVector%nj/2)+1) ) then
+            if ( ypos2_r4 > real(stateVector%nj/2) .and.  &
+                 ypos2_r4 < real((stateVector%nj/2)+1) ) then
               write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
               write(*,*) '   xpos2, ypos2 = ', xpos2_r4, ypos2_r4
             end if
@@ -513,39 +523,39 @@ contains
             ! Compute the 4 weights of the bilinear interpolation
             if ( subGridForInterp == 1 ) then
               ! when only 1 subGrid involved, subGridIndex can be 1 or 2
-              dldx = real(xpos_r4,8) - real(ilon,8)
-              dldy = real(ypos_r4,8) - real(ilat,8)
+              dldx = real(xpos_r4,8) - real(lonIndex,8)
+              dldy = real(ypos_r4,8) - real(latIndex,8)
             else
               ! when 2 subGrids, subGridIndex is set to 1 for 1st iteration, 2 for second
               subGridIndex = 2
-              ilon = ilon2
-              ilat = ilat2
-              ilonP1 = ilon2 + 1
-              dldx = real(xpos2_r4,8) - real(ilon,8)
-              dldy = real(ypos2_r4,8) - real(ilat,8)
+              lonIndex = lonIndex2
+              latIndex = latIndex2
+              lonIndexP1 = lonIndex2 + 1
+              dldx = real(xpos2_r4,8) - real(lonIndex,8)
+              dldy = real(ypos2_r4,8) - real(latIndex,8)
             end if
 
-            indexBeg = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
-            indexEnd = interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+            indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+            indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-            interpInfo%allInterpWeight(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
-            interpInfo%allInterpWeight(indexBeg + 1) = dldx  * (1.d0-dldy)
-            interpInfo%allInterpWeight(indexBeg + 2) = (1.d0-dldx) *       dldy
-            interpInfo%allInterpWeight(indexBeg + 3) =       dldx  *       dldy
+            interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
+            interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
+            interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
+            interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
 
             ! divide weight by number of subGrids
-            interpInfo%allInterpWeight(indexBeg:indexEnd) = &
-                 interpInfo%allInterpWeight(indexBeg:indexEnd) / real(numSubGridsForInterp,8)
+            interpInfo%interpWeightDepot(indexBeg:indexEnd) = &
+                 interpInfo%interpWeightDepot(indexBeg:indexEnd) / real(numSubGridsForInterp,8)
 
-            interpInfo%allLatIndex(indexBeg    ) = ilat
-            interpInfo%allLatIndex(indexBeg + 1) = ilat
-            interpInfo%allLatIndex(indexBeg + 2) = ilat + 1
-            interpInfo%allLatIndex(indexBeg + 3) = ilat + 1
+            interpInfo%latIndexDepot(indexBeg    ) = latIndex
+            interpInfo%latIndexDepot(indexBeg + 1) = latIndex
+            interpInfo%latIndexDepot(indexBeg + 2) = latIndex + 1
+            interpInfo%latIndexDepot(indexBeg + 3) = latIndex + 1
 
-            interpInfo%allLonIndex(indexBeg    ) = ilon
-            interpInfo%allLonIndex(indexBeg + 1) = ilonP1
-            interpInfo%allLonIndex(indexBeg + 2) = ilon
-            interpInfo%allLonIndex(indexBeg + 3) = ilonP1
+            interpInfo%lonIndexDepot(indexBeg    ) = lonIndex
+            interpInfo%lonIndexDepot(indexBeg + 1) = lonIndexP1
+            interpInfo%lonIndexDepot(indexBeg + 2) = lonIndex
+            interpInfo%lonIndexDepot(indexBeg + 3) = lonIndexP1
 
             ! compute the rotated lat, lon
             if ( interpInfo%hco%rotated .and.  &
@@ -568,17 +578,17 @@ contains
         end do ! headerIndex
       end do ! procIndex
 
-    end do STEP_LOOP3
+    end do step_loop3
 
     ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec,    numHeader2Max*numStep, 'MPI_INTEGER', &
-                            interpInfo%allHeaderIndex, numHeader2Max*numStep, 'MPI_INTEGER', &
+    call rpn_comm_allgather(headerIndexVec,    numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+                            interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
     deallocate(headerIndexVec)
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
-    deallocate(allNumHeader2)
+    deallocate(allNumHeaderUsed)
 
     interpInfo%initialized = .true.
 
@@ -606,7 +616,7 @@ contains
     type(struct_gsv)           :: stateVector_VarsLevs
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, header2Index
+    integer :: procIndex, nsize, ierr, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
     real(8), pointer     :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
@@ -643,7 +653,7 @@ contains
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeader2),numStep,mpi_nprocs))
+    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
 
     ! arrays for sending/receiving time interpolated column for 1 level/variable
@@ -664,7 +674,7 @@ contains
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
-    K_LOOP: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
 
       kCount = kCount + 1
 
@@ -677,12 +687,12 @@ contains
 
         call tmg_start(161,'S2CTL_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
-        STEP_LOOP: do stepIndex = 1, numStep
-          if ( maxval(interpInfo_tlad%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP
+        step_loop: do stepIndex = 1, numStep
+          if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
-          ! interpolate to the columns destined for all procs for all steps and one level/variable
-          PROC_LOOP: do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_tlad%allNumHeader2(stepIndex,procIndex)
+          ! interpolate to the columns destined for all procs for all steps and one lev/var
+          do procIndex = 1, mpi_nprocs
+            yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
@@ -697,28 +707,29 @@ contains
                                ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, stepIndex, procIndex )
               end if
             end if
-          end do PROC_LOOP
+          end do
 
-        end do STEP_LOOP
+        end do step_loop
         !$OMP END PARALLEL DO
         call tmg_stop(161)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        PROC_LOOP2: do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mpi_nprocs
           cols_send_1proc(:) = 0.0d0
-          STEP_LOOP2: do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (header2Index, headerIndex, weight)
-            do header2Index = 1, interpInfo_tlad%allNumHeader2(stepIndex, procIndex)
-              headerIndex = interpInfo_tlad%allHeaderIndex(header2Index,stepIndex,procIndex)
-              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,headerIndex,stepIndex,procIndex)
+          do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerUsedIndex, headerIndex, weight)
+            do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
+              headerIndex = interpInfo_tlad%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
+                                                        headerIndex,stepIndex,procIndex)
               cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
-                            + weight * cols_hint(header2Index,stepIndex,procIndex)
+                            + weight * cols_hint(headerUsedIndex,stepIndex,procIndex)
 
             end do
             !$OMP END PARALLEL DO
-          end do STEP_LOOP2
+          end do
           cols_send(:,procIndex) = cols_send_1proc(:)
-        end do PROC_LOOP2
+        end do
 
       else
 
@@ -744,16 +755,16 @@ contains
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
-      PROC_LOOP3: do procIndex = 1, mpi_nprocs
+      proc_loop: do procIndex = 1, mpi_nprocs
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle PROC_LOOP3
+        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
         do headerIndex = 1, numHeader
           allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
         end do
-      end do PROC_LOOP3
+      end do proc_loop
       !$OMP END PARALLEL DO
 
-    end do K_LOOP
+    end do k_loop
 
     ! Do final preparations of columnData objects (compute GZ increment)
     if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
@@ -791,7 +802,7 @@ contains
     type(struct_gsv)           :: stateVector_VarsLevs
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, header2Index
+    integer :: procIndex, nsize, ierr, headerUsedIndex
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
@@ -822,8 +833,8 @@ contains
     end if
 
     ! Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
-        .and. gsv_varExist(statevector,'P0') ) then
+    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and.  &
+        gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
        call tt2phi_ad(column,columng)
     end if
 
@@ -833,7 +844,7 @@ contains
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeader2),numStep,mpi_nprocs))
+    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
 
     ! arrays for sending/receiving time interpolated column for 1 level/variable
@@ -850,19 +861,19 @@ contains
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
-    K_LOOP: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
 
       kCount = kCount + 1
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
-      PROC_LOOP3: do procIndex = 1, mpi_nprocs
+      proc_loop: do procIndex = 1, mpi_nprocs
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle PROC_LOOP3
+        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
         do headerIndex = 1, numHeader
           cols_send(headerIndex,procIndex) = allCols_ptr(kIndex2,headerIndex)
         end do
-      end do PROC_LOOP3
+      end do proc_loop
       !$OMP END PARALLEL DO
 
       call tmg_start(160,'S2C_BARR')
@@ -888,29 +899,31 @@ contains
         end if
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        PROC_LOOP2: do procIndex = 1, mpi_nprocs
-          STEP_LOOP2: do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index, weight)
-            do headerIndex = 1, interpInfo_tlad%allNumHeader2(stepIndex, procIndex)
+        do procIndex = 1, mpi_nprocs
+          do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
+            do headerIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
 
-              header2Index = interpInfo_tlad%allHeaderIndex(headerIndex,stepIndex,procIndex)
-              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,header2Index,stepIndex,procIndex)
+              headerUsedIndex = interpInfo_tlad%allHeaderIndex(headerIndex,stepIndex,procIndex)
+              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
+                                                        headerUsedIndex,stepIndex,procIndex)
 
-              cols_hint(headerIndex,stepIndex,procIndex) = weight * cols_recv(header2Index,procIndex)
+              cols_hint(headerIndex,stepIndex,procIndex) =  &
+                   weight * cols_recv(headerUsedIndex,procIndex)
 
             end do
             !$OMP END PARALLEL DO
-          end do STEP_LOOP2
-        end do PROC_LOOP2
+          end do
+        end do
 
         call tmg_start(162,'S2CAD_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
-        STEP_LOOP: do stepIndex = 1, numStep
-          if ( maxval(interpInfo_tlad%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP
+        step_loop: do stepIndex = 1, numStep
+          if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
-          ! interpolate to the columns destined for all procs for all steps and one level/variable
-          PROC_LOOP: do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_tlad%allNumHeader2(stepIndex,procIndex)
+          ! interpolate to the columns destined for all procs for all steps and one lev/var
+          do procIndex = 1, mpi_nprocs
+            yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
@@ -922,18 +935,19 @@ contains
                                    interpInfo_tlad, stepIndex, procIndex )
               else
                 call myezsintad( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
-                                 ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, stepIndex, procIndex )
+                                 ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, stepIndex,  &
+                                 procIndex )
               end if
             end if
-          end do PROC_LOOP
+          end do
 
-        end do STEP_LOOP
+        end do step_loop
         !$OMP END PARALLEL DO
         call tmg_stop(162)
 
       end if ! if kIndex <= mykEnd
 
-    end do K_LOOP
+    end do k_loop
 
     deallocate(cols_hint)
     deallocate(cols_send)
@@ -975,7 +989,7 @@ contains
     ! locals
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, iset, header2Index, varIndex
+    integer :: procIndex, nsize, ierr, iset, headerUsedIndex, varIndex
     integer :: ezdefset, ezqkdef
     integer :: s1, s2, s3, s4, index1, index2, index3, index4
     real(8) :: gzSfc_col
@@ -1031,14 +1045,15 @@ contains
                                 timeInterpType, rejectOutsideObs=.true. )
       if ( mpi_myid == 0 ) then
         do stepIndex = 1, numStep
-          write(*,*) 's2c_nl: stepIndex, allNumHeader2 = ', stepIndex, interpInfo_nl%allNumHeader2(stepIndex,:)
+          write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
+                     stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
         end do
       end if
       call tmg_stop(165)
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_nl%allNumHeader2),numStep,mpi_nprocs))
+    allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
 
     ! arrays for sending/receiving time interpolated column for 1 level/variable
@@ -1062,7 +1077,7 @@ contains
     mykEndExtended = stateVector%mykBeg + maxval(stateVector%allkCount(:)) - 1
 
     kCount = 0
-    K_LOOP: do kIndex = stateVector%mykBeg, mykEndExtended
+    k_loop: do kIndex = stateVector%mykBeg, mykEndExtended
       kCount = kCount + 1
 
       if ( kIndex <= stateVector%mykEnd ) then
@@ -1074,8 +1089,8 @@ contains
 
         call tmg_start(166,'S2CNL_HINTERP')
         !$OMP PARALLEL DO PRIVATE (stepIndex, field2d, field2d_UV, procIndex, yourNumHeader)
-        STEP_LOOP: do stepIndex = 1, numStep
-          if ( maxval(interpInfo_nl%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP
+        step_loop: do stepIndex = 1, numStep
+          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
           ! copy over field
           field2d(:,:) = real(ptr4d_r4(:,:,kIndex,stepIndex),8)
@@ -1083,9 +1098,9 @@ contains
             field2d_UV(:,:) = real(ptr3d_UV_r4(:,:,stepIndex),8)
           end if
 
-          ! interpolate to the columns destined for all procs for all steps and one level/variable
-          PROC_LOOP: do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_nl%allNumHeader2(stepIndex,procIndex)
+          ! interpolate to the columns destined for all procs for all steps and one lev/var
+          do procIndex = 1, mpi_nprocs
+            yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
@@ -1098,28 +1113,29 @@ contains
                                field2d, interpInfo_nl, stepIndex, procIndex )
               end if
             end if
-          end do PROC_LOOP
+          end do
 
-        end do STEP_LOOP
+        end do step_loop
         !$OMP END PARALLEL DO
         call tmg_stop(166)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        PROC_LOOP2: do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mpi_nprocs
           cols_send_1proc(:) = 0.0d0
-          STEP_LOOP2: do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index, weight)
-            do headerIndex = 1, interpInfo_nl%allNumHeader2(stepIndex, procIndex)
-              header2Index = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
-              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,header2Index,stepIndex,procIndex)
-              cols_send_1proc(header2Index) = cols_send_1proc(header2Index) &
+          do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
+            do headerIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+              headerUsedIndex = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
+              weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,  &
+                                                        headerUsedIndex,stepIndex,procIndex)
+              cols_send_1proc(headerUsedIndex) = cols_send_1proc(headerUsedIndex) &
                             + weight * cols_hint(headerIndex,stepIndex,procIndex)
 
             end do
             !$OMP END PARALLEL DO
-          end do STEP_LOOP2
+          end do
           cols_send(:,procIndex) = cols_send_1proc(:)
-        end do PROC_LOOP2
+        end do
 
       else
 
@@ -1143,56 +1159,56 @@ contains
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
-      PROC_LOOP3: do procIndex = 1, mpi_nprocs
+      proc_loop: do procIndex = 1, mpi_nprocs
         kIndex2 = statevector%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector%allkEnd(procIndex) ) cycle PROC_LOOP3
+        if ( kIndex2 > stateVector%allkEnd(procIndex) ) cycle proc_loop
         do headerIndex = 1, numHeader
           allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
         end do
-      end do PROC_LOOP3
+      end do proc_loop
       !$OMP END PARALLEL DO
 
-    end do K_LOOP
+    end do k_loop
 
     ! Interpolate surface GZ separately, only exists on mpi task 0
     GZsfcPresent: if ( stateVector%GZsfcPresent ) then
 
-      PROC0: if ( mpi_myid == 0 ) then
+      if ( mpi_myid == 0 ) then
         varName = 'GZ'
-        STEP_LOOP_GZ: do stepIndex = 1, numStep
+        step_loop_gz: do stepIndex = 1, numStep
 
-          if ( maxval(interpInfo_nl%allNumHeader2(stepIndex,:)) == 0 ) cycle STEP_LOOP_GZ
+          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_gz
 
-          ! interpolate to the columns destined for all procs for all steps and one level/variable
+          ! interpolate to the columns destined for all procs for all steps and one lev/var
           !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
-          PROC_LOOP_GZ: do procIndex = 1, mpi_nprocs
-            yourNumHeader = interpInfo_nl%allNumHeader2(stepIndex,procIndex)
+          do procIndex = 1, mpi_nprocs
+            yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               ptr2d_r8 => gsv_getGZsfc(stateVector)
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
 
             end if
-          end do PROC_LOOP_GZ
+          end do
           !$OMP END PARALLEL DO
 
-        end do STEP_LOOP_GZ
+        end do step_loop_gz
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        PROC_LOOP_GZ2: do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mpi_nprocs
           cols_send(:,procIndex) = 0.0d0
-          STEP_LOOP_GZ2: do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, header2Index)
-            do headerIndex = 1, interpInfo_nl%allNumHeader2(stepIndex, procIndex)
-              header2Index = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
+            do headerIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+              headerUsedIndex = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
               ! just copy, since surface GZ same for all time steps
-              cols_send(header2Index,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
+              cols_send(headerUsedIndex,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
             end do
             !$OMP END PARALLEL DO
-          end do STEP_LOOP_GZ2
-        end do PROC_LOOP_GZ2
+          end do
+        end do
 
-      end if PROC0
+      end if
 
       ! mpi communication: scatter data from task 0
       nsize = numHeaderMax
@@ -1227,9 +1243,9 @@ contains
     deallocate(cols_send_1proc)
 
     if( dealloc ) then
-      deallocate(interpInfo_nl%allInterpWeight)
-      deallocate(interpInfo_nl%allLatIndex)
-      deallocate(interpInfo_nl%allLonIndex)
+      deallocate(interpInfo_nl%interpWeightDepot)
+      deallocate(interpInfo_nl%latIndexDepot)
+      deallocate(interpInfo_nl%lonIndexDepot)
       if ( interpInfo_nl%hco%rotated ) then
         deallocate(interpInfo_nl%allLonRot)
         deallocate(interpInfo_nl%allLatRot)
@@ -1237,10 +1253,10 @@ contains
       deallocate(interpInfo_nl%allLon)
       deallocate(interpInfo_nl%allLat)
       deallocate(interpInfo_nl%allHeaderIndex)
-      deallocate(interpInfo_nl%bigIndexBeg)
-      deallocate(interpInfo_nl%bigIndexEnd)
-      deallocate(interpInfo_nl%allNumHeader2)
-      call oti_dealloc(interpInfo_nl%oti)
+      deallocate(interpInfo_nl%depotIndexBeg)
+      deallocate(interpInfo_nl%depotIndexEnd)
+      deallocate(interpInfo_nl%allNumHeaderUsed)
+      call oti_deallocate(interpInfo_nl%oti)
 
       interpInfo_nl%initialized = .false.
     end if
@@ -1277,33 +1293,34 @@ contains
     integer                 :: stepIndex, procIndex
 
     ! locals
-    integer :: ilon, ilat, gridptIndex, headerIndex, subGridIndex, numColumn
+    integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: interpValue, weight
 
     numColumn = size( column_out )
 
-    HEADER_LOOP: do headerIndex = 1, numColumn
+    do headerIndex = 1, numColumn
 
       ! Interpolate the model state to the obs point
       interpValue = 0.0d0
 
-      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+      do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        do gridptIndex = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex), &
-                         interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+        do gridptIndex =  &
+             interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex), &
+             interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-          ilon = interpInfo%allLonIndex(gridptIndex)
-          ilat = interpInfo%allLatIndex(gridptIndex)
-          weight = interpInfo%allInterpWeight(gridptIndex)
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          interpValue = interpValue + weight * field_in(ilon, ilat)
+          interpValue = interpValue + weight * field_in(lonIndex, latIndex)
 
         end do
 
-      end do SUBGRID_LOOP
+      end do
       column_out(headerIndex) = interpValue
 
-    end do HEADER_LOOP
+    end do
 
   end subroutine myezsint
 
@@ -1324,38 +1341,41 @@ contains
     integer                 :: stepIndex, procIndex
 
     ! locals
-    integer :: ilon, ilat, gridptIndex, headerIndex, subGridIndex, numColumn
+    integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: weight
 
     numColumn = size( column_in )
 
-    HEADER_LOOP: do headerIndex = 1, numColumn
+    do headerIndex = 1, numColumn
 
       ! Interpolate the model state to the obs point
 
-      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+      do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        do gridptIndex = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex), &
-                         interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+        do gridptIndex =  &
+             interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex), &
+             interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-          ilon = interpInfo%allLonIndex(gridptIndex)
-          ilat = interpInfo%allLatIndex(gridptIndex)
-          weight = interpInfo%allInterpWeight(gridptIndex)
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          field_out(ilon, ilat) = field_out(ilon, ilat) + weight * column_in(headerIndex)
+          field_out(lonIndex, latIndex) = field_out(lonIndex, latIndex) +  &
+                                          weight * column_in(headerIndex)
 
         end do
 
-      end do SUBGRID_LOOP
+      end do
 
-    end do HEADER_LOOP
+    end do
 
   end subroutine myezsintad
 
   ! -------------------------------------------------------------
   ! myezuvint_nl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezuvint_nl( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
+  subroutine myezuvint_nl( column_out, varName, fieldUU_in, fieldVV_in,  &
+                           interpInfo, stepIndex, procIndex ) 
     ! **Purpose:** 
     ! Vector horizontal interpolation, replaces the
     ! ezuvint routine from rmnlib.
@@ -1370,7 +1390,7 @@ contains
     integer                 :: stepIndex, procIndex
 
     ! locals
-    integer :: ilon, ilat, indexBeg, indexEnd, gridptIndex, headerIndex
+    integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
     real(8) :: lat, lon, latRot, lonRot, weight
@@ -1381,27 +1401,29 @@ contains
     doUU = (trim(varName) == 'UU' .or. interpInfo%hco%rotated)
     doVV = (trim(varName) == 'VV' .or. interpInfo%hco%rotated)
 
-    HEADER_LOOP: do headerIndex = 1, numColumn
+    header_loop: do headerIndex = 1, numColumn
 
       interpUU(:) = 0.0d0
       interpVV(:) = 0.0d0
 
-      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+      subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
-        indexEnd = interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-        if ( indexEnd < IndexBeg ) cycle SUBGRID_LOOP
+        if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
         ! Interpolate the model UU to the obs point
         do gridptIndex = indexBeg, indexEnd
 
-          ilon = interpInfo%allLonIndex(gridptIndex)
-          ilat = interpInfo%allLatIndex(gridptIndex)
-          weight = interpInfo%allInterpWeight(gridptIndex)
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) + weight * fieldUU_in(ilon, ilat)
-          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) + weight * fieldVV_in(ilon, ilat)
+          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) +  &
+                      weight * fieldUU_in(lonIndex, latIndex)
+          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) +  &
+                      weight * fieldVV_in(lonIndex, latIndex)
 
         end do
         ! now rotate the wind vector
@@ -1419,7 +1441,7 @@ contains
                                   'ToMetWind' )                ! IN
         end if
 
-      end do SUBGRID_LOOP
+      end do subGrid_loop
 
       ! return only the desired component
       if ( trim(varName) == 'UU' ) then
@@ -1428,14 +1450,15 @@ contains
         column_out(headerIndex) = sum(interpVV(:))
       end if
 
-    end do HEADER_LOOP
+    end do header_loop
 
   end subroutine myezuvint_nl
 
   ! -------------------------------------------------------------
   ! myezuvint_tl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezuvint_tl( column_out, varName, fieldUU_in, fieldVV_in, interpInfo, stepIndex, procIndex ) 
+  subroutine myezuvint_tl( column_out, varName, fieldUU_in, fieldVV_in,  &
+                           interpInfo, stepIndex, procIndex ) 
     ! **Purpose:** 
     ! Vector horizontal interpolation, replaces the
     ! ezuvint routine from rmnlib.
@@ -1450,7 +1473,7 @@ contains
     integer                 :: stepIndex, procIndex
 
     ! locals
-    integer :: ilon, ilat, indexBeg, indexEnd, gridptIndex, headerIndex
+    integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
     real(8) :: lat, lon, latRot, lonRot, weight
@@ -1461,27 +1484,29 @@ contains
     doUU = (trim(varName) == 'UU' .or. interpInfo%hco%rotated)
     doVV = (trim(varName) == 'VV' .or. interpInfo%hco%rotated)
 
-    HEADER_LOOP: do headerIndex = 1, numColumn
+    header_loop: do headerIndex = 1, numColumn
 
       interpUU(:) = 0.0d0
       interpVV(:) = 0.0d0
 
-      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+      subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
-        indexEnd = interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-        if ( indexEnd < IndexBeg ) cycle SUBGRID_LOOP
+        if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
         ! Interpolate the model UU to the obs point
         do gridptIndex = indexBeg, indexEnd
 
-          ilon = interpInfo%allLonIndex(gridptIndex)
-          ilat = interpInfo%allLatIndex(gridptIndex)
-          weight = interpInfo%allInterpWeight(gridptIndex)
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) + weight * fieldUU_in(ilon, ilat)
-          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) + weight * fieldVV_in(ilon, ilat)
+          if ( doUU ) interpUU(subGridIndex) = interpUU(subGridIndex) +  &
+                      weight * fieldUU_in(lonIndex, latIndex)
+          if ( doVV ) interpVV(subGridIndex) = interpVV(subGridIndex) +  &
+                      weight * fieldVV_in(lonIndex, latIndex)
 
         end do
         ! now rotate the wind vector
@@ -1499,7 +1524,7 @@ contains
                                   'ToMetWind' )                ! IN
         end if
 
-      end do SUBGRID_LOOP
+      end do subGrid_loop
 
       ! return only the desired component
       if ( trim(varName) == 'UU' ) then
@@ -1508,14 +1533,15 @@ contains
         column_out(headerIndex) = sum(interpVV(:))
       end if
 
-    end do HEADER_LOOP
+    end do header_loop
 
   end subroutine myezuvint_tl
 
   ! -------------------------------------------------------------
   ! myezuvint_ad: Adjoint of vector field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezuvint_ad( column_in, varName, fieldUU_out, fieldVV_out, interpInfo, stepIndex, procIndex ) 
+  subroutine myezuvint_ad( column_in, varName, fieldUU_out, fieldVV_out, &
+                           interpInfo, stepIndex, procIndex ) 
     ! **Purpose:** 
     ! Adjoint of the vector horizontal interpolation.
     !
@@ -1529,7 +1555,7 @@ contains
     integer                 :: stepIndex, procIndex
 
     ! locals
-    integer :: ilon, ilat, indexBeg, indexEnd, gridptIndex, headerIndex
+    integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
     real(8) :: lat, lon, latRot, lonRot, weight
@@ -1540,7 +1566,7 @@ contains
     doUU = (trim(varName) == 'UU' .or. interpInfo%hco%rotated)
     doVV = (trim(varName) == 'VV' .or. interpInfo%hco%rotated)
 
-    HEADER_LOOP: do headerIndex = 1, numColumn
+    header_loop: do headerIndex = 1, numColumn
 
       if ( trim(varName) == 'UU' ) then
         interpUU(:) = column_in(headerIndex)
@@ -1550,12 +1576,12 @@ contains
         interpVV(:) = column_in(headerIndex)
       end if
 
-      SUBGRID_LOOP: do subGridIndex = 1, interpInfo%hco%numSubGrid
+      subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%bigIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
-        indexEnd = interpInfo%bigIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-        if ( indexEnd < IndexBeg ) cycle SUBGRID_LOOP
+        if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
         ! now rotate the wind vector and return the desired component
         if ( interpInfo%hco%rotated ) then
@@ -1575,18 +1601,20 @@ contains
         ! Interpolate the model VV to the obs point
         do gridptIndex = indexBeg, indexEnd
 
-          ilon = interpInfo%allLonIndex(gridptIndex)
-          ilat = interpInfo%allLatIndex(gridptIndex)
-          weight = interpInfo%allInterpWeight(gridptIndex)
+          lonIndex = interpInfo%lonIndexDepot(gridptIndex)
+          latIndex = interpInfo%latIndexDepot(gridptIndex)
+          weight = interpInfo%interpWeightDepot(gridptIndex)
 
-          if ( doUU ) fieldUU_out(ilon, ilat) = fieldUU_out(ilon, ilat) + weight * interpUU(subGridIndex)
-          if ( doVV ) fieldVV_out(ilon, ilat) = fieldVV_out(ilon, ilat) + weight * interpVV(subGridIndex)
+          if ( doUU ) fieldUU_out(lonIndex, latIndex) =  &
+                      fieldUU_out(lonIndex, latIndex) + weight * interpUU(subGridIndex)
+          if ( doVV ) fieldVV_out(lonIndex, latIndex) =  &
+                      fieldVV_out(lonIndex, latIndex) + weight * interpVV(subGridIndex)
 
         end do
 
-      end do SUBGRID_LOOP
+      end do subGrid_loop
 
-    end do HEADER_LOOP
+    end do header_loop
 
   end subroutine myezuvint_ad
 
@@ -1613,17 +1641,17 @@ contains
 
     ! locals
     integer :: numSubGrids
-    integer :: ezget_nsubgrids, ezget_subgridids, gdxyfll, ezgprm, gdgaxes
+    integer :: ezget_nsubGrids, ezget_subGridids, gdxyfll, ezgprm, gdgaxes
     integer, allocatable :: EZscintIDvec(:)
     character(len=1) :: grtyp
-    integer :: ni, nj, ig1, ig2, ig3, ig4, ilon, ilat
+    integer :: ni, nj, ig1, ig2, ig3, ig4, lonIndex, latIndex
     real :: lonrot, latrot
     real, allocatable :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
 
     ! this controls which approach to use for interpolation within the YIN-YAN overlap
     logical :: useSingleValueOverlap = .true.  
 
-    numSubGrids = ezget_nsubgrids(gdid)
+    numSubGrids = ezget_nsubGrids(gdid)
     xpos2_r4 = -999.0
     ypos2_r4 = -999.0
 
@@ -1638,8 +1666,8 @@ contains
       ! This is a Yin-Yang grid, do something different
 
       allocate(EZscintIDvec(numSubGrids))
-      ierr = ezget_subgridids(gdid, EZscintIDvec)   
-      ! get ni nj of subgrid, assume same for both YIN and YANG
+      ierr = ezget_subGridids(gdid, EZscintIDvec)   
+      ! get ni nj of subGrid, assume same for both YIN and YANG
       ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
 
       ! first check YIN
@@ -1648,15 +1676,17 @@ contains
       ! compute rotated lon and lat at obs location
       allocate(ax_yin(ni),ay_yin(nj))
       ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
-      ilon = floor(xpos_r4)
-      if ( ilon >= 1 .and. (ilon+1) <= ni ) then
-        lonrot = ax_yin(ilon) + (ax_yin(ilon+1) - ax_yin(ilon)) * (xpos_r4 - ilon)
+      lonIndex = floor(xpos_r4)
+      if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
+        lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
+                 (xpos_r4 - lonIndex)
       else
         lonrot = -999.0
       end if
-      ilat = floor(ypos_r4)
-      if ( ilat >= 1 .and. (ilat+1) <= nj ) then
-        latrot = ay_yin(ilat) + (ay_yin(ilat+1) - ay_yin(ilat)) * (ypos_r4 - ilat)
+      latIndex = floor(ypos_r4)
+      if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
+        latrot = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
+                 (ypos_r4 - latIndex)
       else
         latrot = -999.0
       end if
@@ -1690,14 +1720,16 @@ contains
           allocate(ax_yan(ni),ay_yan(nj))
           ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
           ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
-          if ( ilon >= 1 .and. (ilon+1) <= ni ) then
-            lonrot = ax_yan(ilon) + (ax_yan(ilon+1) - ax_yan(ilon)) * (xpos2_r4 - ilon)
+          if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
+            lonrot = ax_yan(lonIndex) + (ax_yan(lonIndex+1) - ax_yan(lonIndex)) *  &
+                     (xpos2_r4 - lonIndex)
           else
             lonrot = -999.0
           end if
-          ilat = floor(ypos2_r4)
-          if ( ilat >= 1 .and. (ilat+1) <= nj ) then
-            latrot = ay_yan(ilat) + (ay_yan(ilat+1) - ay_yan(ilat)) * (ypos2_r4 - ilat)
+          latIndex = floor(ypos2_r4)
+          if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
+            latrot = ay_yan(latIndex) + (ay_yan(latIndex+1) - ay_yan(latIndex)) *  &
+                     (ypos2_r4 - latIndex)
           else
             latrot = -999.0
           end if
@@ -1746,7 +1778,7 @@ contains
   
     ! locals
     integer :: jlev, jk, jk2, jgl, jlon, headerIndex
-    integer :: ilon, ila, ierr, subGridIndex
+    integer :: lonIndex, ila, ierr, subGridIndex
     real(8) :: lat, lon
     real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
@@ -1799,18 +1831,22 @@ contains
            ypos > real(statevector%nj    , 8) .or. &
            xpos < 1.d0                        .or. &
            xpos > real(statevector%ni + 1, 8) ) then
-        write(*,*) 's2c_bgcheck_bilin: Obs outside local domain for headerIndex = ', headerIndex
-        write(*,*) '  obs    lat, lon position            = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
-        write(*,*) '  obs    x, y     position            = ', xpos, ypos
-        write(*,*) '  domain x_end, y_end bounds          = ', statevector%ni + 1, statevector%nj
+        write(*,*) 's2c_bgcheck_bilin: Obs outside local domain for headerIndex = ', &
+                   headerIndex
+        write(*,*) '  obs    lat, lon position            = ', &
+                   Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
+        write(*,*) '  obs    x, y     position            = ', &
+                   xpos, ypos
+        write(*,*) '  domain x_end, y_end bounds          = ', &
+                   statevector%ni + 1, statevector%nj
         call utl_abort('s2c_bgcheck_bilin')
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
       if ( xpos /= real(statevector%ni + 1,8) ) then
-        ILON = floor(xpos)
+        lonIndex = floor(xpos)
       else
-        ILON = floor(xpos) - 1
+        lonIndex = floor(xpos) - 1
       end if
 
       if ( ypos /= real(statevector%nj,8) ) then
@@ -1820,7 +1856,7 @@ contains
       end if
 
       !- 2.3 Compute the 4 weights of the bilinear interpolation
-      dldx = xpos - real(ILON,8)
+      dldx = xpos - real(lonIndex,8)
       dldy = ypos - real(ILA,8)
 
       dlw1 = (1.d0-dldx) * (1.d0-dldy)
@@ -1839,48 +1875,48 @@ contains
       do jk = 1, gsv_getNumLev(statevector,'MM')
         if(gsv_varExist(statevector,'UU')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
-          uu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                          + dlw2*zgd(ilon+1,ila,jk2)  &
-                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                          + dlw4*zgd(ilon+1,ila+1,jk2)
+          uu_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
         if(gsv_varExist(statevector,'VV')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
-          vv_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                          + dlw2*zgd(ilon+1,ila,jk2)  &
-                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                          + dlw4*zgd(ilon+1,ila+1,jk2)
+          vv_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
       end do
       do jk = 1, gsv_getNumLev(statevector,'TH')
         if(gsv_varExist(statevector,'HU')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
-          hu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                          + dlw2*zgd(ilon+1,ila,jk2)  &
-                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                          + dlw4*zgd(ilon+1,ila+1,jk2)
+          hu_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
         if(gsv_varExist(statevector,'TT')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
-          tt_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                          + dlw2*zgd(ilon+1,ila,jk2)  &
-                          + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                          + dlw4*zgd(ilon+1,ila+1,jk2)
+          tt_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
       end do
       if(gsv_varExist(statevector,'P0')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
-        ps_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                       + dlw2*zgd(ilon+1,ila,jk2)  &
-                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                       + dlw4*zgd(ilon+1,ila+1,jk2)
+        ps_column(1) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
       end if
       if(gsv_varExist(statevector,'TG')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
-        tg_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
-                       + dlw2*zgd(ilon+1,ila,jk2)  &
-                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
-                       + dlw4*zgd(ilon+1,ila+1,jk2)
+        tg_column(1) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
       end if
     end do
 
@@ -1891,7 +1927,8 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_column_hbilin  
   !--------------------------------------------------------------------------
-  subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat,plong,plat,vprof,vlevout,nlevout)
+  subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat, &
+                               plong,plat,vprof,vlevout,nlevout)
     ! **Purpose:** 
     ! Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
     ! Assumes vertical interpolation not needed or already done.
@@ -1921,7 +1958,7 @@ contains
     
     ! locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
-    integer :: ilev,ilon,ilat,i,j
+    integer :: ilev,lonIndex,latIndex,i,j
 
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
 
@@ -1929,24 +1966,24 @@ contains
     
     plong2 = plong
     if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
-    do ilon = 2, nlong
-      if  (xlong(ilon-1) < xlong(ilon)) then
-        if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
+    do lonIndex = 2, nlong
+      if  (xlong(lonIndex-1) < xlong(lonIndex)) then
+        if (plong2 >= xlong(lonIndex-1) .and. plong2 <= xlong(lonIndex)) exit
       else 
         ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
       end if
     end do
-    ilon = ilon-1
+    lonIndex = lonIndex-1
        
-    do ilat = 2, nlat
-      if (plat <= xlat(ilat)) exit
+    do latIndex = 2, nlat
+      if (plat <= xlat(latIndex)) exit
     end do
-    ilat = ilat-1
+    latIndex = latIndex-1
     
     ! Set lat/long interpolation weights
     
-    DLDX = (plong - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
-    DLDY = (plat - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+    DLDX = (plong - xlong(lonIndex))/(xlong(lonIndex+1)-xlong(lonIndex))
+    DLDY = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
 
     DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
     DLW2 =       DLDX  * (1.d0-DLDY)
@@ -1961,7 +1998,7 @@ contains
     ilev = 1
     do i = 1, nlevout
       do j = ilev, nlev          
-        if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+        if (lnvlevout(i) < lnvlev(j)) exit ! assumes lnvlevout and lnvlev increase with index
       end do
       ilev = j-1
       if (ilev < 1) then
@@ -1972,14 +2009,14 @@ contains
        
       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
-      vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev)      &
-                      + DLW2 * field(ilon+1,ilat,ilev)    &
-                      + DLW3 * field(ilon,ilat+1,ilev)    &
-                      + DLW4 * field(ilon+1,ilat+1,ilev)) &
-        + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1)    &
-                      + DLW2 * field(ilon+1,ilat,ilev+1)  &
-                      + DLW3 * field(ilon,ilat+1,ilev+1)  &
-                      + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
+      vprof(i) = DLDP* (DLW1 * field(lonIndex,latIndex,ilev)      &
+                      + DLW2 * field(lonIndex+1,latIndex,ilev)    &
+                      + DLW3 * field(lonIndex,latIndex+1,ilev)    &
+                      + DLW4 * field(lonIndex+1,latIndex+1,ilev)) &
+        + (1.d0-DLDP)* (DLW1 * field(lonIndex,latIndex,ilev+1)    &
+                      + DLW2 * field(lonIndex+1,latIndex,ilev+1)  &
+                      + DLW3 * field(lonIndex,latIndex+1,ilev+1)  &
+                      + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
     end do
         
   end subroutine s2c_column_hbilin   

@@ -188,9 +188,9 @@ contains
     !
     !- 2.  Compute the analysis increment
     !
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
       call gsv_zero( statevector_temp )
@@ -252,7 +252,7 @@ contains
       ! Add latest contribution to total increment in statevector
       call gsv_add( statevector_temp, statevector )
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
     call gsv_deallocate( statevector_temp )
 
@@ -284,9 +284,9 @@ contains
                        mpi_local_opt=.true. )
 
     ! Process components in opposite order as forward calculation
-    BMAT_LOOP: do bmatIndex = numBmat, 1, -1
+    bmat_loop: do bmatIndex = numBmat, 1, -1
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
       subVector(:) = 0.0d0
@@ -348,7 +348,7 @@ contains
 
       end select
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
     call gsv_deallocate( statevector_temp )
 
@@ -389,9 +389,9 @@ contains
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -436,7 +436,7 @@ contains
 
       end select
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
   end subroutine bmat_reduceToMPILocal
 
@@ -457,9 +457,9 @@ contains
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -504,7 +504,7 @@ contains
 
       end select
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
   end subroutine bmat_reduceToMPILocal_r4
 
@@ -525,9 +525,9 @@ contains
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -572,7 +572,7 @@ contains
 
       end select
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
   end subroutine bmat_expandToMPIGlobal
 
@@ -593,9 +593,9 @@ contains
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -640,7 +640,7 @@ contains
 
       end select
 
-    end do BMAT_LOOP
+    end do bmat_loop
 
   end subroutine bmat_expandToMPIGlobal_r4
 

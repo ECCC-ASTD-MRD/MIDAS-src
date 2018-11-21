@@ -83,7 +83,7 @@ CONTAINS
                       varNames_opt=trialVarNamesToRead )
 
     ! read trial files using default horizontal interpolation degree
-    call gsv_readTrials( statevector_trial, removeFromRamDisk_opt=.true. )  ! IN/OUT
+    call gsv_readTrials( statevector_trial )  ! IN/OUT
 
     trialsInitialized = .true.
     
@@ -203,7 +203,7 @@ CONTAINS
         do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
             do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),MPC_MINIMUM2_HU_R8))
+              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),gsv_rhumin))
             end do
           end do
         end do
@@ -220,7 +220,7 @@ CONTAINS
         do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
             do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),MPC_MINIMUM2_HU_R4))
+              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),real(gsv_rhumin,4)))
             end do
           end do
         end do

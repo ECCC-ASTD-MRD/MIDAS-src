@@ -36,7 +36,7 @@ module gridStateVector_mod
   private
 
   ! public structure definition
-  public :: struct_gsv
+  public :: gsv_rhumin, struct_gsv
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
@@ -103,7 +103,7 @@ module gridStateVector_mod
   logical :: varExistList(vnl_numVarMax)
   character(len=8) :: ANLTIME_BIN
   integer, external :: get_max_rss
-  real(8) :: rhumin
+  real(8) :: rhumin, gsv_rhumin
 
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:,:)
@@ -303,6 +303,8 @@ module gridStateVector_mod
     if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist')
     if (mpi_myid.eq.0) write(*,nml=namstate)
     ierr=fclos(nulnam)
+
+    gsv_rhumin = rhumin
 
     if (varneed('GZ')) call utl_abort('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
 
@@ -2525,14 +2527,14 @@ module gridStateVector_mod
     ! Read all other fields needed for this MPI task
     field_r4_ptr => gsv_getField_r4(statevector)
     do stepIndex = stepIndexBeg, stepIndexEnd
-      K_LOOP: do kIndex = statevector%mykBeg, statevector%mykEnd
+      k_loop: do kIndex = statevector%mykBeg, statevector%mykEnd
         varName = gsv_getVarNameFromK(statevector,kIndex)
         levIndex = gsv_getLevFromK(statevector,kIndex)
 
-        if (.not.gsv_varExist(statevector,varName)) cycle K_LOOP
+        if (.not.gsv_varExist(statevector,varName)) cycle k_loop
 
         ! do not try to read diagnostic variables
-        if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle K_LOOP
+        if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle k_loop
 
         varLevel = vnl_varLevelFromVarname(varName)
         if (varLevel == 'MM') then
@@ -2613,7 +2615,7 @@ module gridStateVector_mod
           end if
         end if
 
-      end do K_LOOP
+      end do k_loop
     end do
 
     if (statevector%hco%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
@@ -2652,10 +2654,10 @@ module gridStateVector_mod
 
     field_r4_ptr   => gsv_getField_r4(statevector)
 
-    STEP_LOOP: do stepIndex = stepIndexBeg, stepIndexEnd
+    step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
 
       ! Do unit conversion for all variables
-      K_LOOP: do kIndex = statevector%mykBeg, statevector%mykEnd
+      do kIndex = statevector%mykBeg, statevector%mykEnd
         varName = gsv_getVarNameFromK(statevector,kIndex)
 
         if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
@@ -2674,7 +2676,7 @@ module gridStateVector_mod
           field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
         end if
 
-      end do K_LOOP
+      end do
 
       ! Do unit conversion for extra copy of winds, if present
       if ( statevector%extraUVallocated ) then
@@ -2689,7 +2691,7 @@ module gridStateVector_mod
 
       end if
 
-    end do STEP_LOOP
+    end do step_loop
 
   end subroutine gsv_fileUnitsToStateUnits
 
@@ -3524,12 +3526,12 @@ module gridStateVector_mod
 
       write(*,*) 'gsv_hInterpolate: before interpolation (no mpi)'
 
-      do stepIndex = 1, statevector_out%numStep
+      step_loop: do stepIndex = 1, statevector_out%numStep
         ! Do horizontal interpolation for mpi global statevectors
-        VAR_LOOP: do varIndex = 1, vnl_numvarmax
+        var_loop: do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
-          if ( trim(varName) == 'VV' ) cycle VAR_LOOP
+          if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+          if ( trim(varName) == 'VV' ) cycle var_loop
 
           nlev = statevector_out%varNumLev(varIndex)
 
@@ -3556,9 +3558,9 @@ module gridStateVector_mod
                                  interpDegree=trim(interpolationDegree) )
             end do
           end if
-        end do VAR_LOOP
+        end do var_loop
 
-      end do ! stepIndex
+      end do step_loop
 
     else
 
@@ -3570,9 +3572,9 @@ module gridStateVector_mod
       end if
 
       do stepIndex = 1, statevector_out%numStep
-        K_LOOP: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
+        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
           varName = gsv_getVarNameFromK(statevector_in,kIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle K_LOOP
+          if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
@@ -3602,7 +3604,7 @@ module gridStateVector_mod
             ierr = utl_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
                                interpDegree=trim(interpolationDegree) )
           end if
-        end do K_LOOP
+        end do k_loop
 
       end do ! stepIndex
 
@@ -3661,12 +3663,12 @@ module gridStateVector_mod
 
       write(*,*) 'gsv_hInterpolate_r4: before interpolation (no mpi)'
 
-      do stepIndex = 1, statevector_out%numStep
+      step_loop: do stepIndex = 1, statevector_out%numStep
         ! Do horizontal interpolation for mpi global statevectors
-        VAR_LOOP: do varIndex = 1, vnl_numvarmax
+        var_loop: do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
-          if ( trim(varName) == 'VV' ) cycle VAR_LOOP
+          if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+          if ( trim(varName) == 'VV' ) cycle var_loop
 
           nlev = statevector_out%varNumLev(varIndex)
 
@@ -3693,9 +3695,9 @@ module gridStateVector_mod
                                  interpDegree=trim(InterpolationDegree) )
             end do
           end if
-        end do VAR_LOOP
+        end do var_loop
 
-      end do ! stepIndex
+      end do step_loop
 
     else
 
@@ -3706,10 +3708,10 @@ module gridStateVector_mod
         call utl_abort('gsv_hInterpolate_r4: The input or output statevector is not distributed by VarsLevs.')
       end if
 
-      do stepIndex = 1, statevector_out%numStep
-        K_LOOP: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
+      step2_loop: do stepIndex = 1, statevector_out%numStep
+        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
           varName = gsv_getVarNameFromK(statevector_in,kIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle K_LOOP
+          if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
@@ -3739,9 +3741,9 @@ module gridStateVector_mod
             ierr = utl_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
                                interpDegree=trim(InterpolationDegree) )
           end if
-        end do K_LOOP
+        end do k_loop
 
-      end do ! stepIndex
+      end do step2_loop
 
     end if
 
@@ -3798,7 +3800,7 @@ module gridStateVector_mod
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
 
-    do stepIndex = 1, statevector_out%numStep
+    step_loop: do stepIndex = 1, statevector_out%numStep
 
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
@@ -3810,9 +3812,9 @@ module gridStateVector_mod
         if ( Ps_in_hPa_opt ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R8
       end if
 
-      VAR_LOOP: do varIndex = 1, vnl_numvarmax
+      var_loop: do varIndex = 1, vnl_numvarmax
         varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
+        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
         nlev_in  = statevector_in%varNumLev(varIndex)
         nlev_out = statevector_out%varNumLev(varIndex)
@@ -3823,7 +3825,7 @@ module gridStateVector_mod
         ! for 2D fields, just copy and cycle to next variable
         if ( nlev_in == 1 .and. nlev_out == 1 ) then
           field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle VAR_LOOP
+          cycle var_loop
         end if
 
         nullify(pres_out,pres_in)
@@ -3882,9 +3884,9 @@ module gridStateVector_mod
         deallocate(pres_out)
         deallocate(pres_in)
 
-      end do VAR_LOOP
+      end do var_loop
 
-    end do ! stepIndex
+    end do step_loop
 
   end subroutine gsv_vInterpolate
 
@@ -3932,7 +3934,7 @@ module gridStateVector_mod
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
 
-    do stepIndex = 1, statevector_out%numStep
+    step_loop: do stepIndex = 1, statevector_out%numStep
 
       if ( present(PsfcReference_opt) ) then
         psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
@@ -3944,9 +3946,9 @@ module gridStateVector_mod
         if ( Ps_in_hPa_opt ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R4
       end if
 
-      VAR_LOOP: do varIndex = 1, vnl_numvarmax
+      var_loop: do varIndex = 1, vnl_numvarmax
         varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
+        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
         nlev_in  = statevector_in%varNumLev(varIndex)
         nlev_out = statevector_out%varNumLev(varIndex)
@@ -3957,7 +3959,7 @@ module gridStateVector_mod
         ! for 2D fields, just copy and cycle to next variable
         if ( nlev_in == 1 .and. nlev_out == 1 ) then
           field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle VAR_LOOP
+          cycle var_loop
         end if
 
         nullify(pres_out,pres_in)
@@ -4016,9 +4018,9 @@ module gridStateVector_mod
         deallocate(pres_out)
         deallocate(pres_in)
 
-      end do VAR_LOOP
+      end do var_loop
 
-    end do ! stepIndex
+    end do step_loop
 
   end subroutine gsv_vInterpolate_r4
 
@@ -4538,11 +4540,10 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(stateVector_trial, removeFromRamDisk_opt)
+  subroutine gsv_readTrials(stateVector_trial)
     implicit none
 
     type(struct_gsv)     :: stateVector_trial
-    logical, optional    :: removeFromRamDisk_opt
 
     type(struct_gsv)     :: stateVector_1step_r4
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
@@ -4637,9 +4638,7 @@ module gridStateVector_mod
                               readGZsfc_opt=allocGZsfc)
 
         ! remove from ram disk to save some space
-        if ( present(removeFromRamDisk_opt) ) then
-          if ( removeFromRamDisk_opt ) ierr = ram_remove(fileName)
-        end if
+        ierr = ram_remove(fileName)
       else
 
         if ( stateVector_1step_r4%allocated ) call gsv_deallocate(stateVector_1step_r4)
@@ -4691,6 +4690,10 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
 
     call tmg_start(155,'gsv_stepToVarsLevs')
+
+    if ( statevector_VarsLevs%mpi_distribution /= 'VarsLevs' ) then
+      call utl_abort('gsv_transposeStepToVarsLevs: output statevector must have VarsLevs mpi distribution') 
+    end if
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
     call rpn_comm_barrier('GRID',ierr)
@@ -4897,8 +4900,10 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
 
+    call tmg_start(156,'gsv_stepToTiles')
+
     if ( statevector_tiles%mpi_distribution /= 'Tiles' ) then
-      call utl_abort('gsv_transposeTilesToStep: output statevector must have Tiles mpi distribution')
+      call utl_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
     end if
 
     call rpn_comm_barrier('GRID',ierr)
