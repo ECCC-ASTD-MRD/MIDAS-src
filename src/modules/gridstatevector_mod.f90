@@ -4457,7 +4457,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeStepToVarsLevs(stateVector_1step, stateVector_VarsLevs)
     implicit none
-    ! arguements
+    ! arguments
     type(struct_gsv) :: stateVector_1step, stateVector_VarsLevs
 
     ! locals
@@ -4629,8 +4629,11 @@ module gridStateVector_mod
   ! gsv_transposeStepToTiles
   !--------------------------------------------------------------------------
   subroutine gsv_transposeStepToTiles(stateVector_1step_r4, stateVector_tiles, stepIndexBeg)
+    ! **Purpose:**
+    ! Do mpi transpose from 1 timestep per mpi task to 4D lat-lon Tiles
+    !
     implicit none
-    ! arguements
+    ! arguments
     type(struct_gsv) :: stateVector_1step_r4, stateVector_tiles
     integer :: stepIndexBeg
 
@@ -4643,7 +4646,10 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
 
-    ! do mpi transpose to get 4D stateVector into lat-lon Tiles
+    if ( statevector_tiles%mpi_distribution /= 'Tiles' ) then
+      call utl_abort('gsv_transposeTilesToStep: output statevector must have Tiles mpi distribution')
+    end if
+
     call rpn_comm_barrier('GRID',ierr)
     write(*,*) 'gsv_transposeStepToTiles: starting'
 
@@ -4792,31 +4798,30 @@ module gridStateVector_mod
   ! gsv_transposeTilesToStep
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_tiles, stepIndexBeg)
+    ! **Purpose:**
+    ! Do mpi transpose from 4D lat-lon Tiles to 1 timestep per mpi task
+    !
     implicit none
-    ! arguements
+    ! arguments
     type(struct_gsv) :: stateVector_1step_r4, stateVector_tiles
     integer :: stepIndexBeg
 
     ! locals
     integer :: ierr, yourid, youridx, youridy, nsize
-    integer :: kIndex, procIndex, stepIndex
+    integer :: kIndex, procIndex, stepIndex, numStepOutput, stepCount
     logical :: thisProcIsAreceiver(mpi_nprocs)
-    real(8), allocatable :: gd_send(:,:), gd_recv(:,:,:)
+    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
+    real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
+    real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
     real(8), pointer     :: field_in_r8(:,:,:,:)
 
-    ! do mpi transpose from 4D lat-lon Tiles to 1 timestep per mpi task
+    if ( statevector_tiles%mpi_distribution /= 'Tiles' ) then
+      call utl_abort('gsv_transposeTilesToStep: input statevector must have Tiles mpi distribution')
+    end if
+
     call rpn_comm_barrier('GRID',ierr)
     write(*,*) 'gsv_transposeTilesToStep: starting'
-
-    allocate(gd_send(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
-    gd_send(:,:) = 0.0d0
-    if ( stateVector_1step_r4%allocated ) then
-      allocate(gd_recv(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
-    else
-      allocate(gd_recv(1,1,1))
-    end if
-    gd_recv(:,:,:) = 0.0d0
 
     ! determine which tasks have something to send and let everyone know
     do procIndex = 1, mpi_nprocs
@@ -4828,6 +4833,49 @@ module gridStateVector_mod
                           'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
     end do
 
+    numStepOutput = 0
+    do procIndex = 1, mpi_nprocs
+      if ( thisProcIsAreceiver(procIndex) ) numStepOutput = numStepOutput + 1
+    end do
+    write(*,*) 'gsv_transposeTilesToStep: numStepOutput = ', numStepOutput
+
+    ! size of each message
+    nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
+
+    ! only recv the data on tasks that need data
+    recvsizes(:) = 0
+    if ( stateVector_1step_r4%allocated ) then
+      do procIndex = 1, mpi_nprocs
+        recvsizes(procIndex) = nsize
+      end do
+    end if
+    recvdispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+    end do
+
+    ! all tasks send only to those that need data
+    sendsizes(:) = 0
+    do procIndex = 1, mpi_nprocs
+      if ( thisProcIsAreceiver(procIndex) ) then
+        sendsizes(procIndex) = nsize
+      end if
+    end do
+    senddispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+    end do
+
+    ! allocate arrays used for mpi communication of 1 level/variable at a time
+    allocate(gd_send_r4(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepOutput))
+    gd_send_r4(:,:,:) = 0.0
+    if ( stateVector_1step_r4%allocated ) then
+      allocate(gd_recv_r4(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
+    else
+      allocate(gd_recv_r4(1,1,1))
+    end if
+    gd_recv_r4(:,:,:) = 0.0
+
     if ( stateVector_tiles%dataKind == 4 ) then
       field_in_r4 => gsv_getField_r4(stateVector_tiles)
     else
@@ -4836,38 +4884,38 @@ module gridStateVector_mod
 
     do kIndex = 1, stateVector_tiles%nk
 
-      ! distribute from each task with something to all tasks
+      ! prepare data for distribution from all tasks to only those that need it
       stepIndex = stepIndexBeg - 1
+      stepCount = 0
 
-      nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
       do procIndex = 1, mpi_nprocs
 
         ! skip if this task has nothing to receive
         if ( .not. thisProcIsAreceiver(procIndex) ) cycle
 
+        stepCount = stepCount + 1
         stepIndex = stepIndex + 1
         if ( stepIndex > stateVector_tiles%numStep ) then
           call utl_abort('gsv_transposeTilesToStep: stepIndex > numStep')
         end if
 
         if ( stateVector_tiles%dataKind == 4 ) then
-          gd_send(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
-               real( field_in_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
-                                 stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
-                                 kIndex, stepIndex), 8 )
-        else
-          gd_send(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
-               field_in_r8(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
+          gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount) = &
+               field_in_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                            stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                            kIndex, stepIndex)
+        else
+          gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount) = &
+               real( field_in_r8(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
+                                 stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
+                                 kIndex, stepIndex), 4 )
         end if
-
-        call rpn_comm_gather(gd_send, nsize, 'mpi_real8', &
-                             gd_recv, nsize, 'mpi_real8', &
-                             procIndex-1, 'grid', ierr)
 
       end do ! procIndex
 
+      call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4, &
+                         gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, &
+                         mpi_comm_grid, ierr)
 
       ! copy over the complete 1 timestep received
       if ( stateVector_1step_r4%allocated ) then
@@ -4880,8 +4928,8 @@ module gridStateVector_mod
             field_out_r4(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                          stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
                          kIndex, 1) = &
-                 real( gd_recv(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                               1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1), 4 )
+                 gd_recv_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                            1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -4890,11 +4938,23 @@ module gridStateVector_mod
 
     end do ! kIndex
 
-    ! now gather GZsfc onto all tasks that is a receiver
+    deallocate(gd_recv_r4)
+    deallocate(gd_send_r4)
+
+    ! now gather the same GZsfc onto each task that is a receiver
     if ( stateVector_tiles%gzSfcPresent ) then
 
+      allocate(gd_send_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
+      gd_send_r8(:,:) = 0.0d0
+      if ( stateVector_1step_r4%allocated ) then
+        allocate(gd_recv_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
+      else
+        allocate(gd_recv_r8(1,1,1))
+      end if
+      gd_recv_r8(:,:,:) = 0.0d0
+
       ! prepare tile to send on each task
-      gd_send(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
+      gd_send_r8(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
           stateVector_tiles%gzSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                                   stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
 
@@ -4905,8 +4965,8 @@ module gridStateVector_mod
         if ( .not. thisProcIsAreceiver(procIndex) ) cycle
 
         nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-        call rpn_comm_gather(gd_send, nsize, 'mpi_real8', &
-                             gd_recv, nsize, 'mpi_real8', &
+        call rpn_comm_gather(gd_send_r8, nsize, 'mpi_real8', &
+                             gd_recv_r8, nsize, 'mpi_real8', &
                              procIndex-1, 'grid', ierr)
 
         ! copy over the complete 1 timestep received
@@ -4918,8 +4978,8 @@ module gridStateVector_mod
               stateVector_1step_r4%gzSfc(  &
                    stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                    stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1) ) = &
-                   gd_recv(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                           1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
+                   gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                              1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
             end do
           end do
           !$OMP END PARALLEL DO
@@ -4927,10 +4987,10 @@ module gridStateVector_mod
 
       end do ! procIndex
 
-    end if ! gzSfcPresent
+      deallocate(gd_recv_r8)
+      deallocate(gd_send_r8)
 
-    deallocate(gd_recv)
-    deallocate(gd_send)
+    end if ! gzSfcPresent
 
     write(*,*) 'gsv_transposeTilesToStep: finished'
 

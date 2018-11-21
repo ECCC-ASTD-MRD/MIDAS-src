@@ -309,13 +309,13 @@ CONTAINS
     !
     !- Write out the files in parallel with respect to time steps
     !
-    call tmg_start(183,'INC_NEWWRITEANLMREHM')
+    call tmg_start(183,'INC_WRITEANLMREHM')
 
     ! figure out number of batches of time steps for writing
     numBatch = ceiling(real(stateVector_analysis%numStep) / real(mpi_nprocs))
     write(*,*) 'inc_computeAndWriteAnalysis: writing will be done by number of batches = ', numBatch
 
-    BATCH: do batchIndex = 1, numBatch
+    batch_loop: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
       stepIndexEnd = min(stateVector_analysis%numStep, stepIndexBeg + mpi_nprocs - 1)
@@ -360,40 +360,44 @@ CONTAINS
                               numBits_opt=writeNumBits, containsFullField_opt=.true. )
       end if
 
-      ! transpose INCREMENT data from Tiles to Steps
-      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_incHighRes, stepIndexBeg)
+      if (writeHiresIncrement) then
 
-      ! write the INCREMENT file for one timestep on all tasks with data
-      if ( stepIndexToWrite /= -1 ) then
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        incFileName = './rehm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( statevector_1step_r4, trim(incFileName), etiket_rehm,  &
-                              typvar_opt='R', &
-                              numBits_opt=writeNumBits, containsFullField_opt=.false. )
-      end if
+        ! transpose INCREMENT data from Tiles to Steps
+        call gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_incHighRes, stepIndexBeg)
 
-      if (gsv_varExist(varName='P0')) then
-
-        ! transpose ANALYSIS PSFC AND GZ_SFC ONLY data from Tiles to Steps
-        call gsv_transposeTilesToStep(stateVector_Psfc_1step_r4, stateVector_Psfc, stepIndexBeg)
-
-        ! Also write analysis value of Psfc and surface GZ to increment file
+        ! write the INCREMENT file for one timestep on all tasks with data
         if ( stepIndexToWrite /= -1 ) then
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
           incFileName = './rehm_' // trim(coffset) // 'm'
-          call gsv_writeToFile( statevector_Psfc_1step_r4, trim(incFileName), etiket_rehm,  &
-                                typvar_opt='A', writeGZsfc_opt=.true., &
-                                numBits_opt=writeNumBits, containsFullField_opt=.true. )
+          call gsv_writeToFile( statevector_1step_r4, trim(incFileName), etiket_rehm,  &
+                                typvar_opt='R', &
+                                numBits_opt=writeNumBits, containsFullField_opt=.false. )
         end if
 
-      end if
+        if (gsv_varExist(varName='P0')) then
+
+          ! transpose ANALYSIS PSFC AND GZ_SFC ONLY data from Tiles to Steps
+          call gsv_transposeTilesToStep(stateVector_Psfc_1step_r4, stateVector_Psfc, stepIndexBeg)
+
+          ! Also write analysis value of Psfc and surface GZ to increment file
+          if ( stepIndexToWrite /= -1 ) then
+            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+            incFileName = './rehm_' // trim(coffset) // 'm'
+            call gsv_writeToFile( statevector_Psfc_1step_r4, trim(incFileName), etiket_rehm,  &
+                                  typvar_opt='A', writeGZsfc_opt=.true., &
+                                  numBits_opt=writeNumBits, containsFullField_opt=.true. )
+          end if
+
+        end if
+
+      end if ! writeHiresIncrement
 
       if ( stepIndexToWrite /= -1 ) then
         call gsv_deallocate(stateVector_1step_r4)
         call gsv_deallocate(stateVector_Psfc_1step_r4)
       end if
 
-    end do BATCH
+    end do batch_loop
     call tmg_stop(183)
 
     call gsv_deallocate(statevector_analysis)
