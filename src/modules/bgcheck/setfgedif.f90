@@ -164,8 +164,8 @@
                      zVV(JL) = 0.d0
                   ENDDO
                   DO JL = 1, NWNDLEV
-                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU') * p_knot
-                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV') * p_knot
+                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU')
+                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV')
                   ENDDO
                   zUU(NGPSLEV) = zUU(NWNDLEV)
                   zVV(NGPSLEV) = zUU(NWNDLEV)
@@ -266,6 +266,7 @@
          deallocate(zTT)
          deallocate(zDP)
          deallocate(zPP)
+         deallocate(gps_vRO_Jacobian)
       ENDIF
 
       WRITE(*,*)'EXIT SETFGEDIFF'
