@@ -45,7 +45,7 @@ MODULE ensembleStateVector_mod
   public :: ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
-  public :: ens_computeStdDev, ens_copyEnsStdDev
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_clipHumidity
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -384,34 +384,69 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_copyToStateWork
   !--------------------------------------------------------------------------
-  subroutine ens_copyToStateWork(ens, memberIndex)
+  subroutine ens_copyToStateWork(ens, dataType, memberIndex_opt, subEnsIndex_opt)
     implicit none
 
     ! arguments
     type(struct_ens) :: ens
-    integer          :: memberIndex
+    character(len=*) :: dataType
+    integer, optional:: memberIndex_opt
+    integer, optional:: subEnsIndex_opt
 
     ! locals
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, numStep, stepIndex
+    integer          :: memberIndex, subEnsIndex
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
+    select case(trim(dataType))
+    case ('member')
+      if (present(memberIndex_opt)) then
+        memberIndex = memberIndex_opt
+      else
+        call utl_abort('ens_copyToStateWork: memberIndex_opt must be provided with dataType=member')
+      end if
+    case ('mean','stdDev')
+      if (present(subEnsIndex_opt)) then
+        subEnsIndex = subEnsIndex_opt
+      else
+        subEnsIndex = 1
+      end if
+    case default
+      write(*,*)
+      write(*,*) 'Unsupported dataType: ', trim(dataType)
+      write(*,*) '    please select either: member, mean or stdDev'
+      call utl_abort('ens_copyToStateWork')
+    end select
+
     if (ens%dataKind == 8) then
       ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
       do stepIndex = 1, numStep
         do jk = k1, k2
-          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) 
+          if (dataType == 'member') then
+            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
+          else if (dataType == 'mean') then
+            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+          else if (dataType == 'stdDev') then
+            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+          end if
         end do
       end do
     else if (ens%dataKind == 4) then
       ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
       do stepIndex = 1, numStep
         do jk = k1, k2
-          ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) 
+          if (dataType == 'member') then
+            ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+          else if (dataType == 'mean') then
+            ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+          else if (dataType == 'stdDev') then
+            ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+          end if
         end do
       end do
     end if
@@ -421,34 +456,69 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_copyFromStateWork
   !--------------------------------------------------------------------------
-  subroutine ens_copyFromStateWork(ens, memberIndex)
+  subroutine ens_copyFromStateWork(ens, dataType, memberIndex_opt, subEnsIndex_opt)
     implicit none
 
     ! arguments
     type(struct_ens) :: ens
-    integer          :: memberIndex
+    character(len=*) :: dataType
+    integer, optional:: memberIndex_opt
+    integer, optional:: subEnsIndex_opt
 
     ! locals
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, numStep, stepIndex
+    integer          :: memberIndex, subEnsIndex
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
+    select case(trim(dataType))
+    case ('member')
+      if (present(memberIndex_opt)) then
+        memberIndex = memberIndex_opt
+      else
+        call utl_abort('ens_copyFromStateWork: memberIndex_opt must be provided with dataType=member')
+      end if
+    case ('mean','stdDev')
+      if (present(subEnsIndex_opt)) then
+        subEnsIndex = subEnsIndex_opt
+      else
+        subEnsIndex = 1
+      end if
+    case default
+      write(*,*)
+      write(*,*) 'Unsupported dataType: ', trim(dataType)
+      write(*,*) '    please select either: member, mean or stdDev'
+      call utl_abort('ens_copyToStateWork')
+    end select
+
     if (ens%dataKind == 8) then
       ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
       do stepIndex = 1, numStep
         do jk = k1, k2
-          ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          if (dataType == 'member') then
+            ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          else if (dataType == 'mean') then
+            ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          else if (dataType == 'stdDev') then
+            ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          end if
         end do
       end do
     else if (ens%dataKind == 4) then
       ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
       do stepIndex = 1, numStep
         do jk = k1, k2
-          ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+          if (dataType == 'member') then
+            ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+          else if (dataType == 'mean') then
+            ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+          else if (dataType == 'stdDev') then
+            ens%allLev_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+          end if
         end do
       end do
     end if
@@ -756,16 +826,19 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_computeMean
   !--------------------------------------------------------------------------
-  subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt)
+  subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt, &
+                             imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
     logical, optional :: computeSubEnsMeans_opt
     integer, optional :: numSubEns_opt
+    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
 
     ! locals
     logical           :: computeSubEnsMeans, lExists
+    logical           :: imposeRttovHuLimits, imposeSaturationLimit
 
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
 
@@ -779,6 +852,16 @@ CONTAINS
       computeSubEnsMeans = computeSubEnsMeans_opt
     else
       computeSubEnsMeans = .false.
+    end if
+    if (present(imposeRttovHuLimits_opt)) then
+      imposeRttovHuLimits = imposeRttovHuLimits_opt
+    else
+      imposeRttovHuLimits = .false.
+    end if
+    if (present(imposeSaturationLimit_opt)) then
+      imposeSaturationLimit = imposeSaturationLimit_opt
+    else
+      imposeSaturationLimit = .false.
     end if
 
     ! Read sub-ensemble index list from file, if it exists
@@ -840,6 +923,15 @@ CONTAINS
       end do
     end do
     !$OMP END PARALLEL DO
+
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
+      do subEnsIndex = 1, ens%numSubEns
+        call ens_copyToStateWork  (ens, 'mean', subEnsIndex_opt=subEnsIndex)
+        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
+        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
+        call ens_copyFromStateWork(ens, 'mean', subEnsIndex_opt=subEnsIndex)
+      end do
+    end if
 
     ! provide output argument value
     if ( present(numSubEns_opt) ) numSubEns_opt = ens%numSubEns
@@ -1034,7 +1126,7 @@ CONTAINS
     end do
     !$OMP END PARALLEL DO
 
-    if (imposeSaturationLimit .or. imposeSaturationLimit) then
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
       if (mpi_myid == 0) write(*,*) ''
       if (mpi_myid == 0) write(*,*) 'ens_recenter: limits will be imposed on the humidity'
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
@@ -1044,12 +1136,7 @@ CONTAINS
         if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ensembleControlMember_opt)
         if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ensembleControlMember_opt)
       else
-        do memberIndex = 1, ens%numMembers
-          call ens_copyToStateWork    (ens, memberIndex)
-          if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
-          if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
-          call ens_copyFromStateWork(ens, memberIndex)
-        end do
+        call ens_clipHumidity(ens, imposeSaturationLimit, imposeRttovHuLimits)
       end if
     end if
 
@@ -1059,8 +1146,9 @@ CONTAINS
   ! ens_recenterState
   !--------------------------------------------------------------------------
   subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
-       etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
-       imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
+                               etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
+                               imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt, &
+                               imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt)
     implicit none
 
     !! We want to compute:
@@ -1076,22 +1164,34 @@ CONTAINS
     character(len=*)  :: hInterpolationDegree
     type(struct_gsv), optional :: alternativeEnsembleMean_opt
     integer, optional :: numBits_opt
-    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
+    logical, optional :: imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt
+    logical, optional :: imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt
 
     ! locals
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
-    logical :: imposeRttovHuLimits, imposeSaturationLimit
+    logical :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
+    logical :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
 
-    if (present(imposeRttovHuLimits_opt)) then
-      imposeRttovHuLimits = imposeRttovHuLimits_opt
+    if (present(imposeRttovHuLimitsOnInputs_opt)) then
+      imposeRttovHuLimitsOnInputs = imposeRttovHuLimitsOnInputs_opt
     else
-      imposeRttovHuLimits = .false.
+      imposeRttovHuLimitsOnInputs = .false.
     end if
-    if (present(imposeSaturationLimit_opt)) then
-      imposeSaturationLimit = imposeSaturationLimit_opt
+    if (present(imposeSaturationLimitOnInputs_opt)) then
+      imposeSaturationLimitOnInputs = imposeSaturationLimitOnInputs_opt
     else
-      imposeSaturationLimit = .false.
+      imposeSaturationLimitOnInputs = .false.
+    end if
+    if (present(imposeRttovHuLimitsOnOutputs_opt)) then
+      imposeRttovHuLimitsOnOutputs = imposeRttovHuLimitsOnOutputs_opt
+    else
+      imposeRttovHuLimitsOnOutputs = .false.
+    end if
+    if (present(imposeSaturationLimitOnOutputs_opt)) then
+      imposeSaturationLimitOnOutputs = imposeSaturationLimitOnOutputs_opt
+    else
+      imposeSaturationLimitOnOutputs = .false.
     end if
 
     numStep = ens%statevector_work%numStep
@@ -1107,9 +1207,15 @@ CONTAINS
                              containsFullField_opt=.true. )
     end do
 
+    ! Check the humidity bounds before the recentering steps
+    if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_ensembleControlMember)
+    if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_ensembleControlMember)
+
+    ! Recenter
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
-                      ensembleControlMember_opt = statevector_ensembleControlMember, &
-                      imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
+                      ensembleControlMember_opt = statevector_ensembleControlMember,                                  &
+                      imposeRttovHuLimits_opt=imposeRttovHuLimitsOnOutputs,                                           &
+                      imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs)
 
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
@@ -1122,6 +1228,33 @@ CONTAINS
     call gsv_deallocate(statevector_ensembleControlMember)
 
   end subroutine ens_recenterState
+
+  !--------------------------------------------------------------------------
+  ! ens_clipHumidity
+  !--------------------------------------------------------------------------
+  subroutine ens_clipHumidity(ens,imposeSaturationLimit,imposeRttovHuLimits)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+    logical          :: imposeRttovHuLimits, imposeSaturationLimit
+
+    ! locals
+    integer :: memberIndex
+
+    if (mpi_myid == 0) write(*,*) ''
+    if (mpi_myid == 0) write(*,*) 'ens_clipHumidity: limits will be imposed on the humidity'
+    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+
+    do memberIndex = 1, ens%numMembers
+      call ens_copyToStateWork  (ens, 'member', memberIndex_opt=memberIndex)
+      if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
+      if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
+      call ens_copyFromStateWork(ens, 'member', memberIndex_opt=memberIndex)
+    end do
+
+  end subroutine ens_clipHumidity
 
   !--------------------------------------------------------------------------
   ! ens_readEnsemble

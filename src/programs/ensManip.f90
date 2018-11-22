@@ -59,6 +59,7 @@ program midas_ensManip
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
+  use humidityLimits_mod
   implicit none
 
   type(struct_gsv) :: statevector_mean, statevector_stddev
@@ -81,6 +82,8 @@ program midas_ensManip
   character(len=256), parameter  :: targetGridFileName = './targetgrid'
 
   logical             :: makeBiPeriodic, targetGridFileExist
+  logical             :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
+  logical             :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
 
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
@@ -89,6 +92,7 @@ program midas_ensManip
   character(len=12)  :: hInterpolationDegree
   character(len=14)  :: ensembleEtiketOutput, ensembleControlMemberEtiket
   character(len=2)   :: ctrlVarHumidity
+  character(len=24)  :: humidityClipping
   character(len=256) :: ensPathName, alternativeEnsembleMean
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
   logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
@@ -101,7 +105,7 @@ program midas_ensManip
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations,  &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
                         recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
-                        imposeRttovHuLimits, imposeSaturationLimit
+                        imposeRttovHuLimits, imposeSaturationLimit, humidityClipping
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -148,6 +152,7 @@ program midas_ensManip
   hInterpolationDegree          = 'LINEAR' ! or "CUBIC" or "NEAREST"
   imposeRttovHuLimits           = .false.
   imposeSaturationLimit         = .false.
+  humidityClipping              = 'none' ! or "inputsOnly" or "outputsOnly" or "inputsAndOutputs
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -158,6 +163,34 @@ program midas_ensManip
   ierr = fclos(nulnam)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+   select case(trim(humidityClipping))
+    case ('none')
+      imposeRttovHuLimitsOnInputs    = .false.
+      imposeSaturationLimitOnInputs  = .false.
+      imposeRttovHuLimitsOnOutputs   = .false.
+      imposeSaturationLimitOnOutputs = .false.
+    case ('inputsOnly')
+      imposeRttovHuLimitsOnInputs    = imposeRttovHuLimits
+      imposeSaturationLimitOnInputs  = imposeSaturationLimit
+      imposeRttovHuLimitsOnOutputs   = .false.
+      imposeSaturationLimitOnOutputs = .false.
+    case ('outputsOnly')
+      imposeRttovHuLimitsOnInputs    = .false.
+      imposeSaturationLimitOnInputs  = .false.
+      imposeRttovHuLimitsOnOutputs   = imposeRttovHuLimits
+      imposeSaturationLimitOnOutputs = imposeSaturationLimit
+    case ('inputsAndOutputs')
+      imposeRttovHuLimitsOnInputs    = imposeRttovHuLimits
+      imposeSaturationLimitOnInputs  = imposeSaturationLimit
+      imposeRttovHuLimitsOnOutputs   = imposeRttovHuLimits
+      imposeSaturationLimitOnOutputs = imposeSaturationLimit
+    case default
+      write(*,*)
+      write(*,*) 'Unsupported humidityClipping: ', trim(humidityClipping)
+      write(*,*) '    please select either: none, inputsOnly, outputsOnly or inputsAndOutputs'
+      call utl_abort('midas-ensManip')
+    end select
 
   !
   !- 2.  Initialization
@@ -208,6 +241,9 @@ program midas_ensManip
                     hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
   call ens_readEnsemble(ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity)
+  if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
+    call ens_clipHumidity(ensemble, imposeSaturationLimitOnInputs, imposeRttovHuLimitsOnInputs)
+  end if
   call tmg_stop(2)
 
   !
@@ -218,7 +254,8 @@ program midas_ensManip
   if (trim(alternativeEnsembleMean) == '' .or. output_ensemble_mean) then
     !- Compute ensemble mean
     call tmg_start(3,'COMPUTE_MEAN')
-    call ens_computeMean( ensemble )
+    call ens_computeMean(ensemble, imposeRttovHuLimits_opt=imposeRttovHuLimitsOnInputs, &
+                         imposeSaturationLimit_opt=imposeSaturationLimitOnInputs )
     call tmg_stop(3)
   end if
 
@@ -294,6 +331,8 @@ program midas_ensManip
                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,                    &
                             containsFullField_opt=.true.)
     end do
+    if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_recenteringMean)
+    if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_recenteringMean)
 
     call tmg_stop(10)
 
@@ -322,21 +361,27 @@ program midas_ensManip
                               ' ', ' ', stepIndex_opt=stepIndex, unitConversion_opt=.true.,               &
                               containsFullField_opt=.true. )
       end do
+      if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_alternativeEnsembleMean)
+      if ( imposeSaturationLimitOnInputs ) call qlim_gsvRttovLimit     (statevector_alternativeEnsembleMean)
 
       call tmg_stop(11)
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,                                     &
-                        alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean,                            &
-                        imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
+      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,           &
+                        alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean,  &
+                        imposeRttovHuLimits_opt=imposeRttovHuLimitsOnOutputs,             &
+                        imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs)
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout,                                &
-                               statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket,               &
-                               ensembleTypVarOutput, hInterpolationDegree,                                                &
-                               alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits,    &
-                               imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
+        call ens_recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout,                             &
+                               statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket,            &
+                               ensembleTypVarOutput, hInterpolationDegree,                                             &
+                               alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean, numBits_opt = numBits, &
+                               imposeRttovHuLimitsOnInputs_opt=imposeRttovHuLimitsOnInputs,                            &
+                               imposeSaturationLimitOnInputs_opt=imposeSaturationLimitOnInputs,                       &
+                               imposeRttovHuLimitsOnOutputs_opt=imposeRttovHuLimitsOnOutputs,                          &
+                               imposeSaturationLimitOnOutputs_opt=imposeSaturationLimitOnOutputs)
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
@@ -345,10 +390,13 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
-        call ens_recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout,                                &
-                               statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket,                &
-                               ensembleTypVarOutput, hInterpolationDegree, numBits_opt = numBits,                          &
-                               imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
+        call ens_recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout,                 &
+                               statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket, &
+                               ensembleTypVarOutput, hInterpolationDegree, numBits_opt = numBits,           &
+                               imposeRttovHuLimitsOnInputs_opt=imposeRttovHuLimitsOnInputs,                            &
+                               imposeSaturationLimitOnInputs_opt=imposeSaturationLimitOnInputs,                       &
+                               imposeRttovHuLimitsOnOutputs_opt=imposeRttovHuLimitsOnOutputs,                          &
+                               imposeSaturationLimitOnOutputs_opt=imposeSaturationLimitOnOutputs)
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 
