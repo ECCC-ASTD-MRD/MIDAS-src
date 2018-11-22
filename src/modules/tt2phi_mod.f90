@@ -160,16 +160,16 @@ subroutine tt2phi(columnghr,beSilent_opt)
       ratioP  = log(col_getPressure(columnghr,nlev_M,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
-      uu = col_getElem(columnghr,nlev_M,columnIndex,'UU') * p_knot
-      vv = col_getElem(columnghr,nlev_M,columnIndex,'VV') * p_knot
+      uu = col_getElem(columnghr,nlev_M,columnIndex,'UU')
+      vv = col_getElem(columnghr,nlev_M,columnIndex,'VV')
       ! averaged wind speed in the layer
       aveUU = 0.5D0 * uu
       avevv = 0.5D0 * vv
 
       ! Gravity acceleration 
       h0  = rMT
-      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * aveUU
-      Eot2= ((p_knot*aveUU) ** 2 + (p_knot*aveVV) ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
+      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
       Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
@@ -192,16 +192,16 @@ subroutine tt2phi(columnghr,beSilent_opt)
       elseif (Vcode == 5005) then
         lev_T = lev_M
       endif
-      uu = col_getElem(columnghr,lev_M,columnIndex,'UU') * p_knot
-      vv = col_getElem(columnghr,lev_M,columnIndex,'VV') * p_knot
+      uu = col_getElem(columnghr,lev_M,columnIndex,'UU')
+      vv = col_getElem(columnghr,lev_M,columnIndex,'VV')
       ! averaged wind speed in the layer
       aveUU = 0.5D0 * (uuM1 + uu)
       avevv = 0.5D0 * (vvM1 + vv)
 
       ! Gravity acceleration 
       h0  = AL_M(lev_M+1)
-      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * aveUU
-      Eot2= ((p_knot*aveUU) ** 2 + (p_knot*aveVV) ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
+      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
       Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
@@ -230,13 +230,13 @@ subroutine tt2phi(columnghr,beSilent_opt)
       ! compute altitude on top thermo level
       ratioP = log(col_getPressure(columnghr,1,columnIndex,'TH') / &
                    col_getPressure(columnghr,1,columnIndex,'MM'))
-      aveUU = col_getElem(columnghr,1,columnIndex,'UU') * p_knot
-      aveVV = col_getElem(columnghr,1,columnIndex,'VV') * p_knot
+      aveUU = col_getElem(columnghr,1,columnIndex,'UU')
+      aveVV = col_getElem(columnghr,1,columnIndex,'VV')
 
       ! Gravity acceleration 
       h0  = AL_M(1)
-      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * aveUU
-      Eot2= ((p_knot*aveUU) ** 2 + (p_knot*aveVV) ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
+      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
       Rgh = phf_gravityalt(sLat, h0) - Eot - Eot2
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
@@ -262,8 +262,8 @@ subroutine tt2phi(columnghr,beSilent_opt)
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
       h0  = rMT
-      Eot = 2 * WGS_OmegaPrime * cLat * p_knot * aveUU
-      Eot2= ((p_knot*aveUU) ** 2 + (p_knot*aveVV) ** 2) / WGS_a
+      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
+      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
       Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2

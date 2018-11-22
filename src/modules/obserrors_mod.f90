@@ -1515,14 +1515,14 @@ contains
                col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
                 ! case with top thermo level above top momentum level (Vcode=5002)
             do jl = 1, nwndlev
-              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU') * p_knot
-              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV') * p_knot
+              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU')
+              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV')
             end do
           else
                 ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
             do jl = 1, nwndlev - 1
-              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' ) * p_knot
-              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' ) * p_knot
+              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' )
+              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' )
             end do
             zuu(nwndlev) = zuu( nwndlev - 1 )
             zvv(nwndlev) = zuu( nwndlev - 1 )
@@ -1593,20 +1593,33 @@ contains
           end if
 
           if (LEVELGPSRO==2) then
-            do NH1 = 1, NH
-              SUM0=0.d0
-              SUM1=0.d0
-              do JH = 1, NH
-                DDH=H(JH)-H(NH1)
-                SUM0=SUM0+EXP(-(DDH/DH)**2)
-                SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+            if (gpsroDynError) then
+              do NH1 = 1, NH
+                SUM0=0.d0
+                SUM1=0.d0
+                do JH = 1, NH
+                  DDH=H(JH)-H(NH1)
+                  SUM0=SUM0+EXP(-(DDH/DH)**2)
+                  SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                end do
+                ZERR(NH1)=(SUM1/SUM0)**0.5D0
+                if ( NUMGPSSATS  >=  1 ) then
+                  if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
+                end if
+                if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
-              ZERR(NH1)=(SUM1/SUM0)**0.5D0
-              if ( NUMGPSSATS  >=  1 ) then
-                if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
-              end if
-              if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-            end do
+            else
+              do NH1 = 1, NH
+                ZERR(NH1) = 0.05d0
+                L1=( HNH1 <= 10000.d0 )
+                L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
+                L3=( HNH1 > 30000.d0 )
+                IF ( L1 ) ZERR(NH1)=0.005d0+0.020d0*(10000.d0-HNH1)/10000.d0
+                IF ( L2 ) ZERR(NH1)=0.005d0
+                IF ( L3 ) ZERR(NH1)=0.005d0+0.030d0*(HNH1-30000.d0)/30000.d0
+                if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+              enddo
+            endif
           else
             do NH1 = 1, NH
               ZERR(NH1)=0.05d0

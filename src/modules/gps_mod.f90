@@ -25,6 +25,7 @@
 module gps_mod
   use mpi_mod
   use utilities_mod
+  use mathPhysConstants_mod
   implicit none
   save
   private
@@ -34,7 +35,7 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroDynError
   public :: gpsgravitysrf, p_tc, p_knot, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
@@ -94,12 +95,6 @@ module gps_mod
 
 !modgps02wgs84const
 
-  ! Semimajor axis (a) (m)                             [*Defining constant*]
-  real(dp), parameter :: WGS_a          = 6378137.0_dp
-  
-  ! Flattening (f)                                     [*Defining constant*]
-  real(dp), parameter :: WGS_f          = 1._dp / 298.257223563_dp
-  
   ! Earth's Gravitational Constant (GM) (m3/s2).       [*Defining constant*]
   ! This is the GM value with Earth's atmosphere included.
   real(dp), parameter :: WGS_GM         = 3986004.418e8_dp
@@ -154,9 +149,6 @@ module gps_mod
   ! First eccentricity:
   real(dp), parameter :: WGS_e          = 8.1819190842622e-2_dp
   
-  ! First eccentricity squared:
-  real(dp), parameter :: WGS_e2         = 6.69437999014e-3_dp
-  
   ! Second eccentricity:
   real(dp), parameter :: WGS_ePrime     = 8.2094437949696e-2_dp
   
@@ -192,23 +184,14 @@ module gps_mod
   ! Theoretical (Normal) Gravity potential of the ellipsoid (m2/s2):
   real(dp), parameter :: WGS_U0         = 62636860.8497_dp
   
-  ! Theoretical (Normal) Gravity at the equator (m/s2):
-  real(dp), parameter :: WGS_GammaE     = 9.7803253359_dp
-  
   ! Theoretical (Normal) Gravity at the pole (m/s2):
   real(dp), parameter :: WGS_GammaP     = 9.8321849378_dp
   
   ! Mean Value of the Theoretical (Normal) Gravity (m/s2):
   real(dp), parameter :: WGS_GammaM     = 9.7976432222_dp
   
-  ! Theoretical (Normal) Gravity Formula Constant:
-  real(dp), parameter :: WGS_TNGk       = 0.00193185265241_dp
-  
   ! Mass of the Earth (Atmosphere Included):
   real(dp), parameter :: WGS_Mass       = 5.9733328e24_dp
-  
-  ! m = omega^2 a^2 b / GM
-  real(dp), parameter :: WGS_m          = 0.00344978650684_dp
   
   ! Dynamical Ellipticity H:
   real(dp), parameter :: WGS_H          = 1._dp / 305.4413_dp
@@ -353,13 +336,20 @@ module gps_mod
 !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+!     gpsroDynError: key for using dynamic/static refractivity error estimation (default .TRUE.)
 !
 !     J.M. Aparicio, Apr 2008
+!
+!     Revision 01: M. Bani Shahabadi, Nov 2018
+!       - adding the gpsroDynError key to use static error estimation for the refractivity.
+!         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
+!         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
+  logical gpsroDynError
 
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS
+  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroDynError
 
 
 !modgpsztd_mod
@@ -949,8 +939,8 @@ contains
        ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*p_knot*rUU(i)
-       Eot2= ((p_knot*rUU(i))**2+(p_knot*rVV(i))**2)/WGS_a
+       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
        Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
        Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
@@ -990,7 +980,7 @@ contains
     real(dp), parameter           :: delta = 0.6077686814144_dp
 
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
+    real(dp)                      :: h0,dh,Rgh, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
@@ -2656,6 +2646,7 @@ contains
     HTPMAX     = 70000.d0
     BGCKBAND   = 0.05d0
     NUMGPSSATS = 0
+    gpsroDynError = .TRUE.
 !
 !   Override with NML values:
 !     
@@ -2665,7 +2656,7 @@ contains
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, gpsroDynError 
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !

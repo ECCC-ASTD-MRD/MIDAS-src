@@ -1008,14 +1008,14 @@ contains
             col_getPressure(columnhr,1,headerIndex,'MM')) then
           ! case with top thermo level above top momentum level (Vcode=5002)
           do jl = 1, nwndlev
-             zuu(jl) = col_getElem(columnhr,jl  ,headerIndex,'UU') * p_knot
-             zvv(jl) = col_getElem(columnhr,jl  ,headerIndex,'VV') * p_knot
+             zuu(jl) = col_getElem(columnhr,jl  ,headerIndex,'UU')
+             zvv(jl) = col_getElem(columnhr,jl  ,headerIndex,'VV')
           end do
        else
           ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
           do jl = 1, nwndlev-1
-             zuu(jl) = col_getElem(columnhr,jl+1,headerIndex,'UU') * p_knot
-             zvv(jl) = col_getElem(columnhr,jl+1,headerIndex,'VV') * p_knot
+             zuu(jl) = col_getElem(columnhr,jl+1,headerIndex,'UU')
+             zvv(jl) = col_getElem(columnhr,jl+1,headerIndex,'VV')
           end do
           zuu(nwndlev) = zuu(nwndlev-1)
           zvv(nwndlev) = zuu(nwndlev-1)
@@ -3657,6 +3657,7 @@ contains
     allocate(zuu (ngpslev))
     allocate(zvv (ngpslev))
 
+    if ( allocated(gps_vro_jacobian) ) call utl_abort('oop_calcGPSROJacobian: gps_vro_jacobian is already allocated!')
     allocate(gps_vro_jacobian(gps_numroprofiles,gpsro_maxprfsize,3*ngpslev+1))
 
     allocate( h    (gpsro_maxprfsize) )
@@ -3727,14 +3728,14 @@ contains
                col_getPressure(columng,1,headerIndex,'MM')) then
             ! case with top thermo level above top momentum level (Vcode=5002)
             do jl = 1, nwndlev
-              zuu(jl) = col_getElem(columng,jl,headerIndex,'UU') * p_knot
-              zvv(jl) = col_getElem(columng,jl,headerIndex,'VV') * p_knot
+              zuu(jl) = col_getElem(columng,jl,headerIndex,'UU')
+              zvv(jl) = col_getElem(columng,jl,headerIndex,'VV')
             enddo
           else
             ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
             do jl = 1, nwndlev-1
-              zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU') * p_knot
-              zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV') * p_knot
+              zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU')
+              zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV')
             enddo
             zuu(nwndlev) = zuu(nwndlev-1)
             zvv(nwndlev) = zuu(nwndlev-1)
