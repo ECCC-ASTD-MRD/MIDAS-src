@@ -969,14 +969,14 @@ contains
     character(len=*)       :: fileName
     integer                :: fileNumber
     ! locals
-    type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
+    type(fSQL_STATEMENT)   :: stmtData, stmtHeader, stmtUpdate ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
-    character(len = 256)   :: queryData, queryHeader
+    character(len = 256)   :: queryData, queryHeader, queryUpdate
     character(len = 12 )   :: idStation
-    character(len =  8 )   :: missingValueChar    
+    character(len = 15 )   :: missingValueChar    
     character(len=*), parameter :: myName = 'sqlr_insertDiagSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
@@ -1086,6 +1086,32 @@ contains
     call fSQL_finalize( stmtData )
     call fSQL_commit(db)
     write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+
+    write( missingValueChar, '(f8.1)' ) MPC_missingValue_R4
+
+    queryUpdate="update data set oma=null where oma="//trim(missingValueChar)
+    write(*,*) myName//': Update query: ', queryUpdate
+    call fSQL_prepare( db, queryUpdate, stmtUpdate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : OmA')
+    call fSQL_exec_stmt ( stmtUpdate )
+    
+    queryUpdate="update data set omp=null where omp="//trim(missingValueChar)
+    write(*,*) myName//': Update query: ', queryUpdate
+    call fSQL_prepare( db, queryUpdate, stmtUpdate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : OmP')
+    call fSQL_exec_stmt ( stmtUpdate )
+
+    queryUpdate="update data set fg_error=null where fg_error="//trim(missingValueChar)
+    write(*,*) myName//': Update query: ', queryUpdate
+    call fSQL_prepare( db, queryUpdate, stmtUpdate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : FGE')
+    call fSQL_exec_stmt ( stmtUpdate )
+
+    queryUpdate="update data set obs_error=null where obs_error="//trim(missingValueChar)
+    write(*,*) myName//': Update query: ', queryUpdate
+    call fSQL_prepare( db, queryUpdate, stmtUpdate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : OER')
+    call fSQL_exec_stmt ( stmtUpdate )
 
   end subroutine sqlr_insertDiagSqlite
 
