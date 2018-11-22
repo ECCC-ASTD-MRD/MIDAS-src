@@ -106,7 +106,8 @@ contains
 
     countKeepN=0
 
-    ! Loop over all body indices of the family of interest
+    ! Loop over all body indices (columns) of the family of interest and
+    ! thin each column independently of the others
     call obs_set_current_body_list(obsdat, familyType)
     BODY: do 
       bodyIndex = obs_getBodyIndex(obsdat)

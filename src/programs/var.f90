@@ -170,6 +170,9 @@ program midas_var
         call obs_prntbdy(obsSpaceData,headerIndex)
       end do
     end if
+ 
+    ! deallocate obsSpaceData
+    call obs_finalize(obsSpaceData)
 
   ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   else if ( trim(varMode) == 'bgckIR' ) then
@@ -191,17 +194,6 @@ program midas_var
 
     ! Do the background check and output the observation data files
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
- 
-    ! Write out contents of obsSpaceData into observation files
-    call obsf_writeFiles(obsSpaceData)
-
-    ! Print the FIRST header and body
-    if (mpi_myid == 0 ) then
-      do headerIndex =1, min(1,obs_numHeader(obsSpaceData))
-        call obs_prnthdr(obsSpaceData,headerIndex)
-        call obs_prntbdy(obsSpaceData,headerIndex)
-      end do
-    end if
 
   ! ---ANALYSIS MODE--- !
   else if ( trim(varMode) == 'analysis' ) then
@@ -328,9 +320,6 @@ program midas_var
   end if
 
   ! 3. Job termination
- 
-  ! deallocate obsSpaceData
-  call obs_finalize(obsSpaceData)
 
   istamp = exfin('VAR','FIN','NON')
 
