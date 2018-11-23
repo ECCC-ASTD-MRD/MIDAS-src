@@ -140,8 +140,8 @@ MODULE BmatrixEnsemble_mod
   logical, parameter :: verbose = .false.
 
   ! Save this to allow early allocation for better efficiency
-  type(struct_ens) :: ensAmplitudeSave_M
-  logical          :: useSaveAmp
+  type(struct_ens), target :: ensAmplitudeSave_M
+  logical                  :: useSaveAmp
   
 
 CONTAINS
@@ -730,8 +730,6 @@ CONTAINS
     else
       write(*,*) 'ben_setup: using saved memory for ensemble amplitudes for improved efficiency'
       useSaveAmp = .true.
-    end if
-    if (useSaveAmp) then
       call ens_allocate(ensAmplitudeSave_M, nEnsOverDimension, numStepAmplitudeAssimWindow, hco_ens, vco_ens, dateStampList, &
                         varNames_opt=varNameALFA, dataKind_opt=8)
       call ens_zero(ensAmplitudeSave_M)
@@ -1392,8 +1390,9 @@ CONTAINS
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
-    type(struct_ens)    :: ensAmplitude_M
-    
+    type(struct_ens), target  :: ensAmplitude_M
+    type(struct_ens), pointer :: ensAmplitude_M_ptr
+
     integer   :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
@@ -1447,63 +1446,41 @@ CONTAINS
       numStepAmplitude =  numStepAmplitudeAssimWindow
       amp3dStepIndex   = amp3dStepIndexAssimWindow
     end if
-    if (.not. useSaveAmp) then
+    if (useSaveAmp) then
+      ensAmplitude_M_ptr => ensAmplitudeSave_M
+    else
       call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
                         varNames_opt=varNameALFA, dataKind_opt=8)
+      ensAmplitude_M_ptr => ensAmplitude_M
     end if
 
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.1 Compute the ensemble amplitudes
-      if (useSaveAmp) then
-        call loc_Lsqrt( locIDs(waveBandIndex),controlVector_in, & ! IN
-                        ensAmplitudeSave_M,                     & ! OUT
-                        amp3dStepIndex)                           ! IN
-      else
-        call loc_Lsqrt( locIDs(waveBandIndex),controlVector_in, & ! IN
-                        ensAmplitude_M,                         & ! OUT
-                        amp3dStepIndex)                           ! IN
-      end if
+      call loc_Lsqrt( locIDs(waveBandIndex),controlVector_in, & ! IN
+                      ensAmplitude_M_ptr,                     & ! OUT
+                      amp3dStepIndex)                           ! IN
 
       ! 2.2 Advect the amplitudes
       if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call tmg_start(131,'BEN_ADVEC_AMP_FSO_TL')
-        if (useSaveAmp) then
-          call adv_ensemble_tl( ensAmplitudeSave_M,          & ! INOUT
-                                adv_amplitudeFSOFcst, nEns )   ! IN
-        else
-          call adv_ensemble_tl( ensAmplitude_M,              & ! INOUT
-                                adv_amplitudeFSOFcst, nEns )   ! IN
-        end if
+        call adv_ensemble_tl( ensAmplitude_M_ptr,          & ! INOUT
+                              adv_amplitudeFSOFcst, nEns )   ! IN
         call tmg_stop(131)
       else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(133,'BEN_ADVEC_AMP_ANL_TL')
-        if (useSaveAmp) then
-          call adv_ensemble_tl( ensAmplitudeSave_M,            & ! INOUT
-                                adv_amplitudeAssimWindow, nEns ) ! IN
-        else
-          call adv_ensemble_tl( ensAmplitude_M,              & ! INOUT
-                                adv_amplitudeAssimWindow, nEns ) ! IN
-        end if
+        call adv_ensemble_tl( ensAmplitude_M_ptr,            & ! INOUT
+                              adv_amplitudeAssimWindow, nEns ) ! IN
         call tmg_stop(133)
       end if
 
       if ( keepAmplitude .and. waveBandIndex == 1 ) then
-        if (useSaveAmp) then
-          call ens_copy(ensAmplitudeSave_M, ensAmplitudeStorage)
-        else
-          call ens_copy(ensAmplitude_M, ensAmplitudeStorage)
-        end if
+        call ens_copy(ensAmplitude_M_ptr, ensAmplitudeStorage)
       end if
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      if (useSaveAmp) then
-        call addEnsMember( ensAmplitudeSave_M, statevector,  & ! INOUT 
-                           waveBandIndex, useFSOFcst )         ! IN
-      else
-        call addEnsMember( ensAmplitude_M, statevector,  & ! INOUT 
-                           waveBandIndex, useFSOFcst )     ! IN
-      end if
+      call addEnsMember( ensAmplitude_M_ptr, statevector,  & ! INOUT 
+                         waveBandIndex, useFSOFcst )         ! IN
 
     end do ! Loop on WaveBand
 
@@ -1540,7 +1517,8 @@ CONTAINS
     type(struct_gsv)  :: statevector
     logical, optional :: useFSOFcst_opt
 
-    type(struct_ens)   :: ensAmplitude_M
+    type(struct_ens), target  :: ensAmplitude_M
+    type(struct_ens), pointer :: ensAmplitude_M_ptr
 
     integer           :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
@@ -1600,54 +1578,36 @@ CONTAINS
       numStepAmplitude = numStepAmplitudeAssimWindow
       amp3dStepIndex   = amp3dStepIndexAssimWindow
     end if
-    if (.not. useSaveAmp) then
+    if (useSaveAmp) then
+      ensAmplitude_M_ptr => ensAmplitudeSave_M
+    else
       call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
                         varNames_opt=varNameALFA, dataKind_opt=8)
+      ensAmplitude_M_ptr => ensAmplitude_M
     end if
 
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      if (useSaveAmp) then
-        call addEnsMemberAd( statevector, ensAmplitudeSave_M,  & ! INOUT
-                             waveBandIndex, useFSOFcst)          ! IN
-      else
-        call addEnsMemberAd( statevector, ensAmplitude_M,  & ! INOUT
-                             waveBandIndex, useFSOFcst)      ! IN
-      end if
+      call addEnsMemberAd( statevector, ensAmplitude_M_ptr,  & ! INOUT
+                           waveBandIndex, useFSOFcst)          ! IN
       ! 2.2 Advect the  amplitudes
       if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call tmg_start(132,'BEN_ADVEC_AMP_FSO_AD')
-        if (useSaveAmp) then
-          call adv_ensemble_ad( ensAmplitudeSave_M,              & ! INOUT
-                                adv_amplitudeFSOFcst, nEns )       ! IN
-        else
-          call adv_ensemble_ad( ensAmplitude_M,              & ! INOUT
-                                adv_amplitudeFSOFcst, nEns )   ! IN
-        end if
+        call adv_ensemble_ad( ensAmplitude_M_ptr,          & ! INOUT
+                              adv_amplitudeFSOFcst, nEns )   ! IN
         call tmg_stop(132)
       else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(134,'BEN_ADVEC_AMP_ANL_AD')
-        if (useSaveAmp) then
-          call adv_ensemble_ad( ensAmplitudeSave_M,              & ! INOUT
-                                adv_amplitudeAssimWindow, nEns )   ! IN
-        else
-          call adv_ensemble_ad( ensAmplitude_M,              & ! INOUT
-                                adv_amplitudeAssimWindow, nEns ) ! IN
-        end if
+        call adv_ensemble_ad( ensAmplitude_M_ptr,            & ! INOUT
+                              adv_amplitudeAssimWindow, nEns ) ! IN
         call tmg_stop(134)
       end if
 
       ! 2.1 Compute the ensemble amplitudes
-      if (useSaveAmp) then
-        call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitudeSave_M, & ! IN
-                          controlVector_out,                        & ! OUT
-                          amp3dStepIndex)                             ! IN
-      else
-        call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitude_M, & ! IN
-                          controlVector_out,                    & ! OUT
-                          amp3dStepIndex)                         ! IN
-      end if
+      call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitude_M_ptr, & ! IN
+                        controlVector_out,                        & ! OUT
+                        amp3dStepIndex)                             ! IN
 
     end do ! Loop on WaveBand
 
