@@ -259,12 +259,6 @@ module sqliteFiles_mod
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
     
-    call fSQL_open( db, fileName, statusSqlite )
-    if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
-      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
-      write(*,*) myError, fSQL_errmsg(statusSqlite )
-    end if
-  
     call sqlr_insertDiagSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
 
     write(*,*)'  closed database -->', trim(FileName)

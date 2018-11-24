@@ -964,7 +964,7 @@ contains
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
-    character(len = 256)   :: queryData, queryHeader, queryUpdate
+    character(len = 512)   :: queryData, queryHeader, queryUpdate, queryCreate 
     character(len = 12 )   :: idStation
     character(len = 15 )   :: missingValueChar    
     character(len=*), parameter :: myName = 'sqlr_insertDiagSqlite'
@@ -973,20 +973,28 @@ contains
 
     write(*,*) myName//' --- Starting ---   '
     write(*,*) myName//' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
-    write(*,*) myName//' fileName -> ', trim(fileName)   
-   
+    write(*,*) myName//' Creating file: ', trim(fileName)   
+
+    call fSQL_open( db, fileName, stat )
+    if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
+
+    write(*,*) myName//' Creating tables HEADER and DATA...'
+    ! Create the tables HEADER and DATA
+    queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), LAT real, LON real, &
+                   codtyp integer, date integer, time integer, elev real); &
+                   create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
+                   vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
+    queryCreate = trim(queryCreate)
+    call fSQL_do_many( db, queryCreate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
+  
     select case( trim( familyType ) )
-
       case( 'SF', 'SC', 'GP' )
-
         queryData = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
-
       case DEFAULT
-
         queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
-
     end select
-    queryData=trim(queryData)
+    queryData = trim( queryData )
 
     queryHeader= ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
     queryHeader=trim(queryHeader)
@@ -1041,6 +1049,18 @@ contains
         OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex )
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex )
+        select case( trim( familyType ) )
+          case ( 'UA', 'AI', 'SW' )
+            if ( vertCoordType == 2 ) vertCoordType = 7004
+          case ( 'RO' )
+            vertCoordType = 7007
+          case ( 'PR' )
+            vertCoordType = 7006
+            PPP = PPP - altitude
+          case ( 'TO' )
+            vertCoordType = 5042
+            if( codeType == 164 .or. codeType == 181 .or. codeType == 182 ) vertCoordType = 2150
+        end select
 
         select case(trim(familyType))
           case( 'SF', 'SC', 'GP' )
