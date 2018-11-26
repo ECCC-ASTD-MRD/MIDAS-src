@@ -170,16 +170,13 @@ contains
     endif
 
     if(mpi_myid.eq.0 .and. .not.beSilent) then
-      write(*,*) 'vco_setupFromFile: TEMPLATEFILE=', templatefile
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
     endif
     inquire(file=templatefile,exist=isExist_L)
     if( isExist_L )then
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if( ierr .eq. 0 ) then
-        if(mpi_myid.eq.0 .and. .not.beSilent) then
-          write(*,*) ' opened as unit file ',nultemplate
-        endif
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
         call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')

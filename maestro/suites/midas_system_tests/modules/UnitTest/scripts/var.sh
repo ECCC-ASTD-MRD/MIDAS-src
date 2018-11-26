@@ -68,7 +68,7 @@ if [ "${fasttmp}" = yes ]; then
         done
     done
 else
-    obsfile_y=$((SEQ_NPEY-MP_CHILD/SEQ_NPEX))
+    obsfile_y=$((1+MP_CHILD/SEQ_NPEX))
     obsfile_x=$((MP_CHILD+1-SEQ_NPEX*(MP_CHILD/SEQ_NPEX)))
 
     ## The numbering for files must contain 4 characters padded with '0'.

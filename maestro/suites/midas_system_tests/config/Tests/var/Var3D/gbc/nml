@@ -32,8 +32,8 @@
    etiket_rebm ='XXXXXX'
 /
  &NAMDIMO
-   NMXOBS=250000,
-   NDATAMX=15000000,
+   NMXOBS=100000,
+   NDATAMX=500000,
 /
  &NAMTIME
   DSTEPOBS = 0.25d0
@@ -70,6 +70,7 @@
 /
 /
  &NAMSTATE
+   AddGZSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

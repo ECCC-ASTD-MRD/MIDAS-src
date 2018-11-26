@@ -1,7 +1,5 @@
  &NAMENSEMBLEH
    NENS = 32
-   USETLMH = .false.
-   OBSCLEAN = .false.
    ASCIDUMPOBS = .true.
 /
  &NAMTIME
@@ -9,6 +7,7 @@
    DSTEPOBSINC = 3.0d0
 /
  &NAMSTATE
+   AddGZSfcOffset = .true.
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'

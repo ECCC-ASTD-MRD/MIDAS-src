@@ -47,10 +47,37 @@ MODULE increment_mod
   character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
   character(len=12) :: hInterpolationDegree
 
-  NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
-       etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree
-
 CONTAINS
+
+  !--------------------------------------------------------------------------
+  ! readNameList - called by the other public subroutines in this module
+  !--------------------------------------------------------------------------
+  subroutine readNameList
+    implicit none
+
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+    NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
+         etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree
+
+    !- Setting default values
+    writeHiresIncrement = .true.
+    imposeRttovHuLimits = .true.
+    etiket_rehm = 'INCREMENT'
+    etiket_rebm = 'INCREMENT'
+    etiket_anlm = 'ANALYSIS'
+    writeNumBits = 16
+    hInterpolationDegree = 'LINEAR'
+
+    !- Read the namelist
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=naminc, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('increment_mod readNameList: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=naminc)
+    ierr = fclos(nulnam)
+
+  end subroutine readNameList
 
   !--------------------------------------------------------------------------
   ! inc_computeAndWriteAnalysis
@@ -70,9 +97,8 @@ CONTAINS
     type(struct_vco), pointer :: vco_inc => null()
     type(struct_hco), pointer :: hco_trl => null()
 
-    integer              :: fclos, fnom, fstopc, ierr
-    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep, middleStep
-    integer              :: nulnam, dateStamp, numBatch, batchIndex, procToWrite
+    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
+    integer              :: dateStamp, numBatch, batchIndex, procToWrite
     integer, allocatable :: dateStampList(:)
     integer              :: get_max_rss
 
@@ -90,23 +116,7 @@ CONTAINS
     !
     !- Set/Read values for the namelist NAMINC
     !
-
-    !- Setting default values
-    writeHiresIncrement = .true.
-    imposeRttovHuLimits = .true.
-    etiket_rehm = 'INCREMENT'
-    etiket_rebm = 'INCREMENT'
-    etiket_anlm = 'ANALYSIS'
-    writeNumBits = 16
-    hInterpolationDegree = 'LINEAR'
-
-    !- Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=naminc, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*,nml=naminc)
-    ierr = fclos(nulnam)
+    call readNameList()
 
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -448,8 +458,7 @@ CONTAINS
     ! arguments
     type(struct_gsv)     :: statevector_incr
     ! locals
-    integer              :: stepIndex, dateStamp, nulnam
-    integer              :: fclos, fnom, ierr
+    integer              :: stepIndex, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=2)     :: flnum
@@ -457,15 +466,10 @@ CONTAINS
 
     if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: STARTING'
 
-    etiket_rebm = 'INCREMENT'
-
-    !- Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=naminc, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('inc_computeAndWriteAnalysis: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*,nml=naminc)
-    ierr = fclos(nulnam)
+    !
+    !- Set/Read values for the namelist NAMINC
+    !
+    call readNameList()
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc

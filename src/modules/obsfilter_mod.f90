@@ -32,7 +32,8 @@ module obsFilter_mod
   use tovs_nl_mod
   use gps_mod
   use utilities_mod
-  use chem_setup_mod, only: chm_setup_get_str
+  use varNameList_mod
+  use chem_setup_mod
   implicit none
   save
   private
@@ -408,6 +409,7 @@ contains
     integer :: countAcc(numElem),countRej(numElem)
     integer, parameter :: numFamily = 3
     character(len=2) :: list_family(numFamily)
+    character(len=2) :: varLevel
 
     !
     ! reset dzmax for gb gps ztd to value in namelist file
@@ -455,8 +457,9 @@ contains
              if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
 
              ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             varLevel = vnl_varLevelFromVarnum(ivnm)
              zdiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
-                  col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG )
+                  col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)/RG )
              !
              ! apply filter to selected elements
              !
@@ -562,7 +565,7 @@ contains
           ! skip this obs if already flagged to not be assimilated
           if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0 ) cycle BODY
 
-          ! skip this obs is it is not GZ
+          ! skip this obs if it is not GZ
           ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
           llok = (ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1)
@@ -570,7 +573,7 @@ contains
 
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-          zdiff= ( zval - col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM') )/RG
+          zdiff= ( zval - col_getGZsfc(columnhr,headerIndex) )/RG
           ! obs is above surface, so it is ok, lets jump to the next obs
           if(zdiff .ge. 0.0d0) cycle BODY
 
@@ -605,7 +608,7 @@ contains
        !   from the model topography in the verification.
 
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-       zdifalt = zStnAlt- col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
+       zdifalt = zStnAlt- col_getGZsfc(columnhr,headerIndex)/RG
 
        ! Set the body list & start at the beginning of the list
        call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -829,7 +832,7 @@ contains
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
        ! ATMOSPHERE
        !
-       zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
+       zModAlt = col_getGZsfc(columnhr,headerIndex)/RG
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
@@ -1169,8 +1172,7 @@ contains
              LSAT = .TRUE.
           END IF
           !
-          JL  = col_getNumLev(LCOLUMNHR,'TH')
-          ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+          ZMT = col_getGZsfc(lcolumnhr,index_header)/RG
           !
           !     *     Acceptable height limits:
           !
@@ -1335,7 +1337,7 @@ contains
 
       ! Set geopotential height and pressure boundaries.
 
-      zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
+      zModAlt = col_getGZsfc(columnhr,headerIndex)/RG
       zpb=zModAlt
       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
       zpt = col_getHeight(columnhr,1,headerIndex,'MM')/RG

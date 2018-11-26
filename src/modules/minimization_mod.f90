@@ -188,10 +188,11 @@ CONTAINS
   subroutine min_minimize(columng,obsSpaceData,vazx)
     implicit none
 
-    type(struct_obs) :: obsSpaceData
-    type(struct_columnData) :: column,columng
     real*8 :: vazx(:)
+    type(struct_obs)          :: obsSpaceData
+    type(struct_columnData)   :: columng
 
+    type(struct_columnData)   :: column
     integer :: get_max_rss
 
     write(*,*) '--------------------------------'
@@ -202,7 +203,6 @@ CONTAINS
 
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
 
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)

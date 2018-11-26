@@ -398,6 +398,7 @@ program midas_randomPert
 
     call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
                          unitConversion_opt=.true.)  ! IN
+
     call gsv_deallocate(statevector)
 
   end do

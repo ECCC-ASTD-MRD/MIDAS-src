@@ -35,6 +35,7 @@ MODULE ensembleStateVector_mod
   use utilities_mod
   use varNameList_mod
   use humidityLimits_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -225,8 +226,6 @@ CONTAINS
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
-
-    write(*,*) 'in ens_deallocate, dataKind = ', ens%dataKind
 
     if (ens%dataKind == 8) then
       do jk = k1, k2
@@ -1335,16 +1334,7 @@ CONTAINS
 
           ! unit conversion
           call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField=.true. )
-
-          ! transform HU to LQ, depending on value of ctrlVarHumidity
-          if ( gsv_varExist(statevector_member_r4, 'HU') ) then
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4, 'HU')
-            if      ( ctrlVarHumidity == 'LQ' ) then
-              ptr3d_r4(:,:,:) = sngl(log(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8)))
-            else if ( ctrlVarHumidity == 'HU' ) then
-              ptr3d_r4(:,:,:) = sngl(    max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
-            end if
-          end if
+          if ( ctrlVarHumidity == 'LQ' ) call vtr_transform(statevector_member_r4,'HUtoLQ')
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then

@@ -34,7 +34,7 @@ module obsTimeInterp_mod
   public :: struct_oti
 
   ! public procedures
-  public :: oti_setup, oti_initialized
+  public :: oti_setup, oti_initialized, oti_deallocate
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal
   public :: oti_timeInterpWeightAllZero
@@ -246,7 +246,7 @@ contains
               call oti_setTimeInterpWeight(oti, 1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
               call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
             end if
-          else if ( trim(interpType) == 'nearest' ) then
+          else if ( trim(interpType) == 'NEAREST' ) then
             call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
           else
             call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType))
@@ -270,6 +270,20 @@ contains
     if (mpi_myid == 0) write(*,*) ' '
 
   end subroutine oti_setup
+
+
+  subroutine oti_deallocate(oti)
+    implicit none
+
+    ! arguments
+    type(struct_oti), pointer :: oti
+
+    if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
+    if (associated(oti%timeInterpWeightMpiGlobal)) deallocate(oti%timeInterpWeightMpiGlobal)
+    oti%initialized = .false.
+    nullify(oti)
+
+  end subroutine oti_deallocate
 
 
   subroutine oti_setupMpiGlobal(oti)

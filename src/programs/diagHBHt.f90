@@ -62,7 +62,6 @@ program midas_diagHBHt
   character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
 
-
   istamp = exdb('diagHBHt','DEBUT','NON')
 
   write(*,'(/,' //                                                &
@@ -86,14 +85,14 @@ program midas_diagHBHt
   ! Do initial set up
   call tmg_start(2,'PREMIN')
 
-  obsMpiStrategy = 'LATLONTILESBALANCED'
+  obsMpiStrategy = 'LIKESPLITFILES'
 
   call var_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -152,7 +151,6 @@ contains
     character (len=*) :: obsColumnMode
     integer :: datestamp
     type(struct_vco),pointer :: vco_anl => null()
-    type(struct_vco),pointer :: vco_trl => null()
     type(struct_hco),pointer :: hco_anl => null()
     type(struct_hco),pointer :: hco_core => null()
 
@@ -182,15 +180,6 @@ contains
     !- Initialize constants
     !
     if(mpi_myid.eq.0) call mpc_printConstants(6)
-
-    !
-    !- Set vertical coordinate parameters from !! record in trial file
-    !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-    call vco_SetupFromFile( vco_trl,     & ! OUT
-                            './trlm_01')   ! IN
-    call col_setVco(trlColumnOnTrlLev,vco_trl)
 
     !
     !- Initialize variables of the model states
@@ -244,7 +233,6 @@ contains
     !- Memory allocation for background column data
     !
     call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances
@@ -299,7 +287,6 @@ contains
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
@@ -334,9 +321,9 @@ contains
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)
     !- 2.2 Interpolation to the observation horizontal locations
 
-    call  s2c_tl( statevector,   & ! IN
-         column,                & ! OUT (H_horiz EnsPert)
-         columng, obsSpaceData )  ! IN
+    call s2c_tl( statevector,           & ! IN
+                 column,                & ! OUT (H_horiz EnsPert)
+                 columng, obsSpaceData )  ! IN
     !- 2.3 Interpolation to observation space
     call oop_Htl(column,columng,obsSpaceData,min_nsim=1)
 

@@ -76,8 +76,6 @@ CONTAINS
   subroutine vtr_setupTrials()
     implicit none
 
-    call tmg_start(92,'VTR_READTRIALS')
-
     ! initialize statevector_trial on analysis grid
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
@@ -86,8 +84,6 @@ CONTAINS
 
     ! read trial files using default horizontal interpolation degree
     call gsv_readTrials( statevector_trial )  ! IN/OUT
-
-    call tmg_stop(92)
 
     trialsInitialized = .true.
     
@@ -194,22 +190,44 @@ CONTAINS
     type(struct_gsv)    :: statevector
     integer :: i,j,k,stepIndex
 
-    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
 
-    hu_ptr   => gsv_getField_r8(statevector,'HU')
-    lq_ptr   => gsv_getField_r8(statevector,'HU')
+    if ( statevector%dataKind == 8 ) then
 
-    do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd
-            lq_ptr(i,j,k,stepIndex) = log(max(hu_ptr(i,j,k,stepIndex),MPC_MINIMUM_HU_R8))
+      hu_ptr_r8   => gsv_getField_r8(statevector,'HU')
+      lq_ptr_r8   => gsv_getField_r8(statevector,'HU')
+
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(i,j,k)
+        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+            do i = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),gsv_rhumin))
+            end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
-    end do
+
+    else
+
+      hu_ptr_r4   => gsv_getField_r4(statevector,'HU')
+      lq_ptr_r4   => gsv_getField_r4(statevector,'HU')
+
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(i,j,k)
+        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+            do i = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),real(gsv_rhumin,4)))
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    end if
 
   end subroutine HUtoLQ
 

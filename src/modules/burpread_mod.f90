@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE burpRead (prefix= "brpr" category='6. Observation input/output')
+!! MODULE burpRead (prefix='brpr' category='6. Observation input/output')
 !!
 !! *Purpose*: To read and update BURP observation files. Data is stored in 
 !!            obsSpaceData object.

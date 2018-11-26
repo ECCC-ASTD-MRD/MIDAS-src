@@ -187,6 +187,8 @@ module HorizontalCoord_mod
     xlat2_yan_4 = -999.9
     xlon2_yan_4 = -999.9
 
+    if (mpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
+
     !- 2.2 Rotated lat-lon grid
     if ( trim(grtyp) == 'Z' ) then
 
@@ -272,10 +274,14 @@ module HorizontalCoord_mod
                      xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
                      ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac ) ! IN
 
-       if ( xlat1_4 == xlat2_4 .and. xlon1_4 == xlon2_4 ) then
+       if ( xlat1_4 == 0.0 .and. xlat2_4 == 0.0 ) then
           rotated = .false.
        else
           rotated = .true.
+       end if
+       if (mpi_myid == 0) then
+         write(*,*) 'hco_setupFromFile: xlat1/2, xlon1/2, rotated = ',  &
+              xlat1_4, xlat2_4, xlon1_4, xlon2_4, rotated
        end if
 
        !- 2.2.4 Is this a global or a LAM domain ?
