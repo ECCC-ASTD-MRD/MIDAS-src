@@ -18,6 +18,7 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMSTATE
+   RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'
