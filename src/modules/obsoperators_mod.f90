@@ -401,6 +401,7 @@ contains
     integer :: headerIndex,bodyIndex,ilyr,ivnm,ipt,ipb
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     integer :: found  ! a group of bit flags
+    integer :: ierr, nulnam, fnom,fclos
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp
@@ -418,7 +419,21 @@ contains
     real(8) :: ttLyr1,ppLyr1  ! T, P on layer, OBS_LYR plus 1
     real(8) :: ttbg,  ppbg    ! background T, P at the observation location
 
+    ! namelist variables
+    logical :: do_adjust_aladin
+
+    namelist /NAMALADIN_OBS/do_adjust_aladin
+
     Write(*,*) "Entering subroutine oop_zzz_nl"
+
+    ! Read in the namelist NAMALADIN_OBS
+    do_adjust_aladin = .false.
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namaladin_obs,iostat=ierr)
+    if(ierr.ne.0) call utl_abort('oop_zzz_nl: Error reading namelist')
+    write(*,nml=namaladin_obs)
+    ierr=fclos(nulnam)
 
     jobs=0.d0
 
@@ -505,7 +520,7 @@ contains
         ppbg  = zwb*ppLyr1 + zwt*ppLyr
 
         ! Adjust zvar, the HLOS wind observation, if all attributes are available
-        if(popcnt(found) == 5) then
+        if((do_adjust_aladin .eqv. .true.) .and. (popcnt(found) == 5)) then
           ! Adjust in situ the HLOS wind data from obsSpaceData to account for
           ! the differences between our T, P forecast fields and those of the NWP
           ! site that calculated the HLOS wind values.  The goal is to produce an

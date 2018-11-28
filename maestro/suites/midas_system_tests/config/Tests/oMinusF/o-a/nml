@@ -336,4 +336,6 @@
   BITEMLIST(3)='FGE',
   TYPE_RESUME='POSTALT'
 /
-
+ &NAMALADIN_OBS
+  do_adjust_aladin=.false.
+/

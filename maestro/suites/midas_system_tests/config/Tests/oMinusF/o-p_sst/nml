@@ -384,4 +384,6 @@
   listElem="11001,11002"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
-
+ &NAMALADIN_OBS
+  do_adjust_aladin=.false.
+/
