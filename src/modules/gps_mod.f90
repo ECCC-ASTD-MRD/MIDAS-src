@@ -839,7 +839,7 @@ contains
     real(dp), parameter           :: delta = 0.6077686814144_dp
 
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
+    real(dp)                      :: h0,dh,Rgh, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
@@ -935,14 +935,12 @@ contains
        dx = xi(i)-xi(i+1)
        tvm = 0.5_dp*(tv(i)+tv(i+1))
        !
-       ! Gravity acceleration (includes 2nd-order Eotvos effect)
+       ! Gravity acceleration
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
-       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
-       Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
+       Rgh = gpsgravityalt(sLat, h0)
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
        !
        ! Height increment
        !
