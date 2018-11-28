@@ -84,7 +84,6 @@ subroutine tt2phi(columnghr,beSilent_opt)
   !
   !Revision 001 : M. Bani Shahabadi, October 2018
   !          - adaptation of GPSRO calculation of GZ
-  !          - Gravity acceleration include 2nd-order Eotvos effect for non-linear operator.
   !
   implicit none
 
@@ -96,8 +95,8 @@ subroutine tt2phi(columnghr,beSilent_opt)
   real(8), allocatable :: tv(:), AL_T(:), AL_M(:) 
   real(8), pointer     :: gz_T(:),gz_M(:)
   real                 :: gz_sfcOffset_T_r4, gz_sfcOffset_M_r4
-  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos, rMT, uu, vv, uuM1, vvM1, aveUU, aveVV
-  real(8) :: h0, dh, Rgh, Eot, Eot2, sLat, cLat
+  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos, rMT
+  real(8) :: h0, dh, Rgh, sLat, cLat
   type(struct_vco), pointer :: vco_ghr
   logical                   :: beSilent
 
@@ -153,32 +152,18 @@ subroutine tt2phi(columnghr,beSilent_opt)
     ! compute altitude on bottom momentum level
     if (Vcode == 5002) then
       AL_M(nlev_M) = rMT
-
-      uuM1 = 0.0D0
-      vvM1 = 0.0D0
     elseif (Vcode == 5005) then
       ratioP  = log(col_getPressure(columnghr,nlev_M,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
-      uu = col_getElem(columnghr,nlev_M,columnIndex,'UU')
-      vv = col_getElem(columnghr,nlev_M,columnIndex,'VV')
-      ! averaged wind speed in the layer
-      aveUU = 0.5D0 * uu
-      avevv = 0.5D0 * vv
-
       ! Gravity acceleration 
       h0  = rMT
-      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
-      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
-      Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat,h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
       AL_M(nlev_M) = rMT + delThick
-
-      uuM1 = uu 
-      vvM1 = vv
     endif
 
     ! compute altitude on rest of momentum levels
@@ -186,31 +171,20 @@ subroutine tt2phi(columnghr,beSilent_opt)
       ratioP = log(col_getPressure(columnghr,lev_M  ,columnIndex,'MM') / &
                    col_getPressure(columnghr,lev_M+1,columnIndex,'MM'))
       
-      ! UU/VV
       if (Vcode == 5002) then
         lev_T = lev_M + 1
       elseif (Vcode == 5005) then
         lev_T = lev_M
       endif
-      uu = col_getElem(columnghr,lev_M,columnIndex,'UU')
-      vv = col_getElem(columnghr,lev_M,columnIndex,'VV')
-      ! averaged wind speed in the layer
-      aveUU = 0.5D0 * (uuM1 + uu)
-      avevv = 0.5D0 * (vvM1 + vv)
 
       ! Gravity acceleration 
       h0  = AL_M(lev_M+1)
-      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
-      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
-      Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat,h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
       AL_M(lev_M) = AL_M(lev_M+1) + delThick
-
-      uuM1 = uu
-      vvM1 = vv
     enddo
 
     ! compute Altitude on thermo levels
@@ -230,16 +204,12 @@ subroutine tt2phi(columnghr,beSilent_opt)
       ! compute altitude on top thermo level
       ratioP = log(col_getPressure(columnghr,1,columnIndex,'TH') / &
                    col_getPressure(columnghr,1,columnIndex,'MM'))
-      aveUU = col_getElem(columnghr,1,columnIndex,'UU')
-      aveVV = col_getElem(columnghr,1,columnIndex,'VV')
 
       ! Gravity acceleration 
       h0  = AL_M(1)
-      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
-      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
-      Rgh = phf_gravityalt(sLat, h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
       AL_T(1) = AL_M(1) + delThick
@@ -262,15 +232,12 @@ subroutine tt2phi(columnghr,beSilent_opt)
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
       h0  = rMT
-      Eot = 2 * WGS_OmegaPrime * cLat * aveUU
-      Eot2= (aveUU ** 2 + aveVV ** 2) / WGS_a
-      Rgh = phf_gravityalt(sLat,h0) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat,h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
       AL_T(nlev_T) = rMT + delThick
-
     endif
 
     ! compute GZ 
