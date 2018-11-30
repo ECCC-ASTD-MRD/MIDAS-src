@@ -9,6 +9,7 @@
    ensembleEtiketOutputAppendMemberNumber = .false.
    ensembleControlMemberEtiket   = 'ENSCTLMEM'
    hInterpolationDegree = 'LINEAR'
+   humidityClipping = 'outputsOnly'
    imposeRttovHuLimits   = T
    imposeSaturationLimit = T
 /
