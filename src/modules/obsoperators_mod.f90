@@ -632,7 +632,8 @@ contains
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
           if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS .and.  &
                ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS .and.  &
-               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN ) cycle BODY
+               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN .and. &
+               ivnm /= bufr_vis .and. ivnm /= bufr_gust ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -640,7 +641,8 @@ contains
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
           if(ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
-               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS) then
+               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or. &
+               ivnm == bufr_vis .or. ivnm == bufr_gust ) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the
@@ -1914,9 +1916,11 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs ) then
+               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. &
+                   ityp == bufr_gust ) then
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
@@ -1932,7 +1936,8 @@ contains
                IPB  = IPT+1
 
                if (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
-                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
+                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
+                  ityp == bufr_vis  .or. ityp == bufr_gust ) THEN
                  if (ITYP == BUFR_NESS ) THEN
                    dPdPsfc = col_getPressureDeriv(columng,nlev,headerIndex,'TH')
                    columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
@@ -3025,9 +3030,10 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs ) then
+               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. ityp == bufr_gust) then
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
@@ -3043,7 +3049,8 @@ contains
                IPB  = IPT+1
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                if (ITYP == BUFR_NETS .or. ITYP == BUFR_NESS .or.  &
-                    ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS ) then
+                    ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
+                    ityp == bufr_vis  .or. ityp == bufr_gust ) then
                  if ( ityp == bufr_ness ) then
                    dPdPsfc = col_getPressureDeriv( columng, nlev, headerIndex, 'TH' )
                    tt_column  => col_getColumn(column,headerIndex,'TT')

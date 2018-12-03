@@ -55,7 +55,7 @@ module obsErrors_mod
   ! -----------------------
 
   real(8) :: xstd_ua_ai_sw(20,11)
-  real(8) :: xstd_sf(9,4)
+  real(8) :: xstd_sf(9,6)
   real(8) :: xstd_pr(2)
   real(8) :: xstd_sc(1), xstd_sst(1)
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
@@ -602,8 +602,8 @@ contains
         read(nulstat, '(A)') ligne
         write(*, '(A)') ligne
       end do
-      read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,4)
-      write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,4)
+      read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,6)
+      write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,6)
     end do
 
     if ( obs_famExist( lobsSpaceData, 'TM' ) )  then
@@ -974,6 +974,10 @@ contains
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 2 ))
             else if ( ityp == BUFR_NEES ) then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
+            else if ( ityp == bufr_vis ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
+            else if ( ityp == bufr_gust ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
             end if
 
                 !***********************************************************************

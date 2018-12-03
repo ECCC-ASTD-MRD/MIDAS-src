@@ -877,7 +877,7 @@ module calcstatslam_mod
     deet     =  0
     ip1      =  hco_ens%ig1
     ip2      =  hco_ens%ig2
-    ip3      =  0
+    ip3      =  hco_ens%ig3
     npas     =  0
     datyp    =  1
     grtyp    = 'E'
@@ -3279,7 +3279,7 @@ module calcstatslam_mod
     deet     =  0
     ip1      =  hco_bhi%ig1
     ip2      =  hco_bhi%ig2
-    ip3      =  0
+    ip3      =  hco_bhi%ig3
     npas     =  0
     datyp    =  1
     grtyp    = 'E'
