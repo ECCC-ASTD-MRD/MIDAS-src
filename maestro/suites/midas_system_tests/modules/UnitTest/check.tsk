@@ -62,9 +62,8 @@ function check_result {
                          "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database" ]; then
                         method=SQLite
                     else
-	                $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not SQLite databases!"
-                        method=not_the_same_type
-                    fi;;
+	              method=cmp
+                   fi;;
                 ## when the filetype is not know, then use 'cmp'
                 *) method=cmp;;
             esac

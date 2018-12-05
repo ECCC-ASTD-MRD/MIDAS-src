@@ -410,7 +410,7 @@ contains
     ! Sea Surface Temperature data file name
     clvalu(81) = 'brpsst'
     clvalu(82) = 'obsal'
-
+    clvalu(83) = 'obsradar'
     cfami(:)   = ''
     cfami( 1)  = 'UA'
     cfami( 2)  = 'UA'
@@ -495,7 +495,7 @@ contains
     cfami(80)  = 'XX'
     cfami(81)  = 'TM'
     cfami(82)  = 'AL'
-
+    cfami(83)  = 'RA'
     obsDirectory = 'obs'
 
     obsf_nfiles = 0
