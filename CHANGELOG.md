@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+* `ensManip` now support humidity adjustments in recentering mode (#174 and !157)
 
 ### Fixed
 
