@@ -162,6 +162,7 @@ module HorizontalCoord_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
+      write(*,*) 'hco_SetupFromFile: with etiket = ',trim(EtiketName)
       call utl_abort('hco_setupFromFile')
     end if
 
