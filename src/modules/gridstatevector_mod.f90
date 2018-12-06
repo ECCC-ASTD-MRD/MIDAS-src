@@ -2488,21 +2488,38 @@ module gridStateVector_mod
         write(*,*) 'gsv_readFile: reading the surface GZ'
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
+        typvar_var = typvar_in
         ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
                       -1, etiket_in, &
-                      -1, -1, -1, typvar_in, varName)
+                      -1, -1, -1, typvar_var, varName)
+
         if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
           write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
           call utl_abort('gsv_readFile: Dimensions of surface GZ not consistent')
         end if
+
+        if (ikey < 0) then
+          typvar_var(2:2) = '@'
+          ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+               -1, etiket_in, &
+               -1, -1, -1, typvar_var, varName)
+          if (ikey < 0) then
+            write(*,*) 'etiket_in = ',etiket_in
+            write(*,*) 'typvar_var = ',typvar_var
+            call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
+          end if
+        end if
+
         allocate(gd2d_file_r4(ni_file,nj_file))
         gd2d_file_r4(:,:) = 0.0d0
-        ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
+        ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                     -1,etiket_in,ip1,-1,-1,  &
-                    typvar_in,varName)
-        if (ierr.lt.0)then
-          write(*,*) varName,ip1
+                    typvar_var,varName)
+        if (ierr.lt.0) then
+          write(*,*) 'ip1 = ',ip1
+          write(*,*) 'etiket_in = ',etiket_in
+          write(*,*) 'typvar_var = ',typvar_var
           call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
         end if
         statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0*RG
@@ -2547,21 +2564,30 @@ module gridStateVector_mod
           call utl_abort('gsv_readFile: unknown varLevel')
         end if
 
+        typvar_var = typvar_in
         ! Make sure that the input variable has the same grid size than hco_file   
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
                       statevector%datestamplist(stepIndex), etiket_in, &
-                      -1, -1, -1, typvar_in, varName)
+                      -1, -1, -1, typvar_var, varName)
 
         if (ikey < 0) then
-          write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
-          call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' ' // trim(etiket_in) &
-               // ' ' // trim(typvar_in) // ' in file ' // trim(fileName))
+          typvar_var(2:2) = '@'
+          ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
+                        statevector%datestamplist(stepIndex), etiket_in, &
+                      -1, -1, -1, typvar_var, varName)
+          if (ikey < 0) then
+            write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
+            write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
+            write(*,*) 'gsv_readFile: typvar_var = ',typvar_var
+            call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' ' // trim(etiket_in) &
+                 // ' ' // trim(typvar_var) // ' in file ' // trim(fileName))
+          end if
         end if
 
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_in,varName)
+                     typvar_var,varName)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
