@@ -605,7 +605,7 @@ contains
 
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
 
-    call tmg_start(2,'diffusion_explicit')
+    call tmg_start(18,'diffusion_explicit')
 
     xlast(:,:) = xin(:,:)
     ! iterate difference equations
@@ -636,7 +636,7 @@ contains
     end do
     xout(:,:) = xlast(:,:)
 
-    call tmg_stop(2)
+    call tmg_stop(18)
 
   end subroutine diffusion_explicit
 
