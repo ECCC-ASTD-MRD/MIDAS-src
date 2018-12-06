@@ -35,7 +35,6 @@ module innovation_mod
   use mathPhysConstants_mod
   use mpivar_mod
   use horizontalCoord_mod
-  use columnData_mod
   use varNameList_mod
   use analysisGrid_mod
   use verticalCoord_mod
@@ -359,8 +358,8 @@ contains
     logical, optional       :: beSilent_opt
 
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
-    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,ZJOSFCTM
-    real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm
+    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjosfctm
+    real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl
     integer :: ierr, get_max_rss
     logical :: lgpdata, beSilent
 
@@ -388,7 +387,7 @@ contains
     !
     if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call filt_surfaceWind(obsSpaceData,beSilent)
     !
-    !     Find interpolation layer in model profiles 
+    !     Find interpolation layer in model profiles
     !
     if ( col_getNumLev(columnhr,'MM') > 1 ) call oop_vobslyrs(columnhr,obsSpaceData)
     !
@@ -418,8 +417,9 @@ contains
     call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCSC, 'SC' )
     call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCGP, 'GP' )
     call oop_sst_nl( columnhr, obsSpaceData, ZJOSFCTM, 'TM' )
+    call oop_ice_nl( columnhr, obsSpaceData, ZJOSFCGL, 'GL' )
 
-    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP+ZJOSFCTM
+    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL
     !
     !        TOVS - RADIANCE
     !-------------------------------
@@ -477,6 +477,7 @@ contains
       write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
       write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
       write(*,'(a15,f30.16)') 'JOSURTM  = ',ZJOSFCTM
+      write(*,'(a15,f30.16)') 'JOSURGL  = ',ZJOSFCGL
       write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
       write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
       write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
@@ -503,12 +504,14 @@ contains
       call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOSFCTM,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCGL,'GRID')
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
       write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
       write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
       write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
       write(*,'(a15,f30.16)') 'JOSURTM  = ',ZJOSFCTM
+      write(*,'(a15,f30.16)') 'JOSURGL  = ',ZJOSFCGL
       write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
       write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
       write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
