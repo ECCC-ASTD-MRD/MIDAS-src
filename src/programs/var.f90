@@ -89,7 +89,7 @@ program midas_var
             '14x,"-- Revision : ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
-  ! MPI initilization
+  ! MPI initialization
   call mpi_initialize  
 
   call tmg_init(mpi_myid, 'TMG_VAR' )
@@ -113,21 +113,18 @@ program midas_var
   write(*,nml=namct0)
   ierr=fclos(nulnam)
 
+  write(*,*)
   select case(nconf)
   case (141)
-    write(*,*)
     write(*,*) 'midas-var: Analysis mode selected'
     varMode='analysis'
   case (111)
-    write(*,*)
     write(*,*) 'midas-var: Background check for IR sat. data mode selected'
     varMode='bgckIR'
   case (101)
-    write(*,*)
     write(*,*) 'midas-var: Background check for conventional obs mode selected'
     varMode='bgckConv'
   case default
-    write(*,*)
     write(*,*) 'midas-var: Unknown mode ', nconf
     call utl_abort('midas-var')
   end select
@@ -375,20 +372,23 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for analysis grid'
+    nullify(hco_anl)
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
-       call agd_SetupFromHCO( hco_anl ) ! IN
+      call agd_SetupFromHCO( hco_anl ) ! IN
     else
-       !- Iniatilized the core (Non-Exteded) analysis grid
-       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-       !- Setup the LAM analysis grid metrics
-       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+      !- Initialize the core (Non-Extended) analysis grid
+      if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for core grid'
+      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      !- Setup the LAM analysis grid metrics
+      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
+    nullify(vco_anl)
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
