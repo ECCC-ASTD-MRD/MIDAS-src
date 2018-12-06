@@ -47,7 +47,7 @@ module obsOperators_mod
   ! public procedures
   public :: oop_setup
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
-  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
+  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
   character(len=48) :: obsoperMode
@@ -626,6 +626,7 @@ contains
 
   end subroutine oop_sfc_nl
 
+
   subroutine oop_sst_nl( columnhr, obsSpaceData, jobs, cdfam)
     !**s/r oop_sst_nl - Computation of Jo and the residuals to the observations
     !                 FOR SEA SURFACE TEMPERATURE DATA
@@ -654,16 +655,16 @@ contains
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list( obsSpaceData, headerIndex )
 
-      BODY: do 
+      BODY: do
 
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if ( bodyIndex < 0 ) exit BODY
 
         ! only process observations flagged to be assimilated
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
-       
+
         ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
- 
+
         if( ivnm /= bufr_sst ) cycle BODY
 
         obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
@@ -682,6 +683,64 @@ contains
     jobs = 0.5d0 * jobs
 
   end subroutine oop_sst_nl
+
+
+  subroutine oop_ice_nl( columnhr, obsSpaceData, jobs, cdfam)
+    !**s/r oop_ice_nl - Computation of Jo and the residuals to the observations
+    !                 FOR SEA ICE CONCENTRATION DATA
+    implicit none
+    ! arguments
+    type(struct_columnData), intent(in)    :: columnhr
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    real(8)                , intent(  out) :: jobs         ! contribution to Jo
+    character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    ! locals
+    integer :: ivnm, headerIndex, bodyIndex
+    real(8) :: obsValue
+
+    write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
+
+    jobs = 0.d0
+
+    ! loop over all header indices of the specified family with surface obs
+    call obs_set_current_header_list( obsSpaceData, cdfam )
+
+    HEADER: do
+
+      headerIndex = obs_getHeaderIndex( obsSpaceData )
+      if ( headerIndex < 0 ) exit HEADER
+
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list( obsSpaceData, headerIndex )
+
+      BODY: do
+
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if ( bodyIndex < 0 ) exit BODY
+
+        ! only process observations flagged to be assimilated
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
+
+        ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if( ivnm /= BUFR_ICEC ) cycle BODY
+
+        obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+        call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+                            obsValue - ( col_getElem( columnhr, 1, headerIndex, 'GL' ) ))
+
+        ! contribution to jobs
+        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+                      ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
+      end do BODY
+
+    end do HEADER
+
+    jobs = 0.5d0 * jobs
+
+  end subroutine oop_ice_nl
 
 
   subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
@@ -1544,27 +1603,27 @@ contains
       firstTime = .false.
     end if
 
-    call tmg_start(42,'OBS_PPP_TLAD')
+    call tmg_start(42,'OBS_PPP_TL')
     call oop_Hpp(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop(42)
 
-    call tmg_start(43,'OBS_SFC_TLAD')
+    call tmg_start(43,'OBS_SFC_TL')
     call oop_Hsf(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop (43)
 
-    call tmg_start(44,'OBS_TOV_TLAD')
+    call tmg_start(44,'OBS_TOV_TL')
     call oop_Hto(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop (44)
 
-    call tmg_start(45,'OBS_GPSRO_TLAD')
+    call tmg_start(45,'OBS_GPSRO_TL')
     call oop_Hro(obsAssVal)
     call tmg_stop (45)
 
-    call tmg_start(46,'OBS_ZZZ_TLAD')
+    call tmg_start(46,'OBS_ZZZ_TL')
     call oop_Hzp(obsAssVal)
     call tmg_stop (46)
 
-    call tmg_start(47,'OBS_GPSGB_TLAD')
+    call tmg_start(47,'OBS_GPSGB_TL')
     if (numGPSZTD > 0)  call oop_Hgp(obsAssVal)
     call tmg_stop (47)
 
@@ -1572,9 +1631,13 @@ contains
     call oop_Hchm(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (126)
 
-    call tmg_start(190,'OBS_SST_TLAD')
+    call tmg_start(190,'OBS_SST_TL')
     call oop_Hsst(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (190)
+
+    call tmg_start(19,'OBS_ICE_TL')
+    call oop_Hice(obsAssVal)          ! fill in OBS_WORK : Hdx
+    call tmg_stop (19)
 
 
 
@@ -1848,7 +1911,7 @@ contains
       ! locals
       integer :: headerIndex, bodyIndex, ityp
       real(8) :: columnVarB
-      
+
       call obs_set_current_body_list( obsSpaceData, 'TM' )
 
       BODY: do
@@ -1872,6 +1935,45 @@ contains
       end do BODY
 
     end subroutine oop_Hsst
+
+
+    subroutine oop_Hice(obsAssVal)
+      !*
+      !* Purpose: Compute simulated sea ice concentration observations 
+      !*          from profiled model increments.
+      !*          It returns Hdx in OBS_WORK
+      !*
+      implicit none
+      ! arguments
+      integer, intent(in) :: obsAssVal
+      ! locals
+      integer :: headerIndex, bodyIndex, ityp
+      real(8) :: columnVarB
+
+      call obs_set_current_body_list( obsSpaceData, 'GL' )
+
+      BODY: do
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if (bodyIndex < 0) exit BODY
+
+        ! Process all data within the domain of the model
+        ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if ( ityp /= bufr_icec ) cycle BODY
+
+
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal &
+       !.or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0         &
+             ) then
+
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+          columnVarB = col_getElem( column, 1, headerIndex, varName_opt = 'GL' )
+          call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
+        end if
+
+      end do BODY
+
+    end subroutine oop_Hice
 
 
     subroutine oop_Hto(obsAssVal)
@@ -2649,37 +2751,41 @@ contains
       firstTime = .false.
     end if
 
-    call tmg_start(125,'OBS_CHM_TLAD') !
+    call tmg_start(125,'OBS_CHM_TLAD')
     call oop_HTchm
     call tmg_stop (125)
 
-    call tmg_start(47,'OBS_GPSGB_TLAD') !
+    call tmg_start(34,'OBS_GPSGB_TLAD')
     if (numGPSZTD > 0) call oop_HTgp
-    call tmg_stop (47)        !
+    call tmg_stop (34)
 
-    call tmg_start(46,'OBS_ZZZ_TLAD') !
+    call tmg_start(38,'OBS_ZZZ_TLAD')
     call oop_HTzp
-    call tmg_stop (46)
+    call tmg_stop (38)
 
-    call tmg_start(45,'OBS_GPSRO_TLAD') !
+    call tmg_start(49,'OBS_GPSRO_TLAD')
     call oop_HTro
-    call tmg_stop (45)      !     !
+    call tmg_stop (49)
 
-    call tmg_start(44,'OBS_TOV_TLAD') !
+    call tmg_start(90,'OBS_TOV_TLAD')
     call oop_HTto
-    call tmg_stop (44)      !
+    call tmg_stop (90)
 
-    call tmg_start(43,'OBS_SFC_TLAD')
+    call tmg_start(99,'OBS_SFC_TLAD')
     call oop_HTsf
-    call tmg_stop (43)      !
+    call tmg_stop (99)
 
-    call tmg_start(42,'OBS_PPP_TLAD') !
+    call tmg_start(100,'OBS_PPP_TLAD')
     call oop_HTpp
-    call tmg_stop (42)
+    call tmg_stop (100)
 
     call tmg_start(191,'OBS_SST_TLAD')
     call oop_HTsst
     call tmg_stop (191)      !
+
+    call tmg_start(33,'OBS_ICE_TLAD')
+    call oop_HTice
+    call tmg_stop (33)
 
 
   CONTAINS
@@ -2919,6 +3025,7 @@ contains
       RETURN
     END subroutine oop_HTsf
 
+
     subroutine oop_HTsst
       !*
       !*** Adjoint of the "vertical" interpolation for SST data
@@ -2951,6 +3058,41 @@ contains
       end do BODY
 
     end subroutine oop_HTsst
+
+
+    subroutine oop_HTice
+      !*
+      !*** Adjoint of the "vertical" interpolation for ICE data
+      !*
+      implicit none
+      real(8) :: residual
+      integer :: headerIndex, bodyIndex, ityp
+      real(8), pointer :: columnGL(:)
+
+      call obs_set_current_body_list( obsSpaceData, 'GL' )
+
+      BODY: do
+
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if (bodyIndex < 0) exit BODY
+
+        ! Process all data within the domain of the model
+        ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if ( ityp /= bufr_icec ) cycle BODY
+
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1       &
+        !     .or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0 &
+           ) then
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+          residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
+          columnGL => col_getColumn( column, headerIndex, varName_opt = 'GL' )
+          columnGL(1) = columnGL(1) + residual
+        end if
+
+      end do BODY
+
+    end subroutine oop_HTice
 
 
     subroutine oop_HTto
