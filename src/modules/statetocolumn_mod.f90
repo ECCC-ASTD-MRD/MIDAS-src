@@ -1770,12 +1770,12 @@ contains
     ! be used for new analysis variables.
     !
     implicit none
-  
+
     ! arguments
     type(struct_columnData) :: column
     type(struct_gsv) :: statevector
     type(struct_obs) :: obsSpaceData
-  
+
     ! locals
     integer :: jlev, jk, jk2, jgl, jlon, headerIndex
     integer :: lonIndex, ila, ierr, subGridIndex
@@ -1805,7 +1805,7 @@ contains
         zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
       end do
     end do
-  
+
     !
     !- 2.  Loop over all the headers
     !
@@ -1863,7 +1863,7 @@ contains
       dlw2 =       dldx  * (1.d0-dldy)
       dlw3 = (1.d0-dldx) *       dldy
       dlw4 =       dldx  *       dldy
-     
+
       !- 2.4 Interpolate the model state to the obs point
       if(col_varExist('UU')) uu_column => col_getColumn(column,headerIndex,'UU')
       if(col_varExist('VV')) vv_column => col_getColumn(column,headerIndex,'VV')
@@ -1871,7 +1871,7 @@ contains
       if(col_varExist('TT')) tt_column => col_getColumn(column,headerIndex,'TT')
       if(col_varExist('P0')) ps_column => col_getColumn(column,headerIndex,'P0')
       if(col_varExist('TG')) tg_column => col_getColumn(column,headerIndex,'TG')
-     
+
       do jk = 1, gsv_getNumLev(statevector,'MM')
         if(gsv_varExist(statevector,'UU')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
@@ -1921,7 +1921,7 @@ contains
     end do
 
     deallocate(zgd)
-  
+
   end subroutine s2c_bgcheck_bilin
 
   !--------------------------------------------------------------------------
@@ -1963,7 +1963,7 @@ contains
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
 
     ! Find near lat/long grid points
-    
+
     plong2 = plong
     if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
     do lonIndex = 2, nlong
@@ -1991,10 +1991,10 @@ contains
     DLW4 =       DLDX  *       DLDY
 
     ! Set vertical interpolation weights (assumes pressure vertical coordinate)
-    
+
     lnvlevout(:) = log(vlevout(:))    
     lnvlev(:) = log(vlev(:))    
-         
+
     ilev = 1
     do i = 1, nlevout
       do j = ilev, nlev          
@@ -2006,7 +2006,7 @@ contains
       else if (ilev >= nlev) then
         ilev = nlev-1
       end if
-       
+
       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
       vprof(i) = DLDP* (DLW1 * field(lonIndex,latIndex,ilev)      &
@@ -2018,7 +2018,7 @@ contains
                       + DLW3 * field(lonIndex,latIndex+1,ilev+1)  &
                       + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
     end do
-        
+
   end subroutine s2c_column_hbilin   
 
 end module stateToColumn_mod
