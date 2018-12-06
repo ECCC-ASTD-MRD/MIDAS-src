@@ -542,6 +542,14 @@ contains
 
           end if
 
+          if ( obsVarno == bufr_icec ) then
+
+             ! Convert from % to fraction
+
+             obsValue = obsValue/100.0
+
+          end if
+
           if ( trim(familyType) == 'TO' ) then
 
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
@@ -773,6 +781,12 @@ contains
             else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
             end if 
+            if ( trim(familyType) == 'GL' ) then
+              if ( updateList(itemId) == OBS_OMP .or. updateList(itemId) == OBS_OMA ) then
+                romp = romp * 100.0
+              end if
+            end if
+            call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
           end if
 
         end do ITEMS
@@ -841,10 +855,10 @@ contains
     write(*,*)  myName//' --- Starting ---   '
     write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
     write(*,*)' fileName -> ', trim(fileName)   
-   
+
     ! set default values of namelist variables
     numberInsertItems = 0
-    itemInsertList(:) = ''
+    itemInsertList(:) = 0
 
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
@@ -897,6 +911,11 @@ contains
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex )
         llok = .false.
+
+        if ( trim(familyType) == 'GL' ) then
+          OMA = OMA * 100.0
+          OMP = OMP * 100.0
+        end if
 
         do insertItem = 1, numberInsertItems
           if ( obsVarno == itemInsertList(insertItem) ) llok=.true.
