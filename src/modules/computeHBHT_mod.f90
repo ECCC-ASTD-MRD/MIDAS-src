@@ -1019,7 +1019,7 @@ end subroutine hbht_compute_ensemble
   BODY: do bodyIndex = 1, obs_numbody( lobsSpaceData )
 
     cfam = obs_getFamily( lobsSpaceData, bodyIndex = bodyIndex )
-    if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' ) then
+    if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
 
       ! Process all data within the domain of the model (excluding GB-GPS ZTD data)
       llok = .false.
@@ -1029,7 +1029,7 @@ end subroutine hbht_compute_ensemble
         ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
         if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &
              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
-             ityp == bufr_sst ) then
+             ityp == bufr_sst  .or. ityp == BUFR_ICEC ) then
 
           llok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
 
