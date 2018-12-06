@@ -19,6 +19,7 @@ build:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
+    - v_3.3
 
 runtests:
    stage: test
@@ -37,6 +38,7 @@ runtests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
+     - v_3.3
 
 doc_f90doc:
   stage: doc
@@ -49,6 +51,7 @@ doc_f90doc:
   - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
+    - v_3.3
 
 doc_sphinx:
   stage: doc
@@ -62,3 +65,4 @@ doc_sphinx:
   - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
+    - v_3.3

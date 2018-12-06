@@ -26,7 +26,18 @@ module codePrecision_mod
   save
   public
 
+#if !defined(CODEPRECISION_OBS_REAL_SINGLE) && !defined(CODEPRECISION_OBS_REAL_DOUBLE)
+#define CODEPRECISION_OBS_REAL_DOUBLE
+#endif
+
+#ifdef CODEPRECISION_OBS_REAL_DOUBLE
   integer, parameter :: OBS_REAL = selected_real_kind(15)
   character(len=20)  :: MPI_OBS_REAL="mpi_double_precision"
+#endif
+
+#ifdef CODEPRECISION_OBS_REAL_SINGLE
+  integer, parameter :: OBS_REAL = selected_real_kind(6)
+  character(len=20)  :: MPI_OBS_REAL="mpi_real"
+#endif
 
 end module codePrecision_mod

@@ -133,6 +133,7 @@ contains
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: zenith    , solarZenith    , CloudCover    , solarAzimuth    , roQcFlag
     real(obs_real)           :: geoidUndulation, earthLocRadCurv, azimuthReal, obsValue, surfEmiss
+    real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
     real(obs_real),parameter :: zemFact = 0.01
@@ -383,7 +384,7 @@ contains
       solarZenith   = MPC_missingValue_INT; solarZenithReal  = MPC_missingValue_R4
       zenith = MPC_missingValue_INT; zenithReal = MPC_missingValue_R4    
       instrument = MPC_missingValue_INT
-      azimuth = MPC_missingValue_INT; azimuthReal = MPC_missingValue_R8  
+      azimuth = MPC_missingValue_INT; azimuthReal_R8 = MPC_missingValue_R8
 
       call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo     )
       call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat       )
@@ -404,7 +405,8 @@ contains
 
         if ( trim(rdbSchema) /= 'csr' ) then
 
-          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal )
+          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
+          azimuthReal = azimuthReal_R8
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
         end if
@@ -443,10 +445,13 @@ contains
         if ( trim(rdbSchema)=='ro' ) then
 
           call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = roQcFlag, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation )
-          call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv )
+          call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoidUndulation_R8 )
+          geoidUndulation = geoidUndulation_R8
+          call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earthLocRadCurv_R8 )
+          earthLocRadCurv_R8 = earthLocRadCurv
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
-          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal )
+          call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
+          azimuthReal = azimuthReal_R8
           azimuth = nint( azimuthReal * 100 )
 
         end if
@@ -509,22 +514,21 @@ contains
                 ! U COMPONENT
                 call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    MPC_missingValue_R8, bufr_neuu, 0, vertCoordType, bodyIndex+1)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_neuu, 0, vertCoordType, bodyIndex+1)
                 ! V COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    MPC_missingValue_R8, bufr_nevv, 0, vertCoordType, bodyIndex+2)
-
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevv, 0, vertCoordType, bodyIndex+2)
               else if ( obsVarno == bufr_neds) then
 
                 ! Us COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    MPC_missingValue_R8, bufr_neus, 0, vertCoordType, bodyIndex+1)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_neus, 0, vertCoordType, bodyIndex+1)
                 ! Vs COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    MPC_missingValue_R8, bufr_nevs, 0, vertCoordType, bodyIndex+2)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevs, 0, vertCoordType, bodyIndex+2)
               end if
 
               bodyIndex = bodyIndex + 2

@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 * `ensManip` now support humidity adjustments in recentering mode (#174 and !157)
+* The program `obsIO` is using the value of `OBS_REAL` to work at
+  single precision when working with `obsSpaceData_mod`
+  (#175 and !161).
+* Improved efficiency of ensemble amplitude memory access and writing
+  of `rehm` and `anlm` files (#170 and !151)
 
 ### Fixed
 
