@@ -251,8 +251,7 @@ CONTAINS
       real*8 :: zjsp, zxmin, zeps0
       real*8 :: dlgnorm, dlxnorm, zjotov
 
-      integer fnom,fclos, remove_c
-      external fnom,fclos
+      integer remove_c
 
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
@@ -965,7 +964,7 @@ CONTAINS
   subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
     implicit none
     ! Argument declarations
-    integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
+    integer :: na_dim ! Dimension of the control vector in forecast error covariances space
     ! Value of na_indic
     ! Note: 1 and 4 are reserved values for call back from m1qn3.
     !       For direct calls use other value than 1 and 4.
@@ -973,7 +972,7 @@ CONTAINS
     ! =2 Same as 4 (compute J and gradJ) but do not interrupt timer of the
     !    minimizer.
     ! =3 Compute Jo and gradJo only.
-    integer :: na_indic 
+    integer :: na_indic
     real*8  :: da_J ! Cost function of the Variational algorithm
     real*8, dimension(na_dim) :: da_gradJ ! Gradient of the Variational Cost funtion
     real*8, dimension(na_dim) :: da_v ! Control variable in forecast error covariances space
@@ -1038,14 +1037,14 @@ CONTAINS
        call tmg_stop(40)
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
- 
+
        call bias_calcbias_tl(da_v,nvadim_mpilocal,OBS_OMA,obsSpaceData,columng)
-     
+
        call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
-     
+
        call cfn_calcJo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
-     
-       IF (LVARQC) THEN          
+
+       IF (LVARQC) THEN
           call vqc_tl(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
@@ -1084,7 +1083,7 @@ CONTAINS
        call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then
-          da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
+         da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
        endif
     endif
     call tmg_stop(80)
