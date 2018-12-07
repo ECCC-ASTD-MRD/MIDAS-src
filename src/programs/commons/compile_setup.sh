@@ -19,7 +19,7 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 ];then
 elif [ "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     FOPTMIZ=4
 else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'ubuntu-14.04-amd64-64' are."
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
     exit 1
 fi
 
@@ -85,10 +85,10 @@ else
 fi
 
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O 0'"
+    FOPTMIZ=0
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O ${FOPTMIZ}'"
     COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
     COMPF="${COMPF_NOC} =-C"
-    FOPTMIZ=0
 else
     COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
     COMPF_NOC=${COMPF}
