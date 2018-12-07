@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * The program `obsIO` is using the value of `OBS_REAL` to work at
   single precision when working with `obsSpaceData_mod`
   (#175 and !161).
+   * The module `burpread_mod` now includes the function
+     `brpr_getTypeResume` which returns the module private variable
+     `TYPE_RESUME`
 * Improved efficiency of ensemble amplitude memory access and writing
   of `rehm` and `anlm` files (#170 and !151)
 
