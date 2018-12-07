@@ -332,7 +332,7 @@ contains
         end if
       end if
 
-      if ( llok .and. .not.llrej ) then
+      if ( llok .and. .not. llrej ) then
         call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, 1 )
         iknt = iknt + 1
       else
