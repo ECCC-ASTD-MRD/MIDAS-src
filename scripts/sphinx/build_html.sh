@@ -147,20 +147,20 @@ Library
 
 A library is published and can be accessed with::
    . ssmuse-sh -d eccc/mrd/rpn/anl/midas/$(git describe --abbrev=0 | sed 's/v_//')
-EOF
 
-cat >> index.rst << 'EOF'
+This library is compiled with \`\`CODEPRECISION_OBS_REAL_SINGLE\`\` defined.
 
 This library contains the following set of modules:
-
-.. toctree::
-   :maxdepth 2
-
 EOF
 
 modList=$($(dirname $(true_path $0))/buildList.sh obsIO.f90)
 for module_name in ${modList}; do
-    echo "   modules/$module_name" >> index.rst
+    modPath=$(git grep -li --full-name "^ *module *${module_name}" $(git rev-parse --show-cdup)/src/modules | grep -v unit_tests || true)
+    if [ -n "${modPath}" ]; then
+        str2parse="$(echo ${module_name} | sed 's/_/\\_/g') <https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/$(git describe)/${modPath}/>"
+        #echo " * \`$(echo ${str2parse} | sed 's/_/\\_/g')\`_" >> index.rst
+        echo " * \`${str2parse}\`_" >> index.rst
+    fi
 done
 
 cat >> index.rst << 'EOF'
