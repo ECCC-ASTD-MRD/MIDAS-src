@@ -60,8 +60,8 @@ doc_sphinx:
   script:
   - cd scripts/sphinx
   - ./build_html.sh ../../src $midasdoc/$docname
-  - rm -fv $midasdoc/latest
-  - ln -sv $midasdoc/$docname $midasdoc/latest
+  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - master
     - v_3.3
