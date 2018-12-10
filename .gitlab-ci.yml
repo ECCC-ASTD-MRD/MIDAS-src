@@ -51,7 +51,6 @@ doc_f90doc:
   - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
     - master
-    - v_3.3
 
 doc_sphinx:
   stage: doc
