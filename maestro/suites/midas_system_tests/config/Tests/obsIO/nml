@@ -15,7 +15,10 @@
   sqlExtraDat=" order by id_obs "
   sqlNull=" and obsvalue is not null "
 /
-
+ &NAMSQLgl
+  numberElem=4
+  listElem="20222,20237,21199,21169"
+/
  &NAMSQLradar
   numberElem=1
   listElem="21014"
