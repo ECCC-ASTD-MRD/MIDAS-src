@@ -761,7 +761,7 @@ contains
 
     call fSQL_finalize( stmt )
 
-    if ( trim(familyType) /= 'GL'.or. 'RA' )  then
+    if ( trim(familyType) /= 'GL'.and. 'RA' )  then
 
        ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABLE
        query = ' update header set status  = ? where id_obs = ? '
