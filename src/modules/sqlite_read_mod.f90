@@ -13,7 +13,6 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-
 !--------------------------------------------------------------------------
 !! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
 !!
@@ -207,7 +206,7 @@ contains
     else if ( trim(familyType) == 'GL' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else if ( trim(familyType) == 'RA' ) then
-       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
     end if
@@ -761,7 +760,7 @@ contains
 
     call fSQL_finalize( stmt )
 
-    if ( trim(familyType) /= 'GL'.and. 'RA' )  then
+    if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' )  then
 
        ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABLE
        query = ' update header set status  = ? where id_obs = ? '
