@@ -236,12 +236,12 @@ contains
           if( ZLEV < ZPT ) IK = JK
         end do
         if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
-             ITYP == BUFR_NEZD ) THEN
+             ITYP == BUFR_NEZD .or. ityp == bufr_gust) THEN
           ! for surface observations associated with surface analysis variables
           IK = 0
         else if ( ITYP == BUFR_NETS .or. ityp == BUFR_NESS .or. &
                ITYP == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ITYP == BUFR_NEHS) then
+               ITYP == BUFR_NEHS .or. ityp == bufr_vis) then
           ! for surface observations associated with NON-surface analysis variables
           IK = nlev - 1
         end if
@@ -667,6 +667,7 @@ contains
                 columnVarB=col_getElem(columnhr,ipb,headerIndex)
              end if
              gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)
+
              call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
                   (zvar-columnVarB + zslope*(zhhh-gzhr)) )
 
@@ -1928,7 +1929,7 @@ contains
                nlev = col_getNumLev(column,varLevel)
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-               IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
+               !IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ZHHH = ZLEV * GRAV

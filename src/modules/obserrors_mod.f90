@@ -66,6 +66,7 @@ module obsErrors_mod
 
   integer :: n_sat_type, n_categorie
   integer :: tbl_m(200), tbl_h(200), tbl_t(200), tbl_g(200)
+  integer :: surfaceObsTypeNumber
 
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
@@ -525,25 +526,32 @@ contains
 
     external fnom, fclos
     integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat, nulnam
-    logical             :: LnewExists
+    logical             :: LnewExists, visAndGustAdded
     character (len=128) :: ligne
     character(len=256)  :: fileName
 
-    NEW_OER_SW = .false.
+    NEW_OER_SW    = .false.
+    visAndGustAdded = .false.
 
-    NAMELIST /NAMOER/NEW_OER_SW
+    NAMELIST /NAMOER/NEW_OER_SW, visAndGustAdded
     fileName = trim("flnml")
     nulnam = 0
     ierr = fnom( nulnam, fileName, 'R/O', 0)
 
     read( nulnam, nml = NAMOER, iostat = ierr )
     if(ierr /= 0) then
-      write(*,*) 'No valid namelist NAMOER found'
+      write(*,*) 'read_obs_erreurs_conv : No valid namelist NAMOER found'
     end if
-
     ierr = fclos( nulnam )
 
-    write(*,*) 'new_oer_sw = ',new_oer_sw
+    write(*,*) 'read_obs_erreurs_conv : new_oer_sw      = ', new_oer_sw
+    write(*,*) 'read_obs_erreurs_conv : visAndGustAdded = ', visAndGustAdded
+
+    if (visAndGustAdded) then
+      surfaceObsTypeNumber = 6
+    else
+      surfaceObsTypeNumber = 4
+    end if
 
     ! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
     inquire( file = 'obserr', exist = LnewExists )
@@ -602,8 +610,8 @@ contains
         read(nulstat, '(A)') ligne
         write(*, '(A)') ligne
       end do
-      read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,6)
-      write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,6)
+      read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,surfaceObsTypeNumber)
+      write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,surfaceObsTypeNumber)
     end do
 
     if ( obs_famExist( lobsSpaceData, 'TM' ) )  then
@@ -975,9 +983,17 @@ contains
             else if ( ityp == BUFR_NEES ) then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
             else if ( ityp == bufr_vis ) then
-              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
+              if (5 <= surfaceObsTypeNumber) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
+              else
+                call utl_abort("fill_obs_erreurs: observation error missing for visibility")
+              end if
             else if ( ityp == bufr_gust ) then
-              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
+              if (6 <= surfaceObsTypeNumber) then
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
+              else
+                call utl_abort("fill_obs_erreurs: observation error missing for wind gust")
+              end if
             end if
 
                 !***********************************************************************

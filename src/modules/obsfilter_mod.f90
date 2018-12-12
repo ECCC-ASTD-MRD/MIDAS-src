@@ -52,17 +52,17 @@ module obsFilter_mod
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
-  integer, parameter :: numElem = 17
+  integer, parameter :: numElem = 19
   real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
-       (/     50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
-       800.d0,    800.D0,   1000.d0,     50.D0,     50.D0,     50.D0,     50.D0,  &
-       50.D0,     50.D0 ,   50.d0/)
+       (/ 50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
+       800.d0,    800.d0,   1000.d0,    50.d0,     50.d0,     50.d0,     50.d0,  &
+       50.d0,     50.d0,     50.d0,      50.d0,    50.d0 /)
   integer, parameter :: elemList(numElem) =  &
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
        BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
-       BUFR_NEES, BUFR_NETT , BUFR_NEAL/)
-  real(8) :: bndryCritPres         = 5000.0D0  ! in Pascals
-  real(8) :: bndryCritHeightProf   =  400.0D0  ! in Metres
+       BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis, bufr_gust /)
+  real(8) :: bndryCritPres   = 5000.0d0  ! in Pascals
+  real(8) :: bndryCritHeight =  400.0d0  ! in Metres
   real(8) :: bndryCritHeightAladin =  400.0D0  ! in Metres
 
   character(len=48) :: filterMode
@@ -631,7 +631,7 @@ contains
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = col_getElem(columnhr,1,headerIndex,'P0')
           zpt = zpb - bndryCritPres
-          zdelp = 999999.0D0
+          zdelp = 999999.0d0
           if (zdifalt .gt. 0.0d0) then
              zdelp = zdifalt * 100.d0 / 8.0d0
              zpt   = zpb - (zdelp + bndryCritPres)
@@ -704,7 +704,7 @@ contains
     real(8) :: zval, zdiff
     character(len=2) :: list_family(2)
 
-    !    DATA    RLISTCRIT/50.D0/
+    !    DATA    RLISTCRIT/50.d0/
     !    DATA    ILISTEL/11003,11004,12001,12192/
 
     if ( .not.beSilent ) then
@@ -1045,7 +1045,7 @@ contains
 
     integer :: headerIndex, bodyIndex, elemIndex
     integer :: idatyp, countAssim, countRej
-    real(8), parameter :: minSfcPressure = 80000.D0
+    real(8), parameter :: minSfcPressure = 80000.d0
 
     if ( .not.beSilent ) then
       write(*,* ) ' '

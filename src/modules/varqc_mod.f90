@@ -140,7 +140,8 @@ module varqc_mod
           if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
               ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
-              ityp == BUFR_NEZD ) then
+              ityp == BUFR_NEZD .or. ityp == bufr_vis  .or.  &
+              ityp == bufr_gust) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1)
           else
              LLOK = (IASS == 1) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &

@@ -515,8 +515,8 @@ module obsUtil_mod
     select case(type)
       case (1)
         select case(ilem)
-          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
-            ! us,vs,ffs,dds
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
+            ! us,vs,ffs,dds,gust
             vcordsf2 = 10.0
           case (bufr_nepn)
             vcordsf2 = 0.0
@@ -526,11 +526,13 @@ module obsUtil_mod
             vcordsf2 = 1.5
           case (bufr_nees, bufr_ness)
             vcordsf2 = 1.5
+          case (bufr_vis)
+            vcordsf2 = 1.5
         end select
       case (2)
         select case(ilem)
           ! us,vs,ffs,dds
-          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             vcordsf2 = 20.0
           case (bufr_nepn)
             vcordsf2 = 0.0
@@ -540,10 +542,12 @@ module obsUtil_mod
             vcordsf2 = 11.5
           case (bufr_nees, bufr_ness)
             vcordsf2 = 11.5
+          case (bufr_vis)
+            vcordsf2 = 11.5
        end select
      case (3)
        select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
            vcordsf2 = 10.0
          case (bufr_nepn)
            vcordsf2 = 0.0
@@ -555,10 +559,12 @@ module obsUtil_mod
            vcordsf2 = 0.0
          case (bufr_ness)
            vcordsf2 = 1.5
+         case (bufr_vis)
+            vcordsf2 = 1.5
        end select
      case (4)
        select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
            vcordsf2 = 20.0
          case (bufr_nepn)
            vcordsf2 = 0.0
@@ -570,6 +576,8 @@ module obsUtil_mod
            vcordsf2 = 0.0
          case (bufr_ness)
            vcordsf2 = 1.5
+         case (bufr_vis)
+            vcordsf2 = 1.5
         end select
       case (5)
 
@@ -606,7 +614,8 @@ module obsUtil_mod
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
 
         select case(varno)
-          case(bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, bufr_ness, bufr_nepn, bufr_neps, bufr_nehs, bufr_nezd )
+          case(bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, bufr_ness, bufr_nepn, bufr_neps, bufr_nehs, &
+               bufr_nezd, bufr_vis, bufr_gust )
             sfc_vco = surfvcord(varno, codtyp )
             if ( varno /= bufr_nepn) then
               ppp = elev + sfc_vco
