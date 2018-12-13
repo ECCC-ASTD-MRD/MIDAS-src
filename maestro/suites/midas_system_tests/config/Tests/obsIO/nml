@@ -18,6 +18,8 @@
  &NAMSQLgl
   numberElem=4
   listElem="20222,20237,21199,21169"
+  sqlExtraDat=" order by id_obs "
+  sqlNull=" and obsvalue is not null "
 /
  &NAMSQLradar
   numberElem=1

@@ -1,4 +1,4 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------2
+!--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -13,6 +13,7 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
+
 !--------------------------------------------------------------------------
 !! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
 !!
@@ -167,6 +168,7 @@ contains
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
     write(*,*) myName//': familyType : ', trim(familyType)
@@ -313,7 +315,6 @@ contains
         read(nulnam, nml = NAMSQLradar, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
-
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
@@ -760,7 +761,7 @@ contains
 
     call fSQL_finalize( stmt )
 
-    if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' )  then
+    if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' ) then
 
        ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABLE
        query = ' update header set status  = ? where id_obs = ? '
