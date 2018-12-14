@@ -37,7 +37,9 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  
+  use verticalCoord_mod
+  use varNameList_mod
+
   implicit none
   save
   private
