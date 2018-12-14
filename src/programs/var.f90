@@ -372,7 +372,6 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for analysis grid'
-    nullify(hco_anl)
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
@@ -388,7 +387,6 @@ contains
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    nullify(vco_anl)
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
