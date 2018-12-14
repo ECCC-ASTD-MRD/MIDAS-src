@@ -1126,7 +1126,7 @@ module physicsFunctions_mod
 
     if ( present(printGZ) ) then
       if ( printGZ ) then
-        write(*,*) 'MAZIAR phf_alt2geopotential, GZ_T:'
+        write(*,*) 'phf_alt2geopotential, GZ_T:'
         write(*,*) geopotential(:)
 
         printGZ = .false.

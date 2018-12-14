@@ -34,6 +34,7 @@ module obsFilter_mod
   use utilities_mod
   use varNameList_mod
   use chem_setup_mod
+  use physicsFunctions_mod
   implicit none
   save
   private

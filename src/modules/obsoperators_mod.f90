@@ -37,7 +37,9 @@ module obsOperators_mod
   use utilities_mod
   use tovs_lin_mod
   use chem_obsoperators_mod
-  
+  use verticalCoord_mod
+  use varNameList_mod
+
   implicit none
   save
   private
@@ -3680,6 +3682,7 @@ contains
       obsAssVal = 1
     end if
 
+    vco_anl => col_getVco(columng)
     stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
 
     ZDZMIN = DZMIN                     ! from modgpsztd_mod

@@ -866,7 +866,7 @@ end subroutine hbht_compute_ensemble
                if(ITYP .ne. BUFR_NEGZ) then
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
                else
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH'))
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')*RG)
                endif
             ELSE
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
@@ -887,15 +887,15 @@ end subroutine hbht_compute_ensemble
                       (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
                else
                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')))
+                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')*RG))
                endif
                if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',col_getElem(lcolumn,IPB,INDEX_HEADER)
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')
-                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')
+                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')*RG
+                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')*RG
                  CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF
@@ -965,8 +965,8 @@ end subroutine hbht_compute_ensemble
                      IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
                      IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                      IPB  = IPT+1
-                     ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varLevel)/RG
-                     ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varLevel)/RG
+                     ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varLevel)
+                     ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varLevel)
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                      ZWT  = 1.d0 - ZWB
                      fge_uu =   ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'UU') &
@@ -1140,7 +1140,7 @@ end subroutine hbht_compute_ensemble
           if ( varLevel == 'SF') idim = 0
           ik   = obs_bodyElem_i( lobsSpaceData, OBS_LYR, bodyIndex )
           zlev = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
-          zhhh = zlev * grav
+          zhhh = zlev
 
           if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. &
                ityp == BUFR_NESS .or. ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
@@ -1314,7 +1314,7 @@ end subroutine hbht_compute_ensemble
                   Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
                   zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')/RG
+                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')
                   WFGPS= 0.d0
                   DO JJ=1,NUMGPSSATS
                      IF (ISAT.EQ.IGPSSAT(JJ)) WFGPS=WGPS(JJ)
@@ -1338,8 +1338,8 @@ end subroutine hbht_compute_ensemble
                      zVV(JL) = 0.d0
                   ENDDO
                   DO JL = 1, NWNDLEV
-                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU') * p_knot
-                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV') * p_knot
+                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU')
+                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV')
                   ENDDO
                   zUU(NGPSLEV) = zUU(NWNDLEV)
                   zVV(NGPSLEV) = zUU(NWNDLEV)
@@ -1440,6 +1440,7 @@ end subroutine hbht_compute_ensemble
          deallocate(zTT)
          deallocate(zDP)
          deallocate(zPP)
+         deallocate(gps_vRO_Jacobian)
       ENDIF
 
       WRITE(*,*)'EXIT SETFGEDIFF'
@@ -1469,6 +1470,8 @@ end subroutine hbht_compute_ensemble
 !!           - if numGPSZTD=0, does nothing and returns
 !!        -S. Macpherson *ARMA/MSC   November 2014
 !!           - add surface pressure (P0) argument to call gps_structztd()
+!!        -M. Bani Shahabadi Dec 2018
+!!           - use the calculated height in tt2phi in the gps_structztd_v2()
 !!
 !!v     *********************************************************************
 !!v     ****                   9 October 2015                            ****
@@ -1495,12 +1498,14 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: ZTT(:)
       REAL*8, allocatable :: ZHU(:)
       REAL*8, allocatable :: ZGZ(:)
+      REAL*8, allocatable :: ZGZ2(:)
       REAL*8, allocatable :: ZTTB(:)
       REAL*8, allocatable :: ZHUB(:)
       REAL*8, allocatable :: ZQQB(:)
       REAL*8, allocatable :: ZQQ(:)
       REAL*8, allocatable :: ZTTB_P(:)
       REAL*8, allocatable :: ZQQB_P(:)
+      REAL*8, allocatable :: ZGZ_P(:)
       REAL*8, allocatable :: RZHUB_P(:)
       REAL*8, allocatable :: ZPP_P(:)
       
@@ -1630,11 +1635,12 @@ end subroutine hbht_compute_ensemble
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
                        DX(NFLEV_T+JL) = ZHU(JL)
                        ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+                       DX(2*NFLEV_T+JL) = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH')
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
-                     DX(2*NFLEV_T+1) = ZP0
-                     ZMT  = ZGZ(NFLEV_T)/GRAV
-                     CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+                     DX(3*NFLEV_T+1) = ZP0
+                     ZMT  = ZGZ(NFLEV_T)
+                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,ZGZ,LBEVIS,IREFOPT,PRF)
                      CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -1650,7 +1656,7 @@ end subroutine hbht_compute_ensemble
 
                            ZLSUM  = 0.0d0
 !C
-                           DO JL = 1, 2*NFLEV_T+1
+                           DO JL = 1, 3*NFLEV_T+1
                              ZLSUM = ZLSUM + (JAC(JL)*DX(JL))**2
                            ENDDO
                            call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
@@ -1666,7 +1672,7 @@ end subroutine hbht_compute_ensemble
                                WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV_T)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
                              ENDDO                         
                              WRITE(*,*) 'JACPS FGE_PS'
-                             WRITE(*,'(2(1x,E13.6))') JAC(2*NFLEV_T+1), ZP0
+                             WRITE(*,'(2(1x,E13.6))') JAC(3*NFLEV_T+1), ZP0
                            ENDIF
 
                         ENDIF
@@ -1684,6 +1690,8 @@ end subroutine hbht_compute_ensemble
       
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
+      allocate(ZGZ2(NFLEV_T))
+      allocate(ZGZ_P(NFLEV_T))
       allocate(ZPP_P(NFLEV_T))
 
       icount = 0
@@ -1717,15 +1725,17 @@ end subroutine hbht_compute_ensemble
             ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
             ZQQ(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU') * PERTFAC
             ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+            ZGZ2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
-         ZMT  = ZGZ(NFLEV_T)/GRAV
+         ZMT  = ZGZ(NFLEV_T)
 
          DO JL = 1, NFLEV_T
              DX (      JL) = ZTT(JL)
              DX (NFLEV_T+JL) = ZQQ(JL)
+             DX (2*NFLEV_T+JL) = ZGZ2(JL)
          ENDDO
-         DX (2*NFLEV_T+1) = ZP0
+         DX (3*NFLEV_T+1) = ZP0
 
          ZTDOBS = -1.0d0
          DO INDEX_BODY = IDATA, IDATEND
@@ -1736,9 +1746,9 @@ end subroutine hbht_compute_ensemble
              ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
              ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
              ILYR    = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
-             ZTOP    = col_getHeight(lcolumng,ILYR,IOBS,varLevel)/GRAV
+             ZTOP    = col_getHeight(lcolumng,ILYR,IOBS,varLevel)
              if ( ILYR .LT. NFLEV_T ) then
-               ZBOT    = col_getHeight(lcolumng,ILYR+1,IOBS,varLevel)/GRAV
+               ZBOT    = col_getHeight(lcolumng,ILYR+1,IOBS,varLevel)
              else
                ZBOT    = ZTOP
              endif
@@ -1752,13 +1762,14 @@ end subroutine hbht_compute_ensemble
              ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
              ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
              ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
+             ZGZ_P(JL) = ZGZ(JL) + ZGZ2(JL)
            ENDDO
            ZP0B_P = ZP0B + ZP0
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZQQB,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,ZQQB_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZQQB,ZGZ,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,ZQQB_P,ZGZ_P,LBEVIS,IREFOPT,PRFP)
            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
@@ -1768,7 +1779,7 @@ end subroutine hbht_compute_ensemble
 !c         Linear  --> delta_H = dH/dx * delta_x
 !c
            DELTAH_TL = 0.0d0
-           DO JL = 1, 2*NFLEV_T+1
+           DO JL = 1, 3*NFLEV_T+1
              DELTAH_TL = DELTAH_TL + JAC(JL)*DX(JL)
            ENDDO
 !c
@@ -1797,6 +1808,8 @@ end subroutine hbht_compute_ensemble
 
       deallocate(ZTTB_P)
       deallocate(ZQQB_P)
+      deallocate(ZGZ2)
+      deallocate(ZGZ_P)
       deallocate(ZPP_P)
 
       ENDIF
