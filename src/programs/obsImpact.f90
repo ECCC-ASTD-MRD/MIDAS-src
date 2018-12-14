@@ -208,7 +208,7 @@ program midas_obsimpact
   !
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)

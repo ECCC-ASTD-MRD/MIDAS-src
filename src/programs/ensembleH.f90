@@ -224,7 +224,7 @@ program midas_ensembleH
     end if
     if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
          col_varExist('P0') .and. col_getNumLev(columns(memberIndex),'MM') > 1 ) then
-      call tt2phi(columns(memberIndex),beSilent_opt=beSilent)
+      call tt2phi(columns(memberIndex),obsSpaceData,beSilent_opt=beSilent)
     end if
     call tmg_stop(6)
   end do

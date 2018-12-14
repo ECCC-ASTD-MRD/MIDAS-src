@@ -30,6 +30,7 @@ module tt2phi_mod
   use columnData_mod
   use verticalCoord_mod
   use utilities_mod
+  use obsSpaceData_mod
   implicit none
   save
   private
@@ -70,7 +71,7 @@ module tt2phi_mod
 
 contains
 
-subroutine tt2phi(columnghr,beSilent_opt)
+subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   !
   !**s/r tt2phi - Temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 
@@ -88,6 +89,7 @@ subroutine tt2phi(columnghr,beSilent_opt)
   implicit none
 
   type(struct_columnData) :: columnghr
+  type(struct_obs)        :: obsSpaceData
   logical, optional       :: beSilent_opt
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode
@@ -95,7 +97,7 @@ subroutine tt2phi(columnghr,beSilent_opt)
   real(8), allocatable :: tv(:), AL_T(:), AL_M(:) 
   real(8), pointer     :: gz_T(:),gz_M(:)
   real                 :: gz_sfcOffset_T_r4, gz_sfcOffset_M_r4
-  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos, rMT
+  real(8) :: rLat, rMT
   real(8) :: h0, dh, Rgh, sLat, cLat
   type(struct_vco), pointer :: vco_ghr
   logical                   :: beSilent
@@ -130,9 +132,8 @@ subroutine tt2phi(columnghr,beSilent_opt)
     AL_T(1:nlev_T) = 0.0D0
     AL_M(1:nlev_M) = 0.0D0
 
-    ! latitude/longitude
-    call col_getLatLon(columnghr, columnIndex,                  & ! IN
-                        rLat, rLon, ypos, xpos, LatRot, LonRot )  ! OUT
+    ! latitude
+    rLat = obs_headElem_r(obsSpaceData,OBS_LAT,columnIndex)
     sLat = sin(rLat)
     cLat = cos(rLat)
 
@@ -259,7 +260,7 @@ subroutine tt2phi(columnghr,beSilent_opt)
 end subroutine tt2phi
 
 
-subroutine tt2phi_tl(column,columng)
+subroutine tt2phi_tl(column,columng,obsSpaceData)
   !
   !**s/r tt2phi_tl - Temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 
@@ -279,6 +280,7 @@ subroutine tt2phi_tl(column,columng)
   implicit none
 
   type(struct_columnData) :: column, columng
+  type(struct_obs)        :: obsSpaceData
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
   real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -296,7 +298,7 @@ subroutine tt2phi_tl(column,columng)
   allocate(delThick(nlev_T))
 
   ! generate the height coefficients
-  call calcAltitudeCoeff(columng)
+  call calcAltitudeCoeff(columng,obsSpaceData)
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,gz_M,gz_T,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,ScaleFactorBottom,ScaleFactorTop)
   do columnIndex = 1, col_getNumCol(columng)
@@ -383,7 +385,7 @@ subroutine tt2phi_tl(column,columng)
 end subroutine tt2phi_tl
 
 
-subroutine tt2phi_ad(column,columng)
+subroutine tt2phi_ad(column,columng,obsSpaceData)
   !
   !**s/r tt2phi_ad - Adjoint of temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 
@@ -403,6 +405,7 @@ subroutine tt2phi_ad(column,columng)
   implicit none
 
   type(struct_columnData) :: column,columng
+  type(struct_obs)        :: obsSpaceData
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
   real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -423,7 +426,7 @@ subroutine tt2phi_ad(column,columng)
   allocate(delGz_T(nlev_T))
 
   ! generate the height coefficients
-  call calcAltitudeCoeff(columng)
+  call calcAltitudeCoeff(columng,obsSpaceData)
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,delGz_M_in,delGz_T_in,gz_M,gz_T,ScaleFactorBottom,ScaleFactorTop)
   do columnIndex = 1, col_getNumCol(columng)
@@ -512,9 +515,9 @@ subroutine tt2phi_ad(column,columng)
 end subroutine tt2phi_ad
 
 
-subroutine calcAltitudeCoeff(columng)
+subroutine calcAltitudeCoeff(columng,obsSpaceData)
   !
-  !**s/r calcAltitudeCoef - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
+  !**s/r calcAltitudeCoeff - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
   !
   !Author  : M. Bani Shahabadi, Oct 2018
   !          - based on the original tt2phi_tl/tt2phi_ad by Mark Buehner 
@@ -522,13 +525,14 @@ subroutine calcAltitudeCoeff(columng)
   implicit none
 
   type(struct_columnData) :: columng
+  type(struct_obs)        :: obsSpaceData
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
   real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop, ratioP1
   real(8), allocatable :: delLnP_M(:)
   real(8), pointer     :: gz_T(:),gz_M(:)
   real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delHU(:),delP0(:)
-  real(8) :: rLat, rLon, latrot, lonrot, xpos, ypos
+  real(8) :: rLat
   real(8) :: h0, Rgh, sLat, cLat
   type(struct_vco), pointer :: vco_anl
 
@@ -536,7 +540,7 @@ subroutine calcAltitudeCoeff(columng)
 
   if ( .not. firstTimeAltCoeff ) return
 
-  Write(*,*) "Entering subroutine calcAltitudeCoef"
+  Write(*,*) "Entering subroutine calcAltitudeCoeff"
 
   ! initialize and save coefficients for increased efficiency (assumes no relinearization)
   firstTimeAltCoeff = .false.
@@ -572,9 +576,8 @@ subroutine calcAltitudeCoeff(columng)
 
     gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
 
-    ! latitude/longitude
-    call col_getLatLon(columng, columnIndex,                  & ! IN
-                        rLat, rLon, ypos, xpos, LatRot, LonRot )! OUT
+    ! latitude
+    rLat = obs_headElem_r(obsSpaceData,OBS_LAT,columnIndex)
     sLat = sin(rLat)
     cLat = cos(rLat)
 
@@ -663,7 +666,7 @@ subroutine calcAltitudeCoeff(columng)
 
   deallocate(delLnP_M)
 
-  Write(*,*) "Exit subroutine calcAltitudeCoef"
+  Write(*,*) "Exit subroutine calcAltitudeCoeff"
 
 end subroutine calcAltitudeCoeff
 
