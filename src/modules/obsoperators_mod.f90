@@ -438,6 +438,17 @@ contains
       return
     end if
 
+    if(present(cdfam)) then
+      call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
+    else
+      write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
+      call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
+    endif
+
+    if(list_is_empty)then
+      return
+    end if
+
     ! Read in the namelist NAMALADIN_OBS
     do_adjust_aladin = .false.
     nulnam=0
@@ -481,6 +492,10 @@ contains
         bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
                        + bodyIndexStart - 1
         BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+          tempRef=0.0d0
+          dwdt   =0.0d0
+          presRef=0.0d0
+          dwdp   =0.0d0
 
           value = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
           select case(obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2))
