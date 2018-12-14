@@ -118,8 +118,6 @@ contains
     ! diff_norm_fact is the name of the RPN format file for the normalization factors.
     character(len=*), parameter :: diff_norm_fact = './diffusmod.std'
 
-    character(len=*), parameter :: mask_file = './analysisgrid'
-
     ! Variables and functions required to write to RPN Standard files.
 
     integer  :: nmax
@@ -229,32 +227,11 @@ contains
     diff(diffID)%Wsqrt(:,:) = sqrt(W(:,:))
     diff(diffID)%Winvsqrt(:,:) = 1.0d0/diff(diffID)%Wsqrt(:,:)
 
-    ! Read mask from file
+    ! Get mask from hco
 
-    std_unit = 0
+    allocate(mask(NI,NJ))
 
-    inquire (file=mask_file, exist=file_exist)
-
-    if(file_exist) then
-
-       ierr = fnom(std_unit, mask_file, 'RND+R/O', 0)
-       nmax = fstouv(std_unit, 'RND')
-
-       allocate(mask(NI,NJ))
-
-       key = fstlir(mask, std_unit, nii, njj, nkk,    &
-            -1, ' ', -1, -1, -1, '@@', ' ')
-
-       ierr = fstfrm(std_unit)
-       ierr = fclos(std_unit)
-
-    else
-
-       write(*,*) 'diff_setup: File: ',trim(mask_file)
-       write(*,*) 'is missing and required for the mask'
-       call utl_abort('diff_setup')
-
-    end if
+    mask(:,:) = hco%mask(:,:)
 
     ! land mask (1=water, 0=land)
     do j=1,NJ

@@ -2493,12 +2493,6 @@ module gridStateVector_mod
                       -1, etiket_in, &
                       -1, -1, -1, typvar_var, varName)
 
-        if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
-          write(*,*) 'ni, nj in file        = ', ni_file, nj_file
-          write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
-          call utl_abort('gsv_readFile: Dimensions of surface GZ not consistent')
-        end if
-
         if (ikey < 0) then
           typvar_var(2:2) = '@'
           ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
@@ -2509,6 +2503,12 @@ module gridStateVector_mod
             write(*,*) 'typvar_var = ',typvar_var
             call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
           end if
+        end if
+
+        if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
+          write(*,*) 'ni, nj in file        = ', ni_file, nj_file
+          write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
+          call utl_abort('gsv_readFile: Dimensions of surface GZ not consistent')
         end if
 
         allocate(gd2d_file_r4(ni_file,nj_file))

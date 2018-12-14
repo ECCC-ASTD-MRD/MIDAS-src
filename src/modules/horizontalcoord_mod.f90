@@ -62,6 +62,7 @@ module HorizontalCoord_mod
      real(8)              :: xlat2, xlat2_yan
      real(8)              :: xlon2, xlon2_yan
      real(4), allocatable :: tictacU(:)
+     integer, allocatable :: mask(:,:)
   end type struct_hco
 
   contains
@@ -85,13 +86,18 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
+    integer, allocatable :: mask(:,:)
+
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    integer :: iu_template, numSubGrid
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos
+    ! External functions from rmnlib
+    integer :: fnom, fstouv, fstfrm, fclos
+    integer :: fstinf, fstprm, fstlir, fstluk
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+
+    integer :: iu_template, numSubGrid
+    integer :: key, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -425,6 +431,43 @@ module HorizontalCoord_mod
 
     deallocate(lat_8)
     deallocate(lon_8)
+
+    !- 3.1  Read the mask if present
+
+    dateo  = -1
+    etiket = EtiketName
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = '@@'
+    nomvar = ' '
+
+    key = fstinf( iu_template,                                   & ! IN
+                  ni_t, nj_t, nk,                                & ! OUT
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
+
+    if (key >= 0) then
+
+       !  Test if the dimensions are compatible with the grid
+       if ( ni_t /= ni .or. nj_t /= nj ) then
+         write(*,*)
+         write(*,*) 'hco_SetupFromFile: Incompatible mask grid descriptors !'
+         write(*,*) 'Found     :', ni_t, nj_t
+         write(*,*) 'Should be :', ni, nj
+         call utl_abort('hco_setupFromFile')
+       end if
+
+       allocate(mask(ni,nj))
+
+       key = fstluk(mask, key, ni_t, nj_t, nk)
+
+       allocate(hco % mask(ni,nj))
+
+       hco % mask(:,:) = mask(:,:)
+
+       deallocate(mask)
+
+    end if
 
     !
     !- 4.  Close the input file

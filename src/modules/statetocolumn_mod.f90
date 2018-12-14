@@ -171,7 +171,7 @@ contains
             call obs_headSet_r(obsSpaceData,OBS_LAT,headerIndex, lat_r8) ! IN
             call obs_headSet_r(obsSpaceData,OBS_LON,headerIndex, lon_r8) ! IN
           else
-            write(*,*) ''
+            write(*,*)
             write(*,*) 's2c_latLonChecks: OBS outside the GLOBAL ANALYSIS grid, but NOT moved, ', headerIndex
           end if
 
@@ -203,9 +203,9 @@ contains
   !---------------------------------------------------------
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   timeInterpType, rejectOutsideObs )
-    ! **Purpose:** 
+    ! **Purpose:**
     ! Setup all of the information needed to quickly
-    ! perform the horizontal interpolation to the observation 
+    ! perform the horizontal interpolation to the observation
     ! locations.
     !
     implicit none
@@ -224,8 +224,7 @@ contains
     integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: dldx, dldy, xpos, ypos
-    integer :: ig1obs, ig2obs, ig3obs, ig4obs
-    real(8) :: zig1, zig2, zig3, zig4, stepObsIndex, latRot, lonRot, lat, lon
+    real(8) :: latRot, lonRot, lat, lon, weightsSum
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer, allocatable :: allNumHeaderUsed(:,:), headerIndexVec(:,:)
@@ -517,7 +516,7 @@ contains
             ! only 1 subGrid involved in interpolation
             numSubGridsForInterp = 1
           end if
-                           
+
           do subGridForInterp = 1, numSubGridsForInterp
 
             ! Compute the 4 weights of the bilinear interpolation
@@ -538,10 +537,60 @@ contains
             indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
             indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-            interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
-            interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
-            interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
-            interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
+            if ( allocated(stateVector%hco%mask) ) then
+
+              if ( stateVector%hco%mask(lonIndex,latIndex) == 1 ) then
+                interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
+              else
+                interpInfo%interpWeightDepot(indexBeg    ) = 0.d0
+              end if
+
+              if ( stateVector%hco%mask(lonIndexP1,latIndex) == 1 ) then
+                interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
+              else
+                interpInfo%interpWeightDepot(indexBeg + 1) = 0.d0
+              end if
+
+              if ( stateVector%hco%mask(lonIndex,latIndex + 1) == 1 ) then
+                interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
+              else
+                interpInfo%interpWeightDepot(indexBeg + 2) = 0.d0
+              end if
+
+              if ( stateVector%hco%mask(lonIndexP1,latIndex + 1) == 1 ) then
+                interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
+              else
+                interpInfo%interpWeightDepot(indexBeg + 3) = 0.d0
+              end if
+
+              weightsSum = sum(interpInfo%interpWeightDepot(indexBeg:indexBeg + 3))
+              if ( weightsSum > 0.d0 ) then
+
+                interpInfo%interpWeightDepot(indexBeg:indexBeg + 3) = &
+                interpInfo%interpWeightDepot(indexBeg:indexBeg + 3) / weightsSum
+
+              else
+
+                write(*,*) 's2c_setupInterpInfo: Rejecting OBS outside the grid domain, ', headerIndex
+                write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+                bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+                bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
+                do bodyIndex = bodyIndexBeg, bodyIndexEnd
+                  call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+                end do
+                call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
+                     ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+
+              end if
+
+            else
+
+              interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
+              interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
+              interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
+              interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
+
+            end if
 
             ! divide weight by number of subGrids
             interpInfo%interpWeightDepot(indexBeg:indexEnd) = &
@@ -1974,14 +2023,14 @@ contains
       end if
     end do
     lonIndex = lonIndex-1
-       
+
     do latIndex = 2, nlat
       if (plat <= xlat(latIndex)) exit
     end do
     latIndex = latIndex-1
-    
+
     ! Set lat/long interpolation weights
-    
+
     DLDX = (plong - xlong(lonIndex))/(xlong(lonIndex+1)-xlong(lonIndex))
     DLDY = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
 
