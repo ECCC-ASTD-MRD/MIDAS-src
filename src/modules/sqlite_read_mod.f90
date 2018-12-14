@@ -167,7 +167,8 @@ contains
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    
+    namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
     write(*,*) myName//': familyType : ', trim(familyType)
@@ -205,6 +206,8 @@ contains
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, id_sat, land_sea, instrument, zenith, solar_zenith "
       vertCoordType = 3
     else if ( trim(familyType) == 'GL' ) then
+      columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
+    else if ( trim(familyType) == 'RA' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
@@ -308,6 +311,10 @@ contains
         read(nulnam, nml = NAMSQLgl, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
+      case( 'ra' )
+        read(nulnam, nml = NAMSQLradar, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
         call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
@@ -447,7 +454,10 @@ contains
 
          ! Nothing more to read for GL now.
          ! It does not have the obsStatus column.
+      else if ( trim(familyType) == 'RA' ) then
 
+         ! Nothing more to read for RA now.
+         ! It does not have the obsStatus column.
       else  ! familyType = CONV
 
         call fSQL_get_column( stmt, COL_INDEX = 8,  INT_VAR  = obsStatus )
@@ -751,7 +761,7 @@ contains
 
     call fSQL_finalize( stmt )
 
-    if ( trim(familyType) /= 'GL' ) then
+    if ( trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA' ) then
 
        ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABLE
        query = ' update header set status  = ? where id_obs = ? '
