@@ -640,9 +640,9 @@ contains
           zhhh = zlev * grav
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
-          if(ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
-               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or. &
-               ivnm == bufr_vis .or. ivnm == bufr_gust ) then
+          if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
+              ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or. &
+              ivnm == bufr_gust ) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the
@@ -698,6 +698,14 @@ contains
                                zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
+
+          else if (ivnm == bufr_vis) then
+            ! For visibility, transform the observation in term logarithm and compute log(y)-Hx, where x is log(VIS)
+            ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
+            ipb  = ipt + 1
+            columnVarB=col_getElem(columnhr,ipb,headerIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+                  log(max(zvar,MPC_MINIMUM_VIS_R8))-columnVarB)
           end if
 
           ! contribution to jobs

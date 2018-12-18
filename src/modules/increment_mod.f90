@@ -92,6 +92,7 @@ CONTAINS
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
     type(struct_gsv) :: statevector_PsfcLowRes_varsLevs, statevector_Psfc_varsLevs
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
+    type(struct_gsv) :: statevector_vis, statevector_vis_1step_r4
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_vco), pointer :: vco_inc => null()
@@ -329,6 +330,20 @@ CONTAINS
     call tmg_stop(182)
 
     !
+    !- Compute post-processed variables
+    !
+    if ( gsv_varExist(statevector_analysis,'LVIS') ) then
+      call gsv_allocate(statevector_vis, numStep, hco_trl, vco_trl, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                        varNames_opt=(/'VIS'/))
+      call vtr_transform( statevector_analysis,               & ! IN
+                          'LVIStoVIS', &                        ! IN
+                          statevectorOut_opt=statevector_vis)   ! OUT
+
+    end if
+
+    !
     !- Write out the files in parallel with respect to time steps
     !
     call tmg_start(183,'INC_WRITEANLMREHM')
@@ -368,6 +383,11 @@ CONTAINS
         call gsv_allocate( stateVector_Psfc_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                            varNames_opt=(/'P0'/), allocGZsfc_opt=.true. )
+        if ( gsv_varExist(statevector_analysis,'LVIS') ) then
+          call gsv_allocate( stateVector_vis_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
+                             dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
+                             varNames_opt=(/'VIS'/), allocGZsfc_opt=allocGZsfc)
+        end if
       end if
 
       ! transpose ANALYSIS data from Tiles to Steps
@@ -380,6 +400,20 @@ CONTAINS
         call gsv_writeToFile( statevector_1step_r4, trim(anlFileName), etiket_anlm,  &
                               typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
                               numBits_opt=writeNumBits, containsFullField_opt=.true. )
+      end if
+
+      if ( gsv_varExist(statevector_analysis,'LVIS') ) then
+        ! transpose INCREMENT data from Tiles to Steps
+        call gsv_transposeTilesToStep(stateVector_vis_1step_r4, stateVector_vis, stepIndexBeg)
+
+        ! write the INCREMENT file for one timestep on all tasks with data
+        if ( stepIndexToWrite /= -1 ) then
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          anlFileName = './anlm_' // trim(coffset) // 'm'
+          call gsv_writeToFile( statevector_vis_1step_r4, trim(anlFileName), etiket_anlm,  &
+                              typvar_opt='A', &
+                              numBits_opt=writeNumBits, containsFullField_opt=.true. )
+        end if
       end if
 
       if (writeHiresIncrement) then

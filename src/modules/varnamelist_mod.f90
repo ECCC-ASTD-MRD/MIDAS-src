@@ -45,31 +45,31 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 30, vnl_numvarmax2D = 11
+  integer, parameter          :: vnl_numvarmax3D = 31, vnl_numvarmax2D = 11
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2',        &
-                                 'TNH3','AF  ','AC  ','TNO ','ALFA','VIS '/)
+                                 'TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
-                                 'TH',  'TH',  'TH',  'TH',  'MM',  'TH'/)
+                                 'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH'/)
 
   character(len=5), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                                  &
                                  'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ',  &
                                  'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',  &
                                  'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'OTHER', 'MODEL'/)
+                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'OTHER', 'MODEL', 'MODEL'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
-                                 'CH',  'CH',  'CH',  'CH',  'MT',  'MT'/)
+                                 'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2', 'EHCH', 'ESO2', 'ENH3' , &
@@ -201,7 +201,7 @@ module varNameList_mod
       case ( BUFR_ICEC  )
         varname='GL'
       case ( bufr_vis )
-        varname='VIS'
+        varname='LVIS'
       case ( bufr_gust )
         varname='WGE'
       case default
@@ -322,7 +322,7 @@ module varNameList_mod
         varNumber=BUFR_NEDW
       case('WGE')
         varNumber=bufr_gust
-      case('VIS')
+      case('LVIS')
         varNumber=bufr_vis
 
       ! Atmospheric constituents other than HU

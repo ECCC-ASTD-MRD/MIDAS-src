@@ -1930,7 +1930,7 @@ contains
       if(col_varExist('TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
       if(col_varExist('P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
       if(col_varExist('TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
-      if(col_varExist('VIS')) vis_column  => col_getColumn(column,headerIndex,'VIS')
+      if(col_varExist('LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
       if(col_varExist('WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
      
       do jk = 1, gsv_getNumLev(statevector,'MM')
@@ -1964,8 +1964,8 @@ contains
                           + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
                           + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
-        if(gsv_varExist(statevector,'VIS')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'VIS')
+        if(gsv_varExist(statevector,'LVIS')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'LVIS')
           vis_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
                            + dlw2*zgd(lonIndex+1,ila,jk2)  &
                            + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
