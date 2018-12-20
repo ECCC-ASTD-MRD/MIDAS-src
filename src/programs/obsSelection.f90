@@ -48,16 +48,6 @@ program midas_obsSelection
     call utl_writeStatus('VAR3D_BEG')
   endif
 
-!!$  !- 1.0 Namelist
-!!$     ! default value
-!!$
-!!$  nulnam = 0
-!!$  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-!!$  read(nulnam,nml=namselect,iostat=ierr)
-!!$  if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
-!!$  if (mpi_myid == 0) write(*,nml=namselect)
-!!$  ierr = fclos(nulnam)
-
 
   ! 2.1 Calculate the Observation - Forecast difference
   call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
