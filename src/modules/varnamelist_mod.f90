@@ -176,7 +176,7 @@ module varNameList_mod
       
       varName='    '
       select case (varNumber)
-      case ( BUFR_NEUU, BUFR_NEUS )
+      case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )
         varName='UU'
       case( BUFR_NEVV, BUFR_NEVS )
         varName='VV'
