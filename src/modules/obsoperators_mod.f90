@@ -418,6 +418,7 @@ contains
     real(8) :: ttLyr, ppLyr   ! T, P on layer, OBS_LYR
     real(8) :: ttLyr1,ppLyr1  ! T, P on layer, OBS_LYR plus 1
     real(8) :: ttbg,  ppbg    ! background T, P at the observation location
+    logical :: list_is_empty
 
     ! namelist variables
     logical :: do_adjust_aladin
@@ -425,6 +426,17 @@ contains
     namelist /NAMALADIN_OBS/do_adjust_aladin
 
     Write(*,*) "Entering subroutine oop_zzz_nl"
+
+    if(present(cdfam)) then
+      call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
+    else
+      write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
+      call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
+    endif
+
+    if(list_is_empty)then
+      return
+    end if
 
     ! Read in the namelist NAMALADIN_OBS
     do_adjust_aladin = .false.
@@ -436,13 +448,6 @@ contains
     ierr=fclos(nulnam)
 
     jobs=0.d0
-
-    if(present(cdfam)) then
-      call obs_set_current_body_list(obsSpaceData, cdfam)
-    else
-      write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
-      call obs_set_current_body_list(obsSpaceData, 'AL')
-    endif
 
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
