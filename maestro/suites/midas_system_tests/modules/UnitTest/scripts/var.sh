@@ -42,7 +42,7 @@ extract_family () {
 }
 
 if [ "${fasttmp}" = yes ]; then
-    for prefix in brp obs sql; do
+    for prefix in brp obs sql dia; do
         for file in ${FASTTMPDIR}/obs/${prefix}*; do
             if [ -f "${file}" ]; then
                 if [[ "${file}" = *.num_headers ]]; then

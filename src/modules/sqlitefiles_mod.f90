@@ -240,12 +240,12 @@ module sqliteFiles_mod
   end subroutine sqlf_thinFile
 
 
-  subroutine sqlf_generateSqlFile(obsSpaceData, fileName, familyType, fileIndex )
+  subroutine sqlf_generateSqlFile(obsSpaceData, fileName, obsFamily, fileIndex )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*)                 :: fileName
-    character(len=*)                 :: familyType
+    character(len=*)                 :: obsFamily
     integer                          :: fileIndex
     ! locals
     integer :: headerIndex
@@ -253,22 +253,19 @@ module sqliteFiles_mod
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call tmg_start(97,'POST_UPDATESQL')
+    call tmg_start(99,'sqlf_generateSqlFile: TOTAL: ')
     write(*,*) myName//' Starting'
-    fileName = trim(fileName)//'.rdb'
     write(*,*) myName//': FileName   : ',trim(fileName)
-    write(*,*) myName//': FamilyType : ',FamilyType
+    write(*,*) myName//': FamilyType : ',trim(obsFamily)
     
-    call sqlr_insertDiagSqlite(db, obsSpaceData, familyType, fileName, fileIndex )
+    call sqlr_insertDiagSqlite(db, obsSpaceData, obsFamily, fileName, fileIndex )
 
-    write(*,*)'  closed database -->', trim(FileName)
-    call fSQL_close( db, statusSqlite )
     write(*,*)' '
     write(*,*)'================================================='
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call tmg_stop(97)
+    call tmg_stop(99)
 
   end subroutine sqlf_generateSqlFile
 
