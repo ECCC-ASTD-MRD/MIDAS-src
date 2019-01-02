@@ -20,7 +20,7 @@ module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/m
 rm -fR _src_files
 mkdir _src_files
 
-for file in $program_filelist ; do  
+for file in $program_filelist; do
   echo ADDING THIS FILE TO src_files: $file
   cd _src_files
   ln -s ../$file ./
@@ -36,7 +36,7 @@ done
 # GENERATE LIST OF ALL PROGRAMS
 
 program_list=''
-for file in $program_filelist ; do  
+for file in $program_filelist ; do
   program_name=`grep -i '^program ' $file | awk '{print $2}'`
   program_name_lc=`echo $program_name |tr '[:upper:]' '[:lower:]'`
   echo ADDING THIS PROGRAM TO THE LIST: $program_name_lc
@@ -138,6 +138,29 @@ EOF
 
 for module_name in $module_list ; do
   echo "   modules/$module_name" >> index.rst
+done
+
+cat >> index.rst << EOF
+
+Library
+========
+
+A library is published and can be accessed with::
+   . ssmuse-sh -d eccc/mrd/rpn/anl/midas/$(git describe --abbrev=0 | sed 's/v_//')
+
+This library is compiled with \`\`CODEPRECISION_OBS_REAL_SINGLE\`\` defined.
+
+This library contains the following set of modules:
+EOF
+
+modList=$($(dirname $(true_path $0))/buildList.sh obsIO.f90)
+for module_name in ${modList}; do
+    modPath=$(git grep -li --full-name "^ *module *${module_name}" $(git rev-parse --show-cdup)/src/modules | grep -v unit_tests || true)
+    if [ -n "${modPath}" ]; then
+        str2parse="$(echo ${module_name} | sed 's/_/\\_/g') <https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/$(git describe)/${modPath}/>"
+        #echo " * \`$(echo ${str2parse} | sed 's/_/\\_/g')\`_" >> index.rst
+        echo " * \`${str2parse}\`_" >> index.rst
+    fi
 done
 
 cat >> index.rst << 'EOF'
