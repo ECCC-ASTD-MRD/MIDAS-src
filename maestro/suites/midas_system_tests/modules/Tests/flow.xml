@@ -115,6 +115,12 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY> 
+    </FAMILY>
+    <SUBMITS sub_name="o-p_sfc"/>
+    <FAMILY  name="o-p_sfc">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="obsSelect">
