@@ -25,6 +25,7 @@
 !!
 !--------------------------------------------------------------------------
 program midas_obsio
+  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -157,7 +158,7 @@ contains
 
     ! locals
     integer :: bodyIndex
-    real(kind=8) :: obsValue
+    real(OBS_REAL) :: obsValue
 
     do bodyIndex=1,obs_numbody(obsSpaceData)
       obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)

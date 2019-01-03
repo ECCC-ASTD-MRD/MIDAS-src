@@ -5029,7 +5029,7 @@ module gridStateVector_mod
 
       ! distribute from task 0 to all tasks
       nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-      do procIndex = 0, mpi_nprocs
+      do procIndex = 1, mpi_nprocs
         displs(procIndex) = (procIndex-1)*nsize
         nsizes(procIndex) = nsize
       end do

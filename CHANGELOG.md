@@ -22,6 +22,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.3.1]:
+
+### Changed
+
+* `ensManip` now support humidity adjustments in recentering mode (#174 and !157)
+* The program `obsIO` is using the value of `OBS_REAL` to work at
+  single precision when working with `obsSpaceData_mod`
+  (#175 and !161).
+   * The module `burpread_mod` now includes the function
+     `brpr_getTypeResume` which returns the module private variable
+     `TYPE_RESUME`
+* Improved efficiency of ensemble amplitude memory access and writing
+  of `rehm` and `anlm` files (#170 and !151)
+
 ## [3.3.0]:
 
 ### Added
@@ -203,7 +217,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.1...HEAD
+[3.3.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0...v_3.3.1
 [3.3.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0
 [3.2.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.1...v_3.2.2
 [3.2.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.0...v_3.2.1

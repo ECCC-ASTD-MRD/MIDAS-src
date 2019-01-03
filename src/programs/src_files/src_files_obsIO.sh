@@ -1,5 +1,5 @@
 SRC_FILES=""
-SRC_FILES="$SRC_FILES codeprecision_mod.f90 utilities_mod.f90"
+SRC_FILES="$SRC_FILES codeprecision_mod.ftn90 utilities_mod.f90"
 SRC_FILES="$SRC_FILES earthconstants_mod.f90 mathphysconstants_mod.f90 mpi_mod.f90 "
 SRC_FILES="$SRC_FILES bufr_mod.f90 codtyp_mod.f90 obsspacedata_mod.f90"
 SRC_FILES="$SRC_FILES clib_interfaces_mod.ftn90 mpivar_mod.f90 obsUtil_mod.f90"

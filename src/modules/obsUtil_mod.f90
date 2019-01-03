@@ -181,13 +181,13 @@ module obsUtil_mod
               
               if ( obs_bodyElem_r( obsSpaceData,elem_i,bodyIndex2) >  180.0d0)  &
                 call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) - 360.0d0 )
+                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) - real(360.0d0,OBS_REAL) )
               if ( obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2) <= -180.0d0)  &
                 call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + 360.0d0 )
+                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + real(360.0d0,OBS_REAL) )
               call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                  - 1.0d0 * obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2 ) )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, 1.0d0 )
+                                  - real(1.0d0,OBS_REAL) * obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2 ) )
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, 1 )
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0 )
             end if
@@ -195,7 +195,7 @@ module obsUtil_mod
                   obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
               call obs_bodySet_r( obsSpaceData, elem_i,  bodyIndex2, &
                                   obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - module )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, 1.0d0 )
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, 1)
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0)
             end if
@@ -766,7 +766,7 @@ module obsUtil_mod
 
     type (struct_obs), intent(inout):: obsdat
     integer  :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
-    real(8)  :: FSOVal
+    real(OBS_REAL)  :: FSOVal
 
     do headerIndex = 1, obs_numHeader(obsdat)
 

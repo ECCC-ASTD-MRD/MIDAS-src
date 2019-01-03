@@ -37,7 +37,7 @@ save
 private
 
 ! public procedures
-public :: brpr_readBurp, brpr_updateBurp
+public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume
 
 
 ! MODULE CONSTANTS ...
@@ -57,6 +57,10 @@ LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI
 
 
 CONTAINS
+
+  character(len=7) function brpr_getTypeResume
+    brpr_getTypeResume=TYPE_RESUME
+  end function brpr_getTypeResume
 
   SUBROUTINE brpr_updateBurp(obsdat,familytype,brp_file,FILENUMB)
 

@@ -1,27 +1,73 @@
 #!/bin/ksh
 
 updated_results=$(${TASK_BIN}/readlink ${TASK_OUTPUT}/updated_results)
-if [ -d "${updated_results}" ]; then
+does_dir_exist=false
+if [[ "${updated_results}" = /* ]]; then
+    if [ -d "${updated_results}" ]; then
+        does_dir_exist=true
+    fi
+elif [ "${updated_results%%:*}" = "${TRUE_HOST}" ]; then
+    if [ -d "${updated_results##*:}" ]; then
+        does_dir_exist=true
+    else
+        updated_results=${updated_results##*:}
+    fi
+else
+    ssh ${updated_results%%:*} "test ! -d ${updated_results##*:}" || does_dir_exist=true
+fi
+if [ "${does_dir_exist}" = true ]; then
     echo "The directory '${updated_results}' already exists!"
     exit 1
 fi
-mkdir -p ${updated_results}
 
-reference=$(${TASK_BIN}/readlink ${TASK_INPUT}/results)
+if [[ "${updated_results}" = /* ]]; then
+    mkdir -p ${updated_results}
+else
+    ssh ${updated_results%%:*} "mkdir -p ${updated_results##*:}"
+fi
+
+reference_results=$(${TASK_BIN}/readlink ${TASK_INPUT}/results)
+if [[ "${reference_results}" = /* ]]; then
+    list_of_reference_inputs=$(ls -1 ${reference_results}/inputs*.ca)
+    list_of_reference_results=$(ls -1 ${reference_results}/results*.ca)
+elif [ "${reference_results%%:*}" = "${TRUE_HOST}" ]; then
+    reference_results=${reference_results##*:}
+    list_of_reference_inputs=$(ls -1 ${reference_results}/inputs*.ca)
+    list_of_reference_results=$(ls -1 ${reference_results}/results*.ca)
+else
+    list_of_reference_inputs=$(ssh ${reference_results%%:*} "ls -1 ${reference_results##*:}/inputs*.ca")
+    list_of_reference_results=$(ssh ${reference_results%%:*} "ls -1 ${reference_results##*:}/results*.ca")
+fi
 
 ## link inputs from previous reference:
-id=${reference##*/}
-for file in ${reference}/inputs*.ca; do
+id=${reference_results##*/}
+for file in ${list_of_reference_inputs}; do
     bfile=${file##*/}
-    ofile=${TASK_OUTPUT}/updated_results/${bfile}
-    if [ -f "${ofile}" ]; then
+    ofile=${updated_results}/${bfile}
+    does_file_exist=false
+    if [[ "${updated_results}" = /* ]]; then
+        if [ -f "${ofile}" ]; then
+            does_file_exist=true
+        fi
+    else
+        ssh ${ofile%%:*} "test ! -d ${ofile##*:}" || does_file_exist=true
+    fi
+    if [ "${does_file_exist}" = true ]; then
         echo "The input file '${ofile}' already exist!"
         exit 1
     fi
     if [ -n "${UnitTest_reference_update}" ]; then
-        ln -sv ${file} ${ofile}
+        if [[ "${updated_results}" = /* ]]; then
+            ln -sv ${file} ${ofile}
+        else
+            ssh ${ofile%%:*} "ln -sv ${file##*:} ${ofile##*:}"
+        fi
     else
-        ln -sv ../${id}/${bfile} ${ofile}
+        if [[ "${updated_results}" = /* ]]; then
+            ln -sv ../${id}/${bfile} ${ofile}
+        else
+            ssh ${ofile%%:*} "ln -sv ../${id}/${bfile} ${ofile##*:}"
+        fi
     fi
 done
 
@@ -35,11 +81,22 @@ for file in $(cd ${TASK_INPUT}/live_results; find . -type f); do
     ln -s ${TASK_INPUT}/live_results/${file} ${file}
 done
 
-for result in ${TASK_INPUT}/results/results*.ca; do
+if [[ "${reference_results}" = /* ]]; then
+    list_of_reference_results=$(ls -1 ${reference_results}/results*.ca)
+else
+    list_of_reference_results=$(ssh ${reference_results%%:*} "ls -1 ${reference_results##*:}/results*.ca")
+fi
+
+for result in ${list_of_reference_results}; do
     bresult=../${result##*/}
     if [ -f "${bresult}" ]; then
         echo "The file '${bresult}' already exists!"
         exit 1
+    fi
+    if [[ "${reference_results}" = /* ]]; then
+        list_of_reference_files=$(${TASK_BIN}/cmcarc -f ${result} -t)
+    else
+        list_of_reference_files=$(ssh ${reference_results%%:*} "${TASK_BIN}/cmcarc -f ${result} -t")
     fi
     for file in $(${TASK_BIN}/cmcarc -f ${result} -t); do
         if [ -L ${file} ]; then
@@ -82,12 +139,23 @@ done
 
 for file in results*.ca listings.ca; do
     ofile=${updated_results}/${file}
-    if [ -f "${ofile}" ]; then
-        echo "The file '${ofile}' already exists!"
-        exit 1
+    if [[ "${updated_results}" = /* ]]; then
+        if [ -f "${ofile}" ]; then
+            echo "The file '${ofile}' already exists!"
+            exit 1
+        fi
+        cp ${file} ${ofile}
+        chmod -wx ${ofile}
+    else
+        does_file_exist=false
+        ssh ${ofile%%:*} "test ! -d ${ofile##*:}" || does_file_exist=true
+        if [ "${does_file_exist}" = true ]; then
+            echo "The file '${ofile}' already exists!"
+            exit 1
+        fi
+        ${TASK_BIN}/sscp ${file} ${ofile}
+        ssh ${ofile%%:*} "chmod -wx ${ofile##*:}"
     fi
-    cp ${file} ${ofile}
-    chmod -wx ${ofile}
 done
 
 $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "You can update the configuration file '${UNITTEST_PGM_CFG}' with:"
