@@ -178,11 +178,11 @@ contains
   call obsf_determineFileType(obsFileType)
 
   nulnam=0
+  lwritediagsql = .false.
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namwritediag,iostat=ierr)
   if (ierr /= 0) then
     write(*,*) myWarning//'ATTENTION !!! namwritediag is missing in the namelist. The default value will be taken.'
-    lwritediagsql = .false.
   else
     if (mpi_myid == 0) write(*,nml = namwritediag)
   end if
