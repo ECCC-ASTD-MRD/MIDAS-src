@@ -307,7 +307,7 @@ contains
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
-      write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
+      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
       write(cmyidx,'(I4.4)') (mpi_myidx + 1)
       cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
       fileNameAsciDump = 'obsout_asci_' // trim(cmyid)
@@ -339,7 +339,7 @@ contains
     logical :: fileExists
     integer :: fileIndex
 
-    write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
+    write(cmyidy,'(I4.4)') (mpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mpi_myidx + 1)
     cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
 
@@ -568,12 +568,12 @@ contains
     call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
                              all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
     fileExists = .false.
-    PROCID_LOOP: do procID = 0, (mpi_nprocs-1)
+    procid_loop: do procID = 0, (mpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
         fileExists = .true.
-        exit PROCID_LOOP
+        exit procid_loop
       end if
-    end do PROCID_LOOP
+    end do procid_loop
 
     if ( .not.fileExists ) then
       call utl_abort('obsf_determineFileType: No observation files found')
