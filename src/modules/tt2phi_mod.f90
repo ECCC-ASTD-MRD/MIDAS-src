@@ -36,6 +36,9 @@ module tt2phi_mod
   save
   private
 
+  ! public structure definition
+  public :: struct_gpsro
+
   ! public procedures
   public :: tt2phi           , tt2phi_tl           , tt2phi_ad
 
@@ -55,11 +58,31 @@ module tt2phi_mod
   real(8), allocatable, save :: coeff_M_P0(:,:), coeff_M_P0_dP(:,:)
   real(8), allocatable, save :: coeff_T_P0(:), coeff_T_P0_dP(:)
 
-  ! interface for ...
+  ! interface for computing GZ increment in column/gridstatevector
   interface tt2phi_tl
     module procedure tt2phi_tl_col
     module procedure tt2phi_tl_gsv
   end interface tt2phi_tl
+
+  ! interface for adjoint of computing GZ increment in column/gridstatevector
+  interface tt2phi_ad
+    module procedure tt2phi_ad_col
+    module procedure tt2phi_ad_gsv
+  end interface tt2phi_ad
+
+  type struct_gpsro
+    real(8), pointer :: P0    => null()
+    real(8), pointer :: P (:) => null()
+    real(8), pointer :: TT(:) => null()
+    real(8), pointer :: HU(:) => null()
+    real(8), pointer :: GZ(:) => null()
+
+    real(8), pointer :: dP0(:) => null()
+    real(8), pointer :: dP (:,:) => null()
+    real(8), pointer :: dTT(:,:) => null()
+    real(8), pointer :: dHU(:,:) => null()
+    real(8), pointer :: dGZ(:,:) => null()
+  end type struct_gpsro
 
 contains
 
@@ -404,7 +427,11 @@ subroutine tt2phi_tl_col(column,columng)
 end subroutine tt2phi_tl_col
 
 subroutine tt2phi_tl_gsv(statevector,statevector_trial)
-
+  !
+  !**s/r tt2phi_tl_gsv- temperature to geopotential transformation on gridstatevector
+  !
+  !Author  : M. Bani Shahabadi, September 2018
+  !
   implicit none
 
   type(struct_gsv) :: statevector,statevector_trial
@@ -421,7 +448,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   call tmg_start(161,'tt2phi_tl_gsv MAZIAR')
 
-  write(*,*) 'MAZIAR IS HERE!'
+  write(*,*) 'MAZIAR: entering tt2phi_tl_gsv'
 
   vco_anl => gsv_getVco(statevector_trial)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -459,7 +486,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
       hu_ptr => gsv_getField_r8(statevector_trial,'HU')
       tt_ptr => gsv_getField_r8(statevector_trial,'TT')
 
-      write(*,*) 'MAZIAR: test gsv tt unit at sfc:'
+      write(*,*) 'MAZIAR: tt2phi_tl_gsv tt unit at sfc:'
       write(*,*) tt_ptr(1,1,nlev_T,1)
 
       do stepIndex = 1, numStep
@@ -583,7 +610,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
       hu_ptr => gsv_getField_r8(statevector_trial,'HU')
       tt_ptr => gsv_getField_r8(statevector_trial,'TT')
 
-      write(*,*) 'MAZIAR: test gsv tt unit at sfc:'
+      write(*,*) 'MAZIAR: tt2phi_tl_gsv tt unit at sfc:'
       write(*,*) tt_ptr(1,1,nlev_T,1)
 
       do stepIndex = 1, numStep
@@ -660,16 +687,16 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   endif
 
-  write(*,*) 'delGz_T='
+  write(*,*) 'MAZIAR: tt2phi_tl_gsv, delGz_T='
   write(*,*) delGz_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-  write(*,*) 'delGz_M='
+  write(*,*) 'MAZIAR: tt2phi_tl_gsv, delGz_M='
   write(*,*) delGz_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
 
   call tmg_stop(161)
 
 end subroutine tt2phi_tl_gsv
 
-subroutine tt2phi_ad(column,columng,obsSpaceData)
+subroutine tt2phi_ad_col(column,columng,obsSpaceData)
   !
   !**s/r tt2phi_ad - Adjoint of temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 

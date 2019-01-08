@@ -865,6 +865,10 @@ contains
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
 
+    character(len=3) :: execOldNew
+
+    execOldNew = 'new'
+
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call tmg_start(168,'S2C_AD')
 

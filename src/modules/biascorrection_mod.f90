@@ -389,7 +389,7 @@ CONTAINS
 
       zwb  = log(p/zpt) / log(zpb/zpt)
       zwt  = 1.d0 - zwb
-      col_ptr=>col_getColumn(columnhr,headerIndex,'GZ','TH')
+      col_ptr=>col_getColumn(columnhr,headerIndex,'GZ_T')
 
       gz = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    

@@ -235,7 +235,23 @@ CONTAINS
         call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_M must be allocated in gridstatevector')
       end if
       call TTHUtoGZ_tl(statevector)
-
+    case ('TTHUtoGZ_ad')
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable P0 must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_M must be allocated in gridstatevector')
+      end if
+      call TTHUtoGZ_ad(statevector)
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -516,6 +532,20 @@ CONTAINS
     call tt2phi_tl(statevector, statevector_trial_gz)
 
   end subroutine TTHUtoGZ_tl
+
+  !--------------------------------------------------------------------------
+  ! TTHUtoGZ_ad
+  !--------------------------------------------------------------------------
+  subroutine TTHUtoGZ_ad(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( .not. trialsInitialized ) write(*,*) "TTHUtoGZ_ad: Trial fields are not initialized."
+
+    call tt2phi_ad(statevector,statevector_trial)
+
+  end subroutine TTHUtoGZ_ad
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv_gsv

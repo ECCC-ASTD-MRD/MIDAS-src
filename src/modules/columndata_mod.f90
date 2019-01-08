@@ -50,7 +50,7 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
-    real(8), pointer  :: gz_T(:,:),gz_M(:,:),gz_sfc(:,:)
+    real(8), pointer  :: GZ_T(:,:),GZ_M(:,:),gz_sfc(:,:)
     real(8), pointer  :: P_T(:,:),P_M(:,:)
     real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
@@ -98,7 +98,7 @@ contains
 
     col_rhumin = rhumin
 
-    if(varneed('GZ')) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
+    if( varneed('GZ_T') .or. varneed('GZ_M') ) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
 
     nvo3d  = 0
     nvo2d  = 0
@@ -156,8 +156,8 @@ contains
       column%P_T(:,:) = 0.0d0
       column%dP_dPsfc_T(:,:) = 0.0d0
       column%dP_dPsfc_M(:,:) = 0.0d0
-      column%gz_M(:,:) = 0.0d0
-      column%gz_T(:,:) = 0.0d0
+      column%GZ_M(:,:) = 0.0d0
+      column%GZ_T(:,:) = 0.0d0
       column%gz_sfc(:,:) = 0.0d0
     endif
 
@@ -231,8 +231,8 @@ contains
       allocate(column%all(nkgdimo,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
-      allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
+      allocate(column%GZ_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%GZ_M(col_getNumLev(column,'MM'),column%numCol))
       allocate(column%gz_sfc(1,column%numCol))
       if ( setToZero ) column%gz_T(:,:)=0.0d0
       if ( setToZero ) column%gz_M(:,:)=0.0d0
@@ -274,8 +274,8 @@ contains
 
     if(column%numCol.gt.0) then
       deallocate(column%all)
-      deallocate(column%gz_T)
-      deallocate(column%gz_M)
+      deallocate(column%GZ_T)
+      deallocate(column%GZ_M)
       deallocate(column%gz_sfc)
       deallocate(column%P_T)
       deallocate(column%P_M)
@@ -529,7 +529,7 @@ contains
     if (varLevel == 'TH') then
       height = column%GZ_T(ilev,headerIndex)
     elseif (varLevel == 'MM' ) then
-      height = column%gz_m(ilev,headerIndex)
+      height = column%GZ_M(ilev,headerIndex)
     elseif (varLevel == 'SF' ) then
       height = column%gz_sfc(1,headerIndex)
     else
@@ -601,7 +601,6 @@ contains
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName_opt
-    character(len=*), intent(in), optional :: varLevel_opt
     real(8), pointer                       :: onecolumn(:)
     integer                                :: ilev1,ilev2
 

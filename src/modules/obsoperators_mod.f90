@@ -885,6 +885,7 @@ contains
 
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    type(struct_vco), pointer :: vco_hr
     logical :: beSilent
     real(8) :: jobs
 
@@ -910,8 +911,14 @@ contains
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
+    integer :: status, Vcode
+    logical, save :: printGZ = .true.
 
     write(*,*)'ENTER oop_gpsro_nl'
+
+    vco_hr => col_getVco(columnhr)
+    status = vgd_get(vco_hr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+
     !
     ! Initializations
     !
@@ -1000,14 +1007,13 @@ contains
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
 
-       if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
-            col_getPressure(columnhr,1,headerIndex,'MM')) then
+       if(Vcode == 5002) then
           ! case with top thermo level above top momentum level (Vcode=5002)
           do jl = 1, nwndlev
              zuu(jl) = col_getElem(columnhr,jl  ,headerIndex,'UU')
              zvv(jl) = col_getElem(columnhr,jl  ,headerIndex,'VV')
           end do
-       else
+       elseif(Vcode == 5005) then
           ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
           do jl = 1, nwndlev-1
              zuu(jl) = col_getElem(columnhr,jl+1,headerIndex,'UU')
@@ -1015,6 +1021,9 @@ contains
           end do
           zuu(nwndlev) = zuu(nwndlev-1)
           zvv(nwndlev) = zuu(nwndlev-1)
+       else 
+          ! case with Vcode /= 5002 and Vcode /= 5005
+          call utl_abort('oop_gpsro_nl: invalid vertical coord!')
        end if
        zuu(ngpslev) = zuu(nwndlev)
        zvv(ngpslev) = zuu(nwndlev)
@@ -2213,7 +2222,7 @@ contains
                   DX (        JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
                END DO
-               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH')
+               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ_T')
                DX (3*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
@@ -2427,7 +2436,7 @@ contains
                DX (JL)        = col_getElem(COLUMN,JL,headerIndex,'TT')
                DX (NFLEV+JL)  = col_getElem(COLUMN,JL,headerIndex,'HU')
             END DO
-            DX (2*NFLEV+1:3*NFLEV) = col_getColumn(COLUMN,headerIndex,'GZ','TH')
+            DX (2*NFLEV+1:3*NFLEV) = col_getColumn(COLUMN,headerIndex,'GZ_T')
             DX (3*NFLEV+1)    = col_getElem(COLUMN,1 ,headerIndex,'P0')
 
             !C     *    Evaluate H'(xb)*dX

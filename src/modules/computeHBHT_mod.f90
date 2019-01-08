@@ -384,7 +384,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       ! copy GZ data from TT to GZ slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
-         gz_column => col_getColumn(lcolumn,jobs,'GZ','TH')
+         gz_column => col_getColumn(lcolumn,jobs,'GZ_T')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
          do jlev = 1,col_getNumLev(lcolumn,'TH')
             gz_column(jlev)=tt_column(jlev)

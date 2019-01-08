@@ -68,10 +68,10 @@ contains
         column_mean%all(:,:) = column_mean%all(:,:) +  &
                                multFactor * columns(memberIndex)%all(:,:)
 
-        column_mean%gz_T(:,:) = column_mean%gz_T(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_T(:,:)
-        column_mean%gz_M(:,:) = column_mean%gz_M(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_M(:,:)
+        column_mean%GZ_T(:,:) = column_mean%GZ_T(:,:) +  &
+                                multFactor * columns(memberIndex)%GZ_T(:,:)
+        column_mean%GZ_M(:,:) = column_mean%GZ_M(:,:) +  &
+                                multFactor * columns(memberIndex)%GZ_M(:,:)
         column_mean%gz_sfc(:,:) = column_mean%gz_sfc(:,:) +  &
                                 multFactor * columns(memberIndex)%gz_sfc(:,:)
 
