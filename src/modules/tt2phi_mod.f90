@@ -160,6 +160,12 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
+      uu = col_getElem(columnghr,nlev_M,columnIndex,'UU')
+      vv = col_getElem(columnghr,nlev_M,columnIndex,'VV')
+      ! averaged wind speed in the layer
+      aveUU = 0.5D0 * uu
+      avevv = 0.5D0 * vv
+
       ! Gravity acceleration 
       h0  = rMT
       Rgh = phf_gravityalt(sLat,h0)
@@ -185,7 +191,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       h0  = alt_M(lev_M+1)
       Rgh = phf_gravityalt(sLat,h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
       alt_M(lev_M) = alt_M(lev_M+1) + delThick
@@ -208,12 +214,14 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       ! compute altitude on top thermo level
       ratioP = log(col_getPressure(columnghr,1,columnIndex,'TH') / &
                    col_getPressure(columnghr,1,columnIndex,'MM'))
+      aveUU = col_getElem(columnghr,1,columnIndex,'UU')
+      aveVV = col_getElem(columnghr,1,columnIndex,'VV')
 
       ! Gravity acceleration 
       h0  = alt_M(1)
       Rgh = phf_gravityalt(sLat, h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh) - Eot - Eot2
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
       alt_T(1) = alt_M(1) + delThick
