@@ -435,7 +435,7 @@ contains
     !
     !        GEOMETRIC HEIGHT - ALADIN WINDS
     !------------------------------
-    call oop_geomht_nl(columnhr,obsSpaceData,ZJOPROF,'AL')
+    call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'AL')
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------

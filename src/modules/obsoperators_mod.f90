@@ -46,7 +46,7 @@ module obsOperators_mod
 
   ! public procedures
   public :: oop_setup
-  public :: oop_ppp_nl, oop_geomht_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
+  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
@@ -372,9 +372,10 @@ contains
 !!            A linear interpolation in z is performed.
 !!
 !--------------------------------------------------------------------------
-  subroutine oop_geomht_nl(columnhr,obsSpaceData,jobsOut,cdfam)
+  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobsOut,cdfam)
     !
-    !Author  :  J.W. Blezius, Jan 2018 (inspired by oop_zzz_nl and oop_ppp_nl)
+    !Author  :  J. St-James, CMDA/SMC July 2003
+    !           J.W. Blezius, Jan 2018 - add Aladin HLOS wind observations
     !
     !Arguments
     !     jobsOut:  contribution to Jobs
@@ -391,7 +392,7 @@ contains
     real(8),          optional, intent(out)   :: jobsOut
     character(len=*), optional, intent(in)    :: cdfam
 
-    integer :: headerIndex,bodyIndex,ilyr,ivnm
+    integer :: headerIndex,bodyIndex,ilyr,ivnm,ipt,ipb
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt
@@ -402,14 +403,14 @@ contains
     real(8) :: uuLyr, vvLyr   ! wind on layer, OBS_LYR
     real(8) :: uuLyr1,vvLyr1  ! wind on layer plus 1
 
-    Write(*,*) "Entering subroutine oop_geomht_nl"
+    Write(*,*) "Entering subroutine oop_zzz_nl"
 
     jobs=0.d0
 
     if(present(cdfam)) then
       call obs_set_current_body_list(obsSpaceData, cdfam)
     else
-      write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
+      write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
       call obs_set_current_body_list(obsSpaceData, 'AL')
     endif
 
@@ -418,9 +419,9 @@ contains
       if (bodyIndex < 0) exit BODY
 
       ! Process all geometric-height data within the domain of the model
-      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .ne. 1 .or.  &
-          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) .ne. 0 .or.  &
-          obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) .ne. 1 ) &
+      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 ) &
         cycle BODY
       ! So, OBS_VCO==1 => OBS_PPP is a height in m
 
@@ -469,12 +470,15 @@ contains
       case (BUFR_NEPS)
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
         cycle BODY
+      case (BUFR_NEES)
+        call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
 
       case default
-        ! If there are other unidentified observation types, don't treat them
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-        cycle BODY
-
+        ! These are the profiler observations
+        ipt = ilyr + col_getOffsetFromVarno(columnhr,ivnm)
+        ipb = ipt+1
+        columnVarB=col_getElem(columnhr,ipb,headerIndex)
+        columnVarT=col_getElem(columnhr,ipt,headerIndex)
       end select
 
       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
@@ -485,7 +489,7 @@ contains
 
     if(present(jobsOut)) jobsOut=0.5d0*jobs
 
-  end subroutine oop_geomht_nl
+  end subroutine oop_zzz_nl
 
 
   subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs,cdfam)
@@ -678,82 +682,6 @@ contains
     jobs = 0.5d0 * jobs
 
   end subroutine oop_sst_nl
-
-
-  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobs,cdfam)
-    !
-    !**s/r oop_zzz_nl - Computation of Jo and the residuals to the observations
-    !                 FOR UPPER AIR DATAFILES
-    !
-    !Author  :  J. St-James, CMDA/SMC July 2003
-    !
-    !Revision :
-    !
-    !     Purpose:  - Interpolate vertically the contents of commvo
-    !                 onto the heights (in meters) of the observations.
-    !                 Compute Jo.
-    !                 A linear interpolation in z is performed.
-    !
-    !Arguments
-    !     jobs:  CONTRIBUTION to Jo
-    !     cdfam: FAMILY OF OBSSERVATION
-    !
-    implicit none
-    type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    real(8) :: jobs
-    character(len=*) :: cdfam
-
-    integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
-    real(8) :: zvar,zwb,zwt,zlev,zpt,zpb
-    character(len=2) :: varLevel, obsfam
-
-    Write(*,*) "Entering subroutine oop_zzz_nl"
-
-    jobs = 0.d0
-
-    call obs_set_current_body_list(obsSpaceData, cdfam)
-    BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
-
-       ! Process all height-level data within the domain of the model
-       if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 .or.  &
-            obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 ) cycle BODY
-
-       ! In case not specified, make sure only PR family is processed
-       obsfam = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
-       if( obsfam /= 'PR' ) cycle BODY
-
-       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-       zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-       zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-       ik   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-       ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-       ipt = ik + col_getOffsetFromVarno(columnhr,ivnm)
-       ipb = ipt+1
-       varLevel = vnl_varLevelFromVarnum(ivnm)
-       zpt= col_getHeight(columnhr,ik  ,headerIndex,varLevel)/RG
-       zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
-       zwb  = (zpt-zlev)/(zpt-zpb)
-       zwt  = 1.d0 - zwb
-       if(ivnm == bufr_nees) call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
-       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-            zvar-zwb*col_getElem(columnhr,ipb,headerIndex) &
-            - zwt*col_getElem(columnhr,ipt,headerIndex))
-
-       ! contribution to jobs
-       jobs = jobs + obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
-            obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex) /  &
-            (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
-            obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
-
-    end do BODY
-
-    jobs = 0.5d0 * jobs
-
-  end subroutine oop_zzz_nl
 
 
   subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
