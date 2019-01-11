@@ -771,13 +771,15 @@ end subroutine bgck_bgcheck_conv
 !C
 !C     SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
 !C
-      if      ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
-         isetflag=1
-      else if ( zbgchk >= zalcrit(2) .and. zbgchk < zalcrit(3) ) then
-         isetflag=2
-      else if ( zbgchk >= zalcrit(3) )then
-         isetflag=3
-      endif
+      if ( kvnam .eq. BUFR_NEAL ) then
+         if      ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
+            isetflag=1
+         else if ( zbgchk >= zalcrit(2) .and. zbgchk < zalcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk >= zalcrit(3) )then
+            isetflag=3
+         end if
+      end if
 !C
 !C     SET FLAG FOR SURFACE WIND COMPONENTS
 !C
