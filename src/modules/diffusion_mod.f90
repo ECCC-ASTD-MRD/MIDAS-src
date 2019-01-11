@@ -101,7 +101,6 @@ contains
     real(8), allocatable :: latr(:)
 
     real, allocatable :: buf2d(:,:)
-    integer, allocatable :: mask(:,:)
 
     integer :: i, j, isamp, k, l, t
 
@@ -229,14 +228,10 @@ contains
 
     ! Get mask from hco
 
-    allocate(mask(NI,NJ))
-
-    mask(:,:) = hco%mask(:,:)
-
     ! land mask (1=water, 0=land)
     do j=1,NJ
        do i=1,NI
-          if(mask(i,j) == 1) then
+          if(hco%mask(i,j) == 1) then
              m(i,j) = 1.0d0
           else
              m(i,j) = 0.0d0
@@ -286,8 +281,7 @@ contains
     diff(diffID)%diff1y_bp_inv(:,:) = 0.0d0      
     diff(diffID)%diff1y_c(:,:) = 0.0d0
 
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i,a,b)
+    !$OMP PARALLEL DO PRIVATE(j,i,a,b)
     do j=2,NJ-1
        i=2
        diff(diffID)%diff1x_bp_inv(i,j)= 1.0d0/(1.0d0 + &
@@ -304,11 +298,9 @@ contains
                *diff(diffID)%diff1x_bp_inv(i-1,j))
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i,a,b)
+    !$OMP PARALLEL DO PRIVATE(j,i,a,b)
     do i=2,NI-1
        j=2
        diff(diffID)%diff1y_bp_inv(j,i)= 1.0d0/(1.0d0 + &
@@ -330,8 +322,7 @@ contains
                *diff(diffID)%diff1y_bp_inv(j-1,i))
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     if (limplicit) then
        write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
@@ -513,7 +504,6 @@ contains
 
     end if
 
-    deallocate(mask)
     deallocate(xin)
     deallocate(m)
     deallocate(W)
@@ -582,13 +572,12 @@ contains
 
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
 
-    call tmg_start(18,'diffusion_explicit')
+    call tmg_start(192,'diffusion_explicit')
 
     xlast(:,:) = xin(:,:)
     ! iterate difference equations
     do t=1,diff(diffID)%numt/2
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i)
+       !$OMP PARALLEL DO PRIVATE(j,i)
        do j=2,diff(diffID)%nj-1
           do i=2,diff(diffID)%ni-1
              xout(i,j) = xlast(i,j) + diff(diffID)%dt*(                           &
@@ -605,15 +594,14 @@ contains
                   )
           end do
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+       !$OMP END PARALLEL DO
        xlast(:,:) = xout(:,:)
 !            xlast(diff(diffID)%ni,:) = 0.0d0
 !            xlast(:,diff(diffID)%nj) = 0.0d0
     end do
     xout(:,:) = xlast(:,:)
 
-    call tmg_stop(18)
+    call tmg_stop(192)
 
   end subroutine diffusion_explicit
 
@@ -699,19 +687,16 @@ contains
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
     real(8) :: dp(diff(diffID)%ni)
 
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i)
+    !$OMP PARALLEL DO PRIVATE(j,i)
     do j=1,diff(diffID)%nj
        do i=1,diff(diffID)%ni
           xlast(i,j) = xin(i,j)
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     do t=1,1
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i,dp)
+       !$OMP PARALLEL DO PRIVATE(j,i,dp)
        do j=2,diff(diffID)%nj-1
           i=2
           dp(i)=xlast(i,j)
@@ -725,8 +710,7 @@ contains
                   *diff(diffID)%diff1x_bp_inv(i,j)
           end do
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+       !$OMP END PARALLEL DO
     end do  ! do t
 
     do j=1,diff(diffID)%nj
@@ -763,19 +747,16 @@ contains
 ! NOTE:for improved efficiency, the 2D fields used internally are !
 !      ordered (diff(diffID)%nj,diff(diffID)%ni) and NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code !
 
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i)
+    !$OMP PARALLEL DO PRIVATE(j,i)
     do j=1,diff(diffID)%nj
        do i=1,diff(diffID)%ni
           xlast(j,i) = xin(i,j)
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     do t=1,1
-!$OMP PARALLEL DEFAULT(SHARED)
-!$OMP DO PRIVATE(j,i,dp)
+       !$OMP PARALLEL DO PRIVATE(j,i,dp)
        do i=2,diff(diffID)%ni-1
           j=2
           dp(j)=xlast(j,i)
@@ -789,8 +770,7 @@ contains
                   *diff(diffID)%diff1y_bp_inv(j,i)
           end do
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+       !$OMP END PARALLEL DO
     end do  ! do t
 
     do i=1,diff(diffID)%ni
