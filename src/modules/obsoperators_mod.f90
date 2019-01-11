@@ -702,41 +702,32 @@ contains
 
     jobs = 0.d0
 
-    ! loop over all header indices of the specified family with surface obs
-    call obs_set_current_header_list( obsSpaceData, cdfam )
+    ! loop over all body indices
+    call obs_set_current_body_list( obsSpaceData, cdfam )
 
-    HEADER: do
+    BODY: do
 
-      headerIndex = obs_getHeaderIndex( obsSpaceData )
-      if ( headerIndex < 0 ) exit HEADER
+      bodyIndex = obs_getBodyIndex( obsSpaceData )
+      if ( bodyIndex < 0 ) exit BODY
 
-      ! loop over all body indices for this headerIndex
-      call obs_set_current_body_list( obsSpaceData, headerIndex )
+      ! only process observations flagged to be assimilated
+      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
 
-      BODY: do
+      ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-        bodyIndex = obs_getBodyIndex( obsSpaceData )
-        if ( bodyIndex < 0 ) exit BODY
+      if( ivnm /= BUFR_ICEC ) cycle BODY
 
-        ! only process observations flagged to be assimilated
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
+      obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+      headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+      call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+                          obsValue - 100.0d0*col_getElem( columnhr, 1, headerIndex, cdfam ) )
 
-        ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
-
-        if( ivnm /= BUFR_ICEC ) cycle BODY
-
-        obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-        call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
-                            obsValue - ( col_getElem( columnhr, 1, headerIndex, 'GL' ) ))
-
-        ! contribution to jobs
-        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
-                      ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
-      end do BODY
-
-    end do HEADER
+      ! contribution to jobs
+      jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
+                      obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+                    ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
+                      obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
+    end do BODY
 
     jobs = 0.5d0 * jobs
 
@@ -1603,27 +1594,27 @@ contains
       firstTime = .false.
     end if
 
-    call tmg_start(42,'OBS_PPP_TL')
+    call tmg_start(42,'OBS_PPP_TLAD')
     call oop_Hpp(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop(42)
 
-    call tmg_start(43,'OBS_SFC_TL')
+    call tmg_start(43,'OBS_SFC_TLAD')
     call oop_Hsf(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop (43)
 
-    call tmg_start(44,'OBS_TOV_TL')
+    call tmg_start(44,'OBS_TOV_TLAD')
     call oop_Hto(obsAssVal)           ! fill in OBS_WORK : Hdx
     call tmg_stop (44)
 
-    call tmg_start(45,'OBS_GPSRO_TL')
+    call tmg_start(45,'OBS_GPSRO_TLAD')
     call oop_Hro(obsAssVal)
     call tmg_stop (45)
 
-    call tmg_start(46,'OBS_ZZZ_TL')
+    call tmg_start(46,'OBS_ZZZ_TLAD')
     call oop_Hzp(obsAssVal)
     call tmg_stop (46)
 
-    call tmg_start(47,'OBS_GPSGB_TL')
+    call tmg_start(47,'OBS_GPSGB_TLAD')
     if (numGPSZTD > 0)  call oop_Hgp(obsAssVal)
     call tmg_stop (47)
 
@@ -1631,13 +1622,13 @@ contains
     call oop_Hchm(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (126)
 
-    call tmg_start(190,'OBS_SST_TL')
+    call tmg_start(190,'OBS_SST_TLAD')
     call oop_Hsst(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (190)
 
-    call tmg_start(19,'OBS_ICE_TL')
+    call tmg_start(49,'OBS_ICE_TLAD')
     call oop_Hice(obsAssVal)          ! fill in OBS_WORK : Hdx
-    call tmg_stop (19)
+    call tmg_stop (49)
 
 
 
@@ -1924,8 +1915,7 @@ contains
         if ( ityp /= bufr_sst ) cycle BODY
 
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal ) then ! &
-        !.or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0 ) then
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           columnVarB = col_getElem( column, 1, headerIndex, varName_opt = 'TG' )
@@ -1963,11 +1953,10 @@ contains
 
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal &
-       !.or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0         &
              ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-          columnVarB = col_getElem( column, 1, headerIndex, varName_opt = 'GL' )
+          columnVarB = 100.0d0*col_getElem( column, 1, headerIndex, varName_opt = 'GL' )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
 
@@ -2755,37 +2744,37 @@ contains
     call oop_HTchm
     call tmg_stop (125)
 
-    call tmg_start(34,'OBS_GPSGB_TLAD')
+    call tmg_start(47,'OBS_GPSGB_TLAD')
     if (numGPSZTD > 0) call oop_HTgp
-    call tmg_stop (34)
+    call tmg_stop (47)
 
-    call tmg_start(38,'OBS_ZZZ_TLAD')
+    call tmg_start(46,'OBS_ZZZ_TLAD')
     call oop_HTzp
-    call tmg_stop (38)
+    call tmg_stop (46)
 
-    call tmg_start(49,'OBS_GPSRO_TLAD')
+    call tmg_start(45,'OBS_GPSRO_TLAD')
     call oop_HTro
-    call tmg_stop (49)
+    call tmg_stop (45)
 
-    call tmg_start(90,'OBS_TOV_TLAD')
+    call tmg_start(44,'OBS_TOV_TLAD')
     call oop_HTto
-    call tmg_stop (90)
+    call tmg_stop (44)
 
-    call tmg_start(99,'OBS_SFC_TLAD')
+    call tmg_start(43,'OBS_SFC_TLAD')
     call oop_HTsf
-    call tmg_stop (99)
+    call tmg_stop (43)
 
-    call tmg_start(100,'OBS_PPP_TLAD')
+    call tmg_start(42,'OBS_PPP_TLAD')
     call oop_HTpp
-    call tmg_stop (100)
+    call tmg_stop (42)
 
     call tmg_start(191,'OBS_SST_TLAD')
     call oop_HTsst
     call tmg_stop (191)      !
 
-    call tmg_start(33,'OBS_ICE_TLAD')
+    call tmg_start(49,'OBS_ICE_TLAD')
     call oop_HTice
-    call tmg_stop (33)
+    call tmg_stop (49)
 
 
   CONTAINS
@@ -3047,8 +3036,7 @@ contains
 
         if ( ityp /= bufr_sst ) cycle BODY
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then !&
-        !     .or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0 ) then
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           columnTG => col_getColumn( column, headerIndex, varName_opt = 'TG', varLevel_opt = 'TH' ) 
@@ -3082,10 +3070,9 @@ contains
         if ( ityp /= bufr_icec ) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1       &
-        !     .or. obs_bodyElem_i( obsSpaceData, OBS_XTR, bodyIndex ) == 0 &
            ) then
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-          residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
+          residual = 100.0d0*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           columnGL => col_getColumn( column, headerIndex, varName_opt = 'GL' )
           columnGL(1) = columnGL(1) + residual
         end if
