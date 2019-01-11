@@ -487,10 +487,10 @@ module obsUtil_mod
     ! arguments
     integer    :: varno, codtyp
     ! locals
-    character  :: type
-    real       :: surfvcord
+    character(len=9)  :: family
+    real              :: surfvcord
 
-    type = codtypfam(codtyp)
+    family = codtypfam(codtyp)
     !#########################################################!
     !        Variable initialization and default value        !
     surfvcord = 0.0
@@ -568,10 +568,10 @@ module obsUtil_mod
 
   real function codtypfam(codtyp)
     implicit none
-    integer   :: codtyp
-    character :: codtypfam
+    integer          :: codtyp
+    character(len=9) :: codtypfam
 
-    codtypfam = 'none'
+    codtypfam = 'none'      ! Default value
     select case(codtyp)
        case ( codtyp_get_codtyp('synopnonauto'),   codtyp_get_codtyp('synopmobil'), &
               codtyp_get_codtyp('asynopauto') )

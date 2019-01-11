@@ -596,7 +596,7 @@ contains
             elseif(varLevel_opt == 'MM') then
               onecolumn => column%pressure_M(:,headerIndex)
             else
-              call utl_abort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel_opt)         
+              call utl_abort('col_getColumn: varLevel must be MM or TH for Pressure! ' // varLevel_opt)         
             endif
           else
             call utl_abort('col_getColumn: varLevel must be specified for Pressure!')
@@ -611,7 +611,7 @@ contains
             elseif(varLevel_opt == 'SF') then
               onecolumn => column%gz_sfc(:,headerIndex)
             else
-              call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel_opt)         
+              call utl_abort('col_getColumn: varLevel must be MM, TH or SF for Height! ' // varLevel_opt)         
             endif
           else
             call utl_abort('col_getColumn: varLevel must be specified for Height!')         
