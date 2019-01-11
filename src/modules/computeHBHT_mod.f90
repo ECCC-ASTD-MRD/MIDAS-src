@@ -582,7 +582,7 @@ SUBROUTINE hbht_compute_static_chem(lcolumng,lobsSpaceData,active)
 !           lobsSpaceData        observation space data, output saved in OBS_HPHT column
 !
 !  Output:
-!           active               flag to indicate if chemical consituents are to be used
+!           active               flag to indicate if chemical constituents are to be used
 !
 ! Revision:
 !
