@@ -2579,8 +2579,7 @@ module gridStateVector_mod
             write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
             write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
             write(*,*) 'gsv_readFile: typvar_var = ',typvar_var
-            call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' ' // trim(etiket_in) &
-                 // ' ' // trim(typvar_var) // ' in file ' // trim(fileName))
+            call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' in file ' // trim(fileName))
           end if
         end if
 
