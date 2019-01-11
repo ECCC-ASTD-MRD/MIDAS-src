@@ -78,6 +78,8 @@ module stateToColumn_mod
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, external    :: get_max_rss
+  character(len=4) :: varsToInterpolate(5) = (/ 'ALL ','GZ_T','GZ_M','P_T ','P_M ' /)
+
 
 contains 
 
@@ -676,6 +678,7 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
+    real(8), pointer     :: onecolumn(:)
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -687,6 +690,9 @@ contains
     if ( .not. stateVector%allocated ) then 
       call utl_abort('s2c_tl_new: stateVector must be allocated')
     end if
+
+    call vtr_transform( statevector, & ! INOUT
+                        'TTHUtoGZ_tl') ! IN
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
@@ -702,9 +708,6 @@ contains
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType_tlad,  rejectOutsideObs=.false. )
     end if
-
-    call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoGZ_tl') ! IN
 
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
@@ -820,11 +823,28 @@ contains
 
     end do k_loop
 
+    ! output the interpolated GZ_T/GZ_M for the first header
+    write(*,*) 'statevector->Column 1. GZ_T:'
+    onecolumn => col_getColumn(column,1,'GZ_T')
+    write(*,*) onecolumn
+    write(*,*) 'statevector->Column 1. GZ_M:'
+    onecolumn => col_getColumn(column,1,'GZ_M')
+    write(*,*) onecolumn
+
     ! Do final preparations of columnData objects (compute GZ increment)
     if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
          col_varExist('P0') ) then
       call tt2phi_tl(column,columng,obsSpaceData)
     end if
+
+    ! output the interpolated GZ_T/GZ_M for the first header
+    write(*,*) 'Psfc->Column 1. GZ_T:'
+    onecolumn => col_getColumn(column,1,'GZ_T')
+    write(*,*) onecolumn
+    write(*,*) 'Psfc->Column 1. GZ_M:'
+    onecolumn => col_getColumn(column,1,'GZ_M')
+    write(*,*) onecolumn
+    nullify(onecolumn)
 
     deallocate(cols_hint)
     deallocate(cols_send)
@@ -864,7 +884,7 @@ contains
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
-
+    real(8), pointer :: field_out(:,:,:,:)
     character(len=3) :: execOldNew
 
     execOldNew = 'new'
@@ -1016,6 +1036,22 @@ contains
     call tmg_stop(160)
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
+
+    !if ( execOldNew == 'new' ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoGZ_ad') ! IN
+    !end if 
+
+    write(*,*) 'MAZIAR, s2c_ad for execOldNew=', execOldNew
+    write(*,*) 'TT='
+    field_out => gsv_getField_r8(statevector,'TT')
+    write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
+    write(*,*) 'HU='
+    field_out => gsv_getField_r8(statevector,'HU')
+    write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
+    write(*,*) 'P0='
+    field_out => gsv_getField_r8(statevector,'P0')
+    write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
 
     call gsv_deallocate( statevector_VarsLevs )
 
@@ -2104,33 +2140,5 @@ contains
     end do
 
   end subroutine s2c_column_hbilin   
-
-  !------------------------------------------------------------
-  ! getFieldsWithHalo
-  !------------------------------------------------------------
-  function getFieldsWithHalo(varName) result(allFieldsWithHalo)
-    implicit none
-    character(len=*), intent(in) :: varName
-    real(8), pointer :: allFieldsWithHalo(:,:,:,:)
-
-    select case (trim(varName))
-    case('P_T')
-      allFieldsWithHalo => fieldsWithHalo_P_T
-
-    case('P_M')
-      allFieldsWithHalo => fieldsWithHalo_P_M
-
-    case('GZ_T')
-      allFieldsWithHalo => fieldsWithHalo_GZ_T
-
-    case('GZ_M')
-      allFieldsWithHalo => fieldsWithHalo_GZ_M
-
-    case('ALL')
-      allFieldsWithHalo => fieldsWithHalo
-    end select
-
-  end function getFieldsWithHalo
-
 
 end module stateToColumn_mod
