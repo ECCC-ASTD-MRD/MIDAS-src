@@ -56,6 +56,7 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
+  public :: gsv_calcPressure
 
   type struct_gdUV
     real(8), pointer :: r8(:,:,:) => null()
@@ -106,12 +107,14 @@ module gridStateVector_mod
     integer             :: horizSubSample
     logical             :: varExistList(vnl_numVarMax)
     character(len=12)   :: hInterpolateDegree='UNSPECIFIED' ! or 'LINEAR' or 'CUBIC' or 'NEAREST'
+    logical             :: addGZsfcOffset = .false.
   end type struct_gsv  
 
   logical :: varExistList(vnl_numVarMax)
   character(len=8) :: ANLTIME_BIN
   integer, external :: get_max_rss
   real(8) :: rhumin, gsv_rhumin
+  logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
 
   ! Logical to turn on unit conversion for variables of CH kind when unitConversion=.true.
   logical :: unitConversion_varKindCH
@@ -845,6 +848,8 @@ module gridStateVector_mod
     else if (statevector%dataKind == 4) then
       statevector%gd3d_r4(lon1:,lat1:,k1:) => statevector%gd_r4(:,:,:,statevector%anltime)
     end if
+
+    statevector%addGZsfcOffset = addGZsfcOffset
 
     statevector%allocated=.true.
 

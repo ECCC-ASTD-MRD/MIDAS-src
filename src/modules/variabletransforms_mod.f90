@@ -104,11 +104,13 @@ CONTAINS
       call gsv_allocate(statevector_trial_gz, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/), allocPressure_opt=.true. )
+                        varNames_opt=(/'TT','HU','P0'/), allocGZ_opt=.true., &
+                        allocPressure_opt=.true.)
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_gz )  ! IN/OUT
       call gsv_calcPressure( statevector_trial_gz )
+      call tt2phi( statevector_trial_gz )
 
       gzTrialsInitialized = .true.
     case default
