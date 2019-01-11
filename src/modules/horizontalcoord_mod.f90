@@ -86,8 +86,6 @@ module HorizontalCoord_mod
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    integer, allocatable :: mask(:,:)
-
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
@@ -457,15 +455,9 @@ module HorizontalCoord_mod
          call utl_abort('hco_setupFromFile')
        end if
 
-       allocate(mask(ni,nj))
-
-       key = fstluk(mask, key, ni_t, nj_t, nk)
-
        allocate(hco % mask(ni,nj))
 
-       hco % mask(:,:) = mask(:,:)
-
-       deallocate(mask)
+       key = fstluk(hco%mask, key, ni_t, nj_t, nk)
 
     end if
 
@@ -580,6 +572,11 @@ module HorizontalCoord_mod
         hco%EZscintID  = -1
       endif
     endif
+
+    if ( mpi_myid > 0 ) then
+      allocate(hco % mask(hco%ni,hco%nj))
+    endif
+    call rpn_comm_bcast(hco%mask, size(hco%mask), 'MPI_INTEGER', 0, 'GRID', ierr)
 
     write(*,*) 'hco_mpiBcast: done'
 
