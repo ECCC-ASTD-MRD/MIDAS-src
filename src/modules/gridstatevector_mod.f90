@@ -73,13 +73,6 @@ module gridStateVector_mod
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
     logical             :: gzSfcPresent = .false.
     real(8), pointer    :: gzSfc(:,:) => null()  ! surface GZ, if VarsLevs then only on proc 0
-    ! Add calculation of the GZ/P  
-    real(8),pointer    :: GZ_T(:,:,:,:) => null()
-    real(8),pointer    :: GZ_M(:,:,:,:) => null()
-    real(8),pointer    :: P_T(:,:,:,:) => null()
-    real(8),pointer    :: P_M(:,:,:,:) => null()
-    real(8),pointer    :: dP_dPsfc_T(:,:,:,:) => null()
-    real(8),pointer    :: dP_dPsfc_M(:,:,:,:) => null()
     ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.  ! a wind component is present on this mpi task
@@ -223,23 +216,11 @@ module gridStateVector_mod
     character(len=*), intent(in) :: varName
     logical                      :: varExist 
 
-    if( present(statevector_opt) ) then
-      if      (trim(varName) == 'GZ_T' ) then
-        varExist = associated(statevector_opt%GZ_T)
-      else if (trim(varName) == 'GZ_M' ) then
-        varExist = associated(statevector_opt%GZ_M)
-      else if (trim(varName) == 'P_T' ) then
-        varExist = associated(statevector_opt%P_T)
-      else if (trim(varName) == 'P_M' ) then
-        varExist = associated(statevector_opt%P_M)
-      else if (trim(varName) == 'ALL') then
+    if ( present(statevector_opt) ) then
+      if ( statevector_opt%varExistList(vnl_varListIndex(varName)) ) then
         varExist = .true.
       else
-        if ( statevector_opt%varExistList(vnl_varListIndex(varName)) ) then
-          varExist = .true.
-        else
-          varExist = .false.
-        end if
+        varExist = .false.
       end if
     else
       if ( varExistList(vnl_varListIndex(varName)) ) then
@@ -502,6 +483,20 @@ module gridStateVector_mod
     else
       ! use the global variable list
       statevector%varExistList(:) = varExistList(:)
+    end if
+
+    ! add GZ_T/GZ_M and P_T/P_M to the varExistList
+    if ( present(allocGZ_opt) ) then
+      if ( allocGZ_opt ) then
+        statevector%varExistList(vnl_varListIndex('GZ_T')) = .true.
+        statevector%varExistList(vnl_varListIndex('GZ_M')) = .true.
+      end if
+    end if
+    if ( present(allocPressure_opt) ) then
+      if ( allocPressure_opt) then
+        statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
+        statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
+      end if
     end if
 
     if ( present(horizSubSample_opt) ) then
@@ -792,54 +787,6 @@ module gridStateVector_mod
       end if
     end if
 
-    ! allocate GZ
-    if ( present(allocGZ_opt) ) then
-      if ( allocGZ_opt ) then
-        write(*,*) 'gsv_allocate: allocating GZ_T/GZ_M'
-        allocate(statevector%GZ_T(statevector%myLonBeg:statevector%myLonEnd, &
-                                  statevector%myLatBeg:statevector%myLatEnd, &
-                                  gsv_getNumLev(statevector,'TH'), &
-                                  numStep))
-        allocate(statevector%GZ_M(statevector%myLonBeg:statevector%myLonEnd, &
-                                  statevector%myLatBeg:statevector%myLatEnd, &
-                                  gsv_getNumLev(statevector,'MM'), &
-                                  numStep))
-
-        statevector%GZ_T(:,:,:,:) = 0.0d0
-        statevector%GZ_M(:,:,:,:) = 0.0d0
-      end if
-    end if
-
-    ! allocate P/dP_dPsfc
-    if ( present(allocPressure_opt) ) then
-      if ( allocPressure_opt ) then
-        write(*,*) 'gsv_allocate: allocating P_T/P_M/dP_dPsfc_T/dP_dPsfc_M'
-        allocate(statevector%P_T(statevector%myLonBeg:statevector%myLonEnd, &
-                                        statevector%myLatBeg:statevector%myLatEnd, &
-                                        gsv_getNumLev(statevector,'TH'), &
-                                        numStep))
-        allocate(statevector%P_M(statevector%myLonBeg:statevector%myLonEnd, &
-                                        statevector%myLatBeg:statevector%myLatEnd, &
-                                        gsv_getNumLev(statevector,'MM'), &
-                                        numStep))
-
-        statevector%P_T(:,:,:,:) = 0.0d0
-        statevector%P_M(:,:,:,:) = 0.0d0
-
-        allocate(statevector%dP_dPsfc_T(statevector%myLonBeg:statevector%myLonEnd, &
-                                        statevector%myLatBeg:statevector%myLatEnd, &
-                                        gsv_getNumLev(statevector,'TH'), &
-                                        numStep))
-        allocate(statevector%dP_dPsfc_M(statevector%myLonBeg:statevector%myLonEnd, &
-                                        statevector%myLatBeg:statevector%myLatEnd, &
-                                        gsv_getNumLev(statevector,'MM'), &
-                                        numStep))
-
-        statevector%dP_dPsfc_T(:,:,:,:) = 0.0d0
-        statevector%dP_dPsfc_M(:,:,:,:) = 0.0d0
-      end if
-    end if
-
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
@@ -854,104 +801,6 @@ module gridStateVector_mod
     statevector%allocated=.true.
 
   end subroutine gsv_allocate
-
-
-  subroutine gsv_calcPressure(statevector, beSilent_opt)
-    implicit none
-    type(struct_gsv), intent(inout) :: statevector
-    logical, optional :: beSilent_opt
-
-    real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: Pressure_out(:,:,:) 
-    real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
-    real(kind=8), pointer       :: field_in(:,:,:,:)
-    integer                     :: jobs, status, stepIndex
-    logical                     :: beSilent
-
-    if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') ) then
-      write(*,*) 'gsv_calcPressure: P_T/P_M do not exist in statevector. Skip computing pressure.'
-      return
-    end if
-
-    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .false.
-    end if
-
-    if ( .not.beSilent ) write(*,*) 'gsv_calcPressure: computing pressure on staggered or UNstaggered levels'
-
-    do stepIndex = 1, statevector%numStep
-
-      if (.not.gsv_varExist(statevector,'P0')) then 
-        call utl_abort('gsv_calcPressure: P0 must be present as an analysis variable!')
-      endif
-
-      field_in => gsv_getField_r8(statevector,'P0')
-      Psfc(:,:) = field_in(:,:,1,stepIndex)
-
-      ! P_T
-      nullify(Pressure_out)
-      status=vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_M, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
-      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-      statevector%P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      ! P_M
-      nullify(Pressure_out)
-      status=vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_T, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
-      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-      statevector%P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-
-      ! dP_dPsfc_M
-      nullify(dP_dPsfc_out)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_M, &
-                           dP_dPsfc_out, &
-                           Psfc)
-      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_dpidpis')
-      statevector%dP_dPsfc_M(:,:,:,stepIndex) = dP_dPsfc_out(:,:,:)
-      deallocate(dP_dPsfc_out)
-
-      ! dP_dPsfc_T
-      nullify(dP_dPsfc_out)
-      status = vgd_dpidpis(statevector%vco%vgrid, &
-                           statevector%vco%ip1_T, &
-                           dP_dPsfc_out, &
-                           Psfc)
-      if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_dpidpis')
-      statevector%dP_dPsfc_T(:,:,:,stepIndex) = dP_dPsfc_out(:,:,:)
-      deallocate(dP_dPsfc_out)
-
-      deallocate(Psfc)
-
-      if ( .not.beSilent ) then
-        write(*,*) 'stepIndex=',stepIndex, ',P_M='
-        write(*,*) statevector%P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',P_T='
-        write(*,*) statevector%P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',dP_dPsfc_M='
-        write(*,*) statevector%dP_dPsfc_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',dP_dPsfc_T='
-        write(*,*) statevector%dP_dPsfc_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
-
-    end do
-
-  end subroutine gsv_calcPressure
-
 
   !--------------------------------------------------------------------------
   ! gsv_complementaryUVname
@@ -1054,10 +903,6 @@ module gridStateVector_mod
     k2UV = statevector%myUVkEnd
 
     if ( associated(statevector%gzSfc) ) statevector%gzSfc(:,:) = 0.0d0
-    if ( associated(statevector%GZ_T) ) statevector%GZ_T(:,:,:,:) = 0.0d0
-    if ( associated(statevector%GZ_M) ) statevector%GZ_M(:,:,:,:) = 0.0d0
-    if ( associated(statevector%P_T) ) statevector%P_T(:,:,:,:) = 0.0d0
-    if ( associated(statevector%P_M) ) statevector%P_M(:,:,:,:) = 0.0d0
 
     if ( statevector%dataKind == 8 ) then
 
@@ -2036,36 +1881,6 @@ module gridStateVector_mod
       nullify(statevector%gzSfc)
     end if
 
-    if ( associated(statevector%GZ_T) ) then
-      deallocate(statevector%GZ_T)
-      nullify(statevector%GZ_T)
-    end if
-
-    if ( associated(statevector%GZ_M) ) then
-      deallocate(statevector%GZ_M)
-      nullify(statevector%GZ_M)
-    end if
-
-    if ( associated(statevector%P_T) ) then
-      deallocate(statevector%P_T)
-      nullify(statevector%P_T)
-    end if
-
-    if ( associated(statevector%P_M) ) then
-      deallocate(statevector%P_M)
-      nullify(statevector%P_M)
-    end if
-
-    if ( associated(statevector%dP_dPsfc_T) ) then
-      deallocate(statevector%dP_dPsfc_T)
-      nullify(statevector%dP_dPsfc_T)
-    end if
-
-    if ( associated(statevector%dP_dPsfc_M) ) then
-      deallocate(statevector%dP_dPsfc_M)
-      nullify(statevector%dP_dPsfc_M)
-    end if
-
     if ( associated(statevector%dateStampList) ) then
       deallocate(statevector%dateStampList)
       nullify(statevector%dateStampList)
@@ -2096,29 +1911,9 @@ module gridStateVector_mod
         call utl_abort('gsv_getField_r8: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
-
-        select case(trim(varName_opt))
-        case('P_T')
-          field(lon1:,lat1:,1:,1:) => statevector%P_T(:,:,:,:)
-
-        case('P_M')
-          field(lon1:,lat1:,1:,1:) => statevector%P_M(:,:,:,:)
-
-        case('GZ_T')
-          field(lon1:,lat1:,1:,1:) => statevector%GZ_T(:,:,:,:)
-
-        case('GZ_M')
-          field(lon1:,lat1:,1:,1:) => statevector%GZ_M(:,:,:,:)
-
-        case('ALL')
-          field(lon1:,lat1:,k1:,1:) => statevector%gd_r8(:,:,:,:)
-
-        case default ! all other variable names
-          ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
-          ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
-          field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
-        end select
-
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
+        field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
       else
         call utl_abort('gsv_getField_r8: Unknown variable name! ' // varName_opt)
       end if
@@ -2155,28 +1950,10 @@ module gridStateVector_mod
       if (statevector%mpi_distribution == 'VarsLevs') then
         call utl_abort('gsv_getField3D_r8: cannot specify a varName for VarsLevs mpi distribution')
       end if
-
       if (gsv_varExist(statevector,varName_opt)) then
-
-        select case(trim(varName_opt))
-        case('P_T')
-          field3D(lon1:,lat1:,1:) => statevector%P_T(:,:,:,stepIndex)
-
-        case('P_M')
-          field3D(lon1:,lat1:,1:) => statevector%P_M(:,:,:,stepIndex)
-
-        case('GZ_T')
-          field3D(lon1:,lat1:,1:) => statevector%GZ_T(:,:,:,stepIndex)
-
-        case('GZ_M')
-          field3D(lon1:,lat1:,1:) => statevector%GZ_M(:,:,:,stepIndex)
-
-        case default
-          ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
-          ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
-          field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,stepIndex)
-        end select
-
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
+        field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,stepIndex)
       else
         call utl_abort('gsv_getField3D_r8: Unknown variable name! ' // varName_opt)
       end if
@@ -2207,25 +1984,9 @@ module gridStateVector_mod
         call utl_abort('gsv_getField_r4: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
-
-!        select case(trim(varName_opt))
-!        case('P_T')
-!	  field(lon1:,lat1:,1:,1:) => statevector%P_T(:,:,:,:)
-!
-!        case('P_M')
-!	  field(lon1:,lat1:,1:,1:) => statevector%P_M(:,:,:,:)
-!
-!        case('GZ_T')
-!	  field(lon1:,lat1:,1:,1:) => statevector%GZ_T(:,:,:,:)
-!
-!        case('GZ_M')
-!	  field(lon1:,lat1:,1:,1:) => statevector%GZ_M(:,:,:,:)
-!
-!	case default
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
         field(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,:)
-!	end select
       else
         call utl_abort('gsv_getField_r4: Unknown variable name! ' // varName_opt)
       end if
@@ -2263,25 +2024,9 @@ module gridStateVector_mod
         call utl_abort('gsv_getField3D_r4: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
-
-!        select case(trim(varName_opt))
-!        case('P_T')
-!	  field3D(lon1:,lat1:,1:) => statevector%P_T(:,:,:,stepIndex)
-!
-!        case('P_M')
-!	  field3D(lon1:,lat1:,1:) => statevector%P_M(:,:,:,stepIndex)
-!
-!        case('GZ_T')
-!	  field3D(lon1:,lat1:,1:) => statevector%GZ_T(:,:,:,stepIndex)
-!
-!        case('GZ_M')
-!	  field3D(lon1:,lat1:,1:) => statevector%GZ_M(:,:,:,stepIndex)
-!
-!	case default
-          ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
-          ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
-          field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,stepIndex)
-!	end select
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
+        field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,stepIndex)
       else
         call utl_abort('gsv_getField3D_r4: Unknown variable name! ' // varName_opt)
       end if
