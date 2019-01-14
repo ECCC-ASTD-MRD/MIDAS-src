@@ -36,6 +36,7 @@ module stateToColumn_mod
   use windRotation_mod
   use utilities_mod
   use variabletransforms_mod
+  use calcPressure_mod
   
   implicit none
   save
@@ -691,6 +692,9 @@ contains
       call utl_abort('s2c_tl_new: stateVector must be allocated')
     end if
 
+    ! calculate delP_T/delP_M on the grid
+    call clp_calcPressure_tl(statevector_trial, statevector)
+
     call vtr_transform( statevector, & ! INOUT
                         'TTHUtoGZ_tl') ! IN
 
@@ -1041,6 +1045,9 @@ contains
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoGZ_ad') ! IN
     !end if 
+
+    ! Adjoint of calculate delP_T/delP_M on the grid
+    call clp_calcPressure_ad(statevector_trial, statevector)
 
     write(*,*) 'MAZIAR, s2c_ad for execOldNew=', execOldNew
     write(*,*) 'TT='

@@ -109,7 +109,7 @@ CONTAINS
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_gz )  ! IN/OUT
-      call gsv_calcPressure( statevector_trial_gz )
+      call clp_calcPressure_nl( statevector_trial_gz )
       call tt2phi( statevector_trial_gz )
 
       gzTrialsInitialized = .true.
