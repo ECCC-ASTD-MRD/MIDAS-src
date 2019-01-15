@@ -81,6 +81,12 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="conv_ro_bending"/>
+      <FAMILY  name="conv_ro_bending">   
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+
       <SUBMITS sub_name="hyperir"/>
       <FAMILY  name="hyperir">
         <SUBMITS sub_name="UnitTest"/>
