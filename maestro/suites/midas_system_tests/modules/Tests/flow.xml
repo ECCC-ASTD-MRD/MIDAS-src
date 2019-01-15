@@ -77,7 +77,7 @@
     <SUBMITS sub_name="bgck"/>
     <FAMILY  name="bgck">
       <SUBMITS sub_name="conv"/>
-      <FAMILY  name="conv">   
+      <FAMILY  name="conv">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
