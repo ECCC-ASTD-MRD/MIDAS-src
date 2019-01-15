@@ -662,7 +662,7 @@ contains
     implicit none
 
     ! arguments
-    type(struct_gsv)           :: stateVector
+    type(struct_gsv)           :: stateVector, statevector_trial
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column, columng
 
@@ -872,7 +872,7 @@ contains
     implicit none
 
     ! arguments
-    type(struct_gsv)           :: stateVector
+    type(struct_gsv)           :: stateVector, statevector_trial
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column, columng
 

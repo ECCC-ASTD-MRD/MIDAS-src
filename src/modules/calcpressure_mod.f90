@@ -24,6 +24,7 @@ module calcPressure_mod
   !
   use gridStateVector_mod
   use verticalCoord_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -115,16 +116,16 @@ module calcPressure_mod
     type(struct_gsv), intent(inout) :: statevector, statevector_trial
     logical, optional :: beSilent_opt
 
-    real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: delPsfc(:,:,:,:) => null()
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:) => null()
-    real(8), pointer            :: delP_T(:,:,:,:) => null()
-    real(8), pointer            :: delP_M(:,:,:,:) => null()
-    real(8), pointer            :: dP_dPsfc_T(:,:,:) => null()
-    real(8), pointer            :: dP_dPsfc_M(:,:,:) => null()
-    integer                     :: jobs, status, stepIndex,lonIndex,latIndex
-    integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
-    logical                     :: beSilent
+    real(8), allocatable  :: Psfc(:,:)
+    real(8), pointer      :: delPsfc(:,:,:,:) => null()
+    real(8), pointer      :: field_Psfc(:,:,:,:) => null()
+    real(8), pointer      :: delP_T(:,:,:,:) => null()
+    real(8), pointer      :: delP_M(:,:,:,:) => null()
+    real(8), pointer      :: dP_dPsfc_T(:,:,:) => null()
+    real(8), pointer      :: dP_dPsfc_M(:,:,:) => null()
+    integer               :: jobs, status, stepIndex,lonIndex,latIndex
+    integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
+    logical               :: beSilent
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt

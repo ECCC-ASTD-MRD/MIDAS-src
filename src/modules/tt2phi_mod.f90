@@ -57,8 +57,8 @@ module tt2phi_mod
 
   real(8), allocatable, save :: coeff_M_TT_gsv(:,:,:,:), coeff_M_HU_gsv(:,:,:,:)
   real(8), allocatable, save :: coeff_T_TT_gsv(:,:,:),   coeff_T_HU_gsv(:,:,:)
-  real(8), allocatable, save :: coeff_M_P0_gsv(:,:,:,:), coeff_M_P0_dP_gsv(:,:,:,:)
-  real(8), allocatable, save :: coeff_T_P0_gsv(:,:,:),   coeff_T_P0_dP_gsv(:,:,:)
+  real(8), allocatable, save :: coeff_M_P0_delPM(:,:,:,:), coeff_M_P0_dP_delPT(:,:,:,:), coeff_M_P0_dP_delP0(:,:,:,:)
+  real(8), allocatable, save :: coeff_T_P0_delP1(:,:,:),   coeff_T_P0_dP_delPT(:,:,:),   coeff_T_P0_dP_delP0(:,:,:)
 
   ! interface for computing GZ in column/gridstatevector_trial
   interface tt2phi
@@ -336,7 +336,7 @@ subroutine tt2phi_gsv(statevector_trial)
 
   call tmg_start(203,'tt2phi_gsv MAZIAR')
 
-  write(*,*) 'MAZIAR: entering tt2phi_tl_gsv'
+  write(*,*) 'MAZIAR: entering tt2phi_gsv'
 
   vco_ghr => gsv_getVco(statevector_trial)
   status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
@@ -679,6 +679,8 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
   real(8), allocatable :: delThick(:,:,:,:)
   real(8), pointer     :: delGz_M(:,:,:,:),delGz_T(:,:,:,:),delTT(:,:,:,:),delHU(:,:,:,:),delP0(:,:,:,:)
   real(8), pointer     :: gz_T(:,:,:,:),gz_M(:,:,:,:)
+  real(8), pointer     :: P_T(:,:,:,:), P_M(:,:,:,:)
+  real(8), pointer     :: delP_T(:,:,:,:), delP_M(:,:,:,:)
   type(struct_vco), pointer :: vco_anl
 
   call tmg_start(201,'tt2phi_tl_gsv MAZIAR')
@@ -704,12 +706,16 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   gz_M => gsv_getField_r8(statevector_trial,'GZ_M')
   gz_T => gsv_getField_r8(statevector_trial,'GZ_T')
+  P_T => gsv_getField_r8(statevector_trial,'P_T')
+  P_M => gsv_getField_r8(statevector_trial,'P_M')
 
   delGz_M => gsv_getField_r8(statevector,'GZ_M')
   delGz_T => gsv_getField_r8(statevector,'GZ_T')
   delTT => gsv_getField_r8(statevector,'TT')
   delHU => gsv_getField_r8(statevector,'HU')
   delP0 => gsv_getField_r8(statevector,'P0')
+  delP_T => gsv_getField_r8(statevector,'P_T')
+  delP_M => gsv_getField_r8(statevector,'P_M')
 
   ! ensure increment at sfc is zero (fixed height level)
   delGz_M(:,:,nlev_M,:) = 0.0d0
@@ -725,8 +731,13 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
             delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
                                                           coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
-                                                          coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex) + &
-                                                          coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
+
+                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) * &
+                                                          ( delP_M(lonIndex,latIndex,lev_T  ,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) - &
+                                                            delP_M(lonIndex,latIndex,lev_T-1,stepIndex) / P_M(lonIndex,latIndex,lev_T-1,stepIndex) ) + &
+
+                                                          coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delP_T(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                          coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
 
           enddo
         enddo
@@ -755,8 +766,13 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
               delGz_T(lonIndex,latIndex,1,stepIndex) = delGz_M(lonIndex,latIndex,1,stepIndex) +  &
                                  coeff_T_TT_gsv   (lonIndex,latIndex,stepIndex) * delTT(lonIndex,latIndex,1,stepIndex) + &
                                  coeff_T_HU_gsv   (lonIndex,latIndex,stepIndex) * delHU(lonIndex,latIndex,1,stepIndex) + &
-                                 coeff_T_P0_gsv   (lonIndex,latIndex,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex) + &
-                                 coeff_T_P0_dP_gsv(lonIndex,latIndex,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
+
+                                 coeff_T_P0_delP1 (lonIndex,latIndex,stepIndex) * &
+                                 ( delP_M(lonIndex,latIndex,1,stepIndex) / P_M(lonIndex,latIndex,1,stepIndex) - &
+                                   delP_T(lonIndex,latIndex,1,stepIndex) / P_T(lonIndex,latIndex,1,stepIndex) ) + &
+
+                                 coeff_T_P0_dP_delPT(lonIndex,latIndex,stepIndex) * delP_T(lonIndex,latIndex,1,stepIndex) + &
+                                 coeff_T_P0_dP_delP0(lonIndex,latIndex,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
 
             else
               lev_M = lev_T ! momentum level just below thermo level being computed
@@ -782,9 +798,13 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
             delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
                                                           coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
-                                                          coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex) + &
-                                                          coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
 
+                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) * &
+                                                          ( delP_M(lonIndex,latIndex,lev_T+1,stepIndex) / P_M(lonIndex,latIndex,lev_T+1,stepIndex) - &
+                                                            delP_M(lonIndex,latIndex,lev_T  ,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) ) + &
+
+                                                          coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delP_T(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                          coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
           enddo
         enddo
       enddo
@@ -980,6 +1000,8 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   real(8), pointer     :: delGz_M_in(:,:,:,:),delGz_T_in(:,:,:,:),delTT(:,:,:,:),delHU(:,:,:,:),delP0(:,:,:,:)
   real(8), pointer     :: gz_M(:,:,:,:),gz_T(:,:,:,:)
   real(8), allocatable :: delGz_M(:,:,:,:),delGz_T(:,:,:,:)
+  real(8), pointer     :: P_M(:,:,:,:),P_T(:,:,:,:)
+  real(8), pointer     :: delP_M(:,:,:,:),delP_T(:,:,:,:)
   type(struct_vco), pointer :: vco_anl
 
 
@@ -1012,12 +1034,16 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
 
   gz_M => gsv_getField_r8(statevector_trial,'GZ_M')
   gz_T => gsv_getField_r8(statevector_trial,'GZ_T')
+  P_T => gsv_getField_r8(statevector_trial,'P_T')
+  P_M => gsv_getField_r8(statevector_trial,'P_M')
 
   delGz_M_in => gsv_getField_r8(statevector,'GZ_M')
   delGz_T_in => gsv_getField_r8(statevector,'GZ_T')
   delTT => gsv_getField_r8(statevector,'TT')
   delHU => gsv_getField_r8(statevector,'HU')
   delP0 => gsv_getField_r8(statevector,'P0')
+  delP_T => gsv_getField_r8(statevector,'P_T')
+  delP_M => gsv_getField_r8(statevector,'P_M')
 
   delGz_M(:,:,:,:) = delGz_M_in(:,:,:,:)
   delGz_T(:,:,:,:) = delGz_T_in(:,:,:,:)
@@ -1040,9 +1066,20 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
                                                      coeff_T_TT_gsv   (lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex)
               delHU(lonIndex,latIndex,1,stepIndex) = delHU(lonIndex,latIndex,1,stepIndex) + &
                                                      coeff_T_HU_gsv   (lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex)
+
+              delP_M(lonIndex,latIndex,1,stepIndex) = delP_M(lonIndex,latIndex,1,stepIndex) + &
+                                                      coeff_T_P0_delP1(lonIndex,latIndex,stepIndex) / P_M(lonIndex,latIndex,1,stepIndex) * &
+                                                      delGz_T(lonIndex,latIndex,1,stepIndex)
+
+              delP_T(lonIndex,latIndex,1,stepIndex) = delP_T(lonIndex,latIndex,1,stepIndex) - &
+                                                      coeff_T_P0_delP1(lonIndex,latIndex,stepIndex) / P_T(lonIndex,latIndex,1,stepIndex) * &
+                                                      delGz_T(lonIndex,latIndex,1,stepIndex)
+
+              delP_T(lonIndex,latIndex,1,stepIndex) = delP_T(lonIndex,latIndex,1,stepIndex) + &
+                                                     coeff_T_P0_dP_delPT(lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex)
+
               delP0(lonIndex,latIndex,1,stepIndex) = delP0(lonIndex,latIndex,1,stepIndex) + &
-                                                     coeff_T_P0_gsv   (lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex) + &
-                                                     coeff_T_P0_dP_gsv(lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex)
+                                                     coeff_T_P0_dp_delP0(lonIndex,latIndex,stepIndex) * delGz_T(lonIndex,latIndex,1,stepIndex)
             else
               ScaleFactorBottom = (gz_T(lonIndex,latIndex,lev_T,stepIndex) - gz_M(lonIndex,latIndex,lev_M-1,stepIndex)) / &
                                   (gz_M(lonIndex,latIndex,lev_M,stepIndex) - gz_M(lonIndex,latIndex,lev_M-1,stepIndex))
@@ -1080,9 +1117,20 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
                                                        coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
             delHU(lonIndex,latIndex,lev_T,stepIndex) = delHU            (lonIndex,latIndex,lev_T,stepIndex) + &
                                                        coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
-            delP0(lonIndex,latIndex,1,stepIndex)     = delP0            (lonIndex,latIndex,1    ,stepIndex) + &
-                                                       coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex) + &
-                                                       coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_M(lonIndex,latIndex,lev_T,stepIndex)= delP_M(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                       coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T,stepIndex) * &
+                                                       delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_M(lonIndex,latIndex,lev_T-1,stepIndex) = delP_M(lonIndex,latIndex,lev_T-1,stepIndex) - &
+                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T-1,stepIndex) * &
+                                                          delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_T(lonIndex,latIndex,lev_T,stepIndex) = delP_T(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                        coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP0(lonIndex,latIndex,1,stepIndex)     = delP0              (lonIndex,latIndex,1    ,stepIndex) + &
+                                                       coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
           enddo
         enddo
       enddo
@@ -1132,11 +1180,20 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
             delHU(lonIndex,latIndex,lev_T,stepIndex) = delHU            (lonIndex,latIndex,lev_T,stepIndex) + &
                                                        coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * &
                                                        delThick         (lonIndex,latIndex,lev_T,stepIndex)
-            delP0(lonIndex,latIndex,1,stepIndex)     = delP0            (lonIndex,latIndex,1    ,stepIndex) + &
-                                                       coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) * &
-                                                       delThick         (lonIndex,latIndex,lev_T,stepIndex) + &
-                                                       coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) * &
-                                                       delThick         (lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_M(lonIndex,latIndex,lev_T+1,stepIndex) = delP_M(lonIndex,latIndex,lev_T+1,stepIndex) + &
+                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T+1,stepIndex) * &
+                                                          delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_M(lonIndex,latIndex,lev_T  ,stepIndex) = delP_M(lonIndex,latIndex,lev_T  ,stepIndex) - &
+                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) * &
+                                                          delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP_T(lonIndex,latIndex,lev_T  ,stepIndex) = delP_T(lonIndex,latIndex,lev_T  ,stepIndex) + &
+                                                          coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
+
+            delP0(lonIndex,latIndex,1,stepIndex)     = delP0              (lonIndex,latIndex,1    ,stepIndex) + &
+                                                       coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
           enddo
         enddo
       enddo
@@ -1328,7 +1385,7 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
   type(struct_gsv) :: statevector_trial
 
   integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode_an,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
-  real(8) :: hu,tt,Pr,gz,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1,delLnP_M_lev_T,delLnP_M_lev_Tm1,ratioP1
+  real(8) :: hu,tt,Pr,gz,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
   real(4) :: lat_4
   real(8) :: Rgh, sLat, lat_8
   real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:)
@@ -1353,40 +1410,53 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
   numStep = statevector_trial%numstep
 
   ! saved arrays
-  allocate(coeff_M_TT_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             nlev_T,numStep))
-  allocate(coeff_M_HU_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             nlev_T,numStep))
-  allocate(coeff_M_P0_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             nlev_T,numStep))
-  allocate(coeff_M_P0_dP_gsv(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             nlev_T,numStep))
+  allocate(coeff_M_TT_gsv     (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               nlev_T,numStep))
+  allocate(coeff_M_HU_gsv     (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               nlev_T,numStep))
+  allocate(coeff_M_P0_delPM   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               nlev_T,numStep))
+  allocate(coeff_M_P0_dP_delPT(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               nlev_T,numStep))
+  allocate(coeff_M_P0_dP_delP0(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               nlev_T,numStep))
 
-  allocate(coeff_T_TT_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             numStep))
-  allocate(coeff_T_HU_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             numStep))
-  allocate(coeff_T_P0_gsv   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             numStep))
-  allocate(coeff_T_P0_dP_gsv(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
-                             statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
-                             numStep))
+  allocate(coeff_T_TT_gsv     (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               numStep))
+  allocate(coeff_T_HU_gsv     (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               numStep))
+  allocate(coeff_T_P0_delP1   (statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               numStep))
+  allocate(coeff_T_P0_dP_delPT(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               numStep))
+  allocate(coeff_T_P0_dP_delP0(statevector_trial%myLonBeg:statevector_trial%myLonEnd, &
+                               statevector_trial%myLatBeg:statevector_trial%myLatEnd, &
+                               numStep))
 
   coeff_M_TT_gsv(:,:,:,:) = 0.0D0
   coeff_M_HU_gsv(:,:,:,:) = 0.0D0
-  coeff_M_P0_gsv(:,:,:,:) = 0.0D0
-  coeff_M_P0_dP_gsv(:,:,:,:) = 0.0D0
+
+  coeff_M_P0_delPM(:,:,:,:) = 0.0D0
+
+  coeff_M_P0_dP_delPT(:,:,:,:) = 0.0D0
+  coeff_M_P0_dP_delP0(:,:,:,:) = 0.0D0
+
   coeff_T_TT_gsv(:,:,:) = 0.0D0  
   coeff_T_HU_gsv(:,:,:) = 0.0D0  
-  coeff_T_P0_gsv(:,:,:) = 0.0D0
-  coeff_T_P0_dP_gsv(:,:,:) = 0.0D0  
+
+  coeff_T_P0_delP1(:,:,:) = 0.0D0
+
+  coeff_T_P0_dP_delPT(:,:,:) = 0.0D0  
+  coeff_T_P0_dP_delP0(:,:,:) = 0.0D0  
 
 !!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T)
   hu_ptr => gsv_getField_r8(statevector_trial,'HU')
@@ -1403,11 +1473,6 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
           do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
             if ( lev_T == 1 ) then 
               ! compute coefficients for GZ on only the top thermo level
-              delLnP_M1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,1,stepIndex) / &
-                                               P_M_ptr(lonIndex,latIndex,1,stepIndex)
-              delLnP_T1 = statevector_trial%dP_dPsfc_T(lonIndex,latIndex,1,stepIndex) / &
-                                               P_T_ptr(lonIndex,latIndex,1,stepIndex)
-
               ratioP1 = log( P_M_ptr(lonIndex,latIndex,1,stepIndex) / &
                              P_T_ptr(lonIndex,latIndex,1,stepIndex) ) 
               hu = max(hu_ptr(lonIndex,latIndex,1,stepIndex),MPC_MINIMUM_HU_R8)
@@ -1418,7 +1483,8 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
               cmp = gpscompressibility(Pr,tt,hu)
               cmp_TT = gpscompressibility_TT(Pr,tt,hu)
               cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-              cmp_P0 = gpscompressibility_P0(Pr,tt,hu,statevector_trial%dP_dPsfc_T(lonIndex,latIndex,1,stepIndex))
+              cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
+              cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
               ! Gravity acceleration 
               lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
@@ -1426,19 +1492,15 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
               sLat = sin(lat_8)
               Rgh = phf_gravityalt(sLat, gz)
 
-              coeff_T_TT_gsv   (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
-              coeff_T_HU_gsv   (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
-              coeff_T_P0_gsv   (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M1-delLnP_T1) 
-              coeff_T_P0_dP_gsv(lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
+              coeff_T_TT_gsv     (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
+              coeff_T_HU_gsv     (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+
+              coeff_T_P0_delP1  (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp / P_M_ptr(lonIndex,latIndex,1,stepIndex)
+
+              coeff_T_P0_dP_delPT(lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+              coeff_T_P0_dP_delP0(lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
             else
               ! compute coefficients for GZ on momentum levels
-              delLnP_M_lev_T = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T,stepIndex) / &
-                                                    P_M_ptr(lonIndex,latIndex,lev_T,stepIndex)
-
-              delLnP_M_lev_Tm1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T-1,stepIndex) / &
-                                                      P_M_ptr(lonIndex,latIndex,lev_T-1,stepIndex)
-
-
               ratioP1 = log( P_M_ptr(lonIndex,latIndex,lev_T  ,stepIndex) / &
                              P_M_ptr(lonIndex,latIndex,lev_T-1,stepIndex) )
               hu = max(hu_ptr(lonIndex,latIndex,lev_T,stepIndex),MPC_MINIMUM_HU_R8)
@@ -1449,7 +1511,8 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
               cmp = gpscompressibility(Pr,tt,hu)
               cmp_TT = gpscompressibility_TT(Pr,tt,hu)
               cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-              cmp_P0 = gpscompressibility_P0(Pr,tt,hu,statevector_trial%dP_dPsfc_T(lonIndex,latIndex,lev_T,stepIndex))
+              cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
+              cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
               ! Gravity acceleration 
               lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
@@ -1457,10 +1520,13 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
               sLat = sin(lat_8)
               Rgh = phf_gravityalt(sLat, gz)
 
-              coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
-              coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
-              coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M_lev_T - delLnP_M_lev_Tm1)
-              coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
+              coeff_M_TT_gsv     (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
+              coeff_M_HU_gsv     (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+
+              coeff_M_P0_delPM   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp 
+
+              coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+              coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
             endif
           enddo
         enddo
@@ -1474,13 +1540,6 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
         do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
           do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
             ! compute coefficients for GZ on momentum levels
-            delLnP_M_lev_T = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T+1,stepIndex) / &
-                                                  P_M_ptr(lonIndex,latIndex,lev_T+1,stepIndex)
-
-            delLnP_M_lev_Tm1 = statevector_trial%dP_dPsfc_M(lonIndex,latIndex,lev_T,stepIndex) / &
-                                                    P_M_ptr(lonIndex,latIndex,lev_T,stepIndex)
-
-
             ratioP1 = log( P_M_ptr(lonIndex,latIndex,lev_T+1,stepIndex) / &
                            P_M_ptr(lonIndex,latIndex,lev_T  ,stepIndex) )
             hu = max(hu_ptr(lonIndex,latIndex,lev_T,stepIndex),MPC_MINIMUM_HU_R8)
@@ -1491,7 +1550,8 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
             cmp = gpscompressibility(Pr,tt,hu)
             cmp_TT = gpscompressibility_TT(Pr,tt,hu)
             cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-            cmp_P0 = gpscompressibility_P0(Pr,tt,hu,statevector_trial%dP_dPsfc_T(lonIndex,latIndex,lev_T,stepIndex))
+            cmp_P0_1 = gpscompressibility_P0_1(Pr,tt,hu,1.0d0)
+            cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
             ! Gravity acceleration 
             lat_4 = statevector_trial%hco%lat2d_4(lonIndex,latIndex)
@@ -1499,10 +1559,13 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, gz)
 
-            coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
-            coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
-            coeff_M_P0_gsv   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M_lev_T - delLnP_M_lev_Tm1)
-            coeff_M_P0_dP_gsv(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
+            coeff_M_TT_gsv     (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
+            coeff_M_HU_gsv     (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
+
+            coeff_M_P0_delPM   (lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+
+            coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+            coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
           enddo
         enddo
       enddo
@@ -1608,6 +1671,7 @@ function gpscompressibility_HU(p,t,q)
           2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
 end function gpscompressibility_HU
 
+
 function gpscompressibility_P0(p,t,q,dpdp0)
   real(8), intent(in)  :: p,t,q,dpdp0
   real(8)              :: gpscompressibility_P0
@@ -1640,6 +1704,72 @@ function gpscompressibility_P0(p,t,q,dpdp0)
           -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
           2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
 end function gpscompressibility_P0
+
+! gpscompressibility_P0_1 has dpdp0 dependency
+function gpscompressibility_P0_1(p,t,q,dpdp0)
+  real(8), intent(in)  :: p,t,q,dpdp0
+  real(8)              :: gpscompressibility_P0_1
+
+  real(8), parameter   :: a0= 1.58123D-6
+  real(8), parameter   :: a1=-2.9331D-8
+  real(8), parameter   :: a2= 1.1043D-10
+  real(8), parameter   :: b0= 5.707D-6
+  real(8), parameter   :: b1=-2.051D-8
+  real(8), parameter   :: c0= 1.9898D-4
+  real(8), parameter   :: c1=-2.376D-6
+  real(8), parameter   :: d = 1.83D-11
+  real(8), parameter   :: e =-0.765D-8
+
+  real(8)         :: x,tc,pt,tc2,x2
+  real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
+
+  x  = p_wa * q / (1.D0+p_wb*q)
+  d_x  = 0.0D0
+  ! Estimate, from CIPM, Picard (2008)
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
+  d_tc = 0.0D0
+  pt = p / t
+  d_pt = dpdp0 / t
+  tc2= tc * tc
+  d_tc2= 2 * tc * d_tc
+  x2 = x * x
+  d_x2 = 2 * x * d_x
+  gpscompressibility_P0_1 = -d_pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + &
+          2*pt*d_pt*(d+e*x2)
+end function gpscompressibility_P0_1
+
+
+! gpscompressibility_P0_2 has NO dpdp0 dependency
+function gpscompressibility_P0_2(p,t,q)
+  real(8), intent(in)  :: p,t,q
+  real(8)              :: gpscompressibility_P0_2
+
+  real(8), parameter   :: a0= 1.58123D-6
+  real(8), parameter   :: a1=-2.9331D-8
+  real(8), parameter   :: a2= 1.1043D-10
+  real(8), parameter   :: b0= 5.707D-6
+  real(8), parameter   :: b1=-2.051D-8
+  real(8), parameter   :: c0= 1.9898D-4
+  real(8), parameter   :: c1=-2.376D-6
+  real(8), parameter   :: d = 1.83D-11
+  real(8), parameter   :: e =-0.765D-8
+
+  real(8)         :: x,tc,pt,tc2,x2
+  real(8)         :: d_x,d_tc,d_tc2,d_x2
+
+  x  = p_wa * q / (1.D0+p_wb*q)
+  d_x  = 0.0D0
+  ! Estimate, from CIPM, Picard (2008)
+  tc = t - MPC_K_C_DEGREE_OFFSET_R8
+  d_tc = 0.0D0
+  pt = p / t
+  tc2= tc * tc
+  d_tc2= 2 * tc * d_tc
+  x2 = x * x
+  d_x2 = 2 * x * d_x
+  gpscompressibility_P0_2 = -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
+          + pt*pt*e*d_x2
+end function gpscompressibility_P0_2
 
 
 end module tt2phi_mod

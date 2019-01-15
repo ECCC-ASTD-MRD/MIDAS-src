@@ -36,6 +36,7 @@ module variableTransforms_mod
   use utilities_mod
   use varNameList_mod
   use tt2phi_mod
+  use calcPressure_mod
   implicit none
   save
   private
