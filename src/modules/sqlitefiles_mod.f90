@@ -240,31 +240,15 @@ module sqliteFiles_mod
   end subroutine sqlf_thinFile
 
 
-  subroutine sqlf_generateSqlFile(obsSpaceData, fileName, obsFamily, fileIndex )
+  subroutine sqlf_generateSqlFile( obsSpaceData )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*)                 :: fileName
-    character(len=*)                 :: obsFamily
-    integer                          :: fileIndex
-    ! locals
-    integer :: headerIndex
-    character(len=*), parameter :: myName = 'sqlf_generateSqlFile'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     call tmg_start(99,'sqlf_generateSqlFile: TOTAL: ')
-    write(*,*) myName//' Starting'
-    write(*,*) myName//': FileName   : ',trim(fileName)
-    write(*,*) myName//': FamilyType : ',trim(obsFamily)
     
-    call sqlr_insertDiagSqlite(db, obsSpaceData, obsFamily, fileName, fileIndex )
-
-    write(*,*)' '
-    write(*,*)'================================================='
-    write(*,*)'                '//trim(myName)//'    END               '
-    write(*,*)'================================================='
-    write(*,*)' '
+    call sqlr_prepareInsertDiagSqlite( obsSpaceData )
+    
     call tmg_stop(99)
 
   end subroutine sqlf_generateSqlFile

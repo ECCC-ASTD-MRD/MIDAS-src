@@ -202,7 +202,6 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( obsFileType == 'BURP'   ) then
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        if (lwritediagsql) call sqlf_generateSqlFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
       end if
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
@@ -218,6 +217,8 @@ contains
     if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXensT_mpiglobal_opt )
 
   end if
+
+  if (lwritediagsql) call sqlf_generateSqlFile( obsSpaceData )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then

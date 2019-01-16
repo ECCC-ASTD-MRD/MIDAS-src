@@ -32,13 +32,25 @@ use mpiVar_mod
 use obsUtil_mod
 use utilities_mod
 use bufr_mod
+use ramDisk_mod
+use codtyp_mod
 
-implicit none
+implicit none   
+ 
+type save_sqlite
+  character(len=2)     :: obsFamily
+  integer              :: codeType(30) 
+  integer              :: codeTypeSize
+  character(len=30)    :: codeTypeName(30)
+  character(len=5)     :: fileName(30)
+  integer              :: fileNameSize  
+end type save_sqlite
+
 save
 
 private
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_thinSqlite, sqlr_insertDiagSqlite
+public :: sqlr_thinSqlite, sqlr_prepareInsertDiagSqlite
 
 contains
   
@@ -1002,318 +1014,363 @@ contains
     call fSQL_close( db, status )
   end subroutine sqlr_thinSqlite
 
-  subroutine sqlr_insertDiagSqlite( db, obsdat, obsFamily, fileNameIn, fileNumber )
+  subroutine sqlr_prepareInsertDiagSqlite( obsdat )
     implicit none
     ! arguments
-    type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
     type(struct_obs)       :: obsdat
-    character(len=*)       :: obsFamily
-    character(len=*)       :: fileNameIn
-    integer                :: fileNumber
     ! locals
+    character(len=*), parameter :: myName = 'sqlr_prepareInsertDiagSqlite'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+    integer                :: familyIndex, headerIndex, codeType, fileNameIndex, codeTypeIndex, fileIndex
+    character(len=2)       :: currentObsFamily, obsFamilyNameLow, obsFamilyList(50)
+    character(len=30)      :: codeTypeName
+    integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
+    character(len=5)       :: fileName, currentFileNameList(30)
+
+    type(save_sqlite), allocatable   :: statSQL(:), statSQLModifiedFamilyList(:)
+
+    write(*,*) myName//' ========== Starting ========== '
+
+    obsFamilyListSize = 0
+    obsFamilyList = 'XX'
+    do headerIndex = 1, obs_numHeader( obsdat )
+      currentObsFamily = obs_getFamily( obsdat, headerIndex ) 
+      if ( any( obsFamilyList == currentObsFamily ) ) then
+        cycle
+      else
+        obsFamilyListSize = obsFamilyListSize + 1
+        obsFamilyList( obsFamilyListSize ) = currentObsFamily
+      end if  
+    end do
+
+    allocate(statSQL (obsFamilyListSize) )
+
+    do familyIndex = 1, obsFamilyListSize
+      statSQL( familyIndex ) % obsFamily = obsFamilyList( familyIndex )
+    end do
+    
+    FAMILY: do familyIndex = 1, obsFamilyListSize 
+
+      statSQL( familyIndex ) % codeType     = MPC_missingValue_INT
+      statSQL( familyIndex ) % codeTypeSize = 0
+      statSQL( familyIndex ) % fileName     = 'XXXXX'
+      statSQL( familyIndex ) % fileNameSize = 0
+
+      call obs_set_current_header_list( obsdat, statSQL( familyIndex ) % obsFamily )
+
+      HEADERscan: do
+
+        headerIndex = obs_getHeaderIndex( obsdat )
+        if ( headerIndex < 0 ) exit HEADERscan
+
+        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        CODETYPEscan: if ( any( statSQL( familyIndex ) % codeType == codeType ) ) then
+          cycle
+        else  
+
+          statSQL( familyIndex ) % codeTypeSize = statSQL( familyIndex ) % codeTypeSize + 1
+          statSQL( familyIndex ) % codeType( statSQL( familyIndex ) % codeTypeSize ) = codeType
+          statSQL( familyIndex ) % codeTypeName( statSQL( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
+
+          if ( statSQL( familyIndex ) % obsFamily /= 'TO' ) then
+            call up2low(statSQL( familyIndex ) % obsFamily, obsFamilyNameLow )
+            fileName =  obsFamilyNameLow
+          else
+            if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
+              fileName  = 'csr' 
+            elseif ( codtyp_get_name( codeType ) == 'mhs' ) then
+              fileName = 'amsub'
+            else
+              fileName = codtyp_get_name( codeType ) 
+            end if   
+          end if
+
+          if ( any( statSQL( familyIndex ) % fileName  == fileName )) then
+            cycle
+          else  
+            statSQL( familyIndex ) % fileNameSize = statSQL( familyIndex ) % fileNameSize + 1
+          end if
+  
+          statSQL( familyIndex ) % fileName( statSQL( familyIndex ) % codeTypeSize ) = fileName
+
+        end if CODETYPEscan
+
+      end do HEADERscan
+
+    end do FAMILY
+
+
+    do familyIndex = 1, size( statSQL % obsFamily )
+
+      write(*,*) myName//' Family: ', familyIndex, statSQL ( familyIndex ) % obsFamily
+
+      write(*,*) myName//' Here we have ', statSQL ( familyIndex ) % codeTypeSize, ' instruments:'
+      do codeTypeIndex = 1, statSQL ( familyIndex ) % codeTypeSize
+        write(*,*) codeTypeIndex, statSQL ( familyIndex ) % codeType    ( codeTypeIndex ), &
+                                  statSQL ( familyIndex ) % codeTypeName( codeTypeIndex ), &
+                                  statSQL ( familyIndex ) % fileName    ( codeTypeIndex )
+      end do
+      write(*,*) myName//' And ', statSQL ( familyIndex ) % fileNameSize, ' different file names:'
+
+      if ( statSQL ( familyIndex ) % obsFamily == 'TO' ) then
+
+        do fileIndex = 1, statSQL ( familyIndex ) % fileNameSize
+
+          codeTypeSize = 0 
+          do codeTypeIndex = 1, statSQL ( familyIndex ) % codeTypeSize
+            if  ( statSQL ( familyIndex ) % fileName(codeTypeIndex) == statSQL ( familyIndex ) % fileName( fileIndex )) then 
+              codeTypeSize = codeTypeSize + 1 
+              codeTypeList( codeTypeSize ) = statSQL ( familyIndex ) % codeType(codeTypeIndex)
+            end if
+          end do
+
+          call sqlr_insertDiagSqlite( obsdat, 'TO', &
+                                            codeTypeList( 1: codeTypeSize ), &
+                                            statSQL( familyIndex ) % fileName( fileIndex ) )
+
+        end do
+
+      else
+
+        codeTypeSize = statSQL( familyIndex ) % codeTypeSize 
+        call sqlr_insertDiagSqlite( obsdat, statSQL( familyIndex ) % obsFamily, &
+                                            statSQL( familyIndex ) % codeType(1:codeTypeSize), &
+                                            statSQL( familyIndex ) % fileName(1) )
+
+      end if   
+      
+    end do
+
+    deallocate(statSQL)
+
+  end subroutine sqlr_prepareInsertDiagSqlite
+
+  subroutine sqlr_insertDiagSqlite( obsdat, obsFamily, codeTypeList, instrumentFileName )
+
+    implicit none
+    ! arguments
+    type(struct_obs)       :: obsdat
+    character(len=2)       :: obsFamily
+    integer                :: codeTypeList(:)
+    character(len=*)       :: instrumentFileName
+    ! locals
+    type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader, stmtUpdate, stmtCreate ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
-    integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
+    integer                :: numberInsertions, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
     character(len = 512)   :: queryData, queryHeader, queryUpdate, queryCreate 
     character(len = 12 )   :: idStation
     character(len = 15 )   :: missingValueChar    
     character(len=*), parameter :: myName = 'sqlr_insertDiagSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
-    integer                :: underscorePosition,slashPosition, numberElem, listElem(25), icountType
-    integer, allocatable   :: listCodeType(:)
-    character(len=5)       :: instrumentName
-    character(len=20)      :: namelistName
-    character(len=30)      :: shortFileName
-    character(len=256)     :: fileName
 
+    integer                :: numberInsertionsCodeType, codeTypeIndex
+    character(len=30)      :: fileNameExtention
+    character(len=256)     :: fileName, fileNameDir
+    character(len=4)       :: cmyidx, cmyidy
+    character(len=9)       :: cmyid
 
-    namelist /NAMWRITEDIAGUA/    numberElem,listElem
-    namelist /NAMWRITEDIAGAI/    numberElem,listElem
-    namelist /NAMWRITEDIAGSW/    numberElem,listElem
-    namelist /NAMWRITEDIAGSF/    numberElem,listElem
-    namelist /NAMWRITEDIAGAMSUA/ numberElem,listElem
-    namelist /NAMWRITEDIAGAMSUB/ numberElem,listElem
-    namelist /NAMWRITEDIAGAIRS/  numberElem,listElem
-    namelist /NAMWRITEDIAGIASI/  numberElem,listElem
-    namelist /NAMWRITEDIAGATMS/  numberElem,listElem
-    namelist /NAMWRITEDIAGCRIS/  numberElem,listElem
-    namelist /NAMWRITEDIAGCSR/   numberElem,listElem
-    namelist /NAMWRITEDIAGSC/    numberElem,listElem
-    namelist /NAMWRITEDIAGPR/    numberElem,listElem
-    namelist /NAMWRITEDIAGSSMIS/ numberElem,listElem
-    namelist /NAMWRITEDIAGRO/    numberElem,listElem
-    namelist /NAMWRITEDIAGGP/    numberElem,listElem
+    fileNameDir = trim(ram_getRamDiskDir())
+    write(*,*) myName//' fileNameDir: ', trim(fileNameDir),' OK'
 
+    if ( fileNameDir == ' ' ) &
+    write(*,*) myWarning//' The program will be extremely slow creating simultaneously many sqlite files in the same directory. &
+    Please, use the ram disk option prior to MIDAS run!'
 
-    write(*,*) myName//' --- Starting ---   '
-    write(*,*) myName//' FAMILY ---> ', trim(obsFamily), '  headerIndex  ----> ', obs_numHeader(obsdat)
-
-    ! Extract the instrument name from the filename:
-    slashPosition = scan( fileNameIn, "/", back=.true. )
-    shortFileName = trim( fileNameIn( slashPosition + 1 : ) )
-    underscorePosition = scan( shortFileName, "_", back=.false. )
-    if ( ( trim(shortFileName( underscorePosition - 2 : underscorePosition - 1 )) == 'to'   ) .and. &
-         ( trim(shortFileName( underscorePosition + 1 : underscorePosition + 4 )) == 'amsu' )         ) then
-      instrumentName = trim( shortFileName( underscorePosition + 1 : underscorePosition + 5 ))
+    if ( obs_mpiLocal( obsdat ) ) then
+      write(cmyidy,'(I4.4)') ( mpi_myidy + 1 )
+      write(cmyidx,'(I4.4)') ( mpi_myidx + 1 )
+      fileNameExtention  = trim(cmyidx) // '_' // trim( cmyidy )
     else
-      instrumentName = trim( shortFileName( 4 : underscorePosition - 1 ))
-    end if
-    
-    if ( instrumentName == 'uan' ) then
-      fileName = trim( fileNameIn( 1 : slashPosition ) ) // 'diaua' // trim( shortFileName( underscorePosition : ))
-      write(*,*) myName//' Instrument ', instrumentName, ' is put to the file: ', trim( fileName )
-      instrumentName = 'ua'
-    else if ( ( instrumentName == 'amsua' ) .or. ( instrumentName == 'amsub' ) ) then
-      fileName = trim( fileNameIn( 1 : slashPosition ) ) // 'dia' // trim(instrumentName) // trim(shortFileName(underscorePosition + 6: ) )
-    else
-      fileName = trim( fileNameIn( 1 : slashPosition ) ) // 'dia' // trim(instrumentName) // trim(shortFileName(underscorePosition:))
+      if ( mpi_myid > 0 ) return
+      fileNameExtention = ' '
     end if
 
-    write(*,*) myName//' Instrument Name extracted from filename : ', trim(instrumentName)
+    fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
 
-    ! Read from the namelist the list of codeType for the current instrument
-    namelistName = 'namwritediag'//instrumentName
-    nulnam=0
-    write(*,*) myName//' Reading the namelist: ', namelistName
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    select case( trim( instrumentName ) )
-      case( 'ua' )
-        read( nulnam, nml= NAMWRITEDIAGUA, iostat=ierr )
-      case( 'uas' )
-        write(*,*) myName//' Instrument ', trim(instrumentName), ' will be saved in ua-files' 
-      case( 'ai' )
-        read( nulnam, nml= NAMWRITEDIAGAI, iostat=ierr )
-      case( 'sw' )
-        read( nulnam, nml= NAMWRITEDIAGSW, iostat=ierr )
-      case( 'sfc' )
-        read( nulnam, nml= NAMWRITEDIAGSF, iostat=ierr )
-      case( 'amsua' )
-        read( nulnam, nml= NAMWRITEDIAGAMSUA, iostat=ierr )
-      case( 'amsub' )
-        read( nulnam, nml= NAMWRITEDIAGAMSUB, iostat=ierr )
-       case( 'airs' )
-        read( nulnam, nml= NAMWRITEDIAGAIRS, iostat=ierr )
-      case( 'iasi' )
-        read( nulnam, nml= NAMWRITEDIAGIASI, iostat=ierr )
-      case( 'atms' )
-        read( nulnam, nml= NAMWRITEDIAGATMS, iostat=ierr )
-      case( 'cris' )
-        read( nulnam, nml= NAMWRITEDIAGCRIS, iostat=ierr )
-      case( 'csr' )
-        read( nulnam, nml= NAMWRITEDIAGCSR, iostat=ierr )
-      case( 'sc' )
-        read( nulnam, nml= NAMWRITEDIAGSC, iostat=ierr )
-      case( 'pr' )
-        read( nulnam, nml= NAMWRITEDIAGPR, iostat=ierr )
-      case( 'ssmis' )
-        read( nulnam, nml= NAMWRITEDIAGSSMIS, iostat=ierr )
-      case( 'ro' )
-        read( nulnam, nml=NAMWRITEDIAGRO , iostat=ierr )
-      case( 'gp' )
-        read( nulnam, nml= NAMWRITEDIAGGP, iostat=ierr )
+    call tmg_start(180,'sqlr_insertDiagSqlite: Open a new empty file')
+    write(*,*) myName//' Creating file: ', trim(fileName)
+    call fSQL_open( db, fileName, stat )
+    call tmg_stop(180)
+    if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
+
+    call tmg_start(181,'sqlr_insertDiagSqlite: Create HEADER and DATA')
+    write(*,*) myName//' Creating tables HEADER and DATA...'
+    ! Create the tables HEADER and DATA
+    queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+                   codtyp integer, date integer, time integer, elev real); &
+                   create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
+                   vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
+    queryCreate = trim(queryCreate)    
+    call fSQL_do_many( db, queryCreate, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
+    call tmg_stop(181)
+    write(*,*) myName//' tables HEADER and DATA OK'
+
+    select case( obsFamily ) 
+      case( 'SF', 'SC', 'GP' )
+        queryData = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
+      case DEFAULT
+        queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
     end select
-    
-    if (ierr /= 0) then
-      call utl_abort( myError//': Error reading namelist: '// namelistName )
-    end if
-    ierr=fclos(nulnam)
+    queryData = trim( queryData )
 
-    if ( trim( instrumentName ) /= 'uas' ) then
+    queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
+    queryHeader = trim( queryHeader )
 
-      allocate( listCodeType(numberElem) )
-      listCodeType = listElem(1:numberElem)
-      write(*,*) myName//' Number of Code Type: ', numberElem
-      write(*,*) myName//' List of Codetypes:   '
-      do icountType = 1, numberElem
-        write(*,'(2i8)') icountType, listCodeType(icountType)
-      end do
-      write(*,*)'#################################'
+    write(*,*) myName//' Insert query Data   = ', trim( queryData )
+    write(*,*) myName//' Insert query Header = ', trim( queryHeader )
 
-      select case( trim( obsFamily ) )
-        case( 'SF', 'SC', 'GP' )
-          queryData = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
-        case DEFAULT
-          queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
-      end select
-      queryData = trim( queryData )
+    call fSQL_begin(db)
+    call fSQL_prepare( db, queryData, stmtData, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    call fSQL_prepare( db, queryHeader, stmtHeader, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
-      queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
-      queryHeader = trim( queryHeader )
+    numberInsertions = 0
+    idData           = 0
+    idObs            = 0
 
-      write(*,*) myName//' === Observation Family === ',trim( obsFamily )
-      write(*,*) myName//' Insert query Data   = ', trim( queryData )
-      write(*,*) myName//' Insert query Header = ', trim( queryHeader )
+    call tmg_start(182,'sqlr_insertDiagSqlite: Insertion')
 
-      call tmg_start(180,'sqlr_insertDiagSqlite: Open a new empty file')
-      write(*,*) myName//' Creating file: ', trim(fileName)
-      call fSQL_open( db, fileName, stat )
-      call tmg_stop(180)
-      if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
+    CODETYPECYCLE: do codeTypeIndex = 1, size(codeTypeList)
+   
+      numberInsertionsCodeType = 0
 
-      call tmg_start(181,'sqlr_insertDiagSqlite: Create HEADER and DATA')
-      write(*,*) myName//' Creating tables HEADER and DATA...'
-      ! Create the tables HEADER and DATA
-      queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
-                     codtyp integer, date integer, time integer, elev real); &
-                     create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
-                     vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
-      queryCreate = trim(queryCreate)    
-      call fSQL_do_many( db, queryCreate, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
-      call tmg_stop(181)
-      write(*,*) myName//' tables HEADER and DATA OK'
-
-      call fSQL_begin(db)
-      call fSQL_prepare( db, queryData, stmtData, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
-      call fSQL_prepare( db, queryHeader, stmtHeader, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
-
-      numberInsert = 0      
-      idData       = 0
-      idObs        = 0
-
-      call tmg_start(182,'sqlr_insertDiagSqlite: Insertion')
-      write(*,*) myName//' Insertion...'
-
-      CODETYPECYCLE: do icountType = 1, numberElem
-
-        ! loop over all header indices of the specified family
-        call obs_set_current_header_list( obsdat, obsFamily )
-
-        HEADER: do
-
-          headerIndex = obs_getHeaderIndex( obsdat )
-          if ( headerIndex < 0 ) exit HEADER
-
-          codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
-          if ( codeType /= listCodeType(icountType) ) cycle
-
-          idObs = idObs + 1
-          obsRln    = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-          obsNlv    = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-          idStation = obs_elem_c( obsdat, 'STID', headerIndex ) 
-          altitude  = obs_headElem_r( obsdat, OBS_ALT, headerIndex )      
-          lon       = obs_headElem_r( obsdat, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
-          lat       = obs_headElem_r( obsdat, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
-          if (  lon > 180. ) lon = lon - 360.
-          date      = obs_headElem_i( obsdat, OBS_DAT, headerIndex )
-          time      = obs_headElem_i( obsdat, OBS_ETM, headerIndex ) * 100.
+      call obs_set_current_header_list( obsdat, obsFamily )
  
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = idObs )
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 3, REAL_VAR = lat       ) 
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 4, REAL_VAR = lon       ) 
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 5, INT_VAR  = date      ) 
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 6, INT_VAR  = time      ) 
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 7, INT_VAR  = codeType  ) 
-          call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, REAL_VAR = altitude  ) 
-          call fSQL_exec_stmt ( stmtHeader )
+      HEADER: do
 
-          BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
-           
-            idData        = idData + 1
-            obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex )
-            obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex )
-            vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex )
-            obsValue      = obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex )
-            OMA           = obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex )
-            OMP           = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex )
-            OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex )
-            FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
-            PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex )
-            select case( trim( obsFamily ) )
-              case ( 'UA', 'AI', 'SW' )
-                if ( vertCoordType == 2 ) vertCoordType = 7004
-              case ( 'RO' )
-                vertCoordType = 7007
-              case ( 'PR' )
-                vertCoordType = 7006
-                PPP = PPP - altitude
-              case ( 'TO' )
-                vertCoordType = 5042
-                if( codeType == 164 .or. codeType == 181 .or. codeType == 182 ) vertCoordType = 2150
-            end select
+        headerIndex = obs_getHeaderIndex( obsdat )
+        if ( headerIndex < 0 ) exit HEADER
 
-            select case(trim( obsFamily ))
-              case( 'SF', 'SC', 'GP' )
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs    )
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
-                if ( OMA == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 6                    )
-                else 
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA    )
-                end if 
-                if ( OMP == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 7                    ) 
-                else
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP    )
-                end if
-                if ( FGE == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 8                    )
-                else 
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE    )
-                end if
-                if ( OER == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 9                    )
-                else 
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER    ) 
-                end if
-              case DEFAULT
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-                call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-                if ( OMA == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
-                else
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
-                end if 
-                if ( OMP == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
-                else
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
-                end if 
-                if ( FGE == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
-                else
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
-                end if 
-                if ( OER == MPC_missingValue_R4 ) then
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
-                else
-                  call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
-                end if 
-            end select
-            call fSQL_exec_stmt ( stmtData )
-            numberInsert = numberInsert + 1
+        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        if ( codeType /= codeTypeList(codeTypeIndex) ) cycle
 
-          end do BODY
+        idObs = idObs + 1
+        obsRln    = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+        obsNlv    = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
+        idStation = obs_elem_c( obsdat, 'STID', headerIndex ) 
+        altitude  = obs_headElem_r( obsdat, OBS_ALT, headerIndex )      
+        lon       = obs_headElem_r( obsdat, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+        lat       = obs_headElem_r( obsdat, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+        if (  lon > 180. ) lon = lon - 360.
+        date      = obs_headElem_i( obsdat, OBS_DAT, headerIndex )
+        time      = obs_headElem_i( obsdat, OBS_ETM, headerIndex ) * 100.
+ 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = idObs )
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 3, REAL_VAR = lat       ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 4, REAL_VAR = lon       ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 5, INT_VAR  = date      ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 6, INT_VAR  = time      ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 7, INT_VAR  = codeType  ) 
+        call fSQL_bind_param( stmtHeader, PARAM_INDEX = 8, REAL_VAR = altitude  ) 
+        call fSQL_exec_stmt ( stmtHeader )
 
-        end do HEADER
-   
-      end do CODETYPECYCLE
-   
-      call tmg_stop(182) 
+        BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
+         
+          idData        = idData + 1
+          obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex )
+          obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex )
+          vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex )
+          obsValue      = obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex )
+          OMA           = obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex )
+          OMP           = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex )
+          OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex )
+          FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
+          PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex )
+          select case( obsFamily )
+            case ( 'UA', 'AI', 'SW' )
+              if ( vertCoordType == 2 ) vertCoordType = 7004
+            case ( 'RO' )
+              vertCoordType = 7007
+            case ( 'PR' )
+              vertCoordType = 7006
+              PPP = PPP - altitude
+            case ( 'TO' )
+              vertCoordType = 5042
+              if( codeType == 164 .or. codeType == 181 .or. codeType == 182 ) vertCoordType = 2150
+          end select
 
-      deallocate( listCodeType )
+          select case( obsFamily )
+            case( 'SF', 'SC', 'GP' )
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs    )
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
+              if ( OMA == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 6                    )
+              else 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA    )
+              end if 
+              if ( OMP == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7                    ) 
+              else
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP    )
+              end if
+              if ( FGE == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8                    )
+              else 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE    )
+              end if
+              if ( OER == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9                    )
+              else 
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER    ) 
+              end if
+            case DEFAULT
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
+              call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+              if ( OMA == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
+              else
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
+              end if 
+              if ( OMP == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
+              else
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
+              end if 
+              if ( FGE == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
+              else
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
+              end if 
+              if ( OER == MPC_missingValue_R4 ) then
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
+              else
+                call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
+              end if 
+          end select
+          call fSQL_exec_stmt ( stmtData )
 
-      write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(obsFamily), '  NUMBER OF INSERTIONS ----> ', numberInsert
-      call fSQL_finalize( stmtData )
-      call fSQL_commit(db)
-      write(*,*)'  close database -->', trim(FileName)
-      call fSQL_close( db, stat )
+          numberInsertionsCodeType = numberInsertionsCodeType + 1
 
-    end if ! all the instruments except 'uas' which is saved already in 'ua'
+        end do BODY
+     
+      end do HEADER
+
+      write(*,*) myName// ' Observation Family: ', obsFamily,', codetype: ', codeTypeList(codeTypeIndex), &
+      ', number of insertions: ', numberInsertionsCodeType 
+
+    end do CODETYPECYCLE
+
+    write(*,*)'  close database -->', trim(FileName)
+    call fSQL_close( db, stat )
+    call tmg_stop(182)
 
   end subroutine sqlr_insertDiagSqlite
+
 
 end module sqliteRead_mod

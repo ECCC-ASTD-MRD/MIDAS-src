@@ -1,7 +1,5 @@
 #!/bin/ksh
 
-. ssmuse-sh -d eccc/cmd/cmda/utils/16.2-4
-
 for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     input=$(${TASK_BIN}/readlink ${fileinput})
     $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Downloading input: ${input}"
