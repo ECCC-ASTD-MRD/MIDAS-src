@@ -2427,7 +2427,12 @@ CONTAINS
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
-    if(mpi_myid == 0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    nullify(cv_allmaxmpilocal)
+    if(mpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
 
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
@@ -2528,7 +2533,7 @@ CONTAINS
     deallocate(allmBeg)
     deallocate(allmEnd)
     deallocate(allmSkip)
-    if (mpi_myid == 0) deallocate(cv_allmaxmpilocal)
+    deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
 
@@ -2554,7 +2559,12 @@ CONTAINS
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
-    if(mpi_myid == 0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    nullify(cv_allmaxmpilocal)
+    if(mpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
 
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
@@ -2655,7 +2665,7 @@ CONTAINS
     deallocate(allmBeg)
     deallocate(allmEnd)
     deallocate(allmSkip)
-    if (mpi_myid == 0) deallocate(cv_allmaxmpilocal)
+    deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal_r4
 
