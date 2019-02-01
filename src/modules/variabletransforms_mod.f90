@@ -36,7 +36,6 @@ module variableTransforms_mod
   use utilities_mod
   use varNameList_mod
   use tt2phi_mod
-  use calcPressure_mod
   implicit none
   save
   private
@@ -238,6 +237,7 @@ CONTAINS
         call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_M must be allocated in gridstatevector')
       end if
       call TTHUtoGZ_tl(statevector)
+
     case ('TTHUtoGZ_ad')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable TT must be allocated in gridstatevector')
@@ -255,6 +255,31 @@ CONTAINS
         call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_M must be allocated in gridstatevector')
       end if
       call TTHUtoGZ_ad(statevector)
+
+    case ('PsfcToP_tl')
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_tl, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_tl, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_tl, variable P0 must be allocated in gridstatevector')
+      end if
+      call PsfcToP_tl(statevector)
+
+    case ('PsfcToP_ad')
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_ad, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_ad, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_ad, variable P0 must be allocated in gridstatevector')
+      end if
+      call PsfcToP_ad(statevector)
+
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -549,6 +574,34 @@ CONTAINS
     call tt2phi_ad(statevector,statevector_trial)
 
   end subroutine TTHUtoGZ_ad
+
+  !--------------------------------------------------------------------------
+  ! PsfcToP_tl
+  !--------------------------------------------------------------------------
+  subroutine PsfcToP_tl(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( .not. trialsInitialized ) call vtr_setupTrials()
+
+    call calcpressure_tl(statevector,statevector_trial)
+
+  end subroutine PsfcToP_tl
+
+  !--------------------------------------------------------------------------
+  ! PsfcToP_ad
+  !--------------------------------------------------------------------------
+  subroutine PsfcToP_ad(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( .not. trialsInitialized ) call vtr_setupTrials()
+
+    call calcpressure_ad(statevector,statevector_trial)
+
+  end subroutine PsfcToP_ad
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv_gsv
@@ -854,5 +907,263 @@ CONTAINS
     write(*,*) 'vtr_UVtoVortDiv_ens: finished'
 
   end subroutine UVtoVortDiv_ens
+
+  !--------------------------------------------------------------------------
+  ! calcpressure_nl
+  !--------------------------------------------------------------------------
+  subroutine calcPressure_nl(statevector, beSilent_opt)
+
+    implicit none
+    type(struct_gsv), intent(inout) :: statevector
+    logical, optional :: beSilent_opt
+
+    real(kind=8), allocatable   :: Psfc(:,:)
+    real(kind=8), pointer       :: Pressure_out(:,:,:) 
+    real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
+    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
+    integer                     :: jobs, status, stepIndex
+    logical                     :: beSilent
+    real(8), pointer            :: P_T(:,:,:,:) => null()
+    real(8), pointer            :: P_M(:,:,:,:) => null()
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) write(*,*) 'calcPressure_nl: computing pressure on staggered or UNstaggered levels'
+
+    if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
+      call utl_abort('calcPressure_nl: P_T/P_M/P0 do not exist in statevector!')
+    end if
+
+    P_T => gsv_getField_r8(statevector,'P_T')
+    P_M => gsv_getField_r8(statevector,'P_M')
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+
+    do stepIndex = 1, statevector%numStep
+
+      field_Psfc => gsv_getField_r8(statevector,'P0')
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+      ! P_T
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_M, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      ! P_M
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_T, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      deallocate(Psfc)
+
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',P_M='
+        write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',P_T='
+        write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+  end subroutine calcPressure_nl
+
+  !--------------------------------------------------------------------------
+  ! calcpressure_tl
+  !--------------------------------------------------------------------------
+  subroutine calcPressure_tl(statevector, statevector_trial, beSilent_opt)
+
+    implicit none
+    type(struct_gsv), intent(inout) :: statevector, statevector_trial
+    logical, optional :: beSilent_opt
+
+    real(8), allocatable  :: Psfc(:,:)
+    real(8), pointer      :: delPsfc(:,:,:,:) => null()
+    real(8), pointer      :: field_Psfc(:,:,:,:) => null()
+    real(8), pointer      :: delP_T(:,:,:,:) => null()
+    real(8), pointer      :: delP_M(:,:,:,:) => null()
+    real(8), pointer      :: dP_dPsfc_T(:,:,:) => null()
+    real(8), pointer      :: dP_dPsfc_M(:,:,:) => null()
+    integer               :: jobs, status, stepIndex,lonIndex,latIndex
+    integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
+    logical               :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) write(*,*) 'calcPressure_tl: computing delP_T/delP_M on the gridstatevector'
+
+    delP_T => gsv_getField_r8(statevector,'P_T')
+    delP_M => gsv_getField_r8(statevector,'P_M')
+    delPsfc => gsv_getField_r8(statevector,'P0')
+    field_Psfc => gsv_getField_r8(statevector_trial,'P0')
+
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    numStep = statevector%numstep
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+
+    do stepIndex = 1, numStep
+
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+      ! dP_dPsfc_M
+      nullify(dP_dPsfc_M)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+                           statevector%vco%ip1_M, &
+                           dP_dPsfc_M, &
+                           Psfc)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      ! calculate delP_M
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_M(lonIndex,latIndex,lev_M,stepIndex) = dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * delPsfc(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+      deallocate(dP_dPsfc_M)
+
+      ! dP_dPsfc_T
+      nullify(dP_dPsfc_T)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+                           statevector%vco%ip1_T, &
+                           dP_dPsfc_T, &
+                           Psfc)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      ! calculate delP_T
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delP_T(lonIndex,latIndex,lev_T,stepIndex) = dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * delPsfc(lonIndex,latIndex,1,stepIndex)
+          end do
+        end do
+      end do
+      deallocate(dP_dPsfc_T)
+
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',delP_M='
+        write(*,*) delP_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',delP_T='
+        write(*,*) delP_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+    deallocate(Psfc)
+
+  end subroutine calcPressure_tl
+
+  !--------------------------------------------------------------------------
+  ! calcpressure_ad
+  !--------------------------------------------------------------------------
+  subroutine calcPressure_ad(statevector, statevector_trial, beSilent_opt)
+
+    implicit none
+    type(struct_gsv), intent(inout) :: statevector, statevector_trial
+    logical, optional :: beSilent_opt
+
+    real(kind=8), allocatable   :: Psfc(:,:)
+    real(kind=8), pointer       :: delPsfc(:,:,:,:) => null()
+    real(kind=8), pointer       :: field_Psfc(:,:,:,:) => null()
+    real(8), pointer            :: delP_T(:,:,:,:) => null()
+    real(8), pointer            :: delP_M(:,:,:,:) => null()
+    real(8), pointer            :: dP_dPsfc_T(:,:,:) => null()
+    real(8), pointer            :: dP_dPsfc_M(:,:,:) => null()
+    integer                     :: jobs, status, stepIndex,lonIndex,latIndex
+    integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
+    logical                     :: beSilent
+
+    ! Add calculation of the GZ/P  
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) write(*,*) 'calcPressure_ad: computing delP_T/delP_M on the gridstatevector'
+
+    delP_T => gsv_getField_r8(statevector,'P_T')
+    delP_M => gsv_getField_r8(statevector,'P_M')
+    delPsfc => gsv_getField_r8(statevector,'P0')
+    field_Psfc => gsv_getField_r8(statevector_trial,'P0')
+
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    numStep = statevector%numstep
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+
+    do stepIndex = 1, numStep
+
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+      ! dP_dPsfc_M
+      nullify(dP_dPsfc_M)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+                           statevector%vco%ip1_M, &
+                           dP_dPsfc_M, &
+                           Psfc)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      ! calculate delP_M
+      do lev_M = 1, nlev_M
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc(lonIndex,latIndex,1,stepIndex) = delPsfc(lonIndex,latIndex,1,stepIndex) + dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_M) * delP_M(lonIndex,latIndex,lev_M,stepIndex)
+          end do
+        end do
+      end do
+      deallocate(dP_dPsfc_M)
+
+      ! dP_dPsfc_T
+      nullify(dP_dPsfc_T)
+      status = vgd_dpidpis(statevector%vco%vgrid, &
+                           statevector%vco%ip1_T, &
+                           dP_dPsfc_T, &
+                           Psfc)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      ! calculate delP_T
+      do lev_T = 1, nlev_T
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            delPsfc(lonIndex,latIndex,1,stepIndex) = delPsfc(lonIndex,latIndex,1,stepIndex) + dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,latIndex-statevector%myLatBeg+1,lev_T) * delP_T(lonIndex,latIndex,lev_T,stepIndex)
+          end do
+        end do
+      end do
+      deallocate(dP_dPsfc_T)
+
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',delPsfc='
+        write(*,*) delPsfc(statevector%myLonBeg,statevector%myLatBeg,1,stepIndex)
+      end if
+
+    end do
+
+    deallocate(Psfc)
+
+  end subroutine calcPressure_ad
 
 end module variableTransforms_mod

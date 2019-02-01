@@ -36,7 +36,6 @@ module stateToColumn_mod
   use windRotation_mod
   use utilities_mod
   use variabletransforms_mod
-  use calcPressure_mod
   
   implicit none
   save
@@ -680,6 +679,9 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
     real(8), pointer     :: onecolumn(:)
+    character(len=3)     :: execOldNew
+
+    execOldNew = 'new'
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -693,10 +695,13 @@ contains
     end if
 
     ! calculate delP_T/delP_M on the grid
-    call clp_calcPressure_tl(statevector_trial, statevector)
-
     call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoGZ_tl') ! IN
+                        'PsfcToP_tl')  ! IN
+
+    if ( execOldNew == 'new' ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoGZ_tl') ! IN
+    end if
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
@@ -836,12 +841,15 @@ contains
     write(*,*) onecolumn
 
     ! Do final preparations of columnData objects (compute GZ increment)
-    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') ) then
-      call tt2phi_tl(column,columng,obsSpaceData)
+    if ( execOldNew == 'old' ) then
+      if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
+           col_varExist('P0') .and. col_getNumLev(column,'MM') > 1 ) then
+        call tt2phi_tl(column,columng,obsSpaceData)
+      end if
     end if
 
     ! output the interpolated GZ_T/GZ_M for the first header
+    write(*,*) 'MAZIAR, s2c_tl for execOldNew=', execOldNew
     write(*,*) 'Psfc->Column 1. GZ_T:'
     onecolumn => col_getColumn(column,1,'GZ_T')
     write(*,*) onecolumn
@@ -901,7 +909,7 @@ contains
     call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
-      call utl_abort('s2c_ad_new: stateVector must be allocated')
+      call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
@@ -915,9 +923,11 @@ contains
     end if
 
     ! Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if (gsv_varExist(statevector,'TT') .and.  &
-        gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
-       call tt2phi_ad(column,columng,obsSpaceData)
+    if ( execOldNew == 'old' ) then
+      if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and.  &
+          gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
+         call tt2phi_ad(column,columng,obsSpaceData)
+      end if
     end if
 
     numStep = stateVector_VarsLevs%numStep
@@ -1041,13 +1051,14 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    !if ( execOldNew == 'new' ) then
+    if ( execOldNew == 'new' ) then
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoGZ_ad') ! IN
-    !end if 
+    end if 
 
     ! Adjoint of calculate delP_T/delP_M on the grid
-    call clp_calcPressure_ad(statevector_trial, statevector)
+    call vtr_transform( statevector, & ! INOUT
+                        'PsfcToP_ad')  ! IN
 
     write(*,*) 'MAZIAR, s2c_ad for execOldNew=', execOldNew
     write(*,*) 'TT='
