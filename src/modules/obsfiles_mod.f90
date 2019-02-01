@@ -181,11 +181,8 @@ contains
   lwritediagsql = .false.
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namwritediag,iostat=ierr)
-  if (ierr /= 0) then
-    write(*,*) myWarning//'ATTENTION !!! namwritediag is missing in the namelist. The default value will be taken.'
-  else
-    if (mpi_myid == 0) write(*,nml = namwritediag)
-  end if
+  if (ierr /= 0) write(*,*) myWarning//'ATTENTION !!! namwritediag is missing in the namelist. The default value will be taken.'
+  if (mpi_myid == 0) write(*,nml = namwritediag)
   ierr=fclos(nulnam)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
@@ -218,7 +215,7 @@ contains
 
   end if
 
-  if (lwritediagsql) call sqlf_generateSqlFile( obsSpaceData )
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then

@@ -35,7 +35,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_thinFile, sqlf_generateSqlFile
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_thinFile, sqlf_writeSqlDiagFiles
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -240,18 +240,18 @@ module sqliteFiles_mod
   end subroutine sqlf_thinFile
 
 
-  subroutine sqlf_generateSqlFile( obsSpaceData )
+  subroutine sqlf_writeSqlDiagFiles( obsSpaceData )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
 
-    call tmg_start(99,'sqlf_generateSqlFile: TOTAL: ')
+    call tmg_start(99,'sqlf_writeSqlDiagFiles: TOTAL: ')
     
-    call sqlr_prepareInsertDiagSqlite( obsSpaceData )
+    call sqlr_writeAllSqlDiagFiles( obsSpaceData )
     
     call tmg_stop(99)
 
-  end subroutine sqlf_generateSqlFile
+  end subroutine sqlf_writeSqlDiagFiles
 
 
 end module sqliteFiles_mod

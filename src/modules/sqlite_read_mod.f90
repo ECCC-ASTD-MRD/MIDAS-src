@@ -37,20 +37,20 @@ use codtyp_mod
 
 implicit none   
  
-type save_sqlite
+type structDiagFiles
   character(len=2)     :: obsFamily
   integer              :: codeType(30) 
   integer              :: codeTypeSize
   character(len=30)    :: codeTypeName(30)
   character(len=5)     :: fileName(30)
   integer              :: fileNameSize  
-end type save_sqlite
+end type structDiagFiles
 
 save
 
 private
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_thinSqlite, sqlr_prepareInsertDiagSqlite
+public :: sqlr_thinSqlite, sqlr_writeAllSqlDiagFiles
 
 contains
   
@@ -896,7 +896,7 @@ contains
               case( 'SF', 'SC', 'GP' )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
+                call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      )
                 if ( obsValue == MPC_missingValue_R4 ) then          ! sql null values
                   call fSQL_bind_param( stmt, PARAM_INDEX = 4                      )
                 else
@@ -917,7 +917,7 @@ contains
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8                    ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE    )
-                end if 
+                end if
                 if ( OER == MPC_missingValue_R4 ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9                    ) 
                 else
@@ -927,7 +927,7 @@ contains
                 call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo        )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-                call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+                call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType )
                 if ( obsValue == MPC_missingValue_R4 ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 5                         )
                 else
@@ -938,7 +938,7 @@ contains
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7                         ) 
                 else 
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA         )
-                end if 
+                end if
                 if ( OMP == MPC_missingValue_R4 ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8                         ) 
                 else
@@ -1015,12 +1015,12 @@ contains
   end subroutine sqlr_thinSqlite
 
 
-  subroutine sqlr_prepareInsertDiagSqlite( obsdat )
+  subroutine sqlr_writeAllSqlDiagFiles( obsdat )
     implicit none
     ! arguments
     type(struct_obs)       :: obsdat
     ! locals
-    character(len=*), parameter :: myName    = 'sqlr_prepareInsertDiagSqlite'
+    character(len=*), parameter :: myName    = 'sqlr_writeAllSqlDiagFiles'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
@@ -1030,7 +1030,7 @@ contains
     integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
     character(len=5)       :: fileName
 
-    type(save_sqlite), allocatable   :: out(:)
+    type(structDiagFiles), allocatable   :: out(:)
 
     obsFamilyListSize = 0
     obsFamilyList = 'XX'
@@ -1122,12 +1122,12 @@ contains
               codeTypeList( codeTypeSize ) = out( familyIndex ) % codeType( codeTypeIndex )
             end if
           end do
-          call sqlr_insertDiagSqlite( obsdat, 'TO', out(familyIndex)%fileName(fileIndex), codeTypeList(1:codeTypeSize)) 
+          call sqlr_writeSqlDiagFile( obsdat, 'TO', out(familyIndex)%fileName(fileIndex), codeTypeList(1:codeTypeSize)) 
         end do
 
       else
 
-        call sqlr_insertDiagSqlite( obsdat, out( familyIndex ) % obsFamily, out( familyIndex ) % fileName(1) ) 
+        call sqlr_writeSqlDiagFile( obsdat, out( familyIndex ) % obsFamily, out( familyIndex ) % fileName(1) ) 
 
       end if   
       
@@ -1135,10 +1135,10 @@ contains
 
     deallocate(out)
 
-  end subroutine sqlr_prepareInsertDiagSqlite
+  end subroutine sqlr_writeAllSqlDiagFiles
 
 
-  subroutine sqlr_insertDiagSqlite( obsdat, obsFamily, instrumentFileName, codeTypeInput )
+  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, instrumentFileName, codeTypeInput )
 
     implicit none
     ! arguments
@@ -1155,7 +1155,7 @@ contains
     integer                :: numberInsertions, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
     character(len = 512)   :: queryData, queryHeader, queryUpdate, queryCreate 
     character(len = 12 )   :: idStation
-    character(len=*), parameter :: myName = 'sqlr_insertDiagSqlite'
+    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
     integer                :: codeTypeIndex
@@ -1180,32 +1180,24 @@ contains
 
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
 
-    call tmg_start(180,'sqlr_insertDiagSqlite: create empty sqlite file')
+    call tmg_start(180, myName//': create empty sqlite file')
     write(*,*) myName//' Creating file: ', trim(fileName)
     call fSQL_open( db, fileName, stat )
     call tmg_stop(180)
     if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
 
-    call tmg_start(181,'sqlr_insertDiagSqlite: Create HEADER and DATA')
+    call tmg_start(181, myName//': Create HEADER and DATA')
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    codtyp integer, date integer, time integer, elev real); &
                    create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
                    vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
-    queryCreate = trim(queryCreate)    
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
     call tmg_stop(181)
 
-    select case( obsFamily ) 
-      case( 'SF', 'SC', 'GP' )
-        queryData = 'insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?);'
-      case DEFAULT
-        queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
-    end select
-    queryData = trim( queryData )
+    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
-    queryHeader = trim( queryHeader )
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
     write(*,*) myName//' Insert query Header = ', trim( queryHeader )
@@ -1220,7 +1212,7 @@ contains
     idData           = 0
     idObs            = 0
 
-    call tmg_start(182,'sqlr_insertDiagSqlite: Insertion')
+    call tmg_start(182, myName//': Insertion')
 
     call obs_set_current_header_list( obsdat, obsFamily )
     HEADER: do
@@ -1277,63 +1269,41 @@ contains
           case ( 'TO' )
             vertCoordType = 5042
             if( codeType == 164 .or. codeType == 181 .or. codeType == 182 ) vertCoordType = 2150
+          case ( 'SF', 'SC', 'GP' )
+            vertCoordType = MPC_missingValue_INT 
         end select
 
-        select case( obsFamily )
-          case( 'SF', 'SC', 'GP' )
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs    )
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno )
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP      ) 
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = obsValue ) 
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
-            if ( OMA == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 6                    )
-            else 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = OMA    )
-            end if 
-            if ( OMP == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7                    ) 
-            else
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMP    )
-            end if
-            if ( FGE == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8                    )
-            else 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = FGE    )
-            end if
-            if ( OER == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9                    )
-            else 
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OER    ) 
-            end if
-          case DEFAULT
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-            call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-            if ( OMA == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
-            else
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
-            end if 
-            if ( OMP == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
-            else
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
-            end if 
-            if ( FGE == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
-            else
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
-            end if 
-            if ( OER == MPC_missingValue_R4 ) then
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
-            else
-              call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
-            end if 
-        end select
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           )
+        if ( vertCoordType == MPC_missingValue_INT ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 4                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+        end if
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+        if ( OMA == MPC_missingValue_R4 ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
+        end if
+        if ( OMP == MPC_missingValue_R4 ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
+        end if
+        if ( FGE == MPC_missingValue_R4 ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
+        end if
+        if ( OER == MPC_missingValue_R4 ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
+        end if 
+
         call fSQL_exec_stmt ( stmtData )
 
         numberInsertions = numberInsertions + 1
@@ -1348,6 +1318,6 @@ contains
     call fSQL_close( db, stat )
     call tmg_stop(182)
 
-  end subroutine sqlr_insertDiagSqlite
+  end subroutine sqlr_writeSqlDiagFile
 
 end module sqliteRead_mod
