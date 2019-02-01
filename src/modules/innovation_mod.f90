@@ -433,6 +433,10 @@ contains
     !------------------------------
     call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'PR')
     !
+    !        GEOMETRIC HEIGHT - ALADIN WINDS
+    !------------------------------
+    call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'AL')
+    !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
     ZJOGPSRO=0.0D0

@@ -52,17 +52,18 @@ module obsFilter_mod
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
-  integer, parameter :: numElem = 16
+  integer, parameter :: numElem = 17
   real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
        (/     50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
        800.d0,    800.D0,   1000.d0,     50.D0,     50.D0,     50.D0,     50.D0,  &
-       50.D0,     50.D0 /)
+       50.D0,     50.D0 ,   50.d0/)
   integer, parameter :: elemList(numElem) =  &
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
        BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
-       BUFR_NEES, BUFR_NETT /)
-  real(8) :: bndryCritPres   = 5000.0D0  ! in Pascals
-  real(8) :: bndryCritHeight =  400.0D0  ! in Metres
+       BUFR_NEES, BUFR_NETT , BUFR_NEAL/)
+  real(8) :: bndryCritPres         = 5000.0D0  ! in Pascals
+  real(8) :: bndryCritHeightProf   =  400.0D0  ! in Metres
+  real(8) :: bndryCritHeightAladin =  400.0D0  ! in Metres
 
   character(len=48) :: filterMode
 
@@ -376,6 +377,7 @@ contains
        call filt_toporaob(columnhr,obsSpaceData,beSilent)
        call filt_topoaisw(columnhr,obsSpaceData,beSilent)
        call filt_topoprof(columnhr,obsSpaceData,beSilent)
+       call filt_topoaladin(columnhr,obsSpaceData,beSilent)
        call filt_topocsbt(columnhr,obsSpaceData,beSilent)
        call filt_topoChm(columnhr,obsSpaceData,beSilent)
     else
@@ -805,7 +807,7 @@ contains
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
       write(*,223) ' REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeight,elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeightProf,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
     end if
@@ -852,9 +854,9 @@ contains
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = zModAlt
           if (zStnAlt .gt. zModAlt) then
-             zpt = zStnAlt + bndryCritHeight
+             zpt = zStnAlt + bndryCritHeightProf
           else
-             zpt = zModAlt + bndryCritHeight
+             zpt = zModAlt + bndryCritHeightProf
           end if
           if(abs(zStnAlt-zModAlt).le.altDiffMax(listIndex)) then
              !----Model surface and station altitude are very close
@@ -902,6 +904,130 @@ contains
     if ( .not.beSilent ) write(*,*) ' '
 
   end subroutine filt_topoProf
+
+
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Refuse elements which are considered to be in the free atmosphere
+!!            of the Aladin instrument but which fall in the surface boundary
+!!            layer of the model atmosphere.
+!!
+!--------------------------------------------------------------------------
+  subroutine filt_topoAladin(columnhr,obsSpaceData,beSilent)
+    !
+    ! Author: JW Blezius March 2018
+    !          - Based on the subroutines filt_topoProf and filt_topoSfc.  Adapt
+    !            to Aladin data.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+
+    integer :: headerIndex, bodyIndex, elemIndex
+    integer :: ivnm, countAssim
+    integer :: countAcc(numElem), countRej(numElem)
+    real(8) :: zlev    ! altitide of the observation
+    real(8) :: zModAlt ! altitude of the model's lowest layer
+    real(8) :: zpt     ! top of the boundary layer
+    logical :: list_is_empty, beSilent
+
+    if(.not. beSilent )then
+      write(*,*) ' '
+      write(*,*) ' SUBROUTINE filt_topoALADIN '
+      write(*,*) ' '
+      write(*,*) '************************************************'
+      write(*,222) ' ELEMENTS              ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeightAladin,elemIndex=1,numElem)
+      write(*,*) '************************************************'
+      write(*,*) ' '
+    end if
+
+    ! set counter to zero
+    countAcc(:)=0
+    countRej(:)=0
+
+    ! loop over all header indices of the 'AL' family
+    call obs_set_current_header_list(obsSpaceData, 'AL')
+    HEADER: do
+       headerIndex = obs_getHeaderIndex(obsSpaceData)
+       if (headerIndex < 0) exit HEADER
+
+       ! Set the body list & start at the beginning of the list
+       call obs_set_current_body_list(obsSpaceData, headerIndex,list_is_empty)
+       if (list_is_empty) cycle HEADER ! Proceed to the next HEADER
+
+       !
+       ! REJECT OBS IN THE SURFACE BOUNDARY LAYER OF THE MODEL.
+       ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS THAT ARE IN THE FREE
+       ! ATMOSPHERE
+       !
+       zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
+                               headerIndex,'MM')/RG 
+       zpt = zModAlt + bndryCritHeightAladin
+
+       ! Loop over all body indices (still in the 'AL' family)
+       BODY: do 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
+
+          ! Skip this obs if it is not on height levels
+          if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1) cycle BODY
+
+          ! Skip this obs if already flagged not to be assimilated
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 0) cycle BODY
+
+          ! Skip this obs if it is not in the list of element types
+          ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          elemIndex = findElemIndex(ivnm)
+          if(elemIndex == -1) cycle BODY
+
+
+          !
+          ! apply filter to selected elements
+          !
+
+          ! Reject this obs if it is in the boundary layer or below
+          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          if(zlev > zpt) then
+             ! obs passes the acceptance criterion
+             countAcc(elemIndex) = countAcc(elemIndex)+1
+
+          else
+             ! Flag rejection due to orography
+             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+
+             ! Do not assimilate the observation
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             countRej(elemIndex)=countRej(elemIndex)+1
+          end if
+       end do BODY
+    end do HEADER
+
+    if(.not. besilent)then
+      write(*,*) ' '
+      write(*,*) '***************************************'
+      write(*,*) 'FAMILY = AL'
+      write(*,222) ' ELEMENTS  ', (elemList(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' ACCEPTED  ', (countAcc(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJECTED  ', (countRej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '***************************************'
+      write(*,*) ' '
+    end if
+222 format(2x,a29,16(2x,i5))
+223 format(2x,a29,16(2x,f6.0))
+
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) countAssim=countAssim+1
+    end do
+
+    if(.not. besilent)then
+      write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+      write(*,*) ' '
+    end if
+
+  end subroutine filt_topoAladin
 
 
   subroutine filt_topoCsbt(columnhr,obsSpaceData,beSilent)

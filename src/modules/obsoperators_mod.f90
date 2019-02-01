@@ -46,7 +46,8 @@ module obsOperators_mod
 
   ! public procedures
   public :: oop_setup
-  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
+  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
+  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
   character(len=48) :: obsoperMode
@@ -361,6 +362,136 @@ contains
   end subroutine oop_ppp_nl
 
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Computation of Jobs and y - H(x) for geometric-height observations
+!!
+!!            Interpolate vertically columnhr to the geometric heights (in
+!!            meters) of the observations.
+!!            Then compute Jobs.
+!!            A linear interpolation in z is performed.
+!!
+!--------------------------------------------------------------------------
+  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobsOut,cdfam)
+    !
+    !Author  :  J. St-James, CMDA/SMC July 2003
+    !           J.W. Blezius, Jan 2018 - add Aladin HLOS wind observations
+    !
+    !Arguments
+    !     jobsOut:  contribution to Jobs
+    !     cdfam: family of observation
+    !
+    !Notes:
+    !     As a first approximation, use the geopotential height.  Once this is
+    !     working, this should be changed for a calculation of the geometric
+    !     height.
+    !
+    implicit none
+    type(struct_columnData),    intent(in)    :: columnhr
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    real(8),          optional, intent(out)   :: jobsOut
+    character(len=*), optional, intent(in)    :: cdfam
+
+    integer :: headerIndex,bodyIndex,ilyr,ivnm,ipt,ipb
+    integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
+    real(8) :: zvar,zoer,jobs
+    real(8) :: zwb,zwt
+    real(8) :: zlev,zpt,zpb,zomp
+    real(8) :: columnVarB,columnVarT
+    character(len=2) :: varLevel
+    real(8) :: azimuth ! HLOS wind direction CW from true north
+    real(8) :: uuLyr, vvLyr   ! wind on layer, OBS_LYR
+    real(8) :: uuLyr1,vvLyr1  ! wind on layer plus 1
+
+    Write(*,*) "Entering subroutine oop_zzz_nl"
+
+    jobs=0.d0
+
+    if(present(cdfam)) then
+      call obs_set_current_body_list(obsSpaceData, cdfam)
+    else
+      write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
+      call obs_set_current_body_list(obsSpaceData, 'AL')
+    endif
+
+    BODY: do
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
+
+      ! Process all geometric-height data within the domain of the model
+      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 ) &
+        cycle BODY
+      ! So, OBS_VCO==1 => OBS_PPP is a height in m
+
+      ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+      zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+      headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+
+      ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+      varLevel = vnl_varLevelFromVarnum(ivnm)
+      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
+      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
+      zwb  = (zpt-zlev)/(zpt-zpb)
+      zwt  = 1.d0 - zwb
+
+      select case (ivnm)
+      case (BUFR_NEAL) ! Aladin HLOS wind observation
+        ! Scan body indices for the azimuth
+        azimuth=0.0d0
+        bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
+                       + bodyIndexStart - 1
+        BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+          if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)) then
+            azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                    * MPC_RADIANS_PER_DEGREE_R8
+            exit BODY_SUPP
+          end if
+        end do BODY_SUPP
+
+        uuLyr =col_getElem(columnhr,ilyr,  headerIndex,'UU')
+        uuLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU')
+        vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
+        vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
+
+        ! Apply the nonlinear aladin observation operator
+        columnVarB= -vvLyr1*cos(azimuth) - uuLyr1*sin(azimuth)
+        columnVarT= -vvLyr *cos(azimuth) - uuLyr *sin(azimuth)
+
+        ! For aladin data, the temperature and pressure are really *reference*
+        ! values.  They must not be assimilated.  Mark them so.
+      case (BUFR_NETT)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+      case (BUFR_NEPS)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        cycle BODY
+      case (BUFR_NEES)
+        call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
+
+      case default
+        ! These are the profiler observations
+        ipt = ilyr + col_getOffsetFromVarno(columnhr,ivnm)
+        ipb = ipt+1
+        columnVarB=col_getElem(columnhr,ipb,headerIndex)
+        columnVarT=col_getElem(columnhr,ipt,headerIndex)
+      end select
+
+      zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
+      jobs = jobs + zomp*zomp/(zoer*zoer)
+      call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+
+    enddo BODY
+
+    if(present(jobsOut)) jobsOut=0.5d0*jobs
+
+  end subroutine oop_zzz_nl
+
+
   subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs,cdfam)
     !
     !**s/r oop_sfc_nl - Computation of Jo and the residuals to the observations
@@ -551,82 +682,6 @@ contains
     jobs = 0.5d0 * jobs
 
   end subroutine oop_sst_nl
-
-
-  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobs,cdfam)
-    !
-    !**s/r oop_zzz_nl - Computation of Jo and the residuals to the observations
-    !                 FOR UPPER AIR DATAFILES
-    !
-    !Author  :  J. St-James, CMDA/SMC July 2003
-    !
-    !Revision :
-    !
-    !     Purpose:  - Interpolate vertically the contents of commvo
-    !                 onto the heights (in meters) of the observations.
-    !                 Compute Jo.
-    !                 A linear interpolation in z is performed.
-    !
-    !Arguments
-    !     jobs:  CONTRIBUTION to Jo
-    !     cdfam: FAMILY OF OBSSERVATION
-    !
-    implicit none
-    type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    real(8) :: jobs
-    character(len=*) :: cdfam
-
-    integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
-    real(8) :: zvar,zwb,zwt,zlev,zpt,zpb
-    character(len=2) :: varLevel, obsfam
-
-    Write(*,*) "Entering subroutine oop_zzz_nl"
-
-    jobs = 0.d0
-
-    call obs_set_current_body_list(obsSpaceData, cdfam)
-    BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
-
-       ! Process all height-level data within the domain of the model
-       if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 .or.  &
-            obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 ) cycle BODY
-
-       ! In case not specified, make sure only PR family is processed
-       obsfam = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
-       if( obsfam /= 'PR' ) cycle BODY
-
-       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-       zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-       zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-       ik   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-       ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-       ipt = ik + col_getOffsetFromVarno(columnhr,ivnm)
-       ipb = ipt+1
-       varLevel = vnl_varLevelFromVarnum(ivnm)
-       zpt= col_getHeight(columnhr,ik  ,headerIndex,varLevel)/RG
-       zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
-       zwb  = (zpt-zlev)/(zpt-zpb)
-       zwt  = 1.d0 - zwb
-       if(ivnm == bufr_nees) call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
-       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-            zvar-zwb*col_getElem(columnhr,ipb,headerIndex) &
-            - zwt*col_getElem(columnhr,ipt,headerIndex))
-
-       ! contribution to jobs
-       jobs = jobs + obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
-            obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex) /  &
-            (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
-            obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
-
-    end do BODY
-
-    jobs = 0.5d0 * jobs
-
-  end subroutine oop_zzz_nl
 
 
   subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
@@ -2131,35 +2186,48 @@ contains
 
     SUBROUTINE oop_Hzp(obsAssVal)
       !*
-      !* Purpose: Compute simulated profiler observations from profiled model
-      !*          increments.
+      !* Purpose: Compute simulated geometric-height based observations from
+      !*          profiled model
+      !*          increments, including profiler data and aladin wind data.
       !*          It returns Hdx in OBS_WORK
       !*          Interpolate vertically the contents of commvo to heights
       !*          (in meters) of the observations.
       !*          A linear interpolation in z is performed.
       !*
       !*Author  :  J. St-James, CMDA/SMC July 2003
+      !*           J.W. Blezius arma     March 2018 add aladin winds
 
       implicit none
 
       integer, intent(in) :: obsAssVal
 
       INTEGER IPB,IPT
-      INTEGER headerIndex,IK
+      INTEGER headerIndex,IK,familyIndex
+      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
       INTEGER J,bodyIndex,ITYP
       REAL*8 ZVAR,ZDA1,ZDA2
       REAL*8 ZWB,ZWT
-      REAL*8 ZLEV,ZPT,ZPB,ZDENO
-      character(len=2) :: varLevel
+      real(8) :: ZLEV,ZPT,ZPB,ZDENO
+      real(8) :: azimuth ! HLOS wind direction CW from true north
+      real(8) :: columnVarB,columnVarT,columngVarB,columngVarT
+      integer, parameter :: NUMFAMILY=2
+      character(len=2) :: listFamily(NUMFAMILY),varLevel
 
-      call obs_set_current_body_list(obsSpaceData, 'PR')
-      BODY: do
-         bodyIndex = obs_getBodyIndex(obsSpaceData)
-         if (bodyIndex < 0) exit BODY
+      listFamily(1) = 'PR'
+      listFamily(2) = 'AL'
 
-         IF (   (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) &
-              .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-              .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  ) THEN
+      FAMILY: do familyIndex=1,NUMFAMILY
+
+        call obs_set_current_body_list(obsSpaceData, listFamily(familyIndex))
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
+
+          IF (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)==obsAssVal)&
+              .AND.(obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
+              .AND.(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  )THEN
+
+            ! OBS_VCO==1 => OBS_PPP is a height in m
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
             ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
             IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
@@ -2177,15 +2245,54 @@ contains
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
             if(ITYP == BUFR_NEES) then
-               write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(obsSpaceData,headerIndex),headerIndex,bodyIndex
-               call utl_abort('Aborting in oop_H')
-            end if
+              write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!', &
+                         ityp,obs_getfamily(obsSpaceData,headerIndex), &
+                         headerIndex,bodyIndex
+              call utl_abort('Aborting in oop_H')
+
+            else if(ityp == BUFR_NEAL) then
+              ! Scan body indices for the azimuth
+              azimuth=0.0d0
+              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
+                            + bodyIndexStart - 1
+              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+                if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
+                                               bodyIndex2))then
+                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                          * MPC_RADIANS_PER_DEGREE_R8
+                  exit BODY_SUPP
+                end if
+              end do BODY_SUPP
+
+              ! Apply the tangent-linear aladin observation operator
+              columnVarB=-col_getElem(column,IK+1,headerIndex,'VV')*cos(azimuth)&
+                         -col_getElem(column,IK+1,headerIndex,'UU')*sin(azimuth)
+              columnVarT=-col_getElem(column,IK  ,headerIndex,'VV')*cos(azimuth)&
+                         -col_getElem(column,IK  ,headerIndex,'UU')*sin(azimuth)
+
+              ! Apply the nonlinear aladin observation operator
+              columngVarB= &
+                      - col_getElem(columng,IK+1,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,IK+1,headerIndex,'UU')*sin(azimuth)
+              columngVarT= &
+                      - col_getElem(columng,IK  ,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,IK  ,headerIndex,'UU')*sin(azimuth)
+
+            else
+              columnVarB=col_getElem(column,IPB,headerIndex)
+              columnVarT=col_getElem(column,IPT,headerIndex)
+              columngVarB=col_getElem(columng,IPB,headerIndex)
+              columngVarT=col_getElem(columng,IPT,headerIndex)
+            endif
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
-                 ZWB*col_getElem(COLUMN,IPB,headerIndex) + ZWT*col_getElem(COLUMN,IPT,headerIndex) +  &
-                 (col_getElem(columng,IPB,headerIndex) - col_getElem(columng,IPT,headerIndex))*  &
-                 (ZDA1*col_getHeight(COLUMN,IK,headerIndex,varLevel)/RG + ZDA2*col_getHeight(COLUMN,IK+1,headerIndex,varLevel)/RG))
-         END IF
-      END DO BODY
+                    ZWB*columnVarB + ZWT*columnVarT +  &
+                    (columngVarB - columngVarT)*  &
+                    (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel)/RG + &
+                     ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)/RG))
+          END IF
+        END DO BODY
+      end do FAMILY
       RETURN
     END subroutine oop_Hzp
 
@@ -3026,46 +3133,57 @@ contains
     SUBROUTINE oop_HTzp
       !*
       !***s/r AOBSZZZ  - Adjoint of the "vertical" interpolation in z
-      !*                 for profiler data.
+      !*                 for profiler and aladin data.
       !*
       !*Author  : J. St-James *CMDA/SMC  July 2003
+      !*          J.W. Blezius arma      March 2018 add aladin winds
       !*Revision :
       !*    -------------------
       !*
       !*     Purpose: based on vint3d to build the adjoint of the
-      !*              vertical interpolation for profiler data.
+      !*              vertical interpolation of geometric-height based data,
+      !*              including profiler data and aladin wind data.
       !*
       implicit none
       INTEGER IPB,IPT
-      REAL*8 ZRES,ZDA1,ZDA2,ZDENO
-      REAL*8 ZWB,ZWT
-      REAL*8 ZLEV,ZPT,ZPB
-      INTEGER headerIndex,IK,ITYP
-      INTEGER bodyIndex
-      real*8, pointer :: gz_column(:),all_column(:)
-      character(len=2) :: varLevel
+      REAL(8) :: ZRES,ZDA1,ZDA2,ZDENO,columngVarB,columngVarT
+      REAL(8) :: ZWB,ZWT,deltaAladin
+      real(8) :: azimuth ! HLOS wind direction CW from true north
+      REAL(8) :: ZLEV,ZPT,ZPB
+      INTEGER :: headerIndex,IK,ITYP
+      INTEGER :: bodyIndex, familyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
+      real(8), pointer :: gz_column(:),all_column(:),uu_column(:),vv_column(:)
+      integer, parameter :: NUMFAMILY=2
+      character(len=2) :: listFamily(NUMFAMILY),varLevel
+
       !C
       !C     Process all data within the domain of the model
       !C
-      call obs_set_current_body_list(obsSpaceData, 'PR')
-      BODY: do
-         bodyIndex = obs_getBodyIndex(obsSpaceData)
-         if (bodyIndex < 0) exit BODY
+      listFamily(1) = 'PR'
+      listFamily(2) = 'AL'
 
-         IF (   (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
+      FAMILY: do familyIndex=1,NUMFAMILY
+        call obs_set_current_body_list(obsSpaceData,listFamily(familyIndex))
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
+
+          IF (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
               .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-              .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  ) THEN
+              .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
             ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             varLevel = vnl_varLevelFromVarnum(ityp)
             gz_column  => col_getColumn(column,headerIndex,'GZ',varLevel)
+            uu_column  => col_getColumn(column,headerIndex,'UU')
+            vv_column  => col_getColumn(column,headerIndex,'VV')
             all_column => col_getColumn(column,headerIndex)
             ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
             ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
             IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
             IPT  = IK  + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getHeight(columng,IK,headerIndex,varLevel)/RG
+            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)/RG
             ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
@@ -3073,16 +3191,54 @@ contains
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-            !C
-            gz_column(IK+1) = gz_column(IK+1) +    &
-                 (col_getElem(columng,IPB,headerIndex)-col_getElem(columng,IPT,headerIndex))*ZDA2*ZRES/RG
-            gz_column(IK) = gz_column(IK) +        &
-                 (col_getElem(columng,IPB,headerIndex)-col_getElem(columng,IPT,headerIndex))*ZDA1*ZRES/RG
-            all_column(IPB) = all_column(IPB) + ZWB*ZRES
-            all_column(IPT) = all_column(IPT) + ZWT*ZRES
 
-         END IF
-      END DO BODY
+            if(ityp == BUFR_NEAL) then
+              ! Scan body indices for the azimuth
+              azimuth=0.0d0
+              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
+                            + bodyIndexStart - 1
+              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+                if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
+                                               bodyIndex2))then
+                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
+                          * MPC_RADIANS_PER_DEGREE_R8
+                  exit BODY_SUPP
+                end if
+              end do BODY_SUPP
+
+              ! Apply the adjoint of the aladin observation operator
+              deltaAladin=zwb*zres
+              uu_column(ik+1) = uu_column(ik+1) - deltaAladin*sin(azimuth)
+              vv_column(ik+1) = vv_column(ik+1) - deltaAladin*cos(azimuth)
+              uu_column(ik  ) = uu_column(ik  ) - deltaAladin*sin(azimuth)
+              vv_column(ik  ) = vv_column(ik  ) - deltaAladin*cos(azimuth)
+              deltaAladin=0
+
+              ! Apply the nonlinear aladin observation operator
+              columngVarB= &
+                      - col_getElem(columng,ik+1,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,ik+1,headerIndex,'UU')*sin(azimuth)
+              columngVarT= &
+                      - col_getElem(columng,ik  ,headerIndex,'VV')*cos(azimuth) &
+                      - col_getElem(columng,ik  ,headerIndex,'UU')*sin(azimuth)
+            else
+              columngVarB=col_getElem(columng,IPB,headerIndex)
+              columngVarT=col_getElem(columng,IPT,headerIndex)
+            end if
+
+            gz_column(IK+1) =   gz_column(IK+1) &
+                              + (columngVarB - columngVarT)*ZDA2*ZRES/RG
+            gz_column(IK)   =   gz_column(IK) &
+                              + (columngVarB - columngVarT)*ZDA1*ZRES/RG
+
+            if(ityp /= BUFR_NEAL) then
+              all_column(IPB) = all_column(IPB) + ZWB*ZRES
+              all_column(IPT) = all_column(IPT) + ZWT*ZRES
+            end if
+          END IF
+        END DO BODY
+      end do FAMILY
       RETURN
     END subroutine oop_HTzp
 

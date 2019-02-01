@@ -449,8 +449,8 @@ module varqc_mod
     !            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
     implicit none
     type(struct_obs) :: lobsSpaceData
-    integer, parameter :: numFamily = 11
-    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM'/)
+    integer, parameter :: numFamily = 12
+    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM','AL'/)
     integer, parameter :: numitem = 14
     integer :: icount( numitem, numFamily )
 

@@ -24,6 +24,7 @@
 module  burpread_mod
 
 use codePrecision_mod
+use bufr_mod
 use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod
@@ -237,6 +238,16 @@ CONTAINS
         NELE=NELEMS
         WINDS=.TRUE.
         ADDSIZE=5000
+      CASE('AL')
+        BURP_TYP='uni'
+        vcord_type(1)=7071
+
+        LISTE_ELE(1:4) = (/10004,40030,12001,5021/)
+        NELE=4
+        CALL BRPACMA_NML('namburp_conv')
+        NELE=NELEMS
+        WINDS=.TRUE.
+        ADDSIZE=5000
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
@@ -374,6 +385,10 @@ CONTAINS
       btyp_offset=256
     else
       btyp_offset=0
+    end if
+
+    if (trim(familytype) == 'AL') then
+      btyp_offset=255
     end if
 
     if ( TRIM(FAMILYTYPE2) == 'SCAT') then
@@ -588,6 +603,16 @@ CONTAINS
                                  & BKNAT  = BKNAT, &
                                  & BKSTP  = BKSTP, &
                                  & IOSTAT = error)
+          if(trim(familytype) == 'AL')then
+
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
+
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - BTYP10des == 0 ) then
             Block_FLG_CP=BLOCK_IN
@@ -645,6 +670,15 @@ CONTAINS
                            & BKTYP  = bktyp, &
                            & BKNAT  = BKNAT, &
                            & IOSTAT = error)
+          if(trim(familytype) == 'AL')then
+
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
 
 
           ! observation block (btyp = 0100 100011X XXXX)
@@ -1543,6 +1577,7 @@ CONTAINS
     REAL   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
 
     INTEGER, ALLOCATABLE   :: QI1VAL(:) ,QI2VAL(:), QIVAL(:), MTVAL(:), LSVAL(:), HAVAL(:), GAVAL(:)
+    INTEGER, ALLOCATABLE   :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
 
@@ -1567,7 +1602,7 @@ CONTAINS
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
     INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
-    INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002
+    INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
     INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
@@ -1628,6 +1663,14 @@ CONTAINS
 
         LISTE_ELE(1:4) = (/12001,12192,11001,11002/)
         NELE=4
+        CALL BRPACMA_NML('namburp_conv')
+        NELE=NELEMS
+      CASE('AL')
+        BURP_TYP='uni'
+        vcord_type(1)=7071
+
+        LISTE_ELE(1) = 40030
+        NELE=1
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
       CASE('SW')
@@ -1727,6 +1770,10 @@ CONTAINS
       btyp_offset=256
     else
       btyp_offset=0
+    end if
+
+    if (trim(familytype) == 'AL') then
+      btyp_offset=255
     end if
 
     if (TRIM(FAMILYTYPE2) == 'SFC') then
@@ -1885,6 +1932,15 @@ CONTAINS
 
 
           ! observation block (btyp = 0100 100011X XXXX)
+          if(trim(familytype) == 'AL')then
+
+            ! Fudge the block type, because the data are simulated
+            if(btyp == 1024) then
+              btyp=1152
+            else if(btyp == 7168)then
+              btyp=7296
+            end if
+          end if
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - btyp10obs_uni == 0 .and. bkstp <= 4 ) then
 
@@ -2132,9 +2188,30 @@ CONTAINS
                                           IOSTAT   = error)
               end do
 
-            endif
-!
-!==================================================================================
+            !====================================================================
+            !
+            ! Lire les divers elements de la famille AL
+            !
+            else if (trim(familytype) == 'AL') then
+              if (.not. allocated(azimuth)) then
+                allocate(azimuth(nte))
+                azimuth(:) = 0
+              end if
+
+              ! Read in the azimuth)
+              ind_al=burp_find_element(block_in, element=BUFR_NEAZ, iostat=error)
+              if (ind_al <= 0 ) cycle
+
+              do k = 1, nte
+                azimuth(k)= BURP_Get_Tblval(Block_in, &
+                                            nele_ind = ind_al, &
+                                            nval_ind = 1, &
+                                            nt_ind   = k, &
+                                            iostat   = error)
+              end do
+            end if ! AL
+            !
+            !====================================================================
 
           end if
 
@@ -2397,6 +2474,9 @@ CONTAINS
 
                   if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
+                  if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
+
+
                   OBSN=obs_numHeader(obsdat)
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
@@ -2470,6 +2550,8 @@ CONTAINS
 ! Ajoute qivals dans les argument de WRITE_QI
 
                   if (TRIM(FAMILYTYPE) == 'SW') call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
+
+                  if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
        	          OBSN=obs_numHeader(obsdat) 
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
@@ -2570,6 +2652,9 @@ CONTAINS
         end if
         if ( allocated(EMIS) ) then
           DEALLOCATE (EMIS,SURF_EMIS)
+        end if
+        if (allocated(azimuth)) then
+          deallocate(azimuth)
         end if
 
         !---------SURFACE-----------------------------
@@ -2719,7 +2804,7 @@ CONTAINS
     SELECT CASE(FAMTYP)
       CASE ( 'UA' , 'SW' , 'AI')
         VCO=2 ! PRESSURE COORD
-      CASE ( 'SF' , 'SC', 'PR', 'RO', 'GP' )
+      CASE ( 'SF' , 'SC', 'PR', 'RO', 'GP', 'AL' )
         VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
         VCO=3 ! CHANNEL NUMBER
@@ -2781,7 +2866,6 @@ CONTAINS
           call obs_bodySet_i(obsdat,OBS_VCO,count,VCO)
           ELEV_R=VCOORD + ELEV*ELEVFACT
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
-          call obs_bodySet_i(obsdat,OBS_VNM,count,VARNO)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
           if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
@@ -2924,6 +3008,19 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_CLF,nobs,HAvalue)
 
   END SUBROUTINE  WRITE_QI
+
+!!------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------
+
+  subroutine write_al(obsdat, azimuth)
+    implicit none
+    type (struct_obs), intent(inout) :: obsdat
+    integer :: azimuth, nobs
+
+    nobs = obs_numHeader(obsdat)
+
+    call obs_headSet_i(obsdat,OBS_AZA,nobs,azimuth)
+  end subroutine write_al
 
 !!------------------------------------------------------------------------------------
 !!------------------------------------------------------------------------------------

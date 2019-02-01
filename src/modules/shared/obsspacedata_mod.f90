@@ -376,10 +376,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
    integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
    integer, parameter, public :: OBS_FOV = OBS_CHM+1 ! field of view 
+   integer, parameter, public :: OBS_PRFL= OBS_FOV+1  ! profile id. number
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_FOV
+   integer, parameter :: NHDR_INT_END = OBS_PRFL
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -390,7 +391,7 @@ module ObsColumnNames_mod
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
          'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','CF1 ','CF2 ','CF3 ', &
-         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF','CHM ','FOV '/)  
+         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1449,7 +1450,7 @@ module ObsSpaceData_mod
    public :: OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_SAZ, OBS_GQF, OBS_GQL
    public :: OBS_CF1, OBS_CF2, OBS_CF3, OBS_CF4, OBS_CF5, OBS_CF6, OBS_CF7
-   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV
+   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
