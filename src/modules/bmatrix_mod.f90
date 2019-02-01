@@ -276,7 +276,9 @@ contains
 
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true. )
+                       mpi_local_opt=.true.,                             &
+                       allocGZ_opt=gsv_varExist(statevector,'GZ_M'),     &
+                       allocPressure_opt=gsv_varExist(statevector,'P_M ') )
 
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1

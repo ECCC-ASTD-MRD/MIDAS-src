@@ -534,6 +534,8 @@ subroutine tt2phi_gsv(statevector_trial)
   write(*,*) 'MAZIAR: tt2phi_gsv, GZ_M='
   write(*,*) GZ_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
 
+  write(*,*) 'MAZIAR: exiting tt2phi_gsv'
+
   call tmg_stop(203)
 
 end subroutine tt2phi_gsv
@@ -729,8 +731,8 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
         do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
           do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
 
-            delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
-                                                          coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+            delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                          coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
 
                                                           coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) * &
                                                           ( delP_M(lonIndex,latIndex,lev_T  ,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) - &
@@ -738,7 +740,6 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
                                                           coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delP_T(lonIndex,latIndex,lev_T,stepIndex) + &
                                                           coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delP0(lonIndex,latIndex,1,stepIndex)
-
           enddo
         enddo
       enddo
@@ -764,10 +765,10 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
             if ( lev_T == 1) then
               ! compute GZ increment for top thermo level (from top momentum level)
               delGz_T(lonIndex,latIndex,1,stepIndex) = delGz_M(lonIndex,latIndex,1,stepIndex) +  &
-                                 coeff_T_TT_gsv   (lonIndex,latIndex,stepIndex) * delTT(lonIndex,latIndex,1,stepIndex) + &
-                                 coeff_T_HU_gsv   (lonIndex,latIndex,stepIndex) * delHU(lonIndex,latIndex,1,stepIndex) + &
+                                 coeff_T_TT_gsv(lonIndex,latIndex,stepIndex) * delTT(lonIndex,latIndex,1,stepIndex) + &
+                                 coeff_T_HU_gsv(lonIndex,latIndex,stepIndex) * delHU(lonIndex,latIndex,1,stepIndex) + &
 
-                                 coeff_T_P0_delP1 (lonIndex,latIndex,stepIndex) * &
+                                 coeff_T_P0_delP1(lonIndex,latIndex,stepIndex) * &
                                  ( delP_M(lonIndex,latIndex,1,stepIndex) / P_M(lonIndex,latIndex,1,stepIndex) - &
                                    delP_T(lonIndex,latIndex,1,stepIndex) / P_T(lonIndex,latIndex,1,stepIndex) ) + &
 
@@ -796,8 +797,8 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
         do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
           do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
 
-            delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
-                                                          coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+            delThick(lonIndex,latIndex,lev_T,stepIndex) = coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                          coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) * delHU(lonIndex,latIndex,lev_T,stepIndex) + &
 
                                                           coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) * &
                                                           ( delP_M(lonIndex,latIndex,lev_T+1,stepIndex) / P_M(lonIndex,latIndex,lev_T+1,stepIndex) - &
@@ -848,6 +849,8 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
   write(*,*) delGz_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
   write(*,*) 'MAZIAR: tt2phi_tl_gsv, delGz_M='
   write(*,*) delGz_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+
+  write(*,*) 'MAZIAR: exiting tt2phi_tl_gsv'
 
   call tmg_stop(201)
 
@@ -1039,6 +1042,7 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
 
   delGz_M_in => gsv_getField_r8(statevector,'GZ_M')
   delGz_T_in => gsv_getField_r8(statevector,'GZ_T')
+
   delTT => gsv_getField_r8(statevector,'TT')
   delHU => gsv_getField_r8(statevector,'HU')
   delP0 => gsv_getField_r8(statevector,'P0')
@@ -1129,8 +1133,8 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
             delP_T(lonIndex,latIndex,lev_T,stepIndex) = delP_T(lonIndex,latIndex,lev_T,stepIndex) + &
                                                         coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
 
-            delP0(lonIndex,latIndex,1,stepIndex)     = delP0              (lonIndex,latIndex,1    ,stepIndex) + &
-                                                       coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
+            delP0(lonIndex,latIndex,1,stepIndex) = delP0(lonIndex,latIndex,1,stepIndex) + &
+                                                   coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
           enddo
         enddo
       enddo
@@ -1174,25 +1178,23 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
       do lev_T = 1, nlev_T-1
         do latIndex = statevector_trial%myLatBeg, statevector_trial%myLatEnd
           do lonIndex = statevector_trial%myLonBeg, statevector_trial%myLonEnd
-            delTT(lonIndex,latIndex,lev_T,stepIndex) = delTT            (lonIndex,latIndex,lev_T,stepIndex) + &
-                                                       coeff_M_TT_gsv   (lonIndex,latIndex,lev_T,stepIndex) * &
-                                                       delThick         (lonIndex,latIndex,lev_T,stepIndex)
-            delHU(lonIndex,latIndex,lev_T,stepIndex) = delHU            (lonIndex,latIndex,lev_T,stepIndex) + &
-                                                       coeff_M_HU_gsv   (lonIndex,latIndex,lev_T,stepIndex) * &
-                                                       delThick         (lonIndex,latIndex,lev_T,stepIndex)
+            delTT(lonIndex,latIndex,lev_T,stepIndex) = delTT(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                       coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
+            delHU(lonIndex,latIndex,lev_T,stepIndex) = delHU(lonIndex,latIndex,lev_T,stepIndex) + &
+                                                       coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
 
             delP_M(lonIndex,latIndex,lev_T+1,stepIndex) = delP_M(lonIndex,latIndex,lev_T+1,stepIndex) + &
-                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T+1,stepIndex) * &
+                                                          coeff_M_P0_delPM(lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T+1,stepIndex) * &
                                                           delThick(lonIndex,latIndex,lev_T,stepIndex)
 
             delP_M(lonIndex,latIndex,lev_T  ,stepIndex) = delP_M(lonIndex,latIndex,lev_T  ,stepIndex) - &
-                                                          coeff_M_P0_delPM (lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) * &
+                                                          coeff_M_P0_delPM(lonIndex,latIndex,lev_T,stepIndex) / P_M(lonIndex,latIndex,lev_T  ,stepIndex) * &
                                                           delThick(lonIndex,latIndex,lev_T,stepIndex)
 
             delP_T(lonIndex,latIndex,lev_T  ,stepIndex) = delP_T(lonIndex,latIndex,lev_T  ,stepIndex) + &
                                                           coeff_M_P0_dP_delPT(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
 
-            delP0(lonIndex,latIndex,1,stepIndex)     = delP0              (lonIndex,latIndex,1    ,stepIndex) + &
+            delP0(lonIndex,latIndex,1,stepIndex)     = delP0(lonIndex,latIndex,1,stepIndex) + &
                                                        coeff_M_P0_dP_delP0(lonIndex,latIndex,lev_T,stepIndex) * delThick(lonIndex,latIndex,lev_T,stepIndex)
           enddo
         enddo
@@ -1211,6 +1213,8 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   deallocate(delThick)
   deallocate(delGz_M)
   deallocate(delGz_T)
+
+  write(*,*) 'MAZIAR: exiting tt2phi_ad_gsv'
 
   call tmg_stop(202)
 
@@ -1495,7 +1499,7 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
               coeff_T_TT_gsv     (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
               coeff_T_HU_gsv     (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1 
 
-              coeff_T_P0_delP1  (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp / P_M_ptr(lonIndex,latIndex,1,stepIndex)
+              coeff_T_P0_delP1  (lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
 
               coeff_T_P0_dP_delPT(lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
               coeff_T_P0_dP_delP0(lonIndex,latIndex,stepIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1

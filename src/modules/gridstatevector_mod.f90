@@ -1932,19 +1932,13 @@ module gridStateVector_mod
     character(len=*), intent(in), optional :: varName_opt
     integer, intent(in), optional          :: stepIndex_opt
     real(8),pointer                        :: field3D(:,:,:)
-    integer                                :: ilev1,ilev2,lon1,lat1,k1,stepIndex
+    integer                                :: ilev1,ilev2,lon1,lat1,k1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
 
     if (.not. associated(statevector%gd3d_r8)) call utl_abort('gsv_getField3D_r8: data with type r8 not allocated')
-
-    if (present(stepIndex_opt)) then
-      stepIndex = stepIndex_opt
-    else
-      stepIndex = statevector%anltime
-    endif
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
@@ -1953,12 +1947,20 @@ module gridStateVector_mod
       if (gsv_varExist(statevector,varName_opt)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
-        field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,stepIndex)
+        if (present(stepIndex_opt)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,stepIndex_opt)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
+        end if
       else
         call utl_abort('gsv_getField3D_r8: Unknown variable name! ' // varName_opt)
       end if
     else
-      field3D(lon1:,lat1:,k1:) => statevector%gd_r8(:,:,:,stepIndex)
+      if (present(stepIndex_opt)) then
+        field3D(lon1:,lat1:,k1:) => statevector%gd_r8(:,:,:,stepIndex_opt)
+      else
+        field3D(lon1:,lat1:,k1:) => statevector%gd3d_r8(:,:,:)
+      end if
     end if
 
   end function gsv_getField3D_r8
@@ -2005,19 +2007,13 @@ module gridStateVector_mod
     character(len=*), intent(in), optional :: varName_opt
     integer, intent(in), optional          :: stepIndex_opt
     real(4),pointer                        :: field3D(:,:,:)
-    integer                                :: ilev1,ilev2,lon1,lat1,k1,stepIndex
+    integer                                :: ilev1,ilev2,lon1,lat1,k1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
 
     if (.not. associated(statevector%gd3d_r4)) call utl_abort('gsv_getField3D_r4: data with type r4 not allocated')
-
-    if (present(stepIndex_opt)) then
-      stepIndex = stepIndex_opt
-    else
-      stepIndex = statevector%anltime
-    endif
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
@@ -2026,12 +2022,20 @@ module gridStateVector_mod
       if (gsv_varExist(statevector,varName_opt)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
-        field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,stepIndex)
+        if (present(stepIndex_opt)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,stepIndex_opt)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+        end if
       else
         call utl_abort('gsv_getField3D_r4: Unknown variable name! ' // varName_opt)
       end if
     else
-      field3D(lon1:,lat1:,k1:) => statevector%gd_r4(:,:,:,stepIndex)
+      if (present(stepIndex_opt)) then
+        field3D(lon1:,lat1:,k1:) => statevector%gd_r4(:,:,:,stepIndex_opt)
+      else
+        field3D(lon1:,lat1:,k1:) => statevector%gd3d_r4(:,:,:)
+      end if
     end if
 
   end function gsv_getField3D_r4
