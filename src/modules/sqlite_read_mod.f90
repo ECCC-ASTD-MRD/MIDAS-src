@@ -37,14 +37,14 @@ use codtyp_mod
 
 implicit none   
  
-type structDiagFiles
+type struct_diagFiles
   character(len=2)     :: obsFamily
   integer              :: codeType(30) 
   integer              :: codeTypeSize
   character(len=30)    :: codeTypeName(30)
   character(len=5)     :: fileName(30)
   integer              :: fileNameSize  
-end type structDiagFiles
+end type struct_diagFiles
 
 save
 
@@ -1025,115 +1025,104 @@ contains
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     integer                :: familyIndex, headerIndex, codeType, fileNameIndex, codeTypeIndex, fileIndex
-    character(len=2)       :: currentObsFamily, obsFamilyNameLow, obsFamilyList(50)
+    character(len=2)       :: currentObsFamily, obsFamilyList(50)
     character(len=30)      :: codeTypeName
     integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
     character(len=5)       :: fileName
 
-    type(structDiagFiles), allocatable   :: out(:)
+    type(struct_diagFiles), allocatable   :: diagFiles(:)
 
     obsFamilyListSize = 0
     obsFamilyList = 'XX'
-    do headerIndex = 1, obs_numHeader( obsdat )
+    HEADERloopIni: do headerIndex = 1, obs_numHeader( obsdat )
       currentObsFamily = obs_getFamily( obsdat, headerIndex ) 
-      if ( any( obsFamilyList == currentObsFamily ) ) then
-        cycle
-      else
-        obsFamilyListSize = obsFamilyListSize + 1
-        obsFamilyList( obsFamilyListSize ) = currentObsFamily
-      end if  
-    end do
+      if ( any( obsFamilyList == currentObsFamily ) ) cycle HEADERloopIni
+      obsFamilyListSize = obsFamilyListSize + 1
+      obsFamilyList( obsFamilyListSize ) = currentObsFamily
+    end do HEADERloopIni
 
-    allocate( out( obsFamilyListSize ) )
+    allocate( diagFiles( obsFamilyListSize ) )
     do familyIndex = 1, obsFamilyListSize
-      out( familyIndex ) % obsFamily = obsFamilyList( familyIndex )
+      diagFiles( familyIndex ) % obsFamily = obsFamilyList( familyIndex )
     end do
     
     FAMILY: do familyIndex = 1, obsFamilyListSize 
 
-      out( familyIndex ) % codeType     = MPC_missingValue_INT
-      out( familyIndex ) % codeTypeSize = 0
-      out( familyIndex ) % fileName     = 'XXXXX'
-      out( familyIndex ) % fileNameSize = 0
+      diagFiles( familyIndex ) % codeType     = MPC_missingValue_INT
+      diagFiles( familyIndex ) % codeTypeSize = 0
+      diagFiles( familyIndex ) % fileName     = 'XXXXX'
+      diagFiles( familyIndex ) % fileNameSize = 0
 
-      call obs_set_current_header_list( obsdat, out( familyIndex ) % obsFamily )
+      call obs_set_current_header_list( obsdat, diagFiles( familyIndex ) % obsFamily )
 
-      HEADERscan: do
+      HEADERloop: do
 
         headerIndex = obs_getHeaderIndex( obsdat )
-        if ( headerIndex < 0 ) exit HEADERscan
+        if ( headerIndex < 0 ) exit HEADERloop
 
         codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
-        CODETYPEscan: if ( any( out( familyIndex ) % codeType == codeType ) ) then
-          cycle
-        else  
-          out( familyIndex ) % codeTypeSize                                      = out( familyIndex ) % codeTypeSize + 1
-          out( familyIndex ) % codeType( out( familyIndex ) % codeTypeSize )     = codeType
-          out( familyIndex ) % codeTypeName( out( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
+        if ( any( diagFiles( familyIndex ) % codeType == codeType ) ) cycle HEADERloop
 
-          if ( out( familyIndex ) % obsFamily /= 'TO' ) then
-            call up2low( out( familyIndex ) % obsFamily, obsFamilyNameLow )
-            fileName =  obsFamilyNameLow
-            if ( fileName == 'sf' ) fileName = 'sfc'
+        diagFiles( familyIndex ) % codeTypeSize                                            = diagFiles( familyIndex ) % codeTypeSize + 1
+        diagFiles( familyIndex ) % codeType( diagFiles( familyIndex ) % codeTypeSize )     = codeType
+        diagFiles( familyIndex ) % codeTypeName( diagFiles( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
+
+        if ( diagFiles( familyIndex ) % obsFamily /= 'TO' ) then
+          call up2low( diagFiles( familyIndex ) % obsFamily, fileName )
+          if ( fileName == 'sf' ) fileName = 'sfc'
+        else
+          if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
+            fileName  = 'csr' 
+          else if ( codtyp_get_name( codeType ) == 'mhs' ) then
+            fileName = 'amsub'
+          else if ( codtyp_get_name( codeType ) == 'ssmi' ) then
+            fileName = 'ssmis'   
           else
-            if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
-              fileName  = 'csr' 
-            elseif ( codtyp_get_name( codeType ) == 'mhs' ) then
-              fileName = 'amsub'
-            elseif ( codtyp_get_name( codeType ) == 'ssmi' ) then
-              fileName = 'ssmis'   
-            else
-              fileName = codtyp_get_name( codeType ) 
-            end if   
-          end if
+            fileName = codtyp_get_name( codeType ) 
+          end if   
+        end if
 
-          if ( any( out( familyIndex ) % fileName  == fileName )) then
-            cycle
-          else  
-            out( familyIndex ) % fileNameSize = out( familyIndex ) % fileNameSize + 1
-          end if
-  
-          out( familyIndex ) % fileName( out( familyIndex ) % codeTypeSize ) = fileName
+        if ( any( diagFiles( familyIndex ) % fileName  == fileName )) cycle HEADERloop
+        diagFiles( familyIndex ) % fileNameSize = diagFiles( familyIndex ) % fileNameSize + 1
+        diagFiles( familyIndex ) % fileName( diagFiles( familyIndex ) % codeTypeSize ) = fileName
 
-        end if CODETYPEscan
-
-      end do HEADERscan
+      end do HEADERloop
 
     end do FAMILY
 
 
-    FAMILY1: do familyIndex = 1, size( out % obsFamily )
+    FAMILY1: do familyIndex = 1, size( diagFiles % obsFamily )
 
-      write(*,*) myName//' Family: ', familyIndex, out( familyIndex ) % obsFamily
-      write(*,*) myName//' Contains ', out( familyIndex ) % codeTypeSize, ' instruments:'
-      do codeTypeIndex = 1, out( familyIndex ) % codeTypeSize
-        write(*,*) codeTypeIndex, out( familyIndex ) % codeType    ( codeTypeIndex ), &
-                                  out( familyIndex ) % codeTypeName( codeTypeIndex ), &
-                                  out( familyIndex ) % fileName    ( codeTypeIndex )
+      write(*,*) myName//' Family: ', familyIndex, diagFiles( familyIndex ) % obsFamily
+      write(*,*) myName//' Contains ', diagFiles( familyIndex ) % codeTypeSize, ' instruments:'
+      do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
+        write(*,*) codeTypeIndex, diagFiles( familyIndex ) % codeType    ( codeTypeIndex ), &
+                                  diagFiles( familyIndex ) % codeTypeName( codeTypeIndex ), &
+                                  diagFiles( familyIndex ) % fileName    ( codeTypeIndex )
       end do
 
-      if ( out( familyIndex ) % obsFamily == 'TO' ) then
+      if ( diagFiles( familyIndex ) % obsFamily == 'TO' ) then
 
-        do fileIndex = 1, out( familyIndex ) % fileNameSize
+        do fileIndex = 1, diagFiles( familyIndex ) % fileNameSize
           codeTypeSize = 0 
-          do codeTypeIndex = 1, out( familyIndex ) % codeTypeSize
-            if ( out( familyIndex ) % fileName( codeTypeIndex ) == out( familyIndex ) % fileName( fileIndex )) then 
+          do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
+            if ( diagFiles( familyIndex ) % fileName( codeTypeIndex ) == diagFiles( familyIndex ) % fileName( fileIndex )) then 
               codeTypeSize = codeTypeSize + 1 
-              codeTypeList( codeTypeSize ) = out( familyIndex ) % codeType( codeTypeIndex )
+              codeTypeList( codeTypeSize ) = diagFiles( familyIndex ) % codeType( codeTypeIndex )
             end if
           end do
-          call sqlr_writeSqlDiagFile( obsdat, 'TO', out(familyIndex)%fileName(fileIndex), codeTypeList(1:codeTypeSize)) 
+          call sqlr_writeSqlDiagFile( obsdat, 'TO', diagFiles(familyIndex)%fileName(fileIndex), codeTypeList(1:codeTypeSize)) 
         end do
 
       else
 
-        call sqlr_writeSqlDiagFile( obsdat, out( familyIndex ) % obsFamily, out( familyIndex ) % fileName(1) ) 
+        call sqlr_writeSqlDiagFile( obsdat, diagFiles( familyIndex ) % obsFamily, diagFiles( familyIndex ) % fileName(1) ) 
 
       end if   
       
     end do FAMILY1
 
-    deallocate(out)
+    deallocate(diagFiles)
 
   end subroutine sqlr_writeAllSqlDiagFiles
 
@@ -1222,7 +1211,7 @@ contains
         
       codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
       if ( present( codeTypeInput ) ) then
-        if ( any( codeTypeInput /= codeType ) ) cycle
+        if ( any( codeTypeInput /= codeType ) ) cycle HEADER
       end if
 
       idObs = idObs + 1
