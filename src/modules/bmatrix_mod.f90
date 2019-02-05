@@ -178,7 +178,9 @@ contains
     call gsv_zero( statevector )
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true. )
+                       mpi_local_opt=.true.,                             &
+                       allocGZ_opt=gsv_varExist(statevector,'GZ_M'),     &
+                       allocPressure_opt=gsv_varExist(statevector,'P_M ') )
 
     !
     !- 2.  Compute the analysis increment

@@ -246,7 +246,8 @@ contains
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR' )
+                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR', &
+                       allocGZ_opt=.true., allocPressure_opt=.true.)
     call gsv_zero( stateVector_trial )
     call gsv_readTrials( stateVector_trial )
     call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &

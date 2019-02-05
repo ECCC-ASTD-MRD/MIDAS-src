@@ -1003,7 +1003,9 @@ module gridStateVector_mod
                       dataKind_opt=statevector_inout%dataKind,                                  &
                       allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
                       varNames_opt=varNamesToInterpolate,                                       &
-                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
+                      allocGZ_opt=gsv_varExist(statevector_inout,'GZ_M'),                       &
+                      allocPressure_opt=gsv_varExist(statevector_inout,'P_M') )
 
     call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
 
@@ -1056,7 +1058,9 @@ module gridStateVector_mod
                       dataKind_opt=statevector_in%dataKind,                                     &
                       allocGZsfc_opt=statevector_in%gzSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
+                      allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
 
     call gsv_transposeTilesToVarsLevs( statevector_in, statevector_in_VarsLevs )
 
@@ -1066,7 +1070,9 @@ module gridStateVector_mod
                       dataKind_opt=statevector_out%dataKind,                                    &
                       allocGZsfc_opt=statevector_out%gzSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     if (statevector_in_VarsLevs%dataKind == 4) then
       call gsv_hInterpolate_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
@@ -1080,7 +1086,9 @@ module gridStateVector_mod
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=statevector_out%dataKind,                                 &
                       allocGZsfc_opt=statevector_out%gzSfcPresent, &
-                      varNames_opt=varNamesToInterpolate)
+                      varNames_opt=varNamesToInterpolate, &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
     call gsv_deallocate(statevector_in_varsLevs_hInterp)
@@ -2343,7 +2351,9 @@ module gridStateVector_mod
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,               &
                       varNames_opt=varNamesToRead,                            &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2356,7 +2366,9 @@ module gridStateVector_mod
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',    &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,                 &
                       varNames_opt=varNamesToRead,                              &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree,&
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -2375,7 +2387,9 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
                       dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead)
+                      varNames_opt=varNamesToRead,                            &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_transposeVarsLevsToTiles(statevector_hinterp_r4, statevector_tiles)
 
@@ -2387,7 +2401,9 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8, &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead)
+                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,  &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     if (present(PsfcReference_opt) ) then
       allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
@@ -2458,7 +2474,9 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex),           &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',            &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,                         &
-                      varNames_opt=varNamesToRead)
+                      varNames_opt=varNamesToRead,                                      &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),                 &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2473,7 +2491,9 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
                       dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead)
+                      varNames_opt=varNamesToRead,                            &
+                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
+                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
 
     call gsv_transposeVarsLevsToTiles(statevector_file_r4, statevector_tiles)
 
@@ -2533,7 +2553,9 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex), &
                       mpi_local_opt=.false., dataKind_opt=4,                     &
                       allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,     &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree, &
+                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),       &
+                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2545,7 +2567,9 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),   &
                       mpi_local_opt=.false., dataKind_opt=4,                       &
                       allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,       &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,&
+                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),         &
+                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -2563,7 +2587,9 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp_r4, 1, statevector_out_r4%hco, statevector_out_r4%vco, &
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),                 &
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead)
+                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,                     &
+                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),                       &
+                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
 
     call gsv_vInterpolate_r4(statevector_hinterp_r4,statevector_vinterp_r4)
 
@@ -4854,12 +4880,17 @@ module gridStateVector_mod
                         statevector_in%numStep, statevector_in%hco, statevector_in%vco, &
                         datestamp_opt = statevector_in%dateStampList(middleStep),  &
                         mpi_local_opt = statevector_in%mpi_local,  &
-                        horizSubSample_opt = horizSubSample)
+                        horizSubSample_opt = horizSubSample, &
+                        allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
+                        allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
+
     else
       call gsv_allocate(statevector_out,  &
                         statevector_in%numStep, statevector_in%hco, statevector_in%vco, &
                         mpi_local_opt = statevector_in%mpi_local, &
-                        horizSubSample_opt = horizSubSample)
+                        horizSubSample_opt = horizSubSample, &
+                        allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
+                        allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
     end if
 
     if ( statevector_out%horizSubSample == statevector_in%horizSubSample ) then
@@ -5041,7 +5072,9 @@ module gridStateVector_mod
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                              allocGZsfc_opt=allocGZsfc, varNames_opt=varNamesToRead,                &
-                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree )
+                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree ,          &
+                             allocGZ_opt=gsv_varExist(statevector_trial,'GZ_M'),                    &
+                             allocPressure_opt=gsv_varExist(statevector_trial,'P_M') )
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
         end if
