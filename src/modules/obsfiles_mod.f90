@@ -164,12 +164,26 @@ contains
   real(8),             pointer, optional :: HXensT_mpiglobal_opt(:,:)
   logical,                      optional :: asciDumpObs_opt
   ! locals
-  integer           :: fileIndex
+  integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType
+  logical           :: lwritediagsql
+  character(len=*), parameter :: myName = 'obsf_writeFiles'
+  character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+  character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+  namelist /namwritediag/lwritediagsql
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
   call obsf_determineFileType(obsFileType)
+
+  nulnam=0
+  lwritediagsql = .false.
+  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read(nulnam,nml=namwritediag,iostat=ierr)
+  if (ierr /= 0) write(*,*) myWarning//'ATTENTION !!! namwritediag is missing in the namelist. The default value will be taken.'
+  if (mpi_myid == 0) write(*,nml = namwritediag)
+  ierr=fclos(nulnam)
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
@@ -183,7 +197,9 @@ contains
     do fileIndex = 1, obsf_nfiles
 
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-      if ( obsFileType == 'BURP'   ) call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      if ( obsFileType == 'BURP'   ) then
+        call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      end if
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
     end do
@@ -198,6 +214,8 @@ contains
     if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXensT_mpiglobal_opt )
 
   end if
+
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then

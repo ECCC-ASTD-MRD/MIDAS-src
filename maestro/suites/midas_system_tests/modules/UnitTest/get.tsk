@@ -13,4 +13,3 @@ for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     rm inputs.ca
     mv * ${TASK_OUTPUT}
 done
-

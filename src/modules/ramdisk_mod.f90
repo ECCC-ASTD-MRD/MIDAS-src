@@ -28,7 +28,7 @@ module ramDisk_mod
   private
 
   ! public procedures
-  public :: ram_setup, ram_fullWorkingPath, ram_remove
+  public :: ram_setup, ram_fullWorkingPath, ram_remove, ram_getRamDiskDir
 
   character(len=256) :: ram_disk_dir
 
@@ -278,5 +278,19 @@ contains
     call tmg_stop(170)
 
   end function copyFile
+
+
+  function ram_getRamDiskDir() result(fullWorkingPath)
+
+    implicit none
+    character(len=512) :: fullWorkingPath
+
+    if ( ram_disk_dir_exists ) then
+      fullWorkingPath = trim(ram_disk_dir) // '/'
+    else
+      fullWorkingPath = ' '
+    end if
+    
+  end function ram_getRamDiskDir
 
 end module ramDisk_mod
