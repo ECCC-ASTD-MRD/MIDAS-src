@@ -677,9 +677,6 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
     real(8), pointer     :: onecolumn(:)
-    character(len=3)     :: execOldNew
-
-    !execOldNew = 'new'
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -696,10 +693,8 @@ contains
     call vtr_transform( statevector, & ! INOUT
                         'PsfcToP_tl')  ! IN
 
-    !if ( execOldNew == 'new' ) then
-      call vtr_transform( statevector, & ! INOUT
-                          'TTHUtoGZ_tl') ! IN
-    !end if
+    call vtr_transform( statevector, & ! INOUT
+                        'TTHUtoGZ_tl') ! IN
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
@@ -746,15 +741,6 @@ contains
 
       if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
         varName = gsv_getVarNameFromK(statevector,kIndex)
-
-        !if ( trim(varName) == 'GZ_M' .or. trim(varName) == 'GZ_T' .or. trim(varName) == 'P_M' .or. trim(varName) == 'P_T' ) then
-        !  write(*,*) 'kIndex=', kIndex, ' varName=,', trim(varName) 
-        !end if
-        if ( trim(varName) == 'P0' ) then
-          write(*,*) 'MAZIAR: s2c_tl:'
-          write(*,*) 'max(delP0)=',maxval(ptr4d(:,:,kIndex,1))
-          write(*,*) 'min(delP0)=',minval(ptr4d(:,:,kIndex,1))
-        end if
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
           ptr3d_UV => gsv_getFieldUV_r8(stateVector_VarsLevs,kIndex)
@@ -842,24 +828,7 @@ contains
     end do k_loop
 
     ! output the interpolated GZ_T/GZ_M for the first header
-    write(*,*) 'MAZIAR, s2c_tl, statevector->Column 1:'
-    write(*,*) 'GZ_T:'
-    onecolumn => col_getColumn(column,1,'GZ_T')
-    write(*,*) onecolumn(:)
-    write(*,*) 'GZ_M:'
-    onecolumn => col_getColumn(column,1,'GZ_M')
-    write(*,*) onecolumn(:)
-
-    ! Do final preparations of columnData objects (compute GZ increment)
-    !if ( execOldNew == 'old' ) then
-    !  if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-    !       col_varExist('P0') .and. col_getNumLev(column,'MM') > 1 ) then
-    !    call tt2phi_tl(column,columng,obsSpaceData)
-    !  end if
-    !end if
-
-    ! output the interpolated GZ_T/GZ_M for the first header
-    write(*,*) 'MAZIAR, s2c_tl, Psfc->Column 1:'
+    write(*,*) 's2c_tl, statevector->Column 1:'
     write(*,*) 'GZ_T:'
     onecolumn => col_getColumn(column,1,'GZ_T')
     write(*,*) onecolumn(:)
@@ -907,9 +876,6 @@ contains
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
     real(8), pointer :: field_out(:,:,:,:)
-    character(len=3) :: execOldNew
-
-    !execOldNew = 'new'
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call tmg_start(168,'S2C_AD')
@@ -933,14 +899,6 @@ contains
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType_tlad, rejectOutsideObs=.false. )
     end if
-
-    ! Mass fields (TT,PS,HU) to hydrostatic geopotential
-    !if ( execOldNew == 'old' ) then
-    !  if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and.  &
-    !      gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
-    !     call tt2phi_ad(column,columng,obsSpaceData)
-    !  end if
-    !end if
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -1063,25 +1021,12 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    !if ( execOldNew == 'new' ) then
-      call vtr_transform( statevector, & ! INOUT
-                          'TTHUtoGZ_ad') ! IN
-    !end if 
+    call vtr_transform( statevector, & ! INOUT
+                        'TTHUtoGZ_ad') ! IN
 
     ! Adjoint of calculate delP_T/delP_M on the grid
     call vtr_transform( statevector, & ! INOUT
                         'PsfcToP_ad')  ! IN
-
-    !write(*,*) 'MAZIAR, s2c_ad for execOldNew=', execOldNew
-    !write(*,*) 'TT='
-    !field_out => gsv_getField_r8(statevector,'TT')
-    !write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
-    !write(*,*) 'HU='
-    !field_out => gsv_getField_r8(statevector,'HU')
-    !write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
-    !write(*,*) 'P0='
-    !field_out => gsv_getField_r8(statevector,'P0')
-    !write(*,*) field_out(statevector%myLonBeg,statevector%myLatBeg,:,1)
 
     call gsv_deallocate( statevector_VarsLevs )
 

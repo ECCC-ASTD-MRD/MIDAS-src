@@ -1028,11 +1028,6 @@ CONTAINS
 
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
-      !if( stepIndex == 1 ) then
-      !  write(*,*) 'calcpressure_tl: Psfc='
-      !  write(*,*) Psfc(:,:)
-      !end if
-
       ! dP_dPsfc_M
       nullify(dP_dPsfc_M)
       status = vgd_dpidpis(statevector%vco%vgrid, &
@@ -1066,13 +1061,6 @@ CONTAINS
         end do
       end do
       deallocate(dP_dPsfc_T)
-
-      !if ( .not. beSilent .and. stepIndex == 1 ) then
-      !  write(*,*) 'stepIndex=',stepIndex, ',delP_M='
-      !  write(*,*) delP_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      !  write(*,*) 'stepIndex=',stepIndex, ',delP_T='
-      !  write(*,*) delP_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      !end if
 
     end do
 
@@ -1159,11 +1147,6 @@ CONTAINS
         end do
       end do
       deallocate(dP_dPsfc_T)
-
-      !if ( .not. beSilent .and. stepIndex == 1 ) then
-      !  write(*,*) 'stepIndex=',stepIndex, ',delPsfc='
-      !  write(*,*) delPsfc(statevector%myLonBeg,statevector%myLatBeg,1,stepIndex)
-      !end if
 
     end do
 

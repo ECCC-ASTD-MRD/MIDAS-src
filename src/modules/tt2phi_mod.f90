@@ -593,24 +593,6 @@ subroutine tt2phi_tl_col(column,columng,obsSpaceData)
     delHU   => col_getColumn(column,columnIndex,'HU')
     delP0   => col_getColumn(column,columnIndex,'P0')
 
-    !if ( columnIndex == 1 ) then
-    !  write(*,*) 'MAZIAR, tt2phi_tl:'
-    !  write(*,*) 'GZ_M:'
-    !  write(*,*) gz_M(:)
-
-    !  write(*,*) 'GZ_T:'
-    !  write(*,*) gz_T(:)
-
-    !  write(*,*) 'delTT:'
-    !  write(*,*) delTT(:)
-
-    !  write(*,*) 'delHU:'
-    !  write(*,*) delHU(:)
-
-    !  write(*,*) 'delP0:'
-    !  write(*,*) delP0(:)
-    !end if
-
     ! ensure increment at sfc/fixed height level is zero
     delAlt_M_ptr(nlev_M) = 0.0d0
     delAlt_T_ptr(nlev_T) = 0.0d0
@@ -863,12 +845,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   deallocate(delThick)
 
-  !write(*,*) 'MAZIAR: tt2phi_tl_gsv, delGz_T='
-  !write(*,*) delGz_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-  !write(*,*) 'MAZIAR: tt2phi_tl_gsv, delGz_M='
-  !write(*,*) delGz_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-
-  write(*,*) 'MAZIAR: exiting tt2phi_tl_gsv'
+  write(*,*) 'exiting tt2phi_tl_gsv'
 
   call tmg_stop(201)
 

@@ -330,11 +330,6 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     enddo
 
-    !if(mpi_myid == 0) then
-    !  write(*,*) 'col_calcpressure: Psfc='
-    !  write(*,*) Psfc(:,:)
-    !end if
-
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
