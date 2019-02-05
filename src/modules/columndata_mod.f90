@@ -50,8 +50,7 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
-    real(8), pointer  :: GZ_T(:,:),GZ_M(:,:),gz_sfc(:,:)
-    real(8), pointer  :: P_T(:,:),P_M(:,:)
+    real(8), pointer  :: gz_sfc(:,:)
     real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer, pointer  :: varOffset(:),varNumLev(:)
@@ -112,6 +111,12 @@ contains
       endif
     enddo
 
+    nmvoexist(vnl_varListIndex('GZ_T')) = .true.
+    nmvoexist(vnl_varListIndex('GZ_M')) = .true.
+    nmvoexist(vnl_varListIndex('P_T')) = .true.
+    nmvoexist(vnl_varListIndex('P_M')) = .true.
+    nvo3d = nvo3d + 4
+
     do jvar = 1, vnl_numvarmax2D
       if (varneed(vnl_varNameList2D(jvar))) then
         nmvoexist(jvar+vnl_numvarmax3D) = .true.
@@ -152,12 +157,8 @@ contains
 
     if(column%numCol.gt.0) then
       column%all(:,:) = 0.0d0
-      column%P_M(:,:) = 0.0d0
-      column%P_T(:,:) = 0.0d0
       column%dP_dPsfc_T(:,:) = 0.0d0
       column%dP_dPsfc_M(:,:) = 0.0d0
-      column%GZ_M(:,:) = 0.0d0
-      column%GZ_T(:,:) = 0.0d0
       column%gz_sfc(:,:) = 0.0d0
     endif
 
@@ -231,17 +232,8 @@ contains
       allocate(column%all(nkgdimo,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
-      allocate(column%GZ_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%GZ_M(col_getNumLev(column,'MM'),column%numCol))
       allocate(column%gz_sfc(1,column%numCol))
-      if ( setToZero ) column%gz_T(:,:)=0.0d0
-      if ( setToZero ) column%gz_M(:,:)=0.0d0
       column%gz_sfc(:,:)=0.0d0
-
-      allocate(column%P_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%P_M(col_getNumLev(column,'MM'),column%numCol))
-      if ( setToZero ) column%P_T(:,:)=0.0d0
-      if ( setToZero ) column%P_M(:,:)=0.0d0
 
       allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
       allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
@@ -274,11 +266,7 @@ contains
 
     if(column%numCol.gt.0) then
       deallocate(column%all)
-      deallocate(column%GZ_T)
-      deallocate(column%GZ_M)
       deallocate(column%gz_sfc)
-      deallocate(column%P_T)
-      deallocate(column%P_M)
       deallocate(column%dP_dPsfc_T)
       deallocate(column%dP_dPsfc_M)
       deallocate(column%oltv)
@@ -294,12 +282,7 @@ contains
     character(len=*), intent(in) :: varName
     logical                      :: varExist 
 
-    if(trim(varName) == 'GZ_T' .or. trim(varName) == 'GZ_M' .or. &
-       trim(varName) == 'P_T'  .or. trim(varName) == 'P_M' .or. &
-       trim(varName) == 'ALL') then
-      ! pressure and height always available
-      varExist = .true.
-    elseif(nmvoexist(vnl_varListIndex(varName))) then
+    if(nmvoexist(vnl_varListIndex(varName))) then
       varExist = .true.
     else
       varExist = .false.
@@ -333,7 +316,7 @@ contains
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
-    integer :: headerIndex, status
+    integer :: headerIndex, status, ilev1, ilev2
     logical                   :: beSilent
 
     if ( col_getNumCol(column) <= 0 ) return
@@ -346,6 +329,11 @@ contains
     do headerIndex = 1,col_getNumCol(column)
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     enddo
+
+    !if(mpi_myid == 0) then
+    !  write(*,*) 'col_calcpressure: Psfc='
+    !  write(*,*) Psfc(:,:)
+    !end if
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -360,7 +348,9 @@ contains
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    column%P_M(:,:) = zppobs2(:,:)
+    ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
+    ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_M'))
+    column%all(ilev1:ilev2,:) = zppobs2(:,:)
     if (associated(zppobs1))  deallocate(zppobs1)
     deallocate(zppobs2)
 
@@ -369,7 +359,9 @@ contains
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    column%P_T(:,:) = zppobs2(:,:)
+    ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
+    ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_T'))
+    column%all(ilev1:ilev2,:) = zppobs2(:,:)
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
@@ -488,11 +480,14 @@ contains
     integer, intent(in)                 :: ilev,headerIndex
     character(len=*), intent(in)        :: varLevel
     real(8)                             :: pressure
+    integer                             :: ilev1
 
     if (varLevel == 'TH') then
-      pressure = column%P_T(ilev,headerIndex)
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
+      pressure = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'MM' ) then
-      pressure = column%P_M(ilev,headerIndex)
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
+      pressure = column%all(ilev1+ilev-1,headerIndex)
     else
       call utl_abort('col_getPressure: Unknown variable type: ' // varLevel)
     endif
@@ -527,9 +522,11 @@ contains
     integer                             :: ilev1
 
     if (varLevel == 'TH') then
-      height = column%GZ_T(ilev,headerIndex)
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('GZ_T'))
+      height = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'MM' ) then
-      height = column%GZ_M(ilev,headerIndex)
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('GZ_M'))
+      height = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'SF' ) then
       height = column%gz_sfc(1,headerIndex)
     else
@@ -560,29 +557,9 @@ contains
     if ( column%numCol > 0 ) then
       if(present(varName_opt)) then
         if ( col_varExist(varName_opt) ) then
-
-          select case(trim(varName_opt))
-          case('P_T')
-            allColumns => column%P_T(:,:)
-
-          case('P_M')
-            allColumns => column%P_M(:,:)
-
-          case('GZ_T')
-            allColumns => column%GZ_T(:,:)
-
-          case('GZ_M')
-            allColumns => column%GZ_M(:,:)
-
-          case('ALL')
-            allColumns => column%all(:,:)
-
-          case default
-            ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
-            ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
-            allColumns => column%all(ilev1:ilev2,:)
-          end select
-
+          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
+          allColumns => column%all(ilev1:ilev2,:)
         else
           call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
         endif
@@ -606,26 +583,9 @@ contains
 
     if(present(varName_opt)) then
       if(col_varExist(varName_opt)) then
-
-        select case(trim(varName_opt))
-        case('P_T')
-          onecolumn => column%P_T(:,headerIndex)
-
-        case('P_M')
-          onecolumn => column%P_M(:,headerIndex)
-
-        case('GZ_T')
-          onecolumn => column%GZ_T(:,headerIndex)
-
-        case('GZ_M')
-          onecolumn => column%GZ_M(:,headerIndex)
-
-        case default ! all other variable names
-          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
-          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
-          onecolumn => column%all(ilev1:ilev2,headerIndex)
-        end select
-
+        ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
+        onecolumn => column%all(ilev1:ilev2,headerIndex)
       else
         call utl_abort('col_getColumn: Unknown variable name! ' // varName_opt)
       endif
@@ -646,8 +606,6 @@ contains
 
     if(present(varName_opt)) then
       if(.not.col_varExist(varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
-      if(trim(varName_opt) == 'GZ_T' .or. trim(varName_opt) == 'GZ_M') call utl_Abort('col_getElem: cannot call for GZ!')
-      if(trim(varName_opt) == 'P_T' .or. trim(varName_opt) == 'P_M') call utl_Abort('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)
