@@ -1631,7 +1631,8 @@ CONTAINS
     integer, intent(in) :: waveBandIndex
     logical, optional   :: useFSOFcst_opt
 
-    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:), ensAmplitude_M_oneLevM1(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLevM1(:,:,:,:), ensAmplitude_M_oneLevP1(:,:,:,:)
     real(8), allocatable, target :: ensAmplitude_MT(:,:,:,:)
     real(8), pointer     :: ensAmplitude_MT_ptr(:,:,:,:)
     real(8), pointer     :: increment_out(:,:,:,:)
@@ -1645,10 +1646,6 @@ CONTAINS
 
     
     if (verbose) write(*,*) 'Entering ben_addEnsMember'
-
-    if (vco_anl%Vcode /= 5002 .and. (vco_anl%nlev_T > 1 .or. vco_anl%nlev_M > 1) ) then
-      call utl_abort('addEnsMemberAd: Only 5002 supported in 3D mode for now!')
-    end if
 
     call tmg_start(62,'ADDMEM')
 
@@ -1694,25 +1691,50 @@ CONTAINS
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
 
-        if (lev == 1) then
-          ! use top momentum level amplitudes for top thermo level
-          ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
-        else if (lev == nLevEns_T) then
-          ! use surface momentum level amplitudes for surface thermo level
-          ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
-          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
-        else
-          ! for other levels, interpolate momentum weights to get thermo amplitudes
-          !$OMP PARALLEL DO PRIVATE (latIndex, ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1)
-          do latIndex = myLatBeg, myLatEnd
+        if (vco_anl%Vcode == 5002) then
+
+          if (lev == 1) then
+            ! use top momentum level amplitudes for top thermo level
+            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+            ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
+          else if (lev == nLevEns_T) then
+            ! use surface momentum level amplitudes for surface thermo level
+            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+            ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
+          else
+            ! for other levels, interpolate momentum weights to get thermo amplitudes
             ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
             ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
-            ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevM1(1:nEns,:,:,latIndex) +   &
-                                                   ensAmplitude_M_oneLev(1:nEns,:,:,latIndex) )
-          end do
-          !$OMP END PARALLEL DO
-          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_MT(:,:,:,:)
+            !$OMP PARALLEL DO PRIVATE (latIndex)
+            do latIndex = myLatBeg, myLatEnd
+              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevM1(1:nEns,:,:,latIndex) +   &
+                                                        ensAmplitude_M_oneLev(1:nEns,:,:,latIndex) )
+            end do
+            !$OMP END PARALLEL DO
+            ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_MT(:,:,:,:)
+          end if
+
+        else if (vco_anl%Vcode == 5005) then
+
+          if (lev == nLevEns_T) then
+            ! use surface momentum level amplitudes for surface thermo level
+            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+            ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
+          else
+            ! for other levels, interpolate momentum weights to get thermo amplitudes
+            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
+            ensAmplitude_M_oneLevP1 => ens_getOneLev_r8(ensAmplitude_M,lev+1)
+            !$OMP PARALLEL DO PRIVATE (latIndex)
+            do latIndex = myLatBeg, myLatEnd
+              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevP1(1:nEns,:,:,latIndex) +   &
+                                                        ensAmplitude_M_oneLev(1:nEns,:,:,latIndex) )
+            end do
+            !$OMP END PARALLEL DO
+            ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_MT(:,:,:,:)
+          end if
+
+        else
+          call utl_abort('ben_addEnsMember: incompatible vcode')
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -1789,7 +1811,8 @@ CONTAINS
     integer,intent(in) :: waveBandIndex
     logical,optional   :: useFSOFcst_opt
 
-    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:), ensAmplitude_M_oneLevM1(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLevM1(:,:,:,:), ensAmplitude_M_oneLevP1(:,:,:,:)
     real(8), allocatable :: ensAmplitude_MT(:,:)
     real(8), pointer :: increment_in(:,:,:,:)
     real(8), allocatable :: increment_in2(:,:,:)
@@ -1800,10 +1823,6 @@ CONTAINS
     logical          :: useFSOFcst
 
     if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
-
-    if (vco_anl%Vcode /= 5002 .and. (vco_anl%nlev_T > 1 .or. vco_anl%nlev_M > 1) ) then
-      call utl_abort('addEnsMemberAd: Only 5002 supported in 3D mode for now!')
-    end if
 
     call tmg_start(63,'ADDMEMAD')
 
@@ -1867,7 +1886,8 @@ CONTAINS
 
       ensMemberAll_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
-           memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, ensAmplitude_MT)
+           memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, &
+           ensAmplitude_M_oneLevP1, ensAmplitude_MT)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
 
@@ -1900,24 +1920,47 @@ CONTAINS
 
           else if (vnl_varLevelFromVarname(varName) == 'TH') then
 
-            if (lev == 1) then
-              ! use top momentum level amplitudes for top thermo level
-              ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
-                 ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
-            else if (lev == nLevEns_T) then
-              ! use surface momentum level amplitudes for surface thermo level
-              ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
-              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+            if (vco_anl%Vcode == 5002) then
+
+              if (lev == 1) then
+                ! use top momentum level amplitudes for top thermo level
+                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+                ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
                    ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+              else if (lev == nLevEns_T) then
+                ! use surface momentum level amplitudes for surface thermo level
+                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+                ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+              else
+                ! for other levels, interpolate momentum weights to get thermo amplitudes
+                ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
+                ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
+                ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   = &
+                     ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
+              end if
+
+            else if (vco_anl%Vcode == 5005) then
+
+              if (lev == nLevEns_T) then
+                ! use surface momentum level amplitudes for surface thermo level
+                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+                ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+              else
+                ! for other levels, interpolate momentum weights to get thermo amplitudes
+                ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
+                ensAmplitude_M_oneLevP1 => ens_getOneLev_r8(ensAmplitude_M,lev+1)
+                ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   = &
+                     ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_M_oneLevP1(1:nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_M_oneLevP1(1:nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
+              end if
+
             else
-              ! for other levels, interpolate momentum weights to get thermo amplitudes
-              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
-              ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
-              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   = &
-                   ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
-              ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) = &
-                   ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
+              call utl_abort('ben_addEnsMemberAd: incompatible vcode')
             end if
 
           else if (vnl_varLevelFromVarname(varName) == 'SF') then
