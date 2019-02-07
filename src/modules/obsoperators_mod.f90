@@ -386,6 +386,12 @@ contains
     !     working, this should be changed for a calculation of the geometric
     !     height.
     !
+    !     Note that, in the case of an aladin HLOS wind, the correction to zvar
+    !     (OBS_VAR) is not written back to obsSpaceData.  It is simply used to
+    !     calculate OMP (which is written to obsSpaceData) and then is discarded.
+    !     Thereafter, if one calculates OMP - O (this will be the uncorrected O),
+    !     the result will be a corrected P.
+    !
     implicit none
     type(struct_columnData),    intent(in)    :: columnhr
     type(struct_obs),           intent(inout) :: obsSpaceData
@@ -394,25 +400,54 @@ contains
 
     integer :: headerIndex,bodyIndex,ilyr,ivnm,ipt,ipb
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
+    integer :: found  ! a group of bit flags
+    integer :: ierr, nulnam, fnom,fclos
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: columnVarB,columnVarT
     character(len=2) :: varLevel
+    real(8) :: value   ! temporary holder
     real(8) :: azimuth ! HLOS wind direction CW from true north
+    real(8) :: tempRef ! reference temperature used to calculate HLOS wind
+    real(8) :: presRef ! reference pressure used to calculate HLOS wind
+    real(8) :: dwdp    ! derivative of HLOS wind wrt P
+    real(8) :: dwdt    ! derivative of HLOS wind wrt T
     real(8) :: uuLyr, vvLyr   ! wind on layer, OBS_LYR
     real(8) :: uuLyr1,vvLyr1  ! wind on layer plus 1
+    real(8) :: ttLyr, ppLyr   ! T, P on layer, OBS_LYR
+    real(8) :: ttLyr1,ppLyr1  ! T, P on layer, OBS_LYR plus 1
+    real(8) :: ttbg,  ppbg    ! background T, P at the observation location
+    logical :: list_is_empty
+
+    ! namelist variables
+    logical :: do_adjust_aladin
+
+    namelist /NAMALADIN_OBS/do_adjust_aladin
 
     Write(*,*) "Entering subroutine oop_zzz_nl"
 
-    jobs=0.d0
-
     if(present(cdfam)) then
-      call obs_set_current_body_list(obsSpaceData, cdfam)
+      call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
     else
       write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
-      call obs_set_current_body_list(obsSpaceData, 'AL')
+      call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
     endif
+
+    if(list_is_empty)then
+      return
+    end if
+
+    ! Read in the namelist NAMALADIN_OBS
+    do_adjust_aladin = .false.
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namaladin_obs,iostat=ierr)
+    if(ierr.ne.0) call utl_abort('oop_zzz_nl: Error reading namelist')
+    write(*,nml=namaladin_obs)
+    ierr=fclos(nulnam)
+
+    jobs=0.d0
 
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -431,7 +466,7 @@ contains
       zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
       headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
 
-      ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+      ilyr = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
       varLevel = vnl_varLevelFromVarnum(ivnm)
       zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
       zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
@@ -440,23 +475,69 @@ contains
 
       select case (ivnm)
       case (BUFR_NEAL) ! Aladin HLOS wind observation
-        ! Scan body indices for the azimuth
-        azimuth=0.0d0
+        ! Scan body indices for the needed attributes
+        found=0
         bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
                        + bodyIndexStart - 1
         BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-          if(BUFR_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)) then
-            azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
-                    * MPC_RADIANS_PER_DEGREE_R8
-            exit BODY_SUPP
-          end if
+
+          value = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+          select case(obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2))
+          case(BUFR_NEAZ)
+            azimuth = value * MPC_RADIANS_PER_DEGREE_R8
+            found = ibset(found,0)
+
+          case(BUFR_NETT)
+            tempRef = value
+            found = ibset(found,1)
+
+          case(BUFR_NEPS)
+            presRef = value
+            found = ibset(found,2)
+
+          case(BUFR_NEDWDP)
+            dwdp = value
+            found = ibset(found,3)
+
+          case(BUFR_NEDWDT)
+            dwdt = value
+            found = ibset(found,4)
+          end select
+
+          if(popcnt(found) == 5) exit BODY_SUPP
         end do BODY_SUPP
 
+        if(.not. btest(found,0))then
+          ! The azimuth was not found.  The observation cannot be treated
+          ! Set the assimilation flag to 0 to ignore this datum later.
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          cycle BODY
+        end if
+
+        ! Obtain the needed forecast data
         uuLyr =col_getElem(columnhr,ilyr,  headerIndex,'UU')
         uuLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU')
         vvLyr =col_getElem(columnhr,ilyr,  headerIndex,'VV')
         vvLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV')
+        ttLyr =col_getElem(columnhr,ilyr,  headerIndex,'TT')
+        ttLyr1=col_getElem(columnhr,ilyr+1,headerIndex,'TT')
+        ppLyr =col_getPressure(columnhr,ilyr  ,headerIndex,'MM')
+        ppLyr1=col_getPressure(columnhr,ilyr+1,headerIndex,'MM')
+
+        ! Interpolate forecast T, P to the observation location
+        ttbg  = zwb*ttLyr1 + zwt*ttLyr
+        ppbg  = zwb*ppLyr1 + zwt*ppLyr
+
+        ! Adjust zvar, the HLOS wind observation, if all attributes are available
+        if((do_adjust_aladin .eqv. .true.) .and. (popcnt(found) == 5)) then
+          ! Adjust in situ the HLOS wind data from obsSpaceData to account for
+          ! the differences between our T, P forecast fields and those of the NWP
+          ! site that calculated the HLOS wind values.  The goal is to produce an
+          ! HLOS wind observation as if it had been calculated by us.
+          zvar = zvar + (ttbg - tempRef) * dwdt &
+                      + (ppbg - presRef) * dwdp
+        end if
 
         ! Apply the nonlinear aladin observation operator
         columnVarB= -vvLyr1*cos(azimuth) - uuLyr1*sin(azimuth)
@@ -2252,7 +2333,7 @@ contains
 
             else if(ityp == BUFR_NEAL) then
               ! Scan body indices for the azimuth
-              azimuth=0.0d0
+              azimuth = 0.0d0
               bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
                             + bodyIndexStart - 1
@@ -3194,7 +3275,7 @@ contains
 
             if(ityp == BUFR_NEAL) then
               ! Scan body indices for the azimuth
-              azimuth=0.0d0
+              azimuth = 0.0d0
               bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
                             + bodyIndexStart - 1
