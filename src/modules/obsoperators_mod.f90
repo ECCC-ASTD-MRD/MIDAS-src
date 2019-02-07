@@ -485,19 +485,24 @@ contains
           value = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
           select case(obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2))
           case(BUFR_NEAZ)
-            azimuth  = value * MPC_RADIANS_PER_DEGREE_R8; found=ibset(found,0)
+            azimuth = value * MPC_RADIANS_PER_DEGREE_R8
+            found = ibset(found,0)
 
           case(BUFR_NETT)
-            tempRef  = value; found=ibset(found,1)
+            tempRef = value
+            found = ibset(found,1)
 
           case(BUFR_NEPS)
-            presRef = value; found=ibset(found,2)
+            presRef = value
+            found = ibset(found,2)
 
           case(BUFR_NEDWDP)
-            dwdp     = value; found=ibset(found,3)
+            dwdp = value
+            found = ibset(found,3)
 
           case(BUFR_NEDWDT)
-            dwdt     = value; found=ibset(found,4)
+            dwdt = value
+            found = ibset(found,4)
           end select
 
           if(popcnt(found) == 5) exit BODY_SUPP
@@ -2328,7 +2333,7 @@ contains
 
             else if(ityp == BUFR_NEAL) then
               ! Scan body indices for the azimuth
-              azimuth=0.0d0
+              azimuth = 0.0d0
               bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
                             + bodyIndexStart - 1
@@ -3270,7 +3275,7 @@ contains
 
             if(ityp == BUFR_NEAL) then
               ! Scan body indices for the azimuth
-              azimuth=0.0d0
+              azimuth = 0.0d0
               bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
               bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
                             + bodyIndexStart - 1
