@@ -35,9 +35,9 @@ program midas_obsSelection
 !!$  NAMELIST /NAMSELECT/
 
   integer :: fnom, fclos, nulnam, ierr, headerIndex
-  type(struct_columnData),target  :: trlColumnOnAnlLev
-  type(struct_columnData),target  :: trlColumnOnTrlLev
-  type(struct_obs),       target  :: obsSpaceData
+  type(struct_columnData),target :: trlColumnOnAnlLev
+  type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_obs),       target :: obsSpaceData
 
   write(*,*) " -------------------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM midas-obsSelection ---"

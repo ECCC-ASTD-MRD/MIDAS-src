@@ -165,7 +165,7 @@ program midas_var
 
     ! Print the FIRST header and body
     if (mpi_myid == 0 ) then
-      do headerIndex =1, min(1,obs_numHeader(obsSpaceData))
+      do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
         call obs_prnthdr(obsSpaceData,headerIndex)
         call obs_prntbdy(obsSpaceData,headerIndex)
       end do

@@ -487,15 +487,15 @@ contains
       select case (ivnm)
       case (BUFR_NEAL) ! Aladin HLOS wind observation
         ! Scan body indices for the needed attributes
-        found=0
+        found = 0
         bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
                        + bodyIndexStart - 1
         BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-          tempRef=0.0d0
-          dwdt   =0.0d0
-          presRef=0.0d0
-          dwdp   =0.0d0
+          tempRef = 0.0d0
+          dwdt    = 0.0d0
+          presRef = 0.0d0
+          dwdp    = 0.0d0
 
           value = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
           select case(obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2))

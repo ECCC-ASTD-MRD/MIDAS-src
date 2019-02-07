@@ -83,7 +83,7 @@ module oMinusF_mod
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
-      trialFileName = './trlm_01'
+      trialFileName  = './trlm_01'
 
       !- 1.1 mpi
       call mpi_initialize
