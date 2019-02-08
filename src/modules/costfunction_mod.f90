@@ -161,8 +161,8 @@ contains
     type(struct_obs) :: lobsSpaceData
     integer :: bodyIndex, itvs, isens, headerIndex, idata, idatend
 
-    real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
+    real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin
     real(8) :: dljotov_sensors( tvs_nsensors )
     integer :: ierr
 
