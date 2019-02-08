@@ -773,7 +773,6 @@ contains
             else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
             end if
-            call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
           end if
 
         end do ITEMS
