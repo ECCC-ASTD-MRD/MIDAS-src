@@ -438,17 +438,6 @@ contains
       return
     end if
 
-    if(present(cdfam)) then
-      call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
-    else
-      write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
-      call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
-    endif
-
-    if(list_is_empty)then
-      return
-    end if
-
     ! Read in the namelist NAMALADIN_OBS
     do_adjust_aladin = .false.
     nulnam=0

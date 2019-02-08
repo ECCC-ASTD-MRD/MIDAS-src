@@ -79,7 +79,7 @@ module oMinusF_mod
       !- 1.  Settings and module initializations
       !
       write(*,*)
-      write(*,*) '> midas-OminusF: setup - START'
+      write(*,*) '> omf_oMinusF: setup - START'
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
@@ -147,7 +147,7 @@ module oMinusF_mod
       if ( addSigmaO ) then
         !- 1.14 Initialize the observation error covariances
         write(*,*)
-        write(*,*) '> midas-OminusF: Adding sigma_O'
+        write(*,*) '> omf_oMinusF: Adding sigma_O'
         call oer_setObsErrors(obsSpaceData, trim(varMode))
       end if
 
@@ -155,7 +155,7 @@ module oMinusF_mod
       call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
       write(*,*)
-      write(*,*) '> midas-OminusF: setup - END'
+      write(*,*) '> omf_oMinusF: setup - END'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       !
@@ -164,12 +164,12 @@ module oMinusF_mod
 
       !- 2.1 Compute observation innovations
       write(*,*)
-      write(*,*) '> midas-OminusF: compute innovation'
+      write(*,*) '> omf_oMinusF: compute innovation'
       call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
 
       if ( addHBHT ) then
         write(*,*)
-        write(*,*) '> midas-OminusF: Adding HBH^T'
+        write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
         call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
       end if
