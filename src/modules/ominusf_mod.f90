@@ -21,12 +21,6 @@
 !!
 !--------------------------------------------------------------------------
 module oMinusF_mod
-  !
-  ! MODULE minimization (prefix="omf" category='1. High-level functionality')
-  !
-  !
-  ! **Purpose**: Module for Observation minus Forecast (O-F) computation
-  !
   use ramDisk_mod
   use utilities_mod
   use mpi_mod

@@ -22,12 +22,6 @@
 !!
 !--------------------------------------------------------------------------
 module obsOperators_mod
-  !
-  ! MODULE observation operators (prefix="oop" category='4. Observation operators')
-  !
-  ! **Purpose**: All observation operators, including nonlinear, tangent-linear
-  !              and adjoint versions.
-  !
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod

@@ -2,7 +2,7 @@
   <SUBMITS sub_name="var"/>
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="thinning"/>
-  <SUBMITS sub_name="obsSelect"/>
+  <SUBMITS sub_name="obsSelection"/>
   <SUBMITS sub_name="ensManip"/>
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
@@ -142,9 +142,9 @@
     </FAMILY>
   </FAMILY>
 
-  <FAMILY  name="obsSelect">
-    <SUBMITS sub_name="obsSelection"/>
-    <FAMILY  name="obsSelection">
+  <FAMILY  name="obsSelection">
+    <SUBMITS sub_name="select_AL"/>
+    <FAMILY  name="select_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
