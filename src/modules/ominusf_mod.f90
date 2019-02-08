@@ -21,6 +21,9 @@
 !!
 !--------------------------------------------------------------------------
 module oMinusF_mod
+  !
+  ! MODULE minimization (prefix="omf" category='1. High-level functionality')
+  !
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -84,13 +87,6 @@ module oMinusF_mod
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
       trialFileName  = './trlm_01'
-
-      !- 1.1 mpi
-      call mpi_initialize
-
-      !- 1.2 timings
-      call tmg_init(mpi_myid, 'TMG_OMINUSF' )
-      call tmg_start(1,'MAIN')
 
       !- 1.3 RAM disk usage
       call ram_setup
@@ -173,9 +169,6 @@ module oMinusF_mod
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
         call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
       end if
-
-      call tmg_stop(1)
-      call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
     end subroutine omf_oMinusF
 

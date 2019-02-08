@@ -21,6 +21,10 @@
 !!
 !--------------------------------------------------------------------------
 program midas_obsSelection
+  !
+  ! *Purpose*: Main program for O-F computations, background check, and thinning
+  !            (O-F => Observation minus Forecast)
+  !
   use oMinusF_mod
   use backgroundCheck_mod
   use thinning_mod
@@ -43,6 +47,13 @@ program midas_obsSelection
   write(*,*) " ---  START OF MAIN PROGRAM midas-obsSelection ---"
   write(*,*) " ---  Computation of the innovation            ---"
   write(*,*) " -------------------------------------------------"
+
+  !- 1.0 mpi
+  call mpi_initialize
+
+  !- 1.1 timings
+  call tmg_init(mpi_myid, 'TMG_OBSSELECTION' )
+  call tmg_start(1,'MAIN')
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_BEG')
@@ -88,6 +99,9 @@ program midas_obsSelection
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call rpn_comm_finalize(ierr)
+
+  call tmg_stop(1)
+  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_END')

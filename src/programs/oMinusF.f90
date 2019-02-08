@@ -48,11 +48,18 @@ program midas_ominusf
   write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
   write(*,*) " --------------------------------------------"
 
+  !- 1.0 mpi
+  call mpi_initialize
+
+  !- 1.1 timings
+  call tmg_init(mpi_myid, 'TMG_OMINUSF' )
+  call tmg_start(1,'MAIN')
+
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_BEG')
   endif
 
-  !- 1.0 Namelist
+  !- 1.2 Namelist
   addHBHT   = .false. ! default value
   addSigmaO = .false.
 
@@ -97,6 +104,9 @@ program midas_ominusf
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call rpn_comm_finalize(ierr)
+
+  call tmg_stop(1)
+  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_END')
