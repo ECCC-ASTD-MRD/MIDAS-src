@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE oMinusF (prefix="omf")
+!! MODULE oMinusF (prefix="omf" category='1. High-level functionality')
 !!
 !! *Purpose*: Module for Observation minus Forecast (O-F) computation
 !!

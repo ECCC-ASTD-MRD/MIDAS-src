@@ -35,9 +35,6 @@ program midas_obsSelection
   use mpi_mod
   implicit none
 
-!!$  ! Namelist
-!!$  NAMELIST /NAMSELECT/
-
   integer :: fnom, fclos, nulnam, ierr, headerIndex
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
