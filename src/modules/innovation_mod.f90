@@ -219,6 +219,7 @@ contains
     integer                   :: varIndex, ierr, nulnam, fnom, fclos
     character(len=4)          :: varNamesToRead(1), lastVarNameToRead
     logical                   :: deallocInterpInfo, allocGZsfc
+    real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
@@ -245,7 +246,7 @@ contains
 
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
+                       mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                        allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR', &
                        allocGZ_opt=.true., allocPressure_opt=.true.)
     call gsv_zero( stateVector_trial )
@@ -254,14 +255,45 @@ contains
                  moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVector_trial)
 
-    ! Do final preparations of columnData objects (compute GZ and pressure)
-    if (col_varExist('P0')) then
-      call col_calcPressure(columnhr)
-    end if
-    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') ) then
-      call tt2phi(columnhr,obsSpaceData)
-    end if
+    write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
+    write(*,*) 'GZ_T:'
+    onecolumn => col_getColumn(columnhr,1,'GZ_T')
+    write(*,*) onecolumn(:)
+    write(*,*) 'GZ_M:'
+    onecolumn => col_getColumn(columnhr,1,'GZ_M')
+    write(*,*) onecolumn(:)
+    write(*,*) 'P_T:'
+    onecolumn => col_getColumn(columnhr,1,'P_T')
+    write(*,*) onecolumn(:)
+    write(*,*) 'P_M:'
+    onecolumn => col_getColumn(columnhr,1,'P_M')
+    write(*,*) onecolumn(:)
+
+    !write(*,*) 'inn_setupBackgroundColumns, Psfc->Column 1:'
+    !if (col_varExist('P0')) then
+    !  call col_calcPressure(columnhr)
+
+    !  write(*,*) 'P_T:'
+    !  onecolumn => col_getColumn(columnhr,1,'P_T')
+    !  write(*,*) onecolumn(:)
+    !  write(*,*) 'P_M:'
+    !  onecolumn => col_getColumn(columnhr,1,'P_M')
+    !  write(*,*) onecolumn(:)
+    !end if
+
+    !if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
+    !     col_varExist('P0') .and. col_getNumLev(columnhr,'MM') > 1 ) then
+    !  call tt2phi(columnhr,obsSpaceData)
+
+    !  write(*,*) 'GZ_T:'
+    !  onecolumn => col_getColumn(columnhr,1,'GZ_T')
+    !  write(*,*) onecolumn(:)
+    !  write(*,*) 'GZ_M:'
+    !  onecolumn => col_getColumn(columnhr,1,'GZ_M')
+    !  write(*,*) onecolumn(:)
+    !end if
+
+    nullify(onecolumn)
 
     call tmg_stop(10)
 
@@ -278,6 +310,7 @@ contains
     ! locals
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
+    real(8) :: gz_tmp 
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
@@ -317,7 +350,7 @@ contains
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
-       if ( vnl_varNameList3D(jvar) == 'GZ_T' .or. vnl_varNameList3D(jvar) == 'GZ_M' ) cycle
+      !if ( vnl_varNameList3D(jvar) == 'GZ_T' .or. vnl_varNameList3D(jvar) == 'GZ_M' ) cycle
       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
 
       ! Imposing a minimum value for HU
@@ -338,10 +371,38 @@ contains
       do columnIndex = 1, col_getNumCol(columng)
         columng%gz_sfc(1,columnIndex) = columnhr%gz_sfc(1,columnIndex)
       end do
-      call tt2phi(columng,obsSpaceData)
+      !if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng,obsSpaceData)
+
+      !! set GZsfc for MM equal to TH
+      !do columnIndex = 1, col_getNumCol(columng)
+      !  columng_ptr => col_getColumn(columng,columnIndex,'GZ_T')
+      !  gz_tmp = columng_ptr(col_getNumLev(columng,'TH'))
+
+      !  columng_ptr => col_getColumn(columng,columnIndex,'GZ_M')
+      !  columng_ptr(col_getNumLev(columng,'MM')) = gz_tmp
+      !end do
+
     else
       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
+
+    write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
+    write(*,*) 'GZ_T:'
+    columng_ptr => col_getColumn(columng,1,'GZ_T')
+    write(*,*) columng_ptr(:)
+
+    !write(*,*) 'GZ_M (last element equal to GZ_T):'
+    write(*,*) 'GZ_M:'
+    columng_ptr => col_getColumn(columng,1,'GZ_M')
+    write(*,*) columng_ptr(:)
+
+    !write(*,*) 'inn_setupBackgroundColumnsAnl, tt2phi_col output:'
+    !write(*,*) 'GZ_T:'
+    !columng_ptr => col_getColumn(columng,1,'GZ_T')
+    !write(*,*) columng_ptr(:)
+    !write(*,*) 'GZ_M:'
+    !columng_ptr => col_getColumn(columng,1,'GZ_M')
+    !write(*,*) columng_ptr(:)
 
     call tmg_stop(10)
 

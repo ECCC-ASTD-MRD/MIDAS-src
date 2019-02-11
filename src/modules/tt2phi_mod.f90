@@ -287,12 +287,12 @@ subroutine tt2phi_col(columnghr,obsSpaceData,beSilent_opt)
       alt_M_ptr(nlev_M) = rMT
     end if
 
-    if ( columnIndex == 1 ) then
-      write(*,*) 'MAZIAR: tt2phi_col, GZ_T='
-      write(*,*) gz_T(:)
-      write(*,*) 'MAZIAR: tt2phi_col, GZ_M='
-      write(*,*) gz_M(:)
-    end if
+    !if ( columnIndex == 1 ) then
+    !  write(*,*) 'MAZIAR: tt2phi_col, GZ_T='
+    !  write(*,*) gz_T(:)
+    !  write(*,*) 'MAZIAR: tt2phi_col, GZ_M='
+    !  write(*,*) gz_M(:)
+    !end if
 
   enddo
 
@@ -322,21 +322,28 @@ subroutine tt2phi_gsv(statevector_trial)
   integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode,numStep,stepIndex,latIndex,lonIndex
   real(8) :: hu, tt, Pr, cmp, delThick, tvm, ratioP, ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: tv(:), AL_T(:), AL_M(:) 
-  real(8), pointer     :: GZ_T(:,:,:,:),GZ_M(:,:,:,:)
-  real(8), pointer     :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:)
-  real(8), pointer     :: P_T_ptr(:,:,:,:),P_M_ptr(:,:,:,:)
-  real(8), pointer     :: P0_ptr(:,:,:,:)
-  real(8), pointer     :: GZsfc_ptr(:,:)
-  real(8), pointer     :: UU_ptr(:,:,:,:),VV_ptr(:,:,:,:)
+  real(8), pointer     :: GZ_T_ptr_r8(:,:,:,:),GZ_M_ptr_r8(:,:,:,:)
+  real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
+  real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
+  real(8), pointer     :: P0_ptr_r8(:,:,:,:)
+  real(8), pointer     :: GZsfc_ptr_r8(:,:)
+  real(8), pointer     :: UU_ptr_r8(:,:,:,:),VV_ptr_r8(:,:,:,:)
+  real(4), pointer     :: GZ_T_ptr_r4(:,:,:,:),GZ_M_ptr_r4(:,:,:,:)
+  real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
+  real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
+  real(4), pointer     :: P0_ptr_r4(:,:,:,:)
+  real(4), pointer     :: UU_ptr_r4(:,:,:,:),VV_ptr_r4(:,:,:,:)
   real                 :: gz_sfcOffset_T_r4, gz_sfcOffset_M_r4
   real(4) :: lat_4
   real(8) :: lat_8, rMT, uu, vv, uuM1, vvM1, aveUU, aveVV
   real(8) :: h0, dh, Rgh, Eot, Eot2, sLat, cLat
   type(struct_vco), pointer :: vco_ghr
 
-  call tmg_start(203,'tt2phi_gsv MAZIAR')
+  real(8) :: P_M, P_M1, P_Mm1, P_T, P0
 
-  write(*,*) 'MAZIAR: entering tt2phi_gsv'
+  call tmg_start(204,'tt2phi_gsv')
+
+  write(*,*) 'entering tt2phi_gsv'
 
   vco_ghr => gsv_getVco(statevector_trial)
   status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
@@ -352,21 +359,42 @@ subroutine tt2phi_gsv(statevector_trial)
   allocate(AL_T(nlev_T))
   allocate(AL_M(nlev_M))
 
-  GZ_M => gsv_getField_r8(statevector_trial,'GZ_M')
-  GZ_T => gsv_getField_r8(statevector_trial,'GZ_T')
+  if ( statevector_trial%dataKind == 4 ) then
+    GZ_M_ptr_r4 => gsv_getField_r4(statevector_trial,'GZ_M')
+    GZ_T_ptr_r4 => gsv_getField_r4(statevector_trial,'GZ_T')
 
-  ! initialize the GZ/AL to zero
-  GZ_M(:,:,:,:) = 0.0d0
-  GZ_T(:,:,:,:) = 0.0d0
+    ! initialize the GZ/AL to zero
+    GZ_M_ptr_r4(:,:,:,:) = 0.0
+    GZ_T_ptr_r4(:,:,:,:) = 0.0
+  else
+    GZ_M_ptr_r8 => gsv_getField_r8(statevector_trial,'GZ_M')
+    GZ_T_ptr_r8 => gsv_getField_r8(statevector_trial,'GZ_T')
 
-  hu_ptr => gsv_getField_r8(statevector_trial,'HU')
-  tt_ptr => gsv_getField_r8(statevector_trial,'TT')
-  P_T_ptr => gsv_getField_r8(statevector_trial,'P_T')
-  P_M_ptr => gsv_getField_r8(statevector_trial,'P_M')
-  P0_ptr => gsv_getField_r8(statevector_trial,'P0')
-  GZsfc_ptr => gsv_getGZsfc(statevector_trial)
-  UU_ptr => gsv_getField_r8(statevector_trial,'UU')
-  VV_ptr => gsv_getField_r8(statevector_trial,'VV')
+    ! initialize the GZ/AL to zero
+    GZ_M_ptr_r8(:,:,:,:) = 0.0d0
+    GZ_T_ptr_r8(:,:,:,:) = 0.0d0
+  end if
+
+
+  if ( statevector_trial%dataKind == 4 ) then
+    hu_ptr_r4 => gsv_getField_r4(statevector_trial,'HU')
+    tt_ptr_r4 => gsv_getField_r4(statevector_trial,'TT')
+    P_T_ptr_r4 => gsv_getField_r4(statevector_trial,'P_T')
+    P_M_ptr_r4 => gsv_getField_r4(statevector_trial,'P_M')
+    P0_ptr_r4 => gsv_getField_r4(statevector_trial,'P0')
+    UU_ptr_r4 => gsv_getField_r4(statevector_trial,'UU')
+    VV_ptr_r4 => gsv_getField_r4(statevector_trial,'VV')
+  else
+    hu_ptr_r8 => gsv_getField_r8(statevector_trial,'HU')
+    tt_ptr_r8 => gsv_getField_r8(statevector_trial,'TT')
+    P_T_ptr_r8 => gsv_getField_r8(statevector_trial,'P_T')
+    P_M_ptr_r8 => gsv_getField_r8(statevector_trial,'P_M')
+    P0_ptr_r8 => gsv_getField_r8(statevector_trial,'P0')
+    UU_ptr_r8 => gsv_getField_r8(statevector_trial,'UU')
+    VV_ptr_r8 => gsv_getField_r8(statevector_trial,'VV')
+  end if
+  GZsfc_ptr_r8 => gsv_getGZsfc(statevector_trial)
+
 
   ! compute virtual temperature on thermo levels (corrected of compressibility)
   do stepIndex = 1, numStep
@@ -383,16 +411,21 @@ subroutine tt2phi_gsv(statevector_trial)
         cLat = cos(lat_8)
 
         do lev_T = 1, nlev_T
-
-          hu = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
-          tt = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
-          Pr = P_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
+          if ( statevector_trial%dataKind == 4 ) then
+            hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+            tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+            Pr = real(P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+          else
+            hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+            tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+            Pr = P_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+          end if
           cmp = gpscompressibility(Pr,tt,hu)
 
           tv(lev_T) = fotvt8(tt,hu) * cmp 
         enddo
 
-        rMT = GZsfc_ptr(lonIndex,latIndex)
+        rMT = GZsfc_ptr_r8(lonIndex,latIndex)
 
         ! compute altitude on bottom momentum level
         if (Vcode == 5002) then
@@ -401,10 +434,22 @@ subroutine tt2phi_gsv(statevector_trial)
           uuM1 = 0.0D0
           vvM1 = 0.0D0
         elseif (Vcode == 5005) then
-          ratioP  = log( P_M_ptr(lonIndex,latIndex,nlev_M,stepIndex) / P0_ptr(lonIndex,latIndex,1,stepIndex) )
+          if ( statevector_trial%dataKind == 4 ) then
+            P_M = real(P_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+            P0 = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
 
-          uu = UU_ptr(lonIndex,latIndex,nlev_M,stepIndex)
-          vv = VV_ptr(lonIndex,latIndex,nlev_M,stepIndex)
+            uu = real(UU_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+            vv = real(VV_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+          else
+            P_M = P_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+            P0 = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
+
+            uu = UU_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+            vv = VV_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+          end if
+
+          ratioP  = log( P_M / P0 )
+
           ! averaged wind speed in the layer
           aveUU = 0.5D0 * uu
           avevv = 0.5D0 * vv
@@ -422,22 +467,35 @@ subroutine tt2phi_gsv(statevector_trial)
 
           uuM1 = uu 
           vvM1 = vv
-        endif
+        endif ! VCode 
 
         ! compute altitude on rest of momentum levels
         do lev_M = nlev_M-1, 1, -1
-          ratioP  = log( P_M_ptr(lonIndex,latIndex,lev_M,stepIndex) / P_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex) )
+          if ( statevector_trial%dataKind == 4 ) then
+            P_M = real(P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+            P_M1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
+
+            uu = real(UU_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+            vv = real(VV_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+          else
+            P_M = P_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+            P_M1 = P_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
+
+            uu = UU_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+            vv = VV_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+          end if
+
+          ratioP  = log( P_M / P_M1 )
+
+          ! averaged wind speed in the layer
+          aveUU = 0.5D0 * (uuM1 + uu)
+          avevv = 0.5D0 * (vvM1 + vv)
           
           if (Vcode == 5002) then
             lev_T = lev_M + 1
           elseif (Vcode == 5005) then
             lev_T = lev_M
           endif
-          uu = UU_ptr(lonIndex,latIndex,lev_M,stepIndex)
-          vv = VV_ptr(lonIndex,latIndex,lev_M,stepIndex)
-          ! averaged wind speed in the layer
-          aveUU = 0.5D0 * (uuM1 + uu)
-          avevv = 0.5D0 * (vvM1 + vv)
 
           ! Gravity acceleration 
           h0  = AL_M(lev_M+1)
@@ -452,7 +510,7 @@ subroutine tt2phi_gsv(statevector_trial)
 
           uuM1 = uu
           vvM1 = vv
-        enddo
+        enddo ! lev_M
 
         ! compute Altitude on thermo levels
         if (Vcode == 5002) then
@@ -460,19 +518,38 @@ subroutine tt2phi_gsv(statevector_trial)
 
           do lev_T = 2, nlev_T-1
             lev_M = lev_T ! momentum level just below thermo level being computed
-            ScaleFactorBottom = log( P_T_ptr(lonIndex,latIndex,lev_T  ,stepIndex)   / &
-                                     P_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex) ) / &
-                                log( P_M_ptr(lonIndex,latIndex,lev_M  ,stepIndex)   / &
-                                     P_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex) )
+
+            if ( statevector_trial%dataKind == 4 ) then
+              P_T   = real(P_T_ptr_r4(lonIndex,latIndex,lev_T  ,stepIndex),8)
+              P_M   = real(P_M_ptr_r4(lonIndex,latIndex,lev_M  ,stepIndex),8)
+              P_Mm1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M-1,stepIndex),8)
+            else
+              P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
+              P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
+              P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
+            end if
+
+            ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
             ScaleFactorTop    = 1 - ScaleFactorBottom
             AL_T(lev_T) = ScaleFactorBottom * AL_M(lev_M) + ScaleFactorTop * AL_M(lev_M-1)
           end do
 
           ! compute altitude on top thermo level
-          ratioP = log( P_T_ptr(lonIndex,latIndex,1,stepIndex) / &
-                        P_M_ptr(lonIndex,latIndex,1,stepIndex) )
-          aveUU = UU_ptr(lonIndex,latIndex,1,stepIndex)
-          aveVV = VV_ptr(lonIndex,latIndex,1,stepIndex)
+          if ( statevector_trial%dataKind == 4 ) then
+            P_T   = real(P_T_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+            P_M   = real(P_M_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+
+            aveUU = real(UU_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+            aveVV = real(VV_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+          else
+            P_T   = P_T_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            P_M   = P_M_ptr_r8(lonIndex,latIndex,1,stepIndex)
+
+            aveUU = UU_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            aveVV = VV_ptr_r8(lonIndex,latIndex,1,stepIndex)
+          end if
+
+          ratioP = log( P_T / P_M )
 
           ! Gravity acceleration 
           h0  = AL_M(1)
@@ -489,18 +566,33 @@ subroutine tt2phi_gsv(statevector_trial)
 
           do lev_T = 1, nlev_T-1
             lev_M = lev_T + 1  ! momentum level just below thermo level being computed
-            ScaleFactorBottom = log( P_T_ptr(lonIndex,latIndex,lev_T  ,stepIndex)   / &
-                                     P_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex) ) / &
-                                log( P_M_ptr(lonIndex,latIndex,lev_M  ,stepIndex)   / &
-                                     P_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex) )
+
+            if ( statevector_trial%dataKind == 4 ) then
+              P_T   = real(P_T_ptr_r4(lonIndex,latIndex,lev_T  ,stepIndex),8)
+              P_M   = real(P_M_ptr_r4(lonIndex,latIndex,lev_M  ,stepIndex),8)
+              P_Mm1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M-1,stepIndex),8)
+            else
+              P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
+              P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
+              P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
+            end if
+
+            ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
             ScaleFactorTop    = 1 - ScaleFactorBottom
             AL_T(lev_T) = ScaleFactorBottom * AL_M(lev_M) + ScaleFactorTop * AL_M(lev_M-1)
           end do
 
 
           ! compute altitude on bottom thermo level
-          ratioP = log( P_T_ptr(lonIndex,latIndex,nlev_T,stepIndex) / &
-                        P0_ptr (lonIndex,latIndex,1     ,stepIndex) )
+          if ( statevector_trial%dataKind == 4 ) then
+            P_T = real(P_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
+            P0  = real(P0_ptr_r4 (lonIndex,latIndex,1     ,stepIndex),8)
+          else
+            P_T = P_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
+            P0  = P0_ptr_r8 (lonIndex,latIndex,1     ,stepIndex)
+          end if
+
+          ratioP = log( P_T / P0 )
 
           h0  = rMT
           Rgh = phf_gravityalt(sLat,h0)
@@ -512,13 +604,27 @@ subroutine tt2phi_gsv(statevector_trial)
         endif
 
         ! compute GZ 
-        GZ_T(lonIndex,latIndex,1:nlev_T,stepIndex) = AL_T(1:nlev_T)
-        GZ_M(lonIndex,latIndex,1:nlev_M,stepIndex) = AL_M(1:nlev_M)
+        if ( statevector_trial%dataKind == 4 ) then
+          do lev_T = 1, nlev_T
+            GZ_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) = real(AL_T(lev_T),4)
+          end do
+          do lev_M = 1, nlev_M
+            GZ_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex) = real(AL_M(lev_M),4)
+          end do
+        else
+          GZ_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex) = AL_T(1:nlev_T)
+          GZ_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex) = AL_M(1:nlev_M)
+        end if
 
         ! remove the height offset for the diagnostic levels for backward compatibility only
         if ( .not.statevector_trial%addGZsfcOffset ) then
-          GZ_T(lonIndex,latIndex,nlev_T,stepIndex) = rMT
-          GZ_M(lonIndex,latIndex,nlev_M,stepIndex) = rMT
+          if ( statevector_trial%dataKind == 4 ) then
+            GZ_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex) = real(rMT,4)
+            GZ_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex) = real(rMT,4)
+          else
+            GZ_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex) = rMT
+            GZ_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex) = rMT
+          end if
         end if
 
       enddo
@@ -529,14 +635,22 @@ subroutine tt2phi_gsv(statevector_trial)
   deallocate(alt_T)
   deallocate(alt_M)
 
-  write(*,*) 'MAZIAR: tt2phi_gsv, GZ_T='
-  write(*,*) GZ_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-  write(*,*) 'MAZIAR: tt2phi_gsv, GZ_M='
-  write(*,*) GZ_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  if ( statevector_trial%dataKind == 4 ) then
+    write(*,*) 'tt2phi_gsv, GZ_T='
+    write(*,*) GZ_T_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+    write(*,*) 'tt2phi_gsv, GZ_M='
+    write(*,*) GZ_M_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  else
+    write(*,*) 'tt2phi_gsv, GZ_T='
+    write(*,*) GZ_T_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+    write(*,*) 'tt2phi_gsv, GZ_M='
+    write(*,*) GZ_M_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  end if
 
-  write(*,*) 'MAZIAR: exiting tt2phi_gsv'
+  write(*,*) 'tt2phi_gsv: statevector_trial%addGZsfcOffset=', statevector_trial%addGZsfcOffset 
+  write(*,*) 'exiting tt2phi_gsv'
 
-  call tmg_stop(203)
+  call tmg_stop(204)
 
 end subroutine tt2phi_gsv
 
@@ -685,9 +799,9 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
   real(8), pointer     :: delP_T(:,:,:,:), delP_M(:,:,:,:)
   type(struct_vco), pointer :: vco_anl
 
-  call tmg_start(201,'tt2phi_tl_gsv MAZIAR')
+  call tmg_start(201,'tt2phi_tl_gsv')
 
-  write(*,*) 'MAZIAR: entering tt2phi_tl_gsv'
+  write(*,*) 'entering tt2phi_tl_gsv'
 
   vco_anl => gsv_getVco(statevector_trial)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -844,6 +958,11 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 !!$OMP END PARALLEL DO
 
   deallocate(delThick)
+
+  write(*,*) 'tt2phi_tl_gsv, delGz_T='
+  write(*,*) delGz_T(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  write(*,*) 'tt2phi_tl_gsv, delGz_M='
+  write(*,*) delGz_M(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
 
   write(*,*) 'exiting tt2phi_tl_gsv'
 

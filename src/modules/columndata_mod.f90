@@ -111,11 +111,17 @@ contains
       endif
     enddo
 
-    nmvoexist(vnl_varListIndex('GZ_T')) = .true.
-    nmvoexist(vnl_varListIndex('GZ_M')) = .true.
-    nmvoexist(vnl_varListIndex('P_T')) = .true.
-    nmvoexist(vnl_varListIndex('P_M')) = .true.
-    nvo3d = nvo3d + 4
+    if ( varneed('TT') .and. varneed('HU') .and. varneed('P0') ) then
+      nmvoexist(vnl_varListIndex('GZ_T')) = .true.
+      nmvoexist(vnl_varListIndex('GZ_M')) = .true.
+      nvo3d = nvo3d + 2
+    end if
+
+    if ( varneed('P0') ) then
+      nmvoexist(vnl_varListIndex('P_T')) = .true.
+      nmvoexist(vnl_varListIndex('P_M')) = .true.
+      nvo3d = nvo3d + 2
+    end if
 
     do jvar = 1, vnl_numvarmax2D
       if (varneed(vnl_varNameList2D(jvar))) then

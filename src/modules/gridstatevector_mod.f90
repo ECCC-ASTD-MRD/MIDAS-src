@@ -113,8 +113,8 @@ module gridStateVector_mod
   logical :: unitConversion_varKindCH
   
   ! arrays used for transpose VarsLevs <-> Tiles
-  real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:,:)
-  real(8), allocatable :: gd_send_varsLevs_r8(:,:,:,:,:), gd_recv_varsLevs_r8(:,:,:,:,:)
+  real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:)
+  real(8), allocatable :: gd_send_varsLevs_r8(:,:,:,:), gd_recv_varsLevs_r8(:,:,:,:)
 
   ! initialized 
   logical :: initialized = .false.
@@ -3000,7 +3000,7 @@ module gridStateVector_mod
 
     ! locals
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
-    integer :: sendrecvKind, inKind, outKind
+    integer :: sendrecvKind, inKind, outKind, stepIndex
     integer, allocatable :: displs(:), nsizes(:)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
@@ -3026,144 +3026,148 @@ module gridStateVector_mod
     maxkCount = maxval(statevector_in%allkCount(:))
     if ( sendrecvKind == 4 ) then
       call utl_reAllocate( gd_send_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
       call utl_reAllocate( gd_recv_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
     else
       call utl_reAllocate( gd_send_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
       call utl_reAllocate( gd_recv_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
     end if
 
-    if ( sendrecvKind == 4 .and. inKind == 4 ) then
-      field_in_r4_ptr => gsv_getField_r4(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                            statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                            statevector_in%mykBeg:statevector_in%mykEnd,:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 4 .and. inKind == 8 ) then
-      field_in_r8_ptr => gsv_getField_r8(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                                 statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                 statevector_in%mykBeg:statevector_in%mykEnd,:),4)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. inKind == 4 ) then
-      field_in_r4_ptr => gsv_getField_r4(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                                 statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                 statevector_in%mykBeg:statevector_in%mykEnd,:),8)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. inKind == 8 ) then
-      field_in_r8_ptr => gsv_getField_r8(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                            statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                            statevector_in%mykBeg:statevector_in%mykEnd,:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    end if
+    do stepIndex = 1, statevector_out%numStep
 
-    nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * statevector_out%numStep * maxkCount
-    if (mpi_nprocs > 1) then
-      if ( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                               gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
-      else
-        call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                               gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+      if ( sendrecvKind == 4 .and. inKind == 4 ) then
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. inKind == 8 ) then
+        field_in_r8_ptr => gsv_getField_r8(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                   statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),4)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. inKind == 4 ) then
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                   statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),8)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. inKind == 8 ) then
+        field_in_r8_ptr => gsv_getField_r8(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+          end do
+        end do
+        !$OMP END PARALLEL DO
       end if
-    else
-      if ( sendrecvKind == 4 ) then
-         gd_recv_varsLevs_r4(:,:,:,:,1) = gd_send_varsLevs_r4(:,:,:,:,1)
-      else
-         gd_recv_varsLevs_r8(:,:,:,:,1) = gd_send_varsLevs_r8(:,:,:,:,1)
-      end if
-    end if
 
-    if ( sendrecvKind == 4 .and. outKind == 4 ) then
-      field_out_r4_ptr => gsv_getField_r4(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
-                              1:statevector_out%latPerPE,  &
-                              1:statevector_in%allkCount(yourid+1), :, yourid+1)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 4 .and. outKind == 8 ) then
-      field_out_r8_ptr => gsv_getField_r8(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
-                                   1:statevector_out%latPerPE,  &
-                                   1:statevector_in%allkCount(yourid+1), :, yourid+1),8)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. outKind == 4 ) then
-      field_out_r4_ptr => gsv_getField_r4(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          real(gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
-                                   1:statevector_out%latPerPE,  &
-                                   1:statevector_in%allkCount(yourid+1), :, yourid+1),4)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. outKind == 8 ) then
-      field_out_r8_ptr => gsv_getField_r8(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
-                              1:statevector_out%latPerPE,  &
-                              1:statevector_in%allkCount(yourid+1), :, yourid+1)
-      end do
-      !$OMP END PARALLEL DO
-    end if
+      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
+      if (mpi_nprocs > 1) then
+        if ( sendrecvKind == 4 ) then
+          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
+                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+        else
+          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
+                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+        end if
+      else
+        if ( sendrecvKind == 4 ) then
+           gd_recv_varsLevs_r4(:,:,:,1) = gd_send_varsLevs_r4(:,:,:,1)
+        else
+           gd_recv_varsLevs_r8(:,:,:,1) = gd_send_varsLevs_r8(:,:,:,1)
+        end if
+      end if
+
+      if ( sendrecvKind == 4 .and. outKind == 4 ) then
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
+                                1:statevector_out%latPerPE,  &
+                                1:statevector_in%allkCount(yourid+1), yourid+1)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. outKind == 8 ) then
+        field_out_r8_ptr => gsv_getField_r8(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
+                                     1:statevector_out%latPerPE,  &
+                                     1:statevector_in%allkCount(yourid+1), yourid+1),8)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. outKind == 4 ) then
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            real(gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
+                                     1:statevector_out%latPerPE,  &
+                                     1:statevector_in%allkCount(yourid+1), yourid+1),4)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. outKind == 8 ) then
+        field_out_r8_ptr => gsv_getField_r8(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
+                                1:statevector_out%latPerPE,  &
+                                1:statevector_in%allkCount(yourid+1), yourid+1)
+        end do
+        !$OMP END PARALLEL DO
+      end if
+
+    end do ! stepIndex
 
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
       allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
@@ -3236,6 +3240,8 @@ module gridStateVector_mod
     real(4), allocatable :: gdUV_r4(:,:,:,:), gd_r4(:,:,:,:)
 
     call tmg_start(153,'gsv_tilesToVarsLevs')
+    write(*,*) 'entering gsv_transposeTilesToVarsLevs'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( statevector_in%mpi_distribution /= 'Tiles' ) then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
@@ -3252,19 +3258,24 @@ module gridStateVector_mod
     else
       sendrecvKind = 8
     end if
+    if ( mpi_myid  == 0 ) then
+      write(*,*) 'gsv_transposeTilesToVarsLevs, inKind=', inKind, 'outKind=', outKind
+    end if
 
     maxkCount = maxval(statevector_out%allkCount(:))
     if ( sendrecvKind == 4 ) then
       call utl_reAllocate( gd_send_varsLevs_r4, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
-                           maxkCount, statevector_in%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
       call utl_reAllocate( gd_recv_varsLevs_r4, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
-                           maxkCount, statevector_in%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
     else
       call utl_reAllocate( gd_send_varsLevs_r8, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
-                           maxkCount, statevector_in%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
       call utl_reAllocate( gd_recv_varsLevs_r8, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
-                           maxkCount, statevector_in%numStep, mpi_nprocs )
+                           maxkCount, mpi_nprocs )
     end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( sendrecvKind == 8 .and. inKind == 8 ) then
       field_in_r8_ptr => gsv_getField_r8(statevector_in)
@@ -3294,202 +3305,224 @@ module gridStateVector_mod
       call utl_abort('transposeTilesToLevsVars: not compatible yet with these data types')
     end if
 
-    nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * statevector_in%numStep * maxkCount
-    if (mpi_nprocs > 1) then
-      if ( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                               gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
-      else
-        call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                               gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
-      end if
-    else
-      if ( sendrecvKind == 4 ) then
-        gd_recv_varsLevs_r4(:,:,:,:,1) = gd_send_varsLevs_r4(:,:,:,:,1)
-      else
-        gd_recv_varsLevs_r8(:,:,:,:,1) = gd_send_varsLevs_r8(:,:,:,:,1)
-      end if
-    end if
+    do stepIndex = 1, statevector_in%numStep
 
-    if ( sendrecvKind == 8 .and. outKind == 8 ) then
-      field_out_r8_ptr => gsv_getField_r8(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
-                           statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                           statevector_out%mykBeg:statevector_out%mykEnd, :) = &
-              gd_recv_varsLevs_r8(1:statevector_in%allLonPerPE(youridx+1),  &
-                                  1:statevector_in%allLatPerPE(youridy+1),  &
-                                  1:statevector_out%mykCount, :, yourid+1)
+      if ( sendrecvKind == 8 .and. inKind == 8 ) then
+        field_in_r8_ptr => gsv_getField_r8(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          gd_send_varsLevs_r8(1:statevector_in%lonPerPE, &
+                              1:statevector_in%latPerPE, &
+                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+              field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                              statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                              statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex)
         end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( outKind == 4 .and. inKind == 4 ) then
-      field_out_r4_ptr => gsv_getField_r4(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          field_out_r4_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
-                           statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                           statevector_out%mykBeg:statevector_out%mykEnd, :) = &
-              gd_recv_varsLevs_r4(1:statevector_in%allLonPerPE(youridx+1),  &
-                                  1:statevector_in%allLatPerPE(youridy+1),  &
-                                  1:statevector_out%mykCount, :, yourid+1)
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. inKind == 4 ) then
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          gd_send_varsLevs_r4(1:statevector_in%lonPerPE, &
+                              1:statevector_in%latPerPE, &
+                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+              field_in_r4_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                              statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                              statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex)
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
+      end if
+
+      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * maxkCount
+      if (mpi_nprocs > 1) then
+        if ( sendrecvKind == 4 ) then
+          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
+                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+        else
+          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
+                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+        end if
+      else
+        if ( sendrecvKind == 4 ) then
+          gd_recv_varsLevs_r4(:,:,:,1) = gd_send_varsLevs_r4(:,:,:,1)
+        else
+          gd_recv_varsLevs_r8(:,:,:,1) = gd_send_varsLevs_r8(:,:,:,1)
+        end if
+      end if
+
+      if ( sendrecvKind == 8 .and. outKind == 8 ) then
+        field_out_r8_ptr => gsv_getField_r8(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
+                             statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
+                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                gd_recv_varsLevs_r8(1:statevector_in%allLonPerPE(youridx+1),  &
+                                    1:statevector_in%allLatPerPE(youridy+1),  &
+                                    1:statevector_out%mykCount, yourid+1)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. outKind == 4 ) then
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            field_out_r4_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
+                             statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
+                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                gd_recv_varsLevs_r4(1:statevector_in%allLonPerPE(youridx+1),  &
+                                    1:statevector_in%allLatPerPE(youridy+1),  &
+                                    1:statevector_out%mykCount, yourid+1)
+          end do
+        end do
+        !$OMP END PARALLEL DO
     else
       call utl_abort('transposeTilesToLevsVars: not compatible yet with these data types')
-    end if
+      end if
 
-    ! send copy of wind component to task that has other component
-    if ( gsv_varExist(stateVector_out, 'UU') .and.  &
-         gsv_varExist(stateVector_out, 'VV') ) then
+      ! send copy of wind component to task that has other component
+      if ( gsv_varExist(stateVector_out, 'UU') .and.  &
+           gsv_varExist(stateVector_out, 'VV') ) then
 
-      if ( statevector_out%UVComponentPresent ) then
-        if ( outKind == 8 ) then
-          allocate(gdUV_r8(statevector_out%ni,statevector_out%nj,statevector_out%numStep, &
+        if ( statevector_out%UVComponentPresent ) then
+          if ( outKind == 8 ) then
+            allocate(gdUV_r8(statevector_out%ni,statevector_out%nj, &
+                             statevector_out%myUVkBeg:statevector_out%myUVkEnd))
+            allocate(gd_r8(statevector_out%ni,statevector_out%nj, &
                            statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-          allocate(gd_r8(statevector_out%ni,statevector_out%nj,statevector_out%numStep, &
-                         statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-        else
-          allocate(gdUV_r4(statevector_out%ni,statevector_out%nj,statevector_out%numStep, &
+          else
+            allocate(gdUV_r4(statevector_out%ni,statevector_out%nj, &
+                             statevector_out%myUVkBeg:statevector_out%myUVkEnd))
+            allocate(gd_r4(statevector_out%ni,statevector_out%nj, &
                            statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-          allocate(gd_r4(statevector_out%ni,statevector_out%nj,statevector_out%numStep, &
-                         statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-        end if
-      end if
-
-      numSend = 0
-      numRecv = 0
-      LOOP_KINDEX: do kIndexUU = 1, stateVector_out%nk
-        if ( gsv_getVarNameFromK(stateVector_out, kIndexUU) /= 'UU' ) cycle LOOP_KINDEX
-
-        ! get k index for corresponding VV component
-        levUV = gsv_getLevFromK(stateVector_out, kIndexUU)
-        kIndexVV = levUV + gsv_getOffsetFromVarName(statevector_out,'VV')
-
-        ! get Mpi task id for both U and V
-        MpiIdUU = gsv_getMpiIdFromK(statevector_out,kIndexUU)
-        MpiIdVV = gsv_getMpiIdFromK(statevector_out,kIndexVV)
-
-        if ( MpiIdUU == MpiIdVV .and. mpi_myid == MpiIdUU ) then
-          do stepIndex = 1, statevector_out%numStep
-            if ( outKind == 8 ) then
-              gdUV_r8(:, :, stepIndex, kIndexUU) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
-              gdUV_r8(:, :, stepIndex, kIndexVV) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
-            else
-              gdUV_r4(:, :, stepIndex, kIndexUU) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
-              gdUV_r4(:, :, stepIndex, kIndexVV) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
-            end if
-          end do
-          cycle LOOP_KINDEX
+          end if
         end if
 
-        ! need to do mpi communication to exchange wind components
-        nsize = statevector_out%ni * statevector_out%nj * statevector_out%numStep
-        mpiTagUU = kIndexUU
-        mpiTagVV = kIndexVV
-        if ( mpi_myid == MpiIdUU ) then ! I have UU
+        numSend = 0
+        numRecv = 0
+        LOOP_KINDEX: do kIndexUU = 1, stateVector_out%nk
+          if ( gsv_getVarNameFromK(stateVector_out, kIndexUU) /= 'UU' ) cycle LOOP_KINDEX
 
-          numRecv = numRecv + 1
-          if ( outKind == 8 ) then
-            call mpi_irecv( gdUV_r8(:, :, :, kIndexUU),  &
-                            nsize, mpi_datyp_real8, MpiIdVV, mpiTagVV,  &
-                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
-          else
-            call mpi_irecv( gdUV_r4(:, :, :, kIndexUU),  &
-                            nsize, mpi_datyp_real4, MpiIdVV, mpiTagVV,  &
-                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
-          end if
+          ! get k index for corresponding VV component
+          levUV = gsv_getLevFromK(stateVector_out, kIndexUU)
+          kIndexVV = levUV + gsv_getOffsetFromVarName(statevector_out,'VV')
 
-          numSend = numSend + 1
-          do stepIndex = 1, statevector_out%numStep
+          ! get Mpi task id for both U and V
+          MpiIdUU = gsv_getMpiIdFromK(statevector_out,kIndexUU)
+          MpiIdVV = gsv_getMpiIdFromK(statevector_out,kIndexVV)
+
+          if ( MpiIdUU == MpiIdVV .and. mpi_myid == MpiIdUU ) then
             if ( outKind == 8 ) then
-              gd_r8(:, :, stepIndex, kIndexUU) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
+              gdUV_r8(:, :, kIndexUU) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
+              gdUV_r8(:, :, kIndexVV) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
             else
-              gd_r4(:, :, stepIndex, kIndexUU) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
+              gdUV_r4(:, :, kIndexUU) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
+              gdUV_r4(:, :, kIndexVV) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
             end if
-          end do
-
-          if ( outKind == 8 ) then
-            call mpi_isend( gd_r8(:, :, :, kIndexUU),  &
-                            nsize, mpi_datyp_real8, MpiIdVV, mpiTagUU,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
-          else
-            call mpi_isend( gd_r4(:, :, :, kIndexUU),  &
-                            nsize, mpi_datyp_real4, MpiIdVV, mpiTagUU,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
+            cycle LOOP_KINDEX
           end if
 
-        else if ( mpi_myid == MpiIdVV ) then  ! I have VV
+          ! need to do mpi communication to exchange wind components
+          nsize = statevector_out%ni * statevector_out%nj
+          mpiTagUU = kIndexUU
+          mpiTagVV = kIndexVV
+          if ( mpi_myid == MpiIdUU ) then ! I have UU
 
-          numRecv = numRecv + 1
-          if ( outKind == 8 ) then
-            call mpi_irecv( gdUV_r8(:, :, :, kIndexVV),  &
-                            nsize, mpi_datyp_real8, MpiIdUU, mpiTagUU,  &
-                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
-          else
-            call mpi_irecv( gdUV_r4(:, :, :, kIndexVV),  &
-                            nsize, mpi_datyp_real4, MpiIdUU, mpiTagUU,  &
-                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
-          end if
-
-          numSend = numSend + 1
-          do stepIndex = 1, statevector_out%numStep
+            numRecv = numRecv + 1
             if ( outKind == 8 ) then
-              gd_r8(:, :, stepIndex, kIndexVV) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
+              call mpi_irecv( gdUV_r8(:, :, kIndexUU),  &
+                              nsize, mpi_datyp_real8, MpiIdVV, mpiTagVV,  &
+                              mpi_comm_grid, requestIdRecv(numRecv), ierr )
             else
-              gd_r4(:, :, stepIndex, kIndexVV) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
+              call mpi_irecv( gdUV_r4(:, :, kIndexUU),  &
+                              nsize, mpi_datyp_real4, MpiIdVV, mpiTagVV,  &
+                              mpi_comm_grid, requestIdRecv(numRecv), ierr )
             end if
-          end do
-          if ( outKind == 8 ) then
-            call mpi_isend( gd_r8(:, :, :, kIndexVV),  &
-                            nsize, mpi_datyp_real8, MpiIdUU, mpiTagVV,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
-          else
-            call mpi_isend( gd_r4(:, :, :, kIndexVV),  &
-                            nsize, mpi_datyp_real4, MpiIdUU, mpiTagVV,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
+
+            numSend = numSend + 1
+            if ( outKind == 8 ) then
+              gd_r8(:, :, kIndexUU) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
+            else
+              gd_r4(:, :, kIndexUU) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
+            end if
+
+            if ( outKind == 8 ) then
+              call mpi_isend( gd_r8(:, :, kIndexUU),  &
+                              nsize, mpi_datyp_real8, MpiIdVV, mpiTagUU,  &
+                              mpi_comm_grid, requestIdSend(numSend), ierr )
+            else
+              call mpi_isend( gd_r4(:, :, kIndexUU),  &
+                              nsize, mpi_datyp_real4, MpiIdVV, mpiTagUU,  &
+                              mpi_comm_grid, requestIdSend(numSend), ierr )
+            end if
+
+          else if ( mpi_myid == MpiIdVV ) then  ! I have VV
+
+            numRecv = numRecv + 1
+            if ( outKind == 8 ) then
+              call mpi_irecv( gdUV_r8(:, :, kIndexVV),  &
+                              nsize, mpi_datyp_real8, MpiIdUU, mpiTagUU,  &
+                              mpi_comm_grid, requestIdRecv(numRecv), ierr )
+            else
+              call mpi_irecv( gdUV_r4(:, :, kIndexVV),  &
+                              nsize, mpi_datyp_real4, MpiIdUU, mpiTagUU,  &
+                              mpi_comm_grid, requestIdRecv(numRecv), ierr )
+            end if
+
+            numSend = numSend + 1
+            if ( outKind == 8 ) then
+              gd_r8(:, :, kIndexVV) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
+            else
+              gd_r4(:, :, kIndexVV) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
+            end if
+            if ( outKind == 8 ) then
+              call mpi_isend( gd_r8(:, :, kIndexVV),  &
+                              nsize, mpi_datyp_real8, MpiIdUU, mpiTagVV,  &
+                              mpi_comm_grid, requestIdSend(numSend), ierr )
+            else
+              call mpi_isend( gd_r4(:, :, kIndexVV),  &
+                              nsize, mpi_datyp_real4, MpiIdUU, mpiTagVV,  &
+                              mpi_comm_grid, requestIdSend(numSend), ierr )
+            end if
+
           end if
 
+        end do LOOP_KINDEX
+
+        if ( numRecv > 0 ) then
+          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
         end if
 
-      end do LOOP_KINDEX
+        if ( numSend > 0 ) then
+          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+        end if
 
-      if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
-      end if
-
-      if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
-      end if
-
-      if ( statevector_out%UVComponentPresent ) then
-        do kIndex = statevector_out%myUVkBeg, statevector_out%myUVkEnd
-          do stepIndex = 1, statevector_out%numStep
+        if ( statevector_out%UVComponentPresent ) then
+          do kIndex = statevector_out%myUVkBeg, statevector_out%myUVkEnd
             if ( outKind == 8 ) then
-              statevector_out%gdUV(kIndex)%r8(:, :, stepIndex) =  gdUV_r8(:, :, stepIndex, kIndex)
+              statevector_out%gdUV(kIndex)%r8(:, :, stepIndex) =  gdUV_r8(:, :, kIndex)
             else
-              statevector_out%gdUV(kIndex)%r4(:, :, stepIndex) =  gdUV_r4(:, :, stepIndex, kIndex)
+              statevector_out%gdUV(kIndex)%r4(:, :, stepIndex) =  gdUV_r4(:, :, kIndex)
             end if
           end do
-        end do
-        if ( outKind == 8 ) then
-          deallocate(gdUV_r8)
-          deallocate(gd_r8)
-        else
-          deallocate(gdUV_r4)
-          deallocate(gd_r4)
+          if ( outKind == 8 ) then
+            deallocate(gdUV_r8)
+            deallocate(gd_r8)
+          else
+            deallocate(gdUV_r4)
+            deallocate(gd_r4)
+          end if
         end if
-      end if
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      end if ! UU and VV exist
 
-    end if ! UU and VV exist
+    end do ! stepIndex
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! gather up surface GZ onto task 0
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
@@ -3523,6 +3556,8 @@ module gridStateVector_mod
       deallocate(gd_recv_GZ)
     end if ! gzSfcPresent
 
+    write(*,*) 'exiting gsv_transposeTilesToVarsLevs'
+
     call tmg_stop(153)
 
   end subroutine gsv_transposeTilesToVarsLevs
@@ -3549,7 +3584,7 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_GZ(:,:,:), gd_recv_GZ(:,:)
     real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
-    real(8), allocatable :: gdUV_r8(:,:,:,:), gd_r8(:,:,:,:)
+    real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
 
     call tmg_start(154,'gsv_tilesToVarsLevsAD')
 
@@ -3569,244 +3604,240 @@ module gridStateVector_mod
       sendrecvKind = 8
     end if
 
-    ! adjoint of: send copy of wind component to task that has the other component
-    if ( gsv_varExist(stateVector_in, 'UU') .and.  &
-         gsv_varExist(stateVector_in, 'VV') ) then
-      if ( outKind /= 8 ) then
-        call utl_abort('gsv_transposeTilesToVarsLevsAd: only compatible with real*8 output')
-      end if
+    do stepIndex = 1, statevector_out%numStep
 
-      if ( statevector_in%UVComponentPresent ) then
-        allocate(gdUV_r8(statevector_in%ni,statevector_in%nj,statevector_in%numStep,  &
+      ! adjoint of: send copy of wind component to task that has the other component
+      if ( gsv_varExist(stateVector_in, 'UU') .and.  &
+           gsv_varExist(stateVector_in, 'VV') ) then
+        if ( outKind /= 8 ) then
+          call utl_abort('gsv_transposeTilesToVarsLevsAd: only compatible with real*8 output')
+        end if
+
+        if ( statevector_in%UVComponentPresent ) then
+          allocate(gdUV_r8(statevector_in%ni,statevector_in%nj, &
+                           statevector_in%myUVkBeg:statevector_in%myUVkEnd))
+          allocate(gd_r8(statevector_in%ni,statevector_in%nj, &
                          statevector_in%myUVkBeg:statevector_in%myUVkEnd))
-        allocate(gd_r8(statevector_in%ni,statevector_in%nj,statevector_in%numStep,  &
-                       statevector_in%myUVkBeg:statevector_in%myUVkEnd))
-      end if
-
-      numSend = 0
-      numRecv = 0
-      LOOP_KINDEX: do kIndexUU = 1, stateVector_in%nk
-        if ( gsv_getVarNameFromK(stateVector_in, kIndexUU) /= 'UU' ) cycle LOOP_KINDEX
-
-        ! get k index for corresponding VV component
-        levUV = gsv_getLevFromK(stateVector_in, kIndexUU)
-        kIndexVV = levUV + gsv_getOffsetFromVarName(statevector_in,'VV')
-
-        ! get Mpi task id for both U and V
-        MpiIdUU = gsv_getMpiIdFromK(statevector_in,kIndexUU)
-        MpiIdVV = gsv_getMpiIdFromK(statevector_in,kIndexVV)
-
-        if ( MpiIdUU == MpiIdVV .and.  mpi_myid == MpiIdUU ) then
-          do stepIndex = 1, statevector_in%numStep
-            gd_r8(:, :, stepIndex, kIndexUU) = statevector_in%gdUV(kIndexVV)%r8(:, :, stepIndex)
-            gd_r8(:, :, stepIndex, kIndexVV) = statevector_in%gdUV(kIndexUU)%r8(:, :, stepIndex)
-          end do
-          cycle LOOP_KINDEX
         end if
 
-        ! need to do mpi communication to exchange wind components
-        nsize = statevector_in%ni * statevector_in%nj * statevector_in%numStep
-        mpiTagUU = kIndexUU
-        mpiTagVV = kIndexVV
+        numSend = 0
+        numRecv = 0
+        LOOP_KINDEX: do kIndexUU = 1, stateVector_in%nk
+          if ( gsv_getVarNameFromK(stateVector_in, kIndexUU) /= 'UU' ) cycle LOOP_KINDEX
 
-        if ( mpi_myid == MpiIdUU ) then ! I have UU
+          ! get k index for corresponding VV component
+          levUV = gsv_getLevFromK(stateVector_in, kIndexUU)
+          kIndexVV = levUV + gsv_getOffsetFromVarName(statevector_in,'VV')
 
-          numRecv = numRecv + 1
-          call mpi_irecv( gd_r8(:, :, :, kIndexUU),  &
-                          nsize, mpi_datyp_real8, MpiIdVV, mpiTagVV,  &
-                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
+          ! get Mpi task id for both U and V
+          MpiIdUU = gsv_getMpiIdFromK(statevector_in,kIndexUU)
+          MpiIdVV = gsv_getMpiIdFromK(statevector_in,kIndexVV)
 
-          numSend = numSend + 1
-          do stepIndex = 1, statevector_in%numStep
-            gdUV_r8(:, :, stepIndex, kIndexUU) = statevector_in%gdUV(kIndexUU)%r8(:, :, stepIndex)
-          end do
-          call mpi_isend( gdUV_r8(:, :, :, kIndexUU),  &
-                          nsize, mpi_datyp_real8, MpiIdVV, mpiTagUU,  &
-                          mpi_comm_grid, requestIdSend(numSend), ierr )
+          if ( MpiIdUU == MpiIdVV .and.  mpi_myid == MpiIdUU ) then
+            gd_r8(:, :, kIndexUU) = statevector_in%gdUV(kIndexVV)%r8(:, :, stepIndex)
+            gd_r8(:, :, kIndexVV) = statevector_in%gdUV(kIndexUU)%r8(:, :, stepIndex)
+            cycle LOOP_KINDEX
+          end if
 
-        else if ( mpi_myid == MpiIDVV ) then ! I have VV
+          ! need to do mpi communication to exchange wind components
+          nsize = statevector_in%ni * statevector_in%nj
+          mpiTagUU = kIndexUU
+          mpiTagVV = kIndexVV
 
-          numRecv = numRecv + 1
-          call mpi_irecv( gd_r8(:, :, :, kIndexVV),  &
-                          nsize, mpi_datyp_real8, MpiIdUU, mpiTagUU,  &
-                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
+          if ( mpi_myid == MpiIdUU ) then ! I have UU
 
-          numSend = numSend + 1
-          do stepIndex = 1, statevector_in%numStep
-            gdUV_r8(:, :, stepIndex, kIndexVV) = statevector_in%gdUV(kIndexVV)%r8(:, :, stepIndex)
-          end do
-          call mpi_isend( gdUV_r8(:, :, :, kIndexVV),  &
-                          nsize, mpi_datyp_real8, MpiIdUU, mpiTagVV,  &
-                          mpi_comm_grid, requestIdSend(numSend), ierr )
+            numRecv = numRecv + 1
+            call mpi_irecv( gd_r8(:, :, kIndexUU),  &
+                            nsize, mpi_datyp_real8, MpiIdVV, mpiTagVV,  &
+                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
 
+            numSend = numSend + 1
+            gdUV_r8(:, :, kIndexUU) = statevector_in%gdUV(kIndexUU)%r8(:, :, stepIndex)
+            call mpi_isend( gdUV_r8(:, :, kIndexUU),  &
+                            nsize, mpi_datyp_real8, MpiIdVV, mpiTagUU,  &
+                            mpi_comm_grid, requestIdSend(numSend), ierr )
+
+          else if ( mpi_myid == MpiIDVV ) then ! I have VV
+
+            numRecv = numRecv + 1
+            call mpi_irecv( gd_r8(:, :, kIndexVV),  &
+                            nsize, mpi_datyp_real8, MpiIdUU, mpiTagUU,  &
+                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
+
+            numSend = numSend + 1
+            gdUV_r8(:, :, kIndexVV) = statevector_in%gdUV(kIndexVV)%r8(:, :, stepIndex)
+            call mpi_isend( gdUV_r8(:, :, kIndexVV),  &
+                            nsize, mpi_datyp_real8, MpiIdUU, mpiTagVV,  &
+                            mpi_comm_grid, requestIdSend(numSend), ierr )
+
+          end if
+
+        end do LOOP_KINDEX
+
+        if ( numRecv > 0 ) then
+          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
         end if
 
-      end do LOOP_KINDEX
+        if ( numSend > 0 ) then
+          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+        end if
 
-      if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
-      end if
-
-      if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
-      end if
-
-      if ( statevector_in%UVComponentPresent ) then
-        do kIndex = statevector_in%myUVkBeg, statevector_in%myUVkEnd
-          do stepIndex = 1, statevector_in%numStep
+        if ( statevector_in%UVComponentPresent ) then
+          do kIndex = statevector_in%myUVkBeg, statevector_in%myUVkEnd
             statevector_in%gd_r8(:, :, kIndex, stepIndex) =   &
                  statevector_in%gd_r8(:, :, kIndex, stepIndex) +  &
-                 gd_r8(:, :, stepIndex, kIndex)
+                 gd_r8(:, :, kIndex)
+          end do
+          deallocate(gdUV_r8)
+          deallocate(gd_r8)
+        end if
+
+      end if ! UU and VV exist
+
+      ! do allToAll to redistribute main variables from VarsLevs to Tiles
+      maxkCount = maxval(statevector_in%allkCount(:))
+      if ( sendrecvKind == 4 ) then
+        call utl_reAllocate( gd_send_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
+                             maxkCount, mpi_nprocs )
+        call utl_reAllocate( gd_recv_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
+                             maxkCount, mpi_nprocs )
+      else
+        call utl_reAllocate( gd_send_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
+                             maxkCount, mpi_nprocs )
+        call utl_reAllocate( gd_recv_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
+                             maxkCount, mpi_nprocs )
+      end if
+
+      if ( sendrecvKind == 4 .and. inKind == 4 ) then
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
           end do
         end do
-        deallocate(gdUV_r8)
-        deallocate(gd_r8)
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. inKind == 8 ) then
+        field_in_r8_ptr => gsv_getField_r8(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                   statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),4)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. inKind == 4 ) then
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                   statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),8)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. inKind == 8 ) then
+        field_in_r8_ptr => gsv_getField_r8(statevector_in)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                                1:statevector_out%allLatPerPE(youridy+1),  &
+                                1:statevector_in%mykCount, yourid+1) =  &
+              field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
+                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+          end do
+        end do
+        !$OMP END PARALLEL DO
       end if
 
-    end if ! UU and VV exist
-
-    ! do allToAll to redistribute main variables from VarsLevs to Tiles
-    maxkCount = maxval(statevector_in%allkCount(:))
-    if ( sendrecvKind == 4 ) then
-      call utl_reAllocate( gd_send_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
-      call utl_reAllocate( gd_recv_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
-    else
-      call utl_reAllocate( gd_send_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
-      call utl_reAllocate( gd_recv_varsLevs_r8, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
-                           maxkCount, statevector_out%numStep, mpi_nprocs )
-    end if
-
-    if ( sendrecvKind == 4 .and. inKind == 4 ) then
-      field_in_r4_ptr => gsv_getField_r4(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                            statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                            statevector_in%mykBeg:statevector_in%mykEnd,:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 4 .and. inKind == 8 ) then
-      field_in_r8_ptr => gsv_getField_r8(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                                 statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                 statevector_in%mykBeg:statevector_in%mykEnd,:),4)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. inKind == 4 ) then
-      field_in_r4_ptr => gsv_getField_r4(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                                 statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                 statevector_in%mykBeg:statevector_in%mykEnd,:),8)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. inKind == 8 ) then
-      field_in_r8_ptr => gsv_getField_r8(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
-                              1:statevector_out%allLatPerPE(youridy+1),  &
-                              1:statevector_in%mykCount,:,yourid+1) =  &
-            field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                            statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                            statevector_in%mykBeg:statevector_in%mykEnd,:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    end if
-
-    nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * statevector_out%numStep * maxkCount
-    if (mpi_nprocs > 1) then
-      if ( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                               gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
+      if (mpi_nprocs > 1) then
+        if ( sendrecvKind == 4 ) then
+          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
+                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+        else
+          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
+                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+        end if
       else
-        call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                               gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+        if ( sendrecvKind == 4 ) then
+           gd_recv_varsLevs_r4(:,:,:,1) = gd_send_varsLevs_r4(:,:,:,1)
+        else
+           gd_recv_varsLevs_r8(:,:,:,1) = gd_send_varsLevs_r8(:,:,:,1)
+        end if
       end if
-    else
-      if ( sendrecvKind == 4 ) then
-         gd_recv_varsLevs_r4(:,:,:,:,1) = gd_send_varsLevs_r4(:,:,:,:,1)
-      else
-         gd_recv_varsLevs_r8(:,:,:,:,1) = gd_send_varsLevs_r8(:,:,:,:,1)
-      end if
-    end if
 
-    if ( sendrecvKind == 4 .and. outKind == 4 ) then
-      field_out_r4_ptr => gsv_getField_r4(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
-                              1:statevector_out%latPerPE,  &
-                              1:statevector_in%allkCount(yourid+1), :, yourid+1)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 4 .and. outKind == 8 ) then
-      field_out_r8_ptr => gsv_getField_r8(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
-                                   1:statevector_out%latPerPE,  &
-                                   1:statevector_in%allkCount(yourid+1), :, yourid+1),8)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. outKind == 4 ) then
-      field_out_r4_ptr => gsv_getField_r4(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
-          real(gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
-                                   1:statevector_out%latPerPE,  &
-                                   1:statevector_in%allkCount(yourid+1), :, yourid+1),4)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( sendrecvKind == 8 .and. outKind == 8 ) then
-      field_out_r8_ptr => gsv_getField_r8(statevector_out)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                         statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
-                              1:statevector_out%latPerPE,  &
-                              1:statevector_in%allkCount(yourid+1), :, yourid+1)
-      end do
-      !$OMP END PARALLEL DO
-    end if
+      if ( sendrecvKind == 4 .and. outKind == 4 ) then
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
+                                1:statevector_out%latPerPE,  &
+                                1:statevector_in%allkCount(yourid+1), yourid+1)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 4 .and. outKind == 8 ) then
+        field_out_r8_ptr => gsv_getField_r8(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
+                                     1:statevector_out%latPerPE,  &
+                                     1:statevector_in%allkCount(yourid+1), yourid+1),8)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. outKind == 4 ) then
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            real(gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
+                                     1:statevector_out%latPerPE,  &
+                                     1:statevector_in%allkCount(yourid+1), yourid+1),4)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( sendrecvKind == 8 .and. outKind == 8 ) then
+        field_out_r8_ptr => gsv_getField_r8(statevector_out)
+        !$OMP PARALLEL DO PRIVATE(yourid)
+        do yourid = 0, (mpi_nprocs-1)
+          field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+            gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
+                                1:statevector_out%latPerPE,  &
+                                1:statevector_in%allkCount(yourid+1), yourid+1)
+        end do
+        !$OMP END PARALLEL DO
+      end if
+
+    end do ! stepIndex
 
     ! scatter surface GZ from task 0 to all others, 1 tile per task
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then

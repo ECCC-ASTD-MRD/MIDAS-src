@@ -109,7 +109,7 @@ CONTAINS
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_gz )  ! IN/OUT
-      call clp_calcPressure_nl( statevector_trial_gz )
+      call PsfcToP_nl( statevector_trial_gz )
       call tt2phi( statevector_trial_gz )
 
       gzTrialsInitialized = .true.
@@ -219,6 +219,23 @@ CONTAINS
         end if
         call LVIStoVIS(statevector)
       end if
+    case ('TTHUtoGZ_nl')
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable P0 must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable GZ_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable GZ_M must be allocated in gridstatevector')
+      end if
+      call TTHUtoGZ_nl(statevector)
 
     case ('TTHUtoGZ_tl')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
@@ -255,6 +272,18 @@ CONTAINS
         call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_M must be allocated in gridstatevector')
       end if
       call TTHUtoGZ_ad(statevector)
+
+    case ('PsfcToP_nl')
+      if ( .not. gsv_varExist(statevector,'P_T')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_nl, variable P_T must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P_M')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_nl, variable P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('vtr_transform: for PsfcToP_nl, variable P0 must be allocated in gridstatevector')
+      end if
+      call PsfcToP_nl(statevector)
 
     case ('PsfcToP_tl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -548,6 +577,18 @@ CONTAINS
 
   end subroutine LVIStoVIS
 
+  ! TTHUtoGZ_nl
+  !--------------------------------------------------------------------------
+  subroutine TTHUtoGZ_nl(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    call tt2phi(statevector)
+
+  end subroutine TTHUtoGZ_nl
+
+  !--------------------------------------------------------------------------
   ! TTHUtoGZ_tl
   !--------------------------------------------------------------------------
   subroutine TTHUtoGZ_tl(statevector)
@@ -555,7 +596,7 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. trialsInitialized ) call vtr_setupTrials()
+    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
 
     call tt2phi_tl(statevector, statevector_trial_gz)
 
@@ -569,11 +610,27 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. trialsInitialized ) write(*,*) "TTHUtoGZ_ad: Trial fields are not initialized."
+    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
 
-    call tt2phi_ad(statevector,statevector_trial)
+    call tt2phi_ad(statevector,statevector_trial_gz)
 
   end subroutine TTHUtoGZ_ad
+
+  !--------------------------------------------------------------------------
+  ! PsfcToP_nl
+  !--------------------------------------------------------------------------
+  subroutine PsfcToP_nl(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+
+    if ( statevector%dataKind == 8 ) then
+      call calcpressure_nl_r8(statevector)
+    else if ( statevector%dataKind == 4 ) then
+      call calcpressure_nl_r4(statevector)
+    end if
+
+  end subroutine PsfcToP_nl
 
   !--------------------------------------------------------------------------
   ! PsfcToP_tl
@@ -583,9 +640,9 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. trialsInitialized ) call vtr_setupTrials()
+    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
 
-    call calcpressure_tl(statevector,statevector_trial)
+    call calcpressure_tl(statevector,statevector_trial_gz)
 
   end subroutine PsfcToP_tl
 
@@ -597,9 +654,9 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. trialsInitialized ) call vtr_setupTrials()
+    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
 
-    call calcpressure_ad(statevector,statevector_trial)
+    call calcpressure_ad(statevector,statevector_trial_gz)
 
   end subroutine PsfcToP_ad
 
@@ -909,9 +966,9 @@ CONTAINS
   end subroutine UVtoVortDiv_ens
 
   !--------------------------------------------------------------------------
-  ! calcpressure_nl
+  ! calcpressure_nl_r8
   !--------------------------------------------------------------------------
-  subroutine calcPressure_nl(statevector, beSilent_opt)
+  subroutine calcPressure_nl_r8(statevector, beSilent_opt)
 
     implicit none
     type(struct_gsv), intent(inout) :: statevector
@@ -921,7 +978,7 @@ CONTAINS
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
     real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: jobs, status, stepIndex
+    integer                     :: jobs, status, stepIndex, numStep
     logical                     :: beSilent
     real(8), pointer            :: P_T(:,:,:,:) => null()
     real(8), pointer            :: P_M(:,:,:,:) => null()
@@ -932,10 +989,10 @@ CONTAINS
       beSilent = .false.
     end if
 
-    if ( .not. beSilent ) write(*,*) 'calcPressure_nl: computing pressure on staggered or UNstaggered levels'
+    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r8: computing pressure on staggered or UNstaggered levels'
 
     if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_nl: P_T/P_M/P0 do not exist in statevector!')
+      call utl_abort('calcPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
     end if
 
     P_T => gsv_getField_r8(statevector,'P_T')
@@ -943,10 +1000,11 @@ CONTAINS
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
+    field_Psfc => gsv_getField_r8(statevector,'P0')
+    numStep = statevector%numStep
 
-    do stepIndex = 1, statevector%numStep
+    do stepIndex = 1, numStep
 
-      field_Psfc => gsv_getField_r8(statevector,'P0')
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
       ! P_T
@@ -971,7 +1029,88 @@ CONTAINS
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
-      deallocate(Psfc)
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',P_M='
+        write(*,*) P_M(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',P_T='
+        write(*,*) P_T(statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+    deallocate(Psfc)
+
+  end subroutine calcPressure_nl_r8
+
+  !--------------------------------------------------------------------------
+  ! calcpressure_nl_r4
+  !--------------------------------------------------------------------------
+  subroutine calcPressure_nl_r4(statevector, beSilent_opt)
+
+    implicit none
+    type(struct_gsv), intent(inout) :: statevector
+    logical, optional :: beSilent_opt
+
+    real(kind=4), allocatable   :: Psfc(:,:)
+    real(kind=4), pointer       :: Pressure_out(:,:,:) 
+    real(kind=4), pointer       :: dP_dPsfc_out(:,:,:)
+    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
+    integer                     :: jobs, status, stepIndex, numStep
+    logical                     :: beSilent
+    real(4), pointer            :: P_T(:,:,:,:) => null()
+    real(4), pointer            :: P_M(:,:,:,:) => null()
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r4: computing pressure on staggered or UNstaggered levels'
+
+    if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
+      call utl_abort('calcPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
+    end if
+
+    P_T => gsv_getField_r4(statevector,'P_T')
+    P_M => gsv_getField_r4(statevector,'P_M')
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+    field_Psfc => gsv_getField_r4(statevector,'P0')
+    numStep = statevector%numStep
+
+!write(*,*) statevector%numStep
+!write(*,*) statevector%myLonBeg, statevector%myLonEnd
+!write(*,*) statevector%myLatBeg, statevector%myLatEnd
+
+    do stepIndex = 1, numStep
+
+!write(*,*) shape(field_Psfc)
+!write(*,*) 'stepIndex=',stepIndex
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+      ! P_T
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_M, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      ! P_M
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_T, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
 
       if ( .not. beSilent .and. stepIndex == 1 ) then
         write(*,*) 'stepIndex=',stepIndex, ',P_M='
@@ -982,7 +1121,9 @@ CONTAINS
 
     end do
 
-  end subroutine calcPressure_nl
+    deallocate(Psfc)
+
+  end subroutine calcPressure_nl_r4
 
   !--------------------------------------------------------------------------
   ! calcpressure_tl

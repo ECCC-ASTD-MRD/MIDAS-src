@@ -693,6 +693,7 @@ contains
     call vtr_transform( statevector, & ! INOUT
                         'PsfcToP_tl')  ! IN
 
+    ! calculate delGZ_T/delGZ_M on the grid
     call vtr_transform( statevector, & ! INOUT
                         'TTHUtoGZ_tl') ! IN
 
@@ -826,6 +827,8 @@ contains
       !$OMP END PARALLEL DO
 
     end do k_loop
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! output the interpolated GZ_T/GZ_M for the first header
     write(*,*) 's2c_tl, statevector->Column 1:'
@@ -1056,6 +1059,7 @@ contains
     logical, optional          :: moveObsAtPole_opt
 
     ! locals
+    type(struct_gsv) :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, iset, headerUsedIndex, varIndex
@@ -1082,8 +1086,8 @@ contains
       call utl_abort('s2c_nl: stateVector must be allocated')
     end if
 
-    if ( stateVector%mpi_distribution /= 'VarsLevs' ) then 
-      call utl_abort('s2c_nl: stateVector must by VarsLevs distributed')
+    if ( stateVector%mpi_distribution /= 'Tiles' ) then 
+      call utl_abort('s2c_nl: stateVector must by Tiles distributed')
     end if
 
     if ( present(dealloc_opt) ) then
@@ -1098,7 +1102,23 @@ contains
       moveObsAtPole = .false.
     end if
 
-    numStep = stateVector%numStep
+    ! calculate P_T/P_M on the grid
+    call vtr_transform( stateVector, & ! INOUT
+                        'PsfcToP_nl')  ! IN
+
+    ! calculate GZ_T/GZ_M on the grid
+    call vtr_transform( stateVector, & ! INOUT
+                        'TTHUtoGZ_nl') ! IN
+
+    call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
+                       stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                       allocGZsfc_opt=.true., &
+                       allocGZ_opt=gsv_varExist(stateVector,'GZ_M'), &
+                       allocPressure_opt=gsv_varExist(stateVector,'P_M') )
+    call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
+
+    numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
@@ -1110,7 +1130,7 @@ contains
       call s2c_latLonChecks( obsSpaceData, moveObsAtPole )
 
       ! compute and collect all obs grids onto all mpi tasks
-      call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector,  &
+      call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType, rejectOutsideObs=.true. )
       if ( mpi_myid == 0 ) then
         do stepIndex = 1, numStep
@@ -1138,22 +1158,22 @@ contains
     allCols_ptr => col_getAllColumns(column,varName_opt)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
-    ptr4d_r4    => gsv_getField_r4(stateVector)
+    ptr4d_r4    => gsv_getField_r4(stateVector_VarsLevs)
 
-    allocate(field2d(stateVector%ni,stateVector%nj))
-    allocate(field2d_UV(stateVector%ni,stateVector%nj))
+    allocate(field2d(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
+    allocate(field2d_UV(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
 
-    mykEndExtended = stateVector%mykBeg + maxval(stateVector%allkCount(:)) - 1
+    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
-    k_loop: do kIndex = stateVector%mykBeg, mykEndExtended
+    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
       kCount = kCount + 1
 
-      if ( kIndex <= stateVector%mykEnd ) then
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
+        varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector,kIndex)
+          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector_VarsLevs,kIndex)
         end if
 
         call tmg_start(166,'S2CNL_HINTERP')
@@ -1229,8 +1249,8 @@ contains
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
       proc_loop: do procIndex = 1, mpi_nprocs
-        kIndex2 = statevector%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector%allkEnd(procIndex) ) cycle proc_loop
+        kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
+        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
         do headerIndex = 1, numHeader
           allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
         end do
@@ -1240,7 +1260,7 @@ contains
     end do k_loop
 
     ! Interpolate surface GZ separately, only exists on mpi task 0
-    GZsfcPresent: if ( stateVector%GZsfcPresent ) then
+    GZsfcPresent: if ( stateVector_VarsLevs%GZsfcPresent ) then
 
       if ( mpi_myid == 0 ) then
         varName = 'GZ'
@@ -1253,7 +1273,7 @@ contains
           do procIndex = 1, mpi_nprocs
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
-              ptr2d_r8 => gsv_getGZsfc(stateVector)
+              ptr2d_r8 => gsv_getGZsfc(stateVector_VarsLevs)
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
 
@@ -1337,6 +1357,8 @@ contains
         column_ptr(:) = max(column_ptr(:),col_rhumin)
       end do
     end if
+
+    call gsv_deallocate( statevector_VarsLevs )
 
     write(*,*) 's2c_nl: FINISHED'
 
