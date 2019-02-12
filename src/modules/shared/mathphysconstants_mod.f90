@@ -102,6 +102,7 @@ MODULE MathPhysConstants_mod
    real(8)            ::MPC_MINIMUM_HU_R8                 =  2.500000000000000D-06 !  
    real(8)            ::MPC_MAXIMUM_ES_R8                 =  3.000000000000000D+01 !  
    real(8)            ::MPC_MINIMUM_VIS_R8                =  1.000000000000000D+00 !
+   real(8)            ::MPC_MAXIMUM_VIS_R8                =  1.500000000000000D+04 ! 15km
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
    real(4), parameter ::MPC_PI_R4                         =  3.141592653589793D+00 ! (unitless)
@@ -187,6 +188,7 @@ MODULE MathPhysConstants_mod
    real(4)            ::MPC_MINIMUM_HU_R4                 =  2.500000000000000D-06 !  
    real(4)            ::MPC_MAXIMUM_ES_R4                 =  3.000000000000000D+01 !  
    real(4)            ::MPC_MINIMUM_VIS_R4                =  1.000000000000000D+00 !
+   real(4)            ::MPC_MAXIMUM_VIS_R4                =  1.500000000000000D+04 ! 15km
 
 ! <<<<<< OBS FILE CONSTANTS
    real(4), parameter :: MPC_missingValue_R4 = -999.

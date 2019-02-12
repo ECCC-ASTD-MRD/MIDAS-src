@@ -705,7 +705,7 @@ contains
             ipb  = ipt + 1
             columnVarB=col_getElem(columnhr,ipb,headerIndex)
             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-                  log(max(zvar,MPC_MINIMUM_VIS_R8))-columnVarB)
+                  log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))-columnVarB)
           end if
 
           ! contribution to jobs

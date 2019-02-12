@@ -135,7 +135,7 @@ module varqc_mod
           ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, JDATA ) * MPC_MBAR_PER_PA_R8
           ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
           ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
-          if (ityp==bufr_vis) zval = log(max(zval,MPC_MINIMUM_VIS_R8))
+          if (ityp==bufr_vis) zval = log(max(min(zval,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
 
           ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
 
@@ -584,7 +584,7 @@ module varqc_mod
              end if
 
              ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex)
-             if (ityp==bufr_vis) zvar = log(max(zvar,MPC_MINIMUM_VIS_R8))
+             if (ityp==bufr_vis) zvar = log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
 
              ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
              ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,bodyIndex)

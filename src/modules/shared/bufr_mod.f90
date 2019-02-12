@@ -81,7 +81,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEAL=40030 ! aladin HLOS wind
  integer, parameter :: BUFR_NEDWDP=40032 ! derivative of HLOS wrt P
  integer, parameter :: BUFR_NEDWDT=40033 ! derivative of HLOS wrt T
- integer, parameter :: BUFR_NEDW=11200  ! Doppler wind
+ integer, parameter :: BUFR_NEDW=11200 ! Doppler wind 
  integer, parameter :: bufr_sst =22042
  integer, parameter :: BUFR_ICEC=20237
  integer, parameter :: bufr_vis =20001 

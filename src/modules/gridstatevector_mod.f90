@@ -2715,7 +2715,11 @@ module gridStateVector_mod
         end if
 
         if ( trim(varName) == 'LVIS' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = log(max(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MINIMUM_VIS_R4))
+          field_r4_ptr(:,:,kIndex,stepIndex) = log(max(min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
+        end if
+
+        if ( trim(varName) == 'VIS' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
         end if
 
       end do

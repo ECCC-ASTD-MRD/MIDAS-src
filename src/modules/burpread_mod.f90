@@ -2852,15 +2852,26 @@ CONTAINS
           end if
         end if
         IFLAG = INT(qCflag(il,j))
+
+        if (VARNO == 50001) then
+          write(*,*) 'JFC', FAMTYP, VARNO, OBSV, VCOORD, MPC_missingValue_R4, iand(iflag,BITSflagoff)
+        end if
+
         if(iand(iflag,BITSflagoff) /= 0) cycle
         !burpmodule IFLAG = IBCLR(IFLAG,12)
 
         !if (VARNO == .10194)OBSV=OBSV*RG
+
         if ( obsv /= MPC_missingValue_R4 .and. VCOORD /= MPC_missingValue_R4   ) then
           count = count  + 1
           NLV= NLV +1
           ID_DATA=count
           IFLAG = IBCLR(IFLAG,12)
+
+          if (VARNO == 50001) then
+            write(*,*) 'JFC', FAMTYP, VARNO, OBSV
+          end if
+
           call obs_bodySet_r(obsdat,OBS_VAR,count,OBSV)
           call obs_bodySet_i(obsdat,OBS_VNM,count,VARNO)
           call obs_bodySet_i(obsdat,OBS_VCO,count,VCO)
