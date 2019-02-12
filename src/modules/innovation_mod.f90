@@ -373,36 +373,37 @@ contains
       end do
       !if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng,obsSpaceData)
 
-      !! set GZsfc for MM equal to TH
-      !do columnIndex = 1, col_getNumCol(columng)
-      !  columng_ptr => col_getColumn(columng,columnIndex,'GZ_T')
-      !  gz_tmp = columng_ptr(col_getNumLev(columng,'TH'))
+      ! remove the height offset for the diagnostic levels for backward compatibility only
+      if ( .not.columng%addGZsfcOffset ) then
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr => col_getColumn(columng,columnIndex,'GZ_T')
+          columng_ptr(col_getNumLev(columng,'TH')) = columng%gz_sfc(1,columnIndex)
 
-      !  columng_ptr => col_getColumn(columng,columnIndex,'GZ_M')
-      !  columng_ptr(col_getNumLev(columng,'MM')) = gz_tmp
-      !end do
+          columng_ptr => col_getColumn(columng,columnIndex,'GZ_M')
+          columng_ptr(col_getNumLev(columng,'MM')) = columng%gz_sfc(1,columnIndex)
+        end do
+      end if
 
     else
       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
     write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
-    write(*,*) 'GZ_T:'
+    write(*,*) 'GZ_T (columnhr):'
+    columng_ptr => col_getColumn(columnhr,1,'GZ_T')
+    write(*,*) columng_ptr(:)
+    write(*,*) 'GZ_T (columng):'
     columng_ptr => col_getColumn(columng,1,'GZ_T')
     write(*,*) columng_ptr(:)
 
-    !write(*,*) 'GZ_M (last element equal to GZ_T):'
-    write(*,*) 'GZ_M:'
+    write(*,*) 'GZ_M(columnhr):'
+    columng_ptr => col_getColumn(columnhr,1,'GZ_M')
+    write(*,*) columng_ptr(:)
+    write(*,*) 'GZ_M(columng):'
     columng_ptr => col_getColumn(columng,1,'GZ_M')
     write(*,*) columng_ptr(:)
 
-    !write(*,*) 'inn_setupBackgroundColumnsAnl, tt2phi_col output:'
-    !write(*,*) 'GZ_T:'
-    !columng_ptr => col_getColumn(columng,1,'GZ_T')
-    !write(*,*) columng_ptr(:)
-    !write(*,*) 'GZ_M:'
-    !columng_ptr => col_getColumn(columng,1,'GZ_M')
-    !write(*,*) columng_ptr(:)
+    write(*,*) 'gz_sfc:', columng%gz_sfc(1,1)
 
     call tmg_stop(10)
 
