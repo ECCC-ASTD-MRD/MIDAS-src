@@ -61,8 +61,8 @@ module obsFilter_mod
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
        BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
        BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis, bufr_gust /)
-  real(8) :: bndryCritPres   = 5000.0d0  ! in Pascals
-  real(8) :: bndryCritHeight =  400.0d0  ! in Metres
+  real(8) :: bndryCritPres         = 5000.0d0  ! in Pascals
+  real(8) :: bndryCritHeightProf   =  400.0d0  ! in Metres
   real(8) :: bndryCritHeightAladin =  400.0D0  ! in Metres
 
   character(len=48) :: filterMode
