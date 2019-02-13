@@ -1392,11 +1392,11 @@ contains
     !
     prf%P0%Var               = rP0
     prf%P0%DVar              = 0._dp
-    prf%P0%DVar(3*ngpslev+1) = 1._dp
+    prf%P0%DVar(4*ngpslev)   = 1._dp
     do i = 1, ngpslev
        prf%pst(i)%Var               = rPP(i)
        prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+1) = rDP(i)
+       prf%pst(i)%DVar(3*ngpslev+i) = 1._dp
     enddo
     ! Pressure at model top (Pa)
     ptop = rPP(1)

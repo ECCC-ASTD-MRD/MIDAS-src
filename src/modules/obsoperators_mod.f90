@@ -1001,7 +1001,8 @@ contains
           ! Profile x
           !
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
-          zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
+          !zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
+          zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
@@ -1327,7 +1328,8 @@ contains
        do jl = 1, nlev_T
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
           ! True implementation of ZDP (dP/dP0)
-          zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
+          !zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
+          zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
@@ -2437,12 +2439,12 @@ contains
                DX (NFLEV+JL)  = col_getElem(COLUMN,JL,headerIndex,'HU')
             END DO
             DX (2*NFLEV+1:3*NFLEV) = col_getColumn(COLUMN,headerIndex,'GZ_T')
-            DX (3*NFLEV+1)    = col_getElem(COLUMN,1 ,headerIndex,'P0')
+            DX (3*NFLEV+1:4*NFLEV) = col_getColumn(COLUMN,headerIndex,'P_T')
 
             !C     *    Evaluate H'(xb)*dX
             !C
             ZHX = 0.D0
-            DO JL = 1, 3*NFLEV+1
+            DO JL = 1, 4*NFLEV
                ZHX = ZHX + vGPSZTD_Jacobian(iztd,JL)*DX(JL)
             END DO
             !C
@@ -2461,11 +2463,11 @@ contains
                   icount = icount + 1
                   if ( icount <= 3 .and. LTESTOP ) then
                      write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex)
-                     write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,3*NFLEV+1)
+                     write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,4*NFLEV)
                      write(*,*) 'DTT(JL)  = ', (DX(JL),JL=1,NFLEV)
                      write(*,*) 'DHU(JL)  = ', (DX(JL),JL=NFLEV+1,2*NFLEV)
                      write(*,*) 'DAL(JL)  = ', (DX(JL),JL=2*NFLEV+1,3*NFLEV)
-                     write(*,*) 'DP0(JL)  = ', DX(3*NFLEV+1)
+                     write(*,*) 'DP (JL)  = ', (DX(JL),JL=3*NFLEV+1,4*NFLEV)
                      write(*,*) 'ZHX (mm) = ', ZHX*1000.D0
                   end if
                END IF
@@ -3197,7 +3199,7 @@ contains
       integer :: headerIndex, bodyIndex, icount
       LOGICAL ASSIM
 
-      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:),p_column(:)
 
       !      WRITE(*,*)'ENTER oop_HTgp'
 
@@ -3244,7 +3246,7 @@ contains
                call utl_abort('oop_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             end if
 
-            DO JL = 1, 3*NFLEV+1
+            DO JL = 1, 4*NFLEV
                JAC(JL) = vGPSZTD_Jacobian(iztd,JL)
             END DO
             !C
@@ -3261,7 +3263,7 @@ contains
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                   ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                   !C     *       Accumulate the gradient of the observation cost function
-                  DPJO0(1:3*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
+                  DPJO0(1:4*NFLEV) = ZINC * vGPSZTD_Jacobian(iztd,:)
                end if
             END DO BODY_2
             !c
@@ -3269,14 +3271,14 @@ contains
             !c
             tt_column => col_getColumn(column,headerIndex,'TT')
             hu_column => col_getColumn(column,headerIndex,'HU')
-            ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
-            ps_column => col_getColumn(column,headerIndex,'P0')
+            ALT_column => col_getColumn(column,headerIndex,'GZ_T')
+            p_column  => col_getColumn(column,headerIndex,'P_T')
             DO JL = 1, NFLEV
                tt_column(JL) = DPJO0(JL)
                hu_column(JL) = DPJO0(JL+NFLEV)
                ALT_column(JL) = DPJO0(JL+2*NFLEV)
+               p_column (JL) = DPJO0(JL+3*NFLEV)
             END DO
-            ps_column(1) = DPJO0(3*NFLEV+1)
 
          END IF ! ASSIM
 
@@ -3516,7 +3518,7 @@ contains
             zpp(jl) = col_getPressure(columng,jl,headerIndex,'TH')
             ! True implementation of zDP (dP/dP0)
             !zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
-            zdp(jl) = 1.0d0
+            zdp(jl) = 0.0d0
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
             zALT(jl) = col_getHeight(columng,jl,headerIndex,'TH')
@@ -3645,7 +3647,7 @@ contains
     ! Initializations
     if ( .not. allocated(vGPSZTD_Index) ) call utl_abort('oop_calcGPSGBJacobian: ERROR:  vGPSZTD_Index not allocated!')
     if ( allocated(vGPSZTD_Jacobian) ) call utl_abort('oop_calcGPSGBJacobian: ERROR: vGPSZTD_Jacobian is already allocated!')
-    allocate(vGPSZTD_Jacobian(numGPSZTD,3*NFLEV+1))
+    allocate(vGPSZTD_Jacobian(numGPSZTD,4*NFLEV))
     vGPSZTD_Jacobian(:,:) = 0.0d0
 
     allocate(ZTTB(NFLEV))
@@ -3696,7 +3698,8 @@ contains
           ZHUB(JL) = col_getElem(columng,JL,headerIndex,'HU')
           ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
           zALT(JL) = col_getHeight(columng,JL,headerIndex,'TH')
-          ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
+          !ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
+          ZDP(JL)  = 0.0d0
         END DO
         if ( ZPPB(NFLEV) /= ZP0B ) then
           write(*,*) ' oop_calcGPSGBJacobian: ERROR: ZPPB(NFLEV) /= ZP0B'
@@ -3711,7 +3714,7 @@ contains
         ! Observation Jacobian H'(xb)            
         JAC = ZTDopv%DVar
         iztd = gps_i_from_index(headerIndex)
-        DO JL = 1, 3*NFLEV+1
+        DO JL = 1, 4*NFLEV
            vGPSZTD_Jacobian(iztd,JL) = JAC(JL)
         END DO
 
@@ -3729,7 +3732,7 @@ contains
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
-          write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,3*NFLEV+1)*50.0d0
+          write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,4*NFLEV)*50.0d0
           write(*,*) ' '
 
           ! q dx 
