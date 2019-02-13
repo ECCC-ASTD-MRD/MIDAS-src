@@ -2223,7 +2223,7 @@ contains
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
                END DO
                DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ_T')
-               DX (3*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
+               DX (3*NGPSLEV+1:4*NGPSLEV) = col_getColumn(column,headerIndex,'P_T')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
                !C     *       Loop over all body indices for this headerIndex:
@@ -2239,7 +2239,7 @@ contains
                      !C     *             Evaluate H(xb)DX
                      !C
                      ZMHXL = 0.d0
-                     DO JV = 1, 3*NGPSLEV+1
+                     DO JV = 1, 4*NGPSLEV
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      END DO
                      !C
@@ -2936,7 +2936,7 @@ contains
 
       REAL*8 ZINC
 
-      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:),p_column(:)
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
@@ -3016,11 +3016,11 @@ contains
                      !C
                      !C     *             O-F Tested criteria:
                      !C
-                     DPJO1(1:3*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
+                     DPJO1(1:4*NGPSLEV) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
                      !C
                      !C     *             Accumulate the gradient of the observation cost function:
                      !C
-                     DPJO0(1:3*NGPSLEV+1) = DPJO0(1:3*NGPSLEV+1) + DPJO1(1:3*NGPSLEV+1)
+                     DPJO0(1:4*NGPSLEV) = DPJO0(1:4*NGPSLEV) + DPJO1(1:4*NGPSLEV)
                   END IF
                END DO BODY_3
             END IF ASSIMILATE
@@ -3030,14 +3030,14 @@ contains
          !C
          tt_column => col_getColumn(column,headerIndex,'TT')
          hu_column => col_getColumn(column,headerIndex,'HU')
-         ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
-         ps_column => col_getColumn(column,headerIndex,'P0')
+         ALT_column => col_getColumn(column,headerIndex,'GZ_T')
+         p_column => col_getColumn(column,headerIndex,'P_T')
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
             ALT_column(JL) = DPJO0(JL+2*NGPSLEV)
+            p_column(JL)  = DPJO0(JL+3*NGPSLEV)
          END DO
-         ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
 
       RETURN
@@ -3458,7 +3458,7 @@ contains
     allocate(zvv (ngpslev))
 
     if ( allocated(gps_vro_jacobian) ) call utl_abort('oop_calcGPSROJacobian: gps_vro_jacobian is already allocated!')
-    allocate(gps_vro_jacobian(gps_numroprofiles,gpsro_maxprfsize,3*ngpslev+1))
+    allocate(gps_vro_jacobian(gps_numroprofiles,gpsro_maxprfsize,4*ngpslev))
 
     allocate( h    (gpsro_maxprfsize) )
     allocate( azmv (gpsro_maxprfsize) )
@@ -3515,7 +3515,8 @@ contains
             ! Profile x_b
             zpp(jl) = col_getPressure(columng,jl,headerIndex,'TH')
             ! True implementation of zDP (dP/dP0)
-            zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
+            !zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
+            zdp(jl) = 1.0d0
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
             zALT(jl) = col_getHeight(columng,jl,headerIndex,'TH')
@@ -3563,7 +3564,7 @@ contains
             call gps_refopv (h, nh, prf, rstv)
           end if
           do nh1 = 1, nh
-            gps_vro_jacobian(iprofile,nh1,:)= rstv(nh1)%dvar(1:3*ngpslev+1)
+            gps_vro_jacobian(iprofile,nh1,:)= rstv(nh1)%dvar(1:4*ngpslev)
           enddo
 
         endif ASSIMILATE

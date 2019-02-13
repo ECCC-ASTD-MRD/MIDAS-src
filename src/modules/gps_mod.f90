@@ -64,7 +64,7 @@ module gps_mod
   integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
-  integer(i4), parameter :: ngpscvmx  = 3*ngpssize+1
+  integer(i4), parameter :: ngpscvmx  = 4*ngpssize
 
   
 !modgps01ctphys
@@ -1010,11 +1010,11 @@ contains
     !
     prf%P0%Var               = 0.01_dp*rP0
     prf%P0%DVar              = 0._dp
-    prf%P0%DVar(3*ngpslev+1) = 0.01_dp
+    prf%P0%DVar(4*ngpslev)   = 0.01_dp
     do i=1,ngpslev
        prf%pst(i)%Var               = 0.01_dp*rPP(i)
        prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+1) = 0.01_dp*rDP(i)
+       prf%pst(i)%DVar(3*ngpslev+i) = 0.01_dp
     enddo
 
     !
