@@ -1825,6 +1825,10 @@ contains
       !*          the pressure levels of the observations.
       !*          A linear interpolation in ln(p) is performed.
       !*
+      !* Revision 01: M. Bani Shahabadi Feb 2019
+      !*            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !*              dP is part of column now.  
+      !*
       !*implicits
 
       implicit none
@@ -1835,7 +1839,7 @@ contains
       REAL*8 ZDADPS,ZCON
       REAL*8 ZWB,ZWT,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB
-      REAL*8 dPdPsT,dPdPsB
+      REAL*8 delPT,delPB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
@@ -1863,28 +1867,26 @@ contains
                IPB  = IPT+1
                ZPT    = col_getPressure(COLUMNG,IK  ,headerIndex,varLevel)
                ZPB    = col_getPressure(COLUMNG,IK+1,headerIndex,varLevel)
-               dPdPsT = col_getPressureDeriv(COLUMNG,IK  ,headerIndex,varLevel)
-               dPdPsB = col_getPressureDeriv(COLUMNG,IK+1,headerIndex,varLevel)
+               delPT  = col_getPressure(COLUMN,IK  ,headerIndex,varLevel)
+               delPB  = col_getPressure(COLUMN,IK+1,headerIndex,varLevel)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 
-               ZDADPS   = ( LOG(ZLEV/ZPB)*dPdPsT/ZPT -   &
-                    LOG(ZLEV/ZPT)*dPdPsB/ZPB )/  &
+               ZDADPS   = ( LOG(ZLEV/ZPB)*delPT/ZPT -   &
+                    LOG(ZLEV/ZPT)*delPB/ZPB )/  &
                     LOG(ZPB/ZPT)**2
 
                if( ityp == bufr_nees ) then
                   columnVarB=hutoes_tl(col_getElem(column,IK+1,headerIndex,'HU'), &
                        col_getElem(column,IK+1,headerIndex,'TT'), &
-                       col_getElem(column,1,headerIndex,'P0'), &
+                       delPB, &
                        col_getElem(columng,IK+1,headerIndex,'HU'), &
-                       col_getPressure(columng,IK+1,headerIndex,'TH'), &
-                       dPdPsB)
+                       col_getPressure(columng,IK+1,headerIndex,'TH'))
                   columnVarT=hutoes_tl(col_getElem(column,IK  ,headerIndex,'HU'), &
                        col_getElem(column,IK  ,headerIndex,'TT'), &
-                       col_getElem(column,1,headerIndex,'P0'), &
+                       delPT, &
                        col_getElem(columng,IK  ,headerIndex,'HU'), &
-                       col_getPressure(columng,IK  ,headerIndex,'TH'),  &
-                       dPdPsT)
+                       col_getPressure(columng,IK  ,headerIndex,'TH'))
                   columngVarB=hutoes(col_getElem(columng,IK+1,headerIndex,'HU'), &
                        col_getElem(columng,IK+1,headerIndex,'TT'), &
                        col_getPressure(columng,IK+1,headerIndex,'TH'))
@@ -1900,7 +1902,7 @@ contains
                call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,   &
                     ZWB*columnVarB + ZWT*columnVarT+  &
                     (columngVarB - columngVarT)*  &
-                    ZDADPS*col_getElem(COLUMN,1,headerIndex,'P0'))
+                    ZDADPS)
 
             end if
 
@@ -1980,7 +1982,7 @@ contains
                   ityp == bufr_vis  .or. ityp == bufr_gust ) THEN
                  if (ITYP == BUFR_NESS ) THEN
                    dPdPsfc = col_getPressureDeriv(columng,nlev,headerIndex,'TH')
-                   columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
+                   columnVarB = hutoes_tl_v0(col_getElem(column,nlev,headerIndex,'HU'), &
                           col_getElem(column,nlev,headerIndex,'TT'), &
                           col_getElem(column,1,headerIndex,'P0'), &
                           col_getElem(columng,nlev,headerIndex,'HU'), &
@@ -2157,6 +2159,11 @@ contains
       !            - Calculation of the Jacobians is done separately in 
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
+      !
+      ! revision 03: M. Bani Shahabadi Feb 2019
+      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !              dP is part of column now.  
+      !
       !*    -------------------
 
       implicit none
@@ -2382,6 +2389,11 @@ contains
       ! revision 02 : M. Bani Shahabadi Dec 2018
       !             - Calculation of the Jacobians in done separately in 
       !               'oop_calcGPSGBJacobian' subroutine
+      !
+      ! revision 03: M. Bani Shahabadi Feb 2019
+      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !              dP is part of column now.  
+      !
       !*    -------------------
       !**    Purpose: Compute H'dx for all GPS ZTD observations
       !*
@@ -2587,6 +2599,10 @@ contains
       !     Purpose: based on vint3d to build the adjoint of the
       !              vertical interpolation for UPPER-AIR data files.
       !
+      !Revision 01: M. Bani Shahabadi Feb 2019
+      !           - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !             dP is part of column now.  
+      !
       implicit none
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
@@ -2595,8 +2611,9 @@ contains
       INTEGER headerIndex,IK,nlev_T
       INTEGER bodyIndex,INDEX_FAMILY
       REAL*8 columngVarT,columngVarB
-      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
-      REAL*8 :: dPdPsT,dPdPsB
+      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),p_column(:)
+      REAL*8 :: delPT,delPB
+      logical :: llassim
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !
@@ -2626,35 +2643,37 @@ contains
                IPB  = IPT+1
                ZPT  = col_getPressure(COLUMNG,IK,headerIndex,varLevel)
                ZPB  = col_getPressure(COLUMNG,IK+1,headerIndex,varLevel)
-               dPdPsT = col_getPressureDeriv(COLUMNG,IK  ,headerIndex,varLevel)
-               dPdPsB = col_getPressureDeriv(COLUMNG,IK+1,headerIndex,varLevel)
+               delPT= col_getPressure(COLUMN,IK  ,headerIndex,varLevel)
+               delPB= col_getPressure(COLUMN,IK+1,headerIndex,varLevel)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 
-               ZDADPS   = ( LOG(ZLEV/ZPB)*dPdPsT/ZPT -   &
-                    LOG(ZLEV/ZPT)*dPdPsB/ZPB )/  &
+               ZDADPS   = ( LOG(ZLEV/ZPB)*delPT/ZPT -   &
+                    LOG(ZLEV/ZPT)*delPB/ZPB )/  &
                     LOG(ZPB/ZPT)**2
 
                all_column => col_getColumn(column,headerIndex)
                tt_column  => col_getColumn(column,headerIndex,'TT')
                hu_column  => col_getColumn(column,headerIndex,'HU')
-               ps_column  => col_getColumn(column,headerIndex,'P0')
+               if ( varLevel == 'TH' ) then
+                 p_column => col_getColumn(column,headerIndex,'P_T')
+               else if ( varLevel == 'MM' ) then
+                 p_column => col_getColumn(column,headerIndex,'P_M')
+               end if
 
                if(ITYP.eq.BUFR_NEES) then
                   call hutoes_ad(hu_column(IK+1),  &
                        tt_column(IK+1),  &
-                       ps_column(1),     &
+                       p_column(IK+1),   &
                        ZWB*ZRES,         &
                        col_getElem(columng,IK+1,headerIndex,'HU'),      &
-                       col_getPressure(columng,IK+1,headerIndex,'TH'),  &
-                       dPdPsB)
+                       col_getPressure(columng,IK+1,headerIndex,'TH'))
                   call hutoes_ad(hu_column(IK  ),  &
                        tt_column(IK  ),  &
-                       ps_column(1),     &
+                       p_column(IK),     &
                        ZWT*ZRES,         &
                        col_getElem(columng,IK  ,headerIndex,'HU'),      &
-                       col_getPressure(columng,IK  ,headerIndex,'TH'),  &
-                       dPdPsT)
+                       col_getPressure(columng,IK  ,headerIndex,'TH'))
                   columngVarB=hutoes(col_getElem(columng,IK+1,headerIndex,'HU'),  &
                        col_getElem(columng,IK+1,headerIndex,'TT'),  &
                        col_getPressure(columng,IK+1,headerIndex,'TH'))
@@ -2667,10 +2686,10 @@ contains
                   columngVarB=col_getElem(columng,IPB,headerIndex)
                   columngVarT=col_getElem(columng,IPT,headerIndex)
                end if
-               ps_column(1)    = ps_column(1)    +         &
-                    (columngVarB - columngVarT)  &
-                    *ZDADPS*ZRES
-
+               p_column(IK  ) = p_column(IK  ) + (columngVarB - columngVarT) * &
+                                (LOG(ZLEV/ZPB)/ZPT/LOG(ZPB/ZPT)**2) * ZRES
+               p_column(IK+1) = p_column(IK+1) - (columngVarB - columngVarT) * &
+                                (LOG(ZLEV/ZPT)/ZPB/LOG(ZPB/ZPT)**2) * ZRES
             end if
 
          end do BODY
@@ -2756,7 +2775,7 @@ contains
                    tt_column  => col_getColumn(column,headerIndex,'TT')
                    hu_column  => col_getColumn(column,headerIndex,'HU')
                    ps_column  => col_getColumn(column,headerIndex,'P0')
-                   call hutoes_ad(hu_column(nlev),  &
+                   call hutoes_ad_v0(hu_column(nlev),  &
                         tt_column(nlev),  &
                         ps_column(1),     &
                         ZRES,             &
@@ -2929,6 +2948,11 @@ contains
       !            - Calculation of the Jacobians is done separately in 
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
+      !
+      ! revision 03: M. Bani Shahabadi Feb 2019
+      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !              dP is part of column now.  
+      !
       !*    -------------------
 
       implicit none
@@ -3183,6 +3207,10 @@ contains
       !             - Calculation of the Jacobians in done separately in 
       !               'oop_calcGPSGBJacobian' subroutine
       !
+      ! revision 03: M. Bani Shahabadi Feb 2019
+      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !              dP is part of column now.  
+      !
       !*    -------------------
       !**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
       !
@@ -3341,7 +3369,7 @@ contains
 
   end function HUtoES
 
-  function HUtoES_tl(HU_inc,TT_inc,P0_inc,HU_trial,PRES_trial,dPdPsfc) result(ES_inc)
+  function HUtoES_tl_v0(HU_inc,TT_inc,P0_inc,HU_trial,PRES_trial,dPdPsfc) result(ES_inc)
     !
     ! Purpose: TLM VERSION
     !          to calculate the dew point depression from specific
@@ -3371,9 +3399,46 @@ contains
 
     ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
 
+  end function HUtoES_tl_v0
+
+
+  function HUtoES_tl(HU_inc,TT_inc,P_inc,HU_trial,PRES_trial) result(ES_inc)
+    !
+    ! Purpose: TLM VERSION
+    !          to calculate the dew point depression from specific
+    !          humidity, temperature and pressure.  No ice phase
+    !          is permitted and the pressure vector is given.
+    !
+    ! Revision 01: M. Bani Shahabadi Feb 2019
+    !            Provision of dP, instead of dPdPsfc
+    !
+    implicit none
+    REAL(8), intent(in) :: HU_inc, TT_inc, P_inc, HU_trial, PRES_trial
+    REAL(8) :: ZE, ZTD, dTDdE, ZQBRANCH, ES_inc
+    REAL(8) :: dESdLQ, dESdTT, dESdP
+
+    dESdTT = 1.0d0
+
+    !- Forward calculations of saturation vapour pressure and dewpoint temperature
+    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
+    ZE   = FOEFQ8(HU_trial, PRES_trial)
+    ZTD  = FOTW8 (ZE)
+    dTDdE= FODTW8(ZTD,ZE)
+
+    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+    ZQBRANCH = FQBRANCH(HU_trial)
+
+    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
+
+    dESdP  = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,1.0d0)-  &
+               (1.D0-ZQBRANCH)*(dTDdE*1.0d0)
+
+    ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP*P_inc + dESdTT*TT_inc
+
   end function HUtoES_tl
 
-  subroutine HUtoES_ad(HU_inc,TT_inc,P0_inc,ES_inc,HU_trial,PRES_trial,dPdPsfc)
+
+  subroutine HUtoES_ad_v0(HU_inc,TT_inc,P0_inc,ES_inc,HU_trial,PRES_trial,dPdPsfc)
     !
     ! Purpose: ADJOINT VERSION
     !          to calculate the dew point depression from specific
@@ -3406,6 +3471,47 @@ contains
     ! ADJOINT:
     HU_inc = HU_inc + dESdLQ*ES_inc/HU_trial
     P0_inc = P0_inc + dESdP0*ES_inc
+    TT_inc = TT_inc + dESdTT*ES_inc
+
+  end subroutine HUtoES_ad_v0
+
+
+  subroutine HUtoES_ad(HU_inc,TT_inc,P_inc,ES_inc,HU_trial,PRES_trial)
+    !
+    ! Purpose: ADJOINT VERSION
+    !          to calculate the dew point depression from specific
+    !          humidity, temperature and pressure.  No ice phase
+    !          is permitted and the pressure vector is given.
+
+    ! Revision 01: M. Bani Shahabadi Feb 2019
+    !            P_inc is generated, instead of P0_inc
+    !
+    implicit none
+    REAL(8), intent(inout) :: HU_inc,TT_inc,P_inc
+    REAL(8), intent(in)  :: ES_inc,HU_trial,PRES_trial
+    REAL(8) :: ZE,ZTD,dTDdE,ZQBRANCH
+    REAL(8) :: dESdLQ,dESdTT,dESdP
+
+    dESdTT = 1.0d0
+   
+    !- Forward calculations of saturation vapour pressure and dewpoint temperature
+    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
+    ZE = FOEFQ8(HU_trial, PRES_trial)
+
+    ZTD=FOTW8(ZE)
+    dTDdE=FODTW8(ZTD,ZE)
+
+    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+    ZQBRANCH = FQBRANCH(HU_trial)
+    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
+
+    dESdP  = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,1.0d0)-  &
+               (1.D0-ZQBRANCH)*(dTDdE*1.0d0)
+
+    ! TLM: ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP*P_inc + dESdTT*TT_inc
+    ! ADJOINT:
+    HU_inc = HU_inc + dESdLQ*ES_inc/HU_trial
+    P_inc  = P_inc  + dESdP *ES_inc
     TT_inc = TT_inc + dESdTT*ES_inc
 
   end subroutine HUtoES_ad
