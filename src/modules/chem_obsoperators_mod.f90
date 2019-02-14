@@ -29,9 +29,7 @@ module chem_obsoperators_mod
   use utilities_mod
   use chem_setup_mod
   use obsSubSpaceData_mod
-  use bmatrixchem_mod, only:  bchm_corvert, bchm_varnamelist, bchm_getsigma, &     
-                              bchm_corverti, bchm_invsum, bchm_varnamelist,  &
-                              bchm_corvert_mult
+  use bmatrixchem_mod
   use physicsfunctions_mod
   use MathPhysConstants_mod
   use earthconstants_mod
@@ -255,8 +253,12 @@ contains
       ! Allocate memory for remaining profile data not in obsoper
       allocate(obs_col(nobslev),success(nobslev),ixtr(nobslev),iass(nobslev),process_obs(nobslev),flag(nobslev))
 
+      ! Check to see if background error variances available
+      if (kmode.eq.1) process_obs(:) = bchm_StatsExistForVarName(vnl_varnameFromVarnum(varno,obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)))
+ 
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
+ 
       do bodyIndex=bodyIndex_start,bodyIndex_end
          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) then
 
@@ -268,7 +270,7 @@ contains
                
             ! Indicates if this obs should be processed by chm_obsoperators
             if (kmode.eq.1) then
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obsAssVal.or.iass(iobslev).eq.3)
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obsAssVal.or.iass(iobslev).eq.3).and.process_obs(iobslev)
             else
                process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obsAssVal
             end if
@@ -399,6 +401,9 @@ contains
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
                cycle BODY2
+            else if (.not.process_obs(iobslev) .and. kmode == 1) then
+               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+               cycle BODY2
             end if
 
             ! Store result in appropriate location in obsSpaceData
@@ -426,6 +431,7 @@ contains
                ! saved in OBS_HPHT of obsSpaceData
 
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,obs_col(iobslev))
+
             case(2)
             
                !   Store Hdx in OBS_WORK of obsSpaceData               
@@ -514,8 +520,8 @@ contains
     obsoper%hhmm  = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
     ! Constituent identifyer following local version of WMO GRIB Table 08046 (similar to BUFR Table 08043)
     obsoper%constituent_id = obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
-    if (obsoper%constituent_id.gt.chm_var_maxnumber().and.obsoper%constituent_id.lt.7000) then
-        ! chm_constituents_size=chm_var_maxnumber() <7000 as values >=7000 restricted to NWP fields.
+    if (obsoper%constituent_id.gt.chm_var_maxnumber().and.(obsoper%constituent_id.lt.7000.and.obsoper%constituent_id.ge.0)) then
+        ! chm_constituents_size=chm_var_maxnumber() <7000 as values >=7000 (and <0) restricted to NWP fields.
         write(*,*) 'chm_obsoper_init: chm_constituents_size less than ',obsoper%constituent_id,' for STNID ',obsoper%stnid
         write(*,*) 'chm_obsoper_init: may need to increae chm_constituents_size'
         write(*,*) 'chm_obsoper_init: or edit BURP file values for Table 08046 element.'
@@ -787,8 +793,9 @@ contains
 ! Indicate if the generalized innovation operator is to be applied.
 
   obsoper%apply_genoper=.false.
-  if (chm_setup_get_int('genoper',obsoper%constituent_id).gt.0 .and. kmode.ne.1 .and. &
-       (obsoper%modelIndex.eq.3 .or. obsoper%modelIndex.eq.4)) then
+  if (obsoper%constituent_id.ge.0) then
+    if (chm_setup_get_int('genoper',obsoper%constituent_id).gt.0 .and. kmode.ne.1 .and. &
+        (obsoper%modelIndex.eq.3 .or. obsoper%modelIndex.eq.4)) then
        
       if (kmode.eq.0) then
           ! Set reference profile for use with generalized innovation operator when kmode>=2
@@ -805,6 +812,7 @@ contains
       else if (kmode.ge.2) then
           obsoper%apply_genoper = .true.
       end if
+    end if
   end if
 
 ! Apply unit conversion and any necessary (nonlinear) transformations (apply unit conversion later for kmode=3)

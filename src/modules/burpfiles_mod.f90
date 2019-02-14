@@ -320,13 +320,16 @@ contains
          return
       end if
 
-      if (nexp /= nlv/2) then
+      if (nexp*2 /= nlv) then
          ! Skip over obs assuming mantissa was filtered out in brpr_readBurp 
          ! (not inserted in obsSpaceData) due to quality flags.
          ! Set exponent quality flag to that of a 'Suspicious element' 
          
          do bodyIndex = RLN, NLV + RLN -1
+            call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
+            call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
             call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
+            call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
          end do
               
          ! write(*,*) 'NLV =',nlv,' Nexp=',nexp    

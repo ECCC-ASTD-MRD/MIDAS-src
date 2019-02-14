@@ -87,6 +87,7 @@
 !!                     location. 
 !!    BCHM_getBgSigma: Obtain background error std. dev. at specified grid point for specified field.
 !!    BCHM_is_initialized: checks if B_chm has been intialized.
+!!    BCHM_StatsExistForVarname: Checfs if covariances available for specified variable.
 !!
 !! Other subroutines/functions info:
 !!    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
@@ -121,7 +122,7 @@ MODULE BmatrixChem_mod
   public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
   public :: bchm_expandToMPIglobal,bchm_expandToMPIglobal_r4,bchm_reduceToMPIlocal,bchm_reduceToMPIlocal_r4,bchm_getScaleFactor
   public :: bchm_corvert_mult, bchm_getsigma, bchm_is_initialized
-  public :: bchm_truncateCV,bchm_getBgSigma
+  public :: bchm_truncateCV,bchm_getBgSigma, bchm_StatsExistForVarname
 
   ! public arrays
   public :: bchm_corvert, bchm_corverti, bchm_invsum, bchm_varnamelist 
@@ -477,6 +478,30 @@ CONTAINS
     call tmg_stop(120)
 
   END SUBROUTINE BCHM_setup
+
+!-----------------------------------------------------------------------------------------------
+!!
+!! *Purpose*: Checks if covariances have been made available for the specicied variable
+!!
+!! @author Y. Rochon, Jan, 2019
+!
+!-----------------------------------------------------------------------------------------
+  logical function BCHM_StatsExistForVarName(VarName)
+
+    implicit none
+    character(len=4), intent(in) :: VarName
+
+    if (allocated(bchm_varNameList)) then
+       if (any(bchm_varNameList(:) == VarName)) then
+          bchm_StatsExistForVarName = .true.
+       else
+          bchm_StatsExistForVarName = .false.
+       end if
+    else
+       bchm_StatsExistForVarName = .false.
+    end if
+    
+  end function BCHM_StatsExistForVarName
 
 !-----------------------------------------------------------------------------------------------
 !!
@@ -1687,11 +1712,11 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: fnom, fstouv, fstfrm, fclos
 
-    write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
+    write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt_chm.fst for NTRUNC =', ntrunc
 
     if(mpi_myid==0) then
       nulcorns_sqrt = 0
-      ierr = fnom(nulcorns_sqrt,'corns_sqrt.fst','RND',0)
+      ierr = fnom(nulcorns_sqrt,'corns_sqrt_chm.fst','RND',0)
       ierr = fstouv(nulcorns_sqrt,'RND')
 
       ipak = -32
