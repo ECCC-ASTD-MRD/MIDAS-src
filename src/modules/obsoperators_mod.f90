@@ -312,7 +312,7 @@ contains
 
          ! Process all data within the domain of the model
          ilyr  =obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
-         varName = vnl_varnameFromVarnum(ivnm)
+         varName = vnl_varNameFromVarnum(ivnm)
          varLevel = vnl_varLevelFromVarnum(ivnm)
          zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
          zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
@@ -697,6 +697,7 @@ contains
     ! locals
     integer :: ivnm, headerIndex, bodyIndex
     real(8) :: obsValue
+    character(len=4) :: varName
 
     write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
 
@@ -719,8 +720,9 @@ contains
 
       obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+      varName = vnl_varNameFromVarNum(ivnm)
       call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
-                          obsValue - 100.0d0*col_getElem( columnhr, 1, headerIndex, cdfam ) )
+                          obsValue - 100.0d0*col_getElem( columnhr, 1, headerIndex, varName ) )
 
       ! contribution to jobs
       jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
@@ -1939,6 +1941,7 @@ contains
       ! locals
       integer :: headerIndex, bodyIndex, ityp
       real(8) :: columnVarB
+      character(len=4) :: varName
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -1956,7 +1959,8 @@ contains
              ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-          columnVarB = 100.0d0*col_getElem( column, 1, headerIndex, varName_opt = 'GL' )
+          varName = vnl_varNameFromVarNum(ityp)
+          columnVarB = 100.0d0*col_getElem( column, 1, headerIndex, varName_opt = varName )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
 
@@ -3056,6 +3060,7 @@ contains
       real(8) :: residual
       integer :: headerIndex, bodyIndex, ityp
       real(8), pointer :: columnGL(:)
+      character(len=4) :: varName
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
@@ -3073,7 +3078,8 @@ contains
            ) then
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = 100.0d0*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
-          columnGL => col_getColumn( column, headerIndex, varName_opt = 'GL' )
+          varName = vnl_varNameFromVarNum(ityp)
+          columnGL => col_getColumn( column, headerIndex, varName_opt = varName )
           columnGL(1) = columnGL(1) + residual
         end if
 
