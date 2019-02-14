@@ -326,7 +326,7 @@ contains
          ! Set exponent quality flag to that of a 'Suspicious element' 
          
          do bodyIndex = RLN, NLV + RLN -1
-            call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
+            call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, real(0.0D0,OBS_REAL) )
             call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
             call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
             call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
