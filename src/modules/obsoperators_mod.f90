@@ -1001,7 +1001,6 @@ contains
           ! Profile x
           !
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
-          !zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
@@ -1328,7 +1327,6 @@ contains
        do jl = 1, nlev_T
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
           ! True implementation of ZDP (dP/dP0)
-          !zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
@@ -1919,6 +1917,10 @@ contains
       !*          increments.
       !*          It returns Hdx in OBS_WORK
       !*
+      !* Revision 01: M. Bani Shahabadi Feb 2019
+      !*            - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !*              dP is part of column now.  
+      !*
       IMPLICIT NONE
 
       INTEGER IPB,IPT,IXTR
@@ -1928,7 +1930,7 @@ contains
       REAL*8 ZWB,ZWT, ZEXP,ZGAMMA,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB
-      REAL*8 dPdPsfc
+      REAL*8 delP
       INTEGER, PARAMETER :: numFamily=4
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !C
@@ -1981,13 +1983,12 @@ contains
                   ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
                   ityp == bufr_vis  .or. ityp == bufr_gust ) THEN
                  if (ITYP == BUFR_NESS ) THEN
-                   dPdPsfc = col_getPressureDeriv(columng,nlev,headerIndex,'TH')
-                   columnVarB = hutoes_tl_v0(col_getElem(column,nlev,headerIndex,'HU'), &
+                   delP = col_getPressure(column,nlev,headerIndex,'TH')
+                   columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
                           col_getElem(column,nlev,headerIndex,'TT'), &
-                          col_getElem(column,1,headerIndex,'P0'), &
+                          delP, &
                           col_getElem(columng,nlev,headerIndex,'HU'), &
-                          col_getPressure(columng,nlev,headerIndex,varLevel),  &
-                          dPdPsfc)
+                          col_getPressure(columng,nlev,headerIndex,varLevel))
                   else
                     columnVarB=col_getElem(COLUMN,IPB,headerIndex)
                   end if
@@ -2707,6 +2708,10 @@ contains
       !*Author  : P. Koclas *CMC/AES  April 1996
       !*    -------------------
       !*
+      !*Revision 01: M. Bani Shahabadi Feb 2019
+      !*           - Replacing the dPdPsfc dependency by dP, as the interpolated 
+      !*             dP is part of column now.  
+      !*
       !*     Purpose: based on surfc1dz to build the adjoint of the
       !*              vertical interpolation for SURFACE data files.
       !*
@@ -2717,7 +2722,7 @@ contains
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       INTEGER headerIndex,IK,nlev
       INTEGER bodyIndex,ITYP,INDEX_FAMILY
-      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
+      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:),p_column(:)
       REAL*8 :: dPdPsfc
       INTEGER, PARAMETER :: numFamily=4
       CHARACTER(len=2) :: list_family(numFamily),varLevel
@@ -2771,17 +2776,15 @@ contains
                     ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
                     ityp == bufr_vis  .or. ityp == bufr_gust ) then
                  if ( ityp == bufr_ness ) then
-                   dPdPsfc = col_getPressureDeriv( columng, nlev, headerIndex, 'TH' )
                    tt_column  => col_getColumn(column,headerIndex,'TT')
                    hu_column  => col_getColumn(column,headerIndex,'HU')
-                   ps_column  => col_getColumn(column,headerIndex,'P0')
-                   call hutoes_ad_v0(hu_column(nlev),  &
+                   p_column   => col_getColumn(column,headerIndex,'P_T')
+                   call hutoes_ad(hu_column(nlev),  &
                         tt_column(nlev),  &
-                        ps_column(1),     &
+                        p_column(nlev),     &
                         ZRES,             &
                         col_getElem(columng,nlev,headerIndex,'HU'),      &
-                        col_getPressure(columng,nlev,headerIndex,'TH'),  &
-                        dPdPsfc)
+                        col_getPressure(columng,nlev,headerIndex,'TH'))
                  else
                    all_column => col_getColumn(column,headerIndex) 
                    all_column(IPB) = all_column(IPB) + ZRES
@@ -3369,38 +3372,6 @@ contains
 
   end function HUtoES
 
-  function HUtoES_tl_v0(HU_inc,TT_inc,P0_inc,HU_trial,PRES_trial,dPdPsfc) result(ES_inc)
-    !
-    ! Purpose: TLM VERSION
-    !          to calculate the dew point depression from specific
-    !          humidity, temperature and pressure.  No ice phase
-    !          is permitted and the pressure vector is given.
-    !
-    implicit none
-    REAL(8), intent(in) :: HU_inc, TT_inc, P0_inc, HU_trial, PRES_trial, dPdPsfc
-    REAL(8) :: ZE, ZTD, dTDdE, ZQBRANCH, ES_inc
-    REAL(8) :: dESdLQ, dESdTT, dESdP0
-
-    dESdTT = 1.0d0
-
-    !- Forward calculations of saturation vapour pressure and dewpoint temperature
-    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
-    ZE   = FOEFQ8(HU_trial, PRES_trial)
-    ZTD  = FOTW8 (ZE)
-    dTDdE= FODTW8(ZTD,ZE)
-
-    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
-    ZQBRANCH = FQBRANCH(HU_trial)
-
-    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
-
-    dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,dPdPsfc)-  &
-               (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
-
-    ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
-
-  end function HUtoES_tl_v0
-
 
   function HUtoES_tl(HU_inc,TT_inc,P_inc,HU_trial,PRES_trial) result(ES_inc)
     !
@@ -3436,44 +3407,6 @@ contains
     ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP*P_inc + dESdTT*TT_inc
 
   end function HUtoES_tl
-
-
-  subroutine HUtoES_ad_v0(HU_inc,TT_inc,P0_inc,ES_inc,HU_trial,PRES_trial,dPdPsfc)
-    !
-    ! Purpose: ADJOINT VERSION
-    !          to calculate the dew point depression from specific
-    !          humidity, temperature and pressure.  No ice phase
-    !          is permitted and the pressure vector is given.
-    !
-    implicit none
-    REAL(8), intent(inout) :: HU_inc,TT_inc,P0_inc
-    REAL(8), intent(in)  :: ES_inc,HU_trial,PRES_trial,dPdPsfc
-    REAL(8) :: ZE,ZTD,dTDdE,ZQBRANCH
-    REAL(8) :: dESdLQ,dESdTT,dESdP0
-
-    dESdTT = 1.0d0
-   
-    !- Forward calculations of saturation vapour pressure and dewpoint temperature
-    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
-    ZE = FOEFQ8(HU_trial, PRES_trial)
-
-    ZTD=FOTW8(ZE)
-    dTDdE=FODTW8(ZTD,ZE)
-
-    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
-    ZQBRANCH = FQBRANCH(HU_trial)
-    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
-
-    dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,dPdPsfc)-  &
-               (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
-
-    ! TLM: ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
-    ! ADJOINT:
-    HU_inc = HU_inc + dESdLQ*ES_inc/HU_trial
-    P0_inc = P0_inc + dESdP0*ES_inc
-    TT_inc = TT_inc + dESdTT*ES_inc
-
-  end subroutine HUtoES_ad_v0
 
 
   subroutine HUtoES_ad(HU_inc,TT_inc,P_inc,ES_inc,HU_trial,PRES_trial)
@@ -3623,7 +3556,6 @@ contains
             ! Profile x_b
             zpp(jl) = col_getPressure(columng,jl,headerIndex,'TH')
             ! True implementation of zDP (dP/dP0)
-            !zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
             zdp(jl) = 0.0d0
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
