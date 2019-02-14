@@ -190,10 +190,12 @@ module varNameList_mod
         varName='P0'
       case ( BUFR_NERF, BUFR_NEBD, BUFR_NEZD )
         varName='TT'   ! temporarily associate refractivity and ZTD with temperature
-      case (BUFR_NEDW)
+      case ( BUFR_NEDW )
         varName='DW'
-      case ( bufr_sst )
+      case ( BUFR_SST )
         varname='TG'
+      case ( BUFR_ICEC  )
+        varname='GL'
       case default
         !
         ! Search for constituents. Identification depends on value and presence of second parameter.
