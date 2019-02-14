@@ -446,18 +446,18 @@ module HorizontalCoord_mod
 
     if (key >= 0) then
 
-       !  Test if the dimensions are compatible with the grid
-       if ( ni_t /= ni .or. nj_t /= nj ) then
-         write(*,*)
-         write(*,*) 'hco_SetupFromFile: Incompatible mask grid descriptors !'
-         write(*,*) 'Found     :', ni_t, nj_t
-         write(*,*) 'Should be :', ni, nj
-         call utl_abort('hco_setupFromFile')
-       end if
+      !  Test if the dimensions are compatible with the grid
+      if ( ni_t /= ni .or. nj_t /= nj ) then
+        write(*,*)
+        write(*,*) 'hco_SetupFromFile: Incompatible mask grid descriptors !'
+        write(*,*) 'Found     :', ni_t, nj_t
+        write(*,*) 'Should be :', ni, nj
+        call utl_abort('hco_setupFromFile')
+      end if
 
-       allocate(hco % mask(ni,nj))
+      allocate(hco % mask(ni,nj))
 
-       key = fstluk(hco%mask, key, ni_t, nj_t, nk)
+      key = fstluk(hco%mask, key, ni_t, nj_t, nk)
 
     end if
 
@@ -519,6 +519,7 @@ module HorizontalCoord_mod
     type(struct_hco), pointer :: hco
     integer :: ierr
     integer, external :: ezqkdef
+    logical           :: maskAllocated
 
     write(*,*) 'hco_mpiBcast: starting'
 
@@ -573,10 +574,14 @@ module HorizontalCoord_mod
       endif
     endif
 
-    if ( mpi_myid > 0 ) then
-      allocate(hco % mask(hco%ni,hco%nj))
+    maskAllocated = allocated(hco%mask)
+    call rpn_comm_bcast(maskAllocated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    if ( maskAllocated ) then
+       if ( mpi_myid > 0 ) then
+          allocate(hco % mask(hco%ni,hco%nj))
+       endif
+       call rpn_comm_bcast(hco%mask, size(hco%mask), 'MPI_INTEGER', 0, 'GRID', ierr)
     endif
-    call rpn_comm_bcast(hco%mask, size(hco%mask), 'MPI_INTEGER', 0, 'GRID', ierr)
 
     write(*,*) 'hco_mpiBcast: done'
 
