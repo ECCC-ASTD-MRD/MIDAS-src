@@ -189,7 +189,7 @@ contains
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file (vgd_new reads "!!" record)
-  
+
     stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
       call utl_abort('vco_setupFromFile: ERROR with vgd_new')

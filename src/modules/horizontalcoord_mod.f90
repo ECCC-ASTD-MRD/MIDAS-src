@@ -62,6 +62,7 @@ module HorizontalCoord_mod
      real(8)              :: xlat2, xlat2_yan
      real(8)              :: xlon2, xlon2_yan
      real(4), allocatable :: tictacU(:)
+     integer, allocatable :: mask(:,:)
   end type struct_hco
 
   contains
@@ -88,10 +89,13 @@ module HorizontalCoord_mod
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    integer :: iu_template, numSubGrid
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos
+    ! External functions from rmnlib
+    integer :: fnom, fstouv, fstfrm, fclos
+    integer :: fstinf, fstprm, fstlir, fstluk
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+
+    integer :: iu_template, numSubGrid
+    integer :: key, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -162,6 +166,7 @@ module HorizontalCoord_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
+      write(*,*) 'hco_SetupFromFile: with etiket = ',trim(EtiketName)
       call utl_abort('hco_setupFromFile')
     end if
 
@@ -425,6 +430,37 @@ module HorizontalCoord_mod
     deallocate(lat_8)
     deallocate(lon_8)
 
+    !- 3.1  Read the mask if present
+
+    dateo  = -1
+    etiket = EtiketName
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = '@@'
+    nomvar = ' '
+
+    key = fstinf( iu_template,                                   & ! IN
+                  ni_t, nj_t, nk,                                & ! OUT
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
+
+    if (key >= 0) then
+
+      !  Test if the dimensions are compatible with the grid
+      if ( ni_t /= ni .or. nj_t /= nj ) then
+        write(*,*)
+        write(*,*) 'hco_SetupFromFile: Incompatible mask grid descriptors !'
+        write(*,*) 'Found     :', ni_t, nj_t
+        write(*,*) 'Should be :', ni, nj
+        call utl_abort('hco_setupFromFile')
+      end if
+
+      allocate(hco % mask(ni,nj))
+
+      key = fstluk(hco%mask, key, ni_t, nj_t, nk)
+
+    end if
+
     !
     !- 4.  Close the input file
     !
@@ -483,6 +519,7 @@ module HorizontalCoord_mod
     type(struct_hco), pointer :: hco
     integer :: ierr
     integer, external :: ezqkdef
+    logical           :: maskAllocated
 
     write(*,*) 'hco_mpiBcast: starting'
 
@@ -535,6 +572,15 @@ module HorizontalCoord_mod
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not set for grtyp = ',hco%grtyp
         hco%EZscintID  = -1
       endif
+    endif
+
+    maskAllocated = allocated(hco%mask)
+    call rpn_comm_bcast(maskAllocated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    if ( maskAllocated ) then
+       if ( mpi_myid > 0 ) then
+          allocate(hco % mask(hco%ni,hco%nj))
+       endif
+       call rpn_comm_bcast(hco%mask, size(hco%mask), 'MPI_INTEGER', 0, 'GRID', ierr)
     endif
 
     write(*,*) 'hco_mpiBcast: done'

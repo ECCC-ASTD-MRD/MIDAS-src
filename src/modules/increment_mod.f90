@@ -110,6 +110,7 @@ CONTAINS
     real(8), pointer    :: PsfcIncrement(:,:,:,:)
     real(8), pointer    :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
     real(8), pointer    :: GZsfc_increment(:,:), GZsfc_trial(:,:)
+    real(8), pointer    :: GL_ptr(:,:,:,:)
 
     logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
 
@@ -306,6 +307,17 @@ CONTAINS
     call tmg_stop(181)
 
     !
+    !- Impose limits [0,1] on sea ice concentration analysis
+    !
+    if( gsv_varExist(statevector_analysis,'GL') ) then
+
+      GL_ptr => gsv_getField_r8(statevector_analysis,'GL')
+      GL_ptr(:,:,:,:) = min(GL_ptr(:,:,:,:), 1.0d0)
+      GL_ptr(:,:,:,:) = max(GL_ptr(:,:,:,:), 0.0d0)
+
+    end if
+
+    !
     !- Impose limits on humidity analysis and recompute increment
     !
     call tmg_start(182,'INC_QLIMITS')
@@ -445,7 +457,7 @@ CONTAINS
        end if
     end if
 
-    ! Adjust and or transform chemical consituent concentration increments as needed.
+    ! Adjust and or transform chemical constituent concentration increments as needed.
     ! This includes ensuring non-negative analysis values on the analysis/increment grid.
     if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr)
 

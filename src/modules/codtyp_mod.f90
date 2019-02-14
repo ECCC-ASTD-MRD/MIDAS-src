@@ -70,10 +70,10 @@ contains
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     if (ierr.ne.0) then
        write(*,*) 'Error opening namelist file. Unit ',nulnam,'. Error no.',ierr
-       call utl_abort('codtyp_get_codtyp: Error opening namelist file') 
+       call utl_abort('codtyp_initialize: Error opening namelist file') 
     end if
     read(nulnam,nml=namcodtyp, iostat=ierr)
-    if (ierr.ne.0) call utl_abort('codtyp_get_codtyp: Error reading namelist')
+    if (ierr.ne.0) call utl_abort('codtyp_initialize: Error reading namelist')
     ierr = fclos(nulnam)
 
     ! count how many additions were read and ensure lower case

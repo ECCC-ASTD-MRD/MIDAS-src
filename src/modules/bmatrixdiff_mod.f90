@@ -58,7 +58,7 @@ MODULE BmatrixDiff_mod
   character(len=4)    :: stddevMode
 
   ! Homogeneous background-error standard deviation (when stddevMode == 'HOMO')
-  real :: homogeneous_std(maxNumVars)
+  real(8) :: homogeneous_std(maxNumVars)
 
   ! Number of incremental variables/fields
   integer             :: numvar2d
@@ -169,7 +169,7 @@ CONTAINS
     limplicit(:) = .false.
     scaleFactor(:) = 0.0d0
     stddevMode  = 'GD2D'
-    homogeneous_std(:) = -1.0
+    homogeneous_std(:) = -1.0d0
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

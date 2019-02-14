@@ -4805,7 +4805,7 @@ contains
          ,'STATION''S ALTITUDE:',g13.6,1x &
          ,'NUMBER OF DATA:',i6,1x &
          ,/,6x &
-         ,'REPORT STATUS:',i6,5x,'REPORT STATUS 2:',i6,1x &
+         ,'REPORT STATUS:',i6,5x,'REPORT STATUS 2:',i10,1x &
          ,/,6x &
          )
 

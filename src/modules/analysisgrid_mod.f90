@@ -338,7 +338,7 @@ module analysisGrid_mod
     if ( mpi_nprocs /= 0 ) then
        call mpivar_setup_lonbands(ni_ext,                      & ! IN
                                   lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
-       
+
        call mpivar_setup_latbands(nj_ext,                      & ! IN
                                   latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
     else

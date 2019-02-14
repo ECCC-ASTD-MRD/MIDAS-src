@@ -68,12 +68,13 @@ module varqc_mod
 
     integer jdata, kindic, iter, jjo, idata, idatend, idburp
     integer ityp, iass, ifld, iother, jj, istyp, ilev
-    real(8) zagz, zahu, zatt, zduv, zdgz, zdtt, zdhu, zauv, zslev, zapn, zdpn, zatm, zdtm
-    real(8) zabt, zdbt, zabtb, zdbtb, zach, zdch
-    real(8) zlev, zjo, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
-    real(8) zfcst, zlat, zlon, zprior, zaps, zdps, zauvra, zattra, zattsym
+    real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice
+    real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice
+    real(8) zattra, zauvra, zattsym
+    real(8) zslev, zlev, zjo, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
+    real(8) zfcst, zlat, zlon, zprior
     logical llok
-    real(8) zazd, zdzd
+
     !
     !_____prior probabilities for winds:ZAUV
     !     prior probabilities for scalar variables: zagz and zahu
@@ -81,35 +82,39 @@ module varqc_mod
     !     standard deviation multiple for background check for heights: zdgz
     !     standard deviation multiple for background check for humidity: zdhu
     !
-    zagz   = 1.d-12
-    zatm   = 1.d-12
-    zatt   = 5.d-2
+    zagz  = 1.0d-12
+!    zahu  = 1.0d-2
+    zahu  = 5.0d-2
+    zatt  = 5.0d-2
+!    zauv  = 1.0d-2
+    zauv  = 2.0d-2
+    zabt  = 1.0d-1
+    zabtb = 1.0d-1
+    zapn  = 1.0d-4
+    zaps  = 1.0d-4
+    zazd  = 2.0d-2
+    zach  = 1.0d-3
+    zatm  = 1.0d-12
+    zaice = 0.0d0
+
 !    zattra = 1.d-2
     zattra = 0.005d0
-!    zauv   = 0.01d0
-    zauv   = 0.02d0
+    zattsym = 1.d-1
 !    zauvra = 1.d-3
     zauvra = 1.d-5
-!    zahu   = 0.01d0
-    zahu   = 0.05d0
-    zapn = 1.d-4
-    zaps = 1.d-4
-    zabt   = 1.0d-1
-    zabtb  = 1.0d-1
-    zattsym = 1.d-1
-    zazd = 2.0d-2
-    zach = 1.0d-3
-    zduv = 5.d0
-    zdgz = 5.d0
-    zdtm = 5.d0
-    zdtt = 5.d0
-    zdhu = 5.d0
-    zdpn = 5.d0
-    zdps = 5.d0
-    zdbt = 3.d0
+
+    zdgz  = 5.d0
+    zdhu  = 5.d0
+    zdtt  = 5.d0
+    zduv  = 5.d0
+    zdbt  = 3.d0
     zdbtb = 3.d0
-    zdzd = 3.d0
-    zdch = 10.d0
+    zdpn  = 5.d0
+    zdps  = 5.d0
+    zdzd  = 3.d0
+    zdch  = 1.d1
+    zdtm  = 5.d0
+    zdice = 5.d2
 
     do jjo = 1, obs_numheader(obsSpaceData)
 
@@ -279,6 +284,12 @@ module varqc_mod
                 !
                 call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zatm *  &
                     sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zatm ) * ( 2.d0 * zdtm )))
+             else if (ityp == BUFR_ICEC ) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR SEA ICE
+                !
+                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zaice *  &
+                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
              else
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
@@ -449,9 +460,9 @@ module varqc_mod
     !            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
     implicit none
     type(struct_obs) :: lobsSpaceData
-    integer, parameter :: numFamily = 12
-    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM','AL'/)
-    integer, parameter :: numitem = 14
+    integer, parameter :: numFamily = 13
+    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM','AL','GL'/)
+    integer, parameter :: numitem = 16
     integer :: icount( numitem, numFamily )
 
     integer :: jfam, jitem, headerIndex
@@ -473,7 +484,8 @@ module varqc_mod
            /'WND',    'WND',    'HGT',    'TMP',    'DPD',   'STNP'/
     DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)  &
           /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
-    DATA CLITM(13),CLITM(14) /'ZTD', 'CHM'/
+    DATA CLITM(13), CLITM(14), CLITM(15) , CLITM(16)  &
+           /'ZTD',   'CHM',     'SST',    'ICEC'/
 
 
     do jfam = 1, numFamily
@@ -516,7 +528,7 @@ module varqc_mod
            if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
                ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
                ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
-               ityp == BUFR_NEZD .or. ityp == bufr_sst ) then
+               ityp == BUFR_NEZD .or. ityp == bufr_sst  .or. ityp == BUFR_ICEC) then
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and.  &
@@ -778,6 +790,12 @@ module varqc_mod
                    ZVAR = ZVAR * 1000.D0
                    ZFCST = ZFCST * 1000.D0
                    ZANA  = ZANA * 1000.D0
+                 else if (ityp == bufr_sst) then
+                   CLDESC = CLITM(15)
+                   ICOUNT(15,JFAM) = ICOUNT(15,JFAM) + 1
+                 else if (ityp == BUFR_ICEC) then
+                   CLDESC = CLITM(16)
+                   ICOUNT(16,JFAM) = ICOUNT(16,JFAM) + 1
                  end if
 
                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &

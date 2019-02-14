@@ -772,7 +772,7 @@ contains
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1                  )  ! sql null values
             else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
-            end if 
+            end if
           end if
 
         end do ITEMS
@@ -841,10 +841,10 @@ contains
     write(*,*)  myName//' --- Starting ---   '
     write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
     write(*,*)' fileName -> ', trim(fileName)   
-   
+
     ! set default values of namelist variables
     numberInsertItems = 0
-    itemInsertList(:) = ''
+    itemInsertList(:) = 0
 
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )

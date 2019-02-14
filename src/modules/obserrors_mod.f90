@@ -60,6 +60,10 @@ module obsErrors_mod
   real(8) :: xstd_sc(1), xstd_sst(1)
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
 
+  ! Sea Ice Concentration obs-error standard deviation
+
+  real(8) :: xstd_sic(9)
+
   integer :: n_sat_type, n_categorie
   integer :: tbl_m(200), tbl_h(200), tbl_t(200), tbl_g(200)
 
@@ -159,7 +163,16 @@ contains
     else
       write(*,*) "oer_setObsErrors: No CH observations found."
     end if
-  
+
+    !
+    ! Read in the observation-error stddev for sea ice concentration
+    !
+    if (obs_famexist(lobsSpaceData,'GL')) then
+      call read_obs_err_ice
+    else
+      write(*,*) "oer_setObsErrors: No GL observations found."
+    end if
+
     !
     ! Set obs error information in obsSpaceData object
     !
@@ -503,7 +516,7 @@ contains
     !
     ! Revision: S. Laroche Sept. 2017
     !           - add height assignment errors
-    !          
+    !
     ! Purpose: read observation errors (modification of former readcovo subroutine).
 
     implicit none
@@ -541,7 +554,7 @@ contains
     else
       call utl_abort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
     end if
-    
+
     ! Read observation errors from file obserr for conventional data
     nulstat=0
     ierr=fnom( nulstat, 'obserr', 'SEQ', 0 )
@@ -658,9 +671,75 @@ contains
     write(*, '(A)') ' '
 
     close( unit = nulstat )
-    ierr = fclos( nulstat )    
+    ierr = fclos( nulstat )
 
   end subroutine read_obs_erreurs_conv
+
+  !-----------------------------------------------------------------------------------------
+
+  subroutine read_obs_err_ice
+    ! s/r read_obs_err_ice -READ OBSERVATION ERROR FOR SEA ICE
+    !
+    ! Author  : A. Caya  October 2018
+    !
+    ! Revision: Not yet.
+    !
+    ! Purpose: read observation errors for sea ice concentration analysis
+
+    implicit none
+
+    external fnom, fclos
+    integer :: fnom, fclos, ierr, jlev, jelm, nulstat
+    logical            :: fileExists
+    character(len=128) :: ligne
+    character(len=15), parameter :: fileName = 'sea_ice_obs-err'
+
+    ! CHECK THE EXISTENCE OF THE FILE WITH STATISTICS
+    inquire( file = fileName, exist = fileExists )
+    if ( fileExists ) then
+      write(*,*) '--------------------------------------------------------'
+      write(*,*) 'read_obs_err_ice: reads observation errors in ',fileName
+      write(*,*) '--------------------------------------------------------'
+    else
+      call utl_abort('read_obs_err_ice: NO OBSERVATION STAT FILE FOUND!!')     
+    end if
+
+    ! Read observation errors from file
+    nulstat=0
+    ierr=fnom( nulstat, fileName, 'SEQ', 0 )
+    if ( ierr == 0 ) then
+      write(*,*) 'read_obs_err_ice: File = ./',fileName
+      write(*,*) ' opened as unit file ',nulstat
+      open(unit=nulstat, file=fileName, status='OLD')
+    else
+      call utl_abort('read_obs_err_ice:COULD NOT OPEN FILE '//fileName//'!!!')
+    end if
+
+    write(*, '(A)') ' '
+
+    do jelm = 1, 9
+
+      do jlev = 1, 3
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+
+      read(nulstat, * ) xstd_sic(jelm)
+      write(*,*) xstd_sic(jelm)
+
+      do jlev = 1, 2
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+
+    end do
+
+    write(*, '(A)') ' '
+
+    close( unit = nulstat )
+    ierr = fclos( nulstat )
+
+  end subroutine read_obs_err_ice
 
   !-----------------------------------------------------------------------------------------
 
@@ -1012,6 +1091,41 @@ contains
           else if ( cfam == 'TM' ) then
 
             call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 1 ) )
+
+                !***********************************************************************
+                !               Sea Ice Concentration
+                !***********************************************************************
+
+          else if ( cfam == 'GL' ) then
+
+            if (index(cstnid,'DMSP') == 1) then
+              select case(cstnid)
+              case('DMSP15')
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 1 ) )
+              case('DMSP16','DMSP17','DMSP18')
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 2 ) )
+              case DEFAULT
+                call utl_abort('fill_obs_erreurs: UNKNOWN station id: '//cstnid)
+              end select
+            else if (cstnid == 'GCOM-W1') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 3 ) )
+            else if (cstnid(1:6) == 'METOP-') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 4 ) )
+            else if (cstnid == 'noaa-19') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 5 ) )
+            else if (cstnid == 'CIS_DAILY') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 6 ) )
+            else if (cstnid == 'RS1_IMG') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 7 ) )
+            else if (index(cstnid,'Lake')   /= 0 .or.   &
+                     index(cstnid,'Lac')    /= 0 .or.   &
+                     index(cstnid,'Reserv') /= 0) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 8 ) )
+            else if (cstnid == 'CIS_REGIONAL') then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 9 ) )
+            else
+              call utl_abort('fill_obs_erreurs: UNKNOWN station id: '//cstnid)
+            end if
 
           else
 

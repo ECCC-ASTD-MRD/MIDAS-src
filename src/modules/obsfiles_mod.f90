@@ -68,8 +68,8 @@ contains
   subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
     implicit none
     ! arguments
-    integer                                 :: dateStamp_out
-    character(len=*)                        :: obsFileMode_in
+    integer         , intent(out)           :: dateStamp_out
+    character(len=*), intent(in)            :: obsFileMode_in
     character(len=*), intent(out), optional :: obsFileType_opt
     ! locals
     character(len=10)                       :: obsFileType
@@ -589,7 +589,7 @@ contains
     implicit none
     ! arguments
     character(len=*),intent(out) :: obsFileType
-    character(len=*) ,intent(in) :: fileName
+    character(len=*),intent(in)  :: fileName
     ! locals
     integer           :: ierr, unitFile
     integer           :: fnom, fclos, wkoffit

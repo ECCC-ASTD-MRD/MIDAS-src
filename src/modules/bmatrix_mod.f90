@@ -76,7 +76,7 @@ contains
 
     integer :: cvdim, bmatIndex
     integer :: get_max_rss
-   
+
     !
     !- 1.  Get/Check the analysis grid info
     !
