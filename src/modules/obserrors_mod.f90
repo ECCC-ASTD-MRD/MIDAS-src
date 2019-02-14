@@ -983,13 +983,13 @@ contains
             else if ( ityp == BUFR_NEES ) then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
             else if ( ityp == bufr_vis ) then
-              if (5 <= surfaceObsTypeNumber) then
+              if (surfaceObsTypeNumber >= 5) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
               else
                 call utl_abort("fill_obs_erreurs: observation error missing for visibility")
               end if
             else if ( ityp == bufr_gust ) then
-              if (6 <= surfaceObsTypeNumber) then
+              if (surfaceObsTypeNumber >= 6) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
               else
                 call utl_abort("fill_obs_erreurs: observation error missing for wind gust")

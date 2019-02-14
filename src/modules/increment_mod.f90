@@ -411,8 +411,8 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
           anlFileName = './anlm_' // trim(coffset) // 'm'
           call gsv_writeToFile( statevector_vis_1step_r4, trim(anlFileName), etiket_anlm,  &
-                              typvar_opt='A', &
-                              numBits_opt=writeNumBits, containsFullField_opt=.true. )
+                                typvar_opt='A', numBits_opt=writeNumBits,                  &
+                                containsFullField_opt=.true. )
         end if
       end if
 

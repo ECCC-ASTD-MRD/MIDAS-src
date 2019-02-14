@@ -260,12 +260,12 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
         call oop_vobslyrs(lcolumng,lobsSpaceData) ! note: this routine is not 2D compatible
       else
         do bodyIndex = 1, obs_numbody( lobsSpaceData )
-           ok = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == 1   .OR. &
-                   obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
-                obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == 1 )
-           if ( ok ) then
-             call obs_bodySet_i(lobsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0 in 2D mode
-           end if
+          ok = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == 1   .OR.  &
+                  obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
+                  obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == 1 )
+          if ( ok ) then
+            call obs_bodySet_i(lobsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0 in 2D mode
+          end if
         end do
       end if
 !

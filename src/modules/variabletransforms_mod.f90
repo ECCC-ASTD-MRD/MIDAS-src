@@ -209,7 +209,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv) :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
@@ -217,11 +217,11 @@ CONTAINS
     lq_ptr => gsv_getField_r8(statevector,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd
-            hu_ptr(i,j,k,stepIndex) = exp(lq_ptr(i,j,k,stepIndex))
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
           end do
         end do
       end do
@@ -237,7 +237,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
@@ -248,11 +248,11 @@ CONTAINS
       lq_ptr_r8   => gsv_getField_r8(statevector,'HU')
 
       do stepIndex = 1, statevector%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-            do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),gsv_rhumin))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),gsv_rhumin))
             end do
           end do
         end do
@@ -265,11 +265,11 @@ CONTAINS
       lq_ptr_r4   => gsv_getField_r4(statevector,'HU')
 
       do stepIndex = 1, statevector%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-            do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),real(gsv_rhumin,4)))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),real(gsv_rhumin,4)))
             end do
           end do
         end do
@@ -287,7 +287,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
@@ -298,11 +298,11 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd       
-            hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) =  lq_ptr(lonIndex,latIndex,levIndex,stepIndex)*max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
           end do
         end do
       end do
@@ -318,7 +318,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
@@ -329,11 +329,11 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd
-            lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            lq_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)/max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
           end do
         end do
       end do
@@ -350,7 +350,7 @@ CONTAINS
 
     type(struct_gsv) :: statevector_in
     type(struct_gsv), optional :: statevectorOut_opt
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(4), pointer :: vis_ptr_r4(:,:,:,:), lvis_ptr_r4(:,:,:,:)
     real(8), pointer :: vis_ptr_r8(:,:,:,:), lvis_ptr_r8(:,:,:,:)
@@ -365,11 +365,11 @@ CONTAINS
       lvis_ptr_r8 => gsv_getField_r8(statevector_in,'LVIS')
       
       do stepIndex = 1, statevector_in%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do j = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do i = statevector_in%myLonBeg, statevector_in%myLonEnd
-              vis_ptr_r8(i,j,k,stepIndex) = exp(lvis_ptr_r8(i,j,k,stepIndex))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
@@ -386,11 +386,11 @@ CONTAINS
       lvis_ptr_r4 => gsv_getField_r4(statevector_in,'LVIS')
 
       do stepIndex = 1, statevector_in%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
-          do j = statevector_in%myLatBeg, statevector_in%myLatEnd
-            do i = statevector_in%myLonBeg, statevector_in%myLonEnd
-              vis_ptr_r4(i,j,k,stepIndex) = exp(lvis_ptr_r4(i,j,k,stepIndex))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
             end do
           end do
         end do
