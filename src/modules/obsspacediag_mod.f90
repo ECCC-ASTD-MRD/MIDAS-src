@@ -1222,7 +1222,7 @@ contains
 
     integer :: bodyIndex,headerIndex,ierr,rln,nlv,kk
     integer :: stat,varno,icodtyp
-    integer, parameter :: max_nlev=300
+    integer, parameter :: max_nlev=500
     integer, parameter :: ndim=1
     real(8) :: array(max_nlev)
     character(len=12), parameter :: stnid='************'
