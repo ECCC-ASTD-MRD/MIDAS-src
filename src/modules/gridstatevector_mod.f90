@@ -2493,14 +2493,16 @@ module gridStateVector_mod
                       -1, etiket_in, &
                       -1, -1, -1, typvar_var, varName)
 
-        if (ikey < 0) then
-          typvar_var(2:2) = '@'
-          ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-               -1, etiket_in, &
-               -1, -1, -1, typvar_var, varName)
-          if (ikey < 0) then
-            write(*,*) 'etiket_in = ',etiket_in
-            write(*,*) 'typvar_var = ',typvar_var
+        if ( ikey < 0 ) then
+          if ( trim(typvar_in) /= "" ) then
+            typvar_var(2:2) = '@'
+            ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                 -1, etiket_in, &
+                 -1, -1, -1, typvar_var, varName)
+          end if
+          if ( ikey < 0 ) then
+            write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
+            write(*,*) 'gsv_readFile: typvar_in = ',typvar_in
             call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
           end if
         end if
@@ -2570,15 +2572,17 @@ module gridStateVector_mod
                       statevector%datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varName)
 
-        if (ikey < 0) then
-          typvar_var(2:2) = '@'
-          ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
-                        statevector%datestamplist(stepIndex), etiket_in, &
-                      -1, -1, -1, typvar_var, varName)
+        if ( ikey < 0 ) then
+          if ( trim(typvar_in) /= "" ) then
+            typvar_var(2:2) = '@'
+            ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
+                 statevector%datestamplist(stepIndex), etiket_in, &
+                 -1, -1, -1, typvar_var, varName)
+          end if
           if (ikey < 0) then
             write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
             write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
-            write(*,*) 'gsv_readFile: typvar_var = ',typvar_var
+            write(*,*) 'gsv_readFile: typvar_in = ',typvar_in
             call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' in file ' // trim(fileName))
           end if
         end if
