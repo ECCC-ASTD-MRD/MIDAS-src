@@ -56,14 +56,14 @@
  &namSQLInsert
 /
  &NAMMIN
-   NVAMAJ = 30,
+   NVAMAJ   = 30,
    NITERMAX = 20,
    NSIMMAX  = 100,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
    LWRTHESS = .FALSE.,
-   LVARQC=.TRUE.,
-   NWOQCV=5
+   LVARQC   = .FALSE.,
+   NWOQCV   = 5
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
