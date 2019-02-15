@@ -1618,10 +1618,10 @@ contains
 
 !$omp parallel do private(jn)
       do jn=1, count_profile
-        call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,nlv_T,1, &
+        call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn))
 	logzhu(:,jn) = log( zhu(:,jn) )	
-        call ppo_IntAvg (zvlev(:,jn:jn),logzhu(:,jn:jn),nlv_T,nlv_T,1, &
+        call ppo_IntAvg (zvlev(:,jn:jn),logzhu(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo(:,jn:jn))
         huo(:,jn) = exp ( loghuo(:,jn) )
       end do

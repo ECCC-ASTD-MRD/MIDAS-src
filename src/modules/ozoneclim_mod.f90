@@ -104,7 +104,7 @@ END DO
 
 FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
 
-CALL ppo_LINTV(pro3,qo3b,nlevo3,nlevo3,nprf,nlev,plev,O3P)
+CALL ppo_LINTV(pro3,qo3b,nlevo3,nprf,nlev,plev,O3P)
 
 
 !* if total climatological ozone is known from outside source

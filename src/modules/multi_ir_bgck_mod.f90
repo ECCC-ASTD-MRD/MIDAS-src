@@ -1282,7 +1282,7 @@ contains
         end do
         ZLQS = col_getElem(lcolumnhr,nlv_T,INDEX_HEADER,'HU')
 
-        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,nlv_T,1, &
+        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,1, &
              nlevb,zvlev,zhoext(:,1:1))
 
         IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)

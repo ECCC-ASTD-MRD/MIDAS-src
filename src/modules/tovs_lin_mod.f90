@@ -377,9 +377,9 @@ contains
           zt   (jl,count_profile)  = TTb(jl)
           zhu  (jl,count_profile)  = HUb(jl)
           zvlev(jl,count_profile)  = Pres(jl) *MPC_MBAR_PER_PA_R8
-          dPdPs(jl,count_profile)  = col_getPressureDeriv(columng,jl,headerIndex,'TH')
+          dPdPs(jl,count_profile)  = col_getPressure(column,jl,headerIndex,'TH')
         end do
-        
+        zps_tl (count_profile)  = 1.d0
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
@@ -411,13 +411,13 @@ contains
       do jn=1, count_profile
 
         call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),zt_tl(:,jn:jn), &
-             zt(:,jn:jn),zps_tl(jn:jn),nlv_T,nlv_T,1, &
+             zt(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn))
 
         logzhu(:,jn) = log( zhu(:,jn) )
         logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
         call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),logzhu_tl(:,jn:jn), &
-             logzhu(:,jn:jn),zps_tl(jn:jn),nlv_T,nlv_T,1, &
+             logzhu(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo_tl(:,jn:jn))
 
         huo_tl(:,jn) = loghuo_tl(:,jn) * qoext(jpmotop:nlevels,jn)
@@ -674,10 +674,11 @@ contains
     real(8), allocatable :: zps_ad   (:)
     real(8), allocatable :: xpres    (:)
 
-    real(8) :: zptop, zptopmbs
+    real(8) :: zptop, zptopmbs, myPs
    
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
     real(8), pointer :: TTb(:), HUb(:), Pres(:)
+    real(8), pointer :: mydpdps(:) => null()
 
     type(struct_obs) :: lobsSpaceData
 
@@ -819,9 +820,24 @@ contains
           zt   (level_index,count_profile) = TTb(level_index)
           zhu  (level_index,count_profile) = HUb(level_index)
           zvlev(level_index,count_profile) = Pres(level_index) * MPC_MBAR_PER_PA_R8
-          dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
+          !dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
         end do
-        
+
+        ! recompute dPdPs (approximation for now)
+        if (associated(mydpdps)) then
+          deallocate(mydpdps,stat=status)
+          nullify(mydPdPs)
+        end if
+        myPs = col_getElem(columng, 1, headerIndex,'P0')
+        status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,mydPdPs,myPs)
+        if (status /= VGD_OK) then
+          Write(*,*) "Problem in dPdPs computation !"
+          Write(*,*) vco_anl%ip1_T
+          Write(*,*) zvlev(nlv_T,count_profile)
+          call utl_abort("  tvslin_fill_profiles_ad recomputedPdPs")
+        end if
+        dPdPs(:,count_profile) =  mydPdPs(:)
+
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
@@ -1007,7 +1023,7 @@ contains
         
         call ppo_IntAvgAd(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
              zt_ad(:,profile_index:profile_index), zt(:,profile_index:profile_index), &
-             zps_ad(profile_index:profile_index), nlv_T,nlv_T,1, &
+             zps_ad(profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
         
 
@@ -1017,7 +1033,7 @@ contains
         loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
         call ppo_IntAvgAd(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
              logzhu_ad(:,profile_index:profile_index), logzhu(:,profile_index:profile_index), &
-             zps_ad(profile_index:profile_index), nlv_T,nlv_T,1, &
+             zps_ad(profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels), loghuo_ad(:,profile_index:profile_index))
 
         zhu_ad(:,profile_index) = zhu_ad(:,profile_index) + logzhu_ad(:,profile_index) / zhu(:,profile_index)
@@ -1083,7 +1099,7 @@ contains
            chanprof,                        &
            opts=tvs_opts(sensor_id),        &
            profiles_ad=profilesdata_ad,     &
-           coefs=tvs_coefs(sensor_id),       &
+           coefs=tvs_coefs(sensor_id),      &
            transmission= transmission,      &
            transmission_ad= transmission_ad,&
            radiance=radiancedata_d,         &
