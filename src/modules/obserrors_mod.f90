@@ -1616,7 +1616,7 @@ contains
                 !
             ZPP(JL) = col_getPressure(LCOLUMNHR,JL,headerIndex,'TH')
                 !     *           True implementation of ZDP (dP/dP0)
-            ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,headerIndex,'TH')
+            ZDP(JL) = 0.0d0
             ZTT(JL) = col_getElem(lcolumnhr,JL,headerIndex,'TT') - p_TC
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
