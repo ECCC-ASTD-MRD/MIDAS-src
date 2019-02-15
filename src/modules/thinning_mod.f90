@@ -106,14 +106,18 @@ contains
 
     countKeepN=0
 
-    ! Loop over all body indices of the family of interest
+    ! Loop over all body indices (columns) of the family of interest and
+    ! thin each column independently of the others
     call obs_set_current_body_list(obsdat, familyType)
     BODY: do 
       bodyIndex = obs_getBodyIndex(obsdat)
       if (bodyIndex < 0) exit BODY
 
-      ! if datum already rejected, ignore it
-      flag           = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex  )
+      ! If the datum is not being assimilated, ignore it
+      if(            obs_bodyElem_i(obsdat, OBS_ASS,  bodyIndex) == 0) cycle BODY
+
+      ! If datum already rejected, ignore it
+      flag         = obs_bodyElem_i(obsdat, OBS_FLG,  bodyIndex  )
       if(btest(flag,BIT9))cycle BODY
 
       headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )

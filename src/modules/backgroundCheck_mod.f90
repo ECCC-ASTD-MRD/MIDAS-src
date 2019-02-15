@@ -30,7 +30,6 @@ module backgroundCheck_mod
   use mpivar_mod
   use columnData_mod
   use obsSpaceDiag_mod
-  use obsFiles_mod
   use earthConstants_mod
   use verticalCoord_mod
   use computeHBHT_mod
@@ -121,20 +120,6 @@ subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
 
   call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
 
-!
-!     Write out contents of obsSpaceData into observation files
-!
-  CALL obsf_writeFiles(obsSpaceData)
-
-  if (mpi_myid == 0 ) then
-    do j =1, min(1,obs_numHeader(obsSpaceData))
-      call obs_prnthdr(obsSpaceData,j)
-      call obs_prntbdy(obsSpaceData,j)
-    end do
-  end if
-
-  ! deallocate obsSpaceData
-  call obs_finalize(obsSpaceData)
 
   call tmg_stop(3)
 

@@ -16,100 +16,92 @@
 
 !--------------------------------------------------------------------------
 !!
-!! *Purpose*: Main program for Observation minus Forecast (O-F) computation
+!! *Purpose*: Main program for O-F computations, background check, and thinning
+!!            (O-F => Observation minus Forecast)
 !!
 !--------------------------------------------------------------------------
-program midas_ominusf
+program midas_obsSelection
   !
-  ! **Purpose**: Main program for Observation minus Forecast (O-F) computation
+  ! *Purpose*: Main program for O-F computations, background check, and thinning
+  !            (O-F => Observation minus Forecast)
   !
   use oMinusF_mod
+  use backgroundCheck_mod
+  use thinning_mod
   use obsSpaceData_mod
-  use computeHBHT_mod
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
   use mpi_mod
   implicit none
 
-  ! Namelist
-  logical :: addHBHT
-  logical :: addSigmaO
-  NAMELIST /NAMOMF/addHBHT, addSigmaO
-
   integer :: fnom, fclos, nulnam, ierr, headerIndex
-  type(struct_columnData),target  :: trlColumnOnAnlLev
-  type(struct_columnData),target  :: trlColumnOnTrlLev
-  type(struct_obs),       target  :: obsSpaceData
+  type(struct_columnData),target :: trlColumnOnAnlLev
+  type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_obs),       target :: obsSpaceData
 
-  write(*,*) " --------------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM midas-oMinusF ---"
-  write(*,*) " ---  Computation of the innovation       ---"
-  write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
-  write(*,*) " --------------------------------------------"
+  write(*,*) " -------------------------------------------------"
+  write(*,*) " ---  START OF MAIN PROGRAM midas-obsSelection ---"
+  write(*,*) " ---  Computation of the innovation            ---"
+  write(*,*) " -------------------------------------------------"
 
   !- 1.0 mpi
   call mpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_OMINUSF' )
+  call tmg_init(mpi_myid, 'TMG_OBSSELECTION' )
   call tmg_start(1,'MAIN')
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_BEG')
   endif
 
-  !- 1.2 Namelist
-  addHBHT   = .false. ! default value
-  addSigmaO = .false.
-
-  nulnam = 0
-  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namomf,iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-OminusF: Error reading namelist')
-  if (mpi_myid == 0) write(*,nml=namomf)
-  ierr = fclos(nulnam)
-
-
 
   ! 2.1 Calculate the Observation - Forecast difference
   call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
-                   'OminusF', addHBHT, addSigmaO)
+                   'bgckConv', addHBHT=.true., addSigmaO=.true.)
 
-  
-  if ( addHBHT ) then
-    ! 2.2 Compute the background errors in observation space
-    call hbht_compute(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
-  end if
 
-  ! 2.3 Write the results
+  ! 2.2 Perform the background check
+  !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
+  call bgck_bgcheck_conv(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData)
 
-  ! 2.3.1 Into the listings
+  !
+  ! 2.3 Thinning1:  Set bit 11 of flag, one observation type at a time
+  !
+  call thn_thinAladin(obsSpaceData)
+
+  ! 3 Write the results
+
+  ! 3.1 Into the listings
   write(*,*)
-  write(*,*) '> midas-OminusF: printing the FIRST header and body'
+  write(*,*) '> midas-obsSelection: printing the FIRST header and body'
   do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
     call obs_prnthdr(obsSpaceData,headerIndex)
     call obs_prntbdy(obsSpaceData,headerIndex)
   end do
-  ! 2.3.2 Into the observation files
+  ! 3.2 Into the observation files
   write(*,*)
-  write(*,*) '> midas-OminusF: writing to file'
+  write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData)
 
+  ! Delete the flagged observations, and make the files smaller
+  call obsf_thinFiles(obsSpaceData)
+
   !
-  !- 3.  Ending
+  ! 4.  Ending
   !
   write(*,*)
-  write(*,*) '> midas-OminusF: Ending'
+  write(*,*) '> midas-obsSelection: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
+
+  call rpn_comm_finalize(ierr)
 
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
-
-  call rpn_comm_finalize(ierr)
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_END')
   endif
 
-end program midas_ominusf
+end program midas_obsSelection
