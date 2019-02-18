@@ -2552,10 +2552,18 @@ module gridStateVector_mod
 
         if (.not.gsv_varExist(statevector,varName)) cycle k_loop
 
-        ! do not try to read diagnostic variables
-        if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle k_loop
+        if (varName == 'LVIS') then
+          write(*,*)
+          write(*,*) 'gsv_readFile: asking for LVIS: VIS will be readed and converted to LVIS'
+          varNameToRead = 'VIS' ! the conversion to LVIS will be done in gsv_fileUnitsToStateUnits
+        else
+          varNameToRead = varName
+        end if
 
-        varLevel = vnl_varLevelFromVarname(varName)
+        ! do not try to read diagnostic variables
+        if ( trim(vnl_varTypeFromVarname(varNameToRead)) == 'DIAG') cycle k_loop
+
+        varLevel = vnl_varLevelFromVarname(varNameToRead)
         if (varLevel == 'MM') then
           ip1 = vco_file%ip1_M(levIndex)
         else if (varLevel == 'TH') then
@@ -2567,14 +2575,6 @@ module gridStateVector_mod
         end if
 
         typvar_var = typvar_in
-
-        if (varName == 'LVIS') then
-          write(*,*)
-          write(*,*) 'gsv_readFile: asking for LVIS: VIS will be readed and converted to LVIS'
-          varNameToRead = 'VIS' ! the conversion to LVIS will be done in gsv_fileUnitsToStateUnits
-        else
-          varNameToRead = varName
-        end if
 
         ! Make sure that the input variable has the same grid size than hco_file   
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
