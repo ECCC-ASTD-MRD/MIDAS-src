@@ -76,9 +76,25 @@ contains
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,ITYP
-    LOGICAL :: LLOK
+    LOGICAL :: OK
     CHARACTER(len=2) :: varLevel
     integer :: headerIndex, bodyIndex
+
+    Write(*,*) "Entering subroutine OOP_VOBSLYRS"
+
+    ! 2D mode patch
+    if ( col_getNumLev(columnghr,'MM') <= 1 ) then 
+      do bodyIndex = 1, obs_numbody( obsSpaceData )
+        ok = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1   .OR.  &
+                obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 )
+        if ( ok ) then
+          call obs_bodySet_i(obsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0
+        end if
+      end do
+      return
+    end if
+
     !
     !-----------------------------------------------------------------------
     !         --------
@@ -89,15 +105,14 @@ contains
     !        ----------------------------------
     !
     !     1.1 PPP Vertical coordinate
-    !
-    Write(*,*) "Entering subroutine OOP_VOBSLYRS"
+    ! 
 
-!$OMP PARALLEL DO PRIVATE(jdata,llok,zlev,iobs,ityp,varLevel,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb)
     DO JDATA= 1,obs_numbody(obsSpaceData)
-       LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+       OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
             obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-       IF ( LLOK ) THEN
+       IF ( OK ) THEN
           IF(obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) /= BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
@@ -134,11 +149,11 @@ contains
     !
     !     1.2 ZZZ Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
     do JDATA= 1,obs_numbody(obsSpaceData)
-      LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
+      OK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
         if ( ITYP /= BUFR_NEDZ ) then
@@ -183,13 +198,13 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
     do JDATA = 1, obs_numbody(obsSpaceData)
       call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA,0)
-      LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -214,12 +229,12 @@ contains
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
     do JDATA = 1, obs_numbody(obsSpaceData)
-      LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)

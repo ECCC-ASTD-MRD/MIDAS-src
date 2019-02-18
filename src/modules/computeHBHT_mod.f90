@@ -208,7 +208,6 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       real(8), allocatable  :: scaleFactor(:)
       
       integer :: bodyIndex
-      logical :: ok
 
       !- Get the appropriate Horizontal and Vertical Coordinate
       hco_anl => agd_getHco('ComputationalGrid')
@@ -256,18 +255,8 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 !
 !     Set the value of OBS_LYR required by setfge routines
 !
-      if ( col_getNumLev(lcolumng,'MM') > 1 ) then 
-        call oop_vobslyrs(lcolumng,lobsSpaceData) ! note: this routine is not 2D compatible
-      else
-        do bodyIndex = 1, obs_numbody( lobsSpaceData )
-          ok = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == 1   .OR.  &
-                  obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
-                  obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == 1 )
-          if ( ok ) then
-            call obs_bodySet_i(lobsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0 in 2D mode
-          end if
-        end do
-      end if
+      call oop_vobslyrs(lcolumng,lobsSpaceData)
+
 !
 !     1. Opening the statistics file
 !
@@ -1059,7 +1048,7 @@ end subroutine hbht_compute_ensemble
   integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp
   real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh
   character(len=2) :: cfam, varLevel
-  logical          :: llok
+  logical          :: ok
 
   ! loop over all body rows
   BODY: do bodyIndex = 1, obs_numbody( lobsSpaceData )
@@ -1068,7 +1057,7 @@ end subroutine hbht_compute_ensemble
     if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
 
       ! Process all data within the domain of the model (excluding GB-GPS ZTD data)
-      llok = .false.
+      ok = .false.
 
       if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == 1 ) then
 
@@ -1077,23 +1066,23 @@ end subroutine hbht_compute_ensemble
              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
              ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_vis  .or. ityp == bufr_gust ) then
 
-          llok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
+          ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
 
         else if ( ityp == BUFR_NEZD ) then
 
           ! make sure total zenith delay (from ground-based GPS) not treated
-          llok=.false.
+          ok=.false.
 
         else
 
-          llok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
+          ok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
                 obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) >= 0)
-          if ( llok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
-          if ( llok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
+          if ( ok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
+          if ( ok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
 
         end if
 
-        if ( llok ) then
+        if ( ok ) then
 
           headerIndex = obs_bodyElem_i( lobsSpaceData, OBS_HIND, bodyIndex )
           ityp         = obs_bodyElem_i( lobsSpaceData, OBS_VNM , bodyIndex )
@@ -1485,7 +1474,7 @@ end subroutine hbht_compute_ensemble
       INTEGER JL, JK, NFLEV_T, ILYR, IOBS
       INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
 
-      LOGICAL  ASSIM, LLOK, LSTAG
+      LOGICAL  ASSIM, OK, LSTAG
       CHARACTER*9  STN_JAC
       
       CHARACTER(len=2) :: varLevel
@@ -1561,8 +1550,8 @@ end subroutine hbht_compute_ensemble
 !C
                   DO INDEX_BODY= IDATA, IDATEND
                      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
-                     IF ( LLOK ) THEN
+                     OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
+                     IF ( OK ) THEN
                         ASSIM = .TRUE.
                         ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                         icount = icount + 1
