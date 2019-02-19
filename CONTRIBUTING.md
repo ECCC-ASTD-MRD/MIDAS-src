@@ -4,7 +4,7 @@
 ### Create an issue
 
  - Go to the **GitLab** [*issue* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues) and press `New issue` button.
- - If available, choose a *template* from the drop-down menu.
+ - Choose a *template* from the drop-down menu.
  - Add a description and fill out the template.
  - Then press `Submit issue`.
 
@@ -82,7 +82,8 @@ git push origin HEAD
 ### Create and assign the `Merge Request`
 
   - Go to **gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
-  - Verify the information, in particular the source branch should the branch you worked on and the target branch should be `master`.
+  - Verify the information, in particular the source branch should be the branch you worked on and the target branch should be `master`.
+  - Select the template, then follow the guidelines when filling in the Description box.
   - Assign the `Merge Request` to a colleague.
   - And press `Submit merge request`.
   - The assignee is expected to review the code, discuss/comment and finally accept the `Merge Request`, which will:
