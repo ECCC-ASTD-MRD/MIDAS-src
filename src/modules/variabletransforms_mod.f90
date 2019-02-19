@@ -41,12 +41,11 @@ module variableTransforms_mod
   ! public procedures
   public :: vtr_setup, vtr_transform
 
-  logical                   :: trialsInitialized = .false.
+  logical                   :: huTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv)    :: statevector_trial
-  character(len=4)    :: trialVarNamesToRead(2) = (/ 'HU', 'P0' /)
+  type(struct_gsv)    :: statevector_trial_hu
 
 CONTAINS
 
@@ -59,7 +58,7 @@ CONTAINS
     type(struct_hco), pointer :: hco_in
     type(struct_vco), pointer :: vco_in
     
-    if (trialsInitialized) return
+    if (huTrialsInitialized) return
 
     write(*,*) 'vtr_setup: starting'
 
@@ -73,29 +72,37 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! vtr_setupTrials
   !--------------------------------------------------------------------------
-  subroutine vtr_setupTrials()
+  subroutine vtr_setupTrials(varName)
     implicit none
 
-    ! initialize statevector_trial on analysis grid
-    call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,   &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                      varNames_opt=trialVarNamesToRead )
+    character(len=*), intent(in) :: varName
 
-    ! read trial files using default horizontal interpolation degree
-    call gsv_readTrials( statevector_trial )  ! IN/OUT
+    select case ( trim(varName) )
+    case ('HU')
+      ! initialize statevector_trial_hu on analysis grid
+      call gsv_allocate(statevector_trial_hu, tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'HU','P0'/) )
 
-    trialsInitialized = .true.
-    
+      ! read trial files using default horizontal interpolation degree
+      call gsv_readTrials( statevector_trial_hu )  ! IN/OUT
+
+      huTrialsInitialized = .true.
+    case default
+      call utl_abort('vtr_setupTrials: unknown variable ='//trim(varName))
+    end select
+
   end subroutine vtr_setupTrials
 
   !--------------------------------------------------------------------------
   ! vtr_transform
   !--------------------------------------------------------------------------
-  subroutine vtr_transform(statevector,transform)
+  subroutine vtr_transform(statevector,transform, statevectorOut_opt)
     implicit none
    
     type(struct_gsv) :: statevector
+    type(struct_gsv), optional :: statevectorOut_opt
  
     character(len=*), intent(in) :: transform
 
@@ -104,47 +111,89 @@ CONTAINS
     select case(trim(transform))
 
     case ('UVtoVortDiv')
-       call UVtoVortDiv(statevector)
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for UVtoVortDiv, the option statevectorOut_opt is not yet available')
+      end if
+      call UVtoVortDiv(statevector)
     case ('VortDivToPsiChi')
       if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
         call utl_abort('vtr_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for VortDivToPsiChi, the option statevectorOut_opt is not yet available')
       end if
       call VortDivToPsiChi(statevector)
     case ('UVtoPsiChi')
       if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
         call utl_abort('vtr_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
       end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for UVToPsiChi, the option statevectorOut_opt is not yet available')
+      end if
       call UVtoPsiChi(statevector)
     case ('LQtoHU')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for LQtoHU, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU(statevector)
     case ('HUtoLQ')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for HUtoLQ, variable HU must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for HUtoLQ, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ(statevector)
     case ('LQtoHU_tlm')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU_tlm, variable HU must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector)
     case ('HUtoLQ_tlm')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector)
     case ('LQtoHU_ad')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
+      end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for LQtoHU_ad, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector) ! self-adjoint
     case ('HUtoLQ_ad')
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
+      if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
       end if
+      if (present(statevectorOut_opt)) then
+        call utl_abort('vtr_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
+      end if
       call HUtoLQ_tlm(statevector) ! self-adjoint
+    case ('LVIStoVIS')
+      if (present(statevectorOut_opt)) then
+        if ( .not. gsv_varExist(statevector,'LVIS')) then
+          call utl_abort('vtr_transform: for LVIStoVIS, variable LVIS must be allocated in gridstatevector IN')
+        end if
+        if ( .not. gsv_varExist(statevectorOut_opt,'VIS')) then
+          call utl_abort('vtr_transform: for LVIStoVIS, variable VIS must be allocated in gridstatevector OUT')
+        end if
+        call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt)
+      else
+        if ( .not. gsv_varExist(statevector,'VIS') .or. .not. gsv_varExist(statevector,'LVIS') ) then
+          call utl_abort('vtr_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
+        end if
+        call LVIStoVIS(statevector)
+      end if
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -160,7 +209,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv) :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
@@ -168,11 +217,11 @@ CONTAINS
     lq_ptr => gsv_getField_r8(statevector,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd
-            hu_ptr(i,j,k,stepIndex) = exp(lq_ptr(i,j,k,stepIndex))
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
           end do
         end do
       end do
@@ -188,7 +237,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
@@ -199,11 +248,11 @@ CONTAINS
       lq_ptr_r8   => gsv_getField_r8(statevector,'HU')
 
       do stepIndex = 1, statevector%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-            do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r8(i,j,k,stepIndex) = log(max(hu_ptr_r8(i,j,k,stepIndex),gsv_rhumin))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex),gsv_rhumin))
             end do
           end do
         end do
@@ -216,11 +265,11 @@ CONTAINS
       lq_ptr_r4   => gsv_getField_r4(statevector,'HU')
 
       do stepIndex = 1, statevector%numStep
-        !$OMP PARALLEL DO PRIVATE(i,j,k)
-        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-          do j = statevector%myLatBeg, statevector%myLatEnd
-            do i = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(i,j,k,stepIndex) = log(max(hu_ptr_r4(i,j,k,stepIndex),real(gsv_rhumin,4)))
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),real(gsv_rhumin,4)))
             end do
           end do
         end do
@@ -238,22 +287,22 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
-    if ( .not. trialsInitialized ) call vtr_setupTrials()
+    if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
 
-    hu_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_trial => gsv_getField_r8(statevector_trial_hu,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd       
-            hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) =  lq_ptr(lonIndex,latIndex,levIndex,stepIndex)*max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
           end do
         end do
       end do
@@ -269,22 +318,22 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,stepIndex
+    integer :: lonIndex,latIndex,levIndex,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
-    if ( .not. trialsInitialized ) call vtr_setupTrials()
+    if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
 
-    hu_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_trial => gsv_getField_r8(statevector_trial_hu,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
     do stepIndex = 1, statevector%numStep
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
-        do j = statevector%myLatBeg, statevector%myLatEnd
-          do i = statevector%myLonBeg, statevector%myLonEnd
-            lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            lq_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)/max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8)
           end do
         end do
       end do
@@ -292,6 +341,65 @@ CONTAINS
     end do
 
   end subroutine HUtoLQ_tlm
+
+  !--------------------------------------------------------------------------
+  ! LVIStoVIS
+  !--------------------------------------------------------------------------
+  subroutine LVIStoVIS(statevector_in, statevectorOut_opt)
+    implicit none
+
+    type(struct_gsv) :: statevector_in
+    type(struct_gsv), optional :: statevectorOut_opt
+    integer :: lonIndex,latIndex,levIndex,stepIndex
+
+    real(4), pointer :: vis_ptr_r4(:,:,:,:), lvis_ptr_r4(:,:,:,:)
+    real(8), pointer :: vis_ptr_r8(:,:,:,:), lvis_ptr_r8(:,:,:,:)
+
+    if ( statevector_in%dataKind == 8 ) then
+
+      if (present(statevectorOut_opt)) then
+        vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'VIS')
+      else
+        vis_ptr_r8  => gsv_getField_r8(statevector_in,'VIS')
+      end if
+      lvis_ptr_r8 => gsv_getField_r8(statevector_in,'LVIS')
+      
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              vis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r8(lonIndex,latIndex,levIndex,stepIndex))
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    else
+
+      if (present(statevectorOut_opt)) then
+        vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'VIS')
+      else
+        vis_ptr_r4  => gsv_getField_r4(statevector_in,'VIS')
+      end if
+      lvis_ptr_r4 => gsv_getField_r4(statevector_in,'LVIS')
+
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LVIS'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              vis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = exp(lvis_ptr_r4(lonIndex,latIndex,levIndex,stepIndex))
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    end if
+
+  end subroutine LVIStoVIS
 
   !--------------------------------------------------------------------------
   ! UVtoVortDiv
@@ -314,17 +422,13 @@ CONTAINS
     nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
-       call utl_abort('UVtoVortDiv:global mode not available')
+      call utl_abort('UVtoVortDiv:global mode not available')
     else
-
-       do stepIndex = 1, statevector%numStep
-          
-          call agd_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
-                               uu_ptr(:,:,:,stepIndex), vv_ptr(:,:,:,stepIndex), & ! IN
-                               nlev_M )      ! IN
-          
-       end do
-          
+      do stepIndex = 1, statevector%numStep
+        call agd_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
+                             uu_ptr(:,:,:,stepIndex), vv_ptr(:,:,:,stepIndex), & ! IN
+                             nlev_M )                                            ! IN          
+      end do
     end if
 
   end subroutine UVtoVortDiv

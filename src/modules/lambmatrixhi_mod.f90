@@ -380,8 +380,7 @@ contains
        end if
 
        if ( trim(ControlVariable(var)%nomvar(cv_model)) == 'LQ' ) then
-          ControlVariable(var)%nomvar(cv_model) = 'HU' ! PATCH because gridStateVector uses HU
-                                                       ! despite that LQ is outputed from bmatrix_mod
+         ControlVariable(var)%nomvar(cv_model) = 'HU'  ! PATCH because gridStateVector uses HU
        end if
 
        write(*,*)

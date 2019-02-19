@@ -2445,7 +2445,7 @@ module gridStateVector_mod
     real(4), pointer :: gd2d_file_r4(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
 
-    character(len=4)  :: varName
+    character(len=4)  :: varName, varNameToRead
     character(len=2)  :: varLevel
 
     type(struct_vco), pointer :: vco_file
@@ -2552,10 +2552,18 @@ module gridStateVector_mod
 
         if (.not.gsv_varExist(statevector,varName)) cycle k_loop
 
-        ! do not try to read diagnostic variables
-        if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle k_loop
+        if (varName == 'LVIS') then
+          write(*,*)
+          write(*,*) 'gsv_readFile: asking for LVIS: VIS will be readed and converted to LVIS'
+          varNameToRead = 'VIS' ! the conversion to LVIS will be done in gsv_fileUnitsToStateUnits
+        else
+          varNameToRead = varName
+        end if
 
-        varLevel = vnl_varLevelFromVarname(varName)
+        ! do not try to read diagnostic variables
+        if ( trim(vnl_varTypeFromVarname(varNameToRead)) == 'DIAG') cycle k_loop
+
+        varLevel = vnl_varLevelFromVarname(varNameToRead)
         if (varLevel == 'MM') then
           ip1 = vco_file%ip1_M(levIndex)
         else if (varLevel == 'TH') then
@@ -2567,34 +2575,35 @@ module gridStateVector_mod
         end if
 
         typvar_var = typvar_in
+
         ! Make sure that the input variable has the same grid size than hco_file   
         ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
                       statevector%datestamplist(stepIndex), etiket_in, &
-                      -1, -1, -1, typvar_var, varName)
+                      -1, -1, -1, typvar_var, varNameToRead)
 
         if ( ikey < 0 ) then
           if ( trim(typvar_in) /= "" ) then
             typvar_var(2:2) = '@'
             ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
-                 statevector%datestamplist(stepIndex), etiket_in, &
-                 -1, -1, -1, typvar_var, varName)
+                          statevector%datestamplist(stepIndex), etiket_in, &
+                          -1, -1, -1, typvar_var, varNameToRead)
           end if
           if (ikey < 0) then
             write(*,*) 'gsv_readFile: looking for datestamp = ', statevector%datestamplist(stepIndex)
             write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
             write(*,*) 'gsv_readFile: typvar_in = ',typvar_in
-            call utl_abort('gsv_readFile: cannot find field ' // trim(varName) // ' in file ' // trim(fileName))
+            call utl_abort('gsv_readFile: cannot find field ' // trim(varNameToRead) // ' in file ' // trim(fileName))
           end if
         end if
 
         if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_var,varName)
+                     typvar_var,varNameToRead)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
-          write(*,*) 'gsv_readFile: variable on a different horizontal grid = ',trim(varName)
+          write(*,*) 'gsv_readFile: variable on a different horizontal grid = ',trim(varNameToRead)
           write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
           if (statevector%hco%global) then
             call utl_abort('gsv_readFile: This is not allowed in global mode!')
@@ -2612,7 +2621,7 @@ module gridStateVector_mod
 
           ierr=fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_in,varName)
+                     typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
           ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
@@ -2623,7 +2632,7 @@ module gridStateVector_mod
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
         if (ierr.lt.0)then
-          write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
+          write(*,*) varNameToRead,ip1,statevector%datestamplist(stepIndex)
           call utl_abort('gsv_readFile: Problem with reading file')
         end if
 
@@ -2703,6 +2712,14 @@ module gridStateVector_mod
 
         if ( trim(varName) == 'TT' .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
+        end if
+
+        if ( trim(varName) == 'LVIS' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = log(max(min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
+        end if
+
+        if ( trim(varName) == 'VIS' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
         end if
 
       end do

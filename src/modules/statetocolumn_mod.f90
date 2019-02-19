@@ -1828,18 +1828,26 @@ contains
     ! locals
     integer :: jlev, jk, jk2, jgl, jlon, headerIndex
     integer :: lonIndex, ila, ierr, subGridIndex
+    integer :: extraLongitude
     real(8) :: lat, lon
     real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
     real(8), allocatable ::zgd(:,:,:)
     real(8), pointer :: uu_column(:),vv_column(:),hu_column(:)
     real(8), pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
+    real(8), pointer :: vis_column(:),gust_column(:)
     real(8), pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
 
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid by suprep
 
-    allocate(zgd(statevector%ni+1,statevector%nj,statevector%nk))
+    if (statevector%hco%global) then
+      extraLongitude = 1
+    else
+      extraLongitude = 0
+    end if
+
+    allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%nk))
   
     zgd(:,:,:)=0.0d0
     field_ptr => gsv_getField3D_r8(statevector)
@@ -1849,11 +1857,13 @@ contains
     !
     !- 1.  Expand field by repeating meridian 1 into into meridian ni+1
     !
-    do jk = 1, statevector%nk
-      do jgl = 1, statevector%nj
-        zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
+    if (extraLongitude == 1) then
+      do jk = 1, statevector%nk
+        do jgl = 1, statevector%nj
+          zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
+        end do
       end do
-    end do
+    end if
 
     !
     !- 2.  Loop over all the headers
@@ -1879,7 +1889,7 @@ contains
       if ( ypos < 1.d0                        .or. &
            ypos > real(statevector%nj    , 8) .or. &
            xpos < 1.d0                        .or. &
-           xpos > real(statevector%ni + 1, 8) ) then
+           xpos > real(statevector%ni + extraLongitude, 8) ) then
         write(*,*) 's2c_bgcheck_bilin: Obs outside local domain for headerIndex = ', &
                    headerIndex
         write(*,*) '  obs    lat, lon position            = ', &
@@ -1887,12 +1897,12 @@ contains
         write(*,*) '  obs    x, y     position            = ', &
                    xpos, ypos
         write(*,*) '  domain x_end, y_end bounds          = ', &
-                   statevector%ni + 1, statevector%nj
+                   statevector%ni + extraLongitude, statevector%nj
         call utl_abort('s2c_bgcheck_bilin')
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
-      if ( xpos /= real(statevector%ni + 1,8) ) then
+      if ( xpos /= real(statevector%ni + extraLongitude,8) ) then
         lonIndex = floor(xpos)
       else
         lonIndex = floor(xpos) - 1
@@ -1914,13 +1924,15 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-      if(col_varExist('UU')) uu_column => col_getColumn(column,headerIndex,'UU')
-      if(col_varExist('VV')) vv_column => col_getColumn(column,headerIndex,'VV')
-      if(col_varExist('HU')) hu_column => col_getColumn(column,headerIndex,'HU')
-      if(col_varExist('TT')) tt_column => col_getColumn(column,headerIndex,'TT')
-      if(col_varExist('P0')) ps_column => col_getColumn(column,headerIndex,'P0')
-      if(col_varExist('TG')) tg_column => col_getColumn(column,headerIndex,'TG')
-
+      if(col_varExist('UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
+      if(col_varExist('VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
+      if(col_varExist('HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
+      if(col_varExist('TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
+      if(col_varExist('P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
+      if(col_varExist('TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
+      if(col_varExist('LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
+      if(col_varExist('WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
+     
       do jk = 1, gsv_getNumLev(statevector,'MM')
         if(gsv_varExist(statevector,'UU')) then
           jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
@@ -1952,10 +1964,24 @@ contains
                           + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
                           + dlw4*zgd(lonIndex+1,ila+1,jk2)
         end if
+        if(gsv_varExist(statevector,'LVIS')) then
+          jk2=jk+gsv_getOffsetFromVarName(statevector,'LVIS')
+          vis_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                           + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                           + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                           + dlw4*zgd(lonIndex+1,ila+1,jk2)
+        end if
       end do
       if(gsv_varExist(statevector,'P0')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
         ps_column(1) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
+      end if
+      if(gsv_varExist(statevector,'WGE')) then
+        jk2=1+gsv_getOffsetFromVarName(statevector,'WGE')
+        gust_column(1) = dlw1*zgd(lonIndex  ,ila,jk2)  &
                        + dlw2*zgd(lonIndex+1,ila,jk2)  &
                        + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
                        + dlw4*zgd(lonIndex+1,ila+1,jk2)

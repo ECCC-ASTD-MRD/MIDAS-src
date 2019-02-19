@@ -76,9 +76,25 @@ contains
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,ITYP
-    LOGICAL :: LLOK
+    LOGICAL :: OK
     CHARACTER(len=2) :: varLevel
     integer :: headerIndex, bodyIndex
+
+    Write(*,*) "Entering subroutine OOP_VOBSLYRS"
+
+    ! 2D mode patch
+    if ( col_getNumLev(columnghr,'MM') <= 1 ) then 
+      do bodyIndex = 1, obs_numbody( obsSpaceData )
+        ok = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1   .OR.  &
+                obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 )
+        if ( ok ) then
+          call obs_bodySet_i(obsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0
+        end if
+      end do
+      return
+    end if
+
     !
     !-----------------------------------------------------------------------
     !         --------
@@ -89,15 +105,14 @@ contains
     !        ----------------------------------
     !
     !     1.1 PPP Vertical coordinate
-    !
-    Write(*,*) "Entering subroutine OOP_VOBSLYRS"
+    ! 
 
-!$OMP PARALLEL DO PRIVATE(jdata,llok,zlev,iobs,ityp,varLevel,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb)
     DO JDATA= 1,obs_numbody(obsSpaceData)
-       LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+       OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
             obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-       IF ( LLOK ) THEN
+       IF ( OK ) THEN
           IF(obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) /= BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
@@ -134,11 +149,11 @@ contains
     !
     !     1.2 ZZZ Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
     do JDATA= 1,obs_numbody(obsSpaceData)
-      LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
+      OK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
         if ( ITYP /= BUFR_NEDZ ) then
@@ -183,13 +198,13 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
     do JDATA = 1, obs_numbody(obsSpaceData)
       call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA,0)
-      LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -214,12 +229,12 @@ contains
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-!$OMP PARALLEL DO PRIVATE(jdata,llok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
+!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
     do JDATA = 1, obs_numbody(obsSpaceData)
-      LLOK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
+      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( LLOK ) then
+      if ( OK ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -236,12 +251,12 @@ contains
           if( ZLEV < ZPT ) IK = JK
         end do
         if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
-             ITYP == BUFR_NEZD ) THEN
+             ITYP == BUFR_NEZD .or. ityp == bufr_gust) THEN
           ! for surface observations associated with surface analysis variables
           IK = 0
         else if ( ITYP == BUFR_NETS .or. ityp == BUFR_NESS .or. &
                ITYP == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ITYP == BUFR_NEHS) then
+               ITYP == BUFR_NEHS .or. ityp == bufr_vis) then
           ! for surface observations associated with NON-surface analysis variables
           IK = nlev - 1
         end if
@@ -632,15 +647,17 @@ contains
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
           if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS .and.  &
                ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS .and.  &
-               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN ) cycle BODY
+               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN .and. &
+               ivnm /= bufr_vis .and. ivnm /= bufr_gust ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zhhh = zlev * grav
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
-          if(ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
-               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS) then
+          if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
+              ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or. &
+              ivnm == bufr_gust ) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the
@@ -665,6 +682,7 @@ contains
                 columnVarB=col_getElem(columnhr,ipb,headerIndex)
              end if
              gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)
+
              call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
                   (zvar-columnVarB + zslope*(zhhh-gzhr)) )
 
@@ -695,6 +713,14 @@ contains
                                zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
+
+          else if (ivnm == bufr_vis) then
+            ! For visibility, transform the observation in term logarithm and compute log(y)-Hx, where x is log(VIS)
+            ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
+            ipb  = ipt + 1
+            columnVarB=col_getElem(columnhr,ipb,headerIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+                  log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))-columnVarB)
           end if
 
           ! contribution to jobs
@@ -1914,9 +1940,11 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs ) then
+               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. &
+                   ityp == bufr_gust ) then
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
@@ -1924,7 +1952,7 @@ contains
                nlev = col_getNumLev(column,varLevel)
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-               IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
+               !IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ZHHH = ZLEV * GRAV
@@ -1932,7 +1960,8 @@ contains
                IPB  = IPT+1
 
                if (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
-                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
+                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
+                  ityp == bufr_vis  .or. ityp == bufr_gust ) THEN
                  if (ITYP == BUFR_NESS ) THEN
                    dPdPsfc = col_getPressureDeriv(columng,nlev,headerIndex,'TH')
                    columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
@@ -3025,9 +3054,10 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs ) then
+               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. ityp == bufr_gust) then
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
@@ -3043,7 +3073,8 @@ contains
                IPB  = IPT+1
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                if (ITYP == BUFR_NETS .or. ITYP == BUFR_NESS .or.  &
-                    ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS ) then
+                    ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
+                    ityp == bufr_vis  .or. ityp == bufr_gust ) then
                  if ( ityp == bufr_ness ) then
                    dPdPsfc = col_getPressureDeriv( columng, nlev, headerIndex, 'TH' )
                    tt_column  => col_getColumn(column,headerIndex,'TT')

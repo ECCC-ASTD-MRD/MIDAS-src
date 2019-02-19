@@ -8,8 +8,7 @@ machine=hare
 ensbase="G-NMC"
 abs="/home/mab001/data_maestro/ords/midas_abs/midas-diagBmatrix_sles-11-broadwell-64-xc40-v_3.0.4-34-g3951b62_M.Abs"
 gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test_BlatBands_enkf_new/"
-if [ "${ensbase}" = "G-NMC" ]; then
-  flnml="namelist.nml_${ensbase}"
+  flnml="namelist.nml"
   #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
   analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/analysis_grid_prototypes/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
   #bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/01"
@@ -18,19 +17,6 @@ if [ "${ensbase}" = "G-NMC" ]; then
   ensdir="/home/bed666/brooks/diagbmatrix/ensemble/G-EnKF/"
   npey=9
   npex=9
-else
-  if [ "${ensbase}" = "N-NMC" ]; then
-    flnml="namelist.nml_${ensbase}"
-    ensdir="/home/bed666/brooks/diagbmatrix/ensemble/G-EnKF/"
-  else
-    flnml="namelist.nml_ens"
-    ensdir="/home/bed666/brooks/diagbmatrix/ensemble/${ensbase}/"
-  fi
-  analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
-  bgcov="/home/bed666/ss2/cetus/hadar/national_10km/calcstats_r640m/national_24-48_v664_h633_t250_CORR_LQ/07"
-  npey=12
-  npex=12
-fi
 openmp=1
 maxcputime=1200
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"

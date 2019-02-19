@@ -68,11 +68,13 @@ module varqc_mod
 
     integer jdata, kindic, iter, jjo, idata, idatend, idburp
     integer ityp, iass, ifld, iother, jj, istyp, ilev
+
     real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice
     real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice
-    real(8) zattra, zauvra, zattsym
+    real(8) zattra, zauvra, zattsym, zdvis, zavis
     real(8) zslev, zlev, zjo, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
     real(8) zfcst, zlat, zlon, zprior
+
     logical llok
 
     !
@@ -102,6 +104,7 @@ module varqc_mod
     zattsym = 1.d-1
 !    zauvra = 1.d-3
     zauvra = 1.d-5
+    zavis= 1.0d-3
 
     zdgz  = 5.d0
     zdhu  = 5.d0
@@ -115,6 +118,7 @@ module varqc_mod
     zdch  = 1.d1
     zdtm  = 5.d0
     zdice = 5.d2
+    zdvis= 5.d0
 
     do jjo = 1, obs_numheader(obsSpaceData)
 
@@ -131,12 +135,15 @@ module varqc_mod
           ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, JDATA ) * MPC_MBAR_PER_PA_R8
           ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
           ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
+          if (ityp==bufr_vis) zval = log(max(min(zval,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
+
           ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
 
           if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
               ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
-              ityp == BUFR_NEZD ) then
+              ityp == BUFR_NEZD .or. ityp == bufr_vis  .or.  &
+              ityp == bufr_gust) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1)
           else
              LLOK = (IASS == 1) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
@@ -290,6 +297,18 @@ module varqc_mod
                 !
                 call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zaice *  &
                     sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
+             else if (ityp == bufr_gust ) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR WIND GUST
+                !
+                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zauv *  &
+                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zauv ) * ( 2.d0 * zduv )))
+              else if (ityp == bufr_vis ) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR VISIBILITY
+                !
+                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zavis *  &
+                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zavis ) * ( 2.d0 * zdvis )))
              else
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
@@ -528,7 +547,8 @@ module varqc_mod
            if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
                ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
                ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
-               ityp == BUFR_NEZD .or. ityp == bufr_sst  .or. ityp == BUFR_ICEC) then
+               ityp == BUFR_NEZD .or. ityp == bufr_sst  .or. ityp == BUFR_ICEC .or.  &
+               ityp == bufr_vis  .or. ityp == bufr_gust ) then
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and.  &
@@ -562,7 +582,10 @@ module varqc_mod
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = '  '
              end if
+
              ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex)
+             if (ityp==bufr_vis) zvar = log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
+
              ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
              ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,bodyIndex)
              !

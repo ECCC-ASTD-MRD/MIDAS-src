@@ -188,8 +188,10 @@ program midas_diagBmatrix
   ! Setup the B matrix
   call bmat_setup(hco_anl,vco_anl)
 
-  ! Setup of the L matrix done in bmat_setup
+  !- Initialize the gridded variable transform module
+  call vtr_setup(hco_anl,vco_anl)
 
+  ! Setup of the L matrix done in bmat_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !

@@ -206,8 +206,8 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       integer :: nLev_M,nLev_T,status,shift_level,Vcode_anl,cvdim
 
       real(8), allocatable  :: scaleFactor(:)
-
-      logical             :: is_staggered
+      
+      integer :: bodyIndex
 
       !- Get the appropriate Horizontal and Vertical Coordinate
       hco_anl => agd_getHco('ComputationalGrid')
@@ -235,20 +235,15 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
       if ( Vcode_anl == 5001 ) then
-         is_staggered = .false.
-      else if ( Vcode_anl == 5002 ) then
-         is_staggered = .true.
+        shift_level = 0
+      else if ( Vcode_anl == 5002) then
+        shift_level = 1
+      else if ( Vcode_anl == 5005 ) then
+        shift_level = 0
       else
-         write(*,*) 'Vcode_anl = ',Vcode_anl
-         call utl_abort('compute_HBHT_static: unknown vertical coordinate type!')
+        write(*,*) 'Vcode_anl = ',Vcode_anl
+        call utl_abort('compute_HBHT_static: unknown vertical coordinate type!')
       end if
-      if ( mpi_myid == 0 ) write(*,*) 'compute_HBHT: vertical coord is_staggered = ',is_staggered
-
-      if ( is_staggered ) then
-         shift_level = 1
-      else
-         shift_level = 0
-      endif
 
       allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
@@ -261,6 +256,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 !     Set the value of OBS_LYR required by setfge routines
 !
       call oop_vobslyrs(lcolumng,lobsSpaceData)
+
 !
 !     1. Opening the statistics file
 !
@@ -514,6 +510,45 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
             end do
          end do
       end do
+
+      clnomvar = 'VIS'
+      if (gsv_varExist(statevector,clnomvar)) then
+        write(*,*) clnomvar
+        field_ptr => gsv_getField3D_r8(statevector,clnomvar)
+        do jlev = 1, nlev_T
+          ip1 = vco_anl%ip1_T(jlev)
+          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+              field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+          end do
+        end do
+      end if
+
+      clnomvar = 'WGE'
+      if (gsv_varExist(statevector,clnomvar)) then
+        write(*,*) clnomvar
+        ip1 = -1
+        ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+          write(*,*)
+          write(*,*) 'HBHT_static: Invalid dimensions for...'
+          write(*,*) 'nomvar         =', trim(CLNOMVAR)
+          write(*,*) 'etiket         =', trim(CLETIKET)
+          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
+          call utl_abort('compute_HBHT_static')
+        end if
+        field_ptr => gsv_getField3D_r8(statevector,clnomvar)
+        do jlev = 1, ink
+          do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+              field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)
+            end do
+          end do
+        end do
+      end if
 
       call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 !
@@ -1013,7 +1048,7 @@ end subroutine hbht_compute_ensemble
   integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp
   real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh
   character(len=2) :: cfam, varLevel
-  logical          :: llok
+  logical          :: ok
 
   ! loop over all body rows
   BODY: do bodyIndex = 1, obs_numbody( lobsSpaceData )
@@ -1022,32 +1057,32 @@ end subroutine hbht_compute_ensemble
     if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
 
       ! Process all data within the domain of the model (excluding GB-GPS ZTD data)
-      llok = .false.
+      ok = .false.
 
       if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == 1 ) then
 
         ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
         if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &
              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
-             ityp == bufr_sst  .or. ityp == BUFR_ICEC ) then
+             ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_vis  .or. ityp == bufr_gust ) then
 
-          llok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
+          ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
 
         else if ( ityp == BUFR_NEZD ) then
 
           ! make sure total zenith delay (from ground-based GPS) not treated
-          llok=.false.
+          ok=.false.
 
         else
 
-          llok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
+          ok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
                 obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) >= 0)
-          if ( llok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
-          if ( llok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
+          if ( ok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
+          if ( ok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
 
         end if
 
-        if ( llok ) then
+        if ( ok ) then
 
           headerIndex = obs_bodyElem_i( lobsSpaceData, OBS_HIND, bodyIndex )
           ityp         = obs_bodyElem_i( lobsSpaceData, OBS_VNM , bodyIndex )
@@ -1059,7 +1094,8 @@ end subroutine hbht_compute_ensemble
           zhhh = zlev * grav
 
           if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. &
-               ityp == BUFR_NESS .or. ityp == BUFR_NEUS .or. ityp == BUFR_NEVS ) then
+               ityp == BUFR_NESS .or. ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
+               ityp == bufr_vis  .or. ityp == bufr_gust) then
 
             ipt  = ik + col_getOffsetFromVarno(lcolumng,ityp)
             ipb  = ipt+1
@@ -1438,7 +1474,7 @@ end subroutine hbht_compute_ensemble
       INTEGER JL, JK, NFLEV_T, ILYR, IOBS
       INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
 
-      LOGICAL  ASSIM, LLOK, LSTAG
+      LOGICAL  ASSIM, OK, LSTAG
       CHARACTER*9  STN_JAC
       
       CHARACTER(len=2) :: varLevel
@@ -1514,8 +1550,8 @@ end subroutine hbht_compute_ensemble
 !C
                   DO INDEX_BODY= IDATA, IDATEND
                      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
-                     IF ( LLOK ) THEN
+                     OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
+                     IF ( OK ) THEN
                         ASSIM = .TRUE.
                         ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                         icount = icount + 1
