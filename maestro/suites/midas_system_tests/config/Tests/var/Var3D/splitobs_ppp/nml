@@ -12,7 +12,7 @@
    NITERMAX = 10,
    NSIMMAX  = 100,
    REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
+   LGRTEST  = .TRUE.,
    LWRTHESS = .FALSE.,
    LVARQC=.TRUE.,
    NWOQCV=5
@@ -332,6 +332,7 @@
   HSFMIN   = 1000.D0,
   HTPMAX   = 40000.D0,
   BGCKBAND = 0.05D0,
+  GPSRODYNERROR = .FALSE.
 /
  &NAMGPSGB
    DZMIN       = 2.0D0,

@@ -180,6 +180,7 @@ contains
     real(8), allocatable :: qoext_tl (:,:)
     real(8), allocatable :: zvlev    (:,:)
     real(8), allocatable :: dPdPs    (:,:)
+    real(8), allocatable :: dPdPs_v2 (:,:)
     real(8), allocatable :: zt_tl    (:,:)
     real(8), allocatable :: zhu_tl   (:,:)
     real(8), allocatable :: logzhu_tl(:,:)
@@ -188,10 +189,11 @@ contains
     real(8), allocatable :: logzhu   (:,:)
     real(8), allocatable :: qoext    (:,:)
     real(8), allocatable :: zps_tl   (:)
+    real(8), allocatable :: zp_tl    (:,:)
     real(8), allocatable :: xpres    (:)
    
     real(8) :: zptop, zptopmbs
-    real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:)
+    real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
 
     integer :: isurface
     integer :: nlevels
@@ -308,6 +310,7 @@ contains
       allocate (qoext_tl  (nlevels  ,count_profile),stat= alloc_status(6) )
       allocate (zvlev     (nlv_T,count_profile)    ,stat= alloc_status(7) )
       allocate (dPdPs     (nlv_T,count_profile)    ,stat= alloc_status(8) )
+      allocate (dPdPs_v2  (nlv_T,count_profile))
       allocate (zt_tl     (nlv_T,count_profile)    ,stat= alloc_status(9) )
       allocate (zhu_tl    (nlv_T,count_profile)    ,stat= alloc_status(10))
       allocate (logzhu_tl (nlv_T,count_profile)    ,stat= alloc_status(11))
@@ -316,6 +319,7 @@ contains
       allocate (logzhu    (nlv_T,count_profile)    ,stat= alloc_status(14))
       allocate (qoext     (nlevels,count_profile)  ,stat= alloc_status(15))
       allocate (zps_tl    (count_profile)          ,stat= alloc_status(16))
+      allocate (zp_tl     (nlv_T,count_profile))
       allocate (profilesdata_tl(count_profile)     ,stat= alloc_status(17))
 
       call utl_checkAllocationStatus(alloc_status, "  tvslin_rttov_tl")
@@ -324,12 +328,14 @@ contains
       toext_tl (:,:) = 0.0d0
       zvlev    (:,:) = 0.0d0
       dPdPs    (:,:) = 0.0d0
+      dPdPs_v2 (:,:) = 0.0d0
       zt_tl    (:,:) = 0.0d0
       zhu_tl   (:,:) = 0.0d0
       zt       (:,:) = 0.0d0
       zhu      (:,:) = 0.0d0
       qoext    (:,:) = 0.0d0
       zps_tl   (:)   = 0.0d0
+      zp_tl    (:,:) = 0.0d0
       to_tl    (:,:) = 0.0d0
       huo_tl   (:,:) = 0.0d0
 
@@ -364,22 +370,25 @@ contains
 
         headerIndex = tvs_lobsno(iobs)
         count_profile = count_profile + 1
-       
+
         zps_tl (count_profile) = col_getElem(column,1,headerIndex,'P0') * MPC_MBAR_PER_PA_R8
+        delP => col_getColumn(column,headerIndex,'P_T')
         delTT => col_getColumn(column,headerIndex,'TT')
         delHU => col_getColumn(column,headerIndex,'HU')
         TTb => col_getColumn(columng,headerIndex,'TT')
         HUb => col_getColumn(columng,headerIndex,'HU')
         Pres => col_getColumn(columng,headerIndex,'P_T')
         do jl = 1, nlv_T
+          zp_tl (jl,count_profile) = delP(jl) * MPC_MBAR_PER_PA_R8
           zt_tl (jl,count_profile) = delTT(jl)
           zhu_tl(jl,count_profile) = delHU(jl)
           zt   (jl,count_profile)  = TTb(jl)
           zhu  (jl,count_profile)  = HUb(jl)
           zvlev(jl,count_profile)  = Pres(jl) *MPC_MBAR_PER_PA_R8
-          dPdPs(jl,count_profile)  = col_getPressure(column,jl,headerIndex,'TH')
+          dPdPs(jl,count_profile)  = col_getPressureDeriv(columng,jl,headerIndex,'TH')
+          dPdPs_v2(jl,count_profile)  = 1.0d0
         end do
-        zps_tl (count_profile)  = 1.d0
+        
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
@@ -410,15 +419,36 @@ contains
 !$omp parallel do private(jn)
       do jn=1, count_profile
 
-        call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),zt_tl(:,jn:jn), &
-             zt(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
+        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs_v2(:,jn:jn),zt_tl(:,jn:jn), &
+             zt(:,jn:jn),zp_tl(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn))
 
         logzhu(:,jn) = log( zhu(:,jn) )
         logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
-        call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),logzhu_tl(:,jn:jn), &
-             logzhu(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
+        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs_v2(:,jn:jn),logzhu_tl(:,jn:jn), &
+             logzhu(:,jn:jn),zp_tl(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo_tl(:,jn:jn))
+
+        !if ( jn == 1 ) then
+        !  write(*,*) 'tvslin_rttov_tl:'
+        !  write(*,*) 'to_tl_v2    =', to_tl(:,jn)
+        !  write(*,*) 'loghuo_tl_v2=', loghuo_tl(:,jn)
+        !end if
+
+        !call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),zt_tl(:,jn:jn), &
+        !     zt(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
+        !     jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn))
+
+        !logzhu(:,jn) = log( zhu(:,jn) )
+        !logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
+        !call ppo_IntAvgTl(zvlev(:,jn:jn),dPdPs(:,jn:jn),logzhu_tl(:,jn:jn), &
+        !     logzhu(:,jn:jn),zps_tl(jn:jn),nlv_T,1, &
+        !     jpmolev,xpres(jpmotop:nlevels),loghuo_tl(:,jn:jn))
+
+        !if ( jn == 1 ) then
+        !  write(*,*) 'to_tl       =', to_tl(:,jn)
+        !  write(*,*) 'loghuo_tl   =', loghuo_tl(:,jn)
+        !end if
 
         huo_tl(:,jn) = loghuo_tl(:,jn) * qoext(jpmotop:nlevels,jn)
 
@@ -505,6 +535,7 @@ contains
       deallocate (qoext_tl  ,stat= alloc_status(6) )
       deallocate (zvlev     ,stat= alloc_status(7) )
       deallocate (dPdPs     ,stat= alloc_status(8) )
+      deallocate (dPdPs_v2)
       deallocate (zt_tl     ,stat= alloc_status(9) )
       deallocate (zhu_tl    ,stat= alloc_status(10))
       deallocate (logzhu_tl ,stat= alloc_status(11))
@@ -513,6 +544,7 @@ contains
       deallocate (logzhu    ,stat= alloc_status(14))
       deallocate (qoext     ,stat= alloc_status(15))
       deallocate (zps_tl    ,stat= alloc_status(16))
+      deallocate (zp_tl)
       deallocate (xpres     ,stat= alloc_status(17))
       call utl_checkAllocationStatus(alloc_status, "tvslin_rttov_tl", .false.)
 
@@ -674,11 +706,10 @@ contains
     real(8), allocatable :: zps_ad   (:)
     real(8), allocatable :: xpres    (:)
 
-    real(8) :: zptop, zptopmbs, myPs
+    real(8) :: zptop, zptopmbs
    
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
     real(8), pointer :: TTb(:), HUb(:), Pres(:)
-    real(8), pointer :: mydpdps(:) => null()
 
     type(struct_obs) :: lobsSpaceData
 
@@ -820,24 +851,9 @@ contains
           zt   (level_index,count_profile) = TTb(level_index)
           zhu  (level_index,count_profile) = HUb(level_index)
           zvlev(level_index,count_profile) = Pres(level_index) * MPC_MBAR_PER_PA_R8
-          !dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
+          dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
         end do
-
-        ! recompute dPdPs (approximation for now)
-        if (associated(mydpdps)) then
-          deallocate(mydpdps,stat=status)
-          nullify(mydPdPs)
-        end if
-        myPs = col_getElem(columng, 1, headerIndex,'P0')
-        status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,mydPdPs,myPs)
-        if (status /= VGD_OK) then
-          Write(*,*) "Problem in dPdPs computation !"
-          Write(*,*) vco_anl%ip1_T
-          Write(*,*) zvlev(nlv_T,count_profile)
-          call utl_abort("  tvslin_fill_profiles_ad recomputedPdPs")
-        end if
-        dPdPs(:,count_profile) =  mydPdPs(:)
-
+        
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)

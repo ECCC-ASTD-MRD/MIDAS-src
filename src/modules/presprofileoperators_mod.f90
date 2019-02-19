@@ -27,7 +27,7 @@ module presProfileOperators_mod
   private
 
   ! public procedures
-  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgAd, ppo_lintv
+  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgTl_v2, ppo_intAvgAd, ppo_lintv
 
   contains
 
@@ -177,6 +177,34 @@ module presProfileOperators_mod
                      KNI,PPS,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
 
     END SUBROUTINE PPO_INTAVGTL
+
+
+    SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
+      IMPLICIT NONE
+      INTEGER,intent(in)  :: KNI, KNO,KNPROF
+      REAL(8),intent(in)   :: PVLEV(KNI,KNPROF)
+      REAL(8),intent(in)   :: dP_dPsfc(KNI,KNPROF)
+      REAL(8),intent(in)   :: PPO(KNO)
+      REAL(8),intent(in)   :: PVI(KNI,KNPROF)
+      REAL(8),intent(in)   :: PVIG(KNI,KNPROF)
+      REAL(8),intent(in)   :: PP(KNI,KNPROF)
+      REAL(8),intent(out)  :: PVO(KNO,KNPROF)
+      REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
+      REAL(8)  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
+
+
+      ZLNPO(:) = LOG(PPO(:))
+      PSS=0.0D0
+
+  
+      ZPS(:,:) = dP_dPsfc(:,:) / PVLEV(:,:)
+      ZLNPI(:,:) = LOG( PVLEV(:,:) )
+      
+
+      CALL LAYERAVG_TL_v2(ZLNPO,ZLNPI,pvig,PVI,KNO,  &
+                     KNI,PP,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
+
+    END SUBROUTINE PPO_INTAVGTL_v2
 
 
     SUBROUTINE ppo_INTAVGAD(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNI,KNPROF,KNO,PPO,PVO)
@@ -507,6 +535,109 @@ module presProfileOperators_mod
     END SUBROUTINE LAYERAVG_TL
 
 
+    SUBROUTINE LAYERAVG_TL_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,PZPS,knprof,pvo)
+      IMPLICIT NONE
+      INTEGER,intent(in) :: KNO,KNI,knprof
+      REAL(8),intent(out) :: pvo(kno,knprof)
+      REAL(8),intent(out) :: PMEAN(kno,knprof)
+      REAL(8),intent(in)  :: PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof),PY2INCR(KNI,knprof)
+      REAL(8),intent(in)  :: PP(kni,knprof)
+      REAL(8),intent(in)  :: PZS(KNI,knprof)
+      REAL(8),intent(out) :: PZ(KNI),PZPS(kno,knprof)      
+      REAL(8) ::  PZP(KNI)
+      REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
+      REAL(8) zsum, zsum2
+      INTEGER J,jo,levIndex
+      logical :: skip, test
+! --- Identify boundary points
+
+      do levIndex = 1, knprof
+        do jo = 1, kno
+          z2=px1(jo)
+
+          if (jo == 1) then 
+            z1=2.0D0*z2-px1(jo+1)
+          else
+            z1=px1(jo-1)
+          end if   
+
+          if (jo == kno) then
+            z3=2.0D0*z2-z1
+          else   
+            z3=px1(jo+1)
+          end if
+          if (z3 > px2(kni,levIndex)) z3=px2(kni,levIndex)
+
+          skip = .false.
+          if (z2 >= px2(kni,levIndex)) then
+            z3=px2(kni,levIndex)
+            z2=px2(kni,levIndex)
+            skip = .true.
+          end if
+
+! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
+
+          pzps(jo,levIndex)=0.0D0
+          pz(1:kni)=0.0D0
+          pzp(1:kni)=0.0D0
+          test = .false.
+
+          loop2:do j=1,kni-1
+            if (px2(j,levIndex) >= z3) exit loop2
+
+            if (px2(j,levIndex) <= z2.and.px2(j+1,levIndex) > z1) then 
+
+              call sublayer_v2(z1,z2,z3,px2(j,levIndex),px2(j+1,levIndex), &
+                            py2(j,levIndex),py2(j+1,levIndex),zw1,zw2,  &
+                            pzs(j,levIndex),pzs(j+1,levIndex),zp1,zp2)
+              pzp(j) = pzp(j) + zp1
+              pzp(j+1) = pzp(j+1) + zp2
+              pz(j)=pz(j)+zw1
+              pz(j+1)=pz(j+1)+zw2
+              test = .true.
+            end if
+
+            if (px2(j,levIndex) < z3.and.px2(j+1,levIndex) >= z2.and. .not. skip) then
+
+              call sublayer_v2(z3,z2,z1,px2(j,levIndex),px2(j+1,levIndex), &
+                            py2(j,levIndex),py2(j+1,levIndex),zw1,zw2,  &
+                            pzs(j,levIndex),pzs(j+1,levIndex),zp1,zp2)
+              pzp(j) = pzp(j) + zp1
+              pzp(j+1) = pzp(j+1) + zp2
+              pz(j)=pz(j)+zw1
+              pz(j+1)=pz(j+1)+zw2
+              test = .true.
+            end if
+          end do loop2
+
+          if (.not. test) then
+            pz(j)=1.0D0
+            !pzp(j)=1.0D0
+          end if
+! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
+!     or use TLM for adjoint calc (kflag=2)
+
+          zsum=0.0D0
+          zsum2=0.0D0
+          pmean(jo,levIndex)=0.0D0
+          do j=1,kni      
+            pmean(jo,levIndex)=pmean(jo,levIndex)+pz(j)*py2incr(j,levIndex)
+            pzps(jo,levIndex)=pzps(jo,levIndex)+pzp(j)*pp(j,levIndex)
+            zsum=zsum+pz(j)
+            zsum2=zsum2+pzp(j)
+          end do
+          pmean(jo,levIndex)=pmean(jo,levIndex)/zsum
+
+          !if (test) pzps(jo,levIndex)=pzps(jo,levIndex)/zsum2
+          if (test) pzps(jo,levIndex)=pzps(jo,levIndex)/zsum
+          PVO(JO,LEVINDEX)=pmean(jo,levIndex)+pzps(jo,levIndex)
+         
+        end do
+      end do
+
+    END SUBROUTINE LAYERAVG_TL_v2
+
+
     SUBROUTINE LAYERAVG_AD(PX1,PX2,PY2,PY2INCR,KNO,KNI,PPS,PMEAN,PZ,PZS,knprof)
 
       IMPLICIT NONE
@@ -835,6 +966,144 @@ module presProfileOperators_mod
       end if
 
   END SUBROUTINE SUBLAYER
+
+  SUBROUTINE SUBLAYER_v2(z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,zp1,zp2)
+    IMPLICIT NONE
+    REAL(8),intent(in) :: z1,z2,z3,x1,x2,t1,t2
+    REAL(8),intent(out) :: w1,w2
+    REAL(8),intent(out) :: zp1, zp2
+    REAL(8),intent(in)  :: pzs1,pzs2
+
+    REAL(8) y1,y2,tot,d,w10,w20,dz,dx,dy,dzd,dxd,g1,g2
+    REAL(8) a1,a2,aa1,aa2
+    logical bot,top
+
+    top = .false.
+    bot = .false.
+    if (z1 < z3) then
+       y1=z1
+       if (x1 > z1) then
+          y1=x1
+          top = .true.
+       end if
+       y2=z2
+       if (x2 < z2) then
+          y2=x2
+          bot = .true.
+       end if
+    else
+       y1=z2
+       if (x1 > z2) then
+          y1=x1
+          top = .true.
+       end if
+       y2=z1
+       if (x2 < z1) then
+          y2=x2
+          bot = .true.
+       end if
+    end if
+
+! --- Set weights for forward interpolator and linear model contribution to TLM
+
+    dy=y2-y1
+    dz=z1-z2
+
+    if (abs(dz) < 1D-14) then
+       write(*,*) 'SUBLAYER_v2: ERROR: dz is zero. dz = ',dz
+       write(*,*) 'z1,z2,z3 = ',z1,z2,z3
+       write(*,*) 'x1,x2    = ',x1,x2
+       write(*,*) 't1,t2    = ',t1,t2
+!bue         stop
+       w1=0.0D0
+       w2=0.0D0
+       return
+    else
+       dzd=1.0D0/dz
+    end if
+    w1=(z1-y1)*dzd*dy
+    w2=(z1-y2)*dzd*dy
+    w10=w1
+    w20=w2
+    dx=(x2-x1)
+    if (abs(dx) < 1D-14) then
+       write(*,*) 'SUBLAYER_v2: ERROR: dx is zero. dx = ',dx
+       write(*,*) 'z1,z2,z3 = ',z1,z2,z3
+       write(*,*) 'x1,x2    = ',x1,x2
+       write(*,*) 't1,t2    = ',t1,t2
+!bue         stop
+       w1=0.0D0
+       w2=0.0D0
+       return
+    else
+       dxd=1.0D0/dx
+    end if
+
+    if (z1 < z3 .and. .not. bot) then
+       d=(x2-z2)*dxd
+       w1=w1+w2*d
+       w2=w2*(1.0D0-d)
+    else if (z1 > z3 .and. .not. top) then
+       d=(x2-z2)*dxd
+       w2=w2+w1*(1.0D0-d)
+       w1=w1*d
+    end if
+    tot=t1*w1+t2*w2
+     
+! --- Provide NLM contribution to TLM (gradients w.r.t. Ps)
+
+!        Determine gradient of 'tot' w.r.t. x1
+
+    aa1=0.0D0
+    aa2=0.0D0
+    a1=0.0D0
+    a2=0.0D0
+    if (top) then
+      a1=-(dy+(z1-y1))*dzd 
+      a2=-(z1-y2)*dzd
+    else if (z1 > z3) then
+      a1=(x2-z2)*dxd*dxd*w10
+      a2=-a1
+    end if
+    if (z1 < z3.and. .not. bot) then
+      aa2=(x2-z2)*dxd*dxd*w20
+      aa1=-aa2
+      if (top) then
+        a1=a1+a2*d+aa1
+        a2=a2*(1.0D0-d)+aa2
+      end if
+    end if
+    g1=a1*t1+a2*t2
+                  
+!        Determine gradient of 'tot' w.r.t. x2
+
+    aa1=0.0D0
+    aa2=0.0D0
+    a1=0.0D0
+    a2=0.0D0
+    if (bot) then
+      a1=dzd*(z1-y1)
+      a2=((z1-y2)-dy)*dzd
+    else if (z1 < z3) then
+      a1=((x2-z2)*dxd+1.0D0)*dxd*w20 
+      a2=-a1
+    end if
+    if (z1 > z3 .and. .not. top) then
+      aa1=(1.0D0-(x2-z2)*dxd)*dxd*w10
+      aa2=-aa1
+      if (bot) then
+        a2=a2+a1*(1.0D0-d)+aa2
+        a1=a1*d+aa1
+      end if
+    end if
+    g2=a1*t1+a2*t2
+
+!        Accumulate for gradient w.r.t. Ps
+
+    zp1=g1*pzs1
+    zp2=g2*pzs2
+
+  END SUBROUTINE SUBLAYER_v2
 
   SUBROUTINE PPO_LINTV (PVLEV,PVI,KNI, KNPROF,KNO,PPO,PVO)
 
