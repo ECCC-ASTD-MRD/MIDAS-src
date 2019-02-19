@@ -3805,14 +3805,15 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_vInterpolate
   !--------------------------------------------------------------------------
-  subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt,PsfcReference_opt)
+  subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt, &
+                              PsfcReference_opt,checkModelTop_opt)
     ! s/r gsv_vInterpolate  - Vertical interpolation of pressure defined fields
     implicit none
 
     ! arguments
     type(struct_gsv)  :: statevector_in
     type(struct_gsv)  :: statevector_out
-    logical, optional :: Ps_in_hPa_opt
+    logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
     real(8), optional :: PsfcReference_opt(:,:,:)
 
     ! locals
@@ -3824,6 +3825,7 @@ module gridStateVector_mod
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
+    logical :: checkModelTop
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'gsv_vInterpolate: The input and output statevectors are already on same vertical levels'
@@ -3845,6 +3847,17 @@ module gridStateVector_mod
 
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
+
+    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
+    if ( present(checkModelTop_opt) ) then
+      checkModelTop = checkModelTop_opt
+    else
+      checkModelTop = .true.
+    end if
+    if (checkModelTop) then
+      write(*,*) 'gsv_vInterpolate: Checking that that the top of the destination grid is not higher than the top of the source grid.'
+      call vco_ensureCompatibleTops(vco_in, vco_out)
+    end if
 
     step_loop: do stepIndex = 1, statevector_out%numStep
 
@@ -3989,6 +4002,7 @@ module gridStateVector_mod
       checkModelTop = .true.
     end if
     if (checkModelTop) then
+      write(*,*) 'gsv_vInterpolate_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
       call vco_ensureCompatibleTops(vco_in, vco_out)
     end if
 

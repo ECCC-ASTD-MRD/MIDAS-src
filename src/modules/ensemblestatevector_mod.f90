@@ -1085,12 +1085,12 @@ CONTAINS
 
     if ( present(scaleFactor_opt) ) then
       !scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
-      if ( abs(recenteringCoeff  - 1.0) > 1.0D-5 ) then
+      if ( abs(recenteringCoeff  - 1.0D0) > 1.0D-5 ) then
         call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
       end if
       scaleFactor = scaleFactor_opt
     else
-      scaleFactor(:) = 1.0
+      scaleFactor(:) = 1.0D0
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -1226,7 +1226,7 @@ CONTAINS
     if ( present(scaleFactor_opt) ) then
       scaleFactor = scaleFactor_opt
     else
-      scaleFactor(:) = 1.0
+      scaleFactor(:) = 1.0D0
     end if
 
     numStep = ens%statevector_work%numStep

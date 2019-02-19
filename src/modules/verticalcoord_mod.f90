@@ -526,11 +526,14 @@ contains
     integer :: status, nAbove
     real(kind=8) :: sourceModelTop
     real(kind=8), dimension(1,1) :: pSfc
-    real(kind=8), pointer, dimension(:,:,:) :: sourcePressureLevels => null()
-    real(kind=8), pointer, dimension(:,:,:) :: destPressureLevels   => null()
+    real(kind=8), pointer, dimension(:,:,:) :: sourcePressureLevels
+    real(kind=8), pointer, dimension(:,:,:) :: destPressureLevels
+
+    nullify(sourcePressureLevels)
+    nullify(destPressureLevels)
 
     !dummy pressure value
-    pSfc(1,1) = 100e3 !100 kPa
+    pSfc(1,1) = 100.0D3 !100 kPa
 
     !pressure on momentum levels of source grid
     status=vgd_levels(vco_sourceGrid%vgrid,          &
@@ -551,12 +554,12 @@ contains
     !count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
     nAbove=0
-    do while (sourceModelTop .gt. destPressureLevels(1,1,nAbove+1))
+    do while (sourceModelTop > destPressureLevels(1,1,nAbove+1))
       nAbove = nAbove + 1
     end do
 
     !Destination grid has "nAbove" levels above source grid;  tolerate one
-    if (nAbove .gt. 1) then
+    if (nAbove > 1) then
       call utl_abort('vco_ensureCompatibleTops: top of destination grid is more than one level higher than the top of source grid')
     end if
 
