@@ -77,11 +77,12 @@ program midas_ensManip
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
 
+  integer,parameter   :: maxNumLevels=200
   character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName, alternativeEnsembleMeanFileName
   character(len=256)  :: controlMemberFileNameIn, controlMemberFileNameOut
   character(len=256), parameter  :: targetGridFileName = './targetgrid'
 
-  logical             :: makeBiPeriodic, targetGridFileExist
+  logical             :: makeBiPeriodic, targetGridFileExist, checkModelTop
   logical             :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
   logical             :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
 
@@ -98,6 +99,7 @@ program midas_ensManip
   logical  :: recenter, ensembleEtiketOutputAppendMemberNumber, recenterEnsembleControlMember
   logical  :: imposeRttovHuLimits, imposeSaturationLimit
   real(8)  :: recentering_coeff
+  real(8)  :: scaleFactor(maxNumLevels)
   integer  :: nEns, numBits
 
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, alternativeEnsembleMean,                  & 
@@ -105,7 +107,7 @@ program midas_ensManip
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations,  &
                         recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber, &
                         recenterEnsembleControlMember, ensembleControlMemberEtiket,                   &
-                        imposeRttovHuLimits, imposeSaturationLimit, humidityClipping
+                        imposeRttovHuLimits, imposeSaturationLimit, humidityClipping, scaleFactor
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -153,6 +155,7 @@ program midas_ensManip
   imposeRttovHuLimits           = .false.
   imposeSaturationLimit         = .false.
   humidityClipping              = 'none' ! or "inputsOnly" or "outputsOnly" or "inputsAndOutputs
+  scaleFactor(:)                = 1.0d0
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -240,7 +243,17 @@ program midas_ensManip
   call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList, &
                     hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
-  call ens_readEnsemble(ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity)
+
+  !if a scaling factor was provided don't check model top heights
+  if ( abs(sum(scaleFactor) - maxNumLevels) > 1D-5 ) then
+    checkModelTop = .false.
+  else
+    checkModelTop = .true.
+  end if
+
+  call ens_readEnsemble(ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity, &
+                        checkModelTop_opt=checkModelTop)
+
   if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
     call ens_clipHumidity(ensemble, imposeSaturationLimitOnInputs, imposeRttovHuLimitsOnInputs)
   end if
@@ -368,6 +381,7 @@ program midas_ensManip
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
       call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,           &
+                        scaleFactor_opt=scaleFactor,                                      &
                         alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean,  &
                         imposeRttovHuLimits_opt=imposeRttovHuLimitsOnOutputs,             &
                         imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs)
@@ -386,6 +400,7 @@ program midas_ensManip
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
       call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,&
+                        scaleFactor_opt=scaleFactor,                           &
                         imposeRttovHuLimits_opt=imposeRttovHuLimits, imposeSaturationLimit_opt=imposeSaturationLimit)
       call tmg_stop(12)
 
