@@ -3528,6 +3528,7 @@ module gridStateVector_mod
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
       allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
+      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
@@ -3554,6 +3555,7 @@ module gridStateVector_mod
 
       deallocate(gd_send_GZ)
       deallocate(gd_recv_GZ)
+      deallocate(gd_send_GZ)
     end if ! gzSfcPresent
 
     write(*,*) 'exiting gsv_transposeTilesToVarsLevs'
@@ -5494,9 +5496,9 @@ module gridStateVector_mod
             yourid = youridx + youridy*mpi_npex
             gd_send(1:stateVector_tiles%allLonPerPE(youridx+1),  &
                     1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
-                stateVector_1step_r4%gzSfc(  &
+                real(stateVector_1step_r4%gzSfc(  &
                      stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-                     stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1) )
+                     stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1) ), 8)
           end do
         end do
         !$OMP END PARALLEL DO
