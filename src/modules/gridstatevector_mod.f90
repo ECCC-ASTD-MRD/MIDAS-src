@@ -4188,7 +4188,7 @@ module gridStateVector_mod
 
     type(struct_gsv)    :: statevector
     integer, intent(in) :: iun
-    character(len=12), intent(in) :: etiket
+    character(len=*), intent(in) :: etiket
 
     integer :: ier
 
