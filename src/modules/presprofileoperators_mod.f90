@@ -27,7 +27,7 @@ module presProfileOperators_mod
   private
 
   ! public procedures
-  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgTl_v2, ppo_intAvgAd, ppo_intAvgAd_v2, ppo_lintv
+  public :: ppo_intAvg, ppo_intAvgTl_v2, ppo_intAvgAd_v2, ppo_lintv
 
   contains
 
@@ -94,9 +94,8 @@ module presProfileOperators_mod
       END DO
 
     END SUBROUTINE PPO_INTAVG
-    
 
-    SUBROUTINE ppo_INTAVGTL(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNI,KNPROF,KNO,PPO,PVO)
+    SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
 !--------------------------------------------------------------------
 !
 !!!s/r INTAVGTL - Application of tangent Linear of piecewise weighted averaging.
@@ -111,6 +110,8 @@ module presProfileOperators_mod
 !!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
 !          S. Pellerin, ARMA, August 2008
 !          - Optimisation, call to LAYERAVG2
+!          M. Bani Shahabadi, ARMA, Feb 2019
+!          - removing the dependency on dPdPs and receive dP instead      
 !
 !Arguments
 !     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
@@ -157,7 +158,7 @@ module presProfileOperators_mod
       REAL(8),intent(in)   :: PPO(KNO)
       REAL(8),intent(in)   :: PVI(KNI,KNPROF)
       REAL(8),intent(in)   :: PVIG(KNI,KNPROF)
-      REAL(8),intent(in)   :: PPS(KNPROF)
+      REAL(8),intent(in)   :: PP(KNI,KNPROF)
       REAL(8),intent(out)  :: PVO(KNO,KNPROF)
 !********************************************
       REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
@@ -173,41 +174,13 @@ module presProfileOperators_mod
       ZLNPI(:,:) = LOG( PVLEV(:,:) )
       
 
-      CALL LAYERAVG_TL(ZLNPO,ZLNPI,pvig,PVI,KNO,  &
-                     KNI,PPS,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
-
-    END SUBROUTINE PPO_INTAVGTL
-
-
-    SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
-      IMPLICIT NONE
-      INTEGER,intent(in)  :: KNI, KNO,KNPROF
-      REAL(8),intent(in)   :: PVLEV(KNI,KNPROF)
-      REAL(8),intent(in)   :: dP_dPsfc(KNI,KNPROF)
-      REAL(8),intent(in)   :: PPO(KNO)
-      REAL(8),intent(in)   :: PVI(KNI,KNPROF)
-      REAL(8),intent(in)   :: PVIG(KNI,KNPROF)
-      REAL(8),intent(in)   :: PP(KNI,KNPROF)
-      REAL(8),intent(out)  :: PVO(KNO,KNPROF)
-      REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
-      REAL(8)  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
-
-
-      ZLNPO(:) = LOG(PPO(:))
-      PSS=0.0D0
-
-  
-      ZPS(:,:) = dP_dPsfc(:,:) / PVLEV(:,:)
-      ZLNPI(:,:) = LOG( PVLEV(:,:) )
-      
-
       CALL LAYERAVG_TL_v2(ZLNPO,ZLNPI,pvig,PVI,KNO,  &
                      KNI,PP,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
 
     END SUBROUTINE PPO_INTAVGTL_v2
 
 
-    SUBROUTINE ppo_INTAVGAD(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNI,KNPROF,KNO,PPO,PVO)
+    SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
 !--------------------------------------------------------------------
 !
 !!!s/r INTAVGAD - Adjoint of piecewise weighted averaging.
@@ -222,6 +195,8 @@ module presProfileOperators_mod
 !!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
 !          S. Pellerin, ARMA, August 2008
 !          - Optimisation, call to LAYERAVG2
+!          M. Bani Shahabadi, ARMA, Feb 2019
+!          - removing the dependency on dPdPs and receive dP instead      
 !
 !Arguments
 !     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
@@ -252,35 +227,6 @@ module presProfileOperators_mod
 !                          = PPS(jn) + sum_jo (ZPZPS(jo))
 !
 !!-------------------------------------------------------------------  
-      IMPLICIT NONE
-     
-      INTEGER,intent(in) :: KNI, KNO, KNPROF
-      REAL(8),intent(in) :: PVLEV(KNI,KNPROF)
-      REAL(8),intent(in) :: dP_dPsfc(KNI,KNPROF)
-      REAL(8),intent(in) :: PPO(KNO), PVO(KNO,KNPROF)
-      REAL(8),intent(in) :: PVIG(KNI,KNPROF)
-      REAL(8),intent(out):: PVI(KNI,KNPROF)
-      REAL(8),intent(out):: PPS(KNPROF)
-!****************************************************
-      REAL(8) ZLNPI (KNI,knprof),ZPZ(KNI)
-      REAL(8) ZPS(KNI,knprof)
-      REAL(8) ZLNPO (KNO)
-
-
-! --- Apply weighted averaging 
-
-      ZLNPO(:)=LOG(PPO(:))
-
-      ZPS(:,:) = dP_dPsfc(:,:) / PVLEV(:,:)
-      ZLNPI(:,:) = LOG( PVLEV(:,:) )
-
-      CALL LAYERAVG_AD(ZLNPO,ZLNPI,pvig,pvi,  &
-                     KNO,KNI,PPS,PVO,ZPZ,ZPS,knprof)
-
-    END SUBROUTINE PPO_INTAVGAD
-
-
-    SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
       IMPLICIT NONE
      
       INTEGER,intent(in) :: KNI, KNO, KNPROF
@@ -426,16 +372,17 @@ module presProfileOperators_mod
      END SUBROUTINE LAYERAVG
 
 
-    SUBROUTINE LAYERAVG_TL(PX1,PX2,PY2,PY2INCR,KNO,KNI,PPS,PMEAN,PZ,PZS,PZPS,knprof,pvo)
+    SUBROUTINE LAYERAVG_TL_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,PZPS,knprof,pvo)
 
       IMPLICIT NONE
       INTEGER,intent(in) :: KNO,KNI,knprof
       REAL(8),intent(out) :: pvo(kno,knprof)
       REAL(8),intent(out) :: PMEAN(kno,knprof)
       REAL(8),intent(in)  :: PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof),PY2INCR(KNI,knprof)
-      REAL(8),intent(in)  :: PPS(knprof)
+      REAL(8),intent(in)  :: PP(kni,knprof)
       REAL(8),intent(in)  :: PZS(KNI,knprof)
       REAL(8),intent(out) :: PZ(KNI),PZPS(kno,knprof)      
+      REAL(8) ::  PZP(KNI)
 !---------------------------------------------------------
 !
 ! s/r LAYERAVG - Perform integration between points PX1(KI-1) and
@@ -452,6 +399,9 @@ module presProfileOperators_mod
 !              - Introduction of version 2
 !              - Introduction of profile and kno loops to reduce the
 !                number of calls (optimisation)
+!          M. Bani Shahabadi, ARMA, Feb 2019
+!              - removing the dependency on dPdPs and receive dP
+!                instead as input     
 !
 !    -------------------
 !
@@ -474,7 +424,7 @@ module presProfileOperators_mod
 !     KNI:      Dimension of other arrays.
 !     PZS:      dlnP/dPs
 !     KI:       Identifies region of interest: PX1(KI-1) to PX1(KI+1)
-!     PPS:      Surface pressure increment
+!     PP:       Surface pressure increment
 !
 !   OUTPUT:
 !
@@ -483,96 +433,6 @@ module presProfileOperators_mod
 !     PZPS:     Surface pressure related TLM*increment term
 !
 !-----------------------------------------------------------
-      REAL(8) Z1,Z2,Z3,ZW1,ZW2
-      REAL(8) zsum
-      INTEGER J,jo,levIndex
-      logical :: skip, test
-! --- Identify boundary points
-
-      do levIndex = 1, knprof
-        do jo = 1, kno
-          z2=px1(jo)
-
-          if (jo == 1) then 
-            z1=2.0D0*z2-px1(jo+1)
-          else
-            z1=px1(jo-1)
-          end if   
-
-          if (jo == kno) then
-            z3=2.0D0*z2-z1
-          else   
-            z3=px1(jo+1)
-          end if
-          if (z3 > px2(kni,levIndex)) z3=px2(kni,levIndex)
-
-          skip = .false.
-          if (z2 >= px2(kni,levIndex)) then
-            z3=px2(kni,levIndex)
-            z2=px2(kni,levIndex)
-            skip = .true.
-          end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
-
-          pzps(jo,levIndex)=0.0D0
-          pz(1:kni)=0.0D0
-          test = .false.
-
-          loop2:do j=1,kni-1
-            if (px2(j,levIndex) >= z3) exit loop2
-
-            if (px2(j,levIndex) <= z2.and.px2(j+1,levIndex) > z1) then 
-
-              call sublayer(z1,z2,z3,px2(j,levIndex),px2(j+1,levIndex), &
-                            py2(j,levIndex),py2(j+1,levIndex),zw1,zw2,  &
-                            pzs(j,levIndex),pzs(j+1,levIndex),pzps(jo,levIndex))
-              pz(j)=pz(j)+zw1
-              pz(j+1)=pz(j+1)+zw2
-              test = .true.
-            end if
-
-            if (px2(j,levIndex) < z3.and.px2(j+1,levIndex) >= z2.and. .not. skip) then
-
-              call sublayer(z3,z2,z1,px2(j,levIndex),px2(j+1,levIndex), &
-                            py2(j,levIndex),py2(j+1,levIndex),zw1,zw2,  &
-                            pzs(j,levIndex),pzs(j+1,levIndex),pzps(jo,levIndex))
-              pz(j)=pz(j)+zw1
-              pz(j+1)=pz(j+1)+zw2
-              test = .true.
-            end if
-          end do loop2
-
-          if (.not. test) pz(j)=1.0D0
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
-
-          zsum=0.0D0
-          pmean(jo,levIndex)=0.0D0
-          do j=1,kni      
-            pmean(jo,levIndex)=pmean(jo,levIndex)+pz(j)*py2incr(j,levIndex)
-            zsum=zsum+pz(j)
-          end do
-          pmean(jo,levIndex)=pmean(jo,levIndex)/zsum
-          if (test) pzps(jo,levIndex)=pzps(jo,levIndex)*pps(levIndex)/zsum
-          PVO(JO,LEVINDEX)=pmean(jo,levIndex)+PZPS(jo,levIndex)
-         
-        end do
-      end do
-
-    END SUBROUTINE LAYERAVG_TL
-
-
-    SUBROUTINE LAYERAVG_TL_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,PZPS,knprof,pvo)
-      IMPLICIT NONE
-      INTEGER,intent(in) :: KNO,KNI,knprof
-      REAL(8),intent(out) :: pvo(kno,knprof)
-      REAL(8),intent(out) :: PMEAN(kno,knprof)
-      REAL(8),intent(in)  :: PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof),PY2INCR(KNI,knprof)
-      REAL(8),intent(in)  :: PP(kni,knprof)
-      REAL(8),intent(in)  :: PZS(KNI,knprof)
-      REAL(8),intent(out) :: PZ(KNI),PZPS(kno,knprof)      
-      REAL(8) ::  PZP(KNI)
       REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
       REAL(8) zsum, zsum2
       INTEGER J,jo,levIndex
@@ -666,7 +526,7 @@ module presProfileOperators_mod
     END SUBROUTINE LAYERAVG_TL_v2
 
 
-    SUBROUTINE LAYERAVG_AD(PX1,PX2,PY2,PY2INCR,KNO,KNI,PPS,PMEAN,PZ,PZS,knprof)
+    SUBROUTINE LAYERAVG_AD_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,knprof)
 
       IMPLICIT NONE
       INTEGER,intent(in) ::  KNO,KNI,knprof
@@ -674,8 +534,9 @@ module presProfileOperators_mod
       REAL(8),intent(in) ::  PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof)
       REAL(8),intent(inout) :: PY2INCR(KNI,knprof)
       REAL(8),intent(in) ::  PZS(KNI,knprof)
-      REAL(8),intent(inout) ::  PPS(knprof)
+      REAL(8),intent(inout) ::  PP(kni,knprof)
       REAL(8),intent(out) ::  PZ(KNI)
+      real(8)             :: pzp(kni)
 !---------------------------------------------------------
 !
 ! s/r LAYERAVG - Perform integration between points PX1(KI-1) and
@@ -689,9 +550,12 @@ module presProfileOperators_mod
 !
 !Revisions: 
 !          S. Pellerin, ARMA, August 2008
-!!             - Introduction of version 2
-!!             - Introduction of profile and kno loops to reduce the
-!!               number of calls (optimisation)
+!              - Introduction of version 2
+!              - Introduction of profile and kno loops to reduce the
+!                number of calls (optimisation)
+!          M. Bani Shahabadi, ARMA, Feb 2019
+!              - removing the dependency on dPdPs and receive dP
+!                instead as input     
 !
 !    -------------------
 !
@@ -715,103 +579,13 @@ module presProfileOperators_mod
 !     KNI:      Dimension of other arrays.
 !     PZS:      dlnP/dPs
 !     KI:       Identifies region of interest: PX1(KI-1) to PX1(KI+1)
-!     PPS:      Surface pressure adjoint (in/out)
+!     PP:       pressure adjoint (in/out)
 !
 !   OUTPUT:
 !
 !     PZ:       Resultant accumulated contribution factors Adjoint when KFLAG=2 
 !
 !-----------------------------------------------------------
-      REAL(8) Z1,Z2,Z3,ZW1,ZW2,PZPS(kno,knprof)
-      REAL(8) zsum
-      INTEGER J,jo,jn
-      logical test,skip
-! --- Identify boundary points
-
-      do jn = 1, knprof
-        do jo = 1, kno
-          z2=px1(jo)
-
-          if (jo == 1) then 
-            z1=2.0D0*z2-px1(jo+1)
-          else
-            z1=px1(jo-1)
-          end if   
-
-          if (jo == kno) then
-            z3=2.0D0*z2-z1
-          else   
-            z3=px1(jo+1)
-          end if
-          if (z3 > px2(kni,jn)) z3=px2(kni,jn)
-
-          skip = .false.
-          if (z2 >= px2(kni,jn)) then
-            z3=px2(kni,jn)
-            z2=px2(kni,jn)
-            skip = .true.
-          end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
-
-          pzps(jo,jn)=0.0D0
-          pz(1:kni)=0.0D0
-          test = .false.
-
-          do j=1,kni-1
-            if (px2(j,jn) >= z3) exit
-
-            if (px2(j,jn) <= z2.and.px2(j+1,jn) > z1) then 
-
-              call sublayer(z1,z2,z3,px2(j,jn),px2(j+1,jn), &
-                            py2(j,jn),py2(j+1,jn),zw1,zw2,  &
-                            pzs(j,jn),pzs(j+1,jn),pzps(jo,jn))
-              pz(j)=pz(j)+zw1
-              pz(j+1)=pz(j+1)+zw2
-              test = .true.
-            end if
-
-            if (px2(j,jn) < z3.and.px2(j+1,jn) >= z2.and. .not. skip) then
-
-              call sublayer(z3,z2,z1,px2(j,jn),px2(j+1,jn), &
-                            py2(j,jn),py2(j+1,jn),zw1,zw2,  &
-                            pzs(j,jn),pzs(j+1,jn),pzps(jo,jn))
-              pz(j)=pz(j)+zw1
-              pz(j+1)=pz(j+1)+zw2
-              test = .true.
-            end if
-          end do
-
-          if (.not. test) pz(j)=1.0D0
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
-
-          zsum=0.0D0
-          do j=1,kni
-            zsum=zsum+pz(j)         
-          end do
-          pz(1:kni)=pz(1:kni)*pmean(jo,jn)/zsum
-          py2incr(1:KNI,JN)=py2incr(1:KNI,JN)+PZ(1:KNI)
-          if (test) pzps(jo,jn)=pzps(jo,jn)*pmean(jo,jn)/zsum
-          PPS(JN)=PPS(JN)+PZPS(jo,jn)
-          
-        end do
-      end do
-
-    END SUBROUTINE LAYERAVG_AD
-
-
-    SUBROUTINE LAYERAVG_AD_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,knprof)
-
-      IMPLICIT NONE
-      INTEGER,intent(in) ::  KNO,KNI,knprof
-      REAL(8),intent(in) :: PMEAN(kno,knprof)
-      REAL(8),intent(in) ::  PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof)
-      REAL(8),intent(inout) :: PY2INCR(KNI,knprof)
-      REAL(8),intent(in) ::  PZS(KNI,knprof)
-      REAL(8),intent(inout) ::  PP(kni,knprof)
-      REAL(8),intent(out) ::  PZ(KNI)
-      real(8)             :: pzp(kni)
       REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
       REAL(8) zsum, zsum2
       INTEGER J,jo,jn
@@ -1096,6 +870,57 @@ module presProfileOperators_mod
     REAL(8),intent(out) :: w1,w2
     REAL(8),intent(out) :: zp1, zp2
     REAL(8),intent(in)  :: pzs1,pzs2
+!-----------------------------------------------------------------
+!
+!  Written by Yves J. Rochon *ARQX/EC, Nov. 2005
+!
+!  Revisions:
+!            Saroja Polavarapu *ARMA/EC, Nov 2005
+!            - Setting of y1 and y2 moved from calling routine.           
+!
+!  Revisions:
+!            M. Bani Shahabadi, ARMA, Feb 2019
+!            - Calculate the weights w.r.t P (instead of Ps)
+!
+!  Purpose: Determine weight coefficients to assign to NWP variables
+!           at x1 and x2. Weights are determined from integration over
+!           the range (y1,y2), which is within the ranges of the
+!           NWP layer (x1,x2) and of the RTM layer (z1,z2). Intergrals
+!           are approximated via the trapezoidal rule:
+!
+!              integral of f(x) from y1 to y2 = (f(y1)+f(y2))/2*abs(y1-y2) 
+!
+!           This is synonomous to having an integrand linear in x.
+!
+!           Normalization done in calling routine.
+!
+!  Input:
+!
+!       z1.........Outer boundary of RTM level (could be above are below z2)
+!       z2.........Inner boundary of RTM level 
+!                      (position of RTM reference level)
+!       z3.........Second outer boundary
+!       x1.........Upper boundary of NWP layer (x1<x2)
+!       x2.........Lower boundary of NWP layer
+!       t1.........Variable value at upper NWP level.
+!       t2.........Variable value at lower NWP level.
+!       pzs1.......dlnP/dP = dx1/dP
+!       pzs2.......dlnP/dP = dx2/dP
+!       pzps.......Current gradient contribution for weights*variable w.r.t P
+!
+!  Output:
+!
+!       w1.........Weight assigned to variable at upper NWP level
+!       w2.........Weight assigned to variable at lower NWP level
+!       pzps.......Updated gradient contribution for weights*variable w.r.t P
+!
+!  Other:
+!
+!       tot........Evaluated integral
+!       g1.........Gradient of weights*variables w.r.t. x1
+!       g2.........Gradient of weights*variables w.r.t. x2
+!
+!-----------------------------------------------------------------
 
     REAL(8) y1,y2,tot,d,w10,w20,dz,dx,dy,dzd,dxd,g1,g2
     REAL(8) a1,a2,aa1,aa2
@@ -1173,7 +998,7 @@ module presProfileOperators_mod
     end if
     tot=t1*w1+t2*w2
      
-! --- Provide NLM contribution to TLM (gradients w.r.t. Ps)
+! --- Provide NLM contribution to TLM (gradients w.r.t. P)
 
 !        Determine gradient of 'tot' w.r.t. x1
 
@@ -1221,7 +1046,7 @@ module presProfileOperators_mod
     end if
     g2=a1*t1+a2*t2
 
-!        Accumulate for gradient w.r.t. Ps
+!        Accumulate for gradient w.r.t. P
 
     zp1=g1*pzs1
     zp2=g2*pzs2
