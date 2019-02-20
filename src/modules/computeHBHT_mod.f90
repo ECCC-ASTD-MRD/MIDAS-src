@@ -1221,7 +1221,7 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER stat
+      INTEGER stat, vcode, status
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
       REAL*8 HNH1, ZFGE, ZERR
@@ -1236,6 +1236,7 @@ end subroutine hbht_compute_ensemble
       REAL*8       , allocatable :: H   (:),AZMV(:)
       TYPE(GPS_DIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_anl
+      real*8, dimension(:), pointer :: dPdPs => null()
 
       WRITE(*,*)'ENTER SETFGEDIFF'
 !C
@@ -1268,6 +1269,8 @@ end subroutine hbht_compute_ensemble
       endif
 
       vco_anl => col_getVco(lcolumng)
+      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
+
 !C
 !C    Loop over all header indices of the 'RO' family:
 !C
@@ -1324,13 +1327,20 @@ end subroutine hbht_compute_ensemble
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+
+                  ! approximation for dPdPs               
+                  if (associated(dPdPs)) then
+                    deallocate(dPdPs,stat=status)
+                    nullify(dPdPs)
+                  end if
+                  status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,zP0)
+                  zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
+
                   DO JL = 1, NGPSLEV
 !C
 !C     *             Profile x
 !C
                      zPP(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C     *             True implementation of zDP (dP/dP0)
-                     zDP(JL) = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
                      zUU(JL) = 0.d0
@@ -1535,6 +1545,9 @@ end subroutine hbht_compute_ensemble
       TYPE(GPS_PROFILEZD)    :: PRF, PRFP
       TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
 
+      real*8, dimension(:), pointer :: dPdPs => null()
+
+
       IF (numGPSZTD .EQ. 0) RETURN
 
 !C
@@ -1624,8 +1637,7 @@ end subroutine hbht_compute_ensemble
                      ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
                      DO JL = 1, NFLEV_T
                        ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C                     Get ZDP = dP/dP0
-                       ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
+                       ZDP(JL)  = 0.0D0
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
@@ -1715,10 +1727,17 @@ end subroutine hbht_compute_ensemble
          ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
          ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
          ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+
+         ! approximation for dPdPs               
+         if (associated(dPdPs)) then
+           deallocate(dPdPs,stat=status)
+           nullify(dPdPs)
+         end if
+         status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,ZP0B)
+         zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
+
          DO JL = 1, NFLEV_T
             ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C          Get ZDP = dP/dP0
-            ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')

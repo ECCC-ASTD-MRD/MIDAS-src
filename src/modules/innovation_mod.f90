@@ -337,14 +337,6 @@ contains
         if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
            jlev, col_getPressure(columng, jlev, 1, 'TH')
       end do
-      do jlev = 1, col_getNumLev(columng,'MM')
-        if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
-           jlev, col_getPressureDeriv(columng, jlev, 1, 'MM')
-      end do
-      do jlev = 1, col_getNumLev(columng,'TH')
-         if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
-            jlev,col_getPressureDeriv(columng,jlev,1,'TH')
-      end do
     endif
 
     ! vertical interpolation of 3D variables
