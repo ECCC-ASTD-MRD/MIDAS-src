@@ -27,7 +27,7 @@ module presProfileOperators_mod
   private
 
   ! public procedures
-  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgTl_v2, ppo_intAvgAd, ppo_lintv
+  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgTl_v2, ppo_intAvgAd, ppo_intAvgAd_v2, ppo_lintv
 
   contains
 
@@ -278,6 +278,34 @@ module presProfileOperators_mod
                      KNO,KNI,PPS,PVO,ZPZ,ZPS,knprof)
 
     END SUBROUTINE PPO_INTAVGAD
+
+
+    SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
+      IMPLICIT NONE
+     
+      INTEGER,intent(in) :: KNI, KNO, KNPROF
+      REAL(8),intent(in) :: PVLEV(KNI,KNPROF)
+      REAL(8),intent(in) :: dP_dPsfc(KNI,KNPROF)
+      REAL(8),intent(in) :: PPO(KNO), PVO(KNO,KNPROF)
+      REAL(8),intent(in) :: PVIG(KNI,KNPROF)
+      REAL(8),intent(out):: PVI(KNI,KNPROF)
+      REAL(8),intent(out):: PP(KNI,KNPROF)
+      REAL(8) ZLNPI (KNI,knprof),ZPZ(KNI)
+      REAL(8) ZPS(KNI,knprof)
+      REAL(8) ZLNPO (KNO)
+
+
+! --- Apply weighted averaging 
+
+      ZLNPO(:)=LOG(PPO(:))
+
+      ZPS(:,:) = dP_dPsfc(:,:) / PVLEV(:,:)
+      ZLNPI(:,:) = LOG( PVLEV(:,:) )
+
+      CALL LAYERAVG_AD_v2(ZLNPO,ZLNPI,pvig,pvi,  &
+                     KNO,KNI,PP,PVO,ZPZ,ZPS,knprof)
+
+    END SUBROUTINE PPO_INTAVGAD_v2
 
 
     SUBROUTINE LAYERAVG(PX1,PX2,PY2,KN1,KN2,KI,PMEAN)
@@ -771,6 +799,101 @@ module presProfileOperators_mod
       end do
 
     END SUBROUTINE LAYERAVG_AD
+
+
+    SUBROUTINE LAYERAVG_AD_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,knprof)
+
+      IMPLICIT NONE
+      INTEGER,intent(in) ::  KNO,KNI,knprof
+      REAL(8),intent(in) :: PMEAN(kno,knprof)
+      REAL(8),intent(in) ::  PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof)
+      REAL(8),intent(inout) :: PY2INCR(KNI,knprof)
+      REAL(8),intent(in) ::  PZS(KNI,knprof)
+      REAL(8),intent(inout) ::  PP(kni,knprof)
+      REAL(8),intent(out) ::  PZ(KNI)
+      real(8)             :: pzp(kni)
+      REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
+      REAL(8) zsum, zsum2
+      INTEGER J,jo,jn
+      logical test,skip
+! --- Identify boundary points
+
+      do jn = 1, knprof
+        do jo = 1, kno
+          z2=px1(jo)
+
+          if (jo == 1) then 
+            z1=2.0D0*z2-px1(jo+1)
+          else
+            z1=px1(jo-1)
+          end if   
+
+          if (jo == kno) then
+            z3=2.0D0*z2-z1
+          else   
+            z3=px1(jo+1)
+          end if
+          if (z3 > px2(kni,jn)) z3=px2(kni,jn)
+
+          skip = .false.
+          if (z2 >= px2(kni,jn)) then
+            z3=px2(kni,jn)
+            z2=px2(kni,jn)
+            skip = .true.
+          end if
+
+! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
+
+          pz(1:kni)=0.0D0
+          pzp(1:kni)=0.0D0
+          test = .false.
+
+          do j=1,kni-1
+            if (px2(j,jn) >= z3) exit
+
+            if (px2(j,jn) <= z2.and.px2(j+1,jn) > z1) then 
+
+              call sublayer_v2(z1,z2,z3,px2(j,jn),px2(j+1,jn), &
+                            py2(j,jn),py2(j+1,jn),zw1,zw2,  &
+                            pzs(j,jn),pzs(j+1,jn),zp1,zp2)
+              pzp(j) = pzp(j) + zp1
+              pzp(j+1) = pzp(j+1) + zp2
+              pz(j)=pz(j)+zw1
+              pz(j+1)=pz(j+1)+zw2
+              test = .true.
+            end if
+
+            if (px2(j,jn) < z3.and.px2(j+1,jn) >= z2.and. .not. skip) then
+
+              call sublayer_v2(z3,z2,z1,px2(j,jn),px2(j+1,jn), &
+                            py2(j,jn),py2(j+1,jn),zw1,zw2,  &
+                            pzs(j,jn),pzs(j+1,jn),zp1,zp2)
+              pzp(j) = pzp(j) + zp1
+              pzp(j+1) = pzp(j+1) + zp2
+              pz(j)=pz(j)+zw1
+              pz(j+1)=pz(j+1)+zw2
+              test = .true.
+            end if
+          end do
+
+          if (.not. test) pz(j)=1.0D0
+! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
+!     or use TLM for adjoint calc (kflag=2)
+
+          zsum=0.0D0
+          do j=1,kni
+            zsum=zsum+pz(j)         
+          end do
+          pz(1:kni)=pz(1:kni)*pmean(jo,jn)/zsum
+          py2incr(1:KNI,JN)=py2incr(1:KNI,JN)+PZ(1:KNI)
+
+          if (test) pzp(1:kni)=pzp(1:kni)*pmean(jo,jn)/zsum
+          PP(1:KNI,JN)=PP(1:KNI,JN)+pzp(1:kni)
+          
+        end do
+      end do
+
+    END SUBROUTINE LAYERAVG_AD_v2
 
 
     SUBROUTINE SUBLAYER(z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,pzps)

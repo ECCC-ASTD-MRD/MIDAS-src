@@ -696,6 +696,7 @@ contains
     real(8), allocatable :: qoext_ad (:,:)
     real(8), allocatable :: zvlev    (:,:)
     real(8), allocatable :: dPdPs    (:,:)
+    real(8), allocatable :: dPdPs_v2 (:,:)
     real(8), allocatable :: zt_ad    (:,:)
     real(8), allocatable :: zhu_ad   (:,:)
     real(8), allocatable :: logzhu_ad(:,:)
@@ -704,11 +705,12 @@ contains
     real(8), allocatable :: logzhu   (:,:)
     real(8), allocatable :: qoext    (:,:)
     real(8), allocatable :: zps_ad   (:)
+    real(8), allocatable :: zp_ad    (:,:)
     real(8), allocatable :: xpres    (:)
 
     real(8) :: zptop, zptopmbs
    
-    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
+    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:),p_column(:)
     real(8), pointer :: TTb(:), HUb(:), Pres(:)
 
     type(struct_obs) :: lobsSpaceData
@@ -825,6 +827,7 @@ contains
       allocate (qoext_ad (nlevels,count_profile),stat= alloc_status(6) )
       allocate (zvlev    (nlv_T,count_profile)  ,stat= alloc_status(7) )
       allocate (dPdPs    (nlv_T,count_profile)  ,stat= alloc_status(8) )
+      allocate (dPdPs_v2 (nlv_T,count_profile))
       allocate (zt_ad    (nlv_T,count_profile)  ,stat= alloc_status(9) )
       allocate (zhu_ad   (nlv_T,count_profile)  ,stat= alloc_status(10))
       allocate (logzhu_ad(nlv_T,count_profile)  ,stat= alloc_status(11))
@@ -833,6 +836,7 @@ contains
       allocate (logzhu   (nlv_T,count_profile)  ,stat= alloc_status(14))
       allocate (qoext    (nlevels,count_profile),stat= alloc_status(15))
       allocate (zps_ad   (count_profile)        ,stat= alloc_status(16))
+      allocate (zp_ad    (nlv_T,count_profile))
 
       call utl_checkAllocationStatus(alloc_status, " tvslin_fill_profiles_ad")
       !  loop over all obs.
@@ -852,6 +856,7 @@ contains
           zhu  (level_index,count_profile) = HUb(level_index)
           zvlev(level_index,count_profile) = Pres(level_index) * MPC_MBAR_PER_PA_R8
           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
+          dPdPs_v2(level_index,count_profile)  = 1.0d0
         end do
         
         ! Fix pour eviter probleme au toit avec GEM 4
@@ -960,6 +965,7 @@ contains
         headerIndex = iptobs_header(profile_index)
 
         ps_column => col_getColumn(column,headerIndex,'P0')
+        p_column  => col_getColumn(column,headerIndex,'P_T')
         tg_column => col_getColumn(column,headerIndex,'TG')
         tt_column => col_getColumn(column,headerIndex,'TT')
         hu_column => col_getColumn(column,headerIndex,'HU')
@@ -1032,14 +1038,16 @@ contains
       zt_ad (:,:) = 0.0d0
       zhu_ad(:,:) = 0.0d0
       zps_ad(:)   = 0.0d0
+      zp_ad (:,:) = 0.0d0
 
       call tmg_start(75,'intavgad')
 !$omp parallel do private(profile_index)
       do profile_index = 1, count_profile
-        
-        call ppo_IntAvgAd(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
+
+        zt_ad(:,profile_index) = 0.0d0
+        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index), dPdPs_v2(:,profile_index:profile_index), &
              zt_ad(:,profile_index:profile_index), zt(:,profile_index:profile_index), &
-             zps_ad(profile_index:profile_index),nlv_T,1, &
+             zp_ad(:,profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
         
 
@@ -1047,10 +1055,37 @@ contains
         logzhu_ad(:,profile_index) = 0.d0
         loghuo_ad(:,profile_index) = 0.d0
         loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
-        call ppo_IntAvgAd(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
+        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index),dPdPs_v2(:,profile_index:profile_index), &
              logzhu_ad(:,profile_index:profile_index), logzhu(:,profile_index:profile_index), &
-             zps_ad(profile_index:profile_index),nlv_T,1, &
+             zp_ad(:,profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels), loghuo_ad(:,profile_index:profile_index))
+
+        !if ( profile_index == 1 ) then
+        !  write(*,*) 'tvslin_rttov_ad:'
+        !  write(*,*) 'zt_ad_v2    =', zt_ad(:,profile_index)
+        !  write(*,*) 'logzhu_ad_v2=', logzhu_ad(:,profile_index)
+        !end if
+
+        !zt_ad(:,profile_index) = 0.0d0
+        !call ppo_IntAvgAd(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
+        !     zt_ad(:,profile_index:profile_index), zt(:,profile_index:profile_index), &
+        !     zps_ad(profile_index:profile_index),nlv_T,1, &
+        !     jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
+        !
+
+        !logzhu(:,profile_index) = log( zhu(:,profile_index) ) 
+        !logzhu_ad(:,profile_index) = 0.d0
+        !loghuo_ad(:,profile_index) = 0.d0
+        !loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
+        !call ppo_IntAvgAd(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
+        !     logzhu_ad(:,profile_index:profile_index), logzhu(:,profile_index:profile_index), &
+        !     zps_ad(profile_index:profile_index),nlv_T,1, &
+        !     jpmolev,xpres(jpmotop:nlevels), loghuo_ad(:,profile_index:profile_index))
+
+        !if ( profile_index == 1 ) then
+        !  write(*,*) 'zt_ad       =', zt_ad(:,profile_index)
+        !  write(*,*) 'logzhu_ad   =', logzhu_ad(:,profile_index)
+        !end if
 
         zhu_ad(:,profile_index) = zhu_ad(:,profile_index) + logzhu_ad(:,profile_index) / zhu(:,profile_index)
 
@@ -1073,11 +1108,13 @@ contains
 
       do  profile_index = 1 , count_profile 
         ps_column => col_getColumn(column,iptobs_header(profile_index),'P0')
+        p_column  => col_getColumn(column,iptobs_header(profile_index),'P_T')
         tt_column => col_getColumn(column,iptobs_header(profile_index),'TT')
         hu_column => col_getColumn(column,iptobs_header(profile_index),'HU')
         
-        ps_column(1) = ps_column(1) + zps_ad  (profile_index) * MPC_MBAR_PER_PA_R8
+        !ps_column(1) = ps_column(1) + zps_ad  (profile_index) * MPC_MBAR_PER_PA_R8
         do level_index = 1, col_getNumLev(column,'TH')
+          p_column(level_index) = p_column(level_index)  + zp_ad  (level_index,profile_index) * MPC_MBAR_PER_PA_R8
           tt_column(level_index) = tt_column(level_index) + zt_ad  (level_index,profile_index)
           hu_column(level_index) = hu_column(level_index) + zhu_ad (level_index,profile_index)
         end do
@@ -1091,6 +1128,7 @@ contains
       deallocate (qoext_ad ,stat= alloc_status(6) )
       deallocate (zvlev    ,stat= alloc_status(7) )
       deallocate (dPdPs    ,stat= alloc_status(8) )
+      deallocate (dPdPs_v2)
       deallocate (zt_ad    ,stat= alloc_status(9) )
       deallocate (zhu_ad   ,stat= alloc_status(10))
       deallocate (logzhu_ad,stat= alloc_status(11))
@@ -1099,6 +1137,7 @@ contains
       deallocate (logzhu   ,stat= alloc_status(14))
       deallocate (qoext    ,stat= alloc_status(15))
       deallocate (zps_ad   ,stat= alloc_status(16))
+      deallocate (zp_ad)
       deallocate (xpres    ,stat= alloc_status(17))
       
       call utl_checkAllocationStatus(alloc_status, " tvslin_fill_profiles_ad", .false.)
