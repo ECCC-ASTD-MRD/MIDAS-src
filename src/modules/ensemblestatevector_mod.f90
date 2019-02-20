@@ -1049,11 +1049,11 @@ CONTAINS
   ! ens_recenter
   !--------------------------------------------------------------------------
   subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt,&
-                          imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
+                          imposeRttovHuLimits_opt, imposeSaturationLimit_opt, scaleFactor_opt)
     implicit none
 
     !! We want to compute:
-    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+    !!    x_recentered = scaleFactor*x_original + recenteringCoeff*(x_recenteringMean - scaleFactor*x_ensembleMean)
 
     ! arguments
     type(struct_ens) :: ens
@@ -1061,13 +1061,16 @@ CONTAINS
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
     logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
+    real(8), optional :: scaleFactor_opt(:)
 
     ! locals
+    integer,parameter    :: maxNumLevels=200
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
-    real(8) :: increment
+    real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
-    integer :: jk, jj, ji, stepIndex, memberIndex
+    integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     logical :: imposeRttovHuLimits, imposeSaturationLimit
+    character(len=4) :: varLevel
 
     if (present(imposeRttovHuLimits_opt)) then
       imposeRttovHuLimits = imposeRttovHuLimits_opt
@@ -1078,6 +1081,16 @@ CONTAINS
       imposeSaturationLimit = imposeSaturationLimit_opt
     else
       imposeSaturationLimit = .false.
+    end if
+
+    if ( present(scaleFactor_opt) ) then
+      !scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
+      if ( abs(recenteringCoeff  - 1.0D0) > 1.0D-5 ) then
+        call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
+      end if
+      scaleFactor = scaleFactor_opt
+    else
+      scaleFactor(:) = 1.0D0
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -1103,20 +1116,33 @@ CONTAINS
 
     !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
+
+      !define scaling factor as a function of vertical level and variable type
+      varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, jk))
+      if ( trim(varLevel) == 'SF') then
+        ! use lowest momentum level for surface variables
+        levIndex = ens_getNumLev(ens, 'MM')
+      else if ( (trim(varLevel) == 'MM') .and. (ens%statevector_work%vco%Vcode == 5002) ) then
+        levIndex = ens_getLevFromK(ens, jk) + 1
+      else
+        levIndex = ens_getLevFromK(ens, jk)
+      end if
+      thisScaleFactor = scaleFactor(levIndex)
+
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, numStep
             if(present(alternativeEnsembleMean_opt)) then
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
             else
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
             end if
             if (present(ensembleControlMember_opt)) then
-              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
+              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
             else
               do memberIndex = 1, ens%numMembers
                 ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                     real( real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
+                     real( real(thisScaleFactor*ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
               end do
             end if
           end do
@@ -1147,11 +1173,12 @@ CONTAINS
   subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
                                etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
                                imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt, &
-                               imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt)
+                               imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt, &
+                               scaleFactor_opt)
     implicit none
 
     !! We want to compute:
-    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+    !!    x_recentered = scaleFactor*x_original + recenteringCoeff*(x_recenteringMean - scaleFactor*x_ensembleMean)
 
     ! arguments
     type(struct_ens) :: ens
@@ -1165,10 +1192,13 @@ CONTAINS
     integer, optional :: numBits_opt
     logical, optional :: imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt
     logical, optional :: imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt
+    real(8), optional :: scaleFactor_opt(:)
 
     ! locals
+    integer,parameter:: maxNumLevels=200
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
+    real(8) :: scaleFactor(maxNumLevels)
     logical :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
     logical :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
 
@@ -1193,6 +1223,12 @@ CONTAINS
       imposeSaturationLimitOnOutputs = .false.
     end if
 
+    if ( present(scaleFactor_opt) ) then
+      scaleFactor = scaleFactor_opt
+    else
+      scaleFactor(:) = 1.0D0
+    end if
+
     numStep = ens%statevector_work%numStep
 
     call gsv_allocate(statevector_ensembleControlMember, numStep, ens%statevector_work%hco, ens%statevector_work%vco, &
@@ -1214,7 +1250,8 @@ CONTAINS
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
                       ensembleControlMember_opt = statevector_ensembleControlMember,                                  &
                       imposeRttovHuLimits_opt=imposeRttovHuLimitsOnOutputs,                                           &
-                      imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs)
+                      imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs,                                       &
+                      scaleFactor_opt=scaleFactor)
 
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
@@ -1259,7 +1296,7 @@ CONTAINS
   ! ens_readEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
-                              vco_file_opt, varNames_opt)
+                              vco_file_opt, varNames_opt, checkModelTop_opt)
     implicit none
 
     ! arguments
@@ -1269,6 +1306,7 @@ CONTAINS
     character(len=*) :: ctrlVarHumidity
     character(len=*), optional :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
+    logical, optional:: checkModelTop_opt
 
     ! locals
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -1291,6 +1329,7 @@ CONTAINS
     character(len=12)  :: etiket
     character(len=4)   :: varName
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
+    logical :: checkModelTop
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1321,6 +1360,13 @@ CONTAINS
     do memberIndex = 1, ens%numMembers
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
     end do
+
+    ! the default is to check whether output grid has a higher top than input grid during vertical interpolation
+    if ( present(checkModelTop_opt) ) then
+      checkModelTop = checkModelTop_opt
+    else
+      checkModelTop = .true.
+    end if
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
@@ -1448,7 +1494,8 @@ CONTAINS
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_hint_r4)
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa_opt=.true.)
+            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
+                                     Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_member_r4)
@@ -1459,7 +1506,8 @@ CONTAINS
             else
               call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa_opt=.true.)
+            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
+                                     Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalPaddingNeeded) then
             call gsv_hPad(statevector_file_r4, statevector_member_r4)
