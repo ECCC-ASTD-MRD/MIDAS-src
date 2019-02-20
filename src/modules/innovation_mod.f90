@@ -343,7 +343,7 @@ contains
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
       !if ( vnl_varNameList3D(jvar) == 'GZ_T' .or. vnl_varNameList3D(jvar) == 'GZ_M' ) cycle
-      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
+      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.true. )
 
       ! Imposing a minimum value for HU
       if ( vnl_varNameList3D(jvar) == 'HU  ') then

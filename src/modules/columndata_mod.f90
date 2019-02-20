@@ -389,22 +389,35 @@ contains
   !--------------------------------------------------------------------------
   ! col_vintprof
   !--------------------------------------------------------------------------
-  subroutine col_vintprof(column_in,column_out,varName)
+  subroutine col_vintprof(column_in,column_out,varName,useColumnPressure_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
     type(struct_columnData), intent(in) :: column_in
     character(len=*) :: varName
+    logical, optional :: useColumnPressure_opt
 
-    real(kind=8), pointer :: column_ptr_in(:),column_ptr_out(:)
+    real(8), pointer :: column_ptr_in(:), column_ptr_out(:)
+    real(8), pointer :: pres1Dptr_in(:)  , pres1Dptr_out(:)
+    real(8), pointer :: pres3Dptr_in(:,:,:), pres3Dptr_out(:,:,:)
     character(len=2) :: varLevel
-    real(kind=8)     :: zwb,zwt
-    integer          :: jlevo,jlevi,jprof
-    logical          :: vInterp
+    real(8)          :: zwb, zwt
+    integer          :: jlevo, jlevi, columnIndex, status
+    logical          :: vInterp, useColumnPressure
 
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
+    real(8), allocatable :: Psfc(:,:)
 
     varLevel = vnl_varLevelFromVarname(varName)
+
+    if ( present(useColumnPressure_opt) ) then
+      useColumnPressure = useColumnPressure_opt
+    else
+      useColumnPressure = .true.
+    end if
+
+    nullify(pres3Dptr_in)
+    nullify(pres3Dptr_out)
 
     vInterp = .true.
     if ( .not. col_varExist('P0' ) ) then
@@ -419,24 +432,97 @@ contains
     end if
 
     if (vInterp) then
-      do jprof = 1, col_getNumCol(column_out)
-        column_ptr_in  => col_getColumn(column_in ,jprof,varName)
-        column_ptr_out => col_getColumn(column_out,jprof,varName)
+      if ( .not. useColumnPressure ) then
+
+        ! read Psfc to use in vgd_levels
+        allocate(Psfc(1,col_getNumCol(column_in)))
+        do columnIndex = 1,col_getNumCol(column_in)
+          !Psfc(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
+          Psfc(1,columnIndex) = 100000.0D0
+        end do
+
+        ! Compute pressure
+        if ( varLevel == 'TH' ) then
+          ! pres3Dptr_in 
+          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_T,  &
+                              levels=pres3Dptr_in,sfc_field=Psfc,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+          ! pres3Dptr_out
+          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_T,  &
+                              levels=pres3Dptr_out,sfc_field=Psfc,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+        else if ( varLevel == 'MM' ) then
+          ! pres3Dptr_in 
+          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_M,  &
+                              levels=pres3Dptr_in,sfc_field=Psfc,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+          ! pres3Dptr_out
+          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_M,  &
+                              levels=pres3Dptr_out,sfc_field=Psfc,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+        else
+          call utl_abort('col_vintprof: only varLevel TH/MM is allowed')
+        end if  ! varLevel
+      end if    ! useColumnPressure 
+
+      do columnIndex = 1, col_getNumCol(column_out)
+
+        ! pres1Dptr_in 
+        if ( associated(pres3Dptr_in) ) then
+          pres1Dptr_in => pres3Dptr_in(1,columnIndex,:)
+        else
+          if ( varLevel == 'TH' ) then
+            pres1Dptr_in => col_getColumn(column_in,columnIndex,'P_T')
+          else if ( varLevel == 'MM' ) then
+            pres1Dptr_in => col_getColumn(column_in,columnIndex,'P_M')
+          else
+            call utl_abort('col_vintprof: only varLevel TH/MM is allowed')
+          end if
+        end if
+
+        ! pres1Dptr_out 
+        if ( associated(pres3Dptr_out) ) then
+          pres1Dptr_out => pres3Dptr_out(1,columnIndex,:)
+        else
+          if ( varLevel == 'TH' ) then
+            pres1Dptr_out => col_getColumn(column_out,columnIndex,'P_T')
+          else if ( varLevel == 'MM' ) then
+            pres1Dptr_out => col_getColumn(column_out,columnIndex,'P_M')
+          else
+            call utl_abort('col_vintprof: only varLevel TH/MM is allowed')
+          end if
+        end if
+
+        column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
+        column_ptr_out => col_getColumn(column_out,columnIndex,varName)
         jlevi = 1
         do jlevo = 1, col_getNumLev(column_out,varLevel)
           jlevi = jlevi + 1
-          do while(col_getPressure(column_out,jlevo,jprof,varLevel) .gt.  &
-               col_getPressure(column_in ,jlevi,jprof,varLevel) .and. &
+          do while( pres1Dptr_out(jlevo) .gt. pres1Dptr_in(jlevi) .and. &
                jlevi .lt. col_getNumLev(column_in,varLevel) )
             jlevi = jlevi + 1
           enddo
           jlevi = jlevi - 1
-          zwb = log(col_getPressure(column_out,jlevo,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))/  &
-               log(col_getPressure(column_in,jlevi+1,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))
+          zwb = log(pres1Dptr_out(jlevo)/pres1Dptr_in(jlevi))/  &
+               log(pres1Dptr_in(jlevi+1)/pres1Dptr_in(jlevi))
           zwt = 1. - zwb
-          column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+          if ( trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) then
+            column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
+          else
+            column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+          end if
         enddo
       enddo
+
+      if ( .not. useColumnPressure ) then
+        deallocate(pres3Dptr_in)
+        deallocate(pres3Dptr_out)
+        deallocate(Psfc)
+      end if
       
     else
 
@@ -452,9 +538,9 @@ contains
       end if
 
       ! Transfer the corresponding data
-      do jprof = 1, col_getNumCol(column_out)
-        column_ptr_in  => col_getColumn(column_in ,jprof,varName)
-        column_ptr_out => col_getColumn(column_out,jprof,varName)
+      do columnIndex = 1, col_getNumCol(column_out)
+        column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
+        column_ptr_out => col_getColumn(column_out,columnIndex,varName)
         if (vnl_varLevelFromVarname(varName) == 'TH') then
           levelWanted => THlevelWanted
         else
