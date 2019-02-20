@@ -1518,7 +1518,6 @@ contains
     REAL*8 zLon, Lon
     REAL*8 zAzm
     REAL*8, allocatable :: ZPP(:)
-    REAL*8, allocatable :: ZDP(:)
     REAL*8, allocatable :: ZTT(:)
     REAL*8, allocatable :: ZHU(:)
     REAL*8, allocatable :: zALT(:)
@@ -1546,7 +1545,6 @@ contains
     NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
     NWNDLEV=col_getNumLev(LCOLUMNHR,'MM')
     allocate(ZPP (NGPSLEV))
-    allocate(ZDP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
     allocate(zALT (NGPSLEV))
@@ -1615,8 +1613,6 @@ contains
                 !     *           Profile x
                 !
             ZPP(JL) = col_getPressure(LCOLUMNHR,JL,headerIndex,'TH')
-                !     *           True implementation of ZDP (dP/dP0)
-            ZDP(JL) = 0.0d0
             ZTT(JL) = col_getElem(lcolumnhr,JL,headerIndex,'TT') - p_TC
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
@@ -1645,7 +1641,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zALT,zUU,zVV,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -1787,7 +1783,6 @@ contains
     deallocate(zHU)
     deallocate(zALT)
     deallocate(zTT)
-    deallocate(zDP)
     deallocate(zPP)
 
     write(*,*)'EXIT SETERRGPSRO'

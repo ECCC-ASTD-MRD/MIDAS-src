@@ -875,6 +875,9 @@ contains
     !           - gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
     !             in gps_diff object w.r.t TT/HU/GZ/P0. The indirect dependency refractivity 
     !             to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
+    !revision 02: M. Bani shahabadi Feb 2019
+    !           - gps_struct1sw_v2 calculates of partial derivatives of refractivity 
+    !             in gps_diff object w.r.t TT/HU/GZ/P. The dependency on P0 (and dPdPs) is removed. 
     !
     !*    Purpose:
     !
@@ -896,7 +899,6 @@ contains
     integer :: isat, iclf, jj
     real(8) :: rad, geo, rad1, wfgps
     real(8), allocatable :: zpp(:)
-    real(8), allocatable :: zdp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
     real(8), allocatable :: zALT(:)
@@ -925,7 +927,6 @@ contains
     ngpslev=col_getNumLev(columnhr,'TH')
     nwndlev=col_getNumLev(columnhr,'MM')
     allocate(zpp(ngpslev))
-    allocate(zdp(ngpslev))
     allocate(ztt(ngpslev))
     allocate(zhu(ngpslev))
     allocate(zALT(ngpslev))
@@ -1001,7 +1002,6 @@ contains
           ! Profile x
           !
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
-          zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
@@ -1030,7 +1030,7 @@ contains
        !     
        ! GPS profile structure:
        !
-       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zALT,zUU,zVV,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -1137,7 +1137,6 @@ contains
     deallocate(zhu)
     deallocate(zALT)
     deallocate(ztt)
-    deallocate(zdp)
     deallocate(zpp)
 
     write(*,*)'EXIT oop_gpsro_nl'
@@ -1146,42 +1145,45 @@ contains
 
 
   subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs,analysisMode_opt)
-    !!
-    !!**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
-    !!
-    !!
-    !!Author  : S. Macpherson  ARMA/MRD
-    !!Revisions:
-    !!          S. Macpherson Oct 2012
-    !!           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
-    !!           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
-    !!           -- option to use old NL operator removed
-    !!           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
-    !!           -- Uses columnData_mod.
-    !!
-    !!          S. Macpherson Dec 2012 - Jan 2013
-    !!           -- update from Rev189 to Rev213
-    !!           -- new namelist parameters in modgpsztd_mod
-    !!           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
-    !!           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
-    !!           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
-    !!           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
-    !!
-    !!          S. Macpherson Jun 2013
-    !!           -- Use true implementation of ZDP (dP/dP0), although not needed here
-    !!
-    !!          S. Macpherson Nov 2014
-    !!           -- modifications for case where P(nlev) is not equal to P0
-    !!
-    !!          S. Macpherson Jan 2015
-    !!           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
-    !!
-    !!          M. Bani Shahabadi Dec 2018
-    !!           -- use the calculated height in tt2phi in the gps_structztd_v2
-    !!
-    !!Arguments (out)
-    !!     jobs: total value of Jo for all GB-GPS (ZTD) observations
-    !!
+    !
+    !**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
+    !
+    !
+    !Author  : S. Macpherson  ARMA/MRD
+    !Revisions:
+    !          S. Macpherson Oct 2012
+    !           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
+    !           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
+    !           -- option to use old NL operator removed
+    !           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
+    !           -- Uses columnData_mod.
+    !
+    !          S. Macpherson Dec 2012 - Jan 2013
+    !           -- update from Rev189 to Rev213
+    !           -- new namelist parameters in modgpsztd_mod
+    !           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
+    !           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
+    !           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
+    !           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
+    !
+    !          S. Macpherson Jun 2013
+    !           -- Use true implementation of ZDP (dP/dP0), although not needed here
+    !
+    !          S. Macpherson Nov 2014
+    !           -- modifications for case where P(nlev) is not equal to P0
+    !
+    !          S. Macpherson Jan 2015
+    !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
+    !
+    !          M. Bani Shahabadi Dec 2018
+    !           -- use the calculated height in tt2phi in the gps_structztd_v2
+    !
+    !          M. Bani Shahabadi Feb 2019
+    !           -- removed the dPdPs dependency in gps_structztd_v2 (ZDP).
+    !
+    !Arguments (out)
+    !     jobs: total value of Jo for all GB-GPS (ZTD) observations
+    !
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -1191,7 +1193,6 @@ contains
     logical, optional :: analysisMode_opt
 
     real(8), allocatable :: zpp (:)
-    real(8), allocatable :: zdp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
     real(8), allocatable :: zALT (:)
@@ -1254,7 +1255,6 @@ contains
     allocate(ztt(nlev_T))
     allocate(zhu(nlev_T))
     allocate(zALT(nlev_T))
-    allocate(zdp(nlev_T))
     allocate(zpp(nlev_T))
 
     if ( .not.beSilent ) then
@@ -1326,8 +1326,6 @@ contains
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, nlev_T
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
-          ! True implementation of ZDP (dP/dP0)
-          zdp(jl) = 0.0d0
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
           zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
@@ -1335,7 +1333,7 @@ contains
        zdz = zlev - zmt
 
        ! Fill GPS ZTD profile structure (PRF):
-       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,zALT,lbevis,irefopt,prf)
+       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,ztt,zhu,zalt,lbevis,irefopt,prf)
 
        ! Apply the GPS ZTD observation operator
        ! --> output is model ZTD (type gps_diff) and P at obs height ZLEV
@@ -1442,7 +1440,6 @@ contains
     deallocate(ztt)
     deallocate(zhu)
     deallocate(zALT)
-    deallocate(zdp)
     deallocate(zpp)
 
     if ( .not. beSilent ) then
@@ -3467,7 +3464,7 @@ contains
     real(8) :: zazm, azm
     integer :: isat
     real(8) :: rad, geo, wfgps, zp0
-    REAL(8), allocatable :: zpp(:), zdp(:), ztt(:), zhu(:), zALT(:), zuu(:), zvv(:)
+    REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zalt(:), zuu(:), zvv(:)
     real(8) :: zmt,radw
     integer :: IDATYP
     integer :: jl, jv, ngpslev, nwndlev, jj
@@ -3491,7 +3488,6 @@ contains
     nwndlev=col_getNumLev(columng,'MM')
 
     allocate(zpp (ngpslev))
-    allocate(zdp (ngpslev))
     allocate(ztt (ngpslev))
     allocate(zhu (ngpslev))
     allocate(zALT (ngpslev))
@@ -3555,8 +3551,6 @@ contains
           do jl = 1, ngpslev
             ! Profile x_b
             zpp(jl) = col_getPressure(columng,jl,headerIndex,'TH')
-            ! True implementation of zDP (dP/dP0)
-            zdp(jl) = 0.0d0
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
             zALT(jl) = col_getHeight(columng,jl,headerIndex,'TH')
@@ -3582,7 +3576,7 @@ contains
           zvv(ngpslev) = zuu(nwndlev)
 
           ! GPS profile structure:
-          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,zdp,ztt,zhu,zALT,zuu,zvv,prf)
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zalt,zuu,zvv,prf)
 
           ! Prepare the vector of all the observations:
           nh1 = 0
@@ -3620,7 +3614,6 @@ contains
     deallocate(zhu)
     deallocate(zALT)
     deallocate(ztt)
-    deallocate(zdp)
     deallocate(zpp)
 
     write(*,*) 'EXIT oop_calcGPSROJacobian'
@@ -3646,7 +3639,6 @@ contains
     REAL*8, allocatable :: ZHUB(:)
     REAL*8, allocatable :: zALT(:)
     REAL*8, allocatable :: ZPPB(:)
-    REAL*8, allocatable :: ZDP(:)
     REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
     REAL*8 ZMT
     real*8 sfcfield
@@ -3692,7 +3684,6 @@ contains
     allocate(ZHUB(NFLEV))
     allocate(zALT(NFLEV))
     allocate(ZPPB(NFLEV))
-    allocate(ZDP(NFLEV))
 
     write(*,*) 'oop_calcGPSGBJacobian: Storing Jacobians for GPS ZTD data ...'
     write(*,*) '   INFO: Analysis grid iversion = ', vcode
@@ -3744,9 +3735,8 @@ contains
           write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
         end if
         ZMT = col_getHeight(columng,0,headerIndex,'SF')
-        if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
 
-        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF)
+        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF)
         CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
 
         ! Observation Jacobian H'(xb)            
@@ -3761,12 +3751,8 @@ contains
           write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex),'ZTDopv (m) = ', ZTDopv%Var
           CALL gps_pw(PRF,ZPWMOD)
 
-          ! sfc pressure dx               
-          nullify(dpdp0)
           sfcfield = ZP0B + 50.0d0
-          status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
-          ZDP = dpdp0(1:NFLEV)
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -3780,7 +3766,7 @@ contains
           ZHUB(64) = ZHUB(64) - dxq1
           ZHUB(65) = ZHUB(65) - dxq2
           ZHUB(66) = ZHUB(66) - dxq3
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           CALL gps_pw(PRF2,ZPWMOD2)
           write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
@@ -3798,7 +3784,7 @@ contains
           ZTTB(64) = ZTTB(64) + 2.0d0
           ZTTB(65) = ZTTB(65) + 2.0d0
           ZTTB(66) = ZTTB(66) + 2.0d0
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -3816,7 +3802,6 @@ contains
     deallocate(ZHUB)
     deallocate(zALT)
     deallocate(ZPPB)
-    deallocate(ZDP)
 
     write(*,*) 'oop_calcGPSGBJacobian:   Number of ZTD data (icount) = ', icount
     write(*,*) '           Expected number (numGPSZTD) = ', numGPSZTD

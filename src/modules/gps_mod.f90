@@ -965,7 +965,7 @@ contains
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rALT,rUU,rVV,prf)
+       rP0,rPP,rTT,rHU,rALT,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -975,7 +975,6 @@ contains
     real(dp)        , intent(in)  :: geoid
     real(dp)        , intent(in)  :: rP0
     real(dp)        , intent(in)  :: rPP (ngpssize)
-    real(dp)        , intent(in)  :: rDP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
     real(dp)        , intent(in)  :: rALT (ngpssize)
@@ -1317,7 +1316,7 @@ contains
   end subroutine gps_structztd
 
 
-  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rALT,lbevis,refopt,prf)
+  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rTT,rHU,rALT,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
 !
@@ -1330,7 +1329,6 @@ contains
     real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
     real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
     real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
-    real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
     real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
     real(dp)          , intent(in)  :: rALT (ngpssize)   ! altitude at each level

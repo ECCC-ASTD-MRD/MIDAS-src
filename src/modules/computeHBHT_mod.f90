@@ -1637,7 +1637,6 @@ end subroutine hbht_compute_ensemble
                      ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
                      DO JL = 1, NFLEV_T
                        ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-                       ZDP(JL)  = 0.0D0
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
@@ -1651,7 +1650,7 @@ end subroutine hbht_compute_ensemble
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(3*NFLEV_T+1) = ZP0
                      ZMT  = ZGZ(NFLEV_T)
-                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,ZGZ,LBEVIS,IREFOPT,PRF)
+                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,ZGZ,LBEVIS,IREFOPT,PRF)
                      CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -1786,8 +1785,8 @@ end subroutine hbht_compute_ensemble
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZQQB,ZGZ,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,ZQQB_P,ZGZ_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,ZGZ,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,ZGZ_P,LBEVIS,IREFOPT,PRFP)
            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
