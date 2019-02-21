@@ -437,8 +437,7 @@ contains
         ! read Psfc to use in vgd_levels
         allocate(Psfc(1,col_getNumCol(column_in)))
         do columnIndex = 1,col_getNumCol(column_in)
-          !Psfc(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
-          Psfc(1,columnIndex) = 100000.0D0
+          Psfc(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
         end do
 
         ! Compute pressure
@@ -511,7 +510,8 @@ contains
                log(pres1Dptr_in(jlevi+1)/pres1Dptr_in(jlevi))
           zwt = 1. - zwb
           if ( trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) then
-            column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
+            !column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
+            column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           else
             column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           end if

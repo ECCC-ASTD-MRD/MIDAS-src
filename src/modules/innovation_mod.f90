@@ -269,30 +269,6 @@ contains
     onecolumn => col_getColumn(columnhr,1,'P_M')
     write(*,*) onecolumn(:)
 
-    !write(*,*) 'inn_setupBackgroundColumns, Psfc->Column 1:'
-    !if (col_varExist('P0')) then
-    !  call col_calcPressure(columnhr)
-
-    !  write(*,*) 'P_T:'
-    !  onecolumn => col_getColumn(columnhr,1,'P_T')
-    !  write(*,*) onecolumn(:)
-    !  write(*,*) 'P_M:'
-    !  onecolumn => col_getColumn(columnhr,1,'P_M')
-    !  write(*,*) onecolumn(:)
-    !end if
-
-    !if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-    !     col_varExist('P0') .and. col_getNumLev(columnhr,'MM') > 1 ) then
-    !  call tt2phi(columnhr,obsSpaceData)
-
-    !  write(*,*) 'GZ_T:'
-    !  onecolumn => col_getColumn(columnhr,1,'GZ_T')
-    !  write(*,*) onecolumn(:)
-    !  write(*,*) 'GZ_M:'
-    !  onecolumn => col_getColumn(columnhr,1,'GZ_M')
-    !  write(*,*) onecolumn(:)
-    !end if
-
     nullify(onecolumn)
 
     call tmg_stop(10)
@@ -326,24 +302,11 @@ contains
       end if
     end do
 
-    ! calculate pressure profiles on analysis levels
-    if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
-      call col_calcPressure(columng)
-      do jlev = 1, col_getNumLev(columng,'MM')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'MM')
-      end do
-      do jlev = 1, col_getNumLev(columng,'TH')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'TH')
-      end do
-    endif
-
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
       !if ( vnl_varNameList3D(jvar) == 'GZ_T' .or. vnl_varNameList3D(jvar) == 'GZ_M' ) cycle
-      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.true. )
+      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
 
       ! Imposing a minimum value for HU
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
@@ -355,6 +318,18 @@ contains
         end do
       end if
     end do
+
+    ! print pressure profiles on analysis levels
+    if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
+      do jlev = 1, col_getNumLev(columng,'MM')
+        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+           jlev, col_getPressure(columng, jlev, 1, 'MM')
+      end do
+      do jlev = 1, col_getNumLev(columng,'TH')
+        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
+           jlev, col_getPressure(columng, jlev, 1, 'TH')
+      end do
+    endif
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
       !
