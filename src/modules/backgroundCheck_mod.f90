@@ -771,7 +771,7 @@ end subroutine bgck_bgcheck_conv
       if ( kvnam .eq. BUFR_NEUS .or. kvnam .eq. BUFR_NEVS ) then
          if (      zbgchk .gt. zswcrit(1) .and. zbgchk .lt. zswcrit(2) ) then
            isetflag=1
-         else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zswcrit(3) ) then
+         else if ( zbgchk .gt. zswcrit(2) .and. zbgchk .lt. zswcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zswcrit(3) )then
               isetflag =3
