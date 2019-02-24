@@ -14,7 +14,7 @@
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
    LWRTHESS = .FALSE.,
-   LVARQC=.TRUE.,
+   LVARQC=.FALSE.,
    NWOQCV=5
 /
  &NAMINC
