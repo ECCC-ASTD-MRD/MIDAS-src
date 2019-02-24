@@ -302,6 +302,31 @@ contains
       end if
     end do
 
+    ! calculate pressure profiles on analysis levels
+    if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
+      call col_calcPressure(columng)
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNHR(1):'
+        write(*,*) 'P_T:'
+        columnhr_ptr => col_getColumn(columnhr,1,'P_T')
+        write(*,*) columnhr_ptr (:)
+
+        !write(*,*) 'P_M:'
+        !columnhr_ptr => col_getColumn(columnhr,1,'P_M')
+        !write(*,*) columnhr_ptr (:)
+
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNG(1):'
+        write(*,*) 'P_T:'
+        columng_ptr => col_getColumn(columng,1,'P_T')
+        write(*,*) columng_ptr (:)
+
+        !write(*,*) 'P_M:'
+        !columng_ptr => col_getColumn(columng,1,'P_M')
+        !write(*,*) columng_ptr (:)
+        write(*,*)
+      end if
+    endif
+
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
@@ -319,16 +344,18 @@ contains
       end if
     end do
 
-    ! print pressure profiles on analysis levels
     if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
-      do jlev = 1, col_getNumLev(columng,'MM')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'MM')
-      end do
-      do jlev = 1, col_getNumLev(columng,'TH')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'TH')
-      end do
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, COLUMNG(1):'
+        write(*,*) 'P_T:'
+        columng_ptr => col_getColumn(columng,1,'P_T')
+        write(*,*) columng_ptr (:)
+
+        !write(*,*) 'P_M:'
+        !columng_ptr => col_getColumn(columng,1,'P_M')
+        !write(*,*) columng_ptr (:)
+        write(*,*)
+      end if
     endif
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then

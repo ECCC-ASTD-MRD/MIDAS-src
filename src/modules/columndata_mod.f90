@@ -471,7 +471,7 @@ contains
       do columnIndex = 1, col_getNumCol(column_out)
 
         ! pres1Dptr_in 
-        if ( associated(pres3Dptr_in) ) then
+        if ( .not. useColumnPressure ) then
           pres1Dptr_in => pres3Dptr_in(1,columnIndex,:)
         else
           if ( varLevel == 'TH' ) then
@@ -484,7 +484,7 @@ contains
         end if
 
         ! pres1Dptr_out 
-        if ( associated(pres3Dptr_out) ) then
+        if ( .not. useColumnPressure ) then
           pres1Dptr_out => pres3Dptr_out(1,columnIndex,:)
         else
           if ( varLevel == 'TH' ) then
@@ -498,6 +498,23 @@ contains
 
         column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
         column_ptr_out => col_getColumn(column_out,columnIndex,varName)
+
+        if ( mpi_myid == 0 .and. columnIndex == 1 .and. &
+             (trim(varName) == 'P_T' ) ) then
+             !(trim(varName) == 'P_T' .or. trim(varName) == 'P_M') ) then
+
+          write(*,*) 'useColumnPressure=', useColumnPressure
+
+          write(*,*) 'col_vintprof, COLUMN_IN(1):'
+          write(*,*) trim(varName),':'
+          write(*,*) column_ptr_in(:)
+
+          write(*,*) 'col_vintprof, COLUMN_OUT(1):'
+          write(*,*) trim(varName),':'
+          write(*,*) column_ptr_out(:)
+          write(*,*)
+        end if
+
         jlevi = 1
         do jlevo = 1, col_getNumLev(column_out,varLevel)
           jlevi = jlevi + 1
@@ -509,9 +526,13 @@ contains
           zwb = log(pres1Dptr_out(jlevo)/pres1Dptr_in(jlevi))/  &
                log(pres1Dptr_in(jlevi+1)/pres1Dptr_in(jlevi))
           zwt = 1. - zwb
-          if ( trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) then
-            !column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
-            column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+          if (  useColumnPressure .and. &
+              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
+            ! do nothing, i.e. use the pressures from column_in
+          else if ( .not. useColumnPressure .and. &
+              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
+            column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
+            !column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           else
             column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           end if
