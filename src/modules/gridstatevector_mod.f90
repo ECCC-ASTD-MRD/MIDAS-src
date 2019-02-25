@@ -2985,7 +2985,7 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
-    real(8), allocatable :: gd_recv_GZ(:,:,:)
+    real(8), allocatable :: gd_send_GZ(:,:),gd_recv_GZ(:,:,:)
     real(8), allocatable :: gdUV_r8(:,:,:,:), gd_r8(:,:,:,:)
 
     call tmg_start(153,'gsv_tilesToVarsLevs')
@@ -3168,13 +3168,17 @@ module gridStateVector_mod
 
     ! gather up surface GZ onto task 0
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
+      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
+      gd_send_GZ(:,:) = 0.0D0
+      gd_send_GZ(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_GZ_in_ptr(:,:)
+
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
-      call rpn_comm_gather(field_GZ_in_ptr, nsize, 'mpi_double_precision',  &
-                           gd_recv_GZ,      nsize, 'mpi_double_precision', 0, 'grid', ierr )
+      call rpn_comm_gather(gd_send_GZ, nsize, 'mpi_double_precision',  &
+                           gd_recv_GZ, nsize, 'mpi_double_precision', 0, 'grid', ierr )
 
       if ( mpi_myid == 0 ) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
@@ -3190,6 +3194,7 @@ module gridStateVector_mod
         !$OMP END PARALLEL DO
       end if
 
+      deallocate(gd_send_GZ)
       deallocate(gd_recv_GZ)
     end if ! gzSfcPresent
 
