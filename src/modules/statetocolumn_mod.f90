@@ -1141,6 +1141,8 @@ contains
       call tmg_stop(165)
     end if
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
@@ -1259,6 +1261,8 @@ contains
 
     end do k_loop
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     ! Interpolate surface GZ separately, only exists on mpi task 0
     GZsfcPresent: if ( stateVector_VarsLevs%GZsfcPresent ) then
 
@@ -1360,6 +1364,7 @@ contains
 
     call gsv_deallocate( statevector_VarsLevs )
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 's2c_nl: FINISHED'
 
     call tmg_stop(169)

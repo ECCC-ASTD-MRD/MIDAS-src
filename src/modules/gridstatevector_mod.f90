@@ -2295,6 +2295,7 @@ module gridStateVector_mod
     end if
 
     call tmg_stop(7)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_readFromFile: END'
 
   end subroutine gsv_readFromFile
@@ -3558,6 +3559,12 @@ module gridStateVector_mod
       deallocate(gd_send_GZ)
     end if ! gzSfcPresent
 
+    !if ( sendrecvKind == 4 ) then
+    !  deallocate(gd_recv_varsLevs_r4)
+    !  deallocate(gd_send_varsLevs_r4)
+    !end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'exiting gsv_transposeTilesToVarsLevs'
 
     call tmg_stop(153)
@@ -5134,17 +5141,17 @@ module gridStateVector_mod
                         trim(stateVector_trial%mpi_distribution) )
       end if
 
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
       if ( stateVector_1step_r4%allocated .and. batchIndex == numBatch ) then
         call gsv_deallocate(stateVector_1step_r4)
       end if
 
     end do BATCH
 
-    if ( mpi_myid == 0 ) then
-      write(*,*) 'gsv_readTrials: FINISHED'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      write(*,*) ''
-    end if
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'gsv_readTrials: FINISHED'
+    write(*,*) ''
 
     call tmg_stop(150)
 
