@@ -341,7 +341,7 @@ subroutine tt2phi_gsv(statevector_trial)
 
   real(8) :: P_M, P_M1, P_Mm1, P_T, P0
 
-  call tmg_start(204,'tt2phi_gsv')
+  call tmg_start(192,'tt2phi_gsv')
 
   write(*,*) 'entering tt2phi_gsv'
 
@@ -650,7 +650,7 @@ subroutine tt2phi_gsv(statevector_trial)
   write(*,*) 'tt2phi_gsv: statevector_trial%addGZsfcOffset=', statevector_trial%addGZsfcOffset 
   write(*,*) 'exiting tt2phi_gsv'
 
-  call tmg_stop(204)
+  call tmg_stop(192)
 
 end subroutine tt2phi_gsv
 
@@ -799,7 +799,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
   real(8), pointer     :: delP_T(:,:,:,:), delP_M(:,:,:,:)
   type(struct_vco), pointer :: vco_anl
 
-  call tmg_start(201,'tt2phi_tl_gsv')
+  call tmg_start(193,'tt2phi_tl_gsv')
 
   write(*,*) 'entering tt2phi_tl_gsv'
 
@@ -966,7 +966,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   write(*,*) 'exiting tt2phi_tl_gsv'
 
-  call tmg_stop(201)
+  call tmg_stop(193)
 
 end subroutine tt2phi_tl_gsv
 
@@ -1122,9 +1122,9 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   type(struct_vco), pointer :: vco_anl
 
 
-  call tmg_start(202,'tt2phi_ad_gsv MAZIAR')
+  call tmg_start(194,'tt2phi_ad_gsv')
 
-  write(*,*) 'MAZIAR: entering tt2phi_ad_gsv'
+  write(*,*) 'entering tt2phi_ad_gsv'
 
   vco_anl => gsv_getVco(statevector_trial)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -1328,9 +1328,9 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   deallocate(delGz_M)
   deallocate(delGz_T)
 
-  write(*,*) 'MAZIAR: exiting tt2phi_ad_gsv'
+  write(*,*) 'exiting tt2phi_ad_gsv'
 
-  call tmg_stop(202)
+  call tmg_stop(194)
 
 end subroutine tt2phi_ad_gsv
 
@@ -1515,6 +1515,8 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
 
   if ( .not. firstTimeAltCoeff_gsv ) return
 
+  call tmg_start(195,'calcAltitudeCoeff_gsv')
+
   Write(*,*) "Entering subroutine calcAltitudeCoeff_gsv"
 
   ! initialize and save coefficients for increased efficiency (assumes no relinearization)
@@ -1694,6 +1696,8 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
 !!$OMP END PARALLEL DO
 
   Write(*,*) "Exit subroutine calcAltitudeCoeff_gsv"
+
+  call tmg_stop(195)
 
 end subroutine calcAltitudeCoeff_gsv
 

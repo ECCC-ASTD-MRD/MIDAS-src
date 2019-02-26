@@ -983,6 +983,8 @@ CONTAINS
     real(8), pointer            :: P_T(:,:,:,:) => null()
     real(8), pointer            :: P_M(:,:,:,:) => null()
 
+    call tmg_start(196,'calcPressure_nl_r8')
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -1040,6 +1042,8 @@ CONTAINS
 
     deallocate(Psfc)
 
+    call tmg_stop(196)
+
   end subroutine calcPressure_nl_r8
 
   !--------------------------------------------------------------------------
@@ -1059,6 +1063,8 @@ CONTAINS
     logical                     :: beSilent
     real(4), pointer            :: P_T(:,:,:,:) => null()
     real(4), pointer            :: P_M(:,:,:,:) => null()
+
+    call tmg_start(197,'calcPressure_nl_r4')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1080,14 +1086,8 @@ CONTAINS
     field_Psfc => gsv_getField_r4(statevector,'P0')
     numStep = statevector%numStep
 
-!write(*,*) statevector%numStep
-!write(*,*) statevector%myLonBeg, statevector%myLonEnd
-!write(*,*) statevector%myLatBeg, statevector%myLatEnd
-
     do stepIndex = 1, numStep
 
-!write(*,*) shape(field_Psfc)
-!write(*,*) 'stepIndex=',stepIndex
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
       ! P_T
@@ -1123,6 +1123,8 @@ CONTAINS
 
     deallocate(Psfc)
 
+    call tmg_stop(197)
+
   end subroutine calcPressure_nl_r4
 
   !--------------------------------------------------------------------------
@@ -1144,6 +1146,8 @@ CONTAINS
     integer               :: jobs, status, stepIndex,lonIndex,latIndex
     integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical               :: beSilent
+
+    call tmg_start(198,'calcPressure_tl')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1207,6 +1211,8 @@ CONTAINS
 
     deallocate(Psfc)
 
+    call tmg_stop(198)
+
   end subroutine calcPressure_tl
 
   !--------------------------------------------------------------------------
@@ -1229,7 +1235,7 @@ CONTAINS
     integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical                     :: beSilent
 
-    ! Add calculation of the GZ/P  
+    call tmg_start(199,'calcPressure_ad')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1292,6 +1298,8 @@ CONTAINS
     end do
 
     deallocate(Psfc)
+
+    call tmg_stop(199)
 
   end subroutine calcPressure_ad
 

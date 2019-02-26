@@ -3240,7 +3240,6 @@ module gridStateVector_mod
     real(8), allocatable :: gdUV_r8(:,:,:,:), gd_r8(:,:,:,:)
     real(4), allocatable :: gdUV_r4(:,:,:,:), gd_r4(:,:,:,:)
 
-    call tmg_start(153,'gsv_tilesToVarsLevs')
     write(*,*) 'entering gsv_transposeTilesToVarsLevs'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -3261,6 +3260,12 @@ module gridStateVector_mod
     end if
     if ( mpi_myid  == 0 ) then
       write(*,*) 'gsv_transposeTilesToVarsLevs, inKind=', inKind, 'outKind=', outKind
+    end if
+
+    if ( sendrecvKind == 4 ) then
+      call tmg_start(152,'gsv_tilesToVarsLevs_r4')
+    else
+      call tmg_start(153,'gsv_tilesToVarsLevs_r8')
     end if
 
     maxkCount = maxval(statevector_out%allkCount(:))
@@ -3567,7 +3572,11 @@ module gridStateVector_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'exiting gsv_transposeTilesToVarsLevs'
 
-    call tmg_stop(153)
+    if ( sendrecvKind == 4 ) then
+      call tmg_stop(152)
+    else
+      call tmg_stop(153)
+    end if
 
   end subroutine gsv_transposeTilesToVarsLevs
 
