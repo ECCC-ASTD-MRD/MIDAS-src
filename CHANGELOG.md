@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * The positional records will now have the same etiket at the fields they represent
+ * The positional records will now have the same etiket at the fields they represent (#190 and !178)
+ * Initialize 4 variables in routine write_info in the module burpread_mod (#172 and !182)
 
 ### Fixed
 
