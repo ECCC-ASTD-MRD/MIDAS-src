@@ -4231,7 +4231,7 @@ module gridStateVector_mod
 
       !- Write TicTacToc
       if ( (mpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local ) then
-        call writeTicTacToc(statevector,nulfile) ! IN
+        call writeTicTacToc(statevector,nulfile,etiket) ! IN
       endif
 
     end if
@@ -4421,11 +4421,12 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! writeTicTacToc
   !--------------------------------------------------------------------------
-  subroutine writeTicTacToc(statevector,iun)
+  subroutine writeTicTacToc(statevector,iun,etiket)
     implicit none
 
     type(struct_gsv)    :: statevector
     integer, intent(in) :: iun
+    character(len=*), intent(in) :: etiket
 
     integer :: ier
 
@@ -4435,7 +4436,6 @@ module gridStateVector_mod
 
     character(len=1)  :: grtyp
     character(len=2)  :: typvar
-    character(len=12) :: etiket
 
     !
     !- 1.  Writing Tic-Tac
@@ -4450,7 +4450,6 @@ module gridStateVector_mod
        datyp    =  1
        grtyp    = 'E'
        typvar   = 'X'
-       etiket   = 'TICTICTACTAC'
        dateo =  0
 
        call cxgaig ( grtyp,                                          & ! IN
@@ -4474,7 +4473,6 @@ module gridStateVector_mod
                         ig2, ig3, ig4, datyp, .true.)
 
     else if ( statevector % hco % grtyp == 'U' ) then
-      etiket   = 'TICTICTACTAC'
       npak     = -32
       ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
                    statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'X', '^>', etiket, &
