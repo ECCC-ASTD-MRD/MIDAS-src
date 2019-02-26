@@ -5379,11 +5379,13 @@ module gridStateVector_mod
     integer :: stepIndexBeg
 
     ! locals
-    integer :: ierr, yourid, youridx, youridy, nsize
+    integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount 
     integer :: displs(mpi_nprocs), nsizes(mpi_nprocs)
+    integer :: senddispls(mpi_nprocs), sendsizes(mpi_nprocs)
+    integer :: recvdispls(mpi_nprocs), recvsizes(mpi_nprocs)
     integer :: kIndex, procIndex, stepIndex
     logical :: thisProcIsAsender(mpi_nprocs)
-    real(8), allocatable :: gd_send(:,:,:), gd_recv(:,:)
+    real(8), allocatable :: gd_send(:,:,:), gd_recv_3d(:,:,:), gd_recv(:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
 
@@ -5396,15 +5398,6 @@ module gridStateVector_mod
     call rpn_comm_barrier('GRID',ierr)
     write(*,*) 'gsv_transposeStepToTiles: starting'
 
-    allocate(gd_recv(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
-    gd_recv(:,:) = 0.0d0
-    if ( stateVector_1step_r4%allocated ) then
-      allocate(gd_send(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
-    else
-      allocate(gd_send(1,1,1))
-    end if
-    gd_send(:,:,:) = 0.0d0
-
     ! determine which tasks have something to send and let everyone know
     do procIndex = 1, mpi_nprocs
       thisProcIsAsender(procIndex) = .false.
@@ -5415,11 +5408,54 @@ module gridStateVector_mod
                           'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
     end do
 
+    numStepInput = 0
+    do procIndex = 1, mpi_nprocs
+      if ( thisProcIsAsender(procIndex) ) numStepInput = numStepInput + 1
+    end do
+    write(*,*) 'gsv_transposeStepToTiles: numStepInput = ', numStepInput
+
+    allocate(gd_recv_3d(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepInput))
+    gd_recv_3d(:,:,:) = 0.0d0
+    if ( stateVector_1step_r4%allocated ) then
+      allocate(gd_send(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
+    else
+      allocate(gd_send(1,1,1))
+    end if
+    gd_send(:,:,:) = 0.0d0
+
     if ( stateVector_tiles%dataKind == 4 ) then
       field_out_r4 => gsv_getField_r4(stateVector_tiles)
     else
       field_out_r8 => gsv_getField_r8(stateVector_tiles)
     end if
+
+    ! size of each message
+    nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
+
+    ! only send the data from tasks with data, same amount to all
+    sendsizes(:) = 0
+    if ( stateVector_1step_r4%allocated ) then
+      !sendsizes(mpi_myid) = nsize
+      do procIndex = 1, mpi_nprocs
+        sendsizes(procIndex) = nsize
+      end do
+    end if
+    senddispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+    end do
+
+    ! all tasks recv only from those with data
+    recvsizes(:) = 0
+    do procIndex = 1, mpi_nprocs
+      if ( thisProcIsAsender(procIndex) ) then
+        recvsizes(procIndex) = nsize
+      end if
+    end do
+    recvdispls(1) = 0
+    do procIndex = 2, mpi_nprocs
+      recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+    end do
 
     do kIndex = 1, stateVector_tiles%nk
 
@@ -5442,44 +5478,38 @@ module gridStateVector_mod
 
       end if
 
-      ! distribute from each task with something to all tasks
-      stepIndex = stepIndexBeg - 1
+      call mpi_alltoallv(gd_send   , sendsizes, senddispls, mpi_datyp_real8, &
+                         gd_recv_3d, recvsizes, recvdispls, mpi_datyp_real8, &
+                         mpi_comm_grid, ierr)
 
-      nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-      do procIndex = 1, mpi_nprocs
-        displs(procIndex) = (procIndex-1)*nsize
-        nsizes(procIndex) = nsize
-      end do
+      stepIndex = stepIndexBeg - 1
+      stepCount = 0
       do procIndex = 1, mpi_nprocs
 
         ! skip if this task has nothing to send
         if ( .not. thisProcIsAsender(procIndex) ) cycle
 
+        stepCount = stepCount + 1
         stepIndex = stepIndex + 1
         if ( stepIndex > stateVector_tiles%numStep ) then
           call utl_abort('gsv_transposeStepToTiles: stepIndex > numStep')
         end if
-
-        call rpn_comm_scatterv(gd_send, nsizes, displs, 'mpi_real8', &
-                               gd_recv, nsize, 'mpi_real8', &
-                               procIndex-1, 'grid', ierr)
-
         if ( stateVector_tiles%dataKind == 4 ) then
           field_out_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                        stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                        kIndex, stepIndex) =   &
-              real(gd_recv(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE),4)
+              real(gd_recv_3d(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount),4)
         else
           field_out_r8(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                        stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                        kIndex, stepIndex) =   &
-              gd_recv(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE)
+              gd_recv_3d(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount)
         end if
 
       end do ! procIndex
     end do ! kIndex
 
-    deallocate(gd_recv)
+    deallocate(gd_recv_3d)
     deallocate(gd_send)
 
     ! now send GZsfc from task 0 to all others
