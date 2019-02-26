@@ -96,9 +96,9 @@ for result in ${list_of_reference_results}; do
     if [[ "${reference_results}" = /* ]]; then
         list_of_reference_files=$(${TASK_BIN}/cmcarc -f ${result} -t)
     else
-        list_of_reference_files=$(ssh ${reference_results%%:*} "${TASK_BIN}/cmcarc -f ${result} -t")
+        list_of_reference_files=$(ssh ${reference_results%%:*} "$(${TASK_BIN}/readlink ${TASK_BIN}/cmcarc) -f ${result} -t")
     fi
-    for file in $(${TASK_BIN}/cmcarc -f ${result} -t); do
+    for file in ${list_of_reference_files}; do
         if [ -L ${file} ]; then
             ${TASK_BIN}/cmcarc -f ${bresult} --dereference -v -a ${file}
             rm ${file}
