@@ -60,6 +60,8 @@ module tt2phi_mod
   real(8), allocatable, save :: coeff_M_P0_delPM(:,:,:,:), coeff_M_P0_dP_delPT(:,:,:,:), coeff_M_P0_dP_delP0(:,:,:,:)
   real(8), allocatable, save :: coeff_T_P0_delP1(:,:,:),   coeff_T_P0_dP_delPT(:,:,:),   coeff_T_P0_dP_delP0(:,:,:)
 
+  logical, save :: useWind = .false.
+
   ! interface for computing GZ in column/gridstatevector_trial
   interface tt2phi
     module procedure tt2phi_col
@@ -382,16 +384,20 @@ subroutine tt2phi_gsv(statevector_trial)
     P_T_ptr_r4 => gsv_getField_r4(statevector_trial,'P_T')
     P_M_ptr_r4 => gsv_getField_r4(statevector_trial,'P_M')
     P0_ptr_r4 => gsv_getField_r4(statevector_trial,'P0')
-    UU_ptr_r4 => gsv_getField_r4(statevector_trial,'UU')
-    VV_ptr_r4 => gsv_getField_r4(statevector_trial,'VV')
+    if ( useWind ) then
+      UU_ptr_r4 => gsv_getField_r4(statevector_trial,'UU')
+      VV_ptr_r4 => gsv_getField_r4(statevector_trial,'VV')
+    end if
   else
     hu_ptr_r8 => gsv_getField_r8(statevector_trial,'HU')
     tt_ptr_r8 => gsv_getField_r8(statevector_trial,'TT')
     P_T_ptr_r8 => gsv_getField_r8(statevector_trial,'P_T')
     P_M_ptr_r8 => gsv_getField_r8(statevector_trial,'P_M')
     P0_ptr_r8 => gsv_getField_r8(statevector_trial,'P0')
-    UU_ptr_r8 => gsv_getField_r8(statevector_trial,'UU')
-    VV_ptr_r8 => gsv_getField_r8(statevector_trial,'VV')
+    if ( useWind ) then
+      UU_ptr_r8 => gsv_getField_r8(statevector_trial,'UU')
+      VV_ptr_r8 => gsv_getField_r8(statevector_trial,'VV')
+    end if
   end if
   GZsfc_ptr_r8 => gsv_getGZsfc(statevector_trial)
 
@@ -438,14 +444,24 @@ subroutine tt2phi_gsv(statevector_trial)
             P_M = real(P_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
             P0 = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
 
-            uu = real(UU_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
-            vv = real(VV_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+            if ( useWind ) then
+              uu = real(UU_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+              vv = real(VV_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+            else
+              uu = 0.0D0
+              vv = 0.0D0
+            end if
           else
             P_M = P_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
             P0 = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
 
-            uu = UU_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
-            vv = VV_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+            if ( useWind ) then
+              uu = UU_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+              vv = VV_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
+            else
+              uu = 0.0D0
+              vv = 0.0D0
+            end if
           end if
 
           ratioP  = log( P_M / P0 )
@@ -475,14 +491,24 @@ subroutine tt2phi_gsv(statevector_trial)
             P_M = real(P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
             P_M1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
 
-            uu = real(UU_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
-            vv = real(VV_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+            if ( useWind ) then
+              uu = real(UU_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+              vv = real(VV_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+            else
+              uu = 0.0D0
+              vv = 0.0D0
+            end if 
           else
             P_M = P_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
             P_M1 = P_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
 
-            uu = UU_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
-            vv = VV_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+            if ( useWind ) then
+              uu = UU_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+              vv = VV_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+            else
+              uu = 0.0D0
+              vv = 0.0D0
+            end if 
           end if
 
           ratioP  = log( P_M / P_M1 )
@@ -539,14 +565,24 @@ subroutine tt2phi_gsv(statevector_trial)
             P_T   = real(P_T_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
             P_M   = real(P_M_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
 
-            aveUU = real(UU_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
-            aveVV = real(VV_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+            if ( useWind ) then
+              aveUU = real(UU_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+              aveVV = real(VV_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+            else
+              aveUU = 0.0D0
+              aveVV = 0.0D0
+            end if
           else
             P_T   = P_T_ptr_r8(lonIndex,latIndex,1,stepIndex)
             P_M   = P_M_ptr_r8(lonIndex,latIndex,1,stepIndex)
 
-            aveUU = UU_ptr_r8(lonIndex,latIndex,1,stepIndex)
-            aveVV = VV_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            if ( useWind ) then
+              aveUU = UU_ptr_r8(lonIndex,latIndex,1,stepIndex)
+              aveVV = VV_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            else
+              aveUU = 0.0D0
+              aveVV = 0.0D0
+            end if
           end if
 
           ratioP = log( P_T / P_M )

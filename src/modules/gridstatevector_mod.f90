@@ -2204,12 +2204,13 @@ module gridStateVector_mod
     real(8), optional             :: PsfcReference_opt(:,:)
 
     ! locals
-    integer :: stepIndex
+    integer :: stepIndex, varIndex
     character(len=4) :: varName
     logical :: doHorizInterp, doVertInterp, unitConversion
     logical :: readGZsfc, readSubsetOfLevels, containsFullField
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
+    logical :: foundVarNameInFile 
 
     nullify(vco_file, hco_file)
 
@@ -2260,10 +2261,25 @@ module gridStateVector_mod
       write(*,*) 'gsv_readFromFile: all the vertical levels will be read'
     end if
 
-    varName = gsv_getVarNameFromK(statevector_out,1)
-    if (.not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) then
-      varName = 'P0' ! adopt a variable on the full/dynamic LAM grid
-    end if
+    foundVarNameInFile = .false.
+    do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+
+      if (.not. gsv_varExist(statevector_out,varName)) cycle
+
+      ! make sure variable is in the file
+      if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
+
+      ! adopt a variable on the full/dynamic LAM grid
+      if ( .not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
+
+      foundVarNameInFile = .true.
+
+      exit
+    end do
+
+    if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: variable does not exist to read from file')
+
     call hco_setupFromFile(hco_file,trim(fileName), ' ',gridName_opt='FILEGRID',varName_opt=varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
@@ -2668,6 +2684,7 @@ module gridStateVector_mod
     integer :: ip1_var, ip2_var, ip3_var, swa_var, lng_var, dltf_var, ubc_var
     integer :: extra1_var, extra2_var, extra3_var
     integer :: ig1_var, ig2_var, ig3_var, ig4_var
+    integer :: varIndex
 
     character(len=4 ) :: nomvar_var
     character(len=2 ) :: typvar_var
@@ -2767,7 +2784,16 @@ module gridStateVector_mod
     nullify(gd2d_file_r4)
     if ( statevector%mykCount > 0 ) then
       if (statevector%hco%global) then
-        varName=gsv_getVarNameFromK(statevector,1)
+        do varIndex = 1, vnl_numvarmax
+          varName = vnl_varNameList(varIndex)
+
+          if (.not. gsv_varExist(statevector,varName)) cycle
+
+          ! do not try to read diagnostic variables
+          if ( .not. trim(vnl_varTypeFromVarname(varName)) == 'MODEL') cycle
+
+          exit
+        end do
         call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
