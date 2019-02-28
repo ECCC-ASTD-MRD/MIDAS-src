@@ -174,7 +174,7 @@ module varNameList_mod
       case( BUFR_NETT, BUFR_NETS )
         varName='TT'
       case( BUFR_NEDZ, BUFR_NEGZ )
-        varName='GZ'
+        varName='GZ_T'
       case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
         varName='HU'
       case( BUFR_NEPS, BUFR_NEPN )
