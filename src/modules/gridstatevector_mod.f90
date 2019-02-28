@@ -50,7 +50,7 @@ module gridStateVector_mod
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
   public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getGZsfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyGZsfc
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyGZsfc, gsv_copyByVarName_r4, gsv_copyByVarName_r8
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -1406,6 +1406,132 @@ module gridStateVector_mod
     statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
 
   end subroutine gsv_copyGZsfc
+
+  !--------------------------------------------------------------------------
+  ! gsv_copyByVarName_r4
+  !--------------------------------------------------------------------------
+  subroutine gsv_copyByVarName_r4(statevector_in, statevector_out)
+    implicit none
+    ! arguments
+    type(struct_gsv)  :: statevector_in, statevector_out
+
+    ! locals
+    character(len=4) :: varName
+    integer :: stepIndex, lonIndex, levIndex, latIndex, varIndex
+    integer :: lon1, lon2, lat1, lat2, nlev_in, step1, step2
+    real(4), pointer :: field_out(:,:,:,:), field_in(:,:,:,:)
+
+    if ( statevector_in%mpi_distribution /= 'Tiles' ) then
+      call utl_abort('gsv_copyByVarName_r4: input statevector must have Tiles mpi distribution') 
+    end if
+
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_copyByVarName_r4: gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if (.not.statevector_out%allocated) then
+      call utl_abort('gsv_copyByVarName_r4: gridStateVector_out not yet allocated! Aborting.')
+    end if
+
+    lon1 = statevector_in%myLonBeg
+    lon2 = statevector_in%myLonEnd
+    lat1 = statevector_in%myLatBeg
+    lat2 = statevector_in%myLatEnd
+
+    step1 = 1
+    step2 = statevector_out%numStep
+
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    end if
+
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. (gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName)) ) cycle var_loop
+
+      nlev_in = statevector_in%varNumLev(varIndex)
+
+      field_in  => gsv_getField_r4(statevector_in ,varName)
+      field_out => gsv_getField_r4(statevector_out,varName)
+
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+      do stepIndex = step1, step2
+        do levIndex = 1, nlev_in
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              field_out(lonIndex,latIndex,levIndex,stepIndex) =  &
+                field_in(lonIndex,latIndex,levIndex,stepIndex)
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do var_loop
+
+  end subroutine gsv_copyByVarName_r4
+
+  !--------------------------------------------------------------------------
+  ! gsv_copyByVarName_r8
+  !--------------------------------------------------------------------------
+  subroutine gsv_copyByVarName_r8(statevector_in, statevector_out)
+    implicit none
+    ! arguments
+    type(struct_gsv)  :: statevector_in, statevector_out
+
+    ! locals
+    character(len=4) :: varName
+    integer :: stepIndex, lonIndex, levIndex, latIndex, varIndex
+    integer :: lon1, lon2, lat1, lat2, nlev_in, step1, step2
+    real(8), pointer :: field_out(:,:,:,:), field_in(:,:,:,:)
+
+    if ( statevector_in%mpi_distribution /= 'Tiles' ) then
+      call utl_abort('gsv_copyByVarName_r8: input statevector must have Tiles mpi distribution') 
+    end if
+
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_copyByVarName_r8: gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if (.not.statevector_out%allocated) then
+      call utl_abort('gsv_copyByVarName_r8: gridStateVector_out not yet allocated! Aborting.')
+    end if
+
+    lon1 = statevector_in%myLonBeg
+    lon2 = statevector_in%myLonEnd
+    lat1 = statevector_in%myLatBeg
+    lat2 = statevector_in%myLatEnd
+
+    step1 = 1
+    step2 = statevector_out%numStep
+
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    end if
+
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. (gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName)) ) cycle var_loop
+
+      nlev_in = statevector_in%varNumLev(varIndex)
+
+      field_in  => gsv_getField_r8(statevector_in ,varName)
+      field_out => gsv_getField_r8(statevector_out,varName)
+
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+      do stepIndex = step1, step2
+        do levIndex = 1, nlev_in
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              field_out(lonIndex,latIndex,levIndex,stepIndex) =  &
+                field_in(lonIndex,latIndex,levIndex,stepIndex)
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do var_loop
+
+  end subroutine gsv_copyByVarName_r8
 
   !--------------------------------------------------------------------------
   ! gsv_hPad

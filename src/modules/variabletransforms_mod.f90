@@ -85,6 +85,7 @@ CONTAINS
   subroutine vtr_setupTrials(varName)
     implicit none
 
+    type(struct_gsv) :: statevector_noGZnoP
     character(len=*), intent(in) :: varName
 
     select case ( trim(varName) )
@@ -107,8 +108,27 @@ CONTAINS
                         varNames_opt=(/'TT','HU','P0'/), allocGZ_opt=.true., &
                         allocPressure_opt=.true.)
 
+      ! initialize statevector_noGZnoP on analysis grid
+      call gsv_allocate(statevector_noGZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/), allocGZ_opt=.false.,  &
+                        allocPressure_opt=.false.)
+      write(*,*) 'vtr_setupTrials: statevector_noGZnoP allocated'
+
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( statevector_trial_gz )  ! IN/OUT
+      call gsv_readTrials( statevector_noGZnoP )  ! IN/OUT
+
+      ! copy the statevectors
+      if ( statevector_noGZnoP%dataKind == 4 .and. statevector_trial%dataKind == 4 ) then
+        call gsv_copyByVarName_r4( statevector_noGZnoP, statevector_trial_gz )
+      else 
+        call gsv_copyByVarName_r8( statevector_noGZnoP, statevector_trial_gz )
+      end if
+
+      call gsv_deallocate(statevector_noGZnoP)
+
+      ! do GZ/P calculation of the grid
       call PsfcToP_nl( statevector_trial_gz )
       call tt2phi( statevector_trial_gz )
 
