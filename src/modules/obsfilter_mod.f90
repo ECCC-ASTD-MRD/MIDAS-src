@@ -956,7 +956,7 @@ contains
        ! ATMOSPHERE
        !
        zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
-                               headerIndex,'MM')/RG 
+                               headerIndex,'MM') 
        zpt = zModAlt + bndryCritHeightAladin
 
        ! Loop over all body indices (still in the 'AL' family)

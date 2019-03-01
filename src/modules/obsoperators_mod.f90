@@ -503,8 +503,8 @@ contains
 
       ilyr = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
       varLevel = vnl_varLevelFromVarnum(ivnm)
-      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
-      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
+      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)
+      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
 
