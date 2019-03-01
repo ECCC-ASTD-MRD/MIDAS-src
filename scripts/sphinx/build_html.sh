@@ -9,8 +9,8 @@ htmldir=${2:-~/public_html/midas_sphinx}
 
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
-do_graphs=yes
-do_namelists=yes
+do_graphs=no
+do_namelists=no
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
@@ -38,7 +38,7 @@ done
 echo "Number of programs = $numPrograms"
 
 # SMALL NUMBER OF MODULE FILES (THE REST STILL NEED TO BE MODIFIED)
-module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/mpi_mod.f90 $codedir/modules/mpivar_mod.f90 $codedir/modules/gridstatevector_mod.f90 $codedir/modules/minimization_mod.f90 $codedir/modules/statetocolumn_mod.f90`
+module_filelist=`cat mod_files_list.txt`
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
