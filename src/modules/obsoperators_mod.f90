@@ -298,7 +298,6 @@ contains
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
     real(8), allocatable :: geopotential(:)
     real(8) :: heightSfc(1), geopotentialSfc(1)
-    logical, save :: printGZ = .true.
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
@@ -348,7 +347,7 @@ contains
          else
            if (trim(varName) == 'GZ') then
              col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
-             call phf_alt2geopotential(col_ptr,lat,geopotential,printGZ)
+             call phf_alt2geopotential(col_ptr,lat,geopotential)
              columnVarB=geopotential(ilyr+1)
              columnVarT=geopotential(ilyr  )
            else
