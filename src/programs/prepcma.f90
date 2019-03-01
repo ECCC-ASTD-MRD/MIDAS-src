@@ -64,7 +64,7 @@ program prepcma
   use bufr_mod 
   use ObsSpaceData_mod
   use burpread_mod 
-  use time_mod
+!  use time_mod
   use MathPhysConstants_mod
   implicit none
 
@@ -336,6 +336,39 @@ program prepcma
   stop
 
 contains
+
+subroutine openfile(unitnum,filename,filestat,fileform)
+  !
+  ! s/r openfile - open file filename and verify the exit
+  !     status of the command.
+  !
+  ! author P. Houtekamer and H. Mitchell May 2005.
+  !
+  ! input:
+  !     unitnum:  unit number for the file
+  !     filename: file name
+  !     filestat: status ('OLD' or 'NEW')
+  !     fileform: format ('FORMATTED' or 'UNFORMATTED')
+  !
+  implicit none
+  integer   :: unitnum,ierror
+  character (len=*) :: filename
+  character (len=*)  :: filestat
+  character (len=*)  :: fileform
+
+  write(*,*) 'open file: ',filename
+  open(unit=unitnum,file=trim(filename),access='sequential', &
+        form=trim(fileform),status=trim(filestat),IOSTAT=ierror)
+  if (ierror.ne.0) then
+   write(*,*) 'could not open unit ',unitnum, &
+    ' for file: ',filename
+   write(*,*) 'system error number: ',ierror
+   call qqexit(1)
+   stop
+  endif
+
+  return
+end subroutine openfile
 
 SUBROUTINE SELECTB(obsdat,nfiles,nbegintyp,nendtyp,cfamtyp,cfilnam, &
          nulout)
