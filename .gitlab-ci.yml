@@ -26,7 +26,7 @@ runtests:
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/1.1
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/1.2
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
