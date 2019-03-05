@@ -213,9 +213,13 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(lcolumng)
 
-      call bhi_setup( hco_anl,vco_anl, &  ! IN
-                      cvdim,           &  ! OUT
-                      'BackgroundCheck' ) ! IN
+      ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
+      !        in BackgroundCheck mode, the only purpose of bhi_setup is to read 
+      !        the scaleFactor and to check the consistency between the vco from 
+      !        analysisgrid and cov file
+      call bhi_setup( hco_anl,vco_anl,           &  ! IN
+                      cvdim,                     &  ! OUT
+                      mode_opt='BackgroundCheck' )  ! IN
 
       if ( cvdim > 0 ) then
          write(*,*)
@@ -465,6 +469,15 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'HBHT_static: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+            call utl_abort('compute_HBHT_static')
+         end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
@@ -478,6 +491,15 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'HBHT_static: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+            call utl_abort('compute_HBHT_static')
+         end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
@@ -491,6 +513,15 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'HBHT_static: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+            call utl_abort('compute_HBHT_static')
+         end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
@@ -504,6 +535,15 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'HBHT_static: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+            call utl_abort('compute_HBHT_static')
+         end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
@@ -511,13 +551,22 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      clnomvar = 'VIS'
+      clnomvar = 'LVIS'
       if (gsv_varExist(statevector,clnomvar)) then
         write(*,*) clnomvar
         field_ptr => gsv_getField3D_r8(statevector,clnomvar)
         do jlev = 1, nlev_T
           ip1 = vco_anl%ip1_T(jlev)
           ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'HBHT_static: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+            call utl_abort('compute_HBHT_static')
+         end if
           do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
@@ -1172,7 +1221,7 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER JF, stat
+      INTEGER stat
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
       REAL*8 HNH1, ZFGE, ZERR

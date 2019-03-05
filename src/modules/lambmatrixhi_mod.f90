@@ -114,6 +114,8 @@ contains
 
     logical  :: FileExist
 
+    type(struct_vco), pointer :: vco_file => null()
+
     !namelist
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 
@@ -175,6 +177,13 @@ contains
       write(*,*) 'lbhi_Setup: The background stats file DOES NOT EXIST'
       write(*,*) trim(BStatsFilename)
       call utl_abort('lbhi_Setup')
+    end if
+
+    ! Check if analysisgrid and covariance file have the same vertical levels
+    call vco_SetupFromFile( vco_file,      & ! OUT
+                            BStatsFilename ) ! IN
+    if (.not. vco_equal(vco_anl_in,vco_file)) then
+      call utl_abort('lamBmatrixHI: vco from analysisgrid and cov file do not match')
     end if
 
     !

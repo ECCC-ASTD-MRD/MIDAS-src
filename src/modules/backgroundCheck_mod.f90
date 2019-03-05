@@ -37,8 +37,7 @@ module backgroundCheck_mod
   private
 
   ! public procedures
-  public :: bgck_bgcheck_conv, bgck_bgcdata, bgck_bgcgpsro
-
+  public :: bgck_bgcheck_conv
 
   contains
 
@@ -110,10 +109,10 @@ subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
 
   do j = 1, size( bgfam )
     ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-    if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL bgck_bgcdata( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
+    if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL bgck_data( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
   end do
 
-  if (obs_famExist(obsSpaceData,'RO')) CALL bgck_bgcgpsro( columnhr , obsSpaceData )
+  if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )
 
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)
@@ -154,7 +153,7 @@ end subroutine bgck_bgcheck_conv
 !!            simultaneously.
 !!
 !--------------------------------------------------------------------------
-      SUBROUTINE bgck_bgcdata(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
+      SUBROUTINE bgck_data(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
 
       IMPLICIT NONE
 !*
@@ -501,7 +500,7 @@ end subroutine bgck_bgcheck_conv
          write(*,*) ' icoun meanzoer',icoun,zsumo/icoun
       endif
 
-      END SUBROUTINE bgck_bgcdata
+      END SUBROUTINE bgck_data
 
 
 !--------------------------------------------------------------------------
@@ -513,7 +512,7 @@ end subroutine bgck_bgcheck_conv
 !!                -Simplified and adapted to both refractivity and bending angle data
 !!
 !--------------------------------------------------------------------------
-      SUBROUTINE bgck_bgcgpsro(lcolumnhr,lobsSpaceData)
+      SUBROUTINE bgck_gpsro(lcolumnhr,lobsSpaceData)
       IMPLICIT NONE
 
       type(struct_columnData) :: lcolumnhr
@@ -617,7 +616,7 @@ end subroutine bgck_bgcheck_conv
       WRITE(*,*)'EXIT BGCSGPSRO'
       RETURN
       
-      END SUBROUTINE bgck_bgcgpsro
+      END SUBROUTINE bgck_gpsro
 
 
 !--------------------------------------------------------------------------
@@ -646,7 +645,7 @@ end subroutine bgck_bgcheck_conv
       logical lmodif1020
 
       real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3),zalcrit(3)
-      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
+      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3),zviscrit(3)
       real*8 zchcrit(3)
 
       isetflag=0
@@ -700,6 +699,10 @@ end subroutine bgck_bgcheck_conv
          zchcrit(2) = 16.00D0
          zchcrit(3) = 25.00D0
 
+         zviscrit(1) = 10.00D0
+         zviscrit(2) = 20.00D0
+         zviscrit(3) = 30.00D0
+
          if ( kodtyp .eq. 37 ) then
            zuvcrit(2)=25.D0
          else
@@ -714,7 +717,7 @@ end subroutine bgck_bgcheck_conv
          else if ( zbgchk .gt. zgzcrit(2) .and. zbgchk .lt. zgzcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zgzcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -726,7 +729,7 @@ end subroutine bgck_bgcheck_conv
          else if ( zbgchk .gt. zttcrit(2) .and. zbgchk .lt. zttcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zttcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -738,7 +741,7 @@ end subroutine bgck_bgcheck_conv
          else if ( zbgchk .gt. zdzcrit(2) .and. zbgchk .lt. zdzcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zdzcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -750,7 +753,7 @@ end subroutine bgck_bgcheck_conv
          else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zuvcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zuvcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -774,7 +777,19 @@ end subroutine bgck_bgcheck_conv
          else if ( zbgchk .gt. zswcrit(2) .and. zbgchk .lt. zswcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zswcrit(3) )then
-              isetflag =3
+           isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR SURFACE WIND GUST
+!C
+      if ( kvnam == bufr_gust ) then
+         if (      zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk >= zswcrit(3) )then
+           isetflag =3
          endif
       endif
 !C
@@ -784,9 +799,9 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zescrit(1) .and. zbgchk .lt. zescrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zescrit(2) .and. zbgchk .lt. zescrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zescrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -796,9 +811,9 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zpscrit(1) .and. zbgchk .lt. zpscrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zpscrit(2) .and. zbgchk .lt. zpscrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zpscrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -808,9 +823,9 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zpncrit(1) .and. zbgchk .lt. zpncrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zpncrit(2) .and. zbgchk .lt. zpncrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zpncrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -820,9 +835,21 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. ztscrit(1) .and. zbgchk .lt. ztscrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. ztscrit(2) .and. zbgchk .lt. ztscrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. ztscrit(3) )then
-              isetflag =3
+           isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR VISIBILITY
+!C
+      if ( kvnam .eq. bufr_vis ) then
+         if (      zbgchk .gt. zviscrit(1) .and. zbgchk .lt. zviscrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zviscrit(2) .and. zbgchk .lt. zviscrit(3) ) then
+           isetflag=2
+         else if ( zbgchk .ge. zviscrit(3) )then
+           isetflag =3
          endif
       endif
 !C
@@ -832,9 +859,9 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zzdcrit(1) .and. zbgchk .lt. zzdcrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zzdcrit(2) .and. zbgchk .lt. zzdcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zzdcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 !C
@@ -844,9 +871,9 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zchcrit(1) .and. zbgchk .lt. zchcrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zchcrit(2) .and. zbgchk .lt. zchcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zchcrit(3) )then
-              isetflag =3
+           isetflag =3
          endif
       endif
 
