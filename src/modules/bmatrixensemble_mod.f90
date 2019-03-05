@@ -42,6 +42,7 @@ MODULE BmatrixEnsemble_mod
   use spectralFilter_mod
   use varNameList_mod
   use advection_mod
+  use gridBinning_mod
   implicit none
   save
   private
@@ -116,6 +117,11 @@ MODULE BmatrixEnsemble_mod
   integer           :: amp3dStepIndexAssimWindow
   integer           :: amp3dStepIndexFSOFcst
 
+  ! Variance smoothing
+  logical           :: ensPertsNormalized
+  
+  type(struct_gsv)  :: statevector_ensStdDev
+
   ! Namelist variables
   integer             :: nEns ! number of ensemble members
   real(8)             :: scaleFactor(maxNumLevels)
@@ -135,7 +141,10 @@ MODULE BmatrixEnsemble_mod
   logical             :: removeSubEnsMeans
   logical             :: keepAmplitude
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
-  
+  logical             :: ensContainsFullField
+  character(len=12)   :: varianceSmoothing
+  real(8)             :: footprintRadius
+
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .false.
 
@@ -188,7 +197,7 @@ CONTAINS
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
          ensDiagnostic,advDiagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAssimWindow,&
          removeSubEnsMeans, keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, &
-         IncludeAnlVar
+         IncludeAnlVar, ensContainsFullField, varianceSmoothing, footprintRadius
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -216,12 +225,14 @@ CONTAINS
     advectFactorFSOFcst(:)=   0.0D0
     advectTypeAssimWindow = 'amplitude'
     advectStartTimeIndexAssimWindow = 'first'
-    advectFactorAssimWindow(:)=   0.0D0
+    advectFactorAssimWindow(:) = 0.0D0
     removeSubEnsMeans     = .false.
-    keepAmplitude         = .false. 
-
-    includeAnlVar(:) = ''
-    numIncludeAnlVar = 0
+    keepAmplitude         = .false.
+    ensContainsFullField  = .true.
+    includeAnlVar(:)      = ''
+    numIncludeAnlVar      = 0
+    varianceSmoothing     = 'none'
+    footprintRadius        =  250.0d3 ! 250km
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -453,7 +464,7 @@ CONTAINS
           if ( hLocalize(waveBandIndex) <= 0.0d0 ) then
             call utl_abort('ben_setup: Invalid HORIZONTAL localization length scale')
           end if
-          if ( vLocalize(waveBandIndex) <= 0.0d0 ) then
+          if ( vLocalize(waveBandIndex) <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
             call utl_abort('ben_setup: Invalid VERTICAL localization length scale')
           end if
         end do
@@ -542,7 +553,44 @@ CONTAINS
       return
     end if
 
-    !- 3.3 Pre-compute everything for advection in FSO mode
+    !- 3.3 Variance smoothing
+    if (trim(varianceSmoothing) == 'none') then
+      ensPertsNormalized = .false.
+    else
+      if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing will be performed'
+
+      !  3.3.1 Compute the ensemble StdDev and normalize the ensemble perturbations
+      call ens_computeStdDev(ensPerts(1), containsScalePerts_opt=.true.)
+      call ens_normalize(ensPerts(1))
+      ensPertsNormalized = .true.
+
+      !  3.3.2 Extract and smooth the ensemble StdDev/variance
+      call ens_copyEnsStdDev(ensPerts(1), statevector_ensStdDev)
+      if (ensDiagnostic) then
+        call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',    & ! IN
+                             'STDDEV_RAW', HUcontainsLQ_opt=HUcontainsLQ_gsv)  ! IN
+      end if
+
+      call gsv_power(statevector_ensStdDev, 2.d0 ) ! StdDev -> Variance
+
+      if (trim(varianceSmoothing) == 'horizMean') then
+        if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
+        call gsv_horizontalMean(statevector_ensStdDev)
+      else if (trim(varianceSmoothing) == 'footprint') then
+        call gsv_smoothHorizontal(statevector_ensStdDev,footprintRadius)
+      else
+        call utl_abort('ben_setup: Invalid variance smoothing type = '//trim(varianceSmoothing))
+      end if
+
+      call gsv_power(statevector_ensStdDev, 0.5d0) ! Variance -> StdDev
+
+      if (ensDiagnostic) then
+        call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',& ! IN
+                             'STDDEV_SMOOT', HUcontainsLQ_opt=HUcontainsLQ_gsv)   ! IN
+      end if
+    end if
+
+    !- 3.4 Pre-compute everything for advection in FSO mode
     if (fsoLeadTime > 0.0D0) then
       amp3dStepIndexFSOFcst = 1
       if ( sum(advectFactorFSOFcst(:)) == 0.0D0 .or. numStep == 1) then
@@ -574,7 +622,7 @@ CONTAINS
       numStepAmplitudeFSOFcst = 0
     end if
 
-    !- 3.4 Pre-compute everything for advection in ANALYSIS mode
+    !- 3.5 Pre-compute everything for advection in ANALYSIS mode
     if ( sum(advectFactorAssimWindow(:)) == 0.0D0 .or. numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated in ANALYSIS mode'
 
@@ -681,9 +729,6 @@ CONTAINS
       call gsv_deallocate(statevector_ensMean4D)
 
     end if
-
-    !- 3.5 Compute and write Std. Dev.
-    if (ensDiagnostic) call EnsembleDiagnostic('FullPerturbations')
 
     !- 3.6 Ensemble perturbations advection
     if ( advectEnsPertAnlInc ) then
@@ -826,12 +871,13 @@ CONTAINS
       call ens_allocate(ensPerts(waveBandIndex), nEns, numStep, hco_ens, vco_ens, dateStampList, &
                          varNames_opt = includeAnlVar(1:numIncludeAnlVar))
     end do
-    
+
     !- 2. Read ensemble
-    makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent')
-    call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic, &
-                          ctrlVarHumidity, vco_file_opt = vco_file, &
-                          varNames_opt = includeAnlVar(1:numIncludeAnlVar))
+    makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent' .or. trim(varianceSmoothing) /= 'none')
+    call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic,         &
+                          ctrlVarHumidity, vco_file_opt = vco_file,         &
+                          varNames_opt = includeAnlVar(1:numIncludeAnlVar), & 
+                          containsFullField_opt=ensContainsFullField)
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
 
@@ -1487,7 +1533,13 @@ CONTAINS
 
     if (.not. useSaveAmp) call ens_deallocate(ensAmplitude_M)
 
-    ! 2.4 Advect Increments
+    ! 2.4 Apply the Std. Dev (if needed)
+    if (ensPertsNormalized) then
+      call gsv_schurProduct(statevector_ensStdDev, & ! IN
+                            statevector)             ! INOUT 
+    end if
+
+    ! 2.5 Advect Increments
     if ( advectEnsPertAnlInc ) then
       call tmg_start(138,'BEN_ADVEC_ANLINC_TL')
       call adv_statevector_tl( statevector,  & ! INOUT
@@ -1498,7 +1550,7 @@ CONTAINS
     !
     !- 3.  Variable transforms
     !
-    if ( ctrlVarHumidity == 'LQ') then
+    if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
        call vtr_transform( statevector, & ! INOUT
                            'LQtoHU_tlm' ) ! IN
     end if
@@ -1554,7 +1606,7 @@ CONTAINS
     !
     !- 3.  Variable transforms
     !
-    if ( ctrlVarHumidity == 'LQ') then
+    if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
       call vtr_transform( statevector, & ! INOUT
                           'LQtoHU_ad' )  ! IN
     end if
@@ -1563,12 +1615,18 @@ CONTAINS
     !- 2.  Compute the analysis increment from Bens
     !
 
-    ! 2.4 Advect Increments
+    ! 2.5 Advect Increments
     if ( advectEnsPertAnlInc ) then
       call tmg_start(139,'BEN_ADVEC_ANLINC_AD')
       call adv_statevector_ad( statevector,  & ! INOUT
                                adv_analInc )   ! IN
       call tmg_stop(139)
+    end if
+
+    ! 2.4 Apply the Std. Dev (if needed)
+    if (ensPertsNormalized) then
+      call gsv_schurProduct(statevector_ensStdDev, & ! IN
+                            statevector)             ! INOUT 
     end if
 
     if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude_M'
@@ -1987,9 +2045,9 @@ CONTAINS
   END SUBROUTINE addEnsMemberAd
 
 !--------------------------------------------------------------------------
-! EnsembleDiagnostic
+! ensembleDiagnostic
 !--------------------------------------------------------------------------
-  SUBROUTINE EnsembleDiagnostic(mode)
+  SUBROUTINE ensembleDiagnostic(mode)
     implicit none
 
     character(len=*), intent(in) :: mode
@@ -2019,40 +2077,39 @@ CONTAINS
     !
     !- Write each wave band for a selected member
     !
-    if (trim(LocalizationType) == 'ScaleDependent') then
-       if ( mpi_myid == 0 ) write(*,*) '   writing perturbations for member 001'
-       memberIndex = 1
-       dnens2 = sqrt(1.0d0*dble(nEns-1))
-       do waveBandIndex = 1, nWaveBandToDiagnose
-          if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
-          call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
-                            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
-          call ben_getPerturbation( statevector,    & ! OUT
-                                    memberIndex,    & ! IN
-                                    'ConstantValue', waveBandIndex ) ! IN
-          if ( trim(mode) == 'FullPerturbations') then
-             etiket = 'PERT001_FULL'
-          else
-             write(wbnum,'(I2.2)') waveBandIndex
-             etiket = 'PERT001_WB' // trim(wbnum)
-          end if
-          call gsv_writeToFile(statevector,'./ens_pert001.fst',etiket, & ! IN
-                               dnens2,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
-          call gsv_deallocate(statevector)
-       end do
-    end if
+    if ( mpi_myid == 0 ) write(*,*) '   writing perturbations for member 001'
+    memberIndex = 1
+    dnens2 = sqrt(1.0d0*dble(nEns-1))
+    do waveBandIndex = 1, nWaveBandToDiagnose
+      if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
+      call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+      call ben_getPerturbation( statevector,    & ! OUT
+                                memberIndex,    & ! IN
+                                'ConstantValue', waveBandIndex ) ! IN
+      if ( trim(mode) == 'FullPerturbations') then
+        etiket = 'PERT001_FULL'
+      else
+        write(wbnum,'(I2.2)') waveBandIndex
+        etiket = 'PERT001_WB' // trim(wbnum)
+      end if
+      call gsv_writeToFile(statevector,'./ens_pert001.fst',etiket, & ! IN
+                           dnens2,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+      call gsv_deallocate(statevector)
+    end do
 
     !
     !- Compute the standard deviations for each wave band
     !
     if ( mpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
     call gsv_allocate(statevector_temp, tim_nstepobsinc, hco_ens, vco_anl, &
-         mpi_local_opt=.true.)
+                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(ensPerts(1)))
 
     do waveBandIndex = 1, nWaveBandToDiagnose
        if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
        call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
-                         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+                         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                         dataKind_opt=ens_getDataKind(ensPerts(1)))
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
           !- Get normalized perturbations
@@ -2086,7 +2143,7 @@ CONTAINS
 
     call gsv_deallocate(statevector_temp)
 
-  END SUBROUTINE EnsembleDiagnostic
+  END SUBROUTINE ensembleDiagnostic
 
 !--------------------------------------------------------------------------
 ! ben_writeAmplitude

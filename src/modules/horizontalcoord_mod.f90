@@ -53,6 +53,8 @@ module HorizontalCoord_mod
      integer              :: EZscintIDsubGrids(maxNumSubGrid)
      real(8), allocatable :: lat(:) ! in radians
      real(8), allocatable :: lon(:) ! in radians
+     real(4), allocatable :: lat2d_4(:,:) ! in radians
+     real(4), allocatable :: lon2d_4(:,:) ! in radians
      real(8)              :: dlat   ! in radians
      real(8)              :: dlon   ! in radians
      logical              :: global
@@ -80,22 +82,16 @@ module HorizontalCoord_mod
     character(len=*), intent(in), optional :: GridName_opt
     character(len=*), intent(in), optional :: varName_opt
 
-    real, allocatable :: lat2d_4(:,:)
-    real, allocatable :: lon2d_4(:,:)
-
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real    :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
 
-    ! External functions from rmnlib
-    integer :: fnom, fstouv, fstfrm, fclos
-    integer :: fstinf, fstprm, fstlir, fstluk
-    integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-
     integer :: iu_template, numSubGrid
-    integer :: key, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+    integer :: fnom, fstlir, fstouv, fstfrm, fclos, fstluk
+    integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
+    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -186,6 +182,12 @@ module HorizontalCoord_mod
 
     allocate(lat_8(1:nj))
     allocate(lon_8(1:ni))
+
+    allocate(hco%lat2d_4(1:ni,1:nj))
+    allocate(hco%lon2d_4(1:ni,1:nj))
+
+    ier = gdll( EZscintID,       & ! IN
+                hco%lat2d_4, hco%lon2d_4 ) ! OUT
 
     xlat1_yan_4 = -999.9
     xlon1_yan_4 = -999.9
@@ -297,17 +299,8 @@ module HorizontalCoord_mod
     elseif ( trim(grtyp) == 'G' ) then
 
       !-  2.3.1 Find the latitudes and longitudes
-      allocate(lat2d_4(1:ni,1:nj))
-      allocate(lon2d_4(1:ni,1:nj))
-
-      ier = gdll( EZscintID,       & ! IN
-                  lat2d_4, lon2d_4 ) ! OUT
-
-      lon_8(:) = real(lon2d_4(:,nj/2),8)
-      lat_8(:) = real(lat2d_4(1,:),8)
-
-      deallocate(lat2d_4)
-      deallocate(lon2d_4)
+      lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
+      lat_8(:) = real(hco%lat2d_4(1,:),8)
 
       !- 2.3.2 This grid type is not rotated
       rotated = .false.
@@ -426,6 +419,9 @@ module HorizontalCoord_mod
     hco % xlat2_yan            = real(xlat2_yan_4,8)
     hco % xlon2_yan            = real(xlon2_yan_4,8)
     hco % initialized          = .true.
+
+    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
+    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
 
     deallocate(lat_8)
     deallocate(lon_8)
@@ -599,7 +595,7 @@ module HorizontalCoord_mod
     equal = equal .and. (hco1%ni == hco2%ni)
     equal = equal .and. (hco1%nj == hco2%nj)
     if (.not. equal) then
-      write(*,*) 'hco_equal: dimensions not equal'
+      write(*,*) 'hco_equal: dimensions not equal ', hco1%ni, hco1%nj, hco2%ni, hco2%nj
       return
     endif
 
@@ -654,6 +650,8 @@ module HorizontalCoord_mod
 
     deallocate(hco % lat)
     deallocate(hco % lon)
+    deallocate(hco % lat2d_4)
+    deallocate(hco % lon2d_4)
     deallocate(hco)
     nullify(hco)
 

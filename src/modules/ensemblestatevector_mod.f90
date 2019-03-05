@@ -46,7 +46,7 @@ MODULE ensembleStateVector_mod
   public :: ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
-  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_clipHumidity
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_clipHumidity, ens_normalize
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -940,20 +940,27 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_computeStdDev
   !--------------------------------------------------------------------------
-  subroutine ens_computeStdDev(ens)
+  subroutine ens_computeStdDev(ens, containsScalePerts_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
+    logical, intent(in), optional :: containsScalePerts_opt
 
     ! locals
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     real(8), allocatable  :: subEnsStdDev(:)
+    logical           :: containsScalePerts
 
-    if (.not.ens%meanIsComputed) then
-      if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
-      call ens_computeMean( ens )
+    if ( present(containsScalePerts_opt) ) then
+      containsScalePerts = containsScalePerts_opt
+    else
+      containsScalePerts = .false.
+      if (.not.ens%meanIsComputed) then
+        if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
+        call ens_computeMean( ens )
+      end if
     end if
 
     ! Read sub-ensemble index list from file, if it exists
@@ -972,37 +979,127 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    allocate(subEnsStdDev(ens%numSubEns))
+    if (containsScalePerts) then
 
-    ! Compute global ensemble StdDev as the sqrt of the mean of each suchensemble variance
-    !   var_subens(i) = sum( ( ens(j) - mean_subens(i) )**2, j=1..numEns_subens(i) ) / ( numEns_subens(i) - 1 )
-    !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
-    !   stddev = sqrt( var_allensensemble / numEnsTotal )
+      if (ens%numSubEns /= 1) then
+        call utl_abort('ens_computeStdDev: sub-ensemble approach not compatible with scale perturbations')
+      end if
 
-    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
-    do jk = k1, k2
-      do jj = lat1, lat2
-        do ji = lon1, lon2
-          do stepIndex = 1, ens%statevector_work%numStep
-            subEnsStdDev(:) = 0.0d0
-            do memberIndex = 1, ens%numMembers
-              subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
-                   (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
-            end do
-            do subEnsIndex = 1, ens%numSubEns
-              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
-                   ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
-            end do
-            ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+      ! Compute the ensemble StdDev from previously scale ensemble perturbations 
+      !  (i.e. pert = (fcst-mean)/(nEns-1) )
+
+      !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
+      do jk = k1, k2
+        do jj = lat1, lat2
+          do ji = lon1, lon2
+            do stepIndex = 1, ens%statevector_work%numStep
+
+              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = 0.d0
+
+              do memberIndex = 1, ens%numMembers
+                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =      &
+                     ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                     dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))**2
+              end do
+
+              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = &
+                   sqrt(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj))
+
           end do
         end do
       end do
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(subEnsStdDev)
+    else
+
+      allocate(subEnsStdDev(ens%numSubEns))
+
+      ! Compute global ensemble StdDev as the sqrt of the mean of each suchensemble variance
+      !   var_subens(i) = sum( ( ens(j) - mean_subens(i) )**2, j=1..numEns_subens(i) ) / ( numEns_subens(i) - 1 )
+      !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
+      !   stddev = sqrt( var_allensensemble / numEnsTotal )
+
+      !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
+      do jk = k1, k2
+        do jj = lat1, lat2
+          do ji = lon1, lon2
+            do stepIndex = 1, ens%statevector_work%numStep
+
+              subEnsStdDev(:) = 0.0d0
+              do memberIndex = 1, ens%numMembers
+                subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
+                     (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+              end do
+              do subEnsIndex = 1, ens%numSubEns
+                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                     ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
+              end do
+              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+              
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+      deallocate(subEnsStdDev)
+
+    end if
 
   end subroutine ens_computeStdDev
+
+  !--------------------------------------------------------------------------
+  ! ens_normalize
+  !--------------------------------------------------------------------------
+  subroutine ens_normalize(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
+    integer :: jk, jj, ji, stepIndex, memberIndex
+
+    real(8) :: factor
+
+    if (.not. ens%StdDevIsComputed) then
+      if (mpi_myid == 0) write(*,*) 'ens_normalize: compute Std. Dev. since it was not already done'
+      call ens_computeStdDev( ens )
+    end if
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,factor)
+    do jk = k1, k2
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, numStep
+            do memberIndex = 1, ens%numMembers
+
+              if (ens%allLev_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) > 0.0d0 ) then
+                factor = 1.0d0/ens%allLev_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)
+              else
+                factor = 0.0d0
+              endif
+
+              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                   real( real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) * factor, 4)
+            end do
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine ens_normalize
 
   !--------------------------------------------------------------------------
   ! ens_removeMean
@@ -1296,7 +1393,8 @@ CONTAINS
   ! ens_readEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
-                              vco_file_opt, varNames_opt, checkModelTop_opt)
+                              vco_file_opt, varNames_opt, checkModelTop_opt, &
+                              containsFullField_opt)
     implicit none
 
     ! arguments
@@ -1304,9 +1402,10 @@ CONTAINS
     character(len=*) :: ensPathName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
-    character(len=*), optional :: varNames_opt(:)
+    character(len=*), optional          :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
-    logical, optional:: checkModelTop_opt
+    logical, optional                   :: checkModelTop_opt
+    logical, optional, intent(in)       :: containsFullField_opt
 
     ! locals
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -1330,6 +1429,7 @@ CONTAINS
     character(len=4)   :: varName
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
+    logical :: containsFullField
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1442,6 +1542,17 @@ CONTAINS
       if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
     end if
 
+    ! Input type
+    if (present(containsFullField_opt)) then
+      containsFullField = containsFullField_opt
+    else
+      containsFullField = .true.
+    end if
+    if (mpi_myid == 0) then
+      write(*,*)
+      write(*,*) 'ens_readEnsemble: containsFullField = ', containsFullField
+    end if
+
     !
     !- 2.  Ensemble forecasts reading loop
     !
@@ -1514,8 +1625,10 @@ CONTAINS
           end if
 
           ! unit conversion
-          call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField=.true. )
-          if ( ctrlVarHumidity == 'LQ' ) call vtr_transform(statevector_member_r4,'HUtoLQ')
+          call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField)
+          if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ens,'HU') ) then
+            call vtr_transform(statevector_member_r4,'HUtoLQ')
+          end if
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -1765,7 +1878,7 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, &
-               shouldExist_opt = .false., ensembleFileExtLength_opt = ensFileExtLength )
+                                shouldExist_opt = .false., ensembleFileExtLength_opt = ensFileExtLength )
 
           etiketStr = etiket
           !  Write the file

@@ -31,6 +31,7 @@ module gridStateVector_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
+  use physicsFunctions_mod
   implicit none
   save
   private
@@ -49,12 +50,12 @@ module gridStateVector_mod
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
   public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getGZsfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist
-  public :: gsv_multEnergyNorm, gsv_dotProduct
-  public :: gsv_field3d_hbilin
+  public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
+  public :: gsv_field3d_hbilin, gsv_smoothHorizontal, gsv_horizontalMean
 
   type struct_gdUV
     real(8), pointer :: r8(:,:,:) => null()
@@ -1031,6 +1032,66 @@ module gridStateVector_mod
   end subroutine gsv_add
 
   !--------------------------------------------------------------------------
+  ! GSV_schurProduct
+  !--------------------------------------------------------------------------
+  subroutine gsv_schurProduct(statevector_in,statevector_inout)
+    implicit none
+    type(struct_gsv)  :: statevector_in,statevector_inout
+
+    integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if (.not.statevector_inout%allocated) then
+      call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated! Aborting.')
+    end if
+
+    lon1=statevector_in%myLonBeg
+    lon2=statevector_in%myLonEnd
+    lat1=statevector_in%myLatBeg
+    lat2=statevector_in%myLatEnd
+    k1=statevector_in%mykBeg
+    k2=statevector_in%mykEnd
+
+    if ( statevector_inout%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
+
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) *  &
+                                                                            statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+      
+
+    else if ( statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+
+      do stepIndex = 1, statevector_inout%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) *  &
+                                                                            statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    else
+      call utl_abort('gsv_schurProduct: Data type must be the same for both statevectors')
+    end if
+
+  end subroutine gsv_schurProduct
+
+  !--------------------------------------------------------------------------
   ! GSV_copy
   !--------------------------------------------------------------------------
   subroutine gsv_copy(statevector_in,statevector_out,stepIndexOut_opt)
@@ -1335,47 +1396,6 @@ module gridStateVector_mod
     end if
 
   end subroutine gsv_power
-
-  !--------------------------------------------------------------------------
-  ! GSV_stddev
-  !--------------------------------------------------------------------------
-  subroutine gsv_stddev(statevector_in,stddev)
-    implicit none
-    type(struct_gsv) :: statevector_in
-    real(8)          :: stddev(:)
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-
-    if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_stddev: gridStateVector_in not yet allocated! Aborting.')
-    end if
-
-    lon1=statevector_in%myLonBeg
-    lon2=statevector_in%myLonEnd
-    lat1=statevector_in%myLatBeg
-    lat2=statevector_in%myLatEnd
-    k1=statevector_in%mykBeg
-    k2=statevector_in%mykEnd
-
-    stddev(:) = 0.0d0
-    do kIndex = k1, k2
-      do latIndex = lat1, lat2
-        do stepIndex = 1, statevector_in%numStep
-          do lonIndex = lon1, lon2
-            if ( statevector_in%dataKind == 8 ) then
-              stddev(kIndex) = stddev(kIndex) + statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)**2
-            else
-              stddev(kIndex) = stddev(kIndex) + real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex),8)**2
-            end if
-          end do
-        end do
-      end do
-      stddev(kIndex) = stddev(kIndex) / real(statevector_in%numStep,8)
-      call mpi_allreduce_sumreal8scalar(stddev(kIndex),'grid')
-      stddev(kIndex) = stddev(kIndex) / real(statevector_in%ni * statevector_in%nj,8)
-      if (stddev(kIndex).gt.0.0d0) stddev(kIndex) = sqrt(stddev(kIndex))
-    end do
-
-  end subroutine gsv_stddev
 
   !--------------------------------------------------------------------------
   ! GSV_scale
@@ -5800,5 +5820,185 @@ module gridStateVector_mod
     end do
         
   end subroutine gsv_field3d_hbilin   
+
+  !--------------------------------------------------------------------------
+  ! gsv_horizontalMean
+  !--------------------------------------------------------------------------
+  subroutine gsv_horizontalMean(statevector_inout)
+    implicit none
+    type(struct_gsv) :: statevector_inout
+    real(8)          :: horizSum
+    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+
+    if (.not.statevector_inout%allocated) then
+      call utl_abort('gsv_horizontalMean: gridStateVector_in not yet allocated! Aborting.')
+    end if
+
+    lon1=statevector_inout%myLonBeg
+    lon2=statevector_inout%myLonEnd
+    lat1=statevector_inout%myLatBeg
+    lat2=statevector_inout%myLatEnd
+    k1=statevector_inout%mykBeg
+    k2=statevector_inout%mykEnd
+
+    do stepIndex = 1, statevector_inout%numStep
+      do kIndex = k1, k2
+        horizSum = 0.0d0
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            if ( statevector_inout%dataKind == 8 ) then
+              horizSum = horizSum + statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+            else
+              horizSum = horizSum + real(statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex),8)
+            end if
+          end do
+        end do
+        call mpi_allreduce_sumreal8scalar(horizSum,'grid')
+        if ( statevector_inout%dataKind == 8 ) then
+          statevector_inout%gd_r8(:,:,kIndex,stepIndex) = horizSum / real(statevector_inout%ni * statevector_inout%nj,8)
+        else
+          statevector_inout%gd_r8(:,:,kIndex,stepIndex) = real(horizSum / real(statevector_inout%ni * statevector_inout%nj,8),4)
+        end if
+      end do
+    end do
+
+  end subroutine gsv_horizontalMean
+
+  !--------------------------------------------------------------------------
+  ! gsv_smoothHorizontal
+  !--------------------------------------------------------------------------
+  subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, varName_opt)
+    ! **Purpose:**
+    ! Apply a horizontal smoothing to all of the fields according
+    ! to the specified horizontal length scale
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv), target, intent(inout):: stateVector_inout
+    real(8), intent(in)                    :: horizontalScale
+    logical, optional, intent(in)          :: maskNegatives_opt
+    character(len=*), optional, intent(in) :: varName_opt
+
+    ! locals
+    type(struct_gsv), pointer :: statevector
+    type(struct_gsv), target  :: stateVector_varsLevs
+
+    integer :: latIndex, lonIndex, stepIndex, kIndex, ierr
+    integer :: latIndex2, lonIndex2, maxDeltaIndex, count
+    integer :: latBeg, latEnd, lonBeg, lonEnd
+
+    real(8), allocatable :: smoothedField(:,:)
+    real(4) :: lat_deg_r4, lon_deg_r4
+    real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance
+
+    integer :: gdllfxy
+    logical :: maskNegatives
+
+    if (horizontalScale <= 0.0d0) then
+      write(*,*) 'gsv_smoothHorizontal: specified scale <= 0, returning'
+      return
+    end if
+
+    call tmg_start(157,'gsv_smoothHorizontal')
+
+    if ( stateVector_inout%mpi_distribution /= 'VarsLevs' .and. &
+         stateVector_inout%mpi_local ) then
+      call gsv_allocate(statevector_varsLevs, statevector_inout%numStep, statevector_inout%hco, &
+                        statevector_inout%vco, dataKind_opt=statevector_inout%dataKind,         &
+                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs')
+      call gsv_transposeTilesToVarsLevs(statevector_inout, statevector_varsLevs)
+      statevector => stateVector_varsLevs
+    else
+      statevector => stateVector_inout
+    end if
+
+    if (present(maskNegatives_opt)) then
+      maskNegatives = maskNegatives_opt
+    else
+      maskNegatives = .false.
+    end if
+
+    allocate( smoothedField(statevector%ni,statevector%nj) )
+
+    ! figure out the maximum possible number of grid points to search
+    if (statevector%hco%dlat > 0.0d0) then
+      maxDeltaIndex = ceiling(1.5D0 * horizontalScale / (RA * max(statevector%hco%dlat,statevector%hco%dlon)))
+      write(*,*) 'gsv_smoothHorizontal: maxDistance, maxDeltaIndex = ', horizontalScale/1000.0D0, 'km',  &
+           maxDeltaIndex, max(statevector%hco%dlat,statevector%hco%dlon)
+    else
+      call utl_abort('gsv_smoothHorizontal: cannot compute a value for maxDeltaIndex')
+    end if
+
+    ! apply a simple footprint operator type of averaging within specified radius
+    do stepIndex = 1, statevector%numStep
+      do kIndex = statevector%mykBeg, statevector%mykEnd
+        if ( present(varName_opt) ) then
+          if ( gsv_getVarNameFromK(statevector,kIndex) /= trim(varName_opt) ) cycle
+        end if
+        smoothedField(:,:) = 0.0d0
+        do latIndex = 1, statevector%nj
+          do lonIndex = 1, statevector%ni
+            lat1_r8 = statevector%hco%lat2d_4(lonIndex,latIndex)
+            lon1_r8 = statevector%hco%lon2d_4(lonIndex,latIndex)
+            count = 0
+            latBeg = max(1, latIndex - maxDeltaIndex)
+            latEnd = min(statevector%nj, latIndex + maxDeltaIndex)
+            lonBeg = max(1, lonIndex - maxDeltaIndex)
+            lonEnd = min(statevector%ni, lonIndex + maxDeltaIndex)
+            do latIndex2 = latBeg, latEnd
+              do lonIndex2 = lonBeg, lonEnd
+                ! skip negative value if it should be masked
+                if (maskNegatives .and. statevector%dataKind == 8) then
+                  if (statevector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0d0) cycle
+                else if (maskNegatives .and. statevector%dataKind == 4) then
+                  if (statevector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0) cycle
+                end if
+
+                ! skip value if it is beyond the specified distance
+                lat2_r8 = statevector%hco%lat2d_4(lonIndex2,latIndex2)
+                lon2_r8 = statevector%hco%lon2d_4(lonIndex2,latIndex2)
+                distance = phf_calcDistanceFast(lat2_r8, lon2_r8, lat1_r8, lon1_r8)
+                if ( distance > horizontalScale) cycle
+
+                count = count + 1
+                if (statevector%dataKind == 8) then
+                  smoothedField(lonIndex,latIndex) =  &
+                       smoothedField(lonIndex,latIndex) +  &
+                       stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex)
+                else
+                  smoothedField(lonIndex,latIndex) =  &
+                       smoothedField(lonIndex,latIndex) +  &
+                       real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
+                end if
+              end do
+            end do
+            if (count > 0) then
+              smoothedField(lonIndex,latIndex) =  &
+                   smoothedField(lonIndex,latIndex) / real(count,8)
+            else
+              if (maskNegatives) smoothedField(lonIndex,latIndex) = -0.001D0
+            end if
+          end do
+        end do
+        if (stateVector%dataKind == 8) then
+          stateVector%gd_r8(:,:,kIndex,stepIndex) = real(smoothedField(:,:),4)
+        else
+          stateVector%gd_r4(:,:,kIndex,stepIndex) = real(smoothedField(:,:),4)
+        end if
+      end do
+    end do
+
+    deallocate(smoothedField)
+
+    if ( stateVector_inout%mpi_distribution /= 'VarsLevs' .and. &
+         stateVector_inout%mpi_local ) then
+      call gsv_transposeVarsLevsToTiles(statevector_varsLevs, statevector_inout)
+      call gsv_deallocate(statevector_varsLevs)
+    end if
+
+    call tmg_stop(157)
+
+  end subroutine gsv_smoothHorizontal
 
 end module gridStateVector_mod

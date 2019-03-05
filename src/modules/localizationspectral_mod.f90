@@ -252,7 +252,7 @@ CONTAINS
     real(8), intent(in) :: pressureProfile(lsp(id)%nLev)
     character(len=*), intent(in) :: localizationMode
 
-    real(8)  :: zlc,zr,zpole,zcorr
+    real(8)  :: zr,zpole,zcorr
 
     integer :: ilen,nIndex,latIndex,jla,lonIndex,levIndex,levIndex1,levIndex2,nsize,ierr
 
@@ -310,20 +310,24 @@ CONTAINS
     !
 
     !  3.1 Calculate 5'th order function
-    ZLC = vertLengthScale
-    do levIndex1 = 1, lsp(id)%nLev
-       do levIndex2 = 1, lsp(id)%nLev
+    if (vertLengthScale > 0.0d0) then
+      do levIndex1 = 1, lsp(id)%nLev
+        do levIndex2 = 1, lsp(id)%nLev
           ZR = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
-          zcorr = lfn_response(zr,zlc)
+          zcorr = lfn_response(zr,vertLengthScale)
           lsp(id)%LvertSqrt(levIndex1,levIndex2) = zcorr
-       end do
-    end do
-    
-    !- 3.2 Compute sqrt of the matrix if vertical localization requested
-    print*, 'NLEV = ', lsp(id)%nLev
-    call utl_matSqrt(lsp(id)%LvertSqrt(1,1),lsp(id)%nLev,1.0d0,.false.)
+        end do
+      end do
+    else
+      lsp(id)%LvertSqrt(:,:) = 1.d0 ! no vertical localization
+    end if
 
-   END SUBROUTINE setupLocalizationMatrices
+    !- 3.2 Compute sqrt of the matrix if vertical localization requested
+    if (vertLengthScale > 0.0d0) then
+      call utl_matSqrt(lsp(id)%LvertSqrt(1,1),lsp(id)%nLev,1.0d0,.false.)
+    end if
+
+  END SUBROUTINE setupLocalizationMatrices
 
 !--------------------------------------------------------------------------
 ! setupGlobalSpectralHLoc
