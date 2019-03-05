@@ -775,7 +775,7 @@ end subroutine bgck_bgcheck_conv
          if (      zbgchk .gt. zswcrit(1) .and. zbgchk .lt. zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zswcrit(3) ) then
-            isetflag=2
+           isetflag=2
          else if ( zbgchk .ge. zswcrit(3) )then
            isetflag =3
          endif
@@ -783,12 +783,12 @@ end subroutine bgck_bgcheck_conv
 !C
 !C     SET FLAG FOR SURFACE WIND GUST
 !C
-      if ( kvnam .eq. bufr_gust ) then
-         if (      zbgchk .gt. zuvcrit(1) .and. zbgchk .lt. zuvcrit(2) ) then
+      if ( kvnam == bufr_gust ) then
+         if (      zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
-         else if ( zbgchk .gt. zuvcrit(2) .and. zbgchk .lt. zuvcrit(3) ) then
+         else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
             isetflag=2
-         else if ( zbgchk .ge. zuvcrit(3) )then
+         else if ( zbgchk >= zswcrit(3) )then
            isetflag =3
          endif
       endif
