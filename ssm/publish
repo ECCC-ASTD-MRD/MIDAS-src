@@ -34,8 +34,13 @@ REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.6}
 WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.4}
 FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 
+## If MIDAS_SOURCE is not yet defined we use the git repository itself.
+## If this script is run from elsewhere, then we use the path to the GitLab project
+if [ -z "${MIDAS_SOURCE}" ]; then
+    MIDAS_SOURCE=$(git rev-parse --show-toplevel 2>/dev/null) || MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+fi
+
 VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}
-MIDAS_SOURCE=${MIDAS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git}
 FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
 OAVARMONITOR_SOURCE=${OAVARMONITOR_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
