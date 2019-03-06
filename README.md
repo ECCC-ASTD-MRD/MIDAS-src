@@ -121,6 +121,26 @@ When you will ask a merge-request, the new results will be copied in a
 safe directory with all other reference results by one of the
 maintainer.
 
+# SSM
+
+The [CI](CI.md) has been configured to produce a SSM domain under
+```
+/fs/ssm/eccc/mrd/rpn/anl/midas
+```
+automatically when a tag is pushed.
+
+You can produce your own SSM domain using these commands:
+```bash
+cd ssm
+export DOMAIN_PATH=${PATH TO THE SSM DOMAIN THAT WILL BE PRODUCED}
+export MIDAS_REVISION=${name of a branch or a tag}
+./publish
+```
+Then, you can use this domain with:
+```bash
+. ssmuse-sh -d ${DOMAIN_PATH}
+```
+
 # Automatic Testing using GitLab-CI
 
 An automatic system of tests has been developed.  For each push in the
