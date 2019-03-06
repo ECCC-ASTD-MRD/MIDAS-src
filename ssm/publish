@@ -14,8 +14,6 @@ else
     BHSCRIPTS=$(/bin/ls bh-*.py)
 fi
 
-echo BHSCRIPTS=${BHSCRIPTS}
-
 DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
 DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
 MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
@@ -58,6 +56,7 @@ fi
 ## loading the BH scripts
 . ssmuse-sh -x main/opt/bh/bh-0.19
 
+echo BHSCRIPTS=${BHSCRIPTS}
 for bhscript in ${BHSCRIPTS}; do
     pkgname=$(basename ${bhscript} .py | cut -c4-)
     case "${pkgname}" in
