@@ -6,6 +6,7 @@ stages:
    - build
    - test
    - doc
+   - deploy
 
 ## The program 'gitlab-runner' must be found in the PATH to get the artifacts collecting working.
 #before_script:
@@ -65,3 +66,12 @@ doc_sphinx:
   only:
     - master
     - v_3.3
+
+ssm:
+  stage: deploy
+  script:
+    - cd ssm
+    - DOMAIN_PATH=
+    - ./publish
+  only:
+    - tags
