@@ -464,11 +464,6 @@ contains
     end if
 
     call tmg_stop(48)
-    !
-    !=======================================================================
-    ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
-         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
-    !=======================================================================
 
     if ( .not.beSilent ) then
       write(*,*) 'Cost function values for this MPI task:'
@@ -487,6 +482,15 @@ contains
       write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
+    end if
+
+    !
+    !=======================================================================
+    ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
+         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
+    !=======================================================================
+
+    if ( .not.beSilent ) then
       write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
       call mpi_allreduce_sumreal8scalar(ZJORAOB,'GRID')
