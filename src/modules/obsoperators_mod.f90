@@ -449,6 +449,8 @@ contains
       call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
     endif
 
+    if(present(jobsOut)) jobsOut=0.d0
+
     if(list_is_empty)then
       return
     end if
