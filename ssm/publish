@@ -49,6 +49,10 @@ fi
 if [ ! -d "${DOMAIN_PATH}" ]; then
     echo Creating the domain ${DOMAIN_PATH}
     ssm created -d ${DOMAIN_PATH}
+else
+    echo The directory ${DOMAIN_PATH} alread exists.
+    echo You should erase it before continuing
+    exit 1
 fi
 
 ## loading the BH scripts
