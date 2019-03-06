@@ -29,7 +29,6 @@ fi
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.1.0}
 OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v2}
-ADDANALINC_REVISION=${ADDANALINC_REVISION:-v_168}
 SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.1}
 REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.6}
 WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.4}
@@ -39,7 +38,6 @@ VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data
 MIDAS_SOURCE=${MIDAS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git}
 FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
 OAVARMONITOR_SOURCE=${OAVARMONITOR_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git}
-ADDANALINC_SOURCE=${ADDANALINC_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/addanalinc.git}
 SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
 REUNIROBS_SOURCE=${REUNIROBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/reunir_obs.git}
 WRITESUBDOMAINS_SOURCE=${WRITESUBDOMAINS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/write_subdomains.git}
@@ -61,7 +59,7 @@ fi
 for bhscript in ${BHSCRIPTS}; do
     pkgname=$(basename ${bhscript} .py | cut -c4-)
     case "${pkgname}" in
-	AddAnalysisIncrement|FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
+	FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
 	    platforms="ubuntu-14.04-amd64-64 sles-11-broadwell-64-xc40"
 	    ;;
 	midas)
@@ -104,10 +102,6 @@ for bhscript in ${BHSCRIPTS}; do
 	OavarMonitor)
 	    BH_PULL_SOURCE_GIT_BRANCH=${OAVARMONITOR_REVISION}
 	    BH_PULL_SOURCE=${OAVARMONITOR_SOURCE}
-	    ;;
-	AddAnalysisIncrement)
-	    BH_PULL_SOURCE_GIT_BRANCH=${ADDANALINC_REVISION}
-	    BH_PULL_SOURCE=${ADDANALINC_SOURCE}
 	    ;;
 	*)
 	    echo "The package '${pkgname}' n'est supporte.  On passe au suivant."
