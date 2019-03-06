@@ -86,9 +86,9 @@ fi
 
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
-    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O ${FOPTMIZ}'"
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
     COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
-    COMPF="${COMPF_NOC} =-C"
+    COMPF="${COMPF_NOC} =-check all"
 else
     COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
     COMPF_NOC=${COMPF}
