@@ -596,8 +596,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_JOBS= OBS_PRM +1 ! contribution to obs cost function
    integer, parameter, public :: OBS_QCV = OBS_JOBS+1 ! weight-reduction factor for var QC
    integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! weight-reduction factor for var QC
+   integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_FSO
+   integer, parameter :: NBDY_REAL_END = OBS_CRPS
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -605,7 +606,7 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','HAHT','ZHA ','OMP6','OMA0',     &
-         'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ' /)
+         'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS' /)
 end module ObsColumnNames_mod
 
 
@@ -1478,7 +1479,7 @@ module ObsSpaceData_mod
    !    real-body column numbers
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
    public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
-   public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV,OBS_FSO
+   public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS
 
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
