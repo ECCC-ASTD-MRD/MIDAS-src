@@ -51,7 +51,7 @@ module sqliteFiles_mod
     logical             :: isExistLogical 
     integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
     integer             :: inrecs, mrfopc, dateSqlite , timeSqlite
-    real(obs_real)      :: delhh
+    real(8)             :: delhh
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
     character(len=9)    :: datetimeSqliteCharacter
