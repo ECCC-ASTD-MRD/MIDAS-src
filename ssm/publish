@@ -17,15 +17,8 @@ fi
 echo BHSCRIPTS=${BHSCRIPTS}
 
 DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
-if [[ "${DOMAIN_REVISION}" == dev-* ]]; then
-    midas_revision=$(echo ${DOMAIN_REVISION} | cut -d- -f2-)
-    DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas-dev/${midas_revision}}
-    MIDAS_REVISION=${MIDAS_REVISION:-m_${midas_revision}}
-    unset midas_revision
-else
-    DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
-    MIDAS_REVISION=${MIDAS_REVISION:-v_${DOMAIN_REVISION}}
-fi
+DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
+MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.1.0}
 OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v2}
