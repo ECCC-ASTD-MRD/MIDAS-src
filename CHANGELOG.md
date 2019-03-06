@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * The scripts to build the MIDAS SSM domain are now in the MIDAS
+   depot.  See the [README](README.md) for more information.
 
 ### Changed
 
-* Use constituent BUFR elements from official tableburp file released 30 Sept 2018
+ * Use constituent BUFR elements from official tableburp file released 30 Sept 2018
 
 ### Fixed
 
