@@ -1,9 +1,0 @@
-runit.ksh
-.pFUnitLog
-flnml
-runit.*.out
-*.mod
-*.f90
-*.x
-.fo
-
