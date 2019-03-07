@@ -71,7 +71,6 @@ ssm:
   stage: deploy
   script:
     - cd ssm
-    - DOMAIN_PATH=
     - ./publish
   only:
     - tags
