@@ -433,6 +433,8 @@ def write_fortran_MPCmodule(PhysDict, PhysList):
 # Execution starts here
 
 phys_lib_in_file = open('/home/binops/afsi/sio/datafiles/constants/thermoconsts', 'r')
+## this path on the 'science' network if
+##     /home/smco502/datafiles/constants/thermoconsts
 file_out  = open('mathphysconstants_mod.ftn90', 'w+')
 
 (PhysDict, PhysList) = init_phys_values()
