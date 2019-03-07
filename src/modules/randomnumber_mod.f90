@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE randumNumber_mod (prefix="rng" category='7. Low-level data objects and utilities')
+!! MODULE randomNumber_mod (prefix="rng" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: A Gaussian random number generator (RNG) module
 !!
@@ -155,7 +155,7 @@ contains
     IX3=MOD(IA3*IX3+IC3,M3)
     J=1+(97*IX3)/M3
     IF(J.GT.97.OR.J.LT.1) then
-       write(6,*) 'Input error in RANDUM for  J = ',J
+       write(6,*) 'Input error in RANDOM for  J = ',J
        stop
     endif
     RANDOMNUMBER=RRAND(J)
