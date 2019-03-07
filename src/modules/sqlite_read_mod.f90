@@ -148,7 +148,7 @@ contains
     integer                  :: azimuth, vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: zenith    , solarZenith    , CloudCover    , solarAzimuth    , roQcFlag
-    real(obs_real)           :: geoidUndulation, earthLocRadCurv, azimuthReal, obsValue, surfEmiss
+    real(obs_real)           :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
@@ -414,7 +414,7 @@ contains
       elev = 0.; elevReal = 0.
       solarAzimuth  = MPC_missingValue_INT; solarAzimuthReal = MPC_missingValue_R4
       solarZenith   = MPC_missingValue_INT; solarZenithReal  = MPC_missingValue_R4
-      zenith = MPC_missingValue_INT; zenithReal = MPC_missingValue_R4    
+      zenith = MPC_missingValue_INT; zenithReal = MPC_missingValue_R4
       instrument = MPC_missingValue_INT
       azimuth = MPC_missingValue_INT; azimuthReal_R8 = MPC_missingValue_R8
 
@@ -438,7 +438,9 @@ contains
         if ( trim(rdbSchema) /= 'csr' ) then
 
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
-          azimuthReal = azimuthReal_R8
+          if ( azimuthReal_R8 .ne. MPC_missingValue_R8 ) then
+            azimuth = nint( azimuthReal_R8 * 100. )
+          end if
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
         end if
@@ -456,11 +458,23 @@ contains
         end if
 
         if ( instrument == 420 ) obsSat  = 784
-        zenith = nint ( (90. + zenithReal ) * 100. )
-        solarZenith = nint ( (90. + solarZenithReal ) * 100. )
-        azimuth = nint( azimuthReal * 100. )
-        cloudCover   = nint ( cloudCoverReal * 1.     )
-        solarAzimuth = nint ( solarAzimuthReal * 100. )
+        ! zenith
+        if ( zenithReal .ne. MPC_missingValue_R4 ) then
+          zenith = nint ( (90. + zenithReal ) * 100. )
+        end if
+        ! solarZenith
+        if (solarAzimuthReal .ne. MPC_missingValue_R4) then
+          solarZenith = nint ( (90. + solarZenithReal ) * 100. )
+        endif
+        ! cloudCover
+        if (cloudCoverReal .ne. MPC_missingValue_R4) then
+          cloudCover   = nint ( cloudCoverReal * 1.     )
+        end if
+        ! solarAzimuth
+        if (solarAzimuthReal .ne. MPC_missingValue_R4 ) then
+          solarAzimuth = nint ( solarAzimuthReal * 100. )
+        end if
+
         if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
         if ( sensor == MPC_missingValue_INT ) then
           sensor = 0
@@ -492,12 +506,12 @@ contains
           earthLocRadCurv_R8 = earthLocRadCurv
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
-          azimuthReal = azimuthReal_R8
-          azimuth = nint( azimuthReal * 100 )
+          if ( azimuthReal_R8 .ne. MPC_missingValue_R8 ) then
+            azimuth = nint( azimuthReal_R8 * 100. )
+          end if
 
         else if ( trim(rdbSchema)=='al' ) then
           call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
-
         end if
 
       end if  ! TOVS or CONV

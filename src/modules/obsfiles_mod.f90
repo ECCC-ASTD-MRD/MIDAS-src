@@ -154,6 +154,8 @@ contains
 
     end if
 
+    ! initialize OBS_HIND for each observation
+    call obs_sethind(obsSpaceData)
   end subroutine obsf_readFiles
 
 

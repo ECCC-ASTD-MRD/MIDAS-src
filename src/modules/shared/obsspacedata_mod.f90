@@ -1392,6 +1392,7 @@ module ObsSpaceData_mod
    public obs_numHeader  ! returns the number of headers recorded
    public obs_numHeader_max ! returns the dimensioned number of headers
    public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
+   public obs_sethind    ! initialize the value of OBS_HIND
    public obs_order      ! put obs data in the order required for assimilation
    public obs_print      ! obs_enkf_prnthdr & obs_enkf_prntbdy for each station
    public obs_prnt_csv   ! call obs_tosqlhdr and obs_tosqlbdy for each station
@@ -4492,6 +4493,25 @@ contains
          obs_numHeader_mpiglobal = obsdat%numHeader
       end if
    end function obs_numHeader_mpiglobal
+
+
+   subroutine obs_sethind(obsdat)
+     implicit none
+     type(struct_obs), intent(inout) :: obsdat
+     integer :: ij,idata,idatend,bodyIndex,headerIndex
+     !
+     ! Set the header index in the body of obsSpaceData
+     !
+     ij=0
+     do headerIndex = 1, obs_numheader(obsdat)
+       idata   = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
+       idatend = obs_headElem_i(obsdat,OBS_NLV,headerIndex) + idata - 1
+       do bodyIndex= idata, idatend
+         ij   = ij+1
+         call obs_bodySet_i(obsdat,OBS_HIND,IJ, headerIndex)
+       end do
+     end do
+   end subroutine obs_sethind
 
 
    subroutine obs_order(obsdat)
