@@ -26,7 +26,7 @@ fi
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-## for s.compile
+## for 's.f90' and 's.compile'
 echo "... loading hpco/tmp/eccc/201402/06/base"
 . ssmuse-sh -d hpco/tmp/eccc/201402/06/base
 ## for the compiler
@@ -74,9 +74,9 @@ echo "... loading eccc/mrd/rpn/anl/rttov/12v1.1"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.1/${COMP_ARCH}
 
 COMPF_GLOBAL="-openmp -mpi"
-OPTF="=-check =noarg_temp_created =-no-wrap-margin"
+OPTF="-check noarg_temp_created -no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    OPTF="=-mkl ${OPTF}"
+    OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     OPTF="${OPTF}"
 else
@@ -87,9 +87,9 @@ fi
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
     echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
-    COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
-    COMPF="${COMPF_NOC} =-check all"
+    COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG ${OPTF}"
+    COMPF="${COMPF_NOC} -check all"
 else
-    COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
+    COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}
 fi
