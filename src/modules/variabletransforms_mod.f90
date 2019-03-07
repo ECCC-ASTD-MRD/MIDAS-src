@@ -120,7 +120,7 @@ CONTAINS
       call gsv_readTrials( statevector_noGZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      if ( statevector_noGZnoP%dataKind == 4 .and. statevector_trial%dataKind == 4 ) then
+      if ( statevector_noGZnoP%dataKind == 4 .and. statevector_trial_gz%dataKind == 4 ) then
         call gsv_copyByVarName_r4( statevector_noGZnoP, statevector_trial_gz )
       else 
         call gsv_copyByVarName_r8( statevector_noGZnoP, statevector_trial_gz )

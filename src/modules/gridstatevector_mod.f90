@@ -3686,7 +3686,6 @@ module gridStateVector_mod
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
       allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
-      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
@@ -3713,7 +3712,6 @@ module gridStateVector_mod
 
       deallocate(gd_send_GZ)
       deallocate(gd_recv_GZ)
-      deallocate(gd_send_GZ)
     end if ! gzSfcPresent
 
     !if ( sendrecvKind == 4 ) then
