@@ -335,8 +335,8 @@ contains
            columnVarB=hutoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
            columnVarT=hutoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
          else
-           if (trim(varName) == 'GZ') then
-             col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
+           if (trim(varName) == 'GZ_T') then
+             col_ptr=>col_getColumn(columnhr,headerIndex,'GZ_T')
              call phf_alt2geopotential(col_ptr,lat,geopotential)
              columnVarB=geopotential(ilyr+1)
              columnVarT=geopotential(ilyr  )
