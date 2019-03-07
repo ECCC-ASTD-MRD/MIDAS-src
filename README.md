@@ -20,7 +20,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/1.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the master branch
@@ -30,13 +30,13 @@ clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-as
 
 ## Getting code related to operational system
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/1.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 clone_projet --no-central -c v_3.2 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.2
 ```
 
 ## Getting code related to the latest final cycle version or installed in parallel run
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/1.2
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 clone_projet --no-central -c v_3.3 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.3
 ```
 
