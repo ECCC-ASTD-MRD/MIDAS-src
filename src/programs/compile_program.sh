@@ -124,30 +124,25 @@ if [ $mode == full ] ; then
   echo "... > Compiling all modules and subroutines ..."
   echo "...   if aborting, check in ${PWD}/listing"
 
-  split_f90_ftn90 () {
-      set -e
-      __split_src_files__=${*}
-      SRC_FILES_F90=
-      SRC_FILES_FTN90=
-      for  __split_file__ in ${__split_src_files__}; do
-          case ${__split_file__} in
-              *.[fF]90)
-                  SRC_FILES_F90="${SRC_FILES_F90} ${__split_file__}"
-                  ;;
-              *.ftn90)
-                  SRC_FILES_FTN90="${SRC_FILES_FTN90} ${__split_file__}"
-                  ;;
-              *)
-                  echo "This file extention is not recognize: ${__split_file__}"
-                  exit 1
-                  ;;
-          esac
-      done
-      unset __split_src_files__ __split_file__
-  }
+  SRC_FILES_F90=
+  defines=
+  for file in ${SRC_FILES}; do
+      if [[ "${file}" = *.ftn90 ]]; then
+          if [ -z "${defines}" ]; then
+              for opt in ${COMPF}; do
+                  if [[ "${opt}" = -D* ]]; then
+                      defines="${defines} ${opt}"
+                  fi
+              done
+          fi
+          file90=$(basename ${file} .ftn90).f90
+          r.gppf -lang-f90+ ${GPP_OPTS} ${defines} ${file} > ${file90}
+      else
+          file90=${file}
+      fi
+      SRC_FILES_F90="${SRC_FILES_F90} ${file90}"
+  done
 
-  split_f90_ftn90 ${SRC_FILES}
-  [ -n "${SRC_FILES_FTN90}" ] && s.ftn90 ${COMPF} -O ${FOPTMIZ} -c -src ${SRC_FILES_FTN90} > listing 2>&1
   s.f90 ${COMPF} -O ${FOPTMIZ} -c ${SRC_FILES_F90} > listing 2>&1
   status=1
   grep fail listing || status=0

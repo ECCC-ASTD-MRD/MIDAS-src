@@ -93,3 +93,6 @@ else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}
 fi
+
+GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
+GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"
