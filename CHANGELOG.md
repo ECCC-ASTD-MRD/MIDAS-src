@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
    depot.  See the [README](README.md) for more information.
+ * A column `OBS_CRPS` has been added to `obsSpaceData` (#185 and !188).
 
 ### Changed
 
