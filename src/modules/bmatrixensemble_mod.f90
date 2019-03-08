@@ -142,8 +142,9 @@ MODULE BmatrixEnsemble_mod
   logical             :: keepAmplitude
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
   logical             :: ensContainsFullField
-  character(len=12)   :: varianceSmoothing
+  character(len=24)   :: varianceSmoothing
   real(8)             :: footprintRadius
+  real(8)             :: footprintTopoThreshold
 
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .false.
@@ -171,6 +172,8 @@ CONTAINS
 
     type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
 
+    type(struct_gbi) :: gbi_horizontalMean, gbi_landSeaTopo
+
     real(8) :: pSurfRef, delT_hour
 
     integer,parameter   :: maxNumLevels=200
@@ -180,6 +183,9 @@ CONTAINS
     real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
 
     real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
+
+    real(4), pointer :: bin2d(:,:,:)
+    real(8), pointer :: GZsfc(:,:)
 
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
@@ -193,11 +199,11 @@ CONTAINS
     logical        :: lExists
 
     !namelist
-    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname, &
-         hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
-         ensDiagnostic,advDiagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAssimWindow,&
-         removeSubEnsMeans, keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, &
-         IncludeAnlVar, ensContainsFullField, varianceSmoothing, footprintRadius
+    NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &
+         hLocalize, vLocalize, LocalizationType, waveBandPeaks, ensDiagnostic, advDiagnostic, &
+         ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
+         keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
+         ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -233,6 +239,7 @@ CONTAINS
     numIncludeAnlVar      = 0
     varianceSmoothing     = 'none'
     footprintRadius        =  250.0d3 ! 250km
+    footprintTopoThreshold =  200.0d0 ! 200 m
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -541,8 +548,20 @@ CONTAINS
         includeAnlVar(numIncludeAnlVar) = vnl_varNamelist(jvar)
       end do
     end if
+
     if (numIncludeAnlVar == 0) call utl_abort('ben_setup: Ensembles not being requested for any variable')
-     
+
+    !ensPertsContainsLQvarName=.false.
+    !if (ctrlVarHumidity == 'LQ' .and. .not. ensContainsFullField) then
+    !  ! In this particular case, we must force readEnsemble to contains the LQ varName 
+    !  ! to be able to read LQ perturbations
+    !  do jvar = 1, numIncludeAnlVar
+    !    if (includeAnlVar(jvar) == 'HU')  then 
+    !      includeAnlVar(jvar) = 'LQ'
+    !    end if
+    !  end do
+    !end if
+
     !- 3.2 Read the ensemble data
     call setupEnsemble()
 
@@ -567,7 +586,7 @@ CONTAINS
       !  3.3.2 Extract and smooth the ensemble StdDev/variance
       call ens_copyEnsStdDev(ensPerts(1), statevector_ensStdDev)
       if (ensDiagnostic) then
-        call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',    & ! IN
+        call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',       & ! IN
                              'STDDEV_RAW', HUcontainsLQ_opt=HUcontainsLQ_gsv)  ! IN
       end if
 
@@ -575,9 +594,23 @@ CONTAINS
 
       if (trim(varianceSmoothing) == 'horizMean') then
         if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
-        call gsv_horizontalMean(statevector_ensStdDev)
+        call gbi_setup(gbi_horizontalMean, 'HorizontalMean', statevector_ensStdDev)
+        call gbi_statevectorMean(gbi_horizontalMean, statevector_ensStdDev, & ! IN
+                                 statevector_ensStdDev)                       ! OUT
+        call gbi_deallocate(gbi_horizontalMean)
       else if (trim(varianceSmoothing) == 'footprint') then
-        call gsv_smoothHorizontal(statevector_ensStdDev,footprintRadius)
+        call gsv_smoothHorizontal(statevector_ensStdDev, & ! INOUT
+                                  footprintRadius)         ! IN
+      else if (trim(varianceSmoothing) == 'footprintLandSeaTopo') then
+        call gbi_setup(gbi_landSeaTopo, 'landSeaTopo', statevector_ensStdDev, &
+                       mpi_distribution_opt='None', writeBinsToFile_opt=ensDiagnostic)
+        bin2d => gsv_getField3D_r4(gbi_landSeaTopo%statevector_bin2d)
+        GZsfc => gsv_getGZsfc(gbi_landSeaTopo%statevector_bin2d)
+        GZsfc(:,:) = GZsfc(:,:)/RG ! convert to m
+        call gsv_smoothHorizontal(statevector_ensStdDev,                                   & ! INOUT
+                                  footprintRadius, binInteger_opt=bin2d, binReal_opt=GZsfc,& ! IN
+                                  binRealThreshold_opt=footprintTopoThreshold)               ! IN
+        call gbi_deallocate(gbi_landSeaTopo)
       else
         call utl_abort('ben_setup: Invalid variance smoothing type = '//trim(varianceSmoothing))
       end if
