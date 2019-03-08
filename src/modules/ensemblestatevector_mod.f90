@@ -1440,6 +1440,7 @@ CONTAINS
 
     !
     !- 1. Initial setup
+    !
     lonPerPEmax = ens%statevector_work%lonPerPEmax
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
@@ -1594,9 +1595,11 @@ CONTAINS
           if (.not. horizontalInterpNeeded  .and. &
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
-            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar)
+            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
+                              containsFullField)
           else
-            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar)
+            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
+                              containsFullField)
           end if
           if (stepIndex == numStep) then
             ierr = ram_remove(ensFileName)

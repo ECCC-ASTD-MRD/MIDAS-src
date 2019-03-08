@@ -95,7 +95,9 @@ MODULE BmatrixEnsemble_mod
   ! Localization
   integer, allocatable :: locIDs(:)
 
-  logical            :: HUcontainsLQ_gsv
+  ! The HU LQ mess
+  logical :: gsvHUcontainsLQ
+  logical :: ensShouldNotContainLQvarName 
 
   ! Vertical grid
   type(struct_vco),pointer :: vco_anl, vco_ens, vco_file => null()
@@ -145,6 +147,7 @@ MODULE BmatrixEnsemble_mod
   character(len=24)   :: varianceSmoothing
   real(8)             :: footprintRadius
   real(8)             :: footprintTopoThreshold
+  logical             :: useCmatrixOnly
 
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .false.
@@ -203,7 +206,8 @@ CONTAINS
          hLocalize, vLocalize, LocalizationType, waveBandPeaks, ensDiagnostic, advDiagnostic, &
          ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
-         ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold
+         ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
+         useCmatrixOnly
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -240,6 +244,7 @@ CONTAINS
     varianceSmoothing     = 'none'
     footprintRadius        =  250.0d3 ! 250km
     footprintTopoThreshold =  200.0d0 ! 200 m
+    useCmatrixOnly        = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -515,11 +520,11 @@ CONTAINS
     if      ( ctrlVarHumidity == 'LQ' ) then
       write(*,*)
       write(*,*) 'ben_setup: Humidity control variable = ', ctrlVarHumidity
-      HUcontainsLQ_gsv = .true.
+      gsvHUcontainsLQ = .true.
     else if ( ctrlVarHumidity == 'HU' ) then
       write(*,*)
       write(*,*) 'ben_setup: Humidity control variable = ', ctrlVarHumidity
-      HUcontainsLQ_gsv = .false.
+      gsvHUcontainsLQ = .false.
     else
       write(*,*)
       write(*,*) 'Unknown humidity control variable'
@@ -551,16 +556,20 @@ CONTAINS
 
     if (numIncludeAnlVar == 0) call utl_abort('ben_setup: Ensembles not being requested for any variable')
 
-    !ensPertsContainsLQvarName=.false.
-    !if (ctrlVarHumidity == 'LQ' .and. .not. ensContainsFullField) then
-    !  ! In this particular case, we must force readEnsemble to contains the LQ varName 
-    !  ! to be able to read LQ perturbations
-    !  do jvar = 1, numIncludeAnlVar
-    !    if (includeAnlVar(jvar) == 'HU')  then 
-    !      includeAnlVar(jvar) = 'LQ'
-    !    end if
-    !  end do
-    !end if
+    ensShouldNotContainLQvarName=.false.
+    if (ctrlVarHumidity == 'LQ' .and. .not. ensContainsFullField) then
+      ! In this particular case, we must force readEnsemble to contains the LQ varName 
+      ! to be able to read LQ perturbations
+      do jvar = 1, numIncludeAnlVar
+        if (includeAnlVar(jvar) == 'LQ')  then
+          call utl_abort('ben_setup: LQ must not be present in ANLVAR in this case')
+        end if
+        if (includeAnlVar(jvar) == 'HU')  then 
+          includeAnlVar(jvar) = 'LQ'
+          ensShouldNotContainLQvarName=.true.
+        end if
+      end do
+    end if
 
     !- 3.2 Read the ensemble data
     call setupEnsemble()
@@ -572,22 +581,23 @@ CONTAINS
       return
     end if
 
-    !- 3.3 Variance smoothing
-    if (trim(varianceSmoothing) == 'none') then
-      ensPertsNormalized = .false.
-    else
-      if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing will be performed'
-
-      !  3.3.1 Compute the ensemble StdDev and normalize the ensemble perturbations
+    !- 3.3 Convert into a C matrix
+    if (useCmatrixOnly .or. trim(varianceSmoothing) /= 'none') then
       call ens_computeStdDev(ensPerts(1), containsScalePerts_opt=.true.)
       call ens_normalize(ensPerts(1))
       ensPertsNormalized = .true.
+    else
+      ensPertsNormalized = .false.
+    end if
 
-      !  3.3.2 Extract and smooth the ensemble StdDev/variance
+    !- 3.4 Variance smoothing
+    if (trim(varianceSmoothing) /= 'none' .and. .not. useCmatrixOnly) then
+      if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing will be performed'
+
       call ens_copyEnsStdDev(ensPerts(1), statevector_ensStdDev)
       if (ensDiagnostic) then
         call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',       & ! IN
-                             'STDDEV_RAW', HUcontainsLQ_opt=HUcontainsLQ_gsv)  ! IN
+                             'STDDEV_RAW', HUcontainsLQ_opt=gsvHUcontainsLQ)  ! IN
       end if
 
       call gsv_power(statevector_ensStdDev, 2.d0 ) ! StdDev -> Variance
@@ -619,11 +629,11 @@ CONTAINS
 
       if (ensDiagnostic) then
         call gsv_writeToFile(statevector_ensStdDev,'./ens_stddev.fst',& ! IN
-                             'STDDEV_SMOOT', HUcontainsLQ_opt=HUcontainsLQ_gsv)   ! IN
+                             'STDDEV_SMOOT', HUcontainsLQ_opt=gsvHUcontainsLQ)   ! IN
       end if
     end if
 
-    !- 3.4 Pre-compute everything for advection in FSO mode
+    !- 3.5 Pre-compute everything for advection in FSO mode
     if (fsoLeadTime > 0.0D0) then
       amp3dStepIndexFSOFcst = 1
       if ( sum(advectFactorFSOFcst(:)) == 0.0D0 .or. numStep == 1) then
@@ -655,7 +665,7 @@ CONTAINS
       numStepAmplitudeFSOFcst = 0
     end if
 
-    !- 3.5 Pre-compute everything for advection in ANALYSIS mode
+    !- 3.6 Pre-compute everything for advection in ANALYSIS mode
     if ( sum(advectFactorAssimWindow(:)) == 0.0D0 .or. numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated in ANALYSIS mode'
 
@@ -755,7 +765,7 @@ CONTAINS
       if (advDiagnostic) then
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D',        & ! IN
-                               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv ) ! IN
+                               stepIndex_opt=stepIndex, HUcontainsLQ_opt=gsvHUcontainsLQ ) ! IN
         end do
       end if
 
@@ -763,7 +773,7 @@ CONTAINS
 
     end if
 
-    !- 3.6 Ensemble perturbations advection
+    !- 3.7 Ensemble perturbations advection
     if ( advectEnsPertAnlInc ) then
 
       !- If wanted, write the original ensemble perturbations for member #1
@@ -771,7 +781,7 @@ CONTAINS
         call ens_copyMember(ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
-               stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )             ! IN
+               stepIndex_opt=stepIndex, HUcontainsLQ_opt=gsvHUcontainsLQ )             ! IN
         end do
       end if
 
@@ -786,16 +796,16 @@ CONTAINS
         call ens_copyMember(ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
           call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
-               stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )                       ! IN
+               stepIndex_opt=stepIndex,HUcontainsLQ_opt=gsvHUcontainsLQ )                       ! IN
         end do
       end if
 
     end if
 
-    !- 3.7 Compute and write Std. Dev.
+    !- 3.8 Compute and write Std. Dev.
     if (ensDiagnostic) call EnsembleDiagnostic('FullPerturbations')
 
-    !- 3.8 Partitioned the ensemble perturbations into wave bands
+    !- 3.9 Partitioned the ensemble perturbations into wave bands
     if (trim(LocalizationType) == 'ScaleDependent') then
       call EnsembleScaleDecomposition()
       if (ensDiagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
@@ -813,7 +823,7 @@ CONTAINS
       call ens_zero(ensAmplitudeSave_M)
     end if
 
-    !- 3.9 Setup en ensGridStateVector to store the amplitude fields (for writing)
+    !- 3.10 Setup en ensGridStateVector to store the amplitude fields (for writing)
     if (keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
@@ -1002,7 +1012,11 @@ CONTAINS
       varName = ens_getVarNameFromK(ensPerts(1),levIndex)
       lev = ens_getLevFromK(ensPerts(1),levIndex)
 
-      ptr4d_r8 => gsv_getField_r8(statevector, varName)
+      if (varName == 'LQ' .and. ensShouldNotContainLQvarName) then
+        ptr4d_r8 => gsv_getField_r8(statevector, 'HU')
+      else
+        ptr4d_r8 => gsv_getField_r8(statevector, varName)
+      end if
       ensOneLev_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
 
       !$OMP PARALLEL DO PRIVATE(stepIndex,topLevOffset,scaleFactor_MT,levInc,dnens2,latIndex,lonIndex)
@@ -1128,7 +1142,11 @@ CONTAINS
       varName = ens_getVarNameFromK(ensPerts(1),levIndex)
       lev = ens_getLevFromK(ensPerts(1),levIndex)
 
-      ptr4d_out => gsv_getField_r8(statevector, varName)
+      if (varName == 'LQ' .and. ensShouldNotContainLQvarName) then
+        ptr4d_out => gsv_getField_r8(statevector, 'HU')
+      else
+        ptr4d_out => gsv_getField_r8(statevector, varName)
+      end if
       ensOneLev_mean => ens_getOneLevMean_r8(ensPerts(1), 1, levIndex)
 
       !$OMP PARALLEL DO PRIVATE(stepIndex,topLevOffset,levInc,latIndex,lonIndex)
@@ -1567,7 +1585,7 @@ CONTAINS
     if (.not. useSaveAmp) call ens_deallocate(ensAmplitude_M)
 
     ! 2.4 Apply the Std. Dev (if needed)
-    if (ensPertsNormalized) then
+    if (ensPertsNormalized .and. .not. useCmatrixOnly) then
       call gsv_schurProduct(statevector_ensStdDev, & ! IN
                             statevector)             ! INOUT 
     end if
@@ -1657,7 +1675,7 @@ CONTAINS
     end if
 
     ! 2.4 Apply the Std. Dev (if needed)
-    if (ensPertsNormalized) then
+    if (ensPertsNormalized .and. .not. useCmatrixOnly) then
       call gsv_schurProduct(statevector_ensStdDev, & ! IN
                             statevector)             ! INOUT 
     end if
@@ -1873,7 +1891,11 @@ CONTAINS
       end if
       lev2 = lev - 1 + topLevOffset
 
-      increment_out => gsv_getField_r8(statevector_out, varName)
+      if (varName == 'LQ' .and. ensShouldNotContainLQvarName) then
+        increment_out => gsv_getField_r8(statevector_out, 'HU')
+      else
+        increment_out => gsv_getField_r8(statevector_out, varName)
+      end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
@@ -1966,7 +1988,11 @@ CONTAINS
       lev2 = lev - 1 + topLevOffset
 
       call tmg_start(65,'ADDMEMAD_SHUFFLE')
-      increment_in => gsv_getField_r8(statevector_in, varName)
+      if (varName == 'LQ' .and. ensShouldNotContainLQvarName) then
+        increment_in => gsv_getField_r8(statevector_in, 'HU')
+      else
+        increment_in => gsv_getField_r8(statevector_in, varName)
+      end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = stepBeg, stepEnd
         stepIndex2 = stepIndex - stepBeg + 1
@@ -2127,7 +2153,7 @@ CONTAINS
         etiket = 'PERT001_WB' // trim(wbnum)
       end if
       call gsv_writeToFile(statevector,'./ens_pert001.fst',etiket, & ! IN
-                           dnens2,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+                           dnens2,HUcontainsLQ_opt=gsvHUcontainsLQ )    ! IN
       call gsv_deallocate(statevector)
     end do
 
@@ -2170,7 +2196,7 @@ CONTAINS
           etiket = 'STDDEV_WB' // trim(wbnum)
        end if
        call gsv_writeToFile(statevector,'./ens_stddev.fst',etiket, & ! IN
-                            HUcontainsLQ_opt=HUcontainsLQ_gsv)       ! IN
+                            HUcontainsLQ_opt=gsvHUcontainsLQ)       ! IN
        call gsv_deallocate(statevector)
     end do
 

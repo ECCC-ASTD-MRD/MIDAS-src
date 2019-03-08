@@ -2190,7 +2190,7 @@ module gridStateVector_mod
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      readGZsfc_opt=readGZsfc)
+                      containsFullField, readGZsfc_opt=readGZsfc)
 
     !-- 2.0 Horizontal Interpolation
 
@@ -2305,7 +2305,7 @@ module gridStateVector_mod
                       varNames_opt=varNamesToRead)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      readGZsfc_opt=readGZsfc)
+                      containsFullField, readGZsfc_opt=readGZsfc)
 
     !-- 2.0 Unit conversion
     if ( unitConversion ) then
@@ -2380,7 +2380,7 @@ module gridStateVector_mod
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      readGZsfc_opt=readGZsfc)
+                      containsFullField, readGZsfc_opt=readGZsfc)
 
     !-- 2.0 Horizontal Interpolation
 
@@ -2430,8 +2430,6 @@ module gridStateVector_mod
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readGZsfc, containsFullField)
     implicit none
-    ! Note this routine currently only works correctly for reading FULL FIELDS,
-    ! not increments or perturbations... because of the HU -> LQ conversion
 
     ! arguments
     type(struct_gsv)              :: statevector_out
@@ -2451,7 +2449,7 @@ module gridStateVector_mod
     end if
 
     call gsv_readFile( statevector_out, filename, etiket_in, typvar_in,  &
-                       readGZsfc_opt=readGZsfc, stepIndex_opt=stepIndex )
+                       containsFullField, readGZsfc_opt=readGZsfc, stepIndex_opt=stepIndex )
 
     if ( unitConversion ) then
       call gsv_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
@@ -2464,7 +2462,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, readGZsfc_opt, stepIndex_opt)
+  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, &
+                          containsFullField, readGZsfc_opt, stepIndex_opt)
     implicit none
 
     ! arguments
@@ -2472,8 +2471,9 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: fileName
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
-    logical, optional             :: readGZsfc_opt
-    integer, optional             :: stepIndex_opt
+    logical, optional, intent(in) :: readGZsfc_opt
+    integer, optional, intent(in) :: stepIndex_opt
+    logical, intent(in)           :: containsFullField
 
     ! locals
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex, ikey, levIndex
@@ -2603,16 +2603,17 @@ module gridStateVector_mod
 
         if (.not.gsv_varExist(statevector,varName)) cycle k_loop
 
-        if (varName == 'LVIS') then
-          write(*,*)
-          write(*,*) 'gsv_readFile: asking for LVIS: VIS will be readed and converted to LVIS'
-          varNameToRead = 'VIS' ! the conversion to LVIS will be done in gsv_fileUnitsToStateUnits
-        else
+        ! Check that the wanted field is present in the file
+        if (utl_varNamePresentInFile(varName,fileUnit_opt=nulfile)) then
           varNameToRead = varName
+        else
+          select case (trim(varName))
+          case ('LVIS')
+            varNameToRead = 'VIS'
+          case default
+            call utl_abort('gsv_readFile: variable '//trim(varName)//' was not found in '//trim(fileName))
+          end select
         end if
-
-        ! do not try to read diagnostic variables
-        if ( trim(vnl_varTypeFromVarname(varNameToRead)) == 'DIAG') cycle k_loop
 
         varLevel = vnl_varLevelFromVarname(varNameToRead)
         if (varLevel == 'MM') then
@@ -2680,7 +2681,17 @@ module gridStateVector_mod
           deallocate(gd2d_var_r4)
         end if
 
-        field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
+        if (varNameToRead == varName .or. .not. containsFullField) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
+        else
+          select case (trim(varName))
+          case ('LVIS')
+            field_r4_ptr(:,:,kIndex,stepIndex) = &
+                 log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
+          case default
+            call utl_abort('gsv_readFile: Oups! This should not happen... Check to code.')
+          end select
+        endif
 
         if (ierr.lt.0)then
           write(*,*) varNameToRead,ip1,statevector%datestamplist(stepIndex)
@@ -2763,10 +2774,6 @@ module gridStateVector_mod
 
         if ( trim(varName) == 'TT' .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
-        end if
-
-        if ( trim(varName) == 'LVIS' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = log(max(min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
         end if
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then

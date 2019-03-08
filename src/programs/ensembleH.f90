@@ -202,7 +202,8 @@ program midas_ensembleH
     write(*,*) 'midas-ensembleH: read member ', memberIndex
     call fln_ensFileName( ensFileName, ensPathName, memberIndex, copyToRamDisk_opt=.false.  )
     call tmg_start(3,'READ_ENSEMBLE')
-    call gsv_readFile( stateVector, ensFileName, ' ', ' ', readGZsfc_opt=.true. )
+    call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
+                       readGZsfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
     call tmg_stop(3)
 
