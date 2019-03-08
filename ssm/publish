@@ -1,0 +1,187 @@
+#!/bin/ksh
+
+## Ce script sert a publier les packages SSM crees par les script 'bh-*.py'
+## On se base sur la documentation presente sur le wiki
+##    https://wiki.cmc.ec.gc.ca/wiki/Assimilation/SSM
+
+set -e
+
+SECONDS=0
+
+if [ $# -ge 1 ]; then
+    BHSCRIPTS=$@
+else
+    BHSCRIPTS=$(/bin/ls bh-*.py)
+fi
+
+DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
+DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
+MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
+
+VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.1.0}
+OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v2}
+SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.1}
+REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.6}
+WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.4}
+FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
+
+## If MIDAS_SOURCE is not yet defined we use the git repository itself.
+## If this script is run from elsewhere, then we use the path to the GitLab project
+if [ -z "${MIDAS_SOURCE}" ]; then
+    MIDAS_SOURCE=$(git rev-parse --show-toplevel 2>/dev/null) || MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+fi
+
+VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}
+FINDTRIALS_SOURCE=${FINDTRIALS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar.findTrials.git}
+OAVARMONITOR_SOURCE=${OAVARMONITOR_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar.monitor.git}
+SPLITOBS_SOURCE=${SPLITOBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.git}
+REUNIROBS_SOURCE=${REUNIROBS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/reunir_obs.git}
+WRITESUBDOMAINS_SOURCE=${WRITESUBDOMAINS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/write_subdomains.git}
+
+export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
+
+if [ ! -d "$(dirname ${DOMAIN_PATH})" ]; then
+    mkdir -pv $(dirname ${DOMAIN_PATH})
+fi
+
+if [ ! -d "${DOMAIN_PATH}" ]; then
+    echo Creating the domain ${DOMAIN_PATH}
+    ssm created -d ${DOMAIN_PATH}
+else
+    echo The directory ${DOMAIN_PATH} alread exists.
+    echo You should erase it before continuing
+    exit 1
+fi
+
+## loading the BH scripts
+. ssmuse-sh -x main/opt/bh/bh-0.19
+
+echo BHSCRIPTS=${BHSCRIPTS}
+for bhscript in ${BHSCRIPTS}; do
+    pkgname=$(basename ${bhscript} .py | cut -c4-)
+    case "${pkgname}" in
+	FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
+	    platforms="ubuntu-14.04-amd64-64 sles-11-broadwell-64-xc40"
+	    ;;
+	midas)
+	    platforms="all ubuntu-14.04-amd64-64 sles-11-broadwell-64-xc40"
+	    ;;
+        VarScripts|FindTrials)
+            platforms=all
+            ;;
+	*)
+	    echo "The package '${pkgname}' n'est pas supporte.  On passe au suivant."
+            continue
+	    ;;
+    esac
+
+    case "${pkgname}" in
+	VarScripts)
+	    BH_PULL_SOURCE_GIT_BRANCH=${VARSCRIPTS_REVISION}
+	    BH_PULL_SOURCE=${VARSCRIPTS_SOURCE}
+	    ;;
+	FstdWriteSubdomains)
+	    BH_PULL_SOURCE_GIT_BRANCH=${WRITESUBDOMAINS_REVISION}
+	    BH_PULL_SOURCE=${WRITESUBDOMAINS_SOURCE}
+	    ;;
+	ReunirObs)
+	    BH_PULL_SOURCE_GIT_BRANCH=${REUNIROBS_REVISION}
+	    BH_PULL_SOURCE=${REUNIROBS_SOURCE}
+	    ;;
+	SplitObs)
+	    BH_PULL_SOURCE_GIT_BRANCH=${SPLITOBS_REVISION}
+	    BH_PULL_SOURCE=${SPLITOBS_SOURCE}
+	    ;;
+	FindTrials)
+	    BH_PULL_SOURCE_GIT_BRANCH=${FINDTRIALS_REVISION}
+	    BH_PULL_SOURCE=${FINDTRIALS_SOURCE}
+	    ;;
+	midas)
+	    BH_PULL_SOURCE_GIT_BRANCH=${MIDAS_REVISION}
+	    BH_PULL_SOURCE=${MIDAS_SOURCE}
+	    ;;
+	OavarMonitor)
+	    BH_PULL_SOURCE_GIT_BRANCH=${OAVARMONITOR_REVISION}
+	    BH_PULL_SOURCE=${OAVARMONITOR_SOURCE}
+	    ;;
+	*)
+	    echo "The package '${pkgname}' n'est supporte.  On passe au suivant."
+            continue
+	    ;;
+    esac
+
+    echo Executing the script ${bhscript} to create the package ${pkgname}.ssm to be installed under ${DOMAIN_PATH}
+    for platform in ${platforms}; do
+	ssmbuildhost=host:
+	ssmhost=
+	case "${platform}" in
+	    all)
+		compiler=
+		;;
+	    ubuntu-14.04-amd64-64)
+		compiler=intel-2016.1.156
+		ssmhost=eccc-ppp1
+		;;
+	    sles-11-broadwell-64-xc40)
+		compiler=PrgEnv-intel-5.2.82
+		ssmhost=hare
+		;;
+	esac
+
+	echo -n Working with ${pkgname} for platform ${platform}
+
+	if [ -n "${compiler}" ]; then
+	    echo " with compiler ${compiler}"
+	    compiler_string=-${compiler}
+	else
+	    compiler_string=
+	fi
+
+	other_bh_args=
+	if [ -n "${ssmhost}" ]; then
+	    if [ "${ssmhost}" = local ]; then
+		other_bh_args="${other_bh_args} --local"
+	    else
+		other_bh_args="${other_bh_args} --host ${ssmhost}"
+	    fi
+	fi
+
+	## Un package SSM ne peut contenir de caractere '_' dans le nom
+	## puisque cela interfere avec la separation des plateformes.
+	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
+	set -x
+	./${bhscript} -w /tmp/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
+            -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
+            -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
+            -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
+            -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
+            ${other_bh_args}
+	set +x
+	rm -rf /tmp/bh-${pkgname}-${platform}-$$
+
+	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
+	mv ${ssmpkgname}.ssm ${DOMAIN_PATH}
+	if [ -d ${DOMAIN_PATH}/${ssmpkgname} ]; then
+	    echo "Unpublish and uninstall ${ssmpkgname} from ${DOMAIN_PATH}"
+	    ssm unpublish -d ${DOMAIN_PATH} -p ${ssmpkgname}
+	    ssm uninstall -d ${DOMAIN_PATH} -p ${ssmpkgname}
+	fi
+
+	ssmpublish_args=
+        if [[ "$(ssm version)" = 11.* ]]; then
+	    ssm install -d ${DOMAIN_PATH} -p ${ssmpkgname} -r ${DOMAIN_PATH}
+            [ "${platform}" = all ] && ssmpublish_args="-pp all"
+        else
+	    ssm install -d ${DOMAIN_PATH} -p ${ssmpkgname} -u ${DOMAIN_PATH}
+        fi
+	ssm publish -d ${DOMAIN_PATH} -p ${ssmpkgname} ${ssmpublish_args}
+    done
+
+done
+
+## Freeze the domain
+ssm freezed -d ${DOMAIN_PATH}
+## remove write permission on the domain to prevent unintended modifications or erases
+chmod -R ugo-w ${DOMAIN_PATH}
+
+echo "L'execution de ce script a pris ${SECONDS} secondes pour publier le domaine '${DOMAIN_PATH}'"
