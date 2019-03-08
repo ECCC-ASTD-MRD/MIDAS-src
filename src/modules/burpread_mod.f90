@@ -1593,7 +1593,7 @@ CONTAINS
 
     REAL   , ALLOCATABLE   :: EMIS(:,:),SURF_EMIS(:)
 
-    INTEGER, ALLOCATABLE   :: CFRAC(:,:)
+    REAL, ALLOCATABLE      :: CFRAC(:,:)
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
@@ -2343,7 +2343,7 @@ CONTAINS
 
             RADMOY(:,:,:)=MPC_missingValue_R4
             RADSTD(:,:,:)=MPC_missingValue_R4
-            CFRAC(:,:)=-999
+            CFRAC(:,:)=MPC_missingValue_R4
 
             IASIQUAL: DO k = 1, nte
               iclass=1
@@ -2578,7 +2578,7 @@ CONTAINS
               iclass=1
               do iobs=OBS_CF1,OBS_CF7
                 if(obs_columnActive_IH(obsdat,iobs)) then
-                  call obs_headSet_i(obsdat,iobs,OBSN,CFRAC(iclass,k))
+                  call obs_headSet_r(obsdat,iobs,OBSN,CFRAC(iclass,k))
                   iclass=iclass+1
                 end if
               end do

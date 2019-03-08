@@ -366,14 +366,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SAZ = OBS_IDF+1 ! sun azimuth angle
    integer, parameter, public :: OBS_GQF = OBS_SAZ+1 ! iasi GQISFLAGQUAL
    integer, parameter, public :: OBS_GQL = OBS_GQF+1 ! iasi GQISQUALINDEXLOC
-   integer, parameter, public :: OBS_CF1 = OBS_GQL+1 ! AVHRR fraction of class 1
-   integer, parameter, public :: OBS_CF2 = OBS_CF1+1 ! AVHRR fraction of class 2
-   integer, parameter, public :: OBS_CF3 = OBS_CF2+1 ! AVHRR fraction of class 3
-   integer, parameter, public :: OBS_CF4 = OBS_CF3+1 ! AVHRR fraction of class 4
-   integer, parameter, public :: OBS_CF5 = OBS_CF4+1 ! AVHRR fraction of class 5
-   integer, parameter, public :: OBS_CF6 = OBS_CF5+1 ! AVHRR fraction of class 6
-   integer, parameter, public :: OBS_CF7 = OBS_CF6+1 ! AVHRR fraction of class 7
-   integer, parameter, public :: OBS_NCO2= OBS_CF7+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
+   integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
    integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
@@ -392,8 +385,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
-         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','CF1 ','CF2 ','CF3 ', &
-         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ,'NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -507,7 +499,14 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_S7C4  = OBS_S7C3 +1 ! stdev for class 7 AVHRR channel 4
    integer, parameter, public :: OBS_S7C5  = OBS_S7C4 +1 ! stdev for class 7 AVHRR channel 5
    integer, parameter, public :: OBS_S7C6  = OBS_S7C5 +1 ! stdev for class 7 AVHRR channel 6
-   integer, parameter, public :: OBS_ETOP  = OBS_S7C6 +1 ! CO2 slicing consensus (median) cloud top pressure
+   integer, parameter, public :: OBS_CF1   = OBS_S7C6 +1 ! AVHRR fraction of class 1
+   integer, parameter, public :: OBS_CF2   = OBS_CF1  +1 ! AVHRR fraction of class 2
+   integer, parameter, public :: OBS_CF3   = OBS_CF2  +1 ! AVHRR fraction of class 3
+   integer, parameter, public :: OBS_CF4   = OBS_CF3  +1 ! AVHRR fraction of class 4
+   integer, parameter, public :: OBS_CF5   = OBS_CF4  +1 ! AVHRR fraction of class 5
+   integer, parameter, public :: OBS_CF6   = OBS_CF5  +1 ! AVHRR fraction of class 6
+   integer, parameter, public :: OBS_CF7   = OBS_CF6  +1 ! AVHRR fraction of class 7
+   integer, parameter, public :: OBS_ETOP  = OBS_CF7  +1 ! CO2 slicing consensus (median) cloud top pressure
    integer, parameter, public :: OBS_VTOP  = OBS_ETOP +1 ! estimated error on CO2 slicing cloud top pressure
    integer, parameter, public :: OBS_ECF   = OBS_VTOP +1 ! CO2 slicing effective cloud fraction 
    integer, parameter, public :: OBS_VCF   = OBS_ECF  +1 ! estimated error on CO2 CO2 slicing cloud  fraction 
@@ -543,8 +542,10 @@ module ObsColumnNames_mod
         'S5C1','S5C2','S5C3','S5C4','S5C5','S5C6', &
         'S6C1','S6C2','S6C3','S6C4','S6C5','S6C6', &
         'S7C1','S7C2','S7C3','S7C4','S7C5','S7C6', &
-        'ETOP','VTOP','ECF ','VCF ','HE  ','ZTSR', &
-        'ZTM ','ZTGM','ZLQM','ZPS ','TRAD','GEOI' /)
+        'CF1 ','CF2 ','CF3 ','CF4 ','CF5 ','CF6 ', &
+        'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
+        'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
+        'GEOI' /)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1065,7 +1066,7 @@ contains
       elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if( column_index < OBS_CF1 .or. column_index > OBS_STYP  &
+            if( column_index < OBS_GQF .or. column_index > OBS_STYP  &
               ) call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
@@ -1453,7 +1454,6 @@ module ObsSpaceData_mod
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_SAZ, OBS_GQF, OBS_GQL
-   public :: OBS_CF1, OBS_CF2, OBS_CF3, OBS_CF4, OBS_CF5, OBS_CF6, OBS_CF7
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
@@ -1472,6 +1472,7 @@ module ObsSpaceData_mod
    public :: OBS_S5C1, OBS_S5C2, OBS_S5C3, OBS_S5C4, OBS_S5C5, OBS_S5C6
    public :: OBS_S6C1, OBS_S6C2, OBS_S6C3, OBS_S6C4, OBS_S6C5, OBS_S6C6
    public :: OBS_S7C1, OBS_S7C2, OBS_S7C3, OBS_S7C4, OBS_S7C5, OBS_S7C6
+   public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    !    integer-body column numbers

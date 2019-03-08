@@ -1247,7 +1247,7 @@ contains
           INDX = index_header
           iclass = 1
           do iobs=OBS_CF1, OBS_CF7
-            avhrr_bgck(INDEX_HEADER)%CFRAC(iclass) = obs_headElem_i(lobsSpaceData,iobs,index_header)
+            avhrr_bgck(INDEX_HEADER)%CFRAC(iclass) = obs_headElem_r(lobsSpaceData,iobs,index_header)
             iclass = iclass + 1
           end do
           iclass = 1
