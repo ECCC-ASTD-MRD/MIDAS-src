@@ -156,20 +156,6 @@ if [ $mode == full ] ; then
       exit 1
   fi
 
-  if [ ! -z "${SRC_FILES_2}" ] ; then
-     echo "... > Compiling all modules and subroutines (part 2) ..."
-     echo "...   if aborting, check in ${PWD}/listing_2"
-     split_f90_ftn90 ${SRC_FILES_2}
-     [ -n "${SRC_FILES_FTN90}" ] && s.ftn90 ${COMPF} -O ${FOPTMIZ} -src ${SRC_FILES_FTN90} > listing_2 2>&1
-     s.f90 ${COMPF} -O ${FOPTMIZ} -c ${SRC_FILES_F90} > listing_2 2>&1
-     status=1
-     grep fail listing_2 || status=0
-     if [ "${status}" -ne 0 ] ; then
-	 echo "... !! Compilation aborted: check in ${PWD}/listing_2 !!"
-	 exit 1
-     fi 
-  fi
-
   echo "... > Compiling main program..."
   echo "...   if aborting, check in ${PWD}/listing_main"
   s.f90 ${COMPF} -O ${FOPTMIZ} -c ${program}.f90 > listing_main 2>&1
