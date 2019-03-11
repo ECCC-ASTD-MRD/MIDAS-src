@@ -110,7 +110,7 @@ if [ $mode == full ] ; then
   if [ -d ${modulesDir}/${program} ] ; then
       cp -f ${modulesDir}/${program}/*.f* ${compiledir}/
   fi
-  cp -f ${modulesDir}/*.[fF]* ${compiledir}/
+  cp -f ${modulesDir}/*.f* ${compiledir}/
 
   cd ${compiledir}
 
