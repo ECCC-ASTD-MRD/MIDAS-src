@@ -1416,8 +1416,7 @@ contains
 
     logical :: diagTtop,TopAt10hPa
 
-    integer :: ksurf, jpmotop, jpmolev
-    integer :: isatzen 
+    integer :: ksurf, jpmotop, jpmolev 
     integer :: isatazim, instrum, iplatform
     integer :: isunazim
     integer :: nlevels,nobmax
@@ -1567,10 +1566,9 @@ contains
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
-        isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
-        tvs_profiles(iobs) % zenangle   = (isatzen - 9000) / 100.0
+        tvs_profiles(iobs) % zenangle   = obs_headElem_r(lobsSpaceData,OBS_SZA,header_index)
 
-        !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
+        !pour ne pas faire planter RTTOV dans le cas (rare) ou l'angle zenithal n'est pas defini ou invalide         
         if (tvs_profiles(iobs) % zenangle < 0.0d0 .or. &
              tvs_profiles(iobs) % zenangle > zenmax ) then
           write(*,*) "!!! WARNING !!!"

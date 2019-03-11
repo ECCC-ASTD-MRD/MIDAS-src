@@ -82,7 +82,7 @@ contains
       obsLatRad = obs_headElem_r(obsSpaceData,OBS_LAT,indexHeader)
       obsLonRad = obs_headElem_r(obsSpaceData,OBS_LON,indexHeader)
       satAzim = obs_headElem_i(obsSpaceData,OBS_AZA,indexHeader) * 0.01d0
-      satZen = (obs_headElem_i(obsSpaceData,OBS_SZA,indexHeader) - 9000) * 0.01d0
+      satZen = obs_headElem_r(obsSpaceData,OBS_SZA,indexHeader)
 
       ! convert angles to radian unit
       satAzimRad = satAzim * MPC_RADIANS_PER_DEGREE_R8

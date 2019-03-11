@@ -1358,7 +1358,7 @@ contains
       headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
       IOTP = obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
-      iqiv = obs_headElem_i (obsSpaceData,OBS_SZA,headerIndex)
+      iqiv = nint( obs_headElem_r (obsSpaceData,OBS_SZA,headerIndex) )
       imet = obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
       ilsv = obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
       igav = nint( obs_headElem_r (obsSpaceData,OBS_SUN,headerIndex) )
