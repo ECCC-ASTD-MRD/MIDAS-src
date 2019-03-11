@@ -1343,7 +1343,7 @@ contains
         end if
 !**************************************************************
         CLFR = 0.
-        if (lairs) CLFR = obs_headElem_i(lobsSpaceData,OBS_CLF,INDEX_HEADER)
+        if (lairs) CLFR = obs_headElem_r(lobsSpaceData,OBS_CLF,INDEX_HEADER)
 
         do JL = 1, NLEVB
           TOEXT(JL) = tvs_profiles(tvs_nobtov)%t(jl + iextr)

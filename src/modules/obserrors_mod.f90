@@ -1362,7 +1362,7 @@ contains
       imet = obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
       ilsv = obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
       igav = obs_headElem_i (obsSpaceData,OBS_SUN,headerIndex)
-      ihav = obs_headElem_i (obsSpaceData,OBS_CLF,headerIndex)
+      ihav = nint( obs_headElem_r (obsSpaceData,OBS_CLF,headerIndex) )
       zlat = obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
       zlon = obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
       cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)
