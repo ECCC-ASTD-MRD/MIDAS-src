@@ -143,6 +143,9 @@ if [ $mode == full ] ; then
       SRC_FILES_F90="${SRC_FILES_F90} ${file90}"
   done
 
+  ## This variable makes 's.f90' more verbose
+  export Verbose=yes
+
   s.f90 ${COMPF} -O ${FOPTMIZ} -c ${SRC_FILES_F90} > listing 2>&1
   status=1
   grep fail listing || status=0
