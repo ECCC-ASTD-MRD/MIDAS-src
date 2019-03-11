@@ -13,7 +13,7 @@ npex=1
 npey=1
 openmp=44
 maxcputime=3000
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
+run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
 #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
 #analysisgrid="/home/mab001/constants/analysis_grid_prototype_glb_1080x540_south-to-north_sfc_vcode5002"
 analysisgrid="/home/alc001/constants/cmde/icea/v2.2.5/arctic/analgrid.std"
@@ -91,7 +91,7 @@ cat << EOF > $TMPDIR/go_seaice.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2
+. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
 
 # MPI SETUP FOR PPP ONLY
 if [ "\${EC_ARCH}" = Linux_x86-64 ]; then

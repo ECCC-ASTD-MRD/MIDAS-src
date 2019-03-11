@@ -19,7 +19,7 @@ gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test_BlatBands_enkf
   npex=9
 openmp=1
 maxcputime=1200
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
+run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
 
 #
 # Don't modify below ...
@@ -51,7 +51,7 @@ cat << EOF > $TMPDIR/go_diagbmatrix.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2
+. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
 
 # MPI SETUP FOR PPP ONLY
 if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
