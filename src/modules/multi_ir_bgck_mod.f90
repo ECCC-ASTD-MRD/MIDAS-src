@@ -1270,7 +1270,7 @@ contains
               iclass = iclass + 1
             end if
           end do
-          SUNAZIM = 0.01d0 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
+          SUNAZIM = obs_headElem_r(lobsSpaceData,OBS_SAZ,index_header)
         end if
 
         ZTG = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')

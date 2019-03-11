@@ -363,8 +363,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ST1 = OBS_CLF+1 ! header level status/rejection flag
    integer, parameter, public :: OBS_IDO = OBS_ST1+1 ! (absolutely) unique station id no.
    integer, parameter, public :: OBS_IDF = OBS_IDO+1 ! id. no. of observation-source file
-   integer, parameter, public :: OBS_SAZ = OBS_IDF+1 ! sun azimuth angle
-   integer, parameter, public :: OBS_GQF = OBS_SAZ+1 ! iasi GQISFLAGQUAL
+   integer, parameter, public :: OBS_GQF = OBS_IDF+1 ! iasi GQISFLAGQUAL
    integer, parameter, public :: OBS_GQL = OBS_GQF+1 ! iasi GQISQUALINDEXLOC
    integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
@@ -385,7 +384,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
-         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -518,9 +517,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ZPS   = OBS_ZLQM +1 ! surface model pressure in Pa
    integer, parameter, public :: OBS_TRAD  = OBS_ZPS  +1 ! Local EARTH Radius Metres
    integer, parameter, public :: OBS_GEOI  = OBS_TRAD +1 ! Geoid Undulation  Metres
+   integer, parameter, public :: OBS_SAZ   = OBS_GEOI +1 ! sun azimuth angle
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_GEOI
+   integer, parameter :: NHDR_REAL_END = OBS_SAZ
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -545,7 +545,7 @@ module ObsColumnNames_mod
         'CF1 ','CF2 ','CF3 ','CF4 ','CF5 ','CF6 ', &
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
-        'GEOI' /)
+        'GEOI','SAZ ' /)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -980,11 +980,11 @@ contains
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_SAZ, OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=25,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,(0,ii=9,100)/)
+              OBS_GEOI,OBS_SAZ, (0,ii=10,100)/)
 
          bdy_int_column_list(:)    = 0
          bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
@@ -1024,11 +1024,11 @@ contains
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
               OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_SAZ, OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=25,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,(0,ii=9,100)/)
+              OBS_GEOI,OBS_SAZ,(0,ii=10,100)/)
 
          bdy_int_column_list= &
             (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
@@ -1453,7 +1453,7 @@ module ObsSpaceData_mod
    public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP
    public :: OBS_IPF, OBS_IPC, OBS_IPT
    public :: OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF
-   public :: OBS_SAZ, OBS_GQF, OBS_GQL
+   public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
@@ -1475,6 +1475,7 @@ module ObsSpaceData_mod
    public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
+   public :: OBS_SAZ
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_IDD

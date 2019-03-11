@@ -82,8 +82,8 @@ contains
     character(len=2) , intent(in)    :: familyType
     integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, azimuth, landSea, roQcFlag
     integer          , intent(in)    :: obsSat, instrument, zenith, cloudCover, solarZenith, &
-                                        solarAzimuth, idProf
-    real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon
+                                        idProf
+    real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon, solarAzimuth
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
     call obs_headSet_i( obsdat, OBS_IDO, headerIndex, obsIdo        )       
@@ -110,9 +110,9 @@ contains
 
       if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
         call obs_headSet_i( obsdat, OBS_CLF , headerIndex, cloudCover   )
-        call obs_headSet_i( obsdat, OBS_SAZ , headerIndex, solarAzimuth )  
+        call obs_headSet_r( obsdat, OBS_SAZ , headerIndex, solarAzimuth )  
       else if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms' ) then   
-        call obs_headSet_i( obsdat, OBS_SAZ , headerIndex, solarAzimuth )
+        call obs_headSet_r( obsdat, OBS_SAZ , headerIndex, solarAzimuth )
       end if
 
     else
@@ -147,7 +147,7 @@ contains
     real                     :: elev    , obsLat, obsLon, elevFact
     integer                  :: azimuth, vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
-    integer                  :: zenith    , solarZenith    , CloudCover    , solarAzimuth    , roQcFlag
+    integer                  :: zenith    , solarZenith    , CloudCover    , roQcFlag
     real(obs_real)           :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
@@ -402,7 +402,7 @@ contains
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
+                                real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
         exit HEADER
       end if
 
@@ -412,7 +412,7 @@ contains
       sensor      = MPC_missingValue_INT
       cloudCover  = MPC_missingValue_INT; cloudCoverReal = MPC_missingValue_R4
       elev = 0.; elevReal = 0.
-      solarAzimuth  = MPC_missingValue_INT; solarAzimuthReal = MPC_missingValue_R4
+      solarAzimuthReal = MPC_missingValue_R4
       solarZenith   = MPC_missingValue_INT; solarZenithReal  = MPC_missingValue_R4
       zenith = MPC_missingValue_INT; zenithReal = MPC_missingValue_R4
       instrument = MPC_missingValue_INT
@@ -463,17 +463,14 @@ contains
           zenith = nint ( (90. + zenithReal ) * 100. )
         end if
         ! solarZenith
-        if (solarAzimuthReal /= MPC_missingValue_R4) then
+
+        if (solarReal /= MPC_missingValue_R4) then
           solarZenith = nint ( (90. + solarZenithReal ) * 100. )
         endif
         ! cloudCover
         if (cloudCoverReal /= MPC_missingValue_R4) then
           cloudCover   = nint ( cloudCoverReal * 1.     )
-        end if
-        ! solarAzimuth
-        if (solarAzimuthReal /= MPC_missingValue_R4 ) then
-          solarAzimuth = nint ( solarAzimuthReal * 100. )
-        end if
+        end if       
 
         if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
         if ( sensor == MPC_missingValue_INT ) then
@@ -528,7 +525,7 @@ contains
 
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
+                                real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
           exit DATA
 
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
@@ -536,7 +533,7 @@ contains
           if ( headerIndex == headerIndexStart .and. obsNlv == 0  ) &
             call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
                                   earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                                  solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
+                                  real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
 
           lastId = rowIndex + 1
           obsIdd = int(matdata(rowIndex,1))
@@ -614,7 +611,7 @@ contains
         if ( lastId > numberRows ) &
           call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                                solarAzimuth, landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf )
+                                real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf )
 
       else
 

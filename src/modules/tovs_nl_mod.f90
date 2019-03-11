@@ -1453,7 +1453,7 @@ contains
     real(8), allocatable :: toto3obs(:),PP(:,:) 
     real(8), allocatable :: ozo     (:,:)
     
-    real(8) :: zlon
+    real(8) :: zlon, sunazim
     real(8) :: zptop, zptopmbs
  
 
@@ -1582,9 +1582,10 @@ contains
         end if
  
         isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
-        isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
+        sunazim =  obs_headElem_r(lobsSpaceData,OBS_SAZ,header_index)
+        isunazim = nint(100.d0*sunazim) ! Sun Azimuth Angle
         tvs_profiles(iobs) % azangle   = ( isatazim / 100.0d0 )
-        tvs_profiles(iobs) % sunazangle  =  ( isunazim / 100.0d0 )! necessaire pour radiation solaire
+        tvs_profiles(iobs) % sunazangle  =  sunazim ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensor_id) % coef % id_platform
         instrum = tvs_coefs(sensor_id) % coef % id_inst
         if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
