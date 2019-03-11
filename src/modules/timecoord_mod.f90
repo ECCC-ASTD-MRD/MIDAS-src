@@ -57,7 +57,7 @@ contains
     ! Revisions:
     !           Y. Rochon ARQI/AQRD July 2016
     !           - Allowance for obs time windows of size different from 6 hours.
-    !             Related addition of dwindowsize and tim_windowsize 
+    !!            Related addition of dwindowsize and tim_windowsize 
     !
     ! Namelist parameters:
     !

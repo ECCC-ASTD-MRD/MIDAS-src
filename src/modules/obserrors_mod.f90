@@ -111,18 +111,18 @@ contains
   END SUBROUTINE oer_setInterchanCorr
 
   subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in)
-    !
-    ! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
-    !
-    ! Author  : S. Laroche  February 2014
-    ! Revision: 
-    !          Y. Rochon, M. Sitwell and P. Du, March 2017
-    !          - Added calls to chm_read_obs_err_stddev and
-    !            chm_dealloc_obs_err_stddev
-    !
-    ! Purpose: read and set observation errors (from former sucovo subroutine).
-    !
-    !
+    !!
+    !! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
+    !!
+    !! Author  : S. Laroche  February 2014
+    !! Revision: 
+    !!          Y. Rochon, M. Sitwell and P. Du, March 2017
+    !!          - Added calls to chm_read_obs_err_stddev and
+    !!            chm_dealloc_obs_err_stddev
+    !!
+    !! Purpose: read and set observation errors (from former sucovo subroutine).
+    !!
+    !!
 
     type(struct_obs) :: lobsSpaceData
     character(len=*), intent(in) :: obserrorMode_in
@@ -190,45 +190,45 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine read_obs_erreurs_tovs
-    !
-    ! s/r read_obs_erreurs_tovs
-    ! - Read the observation erreur statistics and utilization flag for TOVS processing.
-    !
-    !
-    ! Author  : J. Halle !CMDA/AES  May 08, 1996
-    !
-    ! Revision 01  : J. Halle !CMDA/AES  Oct 1999
-    !               - change file name to stats_tovs
-    !
-    ! Revision 002  : J. Halle !CMDA/AES  dec 2000
-    !                adapt to TOVS level 1b.
-    !
-    ! Revision 003  : J. Halle !CMDA/SMC  may 2002
-    !                adapt to RTTOV-7.
-    !
-    ! Revision 004  : J. Halle !CMDA/SMC  sept 2006
-    !                adapt to RTTOV-8.
-    !
-    ! Revision 005  : A. Beaulne !CMDA/SMC  fevr 2007
-    !                adapt utilization flag for AIRS channels
-    !
-    ! Revision 006  : S. Heilliette
-    !                adapt utilization flag for IASI channels
-    !
-    ! Revision 007: S. Macpherson ARMA, Feb 2013
-    !              - add NPP/ATMS codtyp=192
-    !
-    ! Revision 008  : S. Macpherson      apr 2013
-    !              - adapt for new-format stats_tovs file
-    !
-    ! Revision 008  : S. Laroche      Mar 2014
-    !              - upgrade of former f77 subroutine sutovst
-    !              - f90 conversion and cleanup 
-    !
-    !    -------------------
-    !    Purpose: Read the observation error statistics and
-    !             utilization flag for TOVS processing. This information
-    !             resides on an ASCII file and is read using a free format.
+    !!
+    !! s/r read_obs_erreurs_tovs
+    !! - Read the observation erreur statistics and utilization flag for TOVS processing.
+    !!
+    !!
+    !! Author  : J. Halle !!CMDA/AES  May 08, 1996
+    !!
+    !! Revision 01  : J. Halle !!CMDA/AES  Oct 1999
+    !!               - change file name to stats_tovs
+    !!
+    !! Revision 002  : J. Halle !!CMDA/AES  dec 2000
+    !!                adapt to TOVS level 1b.
+    !!
+    !! Revision 003  : J. Halle !!CMDA/SMC  may 2002
+    !!                adapt to RTTOV-7.
+    !!
+    !! Revision 004  : J. Halle !!CMDA/SMC  sept 2006
+    !!                adapt to RTTOV-8.
+    !!
+    !! Revision 005  : A. Beaulne !!CMDA/SMC  fevr 2007
+    !!                adapt utilization flag for AIRS channels
+    !!
+    !! Revision 006  : S. Heilliette
+    !!                adapt utilization flag for IASI channels
+    !!
+    !! Revision 007: S. Macpherson ARMA, Feb 2013
+    !!              - add NPP/ATMS codtyp=192
+    !!
+    !! Revision 008  : S. Macpherson      apr 2013
+    !!              - adapt for new-format stats_tovs file
+    !!
+    !! Revision 008  : S. Laroche      Mar 2014
+    !!              - upgrade of former f77 subroutine sutovst
+    !!              - f90 conversion and cleanup 
+    !!
+    !!    -------------------
+    !!    Purpose: Read the observation error statistics and
+    !!             utilization flag for TOVS processing. This information
+    !!             resides on an ASCII file and is read using a free format.
     implicit none
 
     integer,external  :: FNOM, FCLOS
@@ -511,14 +511,14 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine read_obs_erreurs_conv ( lobsSpaceData )
-    ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
-    !
-    ! Author  : S. Laroche  February 2014
-    !
-    ! Revision: S. Laroche Sept. 2017
-    !           - add height assignment errors
-    !
-    ! Purpose: read observation errors (modification of former readcovo subroutine).
+    !! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
+    !!
+    !! Author  : S. Laroche  February 2014
+    !!
+    !! Revision: S. Laroche Sept. 2017
+    !!           - add height assignment errors
+    !!
+    !! Purpose: read observation errors (modification of former readcovo subroutine).
 
     implicit none
     ! argument
@@ -686,13 +686,13 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine read_obs_err_ice
-    ! s/r read_obs_err_ice -READ OBSERVATION ERROR FOR SEA ICE
-    !
-    ! Author  : A. Caya  October 2018
-    !
-    ! Revision: Not yet.
-    !
-    ! Purpose: read observation errors for sea ice concentration analysis
+    !! s/r read_obs_err_ice -READ OBSERVATION ERROR FOR SEA ICE
+    !!
+    !! Author  : A. Caya  October 2018
+    !!
+    !! Revision: Not yet.
+    !!
+    !! Purpose: read observation errors for sea ice concentration analysis
 
     implicit none
 
@@ -752,22 +752,22 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine fill_obs_erreurs(lobsSpaceData)
-    !
-    ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
-    !
-    ! Author  : S. Laroche  February 2014
-    !
-    ! Revision: 
-    !           Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
-    !           - Added consideration of 'CH' family
-    !           - Removal of 'OZ' family
-    !           - Added availability of CSTNID, obs_err_stddev
-    !           M. Sitwell, ARQI/AQRD, Apr 2015 
-    !           - Added IDATE and ITIME
-    !         
-    ! Purpose: read observation errors (modification of former readcovo subroutine).
-    !
-    !--------------------------------------------------------------------------------------
+    !!
+    !! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
+    !!
+    !! Author  : S. Laroche  February 2014
+    !!
+    !! Revision: 
+    !!           Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
+    !!           - Added consideration of 'CH' family
+    !!           - Removal of 'OZ' family
+    !!           - Added availability of CSTNID, obs_err_stddev
+    !!           M. Sitwell, ARQI/AQRD, Apr 2015 
+    !!           - Added IDATE and ITIME
+    !!         
+    !! Purpose: read observation errors (modification of former readcovo subroutine).
+    !!
+    !!-------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1190,14 +1190,14 @@ contains
 
 
   subroutine oer_sw(columnhr,obsSpaceData)
-    !
-    !**s/r oer_sw
-    !
-    !*    Purpose: Calculate observation errors for AMVs according to the Met-Office 
-    !              situation dependant approach.
-    !
-    !Arguments
-    !
+    !!
+    !!**s/r oer_sw
+    !!
+    !!*    Purpose: Calculate observation errors for AMVs according to the Met-Office 
+    !!              situation dependant approach.
+    !!
+    !!Arguments
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1682,22 +1682,22 @@ contains
   END SUBROUTINE OER_SETERRGPSRO
 
   SUBROUTINE oer_SETERRGPSGB(columnhr,lobsSpaceData,ldata,analysisMode)
-    !
-    !s/r SETERRGPSGB - SET OBSERVATION ERROR COVARIANCES FOR GB-GPS ZTD DATA
-    !
-    !*    Purpose:
-    !             - Set the observation errors [OBS_OER] and Std(O-P) [OBS_HPHT] for GB-GPS ZTD data.
-    !               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
-    !               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
-    !             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
-    !               and also sets the modgpsztd_mod variable numGPSZTD = 0.
-    !
+    !!
+    !!s/r SETERRGPSGB - SET OBSERVATION ERROR COVARIANCES FOR GB-GPS ZTD DATA
+    !!
+    !!*    Purpose:
+    !!             - Set the observation errors [OBS_OER] and Std(O-P) [OBS_HPHT] for GB-GPS ZTD data.
+    !!               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
+    !!               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
+    !!             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
+    !!               and also sets the modgpsztd_mod variable numGPSZTD = 0.
+    !!
     IMPLICIT NONE
-    !
-    ! NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
-    !       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
-    !       CORRELATIONS.
-    !
+    !!
+    !! NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
+    !!       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
+    !!       CORRELATIONS.
+    !!
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: lobsSpaceData
     logical                 :: ldata

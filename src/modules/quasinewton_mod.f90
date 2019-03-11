@@ -98,7 +98,7 @@
 
       subroutine ddd (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,jmax, &
                       precos,diag,ybar,sbar,izs,rzs,dzs)
-!----
+!!---
 !
 !     calcule le produit H.g ou
 !         . H est une matrice construite par la formule de bfgs inverse
@@ -119,7 +119,7 @@
 !
 !     izs(1),rzs(1),dzs(1) sont des zones de travail pour prosca
 !
-!----
+!!---
 !
 !         arguments
 !
@@ -191,14 +191,14 @@
 
       subroutine ddds (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin, &
                        jmax,precos,diag,ybar,sbar,izs,rzs,dzs)
-!----
+!!---
 !
 !     This subroutine has the same role as ddd (computation of the
 !     product H.g). It supposes however that the (y,s) pairs are not
 !     stored in core memory, but on a devise chosen by the user.
 !     The access to this devise is performed via the subroutine dystbl.
 !
-!----
+!!---
 !
 !         arguments
 !
@@ -263,7 +263,7 @@
       end subroutine ddds
 
       subroutine dystbl (store,ybar,sbar,n,j)
-!----
+!!---
 !
 !     This subroutine should store (if store = .true.) or restore
 !     (if store = .false.) a pair (ybar,sbar) at or from position
@@ -274,7 +274,7 @@
 !     stored in core memory in the arrays ybar(.,.) and sbar(.,.).
 !     In this case, the subroutine has to be written by the user.
 !
-!----
+!!---
 !
 !         arguments
 !
@@ -325,7 +325,7 @@
       subroutine qna_n1qn3 (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
            epsg,impres,io,mode,niter,nsim,iz,dz,ndz, &
            izs,rzs,dzs)
-!---- 
+!!--- 
 !     
 !     N1QN3, Version 2.0c, June 1995
 !     Jean Charles Gilbert, Claude Lemarechal, INRIA.
@@ -381,7 +381,7 @@
 !     fois par la formule de BFGS en utilisant les m couples {y,s} les
 !     plus recents.
 !     
-!---- 
+!!--- 
 !     
 !     arguments
 !     
@@ -559,11 +559,11 @@
       subroutine n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
                          epsg,impres,io,mode,niter,nsim,inmemo,m,jmin, &
                          jmax,d,gg,diag,aux,ybar,sbar,izs,rzs,dzs)
-!----
+!!---
 !
 !     Code d'optimisation proprement dit.
 !
-!----
+!!---
 !
 !         arguments
 !
@@ -1066,30 +1066,30 @@
 
       subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g, &
                         amd,amf,imp,io,logic,nap,napmax,x,izs,rzs,dzs)
-! ----
-!
-!     nlis0 + minuscules + commentaires
-!     + version amelioree (XII 88): interpolation cubique systematique
-!       et anti-overflows
-!     + declaration variables (II/89, JCG).
-!     + barr is also progressively decreased (12/93, CL & JChG).
-!       barmul is set to 5.
-!
-!     ----------------------------------------------------------------
-!
-!        en sortie logic =
-!
-!        0          descente serieuse
-!        1          descente bloquee
-!        4          nap > napmax
-!        5          retour a l'utilisateur
-!        6          fonction et gradient pas d'accord
-!        < 0        contrainte implicite active
-!
-! ----
-!
-! --- arguments
-!
+!!----
+!!
+!!    nlis0 + minuscules + commentaires
+!!    + version amelioree (XII 88): interpolation cubique systematique
+!!      et anti-overflows
+!!    + declaration variables (II/89, JCG).
+!!    + barr is also progressively decreased (12/93, CL & JChG).
+!!      barmul is set to 5.
+!!
+!!    ----------------------------------------------------------------
+!!
+!!       en sortie logic =
+!!
+!!       0          descente serieuse
+!!       1          descente bloquee
+!!       4          nap > napmax
+!!       5          retour a l'utilisateur
+!!       6          fonction et gradient pas d'accord
+!!       < 0        contrainte implicite active
+!!
+!!----
+!!
+!!--- arguments
+!!
       external simul,prosca
       integer n,imp,io,logic,nap,napmax,izs(*)
       real rzs(*)
