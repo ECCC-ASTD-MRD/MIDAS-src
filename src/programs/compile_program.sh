@@ -121,8 +121,8 @@ if [ $mode == full ] ; then
   echo "... > STARTING COMPILATION AT: $(date)"
   echo "..."
 
-  echo "... > Compiling all modules and subroutines ..."
-  echo "...   if aborting, check in ${PWD}/listing"
+  echo "... > Preprocessing *.ftn90 ..."
+  echo "...   if aborting, check in ${PWD}/listing_preproc"
 
   SRC_FILES_F90=
   defines=
@@ -136,12 +136,16 @@ if [ $mode == full ] ; then
               done
           fi
           file90=$(basename ${file} .ftn90).f90
-          r.gppf -lang-f90+ ${GPP_OPTS} ${defines} ${file} > ${file90}
+          echo ${file} >> listing_preproc
+          r.gppf -lang-f90+ ${GPP_OPTS} ${defines} ${file} > ${file90} 2>> listing_preproc
       else
           file90=${file}
       fi
       SRC_FILES_F90="${SRC_FILES_F90} ${file90}"
   done
+
+  echo "... > Compiling all modules and subroutines ..."
+  echo "...   if aborting, check in ${PWD}/listing"
 
   ## This variable makes 's.f90' more verbose
   export Verbose=yes
