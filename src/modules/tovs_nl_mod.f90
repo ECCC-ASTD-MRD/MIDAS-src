@@ -1420,7 +1420,6 @@ contains
     integer :: isatzen 
     integer :: isatazim, instrum, iplatform
     integer :: isunazim
-    integer :: isunza
     integer :: nlevels,nobmax
     integer :: j, i, sensor_id, iobs, jj
     integer :: count_profile, header_index
@@ -1593,8 +1592,7 @@ contains
           tvs_profiles(iobs) % azangle   = (isatazim + isunazim) / 100.d0
           if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle = tvs_profiles(iobs) % azangle - 360.d0
         end if
-        isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
-        tvs_profiles(iobs) % sunzenangle = (isunza - 9000) / 100.0d0
+        tvs_profiles(iobs) % sunzenangle = obs_headElem_r(lobsSpaceData,OBS_SUN,header_index)
         zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
         zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
         tvs_profiles(iobs) % longitude = zlon
