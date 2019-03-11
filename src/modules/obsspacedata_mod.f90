@@ -385,7 +385,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
-         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ,'NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS

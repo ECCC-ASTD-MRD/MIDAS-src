@@ -1593,7 +1593,7 @@ CONTAINS
 
     REAL   , ALLOCATABLE   :: EMIS(:,:),SURF_EMIS(:)
 
-    REAL, ALLOCATABLE      :: CFRAC(:,:)
+    REAL(OBS_REAL), ALLOCATABLE  :: CFRAC(:,:)
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
@@ -2577,7 +2577,7 @@ CONTAINS
 
               iclass=1
               do iobs=OBS_CF1,OBS_CF7
-                if(obs_columnActive_IH(obsdat,iobs)) then
+                if(obs_columnActive_RH(obsdat,iobs)) then
                   call obs_headSet_r(obsdat,iobs,OBSN,CFRAC(iclass,k))
                   iclass=iclass+1
                 end if
