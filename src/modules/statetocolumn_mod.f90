@@ -81,6 +81,14 @@ module stateToColumn_mod
 
   integer, external    :: get_max_rss
 
+  type struct_horizontalInterp
+    INTEGER, POINTER :: i(:)   ! Model grid coordinate i of neighbors
+    INTEGER, POINTER :: j(:)   ! Model grid coordinate j of neighbors
+    real(8), POINTER :: wij(:) ! Weight given to neighbors
+  end type struct_horizontalInterp
+
+  type(struct_horizontalInterp), pointer :: hint(:,:,:,:)
+
 contains 
 
   subroutine findHeightMpiId( stateVector_in, height, stepIndex )
@@ -396,14 +404,15 @@ contains
     ! locals
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex
     integer :: numStep, stepIndex, ierr, indexBeg, indexEnd
-    integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridpt, numGridptTotal, numHeaderUsed
+    integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    real(8) :: dldx, dldy, xpos, ypos
-    real(8) :: latRot, lonRot, lat, lon, weightsSum
+    integer :: ipoint, NHSIZE
+    real(8) :: dldx, dldy
+    real(8) :: latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    integer, allocatable :: allNumHeaderUsed(:,:), headerIndexVec(:,:)
+    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
     real(8), allocatable :: height(:,:,:)
     integer :: ezgdef, gdllfxy
@@ -456,6 +465,19 @@ contains
 
     ! copy the horizontal grid object
     interpInfo%hco => stateVector%hco
+
+    allocate(hint(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
+    do procIndex = 1, mpi_nprocs
+      do stepIndex = 1, numStep
+        do headerIndex = 1, numHeaderUsedMax
+          do subGridIndex = 1, interpInfo%hco%numSubGrid
+            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
+            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j)
+            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij)
+          end do
+        end do
+      end do
+    end do
 
     ! setup the information for wind rotation
     if ( (gsv_varExist(varName='UU') .or. gsv_varExist(varName='VV')) .and.  &
@@ -550,6 +572,7 @@ contains
 
     ! count the total number of grid points for allocation and set up indices
     numGridptTotal = 0
+    allocate(numGridpt(interpInfo%hco%numSubGrid))
     do stepIndex = 1, numStep
       do procIndex = 1, mpi_nprocs
         do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
@@ -562,25 +585,27 @@ contains
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
+          call s2c_setupHorizInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
           if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
             ! indices for only 1 subgrid, other will have zeros
             interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
-            numGridptTotal = numGridptTotal + 4
+            numGridptTotal = numGridptTotal + numGridpt(subGridIndex)
             interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex) = numGridptTotal
           else
             ! locations on both subGrids will be averaged
             interpInfo%depotIndexBeg(1, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
-            numGridptTotal = numGridptTotal + 4
+            numGridptTotal = numGridptTotal + numGridpt(1)
             interpInfo%depotIndexEnd(1, headerIndex, stepIndex, procIndex) = numGridptTotal
 
             interpInfo%depotIndexBeg(2, headerIndex, stepIndex, procIndex) = numGridptTotal + 1
-            numGridptTotal = numGridptTotal + 4
+            numGridptTotal = numGridptTotal + numGridpt(2)
             interpInfo%depotIndexEnd(2, headerIndex, stepIndex, procIndex) = numGridptTotal
           end if
 
         end do ! headerIndex
       end do ! procIndex
-    end do
+    end do ! stepIndex
 
     ! now that we know the size, allocate main arrays for storing interpolation information
     write(*,*) 's2c_setupInterpInfo: numGridptTotal = ', numGridptTotal
@@ -636,60 +661,6 @@ contains
 
           end if
 
-          ! Find the lower-left grid point next to the observation
-          if ( xpos_r4 /= real(niP1) ) then
-            lonIndex = floor(xpos_r4)
-          else
-            lonIndex = floor(xpos_r4) - 1
-          end if
-          if ( xpos2_r4 /= real(niP1) ) then
-            lonIndex2 = floor(xpos2_r4)
-          else
-            lonIndex2 = floor(xpos2_r4) - 1
-          end if
-
-          if ( ypos_r4 /= real(statevector%nj) ) then
-            latIndex = floor(ypos_r4)
-          else
-            latIndex = floor(ypos_r4) - 1
-          end if
-          if ( ypos2_r4 /= real(statevector%nj) ) then
-            latIndex2 = floor(ypos2_r4)
-          else
-            latIndex2 = floor(ypos2_r4) - 1
-          end if
-
-          if ( stateVector%hco%grtyp == 'U' ) then
-            if ( ypos_r4 /= real(stateVector%nj/2) ) then
-              latIndex = floor(ypos_r4)
-            else
-              latIndex = floor(ypos_r4) - 1
-            end if
-            if ( ypos2_r4 /= real(stateVector%nj/2) ) then
-              latIndex2 = floor(ypos2_r4)
-            else
-              latIndex2 = floor(ypos2_r4) - 1
-            end if
-          end if
-
-          ! Handle periodicity in longitude
-          lonIndexP1 = lonIndex + 1
-          if ( lonIndexP1 == statevector%ni + 1 ) lonIndexP1 = 1
-
-          ! Check if location is in between Yin and Yang (should not happen)
-          if ( stateVector%hco%grtyp == 'U' ) then
-            if ( ypos_r4 > real(stateVector%nj/2) .and.  &
-                 ypos_r4 < real((stateVector%nj/2)+1) ) then
-              write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
-              write(*,*) '   xpos, ypos = ', xpos_r4, ypos_r4
-            end if
-            if ( ypos2_r4 > real(stateVector%nj/2) .and.  &
-                 ypos2_r4 < real((stateVector%nj/2)+1) ) then
-              write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
-              write(*,*) '   xpos2, ypos2 = ', xpos2_r4, ypos2_r4
-            end if
-          end if
-
           if ( subGridIndex == 3 ) then
             ! both subGrids involved in interpolation, so first treat subGrid 1
             numSubGridsForInterp = 2
@@ -701,92 +672,31 @@ contains
 
           do subGridForInterp = 1, numSubGridsForInterp
 
-            ! Compute the 4 weights of the bilinear interpolation
             if ( subGridForInterp == 1 ) then
               ! when only 1 subGrid involved, subGridIndex can be 1 or 2
-              dldx = real(xpos_r4,8) - real(lonIndex,8)
-              dldy = real(ypos_r4,8) - real(latIndex,8)
             else
               ! when 2 subGrids, subGridIndex is set to 1 for 1st iteration, 2 for second
               subGridIndex = 2
-              lonIndex = lonIndex2
-              latIndex = latIndex2
-              lonIndexP1 = lonIndex2 + 1
-              dldx = real(xpos2_r4,8) - real(lonIndex,8)
-              dldy = real(ypos2_r4,8) - real(latIndex,8)
             end if
 
             indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
             indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
 
-            if ( allocated(stateVector%hco%mask) ) then
+            NHSIZE = size(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
 
-              if ( stateVector%hco%mask(lonIndex,latIndex) == 1 ) then
-                interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
-              else
-                interpInfo%interpWeightDepot(indexBeg    ) = 0.d0
-              end if
+            do ipoint=1,NHSIZE
 
-              if ( stateVector%hco%mask(lonIndexP1,latIndex) == 1 ) then
-                interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
-              else
-                interpInfo%interpWeightDepot(indexBeg + 1) = 0.d0
-              end if
+              interpInfo%interpWeightDepot(indexBeg) = hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(ipoint)
+              interpInfo%latIndexDepot(indexBeg)     = hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(ipoint)
+              interpInfo%lonIndexDepot(indexBeg)     = hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(ipoint)
 
-              if ( stateVector%hco%mask(lonIndex,latIndex + 1) == 1 ) then
-                interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
-              else
-                interpInfo%interpWeightDepot(indexBeg + 2) = 0.d0
-              end if
+              indexBeg = indexBeg + 1
 
-              if ( stateVector%hco%mask(lonIndexP1,latIndex + 1) == 1 ) then
-                interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
-              else
-                interpInfo%interpWeightDepot(indexBeg + 3) = 0.d0
-              end if
+            end do
 
-              weightsSum = sum(interpInfo%interpWeightDepot(indexBeg:indexBeg + 3))
-              if ( weightsSum > 0.d0 ) then
-
-                interpInfo%interpWeightDepot(indexBeg:indexBeg + 3) = &
-                interpInfo%interpWeightDepot(indexBeg:indexBeg + 3) / weightsSum
-
-              else
-
-                write(*,*) 's2c_setupInterpInfo: Rejecting OBS outside the grid domain, ', headerIndex
-                write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-                bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-                bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
-                do bodyIndex = bodyIndexBeg, bodyIndexEnd
-                  call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-                end do
-                call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
-                     ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
-
-              end if
-
-            else
-
-              interpInfo%interpWeightDepot(indexBeg    ) = (1.d0-dldx) * (1.d0-dldy)
-              interpInfo%interpWeightDepot(indexBeg + 1) = dldx  * (1.d0-dldy)
-              interpInfo%interpWeightDepot(indexBeg + 2) = (1.d0-dldx) *       dldy
-              interpInfo%interpWeightDepot(indexBeg + 3) =       dldx  *       dldy
-
-            end if
-
-            ! divide weight by number of subGrids
-            interpInfo%interpWeightDepot(indexBeg:indexEnd) = &
-                 interpInfo%interpWeightDepot(indexBeg:indexEnd) / real(numSubGridsForInterp,8)
-
-            interpInfo%latIndexDepot(indexBeg    ) = latIndex
-            interpInfo%latIndexDepot(indexBeg + 1) = latIndex
-            interpInfo%latIndexDepot(indexBeg + 2) = latIndex + 1
-            interpInfo%latIndexDepot(indexBeg + 3) = latIndex + 1
-
-            interpInfo%lonIndexDepot(indexBeg    ) = lonIndex
-            interpInfo%lonIndexDepot(indexBeg + 1) = lonIndexP1
-            interpInfo%lonIndexDepot(indexBeg + 2) = lonIndex
-            interpInfo%lonIndexDepot(indexBeg + 3) = lonIndexP1
+            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
+            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j)
+            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij)
 
             ! compute the rotated lat, lon
             if ( interpInfo%hco%rotated .and.  &
@@ -817,6 +727,7 @@ contains
                             'GRID',ierr)
 
     deallocate(height)
+    deallocate(hint)
     deallocate(headerIndexVec)
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
@@ -2249,7 +2160,7 @@ contains
   end subroutine s2c_bgcheck_bilin
 
   !--------------------------------------------------------------------------
-  ! s2c_column_hbilin  
+  ! s2c_column_hbilin
   !--------------------------------------------------------------------------
   subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat, &
                                plong,plat,vprof,vlevout,nlevout)
@@ -2343,7 +2254,341 @@ contains
                       + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
     end do
 
-  end subroutine s2c_column_hbilin   
+  end subroutine s2c_column_hbilin
+
+  !--------------------------------------------------------------------------
+  ! s2c_setupHorizInterp
+  !--------------------------------------------------------------------------
+  subroutine s2c_setupHorizInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+    ! **Purpose:**
+    ! Identify the appropriate horizontal interpolation scheme based on
+    ! observation family and station identifier. Then call the corresponding
+    ! subroutine to determine the grid points and their associated weights.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_gsv)       , intent(in)    :: stateVector
+    integer                , intent(in)    :: headerIndex, stepIndex, procIndex
+    integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    ! locals
+    character(len=2)  :: cfam
+    character(len=12) :: cstnid
+    real(4)           :: fpr ! footprint radius (km)
+
+    cfam = obs_getFamily ( obsSpaceData, headerIndex )
+    if ( cfam == 'GL' ) then
+
+      cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
+
+      if (index(cstnid,'DMSP') == 1) then
+
+        select case(cstnid)
+        case('DMSP15')
+          fpr = 27.5
+        case('DMSP16','DMSP17','DMSP18')
+          fpr = 29.0
+        case DEFAULT
+          call utl_abort('s2c_setupHorizInterp: UNKNOWN station id: '//cstnid)
+        end select
+
+        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid == 'GCOM-W1') then
+
+        fpr = 11.0
+        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid(1:6) == 'METOP-') then
+
+         fpr = 25.0
+        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid == 'noaa-19') then
+
+         fpr = 2.75
+        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid == 'CIS_DAILY') then
+
+        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid == 'RS1_IMG') then
+
+        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (index(cstnid,'Lake')   /= 0 .or.   &
+               index(cstnid,'Lac')    /= 0 .or.   &
+               index(cstnid,'Reserv') /= 0) then
+
+        call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else if (cstnid == 'CIS_REGIONAL') then
+
+        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+      else
+
+        call utl_abort('s2c_setupHorizInterp: UNKNOWN station id: '//cstnid)
+
+      end if
+
+    else
+
+      call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+    end if
+
+  end subroutine s2c_setupHorizInterp
+
+  !--------------------------------------------------------------------------
+  ! s2c_setupBilinearInterp
+  !--------------------------------------------------------------------------
+  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+    ! **Purpose:**
+    ! Determine the grid points and their associated weights
+    ! for the bilinear horizontal interpolation.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_gsv)       , intent(in)    :: stateVector
+    integer                , intent(in)    :: headerIndex, stepIndex, procIndex
+    integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    ! locals
+    integer :: bodyIndex
+    integer :: ierr
+    integer :: bodyIndexBeg, bodyIndexEnd, niP1
+    integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
+    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
+    integer :: ipoint, NHSIZE
+    integer :: latIndexVec(4), lonIndexVec(4)
+    integer :: mask(stateVector%hco%ni,stateVector%hco%nj)
+    real(8) :: WeightVec(4)
+    real(8) :: dldx, dldy
+    real(8) :: weightsSum
+    real(4) :: lon_deg_r4, lat_deg_r4
+    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    
+    numGridpt(:) = 0
+
+    lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) *  &
+                 MPC_DEGREES_PER_RADIAN_R8)
+    lon_deg_r4 = real(interpInfo%allLon(headerIndex, stepIndex, procIndex) *  &
+                 MPC_DEGREES_PER_RADIAN_R8)
+    ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                          lat_deg_r4, lon_deg_r4, subGridIndex )
+
+    ! Allow for periodicity in Longitude for global Gaussian grid
+    if ( stateVector%hco%grtyp == 'G' ) then
+      niP1 = statevector%ni + 1
+    else
+      niP1 = statevector%ni
+    end if
+
+    ! Find the lower-left grid point next to the observation
+    if ( xpos_r4 /= real(niP1) ) then
+      lonIndex = floor(xpos_r4)
+    else
+      lonIndex = floor(xpos_r4) - 1
+    end if
+    if ( xpos2_r4 /= real(niP1) ) then
+      lonIndex2 = floor(xpos2_r4)
+    else
+      lonIndex2 = floor(xpos2_r4) - 1
+    end if
+
+    if ( ypos_r4 /= real(statevector%nj) ) then
+      latIndex = floor(ypos_r4)
+    else
+      latIndex = floor(ypos_r4) - 1
+    end if
+    if ( ypos2_r4 /= real(statevector%nj) ) then
+      latIndex2 = floor(ypos2_r4)
+    else
+      latIndex2 = floor(ypos2_r4) - 1
+    end if
+
+    if ( stateVector%hco%grtyp == 'U' ) then
+      if ( ypos_r4 /= real(stateVector%nj/2) ) then
+        latIndex = floor(ypos_r4)
+      else
+        latIndex = floor(ypos_r4) - 1
+      end if
+      if ( ypos2_r4 /= real(stateVector%nj/2) ) then
+        latIndex2 = floor(ypos2_r4)
+      else
+        latIndex2 = floor(ypos2_r4) - 1
+      end if
+    end if
+
+    ! Handle periodicity in longitude
+    lonIndexP1 = lonIndex + 1
+    if ( lonIndexP1 == statevector%ni + 1 ) lonIndexP1 = 1
+
+    ! Check if location is in between Yin and Yang (should not happen)
+    if ( stateVector%hco%grtyp == 'U' ) then
+      if ( ypos_r4 > real(stateVector%nj/2) .and.  &
+           ypos_r4 < real((stateVector%nj/2)+1) ) then
+        write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
+        write(*,*) '   xpos, ypos = ', xpos_r4, ypos_r4
+      end if
+      if ( ypos2_r4 > real(stateVector%nj/2) .and.  &
+           ypos2_r4 < real((stateVector%nj/2)+1) ) then
+        write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
+        write(*,*) '   xpos2, ypos2 = ', xpos2_r4, ypos2_r4
+      end if
+    end if
+
+    if ( subGridIndex == 3 ) then
+      ! both subGrids involved in interpolation, so first treat subGrid 1
+      numSubGridsForInterp = 2
+      subGridIndex = 1
+    else
+      ! only 1 subGrid involved in interpolation
+      numSubGridsForInterp = 1
+    end if
+
+    if ( allocated(stateVector%hco%mask) ) then
+      mask(:,:) = stateVector%hco%mask
+    else
+      mask(:,:) = 1
+    end if
+
+    do subGridForInterp = 1, numSubGridsForInterp
+
+      NHSIZE = 0
+
+      ! Compute the 4 weights of the bilinear interpolation
+      if ( subGridForInterp == 1 ) then
+        ! when only 1 subGrid involved, subGridIndex can be 1 or 2
+        dldx = real(xpos_r4,8) - real(lonIndex,8)
+        dldy = real(ypos_r4,8) - real(latIndex,8)
+      else
+        ! when 2 subGrids, subGridIndex is set to 1 for 1st iteration, 2 for second
+        subGridIndex = 2
+        lonIndex = lonIndex2
+        latIndex = latIndex2
+        lonIndexP1 = lonIndex2 + 1
+        dldx = real(xpos2_r4,8) - real(lonIndex,8)
+        dldy = real(ypos2_r4,8) - real(latIndex,8)
+      end if
+
+      if ( mask(lonIndex,latIndex) == 1 ) then
+        NHSIZE = NHSIZE + 1
+        latIndexVec(NHSIZE) = latIndex
+        lonIndexVec(NHSIZE) = lonIndex
+        WeightVec(NHSIZE) = (1.d0-dldx) * (1.d0-dldy)
+      end if
+
+      if ( mask(lonIndexP1,latIndex) == 1 ) then
+        NHSIZE = NHSIZE + 1
+        latIndexVec(NHSIZE) = latIndex
+        lonIndexVec(NHSIZE) = lonIndexP1
+        WeightVec(NHSIZE) =       dldx  * (1.d0-dldy)
+      end if
+
+      if ( mask(lonIndex,latIndex + 1) == 1 ) then
+        NHSIZE = NHSIZE + 1
+        latIndexVec(NHSIZE) = latIndex + 1
+        lonIndexVec(NHSIZE) = lonIndex
+        WeightVec(NHSIZE) = (1.d0-dldx) *       dldy
+      end if
+
+      if ( mask(lonIndexP1,latIndex + 1) == 1 ) then
+        NHSIZE = NHSIZE + 1
+        latIndexVec(NHSIZE) = latIndex + 1
+        lonIndexVec(NHSIZE) = lonIndexP1
+        WeightVec(NHSIZE) =       dldx  *       dldy
+      end if
+
+      weightsSum = sum(WeightVec(1:NHSIZE))
+      if ( weightsSum > 0.d0 ) then
+
+        WeightVec(1:NHSIZE) = WeightVec(1:NHSIZE) / weightsSum
+
+      else
+
+        write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, ', headerIndex
+        write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+        end do
+        call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
+             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+
+      end if
+
+      ! divide weight by number of subGrids
+      WeightVec(1:NHSIZE) = WeightVec(1:NHSIZE) / real(numSubGridsForInterp,8)
+
+      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(NHSIZE))
+      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(NHSIZE))
+      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(NHSIZE))
+
+      do ipoint=1,NHSIZE
+        hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(ipoint)   = lonIndexVec(ipoint)
+        hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(ipoint)   = latIndexVec(ipoint)
+        hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(ipoint) = WeightVec(ipoint)
+      end do
+
+      numGridpt(subGridIndex) = NHSIZE
+
+    end do
+
+  end subroutine s2c_setupBilinearInterp
+
+  !--------------------------------------------------------------------------
+  ! s2c_setupFootprintInterp
+  !--------------------------------------------------------------------------
+  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+    ! **Purpose:**
+    ! Determine the grid points and their associated weights
+    ! for the footprint horizontal interpolation.
+    !
+    implicit none
+
+    ! arguments
+    real(4)                , intent(in)    :: fpr ! footprint radius (km)
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_gsv)       , intent(in)    :: stateVector
+    integer                , intent(in)    :: headerIndex, stepIndex, procIndex
+    integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    call utl_abort('s2c_setupFootprintInterp: no code yet')
+
+  end subroutine s2c_setupFootprintInterp
+
+  !--------------------------------------------------------------------------
+  ! s2c_setupLakeInterp
+  !--------------------------------------------------------------------------
+  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+    ! **Purpose:**
+    ! Determine the grid points and their associated weights
+    ! for the lake horizontal interpolation.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_gsv)       , intent(in)    :: stateVector
+    integer                , intent(in)    :: headerIndex, stepIndex, procIndex
+    integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    call utl_abort('s2c_setupLakeInterp: no code yet')
+
+  end subroutine s2c_setupLakeInterp
 
   subroutine checkColumnStatevectorMatch(column,statevector)
     !
