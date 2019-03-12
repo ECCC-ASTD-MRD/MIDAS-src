@@ -1417,8 +1417,7 @@ contains
     logical :: diagTtop,TopAt10hPa
 
     integer :: ksurf, jpmotop, jpmolev 
-    integer :: isatazim, instrum, iplatform
-    integer :: isunazim
+    integer :: instrum, iplatform
     integer :: nlevels,nobmax
     integer :: j, i, sensor_id, iobs, jj
     integer :: count_profile, header_index
@@ -1451,7 +1450,7 @@ contains
     real(8), allocatable :: toto3obs(:),PP(:,:) 
     real(8), allocatable :: ozo     (:,:)
     
-    real(8) :: zlon, sunazim
+    real(8) :: zlon
     real(8) :: zptop, zptopmbs
  
 
@@ -1578,16 +1577,13 @@ contains
           tvs_profiles(iobs) % zenangle = 0.d0
         end if
  
-        isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
-        sunazim =  obs_headElem_r(lobsSpaceData,OBS_SAZ,header_index)
-        isunazim = nint(100.d0*sunazim) ! Sun Azimuth Angle
-        tvs_profiles(iobs) % azangle   = ( isatazim / 100.0d0 )
-        tvs_profiles(iobs) % sunazangle  =  sunazim ! necessaire pour radiation solaire
+        tvs_profiles(iobs) % azangle  = obs_headElem_r(lobsSpaceData,OBS_AZA,header_index)
+        tvs_profiles(iobs) % sunazangle  = obs_headElem_r(lobsSpaceData,OBS_SAZ,header_index) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensor_id) % coef % id_platform
         instrum = tvs_coefs(sensor_id) % coef % id_inst
         if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
           !Correction sur la definition de l'angle. A ammeliorer. Ok pour l'instant.
-          tvs_profiles(iobs) % azangle   = (isatazim + isunazim) / 100.d0
+          tvs_profiles(iobs) % azangle   = tvs_profiles(iobs) % sunazangle + tvs_profiles(iobs) % azangle
           if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle = tvs_profiles(iobs) % azangle - 360.d0
         end if
         tvs_profiles(iobs) % sunzenangle = obs_headElem_r(lobsSpaceData,OBS_SUN,header_index)

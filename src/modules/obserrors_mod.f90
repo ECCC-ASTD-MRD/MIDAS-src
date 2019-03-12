@@ -1360,7 +1360,7 @@ contains
       IOTP = obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
       iqiv = nint( obs_headElem_r (obsSpaceData,OBS_SZA,headerIndex) )
       imet = obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
-      ilsv = obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
+      ilsv = nint( obs_headElem_r (obsSpaceData,OBS_AZA,headerIndex) )
       igav = nint( obs_headElem_r (obsSpaceData,OBS_SUN,headerIndex) )
       ihav = nint( obs_headElem_r (obsSpaceData,OBS_CLF,headerIndex) )
       zlat = obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
@@ -1516,7 +1516,7 @@ contains
     integer headerIndex, IDATYP, bodyIndex, iProfile
     REAL*8 zLat, Lat, sLat
     REAL*8 zLon, Lon
-    REAL*8 zAzm, Azm
+    REAL*8 zAzm
     REAL*8, allocatable :: ZPP(:)
     REAL*8, allocatable :: ZDP(:)
     REAL*8, allocatable :: ZTT(:)
@@ -1526,7 +1526,7 @@ contains
     REAL*8, allocatable :: ZVV(:)
     !
     REAL*8 DH,DDH
-    integer JL, IAZM, isat, JH, NGPSLEV, NWNDLEV
+    integer JL, isat, JH, NGPSLEV, NWNDLEV
     REAL*8 zMT, Rad, Geo, zP0
     REAL*8 HNH1, SUM0, SUM1, ZMIN
     !
@@ -1595,11 +1595,10 @@ contains
              !
              !     *        Basic geometric variables of the profile:
              !
-          IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,headerIndex)
           isat = obs_headElem_i(lobsSpaceData,OBS_SAT,headerIndex)
           Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
           Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
-          zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+          zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,headerIndex) / MPC_DEGREES_PER_RADIAN_R8
           zMT  = col_getHeight(lcolumnhr,0,headerIndex,'SF')
              !     
              !     *        Profile at the observation location:
@@ -1608,7 +1607,6 @@ contains
           zLon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
           Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
-          Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
           zMT  = zMT * RG / gpsgravitysrf(sLat)
           zP0  = col_getElem(lcolumnhr,1,headerIndex,'P0')

@@ -80,9 +80,9 @@ contains
     type (struct_obs), intent(inout) :: obsdat
     character(len=*) , intent(in)    :: rdbSchema,idStation
     character(len=2) , intent(in)    :: familyType
-    integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, azimuth, landSea, roQcFlag
+    integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, landSea, roQcFlag
     integer          , intent(in)    :: obsSat, instrument, idProf
-    real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon, solarAzimuth, cloudCover, solarZenith, zenith
+    real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon, solarAzimuth, cloudCover, solarZenith, zenith, azimuth
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
     call obs_headSet_i( obsdat, OBS_IDO, headerIndex, obsIdo        )       
@@ -104,7 +104,7 @@ contains
       call obs_headSet_r( obsdat, OBS_SUN , headerIndex, solarZenith )
 
       if ( trim(rdbSchema) /= 'csr' ) then
-        call obs_headSet_i( obsdat, OBS_AZA , headerIndex, azimuth )
+        call obs_headSet_r( obsdat, OBS_AZA , headerIndex, azimuth )
       end if
 
       if ( trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
@@ -122,7 +122,7 @@ contains
         call obs_headSet_r( obsdat, OBS_GEOI, headerIndex, geoidUndulation )
         call obs_headSet_r( obsdat, OBS_TRAD, headerIndex, earthLocRadCurv )
         call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat          )
-        call obs_headSet_i( obsdat, OBS_AZA , headerIndex, azimuth         )
+        call obs_headSet_r( obsdat, OBS_AZA , headerIndex, azimuth         )
       else if ( trim(rdbSchema) == 'al' ) then
         call obs_headSet_i( obsdat, OBS_PRFL, headerIndex, idProf          )
       end if
@@ -144,7 +144,7 @@ contains
     integer                  :: obsIdo, obsIdd, codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
     real(obs_real)           :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
-    integer                  :: azimuth, vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
+    integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(obs_real)           :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss
@@ -399,7 +399,7 @@ contains
       call fSQL_get_row( stmt, finished )   ! Fetch the next row
       if (finished) then                    ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
         if ( headerIndex > 1 .and. obsNlv > 0 ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=obs_real), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=obs_real), real(cloudCoverReal,kind=obs_real), real(solarZenithReal,kind=obs_real), &
                                 real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
         exit HEADER
@@ -415,7 +415,7 @@ contains
       solarZenithReal  = MPC_missingValue_R4
       zenithReal = MPC_missingValue_R4
       instrument = MPC_missingValue_INT
-      azimuth = MPC_missingValue_INT; azimuthReal_R8 = MPC_missingValue_R8
+      azimuthReal_R8 = MPC_missingValue_R8
 
       call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = obsIdo    )
       call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = obsLat    )
@@ -437,9 +437,7 @@ contains
         if ( trim(rdbSchema) /= 'csr' ) then
 
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
-          if ( azimuthReal_R8 /= MPC_missingValue_R8 ) then
-            azimuth = nint( azimuthReal_R8 * 100. )
-          end if
+
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
         end if
@@ -489,9 +487,7 @@ contains
           earthLocRadCurv_R8 = earthLocRadCurv
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
-          if ( azimuthReal_R8 /= MPC_missingValue_R8 ) then
-            azimuth = nint( azimuthReal_R8 * 100. )
-          end if
+
 
         else if ( trim(rdbSchema)=='al' ) then
           call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
@@ -509,7 +505,7 @@ contains
         ! ---------------------------------------------------
         if ( int(matdata(rowIndex,2)) > obsIdo ) then 
 
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=obs_real), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=obs_real), real(cloudCoverReal,kind=obs_real), real(solarZenithReal,kind=obs_real), &
                                 real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
           exit DATA
@@ -517,7 +513,7 @@ contains
         else if ( int(matdata(rowIndex,2)) == obsIdo ) then
 
           if ( headerIndex == headerIndexStart .and. obsNlv == 0  ) &
-            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+            call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=obs_real), geoidUndulation, &
                                   earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=obs_real), real(cloudCoverReal,kind=obs_real), real(solarZenithReal,kind=obs_real), &
                                   real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf )
 
@@ -595,7 +591,7 @@ contains
         end if   
 
         if ( lastId > numberRows ) &
-          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, azimuth, geoidUndulation, &
+          call sqlr_initHeader( obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, real(azimuthReal_R8,kind=obs_real), geoidUndulation, &
                                 earthLocRadCurv, roQcFlag, instrument, real(zenithReal,kind=OBS_REAL), real(cloudCoverReal,kind=obs_real), real(solarZenithReal,kind=OBS_REAL), &
                                 real(solarAzimuthReal,kind=obs_real), landSea, obsIdo, xlat, xlon, codeType,obsDate, obsTime/100, obsStatus, idStation, idProf )
 

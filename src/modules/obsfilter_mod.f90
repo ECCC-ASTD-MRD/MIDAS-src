@@ -1251,8 +1251,8 @@ contains
     type(struct_obs)        :: lobsSpaceData
     !
     INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER JL, IAZM, ISAT, ICLF, iProfile, NH, I
-    REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon
+    INTEGER JL, ISAT, ICLF, iProfile, NH, I
+    REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
     REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
     LOGICAL LLEV, LOBS, LNOM, LSAT
     !
@@ -1274,7 +1274,7 @@ contains
           !
           !     *     Basic geometric variables of the profile:
           !
-          IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+          AZM  = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER)
           ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
           ICLF = obs_headElem_i(lobsSpaceData,OBS_ROQF,INDEX_HEADER)
           Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
@@ -1350,8 +1350,9 @@ contains
              !
              !     *        Mark as not assimilable unless all conditions are satisfied:
              !
-             IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. IAZM.LT.0 .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
-                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+
+             IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. AZM.LT.0. .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
              END IF
           END DO BODY
