@@ -490,6 +490,7 @@ contains
     !
     !        PROFILER
     !------------------------------
+    ZJOPROF=0.0D0
     call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'PR')
     !
     !        GEOMETRIC HEIGHT - ALADIN WINDS
