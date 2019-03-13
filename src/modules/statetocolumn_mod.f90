@@ -24,6 +24,7 @@ module stateToColumn_mod
   ! and a columnData object.
   !
   use mathPhysConstants_mod
+  use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod 
   use gridstatevector_mod
@@ -36,6 +37,7 @@ module stateToColumn_mod
   use windRotation_mod
   use utilities_mod
   use variabletransforms_mod
+  use varNameList_mod
   
   implicit none
   save
@@ -80,6 +82,185 @@ module stateToColumn_mod
   integer, external    :: get_max_rss
 
 contains 
+
+  subroutine findHeightMpiId( stateVector_in, height )
+    ! **Purpose:**
+    ! Obtain the MpiId of the height for each kIndex level, 
+    ! needed to calculate the lat/lon along the slant-path.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector_in
+    real(8), intent(inout) :: height(statevector_in%ni,statevector_in%nj,statevector_in%mykBeg:statevector_in%mykEnd,statevector_in%numStep)
+
+    ! locals
+    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
+    integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
+    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numGZsfcRecv, numGZsfcSend
+    integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
+    integer :: requestIdGZsfcSend(10), requestIdGZsfcRecv(10)
+    integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
+    real(8), allocatable :: heightSend(:,:,:), heightRecv(:,:,:), GZsfcSend(:,:)
+    character(len=4)    :: varName
+
+    write(*,*) 'findHeightMpiId: START'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    if ( statevector_in%mpi_distribution /= 'VarsLevs' ) then
+      call utl_abort('findHeightMpiId: statevector_in must have VarsLevs mpi distribution')
+    end if
+
+    allocate(heightSend(statevector_in%ni,statevector_in%nj, &
+                         statevector_in%mykBeg:statevector_in%mykEnd))
+    allocate(heightRecv(statevector_in%ni,statevector_in%nj, &
+                         statevector_in%mykBeg:statevector_in%mykEnd))
+    allocate(GZsfcSend(statevector_in%ni,statevector_in%nj))
+
+    call tmg_start(157,'findHeightMpiId')
+
+    do stepIndex = 1, statevector_in%numStep
+
+      write(*,*) 'LOOP_KINDEX start. stepIndex=', stepIndex,', Memory Used: ',get_max_rss()/1024,'Mb'
+
+      numSend = 0
+      numRecv = 0
+      numGZsfcRecv  = 0
+      numGZsfcSend  = 0
+      LOOP_KINDEX: do kIndexRecv = 1, stateVector_in%nk
+        varName = gsv_getVarNameFromK(stateVector_in, kIndexRecv) 
+
+        ! get k index for corresponding GZ component
+        levVar = gsv_getLevFromK(stateVector_in, kIndexRecv)
+        if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
+          kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'GZ_T')
+        else if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
+          kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'GZ_M')
+        end if
+
+        ! get Mpi task id for both Var and corresponding GZ
+        MpiIdRecv = gsv_getMpiIdFromK(statevector_in,kIndexRecv)
+        if ( vnl_varLevelFromVarname(varName) == 'SF' ) then
+          kIndexSend = 0
+          MpiIdSend = 0
+        else
+          MpiIdSend = gsv_getMpiIdFromK(statevector_in,kIndexSend)
+        end if
+
+        if ( MpiIdRecv == MpiIdSend .and. mpi_myid == MpiIdRecv ) then
+
+          if ( stepIndex == 1 ) & 
+            write(*,*) 'I am sender and receiver:', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+          if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+            if ( statevector_in%dataKind == 4 ) then
+              heightRecv(:, :, kIndexRecv) = statevector_in%gd_r4(:, :, kIndexSend, stepIndex)
+            else
+              heightRecv(:, :, kIndexRecv) = statevector_in%gd_r8(:, :, kIndexSend, stepIndex)
+            end if
+
+          else
+            heightRecv(:, :, kIndexRecv) = statevector_in%GZsfc(:, :)
+          end if
+
+          cycle LOOP_KINDEX
+
+        end if
+
+        ! do mpi communication 
+        nsize = statevector_in%ni * statevector_in%nj
+        mpiTagRecv = kIndexRecv
+        mpiTagSend = kIndexSend
+        ! RECEIVE, I only have non-GZ fields
+        if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdRecv ) then 
+
+          if ( stepIndex == 1 ) & 
+            write(*,*) 'I am receiver           :', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+          if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+            numRecv = numRecv + 1
+            call mpi_irecv( heightRecv(:, :, kIndexRecv),  &
+                            nsize, mpi_datyp_real8, MpiIdSend, mpiTagSend,  &
+                            mpi_comm_grid, requestIdRecv(numRecv), ierr )
+
+          else 
+            if ( statevector_in%gzSfcPresent ) then
+              numGZsfcRecv = numGZsfcRecv + 1
+              call mpi_irecv( heightRecv(:, :, kIndexRecv),  &
+                              nsize, mpi_datyp_real8,         0,          0,  &
+                              mpi_comm_grid, requestIdGZsfcRecv(numGZsfcRecv), ierr )
+            else
+              heightRecv(:, :, kIndexRecv) = 0.0d0
+            end if
+          end if
+
+        ! SEND, I have GZ
+        else if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdSend ) then 
+
+          if ( stepIndex == 1 ) & 
+            write(*,*) 'I am sender             :', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+          if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+            numSend = numSend + 1
+            if ( statevector_in%dataKind == 4 ) then
+              heightSend(:, :, kIndexSend) = statevector_in%gd_r4(:, :, kIndexSend, stepIndex)
+            else
+              heightSend(:, :, kIndexSend) = statevector_in%gd_r8(:, :, kIndexSend, stepIndex)
+            end if
+            call mpi_isend( heightSend(:, :, kIndexSend),  &
+                            nsize, mpi_datyp_real8, MpiIdRecv, mpiTagSend,  &
+                            mpi_comm_grid, requestIdSend(numSend), ierr )
+
+          else if ( statevector_in%gzSfcPresent .and. mpi_myid == 0 .and. &
+              vnl_varLevelFromVarname(varName) == 'SF' ) then
+            numGZsfcSend = numGZsfcsend + 1
+            GZsfcSend(:, :) = statevector_in%GZsfc(:, :)
+            call mpi_isend( GZsfcSend(:, :),  &
+                            nsize, mpi_datyp_real8, MpiIdRecv,            0,  &
+                            mpi_comm_grid, requestIdGZsfcSend(numGZsfcSend), ierr )
+          end if
+
+        end if
+
+      end do LOOP_KINDEX
+
+      if ( stepIndex == 1 ) write(*,*) 'LOOP_KINDEX finished.'
+      write(*,*) 'LOOP_KINDE end. stepIndex=', stepIndex,', Memory Used: ',get_max_rss()/1024,'Mb'
+      if ( numRecv > 0 ) then
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
+      end if
+
+      if ( numGZsfcRecv > 0 ) then
+        call mpi_waitAll(numGZsfcRecv, requestIdGZsfcRecv(1:numGZsfcRecv), mpiStatuses(:,1:numGZsfcRecv), ierr)
+      end if
+
+      if ( numSend > 0 ) then
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+      end if
+
+      if ( numGZsfcSend > 0 ) then
+        call mpi_waitAll(numGZsfcSend, requestIdGZsfcSend(1:numGZsfcSend), mpiStatuses(:,1:numGZsfcSend), ierr)
+      end if
+
+      if ( stepIndex == 1 ) write(*,*) 'mpi_waitall finished.'
+      write(*,*) 'mpi_waitall end. stepIndex=', stepIndex,', Memory Used: ',get_max_rss()/1024,'Mb'
+
+      do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
+        height(:, :, kIndex, stepIndex) =  heightRecv(:, :, kIndex)
+      end do
+
+    end do ! stepIndex
+
+    deallocate(GZsfcSend)
+    deallocate(heightRecv)
+    deallocate(heightSend)
+
+    write(*,*) 'findHeightMpiId: END'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    call tmg_stop(157)
+
+  end subroutine findHeightMpiId
 
   !---------------------------------------------------------
   ! s2c_latLonChecks
@@ -231,6 +412,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer, allocatable :: allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
+    real(8), allocatable :: height(:,:,:,:)
     integer :: ezgdef, gdllfxy
     logical :: obsOutsideGrid
 
@@ -239,6 +421,11 @@ contains
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
+
+    allocate(height(statevector%ni,statevector%nj,statevector%mykBeg:statevector%mykEnd,numStep))
+    height(:,:,:,:) = 0.0d0
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call findHeightMpiId(stateVector, height)
 
     call oti_setup(interpInfo%oti, obsSpaceData, numStep, timeInterpType, flagObsOutside_opt=.true.)
 
@@ -640,6 +827,7 @@ contains
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
     deallocate(allNumHeaderUsed)
+    deallocate(height)
 
     interpInfo%initialized = .true.
 
