@@ -22,7 +22,7 @@ openmp=44 #44
 memory=100000M #220000M
 maxcputime=10800
 
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
+run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
 
 #
 # Don't modify below ...
@@ -53,7 +53,7 @@ cat << EOF > $TMPDIR/go_calcstats.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2
+. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
 
 export OMP_STACKSIZE=4096M
 

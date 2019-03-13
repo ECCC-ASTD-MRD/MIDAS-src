@@ -23,10 +23,10 @@ if [ "$mode" == "" ] ; then
   mode=full
 fi
 
-if [ $mode == full ] ; then
+if [ "${mode}" == full ] ; then
   echo "..."
   echo "... > Full Compilation"
-elif [ $mode == abs ] ; then
+elif [ "${mode}" == abs ] ; then
   echo "..."
   echo "... > Building the Executable only"
 else
@@ -40,7 +40,7 @@ if [ "$deleteCompileDir" == "" ] ; then
   deleteCompileDir=yes
 fi
 
-if [ $deleteCompileDir == yes ] ; then
+if [ "${deleteCompileDir}" == yes ] ; then
   echo "..."
   echo "... > the compilation directory will be DELETED after the successful completion of this task"
 else
@@ -96,6 +96,11 @@ LIBRMN=rmnMP
 . ${programsDir}/src_files/compile_setup_${program}.sh
 . ${programsDir}/src_files/src_files_${program}.sh
 
+LINK_LIBS=
+for thislib in ${LIBAPPL} ${LIBSYS} ${LIBRMN}; do
+    LINK_LIBS="${LINK_LIBS} -l${thislib}"
+done
+
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
@@ -116,10 +121,36 @@ if [ $mode == full ] ; then
   echo "... > STARTING COMPILATION AT: $(date)"
   echo "..."
 
+  echo "... > Preprocessing *.ftn90 ..."
+  echo "...   if aborting, check in ${PWD}/listing_preproc"
+
+  SRC_FILES_F90=
+  defines=
+  for file in ${SRC_FILES}; do
+      if [[ "${file}" = *.ftn90 ]]; then
+          if [ -z "${defines}" ]; then
+              for opt in ${COMPF}; do
+                  if [[ "${opt}" = -D* ]]; then
+                      defines="${defines} ${opt}"
+                  fi
+              done
+          fi
+          file90=$(basename ${file} .ftn90).f90
+          echo ${file} >> listing_preproc
+          r.gppf -lang-f90+ ${GPP_OPTS} ${defines} ${file} > ${file90} 2>> listing_preproc
+      else
+          file90=${file}
+      fi
+      SRC_FILES_F90="${SRC_FILES_F90} ${file90}"
+  done
+
   echo "... > Compiling all modules and subroutines ..."
   echo "...   if aborting, check in ${PWD}/listing"
 
-  s.compile $COMPF -O ${FOPTMIZ} -src $SRC_FILES > listing 2>&1
+  ## This variable makes 's.f90' more verbose
+  export Verbose=yes
+
+  s.f90 ${COMPF} -O ${FOPTMIZ} -c ${SRC_FILES_F90} > listing 2>&1
   status=1
   grep fail listing || status=0
   if [ "${status}" -ne 0 ] ; then
@@ -127,21 +158,9 @@ if [ $mode == full ] ; then
       exit 1
   fi
 
-  if [ ! -z "$SRC_FILES_2" ] ; then
-     echo "... > Compiling all modules and subroutines (part 2) ..."
-     echo "...   if aborting, check in ${PWD}/listing_2"
-     s.compile $COMPF -O ${FOPTMIZ} -src $SRC_FILES_2 > listing_2 2>&1
-     status=1
-     grep fail listing_2 || status=0
-     if [ "${status}" -ne 0 ] ; then
-	 echo "... !! Compilation aborted: check in ${PWD}/listing_2 !!"
-	 exit 1
-     fi 
-  fi
-
   echo "... > Compiling main program..."
   echo "...   if aborting, check in ${PWD}/listing_main"
-  s.compile $COMPF -O ${FOPTMIZ} -src ${program}.f90 > listing_main 2>&1
+  s.f90 ${COMPF} -O ${FOPTMIZ} -c ${program}.f90 > listing_main 2>&1
   status=1
   grep fail listing_main || status=0
   if [ "${status}" -ne 0 ]; then
@@ -152,7 +171,7 @@ if [ $mode == full ] ; then
   echo "... > Building the executable ${midasAbs}"
   rm -f ${midasAbs}
   echo "...   if aborting, check in ${PWD}/listing_abs"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs} > listing_abs 2>&1
+  s.f90 ${COMPF} -O ${FOPTMIZ} ${LINK_LIBS} *.o -o ${midasAbs} > listing_abs 2>&1
   status=1
   grep fail listing_abs || status=0
   if [ "${status}" -ne 0 ]; then
@@ -168,7 +187,7 @@ if [ $mode == full ] ; then
   fi
   cp ${midasAbs} ${absdir}/
 
-  if [ $deleteCompileDir == yes ] ; then
+  if [ "${deleteCompileDir}" == yes ] ; then
       rm -rf ${compiledir}
   fi
 
@@ -179,7 +198,7 @@ elif [ $mode == abs ] ; then
   echo "..."
   echo "... > Building the executable ${midasAbs}"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs}
+  s.f90 ${COMPF} -O ${FOPTMIZ} ${LINK_LIBS} *.o -o ${midasAbs}
   cp ${midasAbs} ${absdir}/
 
 else
@@ -191,7 +210,7 @@ else
     echo "..."
     echo "... compiling $mode"
     echo "..."
-    s.compile $COMPF  -O ${FOPTMIZ} -src $file
+    s.f90 ${COMPF} -O ${FOPTMIZ} -c ${file}
   elif [ -f $programsDir/$mode ] ; then
     file=`basename $mode`
     rm -f $file
@@ -199,7 +218,7 @@ else
     echo "..."
     echo "... compiling $mode"
     echo "..."
-    s.compile $COMPF  -O ${FOPTMIZ} -src $file
+    s.f90 ${COMPF} -O ${FOPTMIZ} -c ${file}
   else
     echo "..."
     echo "... !! File $mode does NOT exist in directories ${modulesDir} and ${programsDir}. Stop !!"

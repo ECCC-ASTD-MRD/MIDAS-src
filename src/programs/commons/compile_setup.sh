@@ -26,9 +26,9 @@ fi
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-## for s.compile
-echo "... loading hpco/tmp/eccc/201402/06/base"
-. ssmuse-sh -d hpco/tmp/eccc/201402/06/base
+## for 's.f90' and 's.compile'
+echo "... loading hpco/tmp/eccc/201402/07/base"
+. ssmuse-sh -d hpco/tmp/eccc/201402/07/base
 ## for the compiler
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
@@ -74,9 +74,9 @@ echo "... loading eccc/mrd/rpn/anl/rttov/12v1.1"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.1/${COMP_ARCH}
 
 COMPF_GLOBAL="-openmp -mpi"
-OPTF="=-check =noarg_temp_created =-no-wrap-margin"
+OPTF="-check noarg_temp_created -no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    OPTF="=-mkl ${OPTF}"
+    OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     OPTF="${OPTF}"
 else
@@ -87,9 +87,12 @@ fi
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
     echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
-    COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
-    COMPF="${COMPF_NOC} =-check all"
+    COMPF_NOC="${COMPF_GLOBAL} -debug ${OPTF}"
+    COMPF="${COMPF_NOC} -check all"
 else
-    COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
+    COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}
 fi
+
+GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
+GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"

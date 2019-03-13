@@ -21,7 +21,7 @@ npex=11
 npey=4
 openmp=2
 maxcputime=450
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
+run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
 #
 # Don't modify below ...
 #
@@ -425,7 +425,7 @@ cat << EOF > $TMPDIR/go_ensembleh.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2
+. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
 . ssmuse-sh -d eccc/mrd/rpn/anl/oavar/3.0.4
 
 # MPI SETUP FOR PPP ONLY
