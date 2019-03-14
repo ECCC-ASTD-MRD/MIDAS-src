@@ -595,7 +595,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_PRM = OBS_WORK+1 ! (adjusted) observed value for tovs in variational assimilation
    integer, parameter, public :: OBS_JOBS= OBS_PRM +1 ! contribution to obs cost function
    integer, parameter, public :: OBS_QCV = OBS_JOBS+1 ! weight-reduction factor for var QC
-   integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! weight-reduction factor for var QC
+   integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! forecast sensitivity to observations
    integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
    ! the number of real body variables defined just above
    integer, parameter :: NBDY_REAL_END = OBS_CRPS
