@@ -10,7 +10,7 @@
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="obsIO"/>
-  <!-- <SUBMITS sub_name="calcStats"/> -->
+  <SUBMITS sub_name="calcStats"/>
   <!-- <SUBMITS sub_name="diagBmatrix"/> -->
 
   <FAMILY  name="var">
@@ -234,60 +234,12 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
-  <!--
   <FAMILY  name="calcStats">
-    <SUBMITS sub_name="bhi"/>
-    <FAMILY  name="bhi">
-      <SUBMITS sub_name="glb"/>
-      <FAMILY  name="glb">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-      <SUBMITS sub_name="lam"/>
-      <FAMILY  name="lam">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-    </FAMILY>
-    <SUBMITS sub_name="hvloc"/>
-    <FAMILY  name="hvloc">
-      <SUBMITS sub_name="glb"/>
-      <FAMILY  name="glb">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-      <SUBMITS sub_name="lam"/>
-      <FAMILY  name="lam">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-    </FAMILY>
-  </FAMILY>
-  -->
-
-  <!--
-  <FAMILY  name="diagBmatrix">
-    <SUBMITS sub_name="G-NMC"/>
-    <FAMILY  name="G-NMC">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="N-NMC"/>
-    <FAMILY  name="N-NMC">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="ens-glb"/>
-    <FAMILY  name="ens-glb">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="ens-lam"/>
-    <FAMILY  name="ens-lam">
+    <SUBMITS sub_name="lam"/>
+    <FAMILY  name="lam">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
   </FAMILY>
-  -->
 
 </MODULE>

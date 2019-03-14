@@ -1,0 +1,23 @@
+ &NAMCONF
+   MODE   = 'BHI'
+/
+ &NAMSTATE
+   CGNEED(1)   ='UU'
+   CGNEED(2)   ='VV'
+   CGNEED(3)   ='TT'
+   CGNEED(4)   ='LQ'
+   CGNEED(5)   ='P0'
+/
+ &NAMENS
+   NENS=16
+   ENSFILEBASENAME='national_'
+   IP2=24
+/
+ &NAMCALCSTATS_LAM
+   NTRUNC    = 250
+   GRD_EXT_X = 196
+   GRD_EXT_Y = 184
+   NORMBYSTDDEV  = .TRUE.
+   WRITEENSPERT  = .FALSE.
+   CORRELATIONLQ = .TRUE.
+/
