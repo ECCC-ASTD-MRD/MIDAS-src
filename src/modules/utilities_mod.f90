@@ -1424,7 +1424,7 @@ contains
   
   !--------------------------------------------------------------------------
   ! utl_readFstField
-  !------------------;-------------------------------------------------------
+  !--------------------------------------------------------------------------
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
                                ni,nj,nkeys,array,xlat_opt,xlong_opt,lvls_opt,kind_opt)
     !
@@ -1636,20 +1636,40 @@ contains
   !--------------------------------------------------------------------------
   ! utl_varNamePresentInFile
   !--------------------------------------------------------------------------
-  function utl_varNamePresentInFile(fileName,varName) result(found)
+  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt) result(found)
     implicit none
 
-    character(len=*) :: fileName
-    character(len=*) :: varName
+    character(len=*), intent(in) :: varName
+    character(len=*), optional, intent(in) :: fileName_opt
+    integer, optional, intent(in) :: fileUnit_opt
     logical :: found
 
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: ni, nj, nk, key, ierr
-    integer :: unit = 0
+    integer :: unit
 
-    ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
-    ierr = fstouv(unit,'RND+OLD')
-    
+    character(len=128) :: fileName 
+
+    logical :: openFile
+
+    if ( present(fileUnit_opt) ) then
+      unit = fileUnit_opt
+      openFile = .false.
+    else
+      unit = 0
+      openFile = .true.
+      if ( present(fileName_opt) ) then
+        fileName = fileName_opt
+      else
+        call utl_abort('utl_varNamePresentInFile: please provide and file name or unit')
+      end if
+    end if
+
+    if (openFile) then
+      ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
+      ierr = fstouv(unit,'RND+OLD')
+    end if
+
     key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
     
     if ( key > 0 )  then
@@ -1658,8 +1678,10 @@ contains
       found = .false.
     end if
     
-    ierr =  fstfrm(unit)
-    ierr =  fclos (unit)
+    if (openFile) then
+      ierr =  fstfrm(unit)
+      ierr =  fclos (unit)
+    end if
 
   end function utl_varNamePresentInFile
 

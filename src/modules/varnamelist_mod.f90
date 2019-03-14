@@ -23,12 +23,6 @@
 !!
 !--------------------------------------------------------------------------
 module varNameList_mod
-!
-! Revisions: 
-!            M. Sitwell (ARQI/AQRD) Oct 2015
-!            - Added varKindList and vnl_varKindFromVarname to identify the kind of field
-!              where 'MT'=meteorological and 'CH'=chemical constituent
-!
   use bufr_mod
   use utilities_mod
   implicit none
@@ -41,11 +35,11 @@ module varNameList_mod
 
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
-  public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
+  public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 31, vnl_numvarmax2D = 11
+  integer, parameter          :: vnl_numvarmax3D = 31, vnl_numvarmax2D = 13
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
@@ -59,12 +53,6 @@ module varNameList_mod
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH'/)
 
-  character(len=5), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                                  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ',  &
-                                 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'OTHER', 'MODEL', 'DIAG'/)
-
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
@@ -73,25 +61,20 @@ module varNameList_mod
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2', 'EHCH', 'ESO2', 'ENH3' , &
-                                 'GL  ','WGE '/)
+                                 'GL  ','WGE ','BIN ','MG  '/)
 
   character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF'/)
-
-  character(len=5), parameter :: varTypeList2D(vnl_numvarmax2D) = (/     &
-                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', &
-                                 'MODEL', 'MODEL'/)
+                                 'SF',  'SF',  'SF',  'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', &
-                                 'MT', 'MT'/)
+                                 'MT', 'MT', 'MT', 'MT'/)
 
   integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
 
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
   character(len=2), parameter :: varLevelList   (vnl_numvarmax) = (/ varLevelList3D   , varLevelList2D    /)
-  character(len=5), parameter :: varTypeList    (vnl_numvarmax) = (/ varTypeList3D    , varTypeList2D     /)
   character(len=2), parameter :: varKindList    (vnl_numvarmax) = (/ varKindList3D    , varKindList2D     /)
 
   contains
@@ -162,14 +145,8 @@ module varNameList_mod
 
     end function vnl_varListIndex
 
-
     !--------------------------------------------------------------------------
     ! vnl_varnameFromVarnum
-    !
-    !   Revisions:
-    !             Y.J. Rochon (ARQI), Jan. 2015
-    !             - Modified search for chemical constituents 
-    !          
     !--------------------------------------------------------------------------
     function vnl_varnameFromVarnum( varNumber, varNumberChm_opt ) result(varName)
       implicit none
@@ -238,11 +215,11 @@ module varNameList_mod
                  varname='AC'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumberChm_opt
-                 call utl_abort('aborting in vnl_varnameFromVarnum')
+                 call utl_abort('vnl_varnameFromVarnum')
            end select
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-           call utl_abort('aborting in vnl_varnameFromVarnum')
+           call utl_abort('vnl_varnameFromVarnum')
         endif 
       end select
 
@@ -250,23 +227,16 @@ module varNameList_mod
 
     !--------------------------------------------------------------------------
     ! vnl_varnumFromVarname
-    !
-    !   Author: Y.J. Rochon (ARQI), Jan. 2016
-    !
-    !   Revisions:
-    !          
-    !   Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
-    !  
-    !   Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
-    !   So one must provide the name directly associated to a single BUFR code.
-    !   As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
-    !   
-    !   For constituents, the varNumber refers only to the field/variable and not units. As consequence,
-    !   there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
-    !   
     !-------------------------------------------------------------------------- 
     function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
-
+      !   Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
+      !  
+      !   Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
+      !   So one must provide the name directly associated to a single BUFR code.
+      !   As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
+      !   
+      !   For constituents, the varNumber refers only to the field/variable and not units. As consequence,
+      !   there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
       implicit none
       character(len=*),  intent(in) :: varName
       character(len=*),  intent(in), optional :: varKind_opt
@@ -390,29 +360,9 @@ module varNameList_mod
     end function vnl_varLevelFromVarnum
 
     !--------------------------------------------------------------------------
-    ! vnl_varTypeFromVarname
+    ! vnl_varKindFromVarname
     !--------------------------------------------------------------------------
-    function vnl_varTypeFromVarname(varName) result(varType)
-      implicit none
-
-      character(len=*), intent(in)   :: varName
-      character(len=5)               :: varType
-
-      varType = varTypeList(vnl_varListIndex(varName))
-
-    end function vnl_varTypeFromVarname
-
-
     function vnl_varKindFromVarname(varName) result(varKind)
-!
-!   Purpose: Get the variable kind from the variable name
-!            as set in the array vnl_varKindList
-!
-!   Author: M. Sitwell (ARQI/AQRD) Oct 2015
-!           Following recommendation by M. Buehner.
-!
-!---------------------------------------------------------------
-
       implicit none
 
       character(len=*), intent(in) :: varName

@@ -525,7 +525,7 @@ contains
         write(*,*) 'chm_obsoper_init: chm_constituents_size less than ',obsoper%constituent_id,' for STNID ',obsoper%stnid
         write(*,*) 'chm_obsoper_init: may need to increae chm_constituents_size'
         write(*,*) 'chm_obsoper_init: or edit BURP file values for Table 08046 element.'
-        call utl_abort('aborting in chm_obsoper_init')                  
+        call utl_abort('chm_obsoper_init')                  
     end if
 
     obsoper%lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) 

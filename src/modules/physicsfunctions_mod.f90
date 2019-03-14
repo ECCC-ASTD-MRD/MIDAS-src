@@ -37,7 +37,7 @@ module physicsFunctions_mod
   public :: FODTI8_CMAM, FOTWI8_CMAM, FODTWI8_CMAM, FQBRANCH, FOEFQL, fotvvl, FOEFQA
   public :: FOEFQPSA, fottva, folnqva
   public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
-  public :: phf_get_tropopause, phf_get_pbl
+  public :: phf_get_tropopause, phf_get_pbl, phf_calcDistance, phf_calcDistanceFast
 
   LOGICAL :: initialized = .false.
   LOGICAL :: NEW_TETENS_COEFS
@@ -959,6 +959,55 @@ module physicsFunctions_mod
     end if
 
   end function phf_get_pbl
+
+  !--------------------------------------------------------------------------
+  ! calcDistance
+  !--------------------------------------------------------------------------
+  function phf_calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
+    implicit none
+    ! **Purpose:**
+    ! Compute the distance between two point on earth: (lat1,lon1) and (lat2,lon2).
+    ! Calcul utilisant la Formule d'Haversine.
+    ! Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope, vol.68, no.2, 1984, p.159)
+
+    ! arguments
+    real(8) :: lat1, lon1, lat2, lon2
+    real(8) :: distanceInM
+
+    ! locals
+    real(8) :: dlat, dlon, a, c
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
+    c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
+    distanceInM = RA * c
+
+  end function phf_calcDistance
+
+  !--------------------------------------------------------------------------
+  ! calcDistanceFast
+  !--------------------------------------------------------------------------
+  function phf_calcDistanceFast(lat2, lon2, lat1, lon1) result(distanceInM)
+    implicit none
+    ! **Purpose:**
+    ! Compute the distance between two point on earth: (lat1,lon1) and (lat2,lon2).
+    ! Using a quick and dirty formula good for short distances not close to the pole.
+
+    ! arguments
+    real(8) :: lat1, lon1, lat2, lon2
+    real(8) :: distanceInM
+
+    ! locals
+    real(8) :: dlat, dlon
+
+    dlon = (lon2 - lon1)*cos(lat1)
+    dlat = lat2 - lat1
+
+    distanceInM = RA * sqrt(dlon*dlon + dlat*dlat)
+
+  end function phf_calcDistanceFast
   
 end module physicsFunctions_mod
 
