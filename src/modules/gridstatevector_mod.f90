@@ -329,7 +329,7 @@ module gridStateVector_mod
 
     ! Check value for ANLTIME_BIN
     if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
-      call utl_abort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!')
+      call utl_abort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist')
     end if
 
     return
@@ -734,7 +734,7 @@ module gridStateVector_mod
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lat1,lat2,lon1,lon2,k1,k2,k1UV,k2UV
 
     if (.not.statevector%allocated) then
-      call utl_abort('gsv_zero: gridStateVector not yet allocated! Aborting.')
+      call utl_abort('gsv_zero: gridStateVector not yet allocated')
     end if
 
     lon1=statevector%myLonBeg
@@ -829,10 +829,10 @@ module gridStateVector_mod
     !- Error traps
     !
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_interpolateAndAdd: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_interpolateAndAdd: gridStateVector_inout not yet allocated')
     end if
 
     nullify(varNamesToInterpolate)
@@ -881,10 +881,10 @@ module gridStateVector_mod
     !- Error traps
     !
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_interpolate: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_interpolate: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_interpolate: gridStateVector_out not yet allocated! Aborting.')
+      call utl_abort('gsv_interpolate: gridStateVector_out not yet allocated')
     end if
 
     !
@@ -952,10 +952,10 @@ module gridStateVector_mod
     integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_add: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_add: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_add: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_add: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1041,10 +1041,10 @@ module gridStateVector_mod
     integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1105,10 +1105,10 @@ module gridStateVector_mod
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copy: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_copy: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copy: gridStateVector_out not yet allocated! Aborting.')
+      call utl_abort('gsv_copy: gridStateVector_out not yet allocated')
     end if
 
     lon1 = statevector_in%myLonBeg
@@ -1226,17 +1226,17 @@ module gridStateVector_mod
     type(struct_gsv)  :: statevector_in, statevector_out
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copyGZsfc: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_copyGZsfc: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copyGZsfc: gridStateVector_out not yet allocated! Aborting.')
+      call utl_abort('gsv_copyGZsfc: gridStateVector_out not yet allocated')
     end if
 
     if ( .not. associated(statevector_in%gzSfc)) then
-      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_in not allocated! Aborting.')
+      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_in not allocated')
     end if
     if ( .not. associated(statevector_out%gzSfc)) then
-      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_out not allocated! Aborting.')
+      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_out not allocated')
     end if
 
     statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
@@ -1257,13 +1257,13 @@ module gridStateVector_mod
     real(4) :: paddingValue_r4
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_hPad: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_hPad: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_hPad: gridStateVector_out not yet allocated! Aborting.')
+      call utl_abort('gsv_hPad: gridStateVector_out not yet allocated')
     end if
     if (statevector_in%mpi_local .or. statevector_out%mpi_local) then
-       call utl_abort('gsv_hPad: both gridStateVectors must be NO MPI! Aborting.')
+       call utl_abort('gsv_hPad: both gridStateVectors must be NO MPI')
     end if
 
     lonBeg_in=statevector_in%myLonBeg
@@ -1277,10 +1277,10 @@ module gridStateVector_mod
         lonEnd_in > statevector_out%myLonEnd .or. &
         latBeg_in > statevector_out%myLatBeg .or. &
         latEnd_in > statevector_out%myLatEnd ) then
-      call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in! Aborting.')
+      call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in')
     end if
     if ( kBeg /= statevector_out%mykBeg .or. kEnd /= statevector_out%mykEnd) then
-      call utl_abort('gsv_hPad: Vertical levels are not compatible! Aborting.')
+      call utl_abort('gsv_hPad: Vertical levels are not compatible')
     end if
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
@@ -1350,7 +1350,7 @@ module gridStateVector_mod
     real(8), optional :: scaleFactor_opt
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_power: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_power: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1434,7 +1434,7 @@ module gridStateVector_mod
     real(8)          :: scaleFactor
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_scale: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_scale: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1488,7 +1488,7 @@ module gridStateVector_mod
     real(8)          :: scaleFactor(:)
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1541,7 +1541,7 @@ module gridStateVector_mod
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_3dto4d: statevector not yet allocated! Aborting.')
+      call utl_abort('gsv_3dto4d: statevector not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1600,7 +1600,7 @@ module gridStateVector_mod
     real(8), allocatable :: gd2d_tmp(:,:)
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_3dto4dAdj: statevector not yet allocated! Aborting.')
+      call utl_abort('gsv_3dto4dAdj: statevector not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1672,7 +1672,7 @@ module gridStateVector_mod
     integer        :: ierr, kIndex
 
     if (.not.statevector%allocated) then
-      call utl_abort('gsv_deallocate: gridStateVector not yet allocated! Aborting.')
+      call utl_abort('gsv_deallocate: gridStateVector not yet allocated')
     end if
 
     statevector%allocated=.false.
@@ -2526,11 +2526,11 @@ module gridStateVector_mod
     if ( ierr >= 0 ) then
       ierr  =  fstouv(nulfile,'RND+OLD')
     else
-      call utl_abort('gsv_readFile: problem opening input file, aborting!')
+      call utl_abort('gsv_readFile: problem opening input file')
     end if
 
     if (nulfile == 0 ) then
-      call utl_abort('gsv_readFile: unit number for input file not valid!')
+      call utl_abort('gsv_readFile: unit number for input file not valid')
     end if
 
     ! Read surface GZ if requested
@@ -4306,11 +4306,11 @@ module gridStateVector_mod
       if ( ierr >= 0 ) then
         ierr  =  fstouv(nulfile,'RND')
       else
-        call utl_abort('gsv_writeToFile: problem opening output file, aborting!')
+        call utl_abort('gsv_writeToFile: problem opening output filen')
       end if
 
       if (nulfile == 0 ) then
-        call utl_abort('gsv_writeToFile: unit number for output file not valid!')
+        call utl_abort('gsv_writeToFile: unit number for output file not valid')
       end if
 
       !- Write TicTacToc
@@ -4635,7 +4635,7 @@ module gridStateVector_mod
       if ( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
         write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
         write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
-        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer!')
+        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
 
@@ -4680,7 +4680,7 @@ module gridStateVector_mod
       if ( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
         write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
         write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
-        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer!')
+        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
 
@@ -5487,7 +5487,7 @@ module gridStateVector_mod
     pfac = MPC_RGAS_DRY_AIR_R8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_multEnergyNorm: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_multEnergyNorm: gridStateVector_inout not yet allocated')
     end if
 
     nLev_M = gsv_getNumLev(statevector_inout,'MM')
@@ -5712,10 +5712,10 @@ module gridStateVector_mod
     integer          :: k1,k2
 
     if (.not.statevector_a%allocated) then
-      call utl_abort('gsv_dotProduct: gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_dotProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_b%allocated) then
-      call utl_abort('gsv_dotProduct: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_dotProduct: gridStateVector_inout not yet allocated')
     end if
 
     lon1 = statevector_a%myLonBeg

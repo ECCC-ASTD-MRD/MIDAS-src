@@ -215,11 +215,11 @@ module varNameList_mod
                  varname='AC'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumberChm_opt
-                 call utl_abort('aborting in vnl_varnameFromVarnum')
+                 call utl_abort('vnl_varnameFromVarnum')
            end select
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-           call utl_abort('aborting in vnl_varnameFromVarnum')
+           call utl_abort('vnl_varnameFromVarnum')
         endif 
       end select
 

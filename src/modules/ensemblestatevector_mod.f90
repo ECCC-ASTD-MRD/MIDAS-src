@@ -270,10 +270,10 @@ CONTAINS
     integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens_in%allocated) then
-      call utl_abort('ens_copy: ens_in not yet allocated! Aborting.')
+      call utl_abort('ens_copy: ens_in not yet allocated')
     end if
     if (.not.ens_out%allocated) then
-      call utl_abort('ens_copy: ens_out not yet allocated! Aborting.')
+      call utl_abort('ens_copy: ens_out not yet allocated')
     end if
 
     lon1 = ens_out%statevector_work%myLonBeg
@@ -334,7 +334,7 @@ CONTAINS
     integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens%allocated) then
-      call utl_abort('ens_zero: ens not yet allocated! Aborting.')
+      call utl_abort('ens_zero: ens not yet allocated')
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -1028,14 +1028,18 @@ CONTAINS
 
               subEnsStdDev(:) = 0.0d0
               do memberIndex = 1, ens%numMembers
-                subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
-                     (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+                subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
+                     subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
+                     (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)) - &
+                     ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
               end do
               do subEnsIndex = 1, ens%numSubEns
-                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =      &
+                     ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
                      ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
               end do
-              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =        &
+                   sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
               
             end do
           end do

@@ -2454,10 +2454,10 @@ contains
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
             if(ITYP == BUFR_NEES) then
-              write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!', &
+              write(*,*) 'CANNOT ASSIMILATE ES!!!', &
                          ityp,obs_getfamily(obsSpaceData,headerIndex), &
                          headerIndex,bodyIndex
-              call utl_abort('Aborting in oop_H')
+              call utl_abort('oop_H')
 
             else if(ityp == BUFR_NEAL) then
               ! Scan body indices for the azimuth

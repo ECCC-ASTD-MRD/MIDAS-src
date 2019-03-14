@@ -266,13 +266,13 @@ CONTAINS
     allocate(lsp(id)%LhorizSqrt(0:lsp(id)%nTrunc,lsp(id)%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'lsp_setup: Problem allocating memory! id=9',ierr
-       call utl_abort('aborting in loc: setupLocalizationMatrices')
+       call utl_abort('setupLocalizationMatrices')
     end if
     
     allocate(lsp(id)%LvertSqrt(lsp(id)%nLev,lsp(id)%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
-       call utl_abort('aborting in loc: setupLocalizationMatrices')
+       call utl_abort('setupLocalizationMatrices')
     end if
     
     !
@@ -558,7 +558,7 @@ CONTAINS
       do k = 1, lsp(id)%nLev
          if ( gd(lsp(id)%ni/2,lsp(id)%nj/2,k) <= 0.d0 ) then
             write(*,*) 'setupLamSpectralHLoc: Problem in normalization ',gd(lsp(id)%ni/2,lsp(id)%nj/2,k)
-            call utl_abort('aborting in setupLamSpectralHLoc')
+            call utl_abort('setupLamSpectralHLoc')
          end if
          if ( mpi_myid == 0 ) then
            write(*,*) 'setupLamSpectralHLoc: Normalization factor = ', k, gd(lsp(id)%ni/2,lsp(id)%nj/2,k), 1.d0 / gd(lsp(id)%ni/2,lsp(id)%nj/2,k)
@@ -723,7 +723,7 @@ CONTAINS
 
       if (dimIndex.gt.lsp(id)%cvDim_mpilocal) then
         write(*,*) 'loc globalSpectralHLoc: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
-        call utl_abort('aborted in loc globalSpectralHLoc')
+        call utl_abort('globalSpectralHLoc')
       end if
 
     end do
@@ -764,7 +764,7 @@ CONTAINS
        end do
        if (dimIndex > lsp(id)%cvDim_mpilocal ) then
           write(*,*) 'loc lamSpectralHLoc: dimIndex > cvDim! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
-          call utl_abort('aborted in loc lamSpectralHLoc')
+          call utl_abort('lamSpectralHLoc')
        end if
 
     end do
@@ -904,7 +904,7 @@ CONTAINS
 
        if (dimIndex.gt.lsp(id)%cvDim_mpilocal) then
           write(*,*) 'loc globalSpectralHLocAd: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
-          call utl_abort('aborted in loc globalSpectralHLocAd')
+          call utl_abort('globalSpectralHLocAd')
        end if
     
     end do
@@ -946,7 +946,7 @@ CONTAINS
        end do
        if (dimIndex > lsp(id)%cvDim_mpilocal ) then
           write(*,*) 'BEN: lamSpectralHLocAD: dimIndex > cvDim! ',dimIndex, memberIndex, lsp(id)%cvDim_mpilocal
-          call utl_abort('aborted in lamSpectralHLocAd')
+          call utl_abort('lamSpectralHLocAd')
        end if
 
     end do

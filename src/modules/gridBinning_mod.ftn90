@@ -17,12 +17,12 @@
 !--------------------------------------------------------------------------
 !! MODULE gridBinning (prefix="gbi" category='3. High-level transformations')
 !!
-!! *Purpose*: To computer categorical mean and standard deviation for
+!! *Purpose*: To compute categorical mean and standard deviation for
 !!            gridded data contained in a gridStateVector or in an
 !!            ensemble of gridStateVectors (e.g. the respective mean over land and sea)
 !!
 !--------------------------------------------------------------------------
-MODULE gridBinning_mod
+module gridBinning_mod
   use mpi_mod
   use mpivar_mod
   use ensembleStateVector_mod
@@ -40,7 +40,6 @@ MODULE gridBinning_mod
   public :: gbi_statevectorMean !, gbi_statevectorStdDev
 
   type :: struct_gbi
- !   private
     character(len=24) :: binningStrategy
     type(struct_gsv)  :: statevector_bin2d
     integer           :: numBins2d
@@ -51,12 +50,12 @@ MODULE gridBinning_mod
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .true.
 
-CONTAINS
+contains
 
   !--------------------------------------------------------------------------
   ! gbi_setup
   !--------------------------------------------------------------------------
-  SUBROUTINE gbi_setup(gbi, binningStrategy, statevector_template, &
+  subroutine gbi_setup(gbi, binningStrategy, statevector_template, &
                        mpi_distribution_opt, writeBinsToFile_opt)
     implicit none
 
@@ -167,8 +166,8 @@ CONTAINS
 
     case ('landSeaTopo')
       if (mpi_myid == 0) then
-        write(6,*)
-        write(6,*) 'gbi_setup : BIN_TYPE = land/sea binning + storage of the topography field'
+        write(*,*)
+        write(*,*) 'gbi_setup : BIN_TYPE = land/sea binning + storage of the topography field'
       end if
 
       call gsv_allocate(statevector_landSeaTopo, 1, statevector_template%hco,     &
@@ -236,19 +235,19 @@ CONTAINS
                            'BINNING')                                    ! IN
     end if
 
-  END SUBROUTINE gbi_setup
+  end subroutine gbi_setup
   
   !--------------------------------------------------------------------------
   ! gbi_deallocate
   !--------------------------------------------------------------------------
-  SUBROUTINE gbi_deallocate(gbi)
+  subroutine gbi_deallocate(gbi)
     implicit none
 
     type(struct_gbi) :: gbi
 
     call gsv_deallocate(gbi%statevector_bin2d)
 
-  END SUBROUTINE gbi_deallocate
+  end subroutine gbi_deallocate
 
   !--------------------------------------------------------------------------
   ! gbi_statevectorMean
@@ -340,6 +339,6 @@ CONTAINS
       write(*,*) 'gbi_statevectorMean: Done!'
     end if
 
-  END SUBROUTINE gbi_statevectorMean
+  end subroutine gbi_statevectorMean
 
-END MODULE gridBinning_mod
+end module gridBinning_mod
