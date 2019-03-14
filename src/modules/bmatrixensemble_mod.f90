@@ -583,7 +583,7 @@ CONTAINS
 
     !- 3.3 Convert into a C matrix
     if (useCmatrixOnly .or. trim(varianceSmoothing) /= 'none') then
-      call ens_computeStdDev(ensPerts(1), containsScalePerts_opt=.true.)
+      call ens_computeStdDev(ensPerts(1), containsScaledPerts_opt=.true.)
       call ens_normalize(ensPerts(1))
       ensPertsNormalized = .true.
     else

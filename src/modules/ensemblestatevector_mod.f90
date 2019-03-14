@@ -940,23 +940,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_computeStdDev
   !--------------------------------------------------------------------------
-  subroutine ens_computeStdDev(ens, containsScalePerts_opt)
+  subroutine ens_computeStdDev(ens, containsScaledPerts_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
-    logical, intent(in), optional :: containsScalePerts_opt
+    logical, intent(in), optional :: containsScaledPerts_opt
 
     ! locals
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     real(8), allocatable  :: subEnsStdDev(:)
-    logical           :: containsScalePerts
+    logical           :: containsScaledPerts
 
-    if ( present(containsScalePerts_opt) ) then
-      containsScalePerts = containsScalePerts_opt
+    if ( present(containsScaledPerts_opt) ) then
+      containsScaledPerts = containsScaledPerts_opt
     else
-      containsScalePerts = .false.
+      containsScaledPerts = .false.
       if (.not.ens%meanIsComputed) then
         if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
         call ens_computeMean( ens )
@@ -979,7 +979,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    if (containsScalePerts) then
+    if (containsScaledPerts) then
 
       if (ens%numSubEns /= 1) then
         call utl_abort('ens_computeStdDev: sub-ensemble approach not compatible with scale perturbations')
