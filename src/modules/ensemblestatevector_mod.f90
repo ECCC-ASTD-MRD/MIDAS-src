@@ -993,7 +993,7 @@ CONTAINS
         do jj = lat1, lat2
           do ji = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
-
+              
               ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = 0.d0
 
               do memberIndex = 1, ens%numMembers
@@ -1005,10 +1005,10 @@ CONTAINS
               ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = &
                    sqrt(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj))
 
+            end do
           end do
         end do
       end do
-    end do
     !$OMP END PARALLEL DO
 
     else
