@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="f90sqlite udfsqlite burp_module descrip $MPILIB"
+LIBAPPL="f90sqlite udfsqlite burp_module descrip $MPILIB random"
 
