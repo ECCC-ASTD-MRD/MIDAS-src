@@ -27,6 +27,7 @@
 ../../src/modules/controlvector_mod.f90
 ../../src/modules/costfunction_mod.f90
 ../../src/modules/globalspectraltransform_mod.f90
+../../src/modules/gps_mod.f90
 ../../src/modules/gridstatevector_mod.f90
 ../../src/modules/horizontalcoord_mod.f90
 ../../src/modules/humiditylimits_mod.f90
@@ -62,9 +63,11 @@
 ../../src/modules/timecoord_mod.f90
 ../../src/modules/tovs_extrap_mod.f90
 ../../src/modules/tovs_lin_mod.f90
+../../src/modules/tovs_nl_mod.f90
 ../../src/modules/tt2phi_mod.f90
 ../../src/modules/utilities_mod.f90
 ../../src/modules/variabletransforms_mod.f90
+../../src/modules/varnamelist_mod.f90
 ../../src/modules/varqc_mod.f90
 ../../src/modules/verticalcoord_mod.f90
 ../../src/modules/windrotation_mod.f90
@@ -74,4 +77,6 @@
 ../../src/modules/calcStats/menetrierdiag_mod.f90
 
 ../../src/modules/shared/bufr_mod.f90
+../../src/modules/shared/earthconstants_mod.f90
 ../../src/modules/shared/mathphysconstants_mod.f90
+../../src/modules/shared/obsspacedata_mod.f90

@@ -4,9 +4,4 @@
 
 # I (Jeff Blezius) am working on this list, from the top down.
 
-../../src/modules/gps_mod.f90
 ../../src/modules/multi_ir_bgck_mod.f90
-../../src/modules/tovs_nl_mod.f90
-../../src/modules/varnamelist_mod.f90
-../../src/modules/shared/earthconstants_mod.f90
-../../src/modules/shared/obsspacedata_mod.f90
