@@ -40,6 +40,7 @@
 ../../src/modules/obsoperators_mod.f90
 ../../src/modules/obsUtil_mod.f90
 ../../src/modules/obsfiles_mod.f90
+../../src/modules/obsspacediag_mod.f90
 ../../src/modules/obssubspacedata_mod.f90
 ../../src/modules/obstimeinterp_mod.f90
 ../../src/modules/ominusf_mod.f90

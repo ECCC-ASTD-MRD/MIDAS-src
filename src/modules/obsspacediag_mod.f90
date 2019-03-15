@@ -22,18 +22,18 @@
 !!
 !--------------------------------------------------------------------------
 module obsSpaceDiag_mod
-!
-! Author: Mark Buehner, ARMA.
-!
-! Revisions: M. Sitwell, ARQI (July 2015)
-!            - Addition of lrandom logical (see osd_setup)
-!            Y. Rochon, ARQI (Oct 2015)
-!            - Addition of public procedure 'osd_ObsSpaceDiag'
-!            Y. Rochon and M. Sitwell (Feb 2017)
-!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
-!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
-!
-!
+!!
+!! Author: Mark Buehner, ARMA.
+!!
+!! Revisions: M. Sitwell, ARQI (July 2015)
+!!            - Addition of lrandom logical (see osd_setup)
+!!            Y. Rochon, ARQI (Oct 2015)
+!!            - Addition of public procedure 'osd_ObsSpaceDiag'
+!!            Y. Rochon and M. Sitwell (Feb 2017)
+!!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
+!!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
+!!
+!!
 !!------------------------------------------------------------------------------------------
   use mpi_mod
   use mpivar_mod
