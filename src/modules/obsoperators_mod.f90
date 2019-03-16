@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module obsOperators_mod
+  use IndexListDepot_mod, only : struct_index_list
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -2175,7 +2176,7 @@ contains
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
       !*    -------------------
-      use IndexListDepot_mod, only : struct_index_list
+
       implicit none
 
       integer, intent(in) :: obsAssVal
@@ -2953,7 +2954,7 @@ contains
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
       !*    -------------------
-      use IndexListDepot_mod, only : struct_index_list
+
       implicit none
 
       REAL*8 DPJO0(ngpscvmx)
@@ -3440,7 +3441,6 @@ contains
     !Author  : M. Bani Shahabadi, Oct 2018
     !          - based on the original oop_Hro by Josep M. Aparicio 
     !
-    use IndexListDepot_mod, only : struct_index_list
 
     implicit none
     type(struct_columnData) :: columng

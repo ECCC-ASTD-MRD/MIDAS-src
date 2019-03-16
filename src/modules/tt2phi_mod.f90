@@ -38,30 +38,15 @@ module tt2phi_mod
   ! public procedures
   public :: tt2phi           , tt2phi_tl           , tt2phi_ad
 
-  ! constants from gps_mod {{{
-
-  ! Avogadro constant:
-  real(8), parameter :: p_Avog = 6.02214129D23        ! From CODATA
-
-  ! Boltzmann constant:
-  real(8), parameter :: p_Boltz = 1.3806488D-23        ! From CODATA
-
+  ! constants from gps_mod
   ! Air properties:
   real(8), parameter :: p_md = 28.965516D0            ! From Aparicio(2011)
   real(8), parameter :: p_mw = 18.015254D0            ! From Aparicio(2011)
   real(8), parameter :: p_wa = p_md/p_mw
   real(8), parameter :: p_wb = (p_md-p_mw)/p_mw
-
-  real(8), parameter :: p_Rd = p_Avog*p_Boltz/(1.D-3*p_md)   ! per air mass
-
   ! Angular velocity of the Earth (omegaPrime) (radians/s).
   ! Standard Earth, rotating with a constant angular velocity (IAU, GRS67).
   real(8), parameter :: WGS_OmegaPrime = 7292115.1467D-11
-
-  ! Units and scales:
-  real(8), parameter :: p_knot  = 0.514444D0
-
-  ! }}}
 
   ! private module variables
   real(8), allocatable, save :: coeff_M_TT(:,:), coeff_M_HU(:,:)
@@ -94,7 +79,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode
   real(8) :: hu, tt, Pr, cmp, delThick, tvm, ratioP, ScaleFactorBottom, ScaleFactorTop
-  real(8), allocatable :: tv(:), AL_T(:), AL_M(:) 
+  real(8), allocatable :: tv(:), alt_T(:), alt_M(:) 
   real(8), pointer     :: gz_T(:),gz_M(:)
   real                 :: gz_sfcOffset_T_r4, gz_sfcOffset_M_r4
   real(8) :: rLat, rMT
@@ -116,9 +101,21 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
   if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
 
+  if (Vcode == 5005 .and. mpi_myid == 0 .and. .not.beSilent ) then
+    status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_M_r4)
+    status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_T_r4)
+    write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
+    write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
+    if ( .not.columnghr%addGZsfcOffset ) then
+      write(*,*) '----------------------------------------------------------------------------------'
+      write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+      write(*,*) '----------------------------------------------------------------------------------'
+    end if
+  end if
+
   allocate(tv(nlev_T))
-  allocate(AL_T(nlev_T))
-  allocate(AL_M(nlev_M))
+  allocate(alt_T(nlev_T))
+  allocate(alt_M(nlev_M))
 
   ! loop over all columns
   do columnIndex = 1, col_getNumCol(columnghr)
@@ -129,8 +126,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
     ! initialize the GZ/AL to zero
     gz_M(:) = 0.0d0
     gz_T(:) = 0.0d0
-    AL_T(1:nlev_T) = 0.0D0
-    AL_M(1:nlev_M) = 0.0D0
+    alt_T(1:nlev_T) = 0.0D0
+    alt_M(1:nlev_M) = 0.0D0
 
     ! latitude
     rLat = obs_headElem_r(obsSpaceData,OBS_LAT,columnIndex)
@@ -152,7 +149,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
 
     ! compute altitude on bottom momentum level
     if (Vcode == 5002) then
-      AL_M(nlev_M) = rMT
+      alt_M(nlev_M) = rMT
     elseif (Vcode == 5005) then
       ratioP  = log(col_getPressure(columnghr,nlev_M,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
@@ -164,7 +161,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      AL_M(nlev_M) = rMT + delThick
+      alt_M(nlev_M) = rMT + delThick
     endif
 
     ! compute altitude on rest of momentum levels
@@ -179,18 +176,18 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       endif
 
       ! Gravity acceleration 
-      h0  = AL_M(lev_M+1)
+      h0  = alt_M(lev_M+1)
       Rgh = phf_gravityalt(sLat,h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
-      AL_M(lev_M) = AL_M(lev_M+1) + delThick
+      alt_M(lev_M) = alt_M(lev_M+1) + delThick
     enddo
 
     ! compute Altitude on thermo levels
     if (Vcode == 5002) then
-      AL_T(nlev_T) = AL_M(nlev_M)
+      alt_T(nlev_T) = alt_M(nlev_M)
 
       do lev_T = 2, nlev_T-1
         lev_M = lev_T ! momentum level just below thermo level being computed
@@ -199,7 +196,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
                             log( col_getPressure(columnghr,lev_M  ,columnIndex,'MM')   / &
                                  col_getPressure(columnghr,lev_M-1,columnIndex,'MM') )
         ScaleFactorTop    = 1 - ScaleFactorBottom
-        AL_T(lev_T) = ScaleFactorBottom * AL_M(lev_M) + ScaleFactorTop * AL_M(lev_M-1)
+        alt_T(lev_T) = ScaleFactorBottom * alt_M(lev_M) + ScaleFactorTop * alt_M(lev_M-1)
       end do
 
       ! compute altitude on top thermo level
@@ -207,13 +204,13 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
                    col_getPressure(columnghr,1,columnIndex,'MM'))
 
       ! Gravity acceleration 
-      h0  = AL_M(1)
+      h0  = alt_M(1)
       Rgh = phf_gravityalt(sLat, h0)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
-      AL_T(1) = AL_M(1) + delThick
+      alt_T(1) = alt_M(1) + delThick
 
     elseif (Vcode == 5005) then
 
@@ -224,7 +221,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
                             log( col_getPressure(columnghr,lev_M  ,columnIndex,'MM')   / &
                                  col_getPressure(columnghr,lev_M-1,columnIndex,'MM') )
         ScaleFactorTop    = 1 - ScaleFactorBottom
-        AL_T(lev_T) = ScaleFactorBottom * AL_M(lev_M) + ScaleFactorTop * AL_M(lev_M-1)
+        alt_T(lev_T) = ScaleFactorBottom * alt_M(lev_M) + ScaleFactorTop * alt_M(lev_M-1)
       end do
 
 
@@ -238,12 +235,12 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
       delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      AL_T(nlev_T) = rMT + delThick
+      alt_T(nlev_T) = rMT + delThick
     endif
 
     ! compute GZ 
-    gz_T(1:nlev_T) = AL_T(1:nlev_T)
-    gz_M(1:nlev_M) = AL_M(1:nlev_M)
+    gz_T(1:nlev_T) = alt_T(1:nlev_T)
+    gz_M(1:nlev_M) = alt_M(1:nlev_M)
 
     ! remove the height offset for the diagnostic levels for backward compatibility only
     if ( .not.columnghr%addGZsfcOffset ) then
@@ -254,8 +251,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   enddo
 
   deallocate(tv)
-  deallocate(AL_T)
-  deallocate(AL_M)
+  deallocate(alt_T)
+  deallocate(alt_M)
 
 end subroutine tt2phi
 

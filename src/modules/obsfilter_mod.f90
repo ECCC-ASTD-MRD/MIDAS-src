@@ -563,7 +563,7 @@ contains
           if (.not. llok ) cycle BODY
 
           ! convert altitude read from column to geopotential
-          height(1) = col_getHeight(columnhr,nlev_M,headerIndex,'MM')
+          height(1) = col_getHeight(columnhr,0,headerIndex,'SF')
           lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
           call phf_alt2geopotential(height,lat,geopotential)
 
@@ -604,7 +604,7 @@ contains
        !   from the model topography in the verification.
 
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-       zdifalt = zStnAlt- col_getGZsfc(columnhr,headerIndex)
+       zdifalt = zStnAlt- col_getHeight(columnhr,0,headerIndex,'SF')
 
        ! Set the body list & start at the beginning of the list
        call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -828,7 +828,7 @@ contains
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
        ! ATMOSPHERE
        !
-       zModAlt = col_getGZsfc(columnhr,headerIndex)
+       zModAlt = col_getHeight(columnhr,0,headerIndex,'SF')
        zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
@@ -1292,7 +1292,7 @@ contains
              LSAT = .TRUE.
           END IF
           !
-          ZMT = col_getGZsfc(lcolumnhr,index_header)
+          ZMT = col_getHeight(lcolumnhr,0,index_header,'SF')
           !
           !     *     Acceptable height limits:
           !
@@ -1457,7 +1457,7 @@ contains
 
       ! Set geopotential height and pressure boundaries.
 
-      zModAlt = col_getGZsfc(columnhr,headerIndex)
+      zModAlt = col_getHeight(columnhr,0,headerIndex,'SF')
       zpb=zModAlt
       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
       zpt = col_getHeight(columnhr,1,headerIndex,'MM')

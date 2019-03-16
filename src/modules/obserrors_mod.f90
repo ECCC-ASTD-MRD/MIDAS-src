@@ -1485,7 +1485,7 @@ contains
           Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
           Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
           zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-          zMT  = col_getGZsfc(lcolumnhr,headerIndex)
+          zMT  = col_getHeight(lcolumnhr,0,headerIndex,'SF')
              !     
              !     *        Profile at the observation location:
              !
