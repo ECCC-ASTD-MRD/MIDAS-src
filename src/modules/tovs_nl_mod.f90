@@ -116,7 +116,7 @@ module tovs_nl_mod
   real(8), Parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
-  integer, parameter :: tvs_maxNumberOfChannels = 1305  ! Max. no. of channels (for one profile/spectra)
+  integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
   integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
   integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
 !**********************************************************
@@ -883,13 +883,13 @@ contains
     integer ,save :: list_inst(maxsize), ninst_hir
     logical, save :: lfirst = .true.
     integer ,external :: fclos, fnom
-    character (len=6) :: name_inst(maxsize)
+    character (len=7) :: name_inst(maxsize)
     namelist /NAMHYPER/ name_inst
 
     if (lfirst) then
       nulnam = 0
       ninst_hir = 0
-      name_inst(:) = "XXXXXX"
+      name_inst(:) = "XXXXXXX"
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist')
@@ -898,7 +898,7 @@ contains
       list_inst(:) = -1
       do i=1, maxsize
         list_inst(i) = tvs_getInstrumentId( name_inst(i) )
-        if (name_inst(i) /= "XXXXXX") then
+        if (name_inst(i) /= "XXXXXXX") then
           if (list_inst(i) == -1) then
             write(*,*) i,name_inst(i)
             call utl_abort('tvs_isInstrumHyperSpectral: Unknown instrument name')
@@ -1642,7 +1642,7 @@ contains
       do jn=1, count_profile
         call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn))
-	logzhu(:,jn) = log( zhu(:,jn) )	
+             logzhu(:,jn) = log( zhu(:,jn) )
         call ppo_IntAvg (zvlev(:,jn:jn),logzhu(:,jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo(:,jn:jn))
         huo(:,jn) = exp ( loghuo(:,jn) )
