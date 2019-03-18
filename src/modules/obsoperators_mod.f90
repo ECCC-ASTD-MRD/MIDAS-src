@@ -903,7 +903,7 @@ contains
     real(8), allocatable :: zdp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
-    real(8), allocatable :: zAL(:)
+    real(8), allocatable :: zALT(:)
     real(8), allocatable :: zuu(:)
     real(8), allocatable :: zvv(:)
     real(8) :: zp0, zmt
@@ -926,7 +926,7 @@ contains
     allocate(zdp(ngpslev))
     allocate(ztt(ngpslev))
     allocate(zhu(ngpslev))
-    allocate(zAL(ngpslev))
+    allocate(zALT(ngpslev))
     allocate(zuu(ngpslev))
     allocate(zvv(ngpslev))
 
@@ -1003,7 +1003,7 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
-          zal(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
+          zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
 
        if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
@@ -1027,7 +1027,7 @@ contains
        !     
        ! GPS profile structure:
        !
-       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zAL,zUU,zVV,prf)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -1132,7 +1132,7 @@ contains
     deallocate(zvv)
     deallocate(zuu)
     deallocate(zhu)
-    deallocate(zAL)
+    deallocate(zALT)
     deallocate(ztt)
     deallocate(zdp)
     deallocate(zpp)
@@ -1191,7 +1191,7 @@ contains
     real(8), allocatable :: zdp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
-    real(8), allocatable :: zal (:)
+    real(8), allocatable :: zALT (:)
     real(8) :: zlat, lat, zlon, lon
     real(8) :: zp0, zmt, zdzmin
     real(8) :: zobs, zoer, zinc, zhx, zlev
@@ -1250,7 +1250,7 @@ contains
     !
     allocate(ztt(nlev_T))
     allocate(zhu(nlev_T))
-    allocate(zal(nlev_T))
+    allocate(zALT(nlev_T))
     allocate(zdp(nlev_T))
     allocate(zpp(nlev_T))
 
@@ -1327,12 +1327,12 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
-          zal(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
+          zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
        zdz = zlev - zmt
 
        ! Fill GPS ZTD profile structure (PRF):
-       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,zal,lbevis,irefopt,prf)
+       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,zALT,lbevis,irefopt,prf)
 
        ! Apply the GPS ZTD observation operator
        ! --> output is model ZTD (type gps_diff) and P at obs height ZLEV
@@ -1438,7 +1438,7 @@ contains
 
     deallocate(ztt)
     deallocate(zhu)
-    deallocate(zal)
+    deallocate(zALT)
     deallocate(zdp)
     deallocate(zpp)
 
@@ -2962,7 +2962,7 @@ contains
 
       REAL*8 ZINC
 
-      real*8, pointer :: tt_column(:),hu_column(:),AL_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
@@ -3060,12 +3060,12 @@ contains
          !C
          tt_column => col_getColumn(column,headerIndex,'TT')
          hu_column => col_getColumn(column,headerIndex,'HU')
-         AL_column => col_getColumn(column,headerIndex,'GZ','TH')
+         ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
          ps_column => col_getColumn(column,headerIndex,'P0')
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
-            AL_column(JL) = DPJO0(JL+2*NGPSLEV)
+            ALT_column(JL) = DPJO0(JL+2*NGPSLEV)
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
@@ -3222,7 +3222,7 @@ contains
       integer :: headerIndex, bodyIndex, icount
       LOGICAL ASSIM
 
-      real*8, pointer :: tt_column(:),hu_column(:),AL_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
 
       !      WRITE(*,*)'ENTER oop_HTgp'
 
@@ -3294,12 +3294,12 @@ contains
             !c
             tt_column => col_getColumn(column,headerIndex,'TT')
             hu_column => col_getColumn(column,headerIndex,'HU')
-            AL_column => col_getColumn(column,headerIndex,'GZ','TH')
+            ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
             ps_column => col_getColumn(column,headerIndex,'P0')
             DO JL = 1, NFLEV
                tt_column(JL) = DPJO0(JL)
                hu_column(JL) = DPJO0(JL+NFLEV)
-               AL_column(JL) = DPJO0(JL+2*NFLEV)
+               ALT_column(JL) = DPJO0(JL+2*NFLEV)
             END DO
             ps_column(1) = DPJO0(3*NFLEV+1)
 
@@ -3453,7 +3453,7 @@ contains
     real(8) :: zazm, azm
     integer :: iazm, isat
     real(8) :: rad, geo, wfgps, zp0
-    REAL(8), allocatable :: zpp(:), zdp(:), ztt(:), zhu(:), zal(:), zuu(:), zvv(:)
+    REAL(8), allocatable :: zpp(:), zdp(:), ztt(:), zhu(:), zALT(:), zuu(:), zvv(:)
     real(8) :: zmt,radw
     integer :: IDATYP
     integer :: jl, jv, ngpslev, nwndlev, jj
@@ -3487,7 +3487,7 @@ contains
     allocate(zdp (ngpslev))
     allocate(ztt (ngpslev))
     allocate(zhu (ngpslev))
-    allocate(zal (ngpslev))
+    allocate(zALT (ngpslev))
     allocate(zuu (ngpslev))
     allocate(zvv (ngpslev))
 
@@ -3555,7 +3555,7 @@ contains
             zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
             ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
-            zal(jl) = col_getHeight(columng,jl,headerIndex,'TH')
+            zALT(jl) = col_getHeight(columng,jl,headerIndex,'TH')
           enddo
 
           if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
@@ -3578,7 +3578,7 @@ contains
           zvv(ngpslev) = zuu(nwndlev)
 
           ! GPS profile structure:
-          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,zdp,ztt,zhu,zal,zuu,zvv,prf)
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,zdp,ztt,zhu,zALT,zuu,zvv,prf)
 
           ! Prepare the vector of all the observations:
           nh1 = 0
@@ -3615,7 +3615,7 @@ contains
     deallocate(zvv)
     deallocate(zuu)
     deallocate(zhu)
-    deallocate(zal)
+    deallocate(zALT)
     deallocate(ztt)
     deallocate(zdp)
     deallocate(zpp)
@@ -3642,7 +3642,7 @@ contains
     REAL*8 ZLON, Lon
     REAL*8, allocatable :: ZTTB(:)
     REAL*8, allocatable :: ZHUB(:)
-    REAL*8, allocatable :: ZAL(:)
+    REAL*8, allocatable :: zALT(:)
     REAL*8, allocatable :: ZPPB(:)
     REAL*8, allocatable :: ZDP(:)
     REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
@@ -3696,7 +3696,7 @@ contains
 
     allocate(ZTTB(NFLEV))
     allocate(ZHUB(NFLEV))
-    allocate(ZAL(NFLEV))
+    allocate(zALT(NFLEV))
     allocate(ZPPB(NFLEV))
     allocate(ZDP(NFLEV))
 
@@ -3741,7 +3741,7 @@ contains
           ZTTB(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
           ZHUB(JL) = col_getElem(columng,JL,headerIndex,'HU')
           ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
-          ZAL(JL) = col_getHeight(columng,JL,headerIndex,'TH')
+          zALT(JL) = col_getHeight(columng,JL,headerIndex,'TH')
           ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
         END DO
         if ( ZPPB(NFLEV) /= ZP0B ) then
@@ -3751,7 +3751,7 @@ contains
         ZMT = col_getHeight(columng,0,headerIndex,'SF')
         if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
 
-        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,ZAL,LBEVIS,IREFOPT,PRF)
+        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF)
         CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
 
         ! Observation Jacobian H'(xb)            
@@ -3771,7 +3771,7 @@ contains
           sfcfield = ZP0B + 50.0d0
           status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
           ZDP = dpdp0(1:NFLEV)
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,ZAL,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -3785,7 +3785,7 @@ contains
           ZHUB(64) = ZHUB(64) - dxq1
           ZHUB(65) = ZHUB(65) - dxq2
           ZHUB(66) = ZHUB(66) - dxq3
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,ZAL,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           CALL gps_pw(PRF2,ZPWMOD2)
           write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
@@ -3803,7 +3803,7 @@ contains
           ZTTB(64) = ZTTB(64) + 2.0d0
           ZTTB(65) = ZTTB(65) + 2.0d0
           ZTTB(66) = ZTTB(66) + 2.0d0
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,ZAL,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -3819,7 +3819,7 @@ contains
 
     deallocate(ZTTB)
     deallocate(ZHUB)
-    deallocate(ZAL)
+    deallocate(zALT)
     deallocate(ZPPB)
     deallocate(ZDP)
 

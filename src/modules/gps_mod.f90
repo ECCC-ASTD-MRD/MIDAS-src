@@ -954,7 +954,7 @@ contains
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rAL,rUU,rVV,prf)
+       rP0,rPP,rDP,rTT,rHU,rALT,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -967,7 +967,7 @@ contains
     real(dp)        , intent(in)  :: rDP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
-    real(dp)        , intent(in)  :: rAL (ngpssize)
+    real(dp)        , intent(in)  :: rALT (ngpssize)
     real(dp)        , intent(in)  :: rUU (ngpssize)
     real(dp)        , intent(in)  :: rVV (ngpssize)
 
@@ -1028,7 +1028,7 @@ contains
     ! Fill altitude placeholders:
     !
     do i = 1, ngpslev
-       prf%gst(i)%Var                 = rAL(i)
+       prf%gst(i)%Var                 = rALT(i)
        prf%gst(i)%DVar                = 0._dp
        prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
     enddo
@@ -1088,7 +1088,225 @@ contains
 
 !modgps04profilezd
 
-  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rAL,lbevis,refopt,prf)
+  subroutine gps_structztd(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,lbevis,refopt,prf)
+!
+! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
+!
+    integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
+    real(dp)          , intent(in)  :: rLat             ! radians
+    real(dp)          , intent(in)  :: rLon             ! radians
+    real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
+    real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
+    real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
+    real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
+    real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
+    real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
+    
+!   lbevis determines which set of refractivity constants to use (Bevis or Rueger)
+    logical           , intent(in)  :: lbevis
+
+!   refopt=1 --> use conventional expression for refractivity N
+!   refopt=2 --> use new Aparicio & Laroche refractivity N
+    integer           , intent(in)  :: refopt
+
+    type(gps_profilezd), intent(out) :: prf
+
+!!        ******** PARAMETERS *************
+
+    real(dp), parameter :: delta = 0.6077686814144_dp
+    real(dp), parameter :: eps   = 0.6219800221014_dp
+
+! Reuger (2002) refractivity constants (MKS units)
+    real(dp), parameter :: k1r = 0.776890_dp
+    real(dp), parameter :: k2r = 0.712952_dp
+    real(dp), parameter :: k3r = 3754.63_dp
+! Bevis (1994) refractivity constants (MKS units)
+    real(dp), parameter :: k1b = 0.776000_dp
+    real(dp), parameter :: k2b = 0.704000_dp
+    real(dp), parameter :: k3b = 3739.000_dp
+
+!    real(dp), parameter :: Avog  = 6.02214e26_dp
+!    real(dp), parameter :: Boltz = 1.38065e-23_dp
+!    real(dp), parameter :: mwDAir= 28.966_dp
+!    real(dp), parameter :: Rd = Avog*Boltz/mwDAir    --> p_Rd
+!    real(dp), parameter :: Rd = 287.05_dp            --> p_Rd
+!    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
+    
+!    real(dp), parameter :: R  = 8.314472_dp          --> p_R
+!    real(dp), parameter :: md = 28.965516_dp         --> p_md
+!    real(dp), parameter :: mw = 18.015254_dp         --> p_mw
+!    real(dp), parameter :: wa = md/mw                --> p_wa
+!    real(dp), parameter :: wb = (md-mw)/mw           --> p_wb
+
+!!       ******** VARIABLES *************
+
+    real(dp)            :: a0,a1,a2,b0,b1,c0,c1,d,e
+    type(gps_diff)       :: tc, pt, tc2, x2, tr
+    type(gps_diff)       :: mold, dd, dw, dx, n0, nd1, nw1
+    integer(i4)         :: i
+    real(dp)            :: k1, k2, k3, k2p
+    real(dp)            :: h0, dh, Rgh, sLat, ptop
+    type(gps_diff)       :: p, t, q, x, na, tvm, z
+    type(gps_diff)       :: xi(ngpssize), tv(ngpssize), cmp(ngpssize), N(ngpssize) 
+
+    prf%ngpslev = ngpslev
+    prf%rLat    = rLat
+    prf%rLon    = rLon
+    prf%rMT     = rMT
+    prf%bpst    = .false.
+    !
+    ! Fill pressure (P) placeholders (Pa):
+    !
+    prf%P0%Var               = rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(2*ngpslev+1) = 1._dp
+    do i = 1, ngpslev
+       prf%pst(i)%Var               = rPP(i)
+       prf%pst(i)%DVar              = 0._dp
+       prf%pst(i)%DVar(2*ngpslev+1) = rDP(i)
+    enddo
+    ! Pressure at model top (Pa)
+    ptop = rPP(1)
+    prf%bpst = .true.
+    !
+    ! Fill temperature (T) placeholders (C--> K):
+    !
+    do i = 1, ngpslev
+       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%DVar              = 0._dp
+       prf%tst(i)%DVar(i)           = 1._dp
+    enddo
+
+    !
+    ! Fill moisture (Q) placeholders (kg/kg):
+    !
+    do i = 1, ngpslev
+       prf%qst(i)%Var               = rHU(i)
+       prf%qst(i)%DVar              = 0._dp
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    enddo
+
+    if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
+    ! This code is copied from modgps04profile.cdk90
+    !
+    ! Compressibility:
+    !
+      a0 = 1.58123e-6_dp
+      a1 = -2.9331e-8_dp
+      a2 = 1.1043e-10_dp
+      b0 = 5.707e-6_dp
+      b1 = -2.051e-8_dp
+      c0 = 1.9898e-4_dp
+      c1 = -2.376e-6_dp
+      d = 1.83e-11_dp
+      e = -0.765e-8_dp
+      do i = 1, ngpslev
+        p  = prf%pst(i)
+        t  = prf%tst(i)
+        q  = prf%qst(i)
+        x  = p_wa*q/(1._dp+p_wb*q)
+        ! Estimate, from CIPM, Piccard (2008)
+        tc = t-p_TC
+        pt = p/t
+        tc2 = tc*tc
+        x2 = x*x
+        cmp(i) = 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)+pt*pt*(d+e*x2)
+      enddo
+
+    ! Refractivity:
+      do i = 1, ngpslev
+        p  = prf%pst(i)
+        t  = prf%tst(i)
+        q  = prf%qst(i)
+        x  = p_wa*q/(1._dp+p_wb*q)
+
+        ! Densities (molar, total, dry, water vapor):
+        mold  = p/(p_R*t*cmp(i))
+        dd = mold * (1._dp-x) * (p_md/1000._dp)
+        dw = mold * x         * (p_mw/1000._dp)
+        ! Aparicio (2011) expression
+        tr = p_TC/t-1._dp
+        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+        nw1= (6701.605_dp+6385.886_dp*tr) * dw
+        n0 = (nd1+nw1)
+        na = n0*(1._dp+1.e-6_dp*n0/6._dp)
+        N(i) = na
+      enddo
+
+    endif
+
+    ! Refractivity constants
+    if ( lbevis ) then
+      k1 = k1b
+      k2 = k2b
+      k3 = k3b
+    else
+      k1 = k1r
+      k2 = k2r
+      k3 = k3r
+    endif
+    k2p = k2-(eps*k1)
+
+    ! Virtual temperature Tv and log(P) profiles
+    !
+    do i = 1, ngpslev
+       p = prf%pst(i)
+       t = prf%tst(i)
+       q = prf%qst(i)
+       xi(i) = log(p)
+       tv(i) = (1._dp+delta*q) * t
+    enddo
+    
+    ! Geometric height (m) profile from lowest model level to top  --> prf%gst
+    sLat = sin(rLat)
+    dx  = xi(ngpslev)-log(prf%P0)
+    Rgh = gpsgravitysrf(sLat)
+    z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
+    prf%gst(ngpslev) = rMT + z
+    do i = ngpslev-1, 1, -1
+       dx = xi(i)-xi(i+1)
+       tvm = 0.5_dp*(tv(i)+tv(i+1))
+       !
+       ! Gravity acceleration
+       !
+       h0  = prf%gst(i+1)%Var
+       Rgh = gpsgravityalt(sLat, h0)
+       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
+       !
+       ! Height increment (m)
+       !
+       z   = (-p_Rd/Rgh) * tvm * dx
+       prf%gst(i) = prf%gst(i+1) + z
+    enddo
+
+    ! Profile of dZTD/dp --> prf%rst
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       if ( refopt == 1 ) then
+         na = (k1/tv(i)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
+       else
+         na = N(i) / p
+       endif
+       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gpsgravityalt(sLat, prf%gst(i)%Var)
+    enddo
+
+    ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
+    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gpsgravityalt(sLat, prf%gst(1)%Var)))
+    do i = 2, ngpslev
+      !
+      ! ZTD increment = Avg(dZTD/dP) * delta_P
+      !
+      z = ((prf%rst(i-1) + prf%rst(i))/2._dp) * (prf%pst(i)-prf%pst(i-1))
+      prf%ztd(i) = prf%ztd(i-1) + z
+    enddo
+
+  end subroutine gps_structztd
+
+
+  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rALT,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
 !
@@ -1104,7 +1322,7 @@ contains
     real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
     real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
-    real(dp)          , intent(in)  :: rAL (ngpssize)   ! altitude at each level
+    real(dp)          , intent(in)  :: rALT (ngpssize)   ! altitude at each level
     
 !   lbevis determines which set of refractivity constants to use (Bevis or Rueger)
     logical           , intent(in)  :: lbevis
@@ -1194,7 +1412,7 @@ contains
     ! Fill altitude (AL) placeholders (m):
     !
     do i = 1, ngpslev
-       prf%gst(i)%Var               = rAL(i)
+       prf%gst(i)%Var               = rALT(i)
        prf%gst(i)%DVar              = 0._dp
        prf%gst(i)%DVar(2*ngpslev+i) = 1._dp
     enddo
