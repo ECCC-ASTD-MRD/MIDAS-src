@@ -22,7 +22,6 @@
 !!
 !--------------------------------------------------------------------------
 module obsOperators_mod
-  use IndexListDepot_mod, only : struct_index_list
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -2185,9 +2184,8 @@ contains
       REAL*8 DX (ngpscvmx)
 
       INTEGER IDATYP
-      INTEGER JL, JV, NGPSLEV, NWNDLEV, stat1
+      INTEGER JL, JV, NGPSLEV, NWNDLEV
       integer :: headerIndex, bodyIndex, iProfile
-      type(struct_index_list), pointer :: local_current_list
 
       LOGICAL  ASSIM
 
@@ -2207,7 +2205,6 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      nullify(local_current_list)
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
@@ -2225,10 +2222,8 @@ contains
             !C     *    Loop over all body indices for this headerIndex:
             !C     *    (start at the beginning of the list)
             !C
-            call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                 current_list=local_current_list)
             BODY: do 
-               bodyIndex = obs_getBodyIndex(local_current_list)
+               bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
                IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
                   ASSIM = .TRUE.
@@ -2254,10 +2249,8 @@ contains
                !C     *       Loop over all body indices for this headerIndex:
                !C
                NH1 = 0
-               call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                    current_list=local_current_list)
                BODY_3: do 
-                  bodyIndex = obs_getBodyIndex(local_current_list)
+                  bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
                   IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
                      NH1 = NH1 + 1
@@ -2966,7 +2959,6 @@ contains
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
-      type(struct_index_list), pointer :: local_current_list
 
       LOGICAL  ASSIM, LUSE
 
@@ -2985,7 +2977,6 @@ contains
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      nullify(local_current_list)
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
@@ -3005,10 +2996,8 @@ contains
             !C     *    Loop over all body indices for this headerIndex:
             !C     *    (start at the beginning of the list)
             !C
-            call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                 current_list=local_current_list)
             BODY: do 
-               bodyIndex = obs_getBodyIndex(local_current_list)
+               bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
 
                LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
@@ -3030,10 +3019,8 @@ contains
                !C     *       Loop over all body indices for this headerIndex:
                !C     *       (start at the beginning of the list)
                !C
-               call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                    current_list=local_current_list)
                BODY_3: do 
-                  bodyIndex = obs_getBodyIndex(local_current_list)
+                  bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
 
                   LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
@@ -3458,7 +3445,6 @@ contains
     integer :: IDATYP
     integer :: jl, jv, ngpslev, nwndlev, jj
     integer :: headerIndex, bodyIndex, iProfile
-    type(struct_index_list), pointer :: local_current_list
     logical :: ASSIM
     logical, save :: lfirst = .true.
     integer :: nh, nh1
@@ -3501,7 +3487,6 @@ contains
     ! Loop over all header indices of the 'RO' family (Radio Occultation)
     ! Set the header list (start at the beginning of the list)
     call obs_set_current_header_list(obsSpaceData,'RO')
-    nullify(local_current_list)
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
@@ -3515,10 +3500,8 @@ contains
 
         ! Loop over all body indices for this headerIndex:
         ! (start at the beginning of the list)
-        call obs_set_current_body_list(obsSpaceData, headerIndex, &
-             current_list=local_current_list)
         BODY: do 
-          bodyIndex = obs_getBodyIndex(local_current_list)
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
             assim = .true.
@@ -3582,10 +3565,8 @@ contains
 
           ! Prepare the vector of all the observations:
           nh1 = 0
-          call obs_set_current_body_list(obsSpaceData, headerIndex, &
-               current_list=local_current_list)
           BODY_2: do 
-            bodyIndex = obs_getBodyIndex(local_current_list)
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY_2
             if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
               nh1      = nh1 + 1
