@@ -42,7 +42,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
+  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setGZsfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
@@ -533,17 +533,6 @@ contains
     endif
 
   end function col_getHeight
-
-
-  function col_getGZsfc(column,headerIndex) result(height)
-    implicit none
-    type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: headerIndex
-    real(8)                             :: height
-
-    height = column%gz_sfc(1,headerIndex)
-
-  end function col_getGZsfc
 
 
   subroutine col_setGZsfc(column,headerIndex,height)

@@ -36,7 +36,7 @@ module gps_mod
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
   public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroDynError
-  public :: gpsgravitysrf, p_tc, p_knot, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
+  public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
 
@@ -87,7 +87,6 @@ module gps_mod
 
   ! Units and scales:
   real(dp), parameter           :: p_TC    = 273.15_dp
-  real(dp), parameter           :: p_knot  = 0.514444_dp
 
   ! Standard GEM gravity:
   real(dp), parameter           :: p_g_GEM = 9.80616_dp              ! m/s2
@@ -840,7 +839,7 @@ contains
     real(dp), parameter           :: delta = 0.6077686814144_dp
 
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                      :: h0,dh,Rgh, sLat, cLat
+    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
@@ -936,12 +935,14 @@ contains
        dx = xi(i)-xi(i+1)
        tvm = 0.5_dp*(tv(i)+tv(i+1))
        !
-       ! Gravity acceleration
+       ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Rgh = gpsgravityalt(sLat, h0)
+       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
+       Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
        !
        ! Height increment
        !
