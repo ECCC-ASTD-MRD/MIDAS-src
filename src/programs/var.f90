@@ -62,8 +62,8 @@ program midas_var
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
-  type(struct_vco),       pointer :: vco_anl
-  type(struct_hco),       pointer :: hco_anl
+  type(struct_vco),       pointer :: vco_anl => null()
+  type(struct_hco),       pointer :: hco_anl => null()
   type(struct_gsv) :: statevector_incr
 
   real*8,allocatable :: controlVector_incr(:)
