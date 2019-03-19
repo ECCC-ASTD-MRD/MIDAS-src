@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Adding support for CrIS FSR radiances (#205 and !193)
+   * This is needing a modified version of RTTOV-12.
 
 ### Changed
 
