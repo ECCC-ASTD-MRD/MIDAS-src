@@ -72,8 +72,8 @@ contains
                                 multFactor * columns(memberIndex)%gz_T(:,:)
         column_mean%gz_M(:,:) = column_mean%gz_M(:,:) +  &
                                 multFactor * columns(memberIndex)%gz_M(:,:)
-        column_mean%gz_sfc(:) = column_mean%gz_sfc(:) +  &
-                                multFactor * columns(memberIndex)%gz_sfc(:)
+        column_mean%gz_sfc(:,:) = column_mean%gz_sfc(:,:) +  &
+                                multFactor * columns(memberIndex)%gz_sfc(:,:)
 
         column_mean%pressure_T(:,:) = column_mean%pressure_T(:,:) +  &
                                       multFactor * columns(memberIndex)%pressure_T(:,:)

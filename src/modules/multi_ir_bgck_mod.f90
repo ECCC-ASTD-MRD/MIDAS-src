@@ -1278,7 +1278,7 @@ contains
 
         do JL = 1, nlv_T
           ZT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
-          ZHT(JL,1) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
+          ZHT(JL,1) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
           ZLEVMOD(JL,1)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') * MPC_MBAR_PER_PA_R8
         end do
         ZLQS = col_getElem(lcolumnhr,nlv_T,INDEX_HEADER,'HU')

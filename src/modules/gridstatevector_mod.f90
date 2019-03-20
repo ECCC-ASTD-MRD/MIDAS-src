@@ -2575,7 +2575,7 @@ module gridStateVector_mod
           write(*,*) 'typvar_var = ',typvar_var
           call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
         end if
-        statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0*RG
+        statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -4369,7 +4369,7 @@ module gridStateVector_mod
           nomvar = 'GZ'
 
           !- Scale
-          factor_r4 = real(1.0d0/(10.0d0 * RG),4)
+          factor_r4 = real(1.0d0/10.0d0,4)
           work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
           !- Writing to file

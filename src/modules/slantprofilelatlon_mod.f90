@@ -100,66 +100,66 @@ contains
       unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
       ! loop through thermo/momentum levels
       do varLevelIndex = 1, 2
-	if (varLevelIndex == 1) then
-	  varLevel = 'TH'
-	else
-	  varLevel = 'MM'
-	end if
+        if (varLevelIndex == 1) then
+          varLevel = 'TH'
+        else
+          varLevel = 'MM'
+        end if
 
-	numLevels = col_getNumLev(column,varLevel)
+        numLevels = col_getNumLev(column,varLevel)
 
-	allocate(latSlantPath(numLevels))
-	allocate(lonSlantPath(numLevels))
-	allocate(gzColInMetres(numLevels))
-	latSlantPath(:) = 0.0
-	lonSlantPath(:) = 0.0
-	gzColInMetres(:) = 0.0
+        allocate(latSlantPath(numLevels))
+        allocate(lonSlantPath(numLevels))
+        allocate(gzColInMetres(numLevels))
+        latSlantPath(:) = 0.0
+        lonSlantPath(:) = 0.0
+        gzColInMetres(:) = 0.0
 
-	! unit: m
-	GZ_column  => col_getColumn(column,indexHeader,'GZ',varLevel)
-	gzColInMetres(:) = GZ_column(:) / RG
+        ! unit: m
+        GZ_column  => col_getColumn(column,indexHeader,'GZ',varLevel)
+        gzColInMetres(:) = GZ_column(:)
 
-	do levelIndex = 1, numLevels
-	  ! Geometric altitude (m)
-	  altGeometric = RA * gzColInMetres(levelIndex) / (RA - gzColInMetres(levelIndex))
-	  ! distance along line of sight (m)
-	  distAlongPath = altGeometric / cos(satZenRad) 
+        do levelIndex = 1, numLevels
+          ! Geometric altitude (m)
+          altGeometric = RA * gzColInMetres(levelIndex) / (RA - gzColInMetres(levelIndex))
+          ! distance along line of sight (m)
+          distAlongPath = altGeometric / cos(satZenRad) 
 
-	  ! unit: m
-	  slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
+          ! unit: m
+          slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
 
-	  latSlantPathRad = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
-	  lonSlantPathRad = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
+          latSlantPathRad = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
+          lonSlantPathRad = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
 
-	  ! convert to deg
-	  latSlantPath(levelIndex) = latSlantPathRad * MPC_DEGREES_PER_RADIAN_R8
-	  lonSlantPath(levelIndex) = lonSlantPathRad * MPC_DEGREES_PER_RADIAN_R8
-	end do
+          ! convert to deg
+          latSlantPath(levelIndex) = latSlantPathRad * MPC_DEGREES_PER_RADIAN_R8
+          lonSlantPath(levelIndex) = lonSlantPathRad * MPC_DEGREES_PER_RADIAN_R8
+        end do
 
-	! print output angles/lat/lon/GZ
-	if (varLevelIndex == 1) then
-	  write(ioout,'(4(f9.4,1x))') obsLatRad, obsLonRad, satAzimRad, satZenRad
-	end if
+        ! print output angles/lat/lon/GZ
+        if (varLevelIndex == 1) then
+          write(ioout,'(4(f9.4,1x))') obsLatRad, obsLonRad, satAzimRad, satZenRad
+        end if
 
-	write(ioout,'(a2)') varLevel
+        write(ioout,'(a2)') varLevel
 
-	do levelIndex = 1, numLevels
-	  write(ioout,'(f9.4,1x)',advance='no') latSlantPath(levelIndex)
-	end do
-	write(ioout,*)
-	do levelIndex = 1, numLevels
-	  write(ioout,'(f9.4,1x)',advance='no') lonSlantPath(levelIndex)
-	end do
-	write(ioout,*)
+        do levelIndex = 1, numLevels
+          write(ioout,'(f9.4,1x)',advance='no') latSlantPath(levelIndex)
+        end do
+        write(ioout,*)
+        do levelIndex = 1, numLevels
+          write(ioout,'(f9.4,1x)',advance='no') lonSlantPath(levelIndex)
+        end do
+        write(ioout,*)
 
-	do levelIndex = 1, numLevels
-	  write(ioout,'(f12.4,1x)',advance='no') gzColInMetres(levelIndex)
-	end do
-	write(ioout,*)
+        do levelIndex = 1, numLevels
+          write(ioout,'(f12.4,1x)',advance='no') gzColInMetres(levelIndex)
+        end do
+        write(ioout,*)
 
-	deallocate(latSlantPath)
-	deallocate(lonSlantPath)
-	deallocate(gzColInMetres)
+        deallocate(latSlantPath)
+        deallocate(lonSlantPath)
+        deallocate(gzColInMetres)
       end do
 
       write(ioout,*)

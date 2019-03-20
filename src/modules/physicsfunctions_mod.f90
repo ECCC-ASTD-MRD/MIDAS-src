@@ -38,6 +38,7 @@ module physicsFunctions_mod
   public :: FOEFQPSA, fottva, folnqva
   public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
   public :: phf_get_tropopause, phf_get_pbl, phf_calcDistance, phf_calcDistanceFast
+  public :: phf_alt2geopotential, phf_gravityalt, phf_gravitysrf
 
   LOGICAL :: initialized = .false.
   LOGICAL :: NEW_TETENS_COEFS
@@ -1008,6 +1009,132 @@ module physicsFunctions_mod
     distanceInM = RA * sqrt(dlon*dlon + dlat*dlat)
 
   end function phf_calcDistanceFast
+
+
+  function phf_gravitysrf(sLat)
+    !  Normal gravity on ellipsoidal surface:
+    !  Input:  Latitude
+    !          sin(Latitude)
+    !
+    !  Output: Normal gravity
+    !          phf_gravitysrf         : m/s2
+    !
+    real(8), intent(in)  :: sLat
+    real(8)              :: phf_gravitysrf
+    
+    real(8)              :: ks2
+    real(8)              :: e2s
+
+    ks2 = WGS_TNGk * sLat*sLat
+    e2s = 1.D0 - WGS_e2 * sLat*sLat
+    phf_gravitysrf = WGS_GammaE * (1.D0 + ks2) / sqrt(e2s)
+  end function phf_gravitysrf
+
+
+  function phf_gravityalt(sLat, Altitude)
+    ! Normal gravity above the ellipsoidal surface:
+    ! Input:  Latitude, altitude
+    !         sin(Latitude)
+    !         Altitude               : m
+    !
+    ! Output: Normal gravity
+    !         phf_gravityalt          : m/s2
+    !
+    real(8), intent(in)  :: sLat
+    real(8), intent(in)  :: Altitude
+    real(8)              :: phf_gravityalt
+
+    real(8)              :: C1
+    real(8)              :: C2
+
+    C1 =-2.D0/WGS_a*(1.D0+WGS_f+WGS_m-2*WGS_f*sLat*sLat)
+    C2 = 3.D0/WGS_a**2
+    phf_gravityalt = phf_gravitysrf(sLat)*                                   &
+         (1.D0 + C1 * Altitude + C2 * Altitude**2)
+  end function phf_gravityalt
+
+
+  subroutine phf_alt2geopotential(altitude, latitude, geopotential, printGZ)
+    !**s/r phf_alt2geopotential - Geopotential energy at a given point.
+    ! Result is based on the WGS84 approximate expression for the
+    ! gravity acceleration as a function of latitude and altitude,
+    ! integrated with the trapezoidal rule.
+    !
+    ! Input:  altitude(m), latitude (rad)
+    ! Output: geopotential (m2/s2)
+    !
+    ! Author : M. Bani Shahabadi, November 2018
+    !
+    real(8), intent(in)   :: altitude(:)
+    real(8), intent(in)   :: latitude
+    real(8), intent(inout):: geopotential(:)
+
+    integer           :: nlev, nlev500m
+    real(8), allocatable :: alt500m(:), gravity500m(:)
+    real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
+    integer           :: i, ilev 
+    logical, optional :: printGZ
+    
+
+    nlev = size(altitude)
+    sLat = sin(latitude)
+
+    nlev500m = int(altitude(nlev) / 500.D0)
+    if ( nlev500m >= 1) then
+      allocate(alt500m(0:nlev500m))
+      allocate(gravity500m(0:nlev500m))
+
+      ! Calculate gravity and height of levels for 500m-layers
+      do i = 0, nlev500m
+        alt500m(i) = i * 500.0D0
+        gravity500m(i) = phf_gravityalt(sLat, alt500m(i))
+      enddo
+
+      geopotential(nlev) = 0.0D0
+      ! integrate from surface on the 500m-layers untill below the desired altitude
+      do i = 1, nlev500m
+        delAlt = alt500m(i) - alt500m(i-1)
+        aveGravity = 0.5D0 * (gravity500m(i) + gravity500m(i-1))
+        geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity
+      enddo
+
+      ! Add the contribution from top of the last 500m-layer to the altitude  
+      delAlt = altitude(nlev) - alt500m(nlev500m)
+      aveGravity = 0.5D0 * (phf_gravityalt(sLat, altitude(nlev)) + gravity500m(nlev500m))
+      geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity 
+      gravityM1 = phf_gravityalt(sLat, altitude(nlev))
+
+      deallocate(alt500m)
+      deallocate(gravity500m)
+
+    else
+      ! At surface, use local gravity to get GZ
+      gravity = phf_gravityalt(sLat,altitude(nlev))
+      geopotential(nlev) = altitude(nlev) * gravity
+      gravityM1 = gravity
+
+    endif
+
+    ! At upper-levels, integrate on model levels to get GZ 
+    do ilev = nlev-1, 1, -1
+      gravity = phf_gravityalt(sLat,altitude(ilev))
+      aveGravity = 0.5D0 * (gravity + gravityM1)
+      delAlt = altitude(ilev) - altitude(ilev+1)
+      geopotential(ilev) = geopotential(ilev+1) + delAlt * aveGravity
+      gravityM1 = gravity
+    enddo
+
+    if ( present(printGZ) ) then
+      if ( printGZ ) then
+        write(*,*) 'phf_alt2geopotential, GZ_T:'
+        write(*,*) geopotential(:)
+
+        printGZ = .false.
+      endif
+    endif
+
+  end subroutine phf_alt2geopotential
+
   
 end module physicsFunctions_mod
 

@@ -1406,6 +1406,7 @@ contains
     REAL*8, allocatable :: ZDP(:)
     REAL*8, allocatable :: ZTT(:)
     REAL*8, allocatable :: ZHU(:)
+    REAL*8, allocatable :: zALT(:)
     REAL*8, allocatable :: ZUU(:)
     REAL*8, allocatable :: ZVV(:)
     !
@@ -1433,6 +1434,7 @@ contains
     allocate(ZDP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
+    allocate(zALT (NGPSLEV))
     allocate(ZUU (NGPSLEV))
     allocate(ZVV (NGPSLEV))
     !
@@ -1483,7 +1485,7 @@ contains
           Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
           Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
           zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-          zMT  = col_getGZsfc(lcolumnhr,headerIndex)/RG
+          zMT  = col_getHeight(lcolumnhr,0,headerIndex,'SF')
              !     
              !     *        Profile at the observation location:
              !
@@ -1506,20 +1508,21 @@ contains
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
+            zALT(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
           end do
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
                col_getPressure(lcolumnhr,1,headerIndex,'MM')) then
                 ! case with top thermo level above top momentum level (Vcode=5002)
             do jl = 1, nwndlev
-              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU') * p_knot
-              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV') * p_knot
+              zuu(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'UU')
+              zvv(jl) = col_getElem(lcolumnhr,jl, headerIndex, 'VV')
             end do
           else
                 ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
             do jl = 1, nwndlev - 1
-              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' ) * p_knot
-              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' ) * p_knot
+              zuu(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'UU' )
+              zvv(jl) = col_getElem( lcolumnhr, jl + 1, headerIndex, 'VV' )
             end do
             zuu(nwndlev) = zuu( nwndlev - 1 )
             zvv(nwndlev) = zuu( nwndlev - 1 )
@@ -1529,7 +1532,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -1590,20 +1593,33 @@ contains
           end if
 
           if (LEVELGPSRO==2) then
-            do NH1 = 1, NH
-              SUM0=0.d0
-              SUM1=0.d0
-              do JH = 1, NH
-                DDH=H(JH)-H(NH1)
-                SUM0=SUM0+EXP(-(DDH/DH)**2)
-                SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+            if (gpsroDynError) then
+              do NH1 = 1, NH
+                SUM0=0.d0
+                SUM1=0.d0
+                do JH = 1, NH
+                  DDH=H(JH)-H(NH1)
+                  SUM0=SUM0+EXP(-(DDH/DH)**2)
+                  SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                end do
+                ZERR(NH1)=(SUM1/SUM0)**0.5D0
+                if ( NUMGPSSATS  >=  1 ) then
+                  if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
+                end if
+                if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
-              ZERR(NH1)=(SUM1/SUM0)**0.5D0
-              if ( NUMGPSSATS  >=  1 ) then
-                if (isat==3 .or. isat==4) ZERR(NH1) = 2*ZERR(NH1)
-              end if
-              if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-            end do
+            else
+              do NH1 = 1, NH
+                ZERR(NH1) = 0.05d0
+                L1=( HNH1 <= 10000.d0 )
+                L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
+                L3=( HNH1 > 30000.d0 )
+                IF ( L1 ) ZERR(NH1)=0.005d0+0.020d0*(10000.d0-HNH1)/10000.d0
+                IF ( L2 ) ZERR(NH1)=0.005d0
+                IF ( L3 ) ZERR(NH1)=0.005d0+0.030d0*(HNH1-30000.d0)/30000.d0
+                if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+              enddo
+            endif
           else
             do NH1 = 1, NH
               ZERR(NH1)=0.05d0
@@ -1656,6 +1672,7 @@ contains
     deallocate(zVV)
     deallocate(zUU)
     deallocate(zHU)
+    deallocate(zALT)
     deallocate(zTT)
     deallocate(zDP)
     deallocate(zPP)
@@ -1778,7 +1795,7 @@ contains
 
       ZBPSFC = col_getElem( columnhr, 1, headerIndex, 'P0' )
       ZBTSFC = col_getElem( columnhr, nlev_T, headerIndex, 'TT' )
-      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' ) / RG
+      ZBZSFC = col_getHeight( columnhr, nlev_T, headerIndex, 'TH' )
        !
        !    Loop over all body indices of current report; Set the ZTD error if
        !    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).

@@ -42,7 +42,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
+  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setGZsfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
@@ -50,7 +50,7 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
-    real(8), pointer  :: gz_T(:,:),gz_M(:,:),gz_sfc(:)
+    real(8), pointer  :: gz_T(:,:),gz_M(:,:),gz_sfc(:,:)
     real(8), pointer  :: pressure_T(:,:),pressure_M(:,:)
     real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
@@ -156,7 +156,7 @@ contains
       column%dP_dPsfc_M(:,:) = 0.0d0
       column%gz_M(:,:) = 0.0d0
       column%gz_T(:,:) = 0.0d0
-      column%gz_sfc(:) = 0.0d0
+      column%gz_sfc(:,:) = 0.0d0
     endif
 
   end subroutine col_zero
@@ -231,10 +231,10 @@ contains
 
       allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
       allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
-      allocate(column%gz_sfc(column%numCol))
+      allocate(column%gz_sfc(1,column%numCol))
       if ( setToZero ) column%gz_T(:,:)=0.0d0
       if ( setToZero ) column%gz_M(:,:)=0.0d0
-      column%gz_sfc(:)=0.0d0
+      column%gz_sfc(:,:)=0.0d0
 
       allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
       allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
@@ -527,23 +527,12 @@ contains
     elseif (varLevel == 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
     elseif (varLevel == 'SF' ) then
-      height = column%gz_sfc(headerIndex)
+      height = column%gz_sfc(1,headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
     endif
 
   end function col_getHeight
-
-
-  function col_getGZsfc(column,headerIndex) result(height)
-    implicit none
-    type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: headerIndex
-    real(8)                             :: height
-
-    height = column%gz_sfc(headerIndex)
-
-  end function col_getGZsfc
 
 
   subroutine col_setGZsfc(column,headerIndex,height)
@@ -552,7 +541,7 @@ contains
     integer, intent(in)                 :: headerIndex
     real(8), intent(in)                 :: height
 
-    column%gz_sfc(headerIndex) = height
+    column%gz_sfc(1,headerIndex) = height
 
   end subroutine col_setGZsfc
 
@@ -617,6 +606,8 @@ contains
               onecolumn => column%gz_T(:,headerIndex)
             elseif(varLevel_opt == 'MM') then
               onecolumn => column%gz_M(:,headerIndex)
+            elseif(varLevel_opt == 'SF') then
+              onecolumn => column%gz_sfc(:,headerIndex)
             else
               call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel_opt)         
             endif

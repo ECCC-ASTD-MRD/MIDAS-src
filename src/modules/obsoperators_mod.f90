@@ -171,12 +171,12 @@ contains
           varLevel = vnl_varLevelFromVarnum(ITYP)
         end if
         if (varLevel == 'SF') then
-          ZPT= col_getHeight(columnghr,1,IOBS,'TH')/RG
-          ZPB= col_getGZsfc(columnghr,IOBS)/RG                 
+          ZPT= col_getHeight(columnghr,1,IOBS,'TH')
+          ZPB= col_getHeight(columnghr,0,IOBS,'SF')
         else
           nlev=col_getNumLev(columnghr,varLevel)
-          ZPT= col_getHeight(columnghr,1,IOBS,varLevel)/RG
-          ZPB= col_getHeight(columnghr,NLEV,IOBS,varLevel)/RG
+          ZPT= col_getHeight(columnghr,1,IOBS,varLevel)
+          ZPB= col_getHeight(columnghr,NLEV,IOBS,varLevel)
         end if
         if ( ZLEV > ZPT ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
@@ -247,7 +247,7 @@ contains
         IK = 1
         nlev=COL_GETNUMLEV(COLUMNGHR,varLevel)
         do JK = 2, NLEV - 1
-          ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)/RG
+          ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)
           if( ZLEV < ZPT ) IK = JK
         end do
         if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
@@ -288,14 +288,16 @@ contains
     character(len=*) :: cdfam
 
     integer :: headerIndex,bodyIndex,ilyr
-    integer :: iass,ixtr,ivco,ivnm
+    integer :: iass,ixtr,ivco,ivnm,nlev_T
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,zexp,zgamma,ztvg
     real(8) :: zlev,zpt,zpb,zomp
-    real(8) :: columnVarB,columnVarT
+    real(8) :: columnVarB,columnVarT,lat
     character(len=4) :: varName
     character(len=2) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
+    real(8), allocatable :: geopotential(:)
+    real(8) :: heightSfc(1), geopotentialSfc(1)
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
@@ -303,6 +305,9 @@ contains
 
     zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
+
+    nlev_T = col_getNumLev(columnhr,'TH')
+    allocate(geopotential(nlev_T))
 
     jobs = 0.d0
 
@@ -333,6 +338,7 @@ contains
          zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
          zwb  = log(zlev/zpt)/log(zpb/zpt)
          zwt  = 1.d0 - zwb
+         lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
          if (ivnm == bufr_nees) then
            col_ptr_hu=>col_getColumn(columnhr,headerIndex,'HU')
            col_ptr_tt=>col_getColumn(columnhr,headerIndex,'TT')
@@ -341,11 +347,14 @@ contains
          else
            if (trim(varName) == 'GZ') then
              col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
+             call phf_alt2geopotential(col_ptr,lat,geopotential)
+             columnVarB=geopotential(ilyr+1)
+             columnVarT=geopotential(ilyr  )
            else
              col_ptr=>col_getColumn(columnhr,headerIndex,varName)
+             columnVarB=col_ptr(ilyr+1)
+             columnVarT=col_ptr(ilyr  )
            end if
-           columnVarB=col_ptr(ilyr+1)
-           columnVarT=col_ptr(ilyr  )
          end if
          zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
          jobs = jobs + zomp*zomp/(zoer*zoer)
@@ -362,7 +371,13 @@ contains
            !     col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
            ztvg = (1.0d0 + MPC_DELTA_R8 * col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))*  &
                 col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
-           zomp = (  zvar - col_getGZsfc(columnhr,headerIndex) -  &
+
+           ! convert height of surface to geopotential
+           heightSfc(1) = col_getHeight(columnhr,0,headerIndex,'SF')
+           lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+           call phf_alt2geopotential(heightSfc,lat,geopotentialSfc)
+
+           zomp = (  zvar - geopotentialSfc(1) -  &
                 ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
            jobs = jobs + zomp*zomp/(zoer*zoer)
            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
@@ -371,6 +386,8 @@ contains
        end if
 
     end do body
+
+    deallocate(geopotential)
 
     jobs = 0.5d0 * jobs
 
@@ -485,8 +502,8 @@ contains
 
       ilyr = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
       varLevel = vnl_varLevelFromVarnum(ivnm)
-      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
-      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
+      zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)
+      zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
 
@@ -625,8 +642,8 @@ contains
 
     Write(*,*) "Entering subroutine oop_sfc_nl"
 
-    zgamma = 0.0065d0 / GRAV
-    zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+    zgamma = 0.0065d0
+    zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
 
     jobs = 0.d0
 
@@ -654,7 +671,7 @@ contains
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          zhhh = zlev * grav
+          zhhh = zlev
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
           if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
@@ -694,7 +711,7 @@ contains
             ! observation. For mean sea level observation, the observation height = 0.
 
             ! 1) Temperature difference = lapse-rate (6.5 degree/km) * height difference (dz)
-            zgamaz = zgamma*(zhhh-col_getGZsfc(columnhr,headerIndex))
+            zgamaz = zgamma*(zhhh-col_getHeight(columnhr,0,headerIndex,'SF'))
 
             ! 2) Compute the 2m background virtual temperature: Tv = T*(1+0.608*HU)
             ztvg = (1.0d0 + MPC_DELTA_R8 *  &
@@ -856,6 +873,12 @@ contains
     !
     !Author  : J. M. Aparicio Jan 2004
     !          Adapted Nov 2012 for both refractivity and bending angle data
+    !
+    !revision 01: M. Bani shahabadi Nov 2018
+    !           - gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
+    !             in gps_diff object w.r.t TT/HU/GZ/P0. The indirect dependency refractivity 
+    !             to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
+    !
     !    -------------------
     !*    Purpose:
     !
@@ -879,6 +902,7 @@ contains
     real(8), allocatable :: zdp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
+    real(8), allocatable :: zALT(:)
     real(8), allocatable :: zuu(:)
     real(8), allocatable :: zvv(:)
     real(8) :: zp0, zmt
@@ -901,6 +925,7 @@ contains
     allocate(zdp(ngpslev))
     allocate(ztt(ngpslev))
     allocate(zhu(ngpslev))
+    allocate(zALT(ngpslev))
     allocate(zuu(ngpslev))
     allocate(zvv(ngpslev))
 
@@ -955,7 +980,7 @@ contains
        rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
        geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
        zazm = 0.01d0*iazm / MPC_DEGREES_PER_RADIAN_R8
-       zmt  = col_getGZsfc(columnhr,headerIndex)/RG
+       zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
        wfgps=0.d0
        do jj=1,numgpssats
           if (isat == igpssat(jj)) wfgps=wgps(jj)
@@ -968,8 +993,6 @@ contains
        lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
        lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
        azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
-       slat = sin(zlat)
-       zmt  = zmt * RG / gpsgravitysrf(slat)
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, ngpslev
           !
@@ -979,20 +1002,21 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
+          zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
 
        if((col_getPressure(columnhr,1,headerIndex,'TH') + 1.0d-4) < &
             col_getPressure(columnhr,1,headerIndex,'MM')) then
           ! case with top thermo level above top momentum level (Vcode=5002)
           do jl = 1, nwndlev
-             zuu(jl) = col_getElem(columnhr,jl  ,headerIndex,'UU') * p_knot
-             zvv(jl) = col_getElem(columnhr,jl  ,headerIndex,'VV') * p_knot
+             zuu(jl) = col_getElem(columnhr,jl  ,headerIndex,'UU')
+             zvv(jl) = col_getElem(columnhr,jl  ,headerIndex,'VV')
           end do
        else
           ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
           do jl = 1, nwndlev-1
-             zuu(jl) = col_getElem(columnhr,jl+1,headerIndex,'UU') * p_knot
-             zvv(jl) = col_getElem(columnhr,jl+1,headerIndex,'VV') * p_knot
+             zuu(jl) = col_getElem(columnhr,jl+1,headerIndex,'UU')
+             zvv(jl) = col_getElem(columnhr,jl+1,headerIndex,'VV')
           end do
           zuu(nwndlev) = zuu(nwndlev-1)
           zvv(nwndlev) = zuu(nwndlev-1)
@@ -1002,7 +1026,7 @@ contains
        !     
        ! GPS profile structure:
        !
-       call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -1107,6 +1131,7 @@ contains
     deallocate(zvv)
     deallocate(zuu)
     deallocate(zhu)
+    deallocate(zALT)
     deallocate(ztt)
     deallocate(zdp)
     deallocate(zpp)
@@ -1147,6 +1172,9 @@ contains
     !          S. Macpherson Jan 2015
     !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
     !
+    !          M. Bani Shahabadi Dec 2018
+    !           -- use the calculated height in tt2phi in the gps_structztd_v2
+    !
     !Arguments (out)
     !     jobs: total value of Jo for all GB-GPS (ZTD) observations
     !
@@ -1162,6 +1190,7 @@ contains
     real(8), allocatable :: zdp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
+    real(8), allocatable :: zALT (:)
     real(8) :: zlat, lat, zlon, lon
     real(8) :: zp0, zmt, zdzmin
     real(8) :: zobs, zoer, zinc, zhx, zlev
@@ -1207,7 +1236,6 @@ contains
 
     ! Ensure Jacobian-related arrays are not allocated to force them to be recalculated in oop_H
     if(allocated(vGPSZTD_Jacobian)) deallocate(vGPSZTD_Jacobian)
-    if(allocated(vGPSZTD_lJac)) deallocate(vGPSZTD_lJac)
 
     zdzmin = dzmin      
     nobs2p = 50
@@ -1221,6 +1249,7 @@ contains
     !
     allocate(ztt(nlev_T))
     allocate(zhu(nlev_T))
+    allocate(zALT(nlev_T))
     allocate(zdp(nlev_T))
     allocate(zpp(nlev_T))
 
@@ -1289,7 +1318,7 @@ contains
        lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
        zlat = lat * MPC_DEGREES_PER_RADIAN_R8
        zlon = lon * MPC_DEGREES_PER_RADIAN_R8
-       zmt  = col_getGZsfc(columnhr,headerIndex)/RG
+       zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, nlev_T
           zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
@@ -1297,11 +1326,12 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
+          zALT(jl) = col_getHeight(columnhr,jl,headerIndex,'TH')
        end do
        zdz = zlev - zmt
 
        ! Fill GPS ZTD profile structure (PRF):
-       call gps_structztd(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
+       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,zALT,lbevis,irefopt,prf)
 
        ! Apply the GPS ZTD observation operator
        ! --> output is model ZTD (type gps_diff) and P at obs height ZLEV
@@ -1407,6 +1437,7 @@ contains
 
     deallocate(ztt)
     deallocate(zhu)
+    deallocate(zALT)
     deallocate(zdp)
     deallocate(zpp)
 
@@ -1918,8 +1949,8 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / GRAV
-      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zgamma = 0.0065d0
+      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
       !C
       !C
       list_family(1) = 'UA'
@@ -1957,7 +1988,7 @@ contains
                !IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               ZHHH = ZLEV * GRAV
+               ZHHH = ZLEV
                IPT  = nlev - 1 + col_getOffsetFromVarno(columng,ityp)
                IPB  = IPT+1
 
@@ -1980,7 +2011,7 @@ contains
                   ZLTV  = columng%OLTV(1,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'TT')  & 
                        + columng%OLTV(2,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'HU')
                   ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                  ZGAMAZ= ZGAMMA*(ZHHH-col_getGZsfc(columng,headerIndex))
+                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
                   ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                   ZDELPS= (col_getElem(COLUMN,1,headerIndex,'P0')*ZCON**ZEXP)
                   ZDELTV= ((col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
@@ -2138,80 +2169,42 @@ contains
       !*
       !*Author  : J. M. Aparicio Jan 2004
       !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
+      !
+      ! revision 02: M. Bani Shahabadi, Nov 2018
+      !            - Calculation of the Jacobians is done separately in 
+      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
+      !              placed here in the observation operator.
       !*    -------------------
-      use IndexListDepot_mod, only : struct_index_list
+
       implicit none
 
       integer, intent(in) :: obsAssVal
-
-      REAL*8 zLat, Lat, sLat
-      REAL*8 zLon, Lon
-      REAL*8 zAzm, Azm
-      INTEGER IAZM, ISAT
-      REAL*8 Rad, Geo, WFGPS, zP0
-      REAL*8, allocatable :: zPP(:)
-      REAL*8, allocatable :: zDP(:)
-      REAL*8, allocatable :: zTT(:)
-      REAL*8, allocatable :: zHU(:)
-      REAL*8, allocatable :: zUU(:)
-      REAL*8, allocatable :: zVV(:)
-      REAL*8 zMT,radw
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
 
       INTEGER IDATYP
-      INTEGER JL, JV, NGPSLEV, NWNDLEV, stat1, JJ
+      INTEGER JL, JV, NGPSLEV, NWNDLEV
       integer :: headerIndex, bodyIndex, iProfile
-      type(struct_index_list), pointer :: local_current_list
 
-      LOGICAL  ASSIM, LFIRST
+      LOGICAL  ASSIM
 
       INTEGER NH, NH1
-      TYPE(GPS_PROFILE)           :: PRF
-      REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
-      TYPE(GPS_DIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
-      !C      WRITE(*,*)'ENTER oop_Hro'
-      !C
+
       !C     * 1.  Initializations
       !C     *     ---------------
       !C
       NGPSLEV=col_getNumLev(column,'TH')
       NWNDLEV=col_getNumLev(column,'MM')
-      LFIRST=.FALSE.
-      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
-         LFIRST = .TRUE.
-         allocate(zPP (NGPSLEV))
-         allocate(zDP (NGPSLEV))
-         allocate(zTT (NGPSLEV))
-         allocate(zHU (NGPSLEV))
-         allocate(zUU (NGPSLEV))
-         allocate(zVV (NGPSLEV))
 
-         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(gps_vRO_lJac    (gps_numROProfiles))
-         gps_vRO_lJac=.false.
+      ! call to calculate the GPSRO Jacobians
+      call oop_calcGPSROJacobian(columng,obsSpaceData,obsAssVal)
 
-         allocate( H    (GPSRO_MAXPRFSIZE) )
-         allocate( AZMV (GPSRO_MAXPRFSIZE) )
-         allocate( RSTV (GPSRO_MAXPRFSIZE) )
-         !C         IF (LEVELGPSRO == 1) THEN
-         !C            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
-         !C            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
-         !C         END IF
-      end if
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      !##$omp parallel default(shared) &
-      !##$omp private(headerIndex,idatyp,assim,nh,local_current_list,bodyIndex) &
-      !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
-      !##$omp private(zlat,zlon,lat,lon,azm,slat) &
-      !##$omp private(stat1,jl,zpp,zdp,ztt,zhu,zuu,zvv,prf,dx) &
-      !##$omp private(h,azmv,rstv,rstvp,rstvm,nh1,zmhxl,jv)
-      nullify(local_current_list)
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
@@ -2229,10 +2222,9 @@ contains
             !C     *    Loop over all body indices for this headerIndex:
             !C     *    (start at the beginning of the list)
             !C
-            call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                 current_list=local_current_list)
+            call obs_set_current_body_list(obsSpaceData, headerIndex)
             BODY: do 
-               bodyIndex = obs_getBodyIndex(local_current_list)
+               bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
                IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
                   ASSIM = .TRUE.
@@ -2245,113 +2237,22 @@ contains
             ASSIMILATE: IF (ASSIM) THEN
                iProfile=gps_iprofile_from_index(headerIndex)
                !C
-               !C     *       Profile at the observation location:
-               !C
-               if (.not.gps_vRO_lJac(iProfile)) then
-                  !C
-                  !C     *          Basic geometric variables of the profile:
-                  !C
-                  zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-                  zLon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
-                  IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-                  ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
-                  Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
-                  Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
-                  zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getGZsfc(columng,headerIndex)/RG
-                  WFGPS= 0.d0
-                  DO JJ=1,NUMGPSSATS
-                     IF (ISAT == IGPSSAT(JJ)) WFGPS=WGPS(JJ)
-                  END DO
-                  Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
-                  Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
-                  Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
-                  sLat = sin(zLat)
-                  zMT  = zMT * RG / gpsgravitysrf(sLat)
-                  zP0  = col_getElem(columng,1,headerIndex,'P0')
-                  DO JL = 1, NGPSLEV
-                     !C
-                     !C     *             Profile x_b
-                     !C
-                     zPP(JL) = col_getPressure(columng,JL,headerIndex,'TH')
-                     !C     *             True implementation of zDP (dP/dP0)
-                     zDP(JL) = col_getPressureDeriv(columng,JL,headerIndex,'TH')
-                     zTT(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
-                     zHU(JL) = col_getElem(columng,JL,headerIndex,'HU')
-                  END DO
-
-                  if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
-                       col_getPressure(columng,1,headerIndex,'MM')) then
-                     ! case with top thermo level above top momentum level (Vcode=5002)
-                     do jl = 1, nwndlev
-                        zuu(jl) = col_getElem(columng,jl  ,headerIndex,'UU') * p_knot
-                        zvv(jl) = col_getElem(columng,jl  ,headerIndex,'VV') * p_knot
-                     end do
-                  else
-                     ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
-                     do jl = 1, nwndlev-1
-                        zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU') * p_knot
-                        zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV') * p_knot
-                     end do
-                     zuu(nwndlev) = zuu(nwndlev-1)
-                     zvv(nwndlev) = zuu(nwndlev-1)
-                  end if
-                  zuu(ngpslev) = zuu(nwndlev)
-                  zvv(ngpslev) = zuu(nwndlev)
-                  !C     
-                  !C     *          GPS profile structure:
-                  !C
-                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
-                  !C
-                  !C     *          Prepare the vector of all the observations:
-                  !C
-                  NH1 = 0
-                  call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                       current_list=local_current_list)
-                  BODY_2: do 
-                     bodyIndex = obs_getBodyIndex(local_current_list)
-                     if (bodyIndex < 0) exit BODY_2
-                     IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
-                        NH1      = NH1 + 1
-                        H(NH1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                        AZMV(NH1)= zAzm
-                     END IF
-                  END DO BODY_2
-                  !C
-                  !C     *          Apply the observation operator:
-                  !C
-                  IF (LEVELGPSRO == 1) THEN
-                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
-                     !C                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
-                     !C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
-                     !C                     do nh1 = 1, nh
-                     !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
-                     !C                     end do
-                  ELSE
-                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
-                  END IF
-                  DO NH1=1,NH
-                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
-                  END DO
-                  gps_vRO_lJac(iProfile)=.true.
-               end if
-               !C
                !C     *       Local vector state
                !C
                DO JL = 1, NGPSLEV
                   DX (        JL) = col_getElem(COLUMN,JL,headerIndex,'TT')
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,headerIndex,'HU')
                END DO
-               DX (2*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
+               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(column,headerIndex,'GZ','TH')
+               DX (3*NGPSLEV+1)   = col_getElem(COLUMN,1 ,headerIndex,'P0')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
                !C     *       Loop over all body indices for this headerIndex:
                !C
                NH1 = 0
-               call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                    current_list=local_current_list)
+               call obs_set_current_body_list(obsSpaceData, headerIndex)
                BODY_3: do 
-                  bodyIndex = obs_getBodyIndex(local_current_list)
+                  bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
                   IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
                      NH1 = NH1 + 1
@@ -2359,7 +2260,7 @@ contains
                      !C     *             Evaluate H(xb)DX
                      !C
                      ZMHXL = 0.d0
-                     DO JV = 1, 2*NGPSLEV+1
+                     DO JV = 1, 3*NGPSLEV+1
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      END DO
                      !C
@@ -2371,26 +2272,7 @@ contains
             END IF ASSIMILATE
          END IF DATYP
       END DO HEADER
-      !##$omp end parallel
 
-      IF (LFIRST) THEN
-         !C         IF (LEVELGPSRO == 1) THEN
-         !C            deallocate( RSTVM )
-         !C            deallocate( RSTVP )
-         !C         END IF
-         deallocate( RSTV )
-         deallocate( AZMV )
-         deallocate( H    )
-
-         deallocate(zVV)
-         deallocate(zUU)
-         deallocate(zHU)
-         deallocate(zTT)
-         deallocate(zDP)
-         deallocate(zPP)
-      END IF
-
-      !C      WRITE(*,*)'EXIT oop_Hro'
       RETURN
     END subroutine oop_Hro
 
@@ -2446,8 +2328,8 @@ contains
             varLevel = vnl_varLevelFromVarnum(ityp)
             IPT  = IK + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)/RG
-            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZPT  = col_getHeight(columng,IK  ,headerIndex,varLevel)
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
             ZWT  = 1.0D0 - ZWB
@@ -2499,8 +2381,8 @@ contains
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
                     ZWB*columnVarB + ZWT*columnVarT +  &
                     (columngVarB - columngVarT)*  &
-                    (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel)/RG + &
-                     ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)/RG))
+                    (ZDA1*col_getHeight(column,IK,  headerIndex,varLevel) + &
+                     ZDA2*col_getHeight(column,IK+1,headerIndex,varLevel)))
           END IF
         END DO BODY
       end do FAMILY
@@ -2514,6 +2396,13 @@ contains
       !*
       !*
       !*Author  : S. Macpherson *ARMA October 2012
+      !
+      ! revision 01 : M. Bani Shahabadi Dec 2018
+      !             - The ztd Jacobian contains the derivative w.r.t height. 
+      !
+      ! revision 02 : M. Bani Shahabadi Dec 2018
+      !             - Calculation of the Jacobians in done separately in 
+      !               'oop_calcGPSGBJacobian' subroutine
       !*    -------------------
       !**    Purpose: Compute H'dx for all GPS ZTD observations
       !*
@@ -2521,210 +2410,20 @@ contains
 
       integer, intent(in) :: obsAssVal
 
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      REAL*8, allocatable :: ZTTB(:)
-      REAL*8, allocatable :: ZHUB(:)
-      REAL*8, allocatable :: ZPPB(:)
-      REAL*8, allocatable :: ZDP(:)
-      REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
-      REAL*8 ZMT
-      real*8 sfcfield
-      real*8 dxq1, dxq2, dxq3
-
-      REAL*8 ZHX, ZLEV, ZDZMIN
-      REAL*8 JAC(ngpscvmx)
+      REAL*8 ZHX
       REAL*8 DX (ngpscvmx)
 
       INTEGER headerIndex, bodyIndex
-      INTEGER JL, NFLEV, status, iztd, icount, stat, vcode
+      INTEGER JL, NFLEV, status, iztd, icount
 
       LOGICAL      ASSIM
 
-      real*8, dimension(:), pointer :: dpdp0 => null()
-
-      TYPE(gps_profilezd)   :: PRF, PRF2
-      TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2
-
-      !      WRITE(*,*)'ENTER oop_Hgp'
-
-      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
-
-      ZDZMIN = DZMIN                     ! from modgpsztd_mod
-
       NFLEV  = col_getNumLev(columng,'TH')
 
-      !C
-      !C     * 1.  Initializations
-      !C     *     ---------------
-      !C
-      !     NOTE:  vGPSZTD_Index(numGPSZTD) is initialized in s/r dobsgpsgb
-      !
-      if (.not.allocated(vGPSZTD_Index)) then
-         call utl_abort('oop_Hgp: ERROR:  vGPSZTD_Index not allocated!')
-      elseif (.not.allocated(vGPSZTD_Jacobian)) then
-         write(*,*) ' Allocate vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1)'
-         allocate(vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1))
-         allocate(vGPSZTD_lJac(numGPSZTD))
-         vGPSZTD_lJac = .false.
-         vGPSZTD_Jacobian = 0.0d0
-      end if
-
-      !   If first time (iteration), store the Jacobians for all ZTD data to be assimilated
-
-      !-----------------------------------------------------------------------------------------
-      INIT: IF ( .not.vGPSZTD_lJac(1) ) THEN
-
-         allocate(ZTTB(NFLEV))
-         allocate(ZHUB(NFLEV))
-         allocate(ZPPB(NFLEV))
-         allocate(ZDP(NFLEV))
-
-         write(*,*) 'oop_Hgp: Storing Jacobians for GPS ZTD data ...'
-         write(*,*) '   INFO: Analysis grid iversion = ', vcode
-         write(*,*) '         col_getNumLev(columng,TH) = ', NFLEV
-         write(*,*) '         numGPSZTD = ', numGPSZTD
-
-         icount = 0
-
-         ! loop over all header indices of the 'GP' family (GPS observations)
-         call obs_set_current_header_list(obsSpaceData,'GP')
-         HEADER_0: do
-            headerIndex = obs_getHeaderIndex(obsSpaceData)
-            if (headerIndex < 0) exit HEADER_0
-            !C
-            !C     *     Scan for ZTD assimilation at this location
-            !C
-            ASSIM = .FALSE.
-            ! loop over all body indices for this headerIndex
-            call obs_set_current_body_list(obsSpaceData, headerIndex)
-            BODY_0: DO 
-               bodyIndex = obs_getBodyIndex(obsSpaceData)
-               if (bodyIndex < 0) exit BODY_0
-               if (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
-                    .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-                    .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) ) then
-                  ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                  ASSIM = .TRUE.
-               end if
-            END DO BODY_0
-
-            IF ( ASSIM ) THEN
-               !C
-               !C     *    LR background profile at the observation location x :
-               !C
-               icount = icount + 1
-               Lat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-               ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-               Lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
-               ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-               ZP0B = col_getElem(columng,1,headerIndex,'P0')
-               DO JL = 1, NFLEV
-                  ZTTB(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
-                  ZHUB(JL) = col_getElem(columng,JL,headerIndex,'HU')
-                  ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
-                  !C            Get ZDP = dP/dP0
-                  ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
-               END DO
-               if ( ZPPB(NFLEV) /= ZP0B ) then
-                  write(*,*) ' oop_Hgp: ERROR: ZPPB(NFLEV) /= ZP0B'
-                  write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
-                  !BUE              call utl_abort('oop_Hgp')
-               end if
-               ZMT  = col_getGZsfc(columng,headerIndex)/RG
-               if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
-               !c
-               CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-               CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
-               !C          Observation Jacobian H'(xb)            
-               JAC = ZTDopv%DVar
-               iztd = gps_i_from_index(headerIndex)
-               DO JL = 1, 2*NFLEV+1
-                  vGPSZTD_Jacobian(iztd,JL) = JAC(JL)
-               END DO
-               vGPSZTD_lJac(iztd) = .true.
-               !            
-               if ( icount <= 3 .and. LTESTOP ) then
-                  write(*,*) '--------------------------------------------------------- '
-                  write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex),'ZTDopv (m) = ', ZTDopv%Var
-                  CALL gps_pw(PRF,ZPWMOD)
-                  !           sfc pressure dx               
-                  !               ZPPB(NFLEV) = ZPPB(NFLEV) + 50.0d0
-                  nullify(dpdp0)
-                  sfcfield = ZP0B + 50.0d0
-                  status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
-                  ZDP = dpdp0(1:NFLEV)
-                  CALL gps_structztd(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-                  CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
-                  write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
-                  write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
-                  write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,2*NFLEV+1)*50.0d0
-                  write(*,*) ' '
-                  !               ZPPB(NFLEV) = ZPPB(NFLEV) - 50.0d0
-                  !           q dx 
-                  dxq1 = 0.44D-01*ZHUB(64)
-                  dxq2 = 0.44D-01*ZHUB(65)
-                  dxq3 = 0.44D-01*ZHUB(66)
-                  ZHUB(64) = ZHUB(64) - dxq1
-                  ZHUB(65) = ZHUB(65) - dxq2
-                  ZHUB(66) = ZHUB(66) - dxq3
-                  CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-                  CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
-                  CALL gps_pw(PRF2,ZPWMOD2)
-                  write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
-                  write(*,*) ' dPW (mm)    = ', ZPWMOD2 - ZPWMOD
-                  write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
-                  dZTD = vGPSZTD_Jacobian(iztd,64+NFLEV)*(-dxq1) + vGPSZTD_Jacobian(iztd,65+NFLEV)*(-dxq2) + &
-                       vGPSZTD_Jacobian(iztd,66+NFLEV)*(-dxq3)
-                  write(*,*) ' dZTD Linear = ', dZTD
-                  write(*,*) ' '
-                  ZHUB(64) = ZHUB(64) + dxq1
-                  ZHUB(65) = ZHUB(65) + dxq2
-                  ZHUB(66) = ZHUB(66) + dxq3
-                  !           temperature dx                   
-                  ZTTB(64) = ZTTB(64) + 2.0d0
-                  ZTTB(65) = ZTTB(65) + 2.0d0
-                  ZTTB(66) = ZTTB(66) + 2.0d0
-                  CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-                  CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
-                  write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
-                  write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
-                  dZTD = vGPSZTD_Jacobian(iztd,64)*2.0d0 + vGPSZTD_Jacobian(iztd,65)*2.0d0 + &
-                       vGPSZTD_Jacobian(iztd,66)*2.0d0
-                  write(*,*) ' dZTD Linear = ', dZTD
-                  write(*,*) '--------------------------------------------------------- '              
-               end if
-
-            END IF
-
-         END DO HEADER_0
-
-         deallocate(ZTTB)
-         deallocate(ZHUB)
-         deallocate(ZPPB)
-         deallocate(ZDP)
-
-         write(*,*) 'oop_Hgp:   Number of ZTD data (icount) = ', icount
-         write(*,*) '           Expected number (numGPSZTD) = ', numGPSZTD
-         write(*,*) '           Last iztd                   = ', iztd
-         write(*,*) '           vGPSZTD_Index(1)            = ', vGPSZTD_Index(1)
-         write(*,*) '           vGPSZTD_Index(iztd)         = ', vGPSZTD_Index(iztd)
-
-         if ( icount /= numGPSZTD ) then
-            call utl_abort('oop_Hgp: ERROR: icount /= numGPSZTD!')
-         end if
-         if ( icount /= iztd ) then
-            call utl_abort('oop_Hgp: ERROR: icount /= iztd!')
-         end if
-         if ( numGPSZTD /= iztd ) then
-            call utl_abort('oop_Hgp: ERROR: numGPSZTD /= iztd!')
-         end if
-
-
-      END IF INIT
-      !-----------------------------------------------------------------------------------------
-
       icount = 0
+
+      ! call to calculate the GPSGB Jacobians
+      call oop_calcGPSGBJacobian(columng,obsSpaceData,obsAssVal)
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       call obs_set_current_header_list(obsSpaceData,'GP')
@@ -2762,12 +2461,13 @@ contains
                DX (JL)        = col_getElem(COLUMN,JL,headerIndex,'TT')
                DX (NFLEV+JL)  = col_getElem(COLUMN,JL,headerIndex,'HU')
             END DO
-            DX (2*NFLEV+1)    = col_getElem(COLUMN,1 ,headerIndex,'P0')
+            DX (2*NFLEV+1:3*NFLEV) = col_getColumn(COLUMN,headerIndex,'GZ','TH')
+            DX (3*NFLEV+1)    = col_getElem(COLUMN,1 ,headerIndex,'P0')
 
             !C     *    Evaluate H'(xb)*dX
             !C
             ZHX = 0.D0
-            DO JL = 1, 2*NFLEV+1
+            DO JL = 1, 3*NFLEV+1
                ZHX = ZHX + vGPSZTD_Jacobian(iztd,JL)*DX(JL)
             END DO
             !C
@@ -2786,10 +2486,11 @@ contains
                   icount = icount + 1
                   if ( icount <= 3 .and. LTESTOP ) then
                      write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex)
-                     write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,2*NFLEV+1)
+                     write(*,*) 'JAC(ncv) = ', (vGPSZTD_Jacobian(iztd,JL),JL=1,3*NFLEV+1)
                      write(*,*) 'DTT(JL)  = ', (DX(JL),JL=1,NFLEV)
                      write(*,*) 'DHU(JL)  = ', (DX(JL),JL=NFLEV+1,2*NFLEV)
-                     write(*,*) 'DP0(JL)  = ', DX(2*NFLEV+1)
+                     write(*,*) 'DAL(JL)  = ', (DX(JL),JL=2*NFLEV+1,3*NFLEV)
+                     write(*,*) 'DP0(JL)  = ', DX(3*NFLEV+1)
                      write(*,*) 'ZHX (mm) = ', ZHX*1000.D0
                   end if
                END IF
@@ -3031,8 +2732,8 @@ contains
       !C
       !C     Temperature lapse rate for extrapolation of gz below model surface
       !C
-      zgamma = 0.0065d0 / GRAV
-      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zgamma = 0.0065d0
+      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
       !C
       !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
       !C     .  ---------------------------------------------------------------
@@ -3070,7 +2771,7 @@ contains
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-               ZHHH = ZLEV * GRAV
+               ZHHH = ZLEV
                IPT  = nlev - 1 + col_getOffsetFromVarno(columng,ityp)
                IPB  = IPT+1
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
@@ -3098,7 +2799,7 @@ contains
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')
                  ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                 ZGAMAZ= ZGAMMA*(ZHHH-col_getGZsfc(columng,headerIndex))
+                 ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
                  ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                  ZDELTV= (col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                       *(ZGAMAZ/(ZTVG*ZTVG))
@@ -3242,47 +2943,42 @@ contains
       !*
       !*Author  : J. M. Aparicio Jan 2004
       !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
+      !
+      ! revision 02: M. Bani Shahabadi, Nov 2018
+      !            - Calculation of the Jacobians is done separately in 
+      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
+      !              placed here in the observation operator.
       !*    -------------------
-      use IndexListDepot_mod, only : struct_index_list
+
       implicit none
 
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
 
-      REAL*8 zLat, Lat
-      REAL*8 zAzm, Azm
-      INTEGER IAZM, ISAT
-      REAL*8 Rad, Geo, HNH1
-      REAL*8 zP0, zMT
+      REAL*8 ZINC
 
-      REAL*8 ZINC, ZOER
-
-      real*8, pointer :: tt_column(:),hu_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
-      type(struct_index_list), pointer :: local_current_list
 
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
-      !C      WRITE(*,*)'ENTER oop_HTro'
-      !C
+
       !C     * 1.  Initializations
       !C     *     ---------------
       !C
       NGPSLEV=col_getNumLev(column,'TH')
+
+      ! call to calculate the GPSRO Jacobians
+      call oop_calcGPSROJacobian(columng,obsSpaceData)
+
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
       !C
       ! Set the header list (start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData,'RO')
-      !##$omp parallel default(shared) &
-      !##$omp private(headerIndex,dpjo0,idatyp,assim,nh,local_current_list,bodyIndex,luse) &
-      !##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
-      !##$omp private(nh1,zinc,zoer,dpjo1) &
-      !##$omp private(tt_column,hu_column,ps_column)
-      nullify(local_current_list)
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
@@ -3302,10 +2998,9 @@ contains
             !C     *    Loop over all body indices for this headerIndex:
             !C     *    (start at the beginning of the list)
             !C
-            call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                 current_list=local_current_list)
+            call obs_set_current_body_list(obsSpaceData, headerIndex)
             BODY: do 
-               bodyIndex = obs_getBodyIndex(local_current_list)
+               bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
 
                LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
@@ -3320,17 +3015,6 @@ contains
             ASSIMILATE: IF (ASSIM) THEN
                iProfile=gps_iprofile_from_index(headerIndex)
                !C
-               !C     *    Basic geometric variables of the profile:
-               !C
-               zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-               IAZM = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
-               ISAT = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
-               Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
-               Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
-               zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-               zMT  = col_getGZsfc(columng,headerIndex)/RG
-               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
-               !C
                !C     *       Perform the (H(xb)DX-Y')/S operation
                !C
                NH1 = 0
@@ -3338,10 +3022,9 @@ contains
                !C     *       Loop over all body indices for this headerIndex:
                !C     *       (start at the beginning of the list)
                !C
-               call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                    current_list=local_current_list)
+               call obs_set_current_body_list(obsSpaceData, headerIndex)
                BODY_3: do 
-                  bodyIndex = obs_getBodyIndex(local_current_list)
+                  bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
 
                   LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
@@ -3351,15 +3034,14 @@ contains
                      !C     *             Normalized increment
                      !C
                      ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-                     !                     ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
                      !C
                      !C     *             O-F Tested criteria:
                      !C
-                     DPJO1(1:2*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
+                     DPJO1(1:3*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
                      !C
                      !C     *             Accumulate the gradient of the observation cost function:
                      !C
-                     DPJO0(1:2*NGPSLEV+1) = DPJO0(1:2*NGPSLEV+1) + DPJO1(1:2*NGPSLEV+1)
+                     DPJO0(1:3*NGPSLEV+1) = DPJO0(1:3*NGPSLEV+1) + DPJO1(1:3*NGPSLEV+1)
                   END IF
                END DO BODY_3
             END IF ASSIMILATE
@@ -3369,16 +3051,16 @@ contains
          !C
          tt_column => col_getColumn(column,headerIndex,'TT')
          hu_column => col_getColumn(column,headerIndex,'HU')
+         ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
          ps_column => col_getColumn(column,headerIndex,'P0')
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
+            ALT_column(JL) = DPJO0(JL+2*NGPSLEV)
          END DO
-         ps_column(1) = DPJO0(1+2*NGPSLEV)
+         ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
-      !##$omp end parallel
 
-      !C      WRITE(*,*)'EXIT oop_HTro'
       RETURN
     END subroutine oop_HTro
 
@@ -3436,8 +3118,8 @@ contains
             IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
             IPT  = IK  + col_getOffsetFromVarno(columng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)/RG
-            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)/RG
+            ZPT  = col_getHeight(columng,IK,  headerIndex,varLevel)
+            ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
             ZWT  = 1.0D0 - ZWB
@@ -3507,7 +3189,14 @@ contains
       !
       ! S. Macpherson ARMA  14 Jan 2013
       !            - like oop_HTro, use OpenMP and Jacobian storage to speed up
-
+      !
+      ! revision 01 : M. Bani Shahabadi Dec 2018
+      !            - The ztd Jacobian contains the derivative w.r.t height. 
+      !
+      ! revision 02 : M. Bani Shahabadi Dec 2018
+      !             - Calculation of the Jacobians in done separately in 
+      !               'oop_calcGPSGBJacobian' subroutine
+      !
       !*    -------------------
       !**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
       !
@@ -3524,15 +3213,14 @@ contains
       integer :: headerIndex, bodyIndex, icount
       LOGICAL ASSIM
 
-      real*8, pointer :: tt_column(:),hu_column(:),ps_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
 
       !      WRITE(*,*)'ENTER oop_HTgp'
 
       NFLEV  = col_getNumLev(columng,'TH')
 
-      IF ( .not.vGPSZTD_lJac(1) ) THEN
-         call utl_abort('oop_HTgp:ERROR: ZTD Jacobians not stored!')
-      END IF
+      ! call to calculate the GPSGB Jacobians
+      call oop_calcGPSGBJacobian(columng,obsSpaceData)
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       ! Set the header list & start at the beginning of the list
@@ -3572,7 +3260,7 @@ contains
                call utl_abort('oop_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             end if
 
-            DO JL = 1, 2*NFLEV+1
+            DO JL = 1, 3*NFLEV+1
                JAC(JL) = vGPSZTD_Jacobian(iztd,JL)
             END DO
             !C
@@ -3589,7 +3277,7 @@ contains
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) ) then
                   ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                   !C     *       Accumulate the gradient of the observation cost function
-                  DPJO0(1:2*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
+                  DPJO0(1:3*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
                end if
             END DO BODY_2
             !c
@@ -3597,12 +3285,14 @@ contains
             !c
             tt_column => col_getColumn(column,headerIndex,'TT')
             hu_column => col_getColumn(column,headerIndex,'HU')
+            ALT_column => col_getColumn(column,headerIndex,'GZ','TH')
             ps_column => col_getColumn(column,headerIndex,'P0')
             DO JL = 1, NFLEV
                tt_column(JL) = DPJO0(JL)
                hu_column(JL) = DPJO0(JL+NFLEV)
+               ALT_column(JL) = DPJO0(JL+2*NFLEV)
             END DO
-            ps_column(1) = DPJO0(2*NFLEV+1)
+            ps_column(1) = DPJO0(3*NFLEV+1)
 
          END IF ! ASSIM
 
@@ -3733,5 +3423,413 @@ contains
     TT_inc = TT_inc + dESdTT*ES_inc
 
   end subroutine HUtoES_ad
+
+
+  subroutine oop_calcGPSROJacobian(columng,obsSpaceData,obsAssVal_opt)
+    !
+    !**s/r oop_calcGPSROJacobian - Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
+    !
+    !Author  : M. Bani Shahabadi, Oct 2018
+    !          - based on the original oop_Hro by Josep M. Aparicio 
+    !
+
+    implicit none
+    type(struct_columnData) :: columng
+    type(struct_obs) :: obsSpaceData
+    integer, intent(in), optional :: obsAssVal_opt
+
+    integer :: obsAssVal
+    real(8) :: zlat, lat, slat
+    real(8) :: zlon, lon
+    real(8) :: zazm, azm
+    integer :: iazm, isat
+    real(8) :: rad, geo, wfgps, zp0
+    REAL(8), allocatable :: zpp(:), zdp(:), ztt(:), zhu(:), zALT(:), zuu(:), zvv(:)
+    real(8) :: zmt,radw
+    integer :: IDATYP
+    integer :: jl, jv, ngpslev, nwndlev, jj
+    integer :: headerIndex, bodyIndex, iProfile
+    logical :: ASSIM
+    logical, save :: lfirst = .true.
+    integer :: nh, nh1
+    type(gps_profile)           :: prf
+    real(8)       , allocatable :: h   (:),azmv(:)
+    type(gps_diff), allocatable :: rstv(:)
+
+
+    if ( .not. lfirst ) return
+
+    write(*,*) 'ENTER oop_calcGPSROJacobian'
+
+    lfirst=.FALSE.
+
+    if (present(obsAssVal_opt)) then
+      obsAssVal = obsAssVal_opt
+    else
+      obsAssVal = 1
+    end if
+
+    ! Initializations
+    ngpslev=col_getNumLev(columng,'TH')
+    nwndlev=col_getNumLev(columng,'MM')
+
+    allocate(zpp (ngpslev))
+    allocate(zdp (ngpslev))
+    allocate(ztt (ngpslev))
+    allocate(zhu (ngpslev))
+    allocate(zALT (ngpslev))
+    allocate(zuu (ngpslev))
+    allocate(zvv (ngpslev))
+
+    if ( allocated(gps_vro_jacobian) ) call utl_abort('oop_calcGPSROJacobian: gps_vro_jacobian is already allocated!')
+    allocate(gps_vro_jacobian(gps_numroprofiles,gpsro_maxprfsize,3*ngpslev+1))
+
+    allocate( h    (gpsro_maxprfsize) )
+    allocate( azmv (gpsro_maxprfsize) )
+    allocate( rstv (gpsro_maxprfsize) )
+
+    ! Loop over all header indices of the 'RO' family (Radio Occultation)
+    ! Set the header list (start at the beginning of the list)
+    call obs_set_current_header_list(obsSpaceData,'RO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! Process only refractivity data (codtyp 169)
+      IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      DATYP: if ( IDATYP == 169 ) then
+        ! Scan for requested data values of the profile, and count them
+        assim = .false.
+        nh = 0
+
+        ! Loop over all body indices for this headerIndex:
+        ! (start at the beginning of the list)
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY: do 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
+            assim = .true.
+            nh = nh + 1
+          endif
+        enddo BODY
+
+        ! If assimilations are requested, prepare and apply the observation operator
+        ASSIMILATE: if (assim) then
+          iProfile = gps_iprofile_from_index(headerIndex)
+
+          ! Profile at the observation location:
+          ! Basic geometric variables of the profile:
+          zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+          zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+          iazm = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+          isat = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
+          rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+          geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
+          zazm = 0.01d0 * iazm / MPC_DEGREES_PER_RADIAN_R8
+          zmt  = col_getHeight(columng,0,headerIndex,'SF')
+          wfgps= 0.d0
+          do jj = 1,numgpssats
+            if (isat == igpssat(jj)) wfgps = wgps(jj)
+          enddo
+          lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
+          lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
+          azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
+          zp0  = col_getElem(columng,1,headerIndex,'P0')
+          do jl = 1, ngpslev
+            ! Profile x_b
+            zpp(jl) = col_getPressure(columng,jl,headerIndex,'TH')
+            ! True implementation of zDP (dP/dP0)
+            zdp(jl) = col_getPressureDeriv(columng,jl,headerIndex,'TH')
+            ztt(jl) = col_getElem(columng,jl,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
+            zhu(jl) = col_getElem(columng,jl,headerIndex,'HU')
+            zALT(jl) = col_getHeight(columng,jl,headerIndex,'TH')
+          enddo
+
+          if((col_getPressure(columng,1,headerIndex,'TH') + 1.0d-4) <  &
+               col_getPressure(columng,1,headerIndex,'MM')) then
+            ! case with top thermo level above top momentum level (Vcode=5002)
+            do jl = 1, nwndlev
+              zuu(jl) = col_getElem(columng,jl,headerIndex,'UU')
+              zvv(jl) = col_getElem(columng,jl,headerIndex,'VV')
+            enddo
+          else
+            ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+            do jl = 1, nwndlev-1
+              zuu(jl) = col_getElem(columng,jl+1,headerIndex,'UU')
+              zvv(jl) = col_getElem(columng,jl+1,headerIndex,'VV')
+            enddo
+            zuu(nwndlev) = zuu(nwndlev-1)
+            zvv(nwndlev) = zuu(nwndlev-1)
+          endif
+          zuu(ngpslev) = zuu(nwndlev)
+          zvv(ngpslev) = zuu(nwndlev)
+
+          ! GPS profile structure:
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,zdp,ztt,zhu,zALT,zuu,zvv,prf)
+
+          ! Prepare the vector of all the observations:
+          nh1 = 0
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
+          BODY_2: do 
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if (bodyIndex < 0) exit BODY_2
+            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
+              nh1      = nh1 + 1
+              h(nh1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+              azmv(nh1)= zazm
+            endif
+          enddo BODY_2
+
+          ! Apply the observation operator:
+          if (levelgpsro == 1) then
+            call gps_bndopv1(h, azmv, nh, prf, rstv)
+          else
+            call gps_refopv (h, nh, prf, rstv)
+          end if
+          do nh1 = 1, nh
+            gps_vro_jacobian(iprofile,nh1,:)= rstv(nh1)%dvar(1:3*ngpslev+1)
+          enddo
+
+        endif ASSIMILATE
+      endif DATYP
+    enddo HEADER
+
+    deallocate( rstv )
+    deallocate( azmv )
+    deallocate( h    )
+
+    deallocate(zvv)
+    deallocate(zuu)
+    deallocate(zhu)
+    deallocate(zALT)
+    deallocate(ztt)
+    deallocate(zdp)
+    deallocate(zpp)
+
+    write(*,*) 'EXIT oop_calcGPSROJacobian'
+    return
+
+  end subroutine oop_calcGPSROJacobian
+
+
+  subroutine oop_calcGPSGBJacobian(columng,obsSpaceData,obsAssVal_opt)
+    !
+    !**s/r oop_calcGPSGBJacobian - Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
+    !
+    !Author  : M. Bani Shahabadi, Dec 2018
+    !          - based on the original oop_Hgp by S. Macpherson
+    !
+    implicit none
+    type(struct_columnData) :: columng
+    type(struct_obs) :: obsSpaceData
+    integer, intent(in), optional :: obsAssVal_opt
+
+    REAL*8 ZLAT, Lat
+    REAL*8 ZLON, Lon
+    REAL*8, allocatable :: ZTTB(:)
+    REAL*8, allocatable :: ZHUB(:)
+    REAL*8, allocatable :: zALT(:)
+    REAL*8, allocatable :: ZPPB(:)
+    REAL*8, allocatable :: ZDP(:)
+    REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
+    REAL*8 ZMT
+    real*8 sfcfield
+    real*8 dxq1, dxq2, dxq3
+
+    REAL*8 ZLEV, ZDZMIN
+    REAL*8 JAC(ngpscvmx)
+
+    INTEGER headerIndex, bodyIndex
+    INTEGER JL, NFLEV, status, iztd, icount, stat, vcode
+
+    LOGICAL      ASSIM
+
+    real*8, dimension(:), pointer :: dpdp0 => null()
+
+    TYPE(gps_profilezd)   :: PRF, PRF2
+    TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2
+
+    type(struct_vco), pointer :: vco_anl
+
+    logical, save :: lfirstGB = .true.
+    integer :: obsAssVal
+
+
+    if ( .not. lfirstGB ) return
+
+    write(*,*) 'ENTER oop_calcGPSGBJacobian'
+
+    lfirstGB = .FALSE.
+
+    if (present(obsAssVal_opt)) then
+      obsAssVal = obsAssVal_opt
+    else
+      obsAssVal = 1
+    end if
+
+    vco_anl => col_getVco(columng)
+    stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
+
+    ZDZMIN = DZMIN                     ! from modgpsztd_mod
+
+    NFLEV  = col_getNumLev(columng,'TH')
+
+    ! Initializations
+    if ( .not. allocated(vGPSZTD_Index) ) call utl_abort('oop_calcGPSGBJacobian: ERROR:  vGPSZTD_Index not allocated!')
+    if ( allocated(vGPSZTD_Jacobian) ) call utl_abort('oop_calcGPSGBJacobian: ERROR: vGPSZTD_Jacobian is already allocated!')
+    allocate(vGPSZTD_Jacobian(numGPSZTD,3*NFLEV+1))
+    vGPSZTD_Jacobian(:,:) = 0.0d0
+
+    allocate(ZTTB(NFLEV))
+    allocate(ZHUB(NFLEV))
+    allocate(zALT(NFLEV))
+    allocate(ZPPB(NFLEV))
+    allocate(ZDP(NFLEV))
+
+    write(*,*) 'oop_calcGPSGBJacobian: Storing Jacobians for GPS ZTD data ...'
+    write(*,*) '   INFO: Analysis grid iversion = ', vcode
+    write(*,*) '         col_getNumLev(columng,TH) = ', NFLEV
+    write(*,*) '         numGPSZTD = ', numGPSZTD
+
+    icount = 0
+
+    ! loop over all header indices of the 'GP' family (GPS observations)
+    call obs_set_current_header_list(obsSpaceData,'GP')
+    HEADER_0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER_0
+
+      ! Scan for ZTD assimilation at this location
+      ASSIM = .FALSE.
+
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY_0: DO 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY_0
+        if (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
+             .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
+             .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) ) then
+          ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          ASSIM = .TRUE.
+        end if
+      END DO BODY_0
+
+      IF ( ASSIM ) THEN
+        ! LR background profile at the observation location x :
+        icount = icount + 1
+        Lat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+        ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+        Lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+        ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
+        ZP0B = col_getElem(columng,1,headerIndex,'P0')
+        DO JL = 1, NFLEV
+          ZTTB(JL) = col_getElem(columng,JL,headerIndex,'TT') - p_TC
+          ZHUB(JL) = col_getElem(columng,JL,headerIndex,'HU')
+          ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
+          zALT(JL) = col_getHeight(columng,JL,headerIndex,'TH')
+          ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
+        END DO
+        if ( ZPPB(NFLEV) /= ZP0B ) then
+          write(*,*) ' oop_calcGPSGBJacobian: ERROR: ZPPB(NFLEV) /= ZP0B'
+          write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
+        end if
+        ZMT = col_getHeight(columng,0,headerIndex,'SF')
+        if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
+
+        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF)
+        CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+
+        ! Observation Jacobian H'(xb)            
+        JAC = ZTDopv%DVar
+        iztd = gps_i_from_index(headerIndex)
+        DO JL = 1, 3*NFLEV+1
+           vGPSZTD_Jacobian(iztd,JL) = JAC(JL)
+        END DO
+
+        if ( icount <= 3 .and. LTESTOP ) then
+          write(*,*) '--------------------------------------------------------- '
+          write(*,*) iztd, obs_elem_c(obsSpaceData,'STID',headerIndex),'ZTDopv (m) = ', ZTDopv%Var
+          CALL gps_pw(PRF,ZPWMOD)
+
+          ! sfc pressure dx               
+          nullify(dpdp0)
+          sfcfield = ZP0B + 50.0d0
+          status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
+          ZDP = dpdp0(1:NFLEV)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+          write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
+          write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
+          write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,3*NFLEV+1)*50.0d0
+          write(*,*) ' '
+
+          ! q dx 
+          dxq1 = 0.44D-01*ZHUB(64)
+          dxq2 = 0.44D-01*ZHUB(65)
+          dxq3 = 0.44D-01*ZHUB(66)
+          ZHUB(64) = ZHUB(64) - dxq1
+          ZHUB(65) = ZHUB(65) - dxq2
+          ZHUB(66) = ZHUB(66) - dxq3
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+          CALL gps_pw(PRF2,ZPWMOD2)
+          write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
+          write(*,*) ' dPW (mm)    = ', ZPWMOD2 - ZPWMOD
+          write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
+          dZTD = vGPSZTD_Jacobian(iztd,64+NFLEV)*(-dxq1) + vGPSZTD_Jacobian(iztd,65+NFLEV)*(-dxq2) + &
+               vGPSZTD_Jacobian(iztd,66+NFLEV)*(-dxq3)
+          write(*,*) ' dZTD Linear = ', dZTD
+          write(*,*) ' '
+          ZHUB(64) = ZHUB(64) + dxq1
+          ZHUB(65) = ZHUB(65) + dxq2
+          ZHUB(66) = ZHUB(66) + dxq3
+
+          ! temperature dx                   
+          ZTTB(64) = ZTTB(64) + 2.0d0
+          ZTTB(65) = ZTTB(65) + 2.0d0
+          ZTTB(66) = ZTTB(66) + 2.0d0
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+          write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
+          write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
+          dZTD = vGPSZTD_Jacobian(iztd,64)*2.0d0 + vGPSZTD_Jacobian(iztd,65)*2.0d0 + &
+               vGPSZTD_Jacobian(iztd,66)*2.0d0
+          write(*,*) ' dZTD Linear = ', dZTD
+          write(*,*) '--------------------------------------------------------- '              
+        end if
+
+      END IF
+
+    END DO HEADER_0
+
+    deallocate(ZTTB)
+    deallocate(ZHUB)
+    deallocate(zALT)
+    deallocate(ZPPB)
+    deallocate(ZDP)
+
+    write(*,*) 'oop_calcGPSGBJacobian:   Number of ZTD data (icount) = ', icount
+    write(*,*) '           Expected number (numGPSZTD) = ', numGPSZTD
+    write(*,*) '           Last iztd                   = ', iztd
+    write(*,*) '           vGPSZTD_Index(1)            = ', vGPSZTD_Index(1)
+    write(*,*) '           vGPSZTD_Index(iztd)         = ', vGPSZTD_Index(iztd)
+
+    if ( icount /= numGPSZTD ) then
+      call utl_abort('oop_calcGPSGBJacobian: ERROR: icount /= numGPSZTD!')
+    end if
+    if ( icount /= iztd ) then
+      call utl_abort('oop_calcGPSGBJacobian: ERROR: icount /= iztd!')
+    end if
+    if ( numGPSZTD /= iztd ) then
+      call utl_abort('oop_calcGPSGBJacobian: ERROR: numGPSZTD /= iztd!')
+    end if
+
+    write(*,*) 'EXIT oop_calcGPSGBJacobian'
+    return
+
+  end subroutine oop_calcGPSGBJacobian
+
 
 end module obsOperators_mod

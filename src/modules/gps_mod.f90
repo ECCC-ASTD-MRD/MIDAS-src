@@ -25,6 +25,7 @@
 module gps_mod
   use mpi_mod
   use utilities_mod
+  use mathPhysConstants_mod
   implicit none
   save
   private
@@ -34,15 +35,15 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS
-  public :: gpsgravitysrf, p_tc, p_knot, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroDynError
+  public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
 
   ! public procedures
   public :: gps_setupro, gps_iprofile_from_index
   public :: gps_setupgb, gps_i_from_index
-  public :: gps_struct1sw, gps_bndopv1, gps_refopv, gps_structztd, gps_ztdopv, gps_pw
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
 
 
 !modgps00base
@@ -63,7 +64,7 @@ module gps_mod
   integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
-  integer(i4), parameter :: ngpscvmx  = 2*ngpssize+1
+  integer(i4), parameter :: ngpscvmx  = 3*ngpssize+1
 
   
 !modgps01ctphys
@@ -86,7 +87,6 @@ module gps_mod
 
   ! Units and scales:
   real(dp), parameter           :: p_TC    = 273.15_dp
-  real(dp), parameter           :: p_knot  = 0.514444_dp
 
   ! Standard GEM gravity:
   real(dp), parameter           :: p_g_GEM = 9.80616_dp              ! m/s2
@@ -94,12 +94,6 @@ module gps_mod
 
 !modgps02wgs84const
 
-  ! Semimajor axis (a) (m)                             [*Defining constant*]
-  real(dp), parameter :: WGS_a          = 6378137.0_dp
-  
-  ! Flattening (f)                                     [*Defining constant*]
-  real(dp), parameter :: WGS_f          = 1._dp / 298.257223563_dp
-  
   ! Earth's Gravitational Constant (GM) (m3/s2).       [*Defining constant*]
   ! This is the GM value with Earth's atmosphere included.
   real(dp), parameter :: WGS_GM         = 3986004.418e8_dp
@@ -154,9 +148,6 @@ module gps_mod
   ! First eccentricity:
   real(dp), parameter :: WGS_e          = 8.1819190842622e-2_dp
   
-  ! First eccentricity squared:
-  real(dp), parameter :: WGS_e2         = 6.69437999014e-3_dp
-  
   ! Second eccentricity:
   real(dp), parameter :: WGS_ePrime     = 8.2094437949696e-2_dp
   
@@ -192,23 +183,14 @@ module gps_mod
   ! Theoretical (Normal) Gravity potential of the ellipsoid (m2/s2):
   real(dp), parameter :: WGS_U0         = 62636860.8497_dp
   
-  ! Theoretical (Normal) Gravity at the equator (m/s2):
-  real(dp), parameter :: WGS_GammaE     = 9.7803253359_dp
-  
   ! Theoretical (Normal) Gravity at the pole (m/s2):
   real(dp), parameter :: WGS_GammaP     = 9.8321849378_dp
   
   ! Mean Value of the Theoretical (Normal) Gravity (m/s2):
   real(dp), parameter :: WGS_GammaM     = 9.7976432222_dp
   
-  ! Theoretical (Normal) Gravity Formula Constant:
-  real(dp), parameter :: WGS_TNGk       = 0.00193185265241_dp
-  
   ! Mass of the Earth (Atmosphere Included):
   real(dp), parameter :: WGS_Mass       = 5.9733328e24_dp
-  
-  ! m = omega^2 a^2 b / GM
-  real(dp), parameter :: WGS_m          = 0.00344978650684_dp
   
   ! Dynamical Ellipticity H:
   real(dp), parameter :: WGS_H          = 1._dp / 305.4413_dp
@@ -353,13 +335,20 @@ module gps_mod
 !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+!     gpsroDynError: key for using dynamic/static refractivity error estimation (default .TRUE.)
 !
 !     J.M. Aparicio, Apr 2008
+!
+!     Revision 01: M. Bani Shahabadi, Nov 2018
+!       - adding the gpsroDynError key to use static error estimation for the refractivity.
+!         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
+!         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
+  logical gpsroDynError
 
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS
+  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroDynError
 
 
 !modgpsztd_mod
@@ -949,8 +938,8 @@ contains
        ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*p_knot*rUU(i)
-       Eot2= ((p_knot*rUU(i))**2+(p_knot*rVV(i))**2)/WGS_a
+       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
        Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
        Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
@@ -963,6 +952,113 @@ contains
 
     prf%bbst=.false.
   end subroutine gps_struct1sw
+
+  subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
+       rP0,rPP,rDP,rTT,rHU,rALT,rUU,rVV,prf)
+    integer(i4)     , intent(in)  :: ngpslev
+    real(dp)        , intent(in)  :: rLat
+    real(dp)        , intent(in)  :: rLon
+    real(dp)        , intent(in)  :: rAzm
+    real(dp)        , intent(in)  :: rMT
+    real(dp)        , intent(in)  :: Rad
+    real(dp)        , intent(in)  :: geoid
+    real(dp)        , intent(in)  :: rP0
+    real(dp)        , intent(in)  :: rPP (ngpssize)
+    real(dp)        , intent(in)  :: rDP (ngpssize)
+    real(dp)        , intent(in)  :: rTT (ngpssize)
+    real(dp)        , intent(in)  :: rHU (ngpssize)
+    real(dp)        , intent(in)  :: rALT (ngpssize)
+    real(dp)        , intent(in)  :: rUU (ngpssize)
+    real(dp)        , intent(in)  :: rVV (ngpssize)
+
+    type(gps_profile), intent(out) :: prf
+
+    integer(i4)                   :: i
+
+
+    real(dp), parameter           :: delta = 0.6077686814144_dp
+
+    type(gps_diff)                 :: cmp(ngpssize)
+    real(dp)                      :: h0,dh,Rgh, sLat, cLat
+    type(gps_diff)                 :: p, t, q, x
+    type(gps_diff)                 :: tr, z
+    type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
+    type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+
+    prf%ngpslev = ngpslev
+    prf%rLat    = rLat
+    prf%rLon    = rLon
+    prf%rAzm    = rAzm
+    prf%rMT     = rMT
+    prf%Rad     = Rad
+    prf%geoid   = geoid
+    call gpsRadii(rLat, prf%RadN, prf%RadM)
+
+    !
+    ! Fill pressure placeholders:
+    !
+    prf%P0%Var               = 0.01_dp*rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(3*ngpslev+1) = 0.01_dp
+    do i=1,ngpslev
+       prf%pst(i)%Var               = 0.01_dp*rPP(i)
+       prf%pst(i)%DVar              = 0._dp
+       prf%pst(i)%DVar(3*ngpslev+1) = 0.01_dp*rDP(i)
+    enddo
+
+    !
+    ! Fill temperature placeholders:
+    !
+    do i = 1, ngpslev
+       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%DVar              = 0._dp
+       prf%tst(i)%DVar(i)           = 1._dp
+    enddo
+
+    !
+    ! Fill moisture placeholders:
+    !
+    do i = 1, ngpslev
+       prf%qst(i)%Var               = rHU(i)
+       prf%qst(i)%DVar              = 0._dp
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    enddo
+
+    !
+    ! Fill altitude placeholders:
+    !
+    do i = 1, ngpslev
+       prf%gst(i)%Var                 = rALT(i)
+       prf%gst(i)%DVar                = 0._dp
+       prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
+    enddo
+
+    ! Compressibility:
+    do i = 1, ngpslev
+       cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
+    enddo
+
+    ! Refractivity:
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       x  = p_wa*q/(1._dp+p_wb*q)
+
+       ! Densities (molar, total, dry, water vapor):
+       mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (p_md/1000._dp)
+       dw = mold * x         * (p_mw/1000._dp)
+       ! Aparicio (2011) expression
+       tr = p_TC/t-1._dp
+       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       n0 = (nd1+nw1)
+       prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+    enddo
+
+    prf%bbst=.false.
+  end subroutine gps_struct1sw_v2
 
   function gpscompressibility(p,t,q)
     type(gps_diff), intent(in)  :: p,t,q
@@ -1208,6 +1304,215 @@ contains
     enddo
 
   end subroutine gps_structztd
+
+
+  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rALT,lbevis,refopt,prf)
+!
+! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
+!
+! Revision 01: M. Bani Shahabadi, Dec 2018
+!       - the height calculation (prf%gst) comes from tt2phi_mod, similar to GPSRO.
+!
+    integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
+    real(dp)          , intent(in)  :: rLat             ! radians
+    real(dp)          , intent(in)  :: rLon             ! radians
+    real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
+    real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
+    real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
+    real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
+    real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
+    real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
+    real(dp)          , intent(in)  :: rALT (ngpssize)   ! altitude at each level
+    
+!   lbevis determines which set of refractivity constants to use (Bevis or Rueger)
+    logical           , intent(in)  :: lbevis
+
+!   refopt=1 --> use conventional expression for refractivity N
+!   refopt=2 --> use new Aparicio & Laroche refractivity N
+    integer           , intent(in)  :: refopt
+
+    type(gps_profilezd), intent(out) :: prf
+
+!!        ******** PARAMETERS *************
+
+    real(dp), parameter :: delta = 0.6077686814144_dp
+    real(dp), parameter :: eps   = 0.6219800221014_dp
+
+! Reuger (2002) refractivity constants (MKS units)
+    real(dp), parameter :: k1r = 0.776890_dp
+    real(dp), parameter :: k2r = 0.712952_dp
+    real(dp), parameter :: k3r = 3754.63_dp
+! Bevis (1994) refractivity constants (MKS units)
+    real(dp), parameter :: k1b = 0.776000_dp
+    real(dp), parameter :: k2b = 0.704000_dp
+    real(dp), parameter :: k3b = 3739.000_dp
+
+!    real(dp), parameter :: Avog  = 6.02214e26_dp
+!    real(dp), parameter :: Boltz = 1.38065e-23_dp
+!    real(dp), parameter :: mwDAir= 28.966_dp
+!    real(dp), parameter :: Rd = Avog*Boltz/mwDAir    --> p_Rd
+!    real(dp), parameter :: Rd = 287.05_dp            --> p_Rd
+!    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
+    
+!    real(dp), parameter :: R  = 8.314472_dp          --> p_R
+!    real(dp), parameter :: md = 28.965516_dp         --> p_md
+!    real(dp), parameter :: mw = 18.015254_dp         --> p_mw
+!    real(dp), parameter :: wa = md/mw                --> p_wa
+!    real(dp), parameter :: wb = (md-mw)/mw           --> p_wb
+
+!!       ******** VARIABLES *************
+
+    real(dp)            :: a0,a1,a2,b0,b1,c0,c1,d,e
+    type(gps_diff)       :: tc, pt, tc2, x2, tr
+    type(gps_diff)       :: mold, dd, dw, dx, n0, nd1, nw1
+    integer(i4)         :: i
+    real(dp)            :: k1, k2, k3, k2p
+    real(dp)            :: h0, dh, Rgh, sLat, ptop
+    type(gps_diff)       :: p, t, q, x, na, tvm, z
+    type(gps_diff)       :: tv(ngpssize), cmp(ngpssize), N(ngpssize) 
+
+    prf%ngpslev = ngpslev
+    prf%rLat    = rLat
+    prf%rLon    = rLon
+    prf%rMT     = rMT
+    prf%bpst    = .false.
+    !
+    ! Fill pressure (P) placeholders (Pa):
+    !
+    prf%P0%Var               = rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(3*ngpslev+1) = 1._dp
+    do i = 1, ngpslev
+       prf%pst(i)%Var               = rPP(i)
+       prf%pst(i)%DVar              = 0._dp
+       prf%pst(i)%DVar(3*ngpslev+1) = rDP(i)
+    enddo
+    ! Pressure at model top (Pa)
+    ptop = rPP(1)
+    prf%bpst = .true.
+    !
+    ! Fill temperature (T) placeholders (C--> K):
+    !
+    do i = 1, ngpslev
+       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%DVar              = 0._dp
+       prf%tst(i)%DVar(i)           = 1._dp
+    enddo
+
+    !
+    ! Fill moisture (Q) placeholders (kg/kg):
+    !
+    do i = 1, ngpslev
+       prf%qst(i)%Var               = rHU(i)
+       prf%qst(i)%DVar              = 0._dp
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    enddo
+
+    !
+    ! Fill altitude (AL) placeholders (m):
+    !
+    do i = 1, ngpslev
+       prf%gst(i)%Var               = rALT(i)
+       prf%gst(i)%DVar              = 0._dp
+       prf%gst(i)%DVar(2*ngpslev+i) = 1._dp
+    enddo
+
+    if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
+    ! This code is copied from modgps04profile.cdk90
+    !
+    ! Compressibility:
+    !
+      a0 = 1.58123e-6_dp
+      a1 = -2.9331e-8_dp
+      a2 = 1.1043e-10_dp
+      b0 = 5.707e-6_dp
+      b1 = -2.051e-8_dp
+      c0 = 1.9898e-4_dp
+      c1 = -2.376e-6_dp
+      d = 1.83e-11_dp
+      e = -0.765e-8_dp
+      do i = 1, ngpslev
+        p  = prf%pst(i)
+        t  = prf%tst(i)
+        q  = prf%qst(i)
+        x  = p_wa*q/(1._dp+p_wb*q)
+        ! Estimate, from CIPM, Piccard (2008)
+        tc = t-p_TC
+        pt = p/t
+        tc2 = tc*tc
+        x2 = x*x
+        cmp(i) = 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)+pt*pt*(d+e*x2)
+      enddo
+
+    ! Refractivity:
+      do i = 1, ngpslev
+        p  = prf%pst(i)
+        t  = prf%tst(i)
+        q  = prf%qst(i)
+        x  = p_wa*q/(1._dp+p_wb*q)
+
+        ! Densities (molar, total, dry, water vapor):
+        mold  = p/(p_R*t*cmp(i))
+        dd = mold * (1._dp-x) * (p_md/1000._dp)
+        dw = mold * x         * (p_mw/1000._dp)
+        ! Aparicio (2011) expression
+        tr = p_TC/t-1._dp
+        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+        nw1= (6701.605_dp+6385.886_dp*tr) * dw
+        n0 = (nd1+nw1)
+        na = n0*(1._dp+1.e-6_dp*n0/6._dp)
+        N(i) = na
+      enddo
+
+    endif
+
+    ! Refractivity constants
+    if ( lbevis ) then
+      k1 = k1b
+      k2 = k2b
+      k3 = k3b
+    else
+      k1 = k1r
+      k2 = k2r
+      k3 = k3r
+    endif
+    k2p = k2-(eps*k1)
+
+    ! Virtual temperature Tv and log(P) profiles
+    !
+    do i = 1, ngpslev
+       p = prf%pst(i)
+       t = prf%tst(i)
+       q = prf%qst(i)
+       tv(i) = (1._dp+delta*q) * t
+    enddo
+
+    sLat = sin(rLat)
+
+    ! Profile of dZTD/dp --> prf%rst
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       if ( refopt == 1 ) then
+         na = (k1/tv(i)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
+       else
+         na = N(i) / p
+       endif
+       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gpsgravityalt(sLat, prf%gst(i)%Var)
+    enddo
+
+    ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
+    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gpsgravityalt(sLat, prf%gst(1)%Var)))
+    do i = 2, ngpslev
+      !
+      ! ZTD increment = Avg(dZTD/dP) * delta_P
+      !
+      z = ((prf%rst(i-1) + prf%rst(i))/2._dp) * (prf%pst(i)-prf%pst(i-1))
+      prf%ztd(i) = prf%ztd(i-1) + z
+    enddo
+
+  end subroutine gps_structztd_v2
 
   subroutine gpsdpress(nlev,rHYB,rP0,rPT,rPR,rCF,rDP)
 !  
@@ -2549,6 +2854,7 @@ contains
     HTPMAX     = 70000.d0
     BGCKBAND   = 0.05d0
     NUMGPSSATS = 0
+    gpsroDynError = .TRUE.
 !
 !   Override with NML values:
 !     
@@ -2558,7 +2864,7 @@ contains
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, gpsroDynError 
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !

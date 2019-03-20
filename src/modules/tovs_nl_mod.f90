@@ -1617,7 +1617,7 @@ contains
           zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
           zhu  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
           zvlev(jl,count_profile) = col_getPressure(columnghr,jl,header_index,'TH') * MPC_MBAR_PER_PA_R8
-          zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH') / rg
+          zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH')
         end do
 
         if (diagTtop) then

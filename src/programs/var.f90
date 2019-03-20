@@ -148,7 +148,7 @@ program midas_var
     call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
@@ -234,7 +234,7 @@ program midas_var
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
