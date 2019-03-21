@@ -15,25 +15,26 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE randumNumber_mod (prefix="rng" category='7. Low-level data objects and utilities')
+!! MODULE randomNumber_mod (prefix="rng" category='7. Low-level data objects and utilities')
 !!
 !! *Purpose*: A Gaussian random number generator (RNG) module
 !!
 !--------------------------------------------------------------------------
 module randomnumber_mod
+  use ISO_C_BINDING
   implicit none
+
+  include 'randomfunctions.inc'
+
   save
   private
- 
+
   ! public procedures
   public :: rng_setup, rng_gaussian
 
-  real(8) :: gset
-
-  integer :: idum_local
-  integer :: iset
-  
   logical :: initialized = .false.
+
+  type(RANDOM_STREAM) :: randomStream
 
 contains
 
@@ -43,26 +44,22 @@ contains
   subroutine rng_setup(seed)
     implicit none
 
-    integer, intent(in) :: seed
+    integer, intent(in)   :: seed
 
-    REAL(8) :: RANDOMNUMBER,V1,V2,FAC,RR
-    INTEGER :: J
+    integer, dimension(1) :: seeds
+    type(RANDOM_STREAM) :: null_stream
 
     if (initialized) then
        write(*,*) 'rng_setup: WARNING: you are re-initializing the module!!!'
     end if
 
-    idum_local = -seed
-    iset = 0
+    seeds(1) = seed
 
-1   V1=2.D0*RANDOM()-1.D0
-    V2=2.D0*RANDOM()-1.D0
-    RR=V1**2+V2**2
-    IF(RR>=1.D0) GO TO 1
-    FAC=SQRT(-2.D0*LOG(RR)/RR)
-    GSET=V1*FAC
-    randomNumber=V2*FAC
-    ISET=1
+    null_stream = RANDOM_STREAM(C_NULL_PTR)
+
+    ! 'seeds' is an array of dimension 1
+    call Ran_R250_new_stream(randomStream, null_stream, seeds, size(seeds))
+    call RanSetSeed_gaussian_stream(randomStream, seeds, size(seeds))
 
     initialized = .true.
 
@@ -73,94 +70,29 @@ contains
   !--------------------------------------------------------------------------
   ! rng_Gaussian
   !--------------------------------------------------------------------------
-  FUNCTION rng_gaussian() result(randomNumberGaussian)
+  function rng_gaussian() result(randomNumberGaussian)
     implicit none
 
-    ! ADAPTED from the book:
-    !
-    ! Book-title  NUMERICAL RECIPES in FORTRAN
-    !             The Art of Scientific Computing
-    !             (First Edition)
-    !
-    ! Authors     Press, Flannery, Teukolsky, Vetterling
-    !
     ! OBJECT      Returns a normally distributed deviate
-    !             with zero mean and unit variance, using
-    !             RANDOM as the source of uniform
-    !             deviates
+    !             with zero mean and unit variance
     
-    REAL(8) :: randomNumberGaussian,V1,V2,FAC,RR
-    INTEGER :: J
+    real(8) :: randomNumberGaussian
 
-    IF (ISET.EQ.0.OR.IDUM_LOCAL.eq.999) THEN
-1      V1=2.D0*RANDOM()-1.D0
-       V2=2.D0*RANDOM()-1.D0
-       RR=V1**2+V2**2
-       IF(RR.GE.1.D0)GO TO 1
-       FAC=SQRT(-2.D0*LOG(RR)/RR)
-       GSET=V1*FAC
-       randomNumberGaussian=V2*FAC
-       ISET=1
-    ELSE
-       randomNumberGaussian=GSET
-       ISET=0
-    ENDIF
-  
-  END FUNCTION RNG_GAUSSIAN
+    randomNumberGaussian = DRan_gaussian_stream(randomStream)
+  end function rng_gaussian
   
   !--------------------------------------------------------------------------
   ! random
   !--------------------------------------------------------------------------
-  FUNCTION RANDOM() result(randomnumber)
+  function rng_uniform() result(randomNumberUniform)
     implicit none
     
-    ! FUNCTION RANDOM
-    !
-    ! ADAPTED from the book:
-    !
-    ! Book-title  NUMERICAL RECIPES in FORTRAN
-    !             The Art of Scientific Computing
-    !             (First Edition)
-    !
-    ! Authors     PRESS, FLANNERY, TEUKOLSKY, VETTERLING
-    !
     ! OBJECT      Returns a random deviate between 0.0 and 1.0.
-
-    REAL(8), save :: RRAND(97)
-    INTEGER, save :: IX1,IX2,IX3
-    INTEGER, save :: IFF=1
     
-    REAL(8) :: RM1,RM2,RANDOMNUMBER
-    INTEGER :: J,M1,IA1,IC1,M2,IA2,IC2,M3,IA3,IC3
-    PARAMETER (M1=259200,IA1=7141,IC1=54773,RM1=3.8580247D-6)
-    PARAMETER (M2=134456,IA2=8121,IC2=28411,RM2=7.4373773D-6)
-    PARAMETER (M3=243000,IA3=4561,IC3=51349)
+    real(8) :: randomNumberUniform
     
-    IF (IDUM_LOCAL.LT.0.OR.IFF.EQ.0) THEN
-       IFF=1
-       IX1=MOD(IC1-IDUM_LOCAL,M1)
-       IX1=MOD(IA1*IX1+IC1,M1)
-       IX2=MOD(IX1,M2)
-       IX1=MOD(IA1*IX1+IC1,M1)
-       IX3=MOD(IX1,M3)
-       DO J=1,97
-          IX1=MOD(IA1*IX1+IC1,M1)
-          IX2=MOD(IA2*IX2+IC2,M2)
-          RRAND(J)=(real(IX1,8)+real(IX2,8)*RM2)*RM1
-       END DO
-       IDUM_LOCAL=1
-    ENDIF
-    IX1=MOD(IA1*IX1+IC1,M1)
-    IX2=MOD(IA2*IX2+IC2,M2)
-    IX3=MOD(IA3*IX3+IC3,M3)
-    J=1+(97*IX3)/M3
-    IF(J.GT.97.OR.J.LT.1) then
-       write(6,*) 'Input error in RANDUM for  J = ',J
-       stop
-    endif
-    RANDOMNUMBER=RRAND(J)
-    RRAND(J)=(real(IX1,8)+real(IX2,8)*RM2)*RM1
+    randomNumberUniform = DRan_generic_stream(randomStream)
     
-  end FUNCTION RANDOM
+  end function rng_uniform
   
 end module randomnumber_mod

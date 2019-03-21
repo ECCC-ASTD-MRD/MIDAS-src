@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="descrip $MPILIB"
+LIBAPPL="descrip $MPILIB random"
 
