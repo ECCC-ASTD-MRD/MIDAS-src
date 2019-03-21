@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
-   depot.  See the [README](README.md) for more information.
+   depot (#187 and !186).  See the [README](README.md) for more information.
  * A column `OBS_CRPS` has been added to `obsSpaceData` (#185 and !188).
 
 ### Changed
 
  * Use constituent BUFR elements from official tableburp file released 30 Sept 2018
-
+   * (#150 and !37)
  * Replacing the old numerical recipe for generating gaussian random
    values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
