@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Use constituent BUFR elements from official tableburp file released 30 Sept 2018
 
  * Replacing the old numerical recipe for generating gaussian random
-   values by a much more efficient method:
+   values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
     * This is changing the results only for the program `randomPert.Abs`.
 
