@@ -42,14 +42,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Use constituent BUFR elements from official tableburp file released 30 Sept 2018
    * (#150 and !37)
- * Replacing the old numerical recipe for generating gaussian random
-   values by a much more efficient method (#82 and !192)
-   [`random_tools`](https://gitlab.com/mfvalin/random_tools).
-    * This is changing the results only for the program `randomPert.Abs`.
   * When compiling with `COMPILE_MIDAS_ADD_DEBUG_OPTIONS=yes`, the options `-debug -check all -O 0` are added to the compile command (#182 and !187)
   * The body of the program `oMinusF` was extracted into a new module, `ominusf_mod` (#113 and !174)
   * The input file trlp is no longer necessary in varbc mode (#145 and !129)
     * Slight unsignificant change in the results
+  * change to the height (GZ) calculation within MIDAS so that GPS-RO and ground-based GPS now use the same heights as all other obs types (#141 and !191)
+    * along with the change to the height calculation, the variable was changed from geopotential to altitude
+    * new namelist variable to allow using static GPS-RO observation error variance
+ * Replacing the old numerical recipe for generating gaussian random
+   values by a much more efficient method (#82 and !192)
+   [`random_tools`](https://gitlab.com/mfvalin/random_tools).
+    * This is changing the results only for the program `randomPert.Abs`.
 
 
 ### Fixed
