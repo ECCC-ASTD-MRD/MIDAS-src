@@ -43,7 +43,7 @@ module gridStateVector_mod
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
   public :: gsv_writeToFile, gsv_readFromFile, gsv_readTrials, gsv_readFile
-  public :: gsv_fileUnitsToStateUnits
+  public :: gsv_fileUnitsToStateUnits, gsv_modifyVarName
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd, gsv_transposeVarsLevsToTiles
@@ -53,7 +53,7 @@ module gridStateVector_mod
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyGZsfc
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
-  public :: gsv_varKindExist, gsv_varExist
+  public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
 
@@ -112,6 +112,9 @@ module gridStateVector_mod
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:,:)
   real(8), allocatable :: gd_send_varsLevs_r8(:,:,:,:,:), gd_recv_varsLevs_r8(:,:,:,:,:)
+
+  ! initialized 
+  logical :: initialized = .false.
 
   contains
 
@@ -227,6 +230,49 @@ module gridStateVector_mod
   end function gsv_varExist
 
   !--------------------------------------------------------------------------
+  ! gsv_varNamesList
+  !--------------------------------------------------------------------------
+  subroutine gsv_varNamesList(statevector,varNames)
+    implicit none
+    
+    ! arguments
+    type(struct_gsv) :: statevector
+    character(len=4), pointer :: varNames(:)
+    
+    ! locals
+    integer :: varLevIndex, varNumberIndex, varIndex, numFound
+    character(len=4) :: varName
+
+    if (associated(varNames)) then
+      call utl_abort('gsv_varNamesList: varNames must be NULL pointer on input')
+    end if
+ 
+    !
+    !- 1. How many variables do we have?
+    !
+    numFound = 0
+    do varIndex = 1, vnl_numvarmax
+      if ( gsv_varExist(statevector,vnl_varNameList(varIndex)) ) numFound = numFound + 1
+    end do
+
+    !
+    !- 2. List the variables based on the varLevIndex ordering
+    !
+    allocate(varNames(numFound))
+    varNames(:) = ''
+
+    varNumberIndex = 0
+    do varLevIndex = 1, statevector%nk
+      varName = gsv_getVarNameFromK(statevector,varLevIndex)
+      if ( .not. ANY(varNames == varName) ) then
+        varNumberIndex = varNumberIndex + 1
+        varNames(varNumberIndex) = varName
+      end if
+    end do
+    
+  end subroutine gsv_varNamesList
+
+  !--------------------------------------------------------------------------
   ! gsv_getNumLev
   !--------------------------------------------------------------------------
   function gsv_getNumLev(statevector,varLevel) result(nlev)
@@ -336,6 +382,8 @@ module gridStateVector_mod
       call utl_abort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist')
     end if
 
+    initialized = .true.
+
     return
 
     contains
@@ -380,6 +428,12 @@ module gridStateVector_mod
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
+
+    if (.not. initialized) then
+      write(*,*)
+      write(*,*) 'gsv_allocate: gsv_setup must be called first to be able to use this module. Call it now'
+      call gsv_setup
+    end if
 
     ! set the horizontal and vertical coordinates
     call gsv_sethco(statevector,hco_ptr)
@@ -484,21 +538,34 @@ module gridStateVector_mod
     statevector%varNumLev(:)=0
 
     iloc=0
-    do varIndex = 1, vnl_numvarmax3d
-      if ( statevector%varExistList(varIndex) ) then
+    if ( present(varNames_opt) ) then
+
+      do varIndex2 = 1, size(varNames_opt)
+        varIndex = vnl_varListIndex(varNames_opt(varIndex2))
+        statevector%varOffset(varIndex)=iloc
+        statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+        iloc = iloc + statevector%varNumLev(varIndex)
+      end do
+
+    else
+
+      do varIndex = 1, vnl_numvarmax3d
+        if ( statevector%varExistList(varIndex) ) then
           statevector%varOffset(varIndex)=iloc
           statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
           iloc = iloc + statevector%varNumLev(varIndex)
         end if
-    end do
-    do varIndex2 = 1, vnl_numvarmax2d
+      end do
+      do varIndex2 = 1, vnl_numvarmax2d
         varIndex=varIndex2+vnl_numvarmax3d
-      if ( statevector%varExistList(varIndex) ) then
+        if ( statevector%varExistList(varIndex) ) then
           statevector%varOffset(varIndex)=iloc
           statevector%varNumLev(varIndex)=1
           iloc = iloc + 1
         end if
-    end do
+      end do
+
+    end if
     statevector%nk=iloc
 
     ! determine range of values for the 'k' index (vars+levels)
@@ -586,6 +653,8 @@ module gridStateVector_mod
        statevector%anltime=nint((real(numStep,8)+1.0d0)/2.0d0)
     case ('LAST')
        statevector%anltime=numStep
+    case default
+      call utl_abort('gsv_allocate: unsupported value for ANLTIME_BIN = '//trim(ANLTIME_BIN))
     end select          
 
     if (present(dateStamp_opt) .and. present(dateStampList_opt)) then
@@ -728,6 +797,49 @@ module gridStateVector_mod
     statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
 
   end subroutine gsv_modifyDate
+
+  !--------------------------------------------------------------------------
+  ! gsv_modifyVarName
+  !--------------------------------------------------------------------------
+  subroutine gsv_modifyVarName(statevector, oldVarName, newVarName) 
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector
+    character(len=*) :: oldVarName
+    character(len=*) :: newVarName
+    
+    ! local
+    integer :: varIndex_oldVarName, varIndex_newVarName
+
+    ! Test the compatibility of the modifications
+    if (.not. gsv_varExist(statevector,oldVarName)) then
+      call utl_abort('gsv_modifyVarName: the varName to replace does not exist '//trim(oldVarName))
+    end if
+    if (gsv_varExist(statevector,newVarName)) then
+      call utl_abort('gsv_modifyVarName: the varName to add already exist '//trim(oldVarName))
+    end if
+    if (vnl_varLevelFromVarname(newVarName) /= vnl_varLevelFromVarname(oldVarName)) then
+      call utl_abort('gsv_modifyVarName: the level type are different')
+    end if
+
+    ! Find  varIndex_oldVarName & varIndex_newVarName
+    varIndex_oldVarName = vnl_varListIndex(oldVarName)
+    varIndex_newVarName = vnl_varListIndex(newVarName)
+
+    ! Change the ExistList
+    statevector%varExistList(varIndex_oldVarName) = .false.
+    statevector%varExistList(varIndex_newVarName) = .true.
+
+    ! Change the offset
+    statevector%varOffset(varIndex_newVarName) = statevector%varOffset(varIndex_oldVarName)
+    statevector%varOffset(varIndex_oldVarName) = 0
+
+    ! Change the number of levels
+    statevector%varNumLev(varIndex_newVarName) = statevector%varNumLev(varIndex_oldVarName)
+    statevector%varNumLev(varIndex_oldVarName) = 0
+
+  end subroutine gsv_modifyVarName
 
   !--------------------------------------------------------------------------
   ! gsv_zero

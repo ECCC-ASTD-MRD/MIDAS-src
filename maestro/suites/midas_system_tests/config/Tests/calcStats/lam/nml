@@ -2,11 +2,11 @@
    MODE   = 'BHI'
 /
  &NAMSTATE
-   CGNEED(1)   ='UU'
-   CGNEED(2)   ='VV'
-   CGNEED(3)   ='TT'
-   CGNEED(4)   ='LQ'
-   CGNEED(5)   ='P0'
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='LQ'
+   ANLVAR(5)   ='P0'
 /
  &NAMENS
    NENS=16
@@ -20,4 +20,7 @@
    NORMBYSTDDEV  = .TRUE.
    WRITEENSPERT  = .FALSE.
    CORRELATIONLQ = .TRUE.
+/
+ &NAMTIME
+  DSTEPOBSINC = 6.0d0
 /

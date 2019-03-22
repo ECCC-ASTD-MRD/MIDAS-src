@@ -918,9 +918,14 @@ CONTAINS
     !- 2. Read ensemble
     makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent' .or. trim(varianceSmoothing) /= 'none')
     call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic,         &
-                          ctrlVarHumidity, vco_file_opt = vco_file,         &
+                          vco_file_opt = vco_file,                          &
                           varNames_opt = includeAnlVar(1:numIncludeAnlVar), & 
                           containsFullField_opt=ensContainsFullField)
+
+    if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensPerts(1),'HU') .and. &
+         ensContainsFullField ) then
+      call vtr_transform(ensPerts(1),'HUtoLQ')
+    end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
 

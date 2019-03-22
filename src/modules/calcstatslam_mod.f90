@@ -30,6 +30,8 @@ module calcstatslam_mod
   use localizationFunction_mod
   use utilities_mod
   use menetrierDiag_mod
+  use ensemblestatevector_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -42,8 +44,6 @@ module calcstatslam_mod
   type(struct_hco), pointer :: hco_bhi => null() ! B matrix horizontal grid parameters
   type(struct_vco), pointer :: vco_bhi => null() ! B matrix vertical grid parameters
   type(struct_lst)          :: lst_bhi ! Spectral transform Parameters
-
-  character(len=256), allocatable :: cflensin(:)
 
   integer,external    :: get_max_rss
 
@@ -72,9 +72,13 @@ module calcstatslam_mod
   logical :: initialized = .false.
   logical :: NormByStdDev, SetTGtoZero, writeEnsPert
   logical :: vertLoc, horizLoc, correlationLQ
+  logical :: ensContainsFullField
 
   character(len=12) :: WindTransform
   character(len=12) :: SpectralWeights
+  character(len=2)    :: ctrlVarHumidity
+
+  type(struct_ens) :: ensPerts
 
   real(8), pointer     :: pressureProfile_M(:), pressureProfile_T(:)
 
@@ -86,32 +90,38 @@ module calcstatslam_mod
 !--------------------------------------------------------------------------
 ! CSL_SETUP
 !--------------------------------------------------------------------------
-    subroutine csl_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in, ip2_in)
+    subroutine csl_setup( nens_in, ensFileName, hco_ens_in, vco_ens_in, ip2_in)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
     integer,                   intent(in)   :: nens_in
-    character(len=*),          intent(in)   :: cflens_in(nens_in)
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
     integer,                   intent(in)   :: ip2_in
+    character(len=*), intent(in)   :: ensFileName
 
     integer :: nulnam, ier, status
     integer :: fclos, fnom, fstouv, fstfrm
     integer :: grd_ext_x, grd_ext_y
     integer :: var, k
 
+    integer :: numStep
+    integer, allocatable :: dateStampList(:)
+
     real(8) :: SurfacePressure
 
-    character(len=4) :: cgneed(nMaxControlVar)
+    character(len=4) :: anlvar(nMaxControlVar)
 
     logical :: mask(nMaxControlVar)
+
+    character(len=256)  :: enspathname
+    logical :: makeBiPeriodic
 
     NAMELIST /NAMCALCSTATS_LAM/ntrunc,grd_ext_x,grd_ext_y,WindTransform,NormByStdDev,&
          SetTGtoZero,writeEnsPert,SpectralWeights,&
          vLocalize_wind,vlocalize_mass,vlocalize_humidity,&
          hLocalize_wind,hlocalize_mass,hlocalize_humidity,correlationLQ
-    NAMELIST /NAMSTATE/CGNEED
+    NAMELIST /NAMSTATE/ANLVAR
 
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
@@ -121,9 +131,6 @@ module calcstatslam_mod
     !- 1. Initialized the info on the ensemble
     !
     nens=nens_in
-
-    allocate(cflensin(nens))
-    cflensin(:)=cflens_in(:)
 
     hco_ens => hco_ens_in
     vco_bhi => vco_ens_in
@@ -203,13 +210,14 @@ module calcstatslam_mod
     !
 
     !- 4.1 Read NAMELIST NAMSTATE to find which fields are needed
-    cgneed(:) = 'NONE'
+    anlvar(:) = 'NONE'
     ier=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read (nulnam,nml=namstate)
+    if (ier.ne.0) call utl_abort('calcStatsLam: Error reading namelist')
     write(*     ,nml=namstate)
     ier=fclos(nulnam)
 
-    mask = cgneed .ne. 'NONE'
+    mask = anlvar .ne. 'NONE'
     nControlVariable = count(mask) 
     write(*,*)
     write(*,*) 'Number of Control Variables = ', nControlVariable
@@ -220,7 +228,7 @@ module calcstatslam_mod
     do var = 1, nControlVariable
 
        !- Set variable name
-       ControlVariable(var)%nomvar(cv_model)  = trim(cgneed(var))
+       ControlVariable(var)%nomvar(cv_model)  = trim(anlvar(var))
        if ( ControlVariable(var)%nomvar(cv_model) == 'UU' ) then
           if ( trim(WindTransform) == 'PsiChi') then
              write(*,*)
@@ -230,6 +238,7 @@ module calcstatslam_mod
              write(*,*)
              write(*,*) '--- Momentum Control Variables = Vort-Div ---'
              momentumControlVar(1) = 'QR'
+             call utl_abort('Momentum Control Variables = Vort-Div not yest availble')
           else if ( trim(WindTransform) == 'UV') then
              write(*,*)
              write(*,*) '--- Momentum Control Variables = U-V ---'
@@ -261,7 +270,7 @@ module calcstatslam_mod
        call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
                        ControlVariable(var)%GridType,         & ! OUT
                        ControlVariable(var)%nomvar(cv_model), & ! IN 
-                       cflensin(1) )                            ! IN
+                       ensFileName )                            ! IN
 
        write(*,*)
        write(*,*) 'Control Variable Name ', ControlVariable(var)%nomvar(cv_model)
@@ -285,10 +294,30 @@ module calcstatslam_mod
     end do
 
     !
-    !- 5.  Setup localization 
+    !- 5. Read the ensemble
+    !
+    numStep = 1
+    allocate(dateStampList(numStep))
+    dateStampList(:)  = -1
+    call ens_allocate(ensPerts, nEns, numStep, hco_bhi, vco_bhi, dateStampList)
+    
+    ensContainsFullField = .false.
+    ctrlVarHumidity = 'LQ'
+    ensPathName    = './ensemble'
+    makeBiPeriodic = .true.
+    call ens_readEnsemble(ensPerts, ensPathName, makeBiPeriodic, &
+                          containsFullField_opt=ensContainsFullField)
+
+    if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensPerts,'HU') .and. &
+         ensContainsFullField ) then
+      call vtr_transform(ensPerts,'HUtoLQ')
+    end if
+
+    !
+    !- 6.  Setup localization 
     !
     
-    !- 5.1 Setup horizontal localization
+    !- 6.1 Setup horizontal localization
     if ( hLocalize_wind < 0.d0 .and. hLocalize_mass < 0.d0 .and. hLocalize_humidity < 0.d0 ) then
        write(*,*) 
        write(*,*) 'csl_setup: NO horizontal correlation localization will be performed'
@@ -299,7 +328,7 @@ module calcstatslam_mod
        horizLoc=.true.
     end if
 
-    !- 5.2 Setup vertical localization
+    !- 6.2 Setup vertical localization
     if ( vLocalize_wind < 0.d0 .and. vLocalize_mass < 0.d0 .and. vLocalize_humidity < 0.d0 ) then
        write(*,*) 
        write(*,*) 'csl_setup: NO vertical correlation localization will be performed'
@@ -311,7 +340,7 @@ module calcstatslam_mod
     end if
 
     !
-    !- 6.  Setup pressure profile for vertical localization
+    !- 7.  Setup pressure profile for vertical localization
     !
     SurfacePressure = 101000.D0
 
@@ -348,7 +377,7 @@ module calcstatslam_mod
     endif
 
     !
-    !- 7.  Ending
+    !- 8.  Ending
     !
     initialized = .true.
 
@@ -368,7 +397,8 @@ module calcstatslam_mod
 
     integer :: NumBins2d, NumBins2dGridPoint
 
-    real(4),allocatable :: ensPerturbations(:,:,:,:)
+!    real(4),allocatable :: ensPerturbations(:,:,:,:) ! TO BE DELETED
+    !type(struct_ens) :: ensPerts
 
     real(8),allocatable :: ensMean3d(:,:,:)
     real(8),allocatable :: StdDev3d(:,:,:)
@@ -380,103 +410,59 @@ module calcstatslam_mod
     real(8),allocatable :: PowerSpectrum(:,:)
     real(8),allocatable :: HorizScale(:)
     
+    real(8), pointer :: ptrd3d(:,:,:)
+
     integer,allocatable :: Bin2d(:,:)
     integer,allocatable :: Bin2dGridPoint(:,:)
+
+    type(struct_gsv) :: statevector_mean, statevector_stdDev
 
     write(*,*)
     write(*,*) 'csl_computeStats: Starting...'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens),stat=ier)
-    if(ier /= 0) then
-      write(*,*) 'Problem allocating ensPerturbations memory!',ier
-      write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
-      call utl_abort('csl_computeStats') 
-    endif
-    allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
-    if (ier /= 0) then
-      write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call utl_abort('csl_computeStats')
-    end if
-    allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
-    if (ier /= 0) then
-      write(*,*) 'Problem allocating Bin2d memory!',ier
-      call utl_abort('csl_computeStats')
-    end if
-    allocate(Bin2dGridPoint(hco_bhi%ni,hco_bhi%nj),stat=ier)
-    if (ier /= 0) then
-      write(*,*) 'Problem allocating Bin2d memory!',ier
-      call utl_abort('csl_computeStats')
-    end if
-    allocate(StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
-    if (ier /= 0) then
-      write(*,*) 'Problem allocating StdDev3d memory!',ier
-      call utl_abort('csl_computeStats')
-    end if
-    allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
-    if (ier /= 0) then
-      write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call utl_abort('csl_computeStats')
-    end if
-    allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating SpVertCorrel memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
-    allocate(TotVertCorrel(nkgdim,nkgdim),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating TotVertCorrel memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
-    allocate(PowerSpectrum(nkgdim,0:ntrunc),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating PowerSpectrum memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
-    allocate(NormB(nkgdim,nkgdim,0:ntrunc),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
-    allocate(NormBsqrt(nkgdim,nkgdim,0:ntrunc),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
-    allocate(HorizScale(nkgdim),stat=ier)
-    if(ier.ne.0) then
-      write(*,*) 'Problem allocating HorizScale memory!',ier
-      call utl_abort('csl_computeStats')
-    endif
+    allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim))
+    allocate(Bin2d(hco_bhi%ni,hco_bhi%nj))
+    allocate(Bin2dGridPoint(hco_bhi%ni,hco_bhi%nj))
+    allocate(StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim))
+    allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim))
+    allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc))
+    allocate(TotVertCorrel(nkgdim,nkgdim))
+    allocate(PowerSpectrum(nkgdim,0:ntrunc))
+    allocate(NormB(nkgdim,nkgdim,0:ntrunc))
+    allocate(NormBsqrt(nkgdim,nkgdim,0:ntrunc))
+    allocate(HorizScale(nkgdim))
 
-    ensPerturbations(:,:,:,:) = 0.d0
-
-    !
-    !- 1.  Read forecast error estimates (all variables, levels, ens. members)
-    !
-    call ReadEnsemble(ensPerturbations) ! INOUT
-
-    !
-    !- 2.  Create periodic fields in X and Y directions
-    !
-    call BiPeriodization(ensPerturbations) ! INOUT
-
-    if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_model', cv_model ) ! IN
-
-    !
-    !- 3.  Transform u-wind and v-wind to control variables 
-    !
-    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
-       call UVToCtrlVar(ensPerturbations) ! INOUT
+    if (writeEnsPert) then
+      call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', ctrlVarHumidity, 'MODELVAR', 'E', &
+                             containsFullField_opt = ensContainsFullField)
     end if
 
-    if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_bhi', cv_bhi ) ! IN
+    !
+    !- 1.  Transform u-wind and v-wind to control variables 
+    !
+    if      ( momentumControlVar(1) == 'PP' .and. momentumControlVar(2) == 'CC' ) then
+      call vtr_transform(ensPerts,'UVtoPsiChi')
+      call ens_modifyVarName(ensPerts, 'UU', 'PP')
+      call ens_modifyVarName(ensPerts, 'VV', 'CC')
+    else if ( momentumControlVar(1) == 'QR' .and. momentumControlVar(2) == 'DD' ) then
+      call utl_abort('csl_computeStats: oups...')
+    end if
+
+    if (writeEnsPert) then
+      call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', ctrlVarHumidity, 'CTRLVAR', 'E', &
+                             containsFullField_opt = ensContainsFullField)
+    end if
 
     !
-    !- 4.  Remove the ensemble mean
+    !- 2.  Remove the ensemble mean
     !
-    call RemoveMean(ensPerturbations, & ! INOUT
-                    ensMean3d)          ! OUT
+    call ens_computeMean(ensPerts)
+    call ens_removeMean (ensPerts)
+
+    !call RemoveMean(ensPerturbations, & ! INOUT
+    !                ensMean3d)          ! OUT
+
 
     !
     !- 5.  Calculate the Standard Deviations in grid point space
@@ -486,23 +472,25 @@ module calcstatslam_mod
     call CreateBins(Bin2d, NumBins2d, & ! OUT
                     'HorizontalMean')   ! IN
 
-    call CalcStdDev3d(ensPerturbations, & ! INOUT
+    call CalcStdDev3d(ensPerts,         & ! INOUT
                       StdDev3d,         & ! OUT
                       Bin2d, NumBins2d)   ! IN
 
     !- 5.2 Non-binned Std. Dev. to be used for normalization and/or
     !      diagnostics
-    call CreateBins(Bin2dGridPoint, NumBins2dGridPoint, & ! OUT
-                    'GridPoint')                      ! IN
+    call ens_computeStdDev(ensPerts)
 
-    call CalcStdDev3d(ensPerturbations,             & ! INOUT
-                      StdDev3dGridPoint,              & ! OUT
-                      Bin2dGridPoint, NumBins2dGridPoint) ! IN
+    !call CreateBins(Bin2dGridPoint, NumBins2dGridPoint, & ! OUT
+    !                'GridPoint')                          ! IN
+    !call CalcStdDev3d(ensPerts,                         & ! INOUT
+    !                  StdDev3dGridPoint,                & ! OUT
+    !                  Bin2dGridPoint, NumBins2dGridPoint) ! IN
 
     !- 5.3 Normalization
     if ( NormByStdDev ) then
-      call Normalize3d(ensPerturbations, & ! INOUT
-                        StdDev3dGridPoint)    ! IN
+      call ens_normalize(ensPerts)
+      !call Normalize3d(ensPerturbations, & ! INOUT
+      !                  StdDev3dGridPoint)    ! IN
     end if
 
     !
@@ -510,7 +498,7 @@ module calcstatslam_mod
     !
 
     !- 6.1 Vertical correlations and Power Spectra
-    call CalcSpectralStats(ensPerturbations,              & ! IN
+    call CalcSpectralStats(ensPerts,              & ! IN
                            SpVertCorrel, PowerSpectrum,   & ! OUT
                            NormB)                           ! OUT
 
@@ -537,12 +525,21 @@ module calcstatslam_mod
     call WriteVarStats(NormBsqrt, StdDev3d) ! IN
 
     !- 7.2 Diagnostics fields
+    call ens_copyEnsMean(ensPerts, statevector_mean)
+    call ens_copyEnsStdDev(ensPerts, statevector_stdDev)
+
+    ptrd3d => gsv_getField3D_r8(statevector_mean)
+    EnsMean3d(:,:,:) = ptrd3d(:,:,:)
+    ptrd3d => gsv_getField3D_r8(statevector_stdDev)
+    StdDev3dGridPoint(:,:,:) = ptrd3d(:,:,:)
+
     call WriteDiagStats(NormB, SpVertCorrel, TotVertCorrel, EnsMean3d, & ! 
                         StdDev3dGridPoint, PowerSpectrum, HorizScale)    ! IN
 
     deallocate(Bin2d)
     deallocate(Bin2dGridPoint)
-    deallocate(ensPerturbations)
+  !  deallocate(ensPerturbations)
+    call ens_deallocate(ensPerts)
     deallocate(StdDev3d)
     deallocate(StdDev3dGridPoint)
     deallocate(ensMean3d)
@@ -686,19 +683,19 @@ module calcstatslam_mod
     !
     !- 1.  Read forecast error estimates (all variables, levels, ens. members)
     !
-    call ReadEnsemble(ensPerturbations) ! INOUT
+    !call ReadEnsemble(ensPerturbations) ! INOUT
 
     !
     !- 2.  Create periodic fields in X and Y directions
     !
-    call BiPeriodization(ensPerturbations) ! INOUT
+    !call BiPeriodization(ensPerturbations) ! INOUT
 
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
-    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
-       call UVToCtrlVar(ensPerturbations) ! INOUT
-    end if
+    !if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
+    !   call UVToCtrlVar(ensPerturbations) ! INOUT
+    !end if
 
     !
     !- 4.  Remove the ensemble mean
@@ -714,9 +711,9 @@ module calcstatslam_mod
     call CreateBins(Bin2d, NumBins2d, & ! OUT
                     'GridPoint')        ! IN
 
-    call CalcStdDev3d(ensPerturbations,   & ! INOUT
-                      StdDev3dGridPoint,  & ! OUT
-                      Bin2d, NumBins2d)     ! IN
+    !call CalcStdDev3d(ensPerturbations,   & ! INOUT
+    !                  StdDev3dGridPoint,  & ! OUT
+    !                  Bin2d, NumBins2d)     ! IN
 
     if ( trim(tool) == 'STDDEV' ) then
        iunstats = 0
@@ -790,9 +787,9 @@ module calcstatslam_mod
                         StdDev3dGridPoint)  ! IN
 
        !- 7.1 Vertical correlations and Power Spectra
-       call CalcSpectralStats(ensPerturbations,              & ! IN
-                              SpVertCorrel, PowerSpectrum,   & ! OUT
-                              NormB)                           ! OUT
+       !call CalcSpectralStats(ensPerturbations,              & ! IN
+       !                       SpVertCorrel, PowerSpectrum,   & ! OUT
+       !                       NormB)                           ! OUT
 
        !- 7.2 Compute the horizontal correlation functions
        call horizCorrelFunction(NormB) ! IN
@@ -1169,226 +1166,6 @@ module calcstatslam_mod
   end subroutine VarLevInfo
 
 !--------------------------------------------------------------------------
-! ReadEnsemble
-!--------------------------------------------------------------------------
-  subroutine ReadEnsemble(ensPerturbations)
-    use MathPhysConstants_mod, only: MPC_M_PER_S_PER_KNOT_R4
-    implicit none
-
-    real(4), intent(inout) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
-
-    real(4), allocatable :: work2d(:,:)
-
-    real(4)   :: factor
-
-    integer   :: ier, fstouv, fnom, fstfrm, fclos, fstecr, fstlir
-    integer   :: iunens, ens, var, k, kgdim
-    integer   :: ip1, ip2, ip3
-    integer   :: ni_t, nj_t, nlev_t, dateo  
-
-    character(len=4 )           :: nomvar
-    character(len=1 )           :: typvar
-    character(len=12)           :: etiket
-
-    write(*,*)
-    write(*,*) 'ReadEnsemble: Starting...'
-
-    allocate(work2d(hco_ens%ni, hco_ens%nj))
-
-    !- Loop over the Ensemble members
-    do ens = 1, nens
-
-      write(*,*)
-      write(*,*) 'Reading ensemble member: ', ens, trim(cflensin(ens))
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-      iunens = 0
-      ier    = fnom(iunens,cflensin(ens),'RND+OLD+R/O',0)
-      ier    = fstouv(iunens,'RND+OLD')
-
-      !- Loop over Control Variables
-      do var = 1, nControlVariable
-
-        !- Loop over vertical Levels
-        do k = 1, ControlVariable(var)%nlev
-
-          dateo  = -1
-          ip1    = ControlVariable(var)%ip1(k)
-          ip2    = ip2_ens
-          ip3    = -1
-          typvar = ' '
-          nomvar = trim(ControlVariable(var)%nomvar(cv_model))
-          etiket = ' '
-          if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-            factor = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
-          else if ( trim(nomvar) == 'P0' ) then
-            factor = 100.0 ! hPa -> Pa
-          else if ( trim(nomvar) == 'TG' .and. SetTGtoZero ) then
-            nomvar = 'TT'
-            ip1    = 93423264
-            factor = 0.0
-          else
-            factor = 1.0
-          end if
-
-          !- Reading 
-          ier = fstlir( work2d,                                      & ! OUT 
-                        iunens,                                      & ! IN
-                        ni_t, nj_t, nlev_t,                          & ! OUT
-                        dateo, etiket, ip1, ip2, ip3, typvar, nomvar)  ! IN 
-
-          if (ier < 0) then
-            write(*,*)
-            write(*,*) 'ReadEnsemble: Cannot find field ...'
-            write(*,*) 'nomvar =', trim(nomvar)
-            write(*,*) 'etiket =', trim(etiket)
-            write(*,*) 'ip1    =', ip1
-            write(*,*) 'ip2    =', ip2
-            call utl_abort('ReadEnsemble')
-          end if
-
-          if (ni_t /= hco_ens%ni .or. nj_t /= hco_ens%nj) then
-            write(*,*)
-            write(*,*) 'ReadEnsemble: Invalid dimensions for ...'
-            write(*,*) 'nomvar      =', trim(nomvar)
-            write(*,*) 'etiket      =', trim(etiket)
-            write(*,*) 'ip1         =', ip1
-            write(*,*) 'Found ni,nj =', ni_t, nj_t 
-            write(*,*) 'Should be   =', hco_ens%ni, hco_ens%nj
-            call utl_abort('ReadEnsemble')
-          end if
-
-          !- Insert in EnsPerturbations
-          kgdim = ControlVariable(var)%kDimStart + k - 1
-          EnsPerturbations(1:hco_ens%ni, 1:hco_ens%nj,kgdim,ens) = factor * work2d(:,:) 
-
-        end do ! Vertical Levels
-
-      end do ! Variables
-    
-      ier =  fstfrm(iunens)
-      ier =  fclos (iunens)
-
-    end do ! Ensemble members
-
-    deallocate(work2d)
-
-    write(*,*)
-    write(*,*) 'ReadEnsemble: Done!'
-
-  end subroutine ReadEnsemble
-
-!--------------------------------------------------------------------------
-! UVToCtrlVar
-!--------------------------------------------------------------------------
-  subroutine UVToCtrlVar(ensPerturbations)
-    implicit none
-
-    real(4), intent(inout) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
-
-    real(8), allocatable :: uwind_3d(:,:,:)
-    real(8), allocatable :: vwind_3d(:,:,:)
-    real(8), allocatable :: CtrlVar1_3d(:,:,:)
-    real(8), allocatable :: CtrlVar2_3d(:,:,:)
-
-    integer :: nlev, ens, kStart_u, kStart_v, kEnd_u, kEnd_v
-
-    write(*,*)
-    write(*,*) 'UVToCtrlVar: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !- Error traps
-    if ( ControlVariable(1)%nlev /= ControlVariable(2)%nlev ) then
-      write(*,*)
-      write(*,*) 'UVToCtrlVar: Error in Wind Field vertical grid !!!'
-      call utl_abort('UVToCtrlVar')
-    end if
-    if ( ControlVariable(1)%nomvar(cv_model) /= 'UU' .or. &
-         ControlVariable(2)%nomvar(cv_model) /= 'VV' ) then
-      write(*,*)
-      write(*,*) 'UVToCtrlVar: Wind field(s) missing on input !!!'
-      write(*,*) 'nomvar(1) = ', ControlVariable(1)%nomvar(cv_model)
-      write(*,*) 'nomvar(2) = ', ControlVariable(2)%nomvar(cv_model)
-      call utl_abort('UVToCtrlVar')
-    end if
-
-    if (trim(WindTransform) == 'UV') then
-       write(*,*)
-       write(*,*) 'WindTransform = UV. Nothing to do!'
-       return
-    end if
-
-    !- Allocation
-    nlev = ControlVariable(1)%nlev
-    allocate(uwind_3d   (hco_bhi%ni, hco_bhi%nj, nlev))
-    allocate(vwind_3d   (hco_bhi%ni, hco_bhi%nj, nlev))
-    allocate(CtrlVar1_3d(hco_bhi%ni, hco_bhi%nj, nlev))
-    allocate(CtrlVar2_3d(hco_bhi%ni, hco_bhi%nj, nlev))
-
-    !- Loop over all ensemble members
-    do ens   = 1, nens
-
-      !- Wind position in EnsPerturbations
-      kStart_u = ControlVariable(1)%kDimStart
-      kStart_v = ControlVariable(2)%kDimStart
-      kEnd_u   = ControlVariable(1)%kDimEnd
-      kEnd_v   = ControlVariable(2)%kDimEnd
-
-      !- Extract from EnsPerturbations
-      uwind_3d(:,:,:) = real(ensPerturbations(:,:,kStart_u:kEnd_u,ens),8)
-      vwind_3d(:,:,:) = real(ensPerturbations(:,:,kStart_v:kEnd_v,ens),8)
-
-      !- U-wind,V-wind -> Vorticity,Divergence
-      call agd_UVToVortDiv(CtrlVar1_3d, CtrlVar2_3d, & ! OUT
-                           uwind_3d   , vwind_3d   , & ! IN
-                           nlev                      ) ! IN
-
-      if (trim(WindTransform) == 'PsiChi') then
-        !- Vorticity,Divergence -> Stream Function,Velocity Potential
-        call VortDivToPsiChi(CtrlVar1_3d, CtrlVar2_3d, & ! INOUT
-                             nlev)                       ! IN
-      end if
-
-      !- Insert results in EnsPerturbations
-      ensPerturbations(:,:,kStart_u:kEnd_u,ens) = real(CtrlVar1_3d(:,:,:),4)
-      ensPerturbations(:,:,kStart_v:kEnd_v,ens) = real(CtrlVar2_3d(:,:,:),4)
-
-    end do
-
-    deallocate(uwind_3d   )
-    deallocate(vwind_3d   )
-    deallocate(CtrlVar1_3d)
-    deallocate(CtrlVar2_3d)
-
-    write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'UVToCtrlVar: Done!'
-
-  end subroutine UVToCtrlVar
-
-!--------------------------------------------------------------------------
-! VortDivToPsiChi
-!--------------------------------------------------------------------------
-  subroutine VortDivToPsiChi(VortPsi,DivChi,nk)
-    implicit none
-
-    integer, intent(in)    :: nk
-    real(8), intent(inout) :: VortPsi(hco_bhi%ni, hco_bhi%nj,nk)
-    real(8), intent(inout) :: DivChi (hco_bhi%ni, hco_bhi%nj,nk)
-
-    ! Vort -> Psi
-    call lst_Laplacian( lst_bhi%id,     & ! IN
-                        VortPsi,        & ! INOUT
-                        'Inverse', nk )   ! IN    
-
-    ! Div -> Chi
-    call lst_Laplacian( lst_bhi%id,     & ! IN
-                        DivChi,         & ! INOUT
-                        'Inverse', nk )   ! IN
-
-  end subroutine VortDivToPsiChi
-
-!--------------------------------------------------------------------------
 ! RemoveMean
 !--------------------------------------------------------------------------
   subroutine RemoveMean(ensPerturbations,ensMean3d)
@@ -1495,13 +1272,17 @@ module calcstatslam_mod
 !--------------------------------------------------------------------------
 ! CalcStdDev3d
 !--------------------------------------------------------------------------
-  subroutine CalcStdDev3d(ensPerturbations,StdDev3d,Bin2d,NumBins2d)
+  subroutine CalcStdDev3d(ensPerts,StdDev3d,Bin2d,NumBins2d)
     implicit none
 
-    real(4), intent(inout)  :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
+    type(struct_ens) :: ensPerts
+
+    !real(4), intent(inout)  :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
     real(8), intent(out)    :: StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim)
     integer, intent(in)     :: Bin2d(hco_bhi%ni,hco_bhi%nj)
     integer, intent(in)     :: NumBins2d
+
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
 
     integer :: BinCount (NumBins2d)
     real(8) :: StdDevBin(NumBins2d)
@@ -1514,9 +1295,11 @@ module calcstatslam_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (kgdim,BinCount,StdDevBin,b,ens,j,i)
+!$OMP DO PRIVATE (kgdim,BinCount,StdDevBin,b,ens,j,i,ptr4d_r4)
     do kgdim = 1, nkgdim
 
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts,kgdim)
+      
       !- Sum of Squares per bin
       BinCount (:) = 0
       StdDevBin(:) = 0.d0
@@ -1525,7 +1308,7 @@ module calcstatslam_mod
           do i = 1, hco_bhi%ni
             b = Bin2d(i,j)
             BinCount(b)  = BinCount(b) + 1
-            StdDevBin(b) = StdDevBin(b) + real(ensPerturbations(i,j,kgdim,ens),8)**2
+            StdDevBin(b) = StdDevBin(b) + real(ptr4d_r4(ens,1,i,j))**2
           end do
         end do
       end do
@@ -1597,11 +1380,12 @@ module calcstatslam_mod
 !--------------------------------------------------------------------------
 ! CalcSpectralStats
 !--------------------------------------------------------------------------
-  subroutine CalcSpectralStats(ensPerturbations,SpVertCorrel,PowerSpectrum, &
+  subroutine CalcSpectralStats(ensPerts,SpVertCorrel,PowerSpectrum, &
                                NormB)
     implicit none
 
-    real(4), intent(in)     :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
+    !real(4), intent(in)     :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
+    type(struct_ens) :: ensPerts
     real(8), intent(out)    :: SpVertCorrel(nkgdim,nkgdim,0:ntrunc)
     real(8), intent(out)    :: PowerSpectrum(nkgdim,0:ntrunc)
     real(8), intent(out)    :: NormB(nkgdim,nkgdim,0:ntrunc)
@@ -1610,6 +1394,8 @@ module calcstatslam_mod
     real(8), allocatable    :: SpectralStateVar(:,:,:)
     real(8), allocatable    :: GridState(:,:,:)
     real(8), allocatable    :: SumWeight(:)
+
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
 
     real(8)           :: weight, sum
 
@@ -1635,7 +1421,11 @@ module calcstatslam_mod
     do ens = 1, nens
 
       !- 1.1 Extract fields from ensPerturbations
-      GridState(:,:,:) = real(ensPerturbations(:,:,:,ens),8)
+      !GridState(:,:,:) = real(ensPerturbations(:,:,:,ens),8)
+      do k = 1, nkgdim
+        ptr4d_r4 => ens_getOneLev_r4(ensPerts,k)
+        GridState(:,:,k) = real(ptr4d_r4(ens,1,:,:),8)
+      end do
 
       !- 1.2 Grid Point Space -> Spectral Space
       kind = 'GridPointToSpectral'
@@ -2224,44 +2014,6 @@ module calcstatslam_mod
     end select
 
   end subroutine CreateBins
-
-!--------------------------------------------------------------------------
-! BiPeriodization
-!--------------------------------------------------------------------------
-  subroutine BiPeriodization(ensPerturbations)
-    implicit none
-
-    real(4), intent(inout) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
-
-    real(8), allocatable :: work3d(:,:,:)
-
-    integer :: kgdim, ens
-
-    write(*,*)
-    write(*,*) 'BiPeriodization: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    allocate(work3d(hco_bhi%ni, hco_bhi%nj, nkgdim))
-
-    !- Loop over all variables / levels / ensemble members
-    do ens   = 1, nens
-
-        work3d(:,:,:) = real(ensPerturbations(:,:,:,ens),8)
-
-        call agd_mach(work3d,                             & ! INOUT
-                      hco_bhi%ni, hco_bhi%nj, nkgdim)   ! IN
-
-        ensPerturbations(:,:,:,ens) = real(work3d(:,:,:),4)
-
-    end do
-
-    deallocate(work3d)
-
-    write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'BiPeriodization: Done!'
-
-  end subroutine BiPeriodization
 
 !--------------------------------------------------------------------------
 ! CalcVertCorrel
@@ -2921,117 +2673,6 @@ module calcstatslam_mod
   end subroutine WriteTotVertCorrel
 
 !--------------------------------------------------------------------------
-! WriteEnsemble
-!--------------------------------------------------------------------------
-  subroutine WriteEnsemble(ensPerturbations, OutputBaseName, cv_type)
-    use MathPhysConstants_mod, only: MPC_KNOTS_PER_M_PER_S_R4
-    implicit none
-
-    real(4), intent(in) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
-    integer, intent(in) :: cv_type
-    character(len=*), intent(in) :: OutputBaseName
-
-    real(4), allocatable :: work2d(:,:)
-
-    real(4)   :: factor, work
-
-    integer   :: ier, fstouv, fnom, fstfrm, fclos, fstecr
-    integer   :: iunens, ens, var, k, kgdim
-
-    integer :: dateo, npak, ni, nj, nk
-    integer :: ip1, ip2, ip3, deet, npas, datyp
-    integer :: ig1 ,ig2 ,ig3 ,ig4
-
-    character(len=1)  :: grtyp
-    character(len=4)  :: nomvar
-    character(len=2)  :: typvar
-    character(len=12) :: etiket
-    character(len=128):: OutputFileName
-    character(len=3)  :: cens
-
-    allocate(work2d(hco_bhi%ni, hco_bhi%nj))
-
-    !- Loop over the Ensemble members
-    do ens = 1, nens
-
-      if (ens < 10) then
-        write( cens, '(i1)' ) ens
-        cens='00'//cens
-      else if (ens < 100) then
-        write( cens, '(i2)' ) ens
-        cens='0'//cens
-      else
-        write( cens, '(i3)' ) ens
-      end if
-      OutputFileName= trim(OutputBaseName) // '_' // cens // '.fst'
-
-      write(*,*)
-      write(*,*) 'Writing ensemble member: ', ens, trim(OutputFileName)
-
-      iunens = 0
-      ier    = fnom(iunens,trim(OutputFileName),'RND',0)
-      ier    = fstouv(iunens,'RND')
-
-      !- Add Tic-Tac and Toc-Toc
-      call WriteTicTacToc(iunens)
-
-      !- Loop over Control Variables
-      do var = 1, nControlVariable
-
-        !- Loop over vertical Levels
-        do k = 1, ControlVariable(var)%nlev
-
-          npak   = -32
-          dateo  = 0
-          deet   = 0
-          npas   = 0
-          ni     = hco_bhi%ni
-          nj     = hco_bhi%nj
-          nk     = 1
-          ip1    = ControlVariable(var)%ip1(k)
-          ip2    = 0
-          ip3    = 0
-          typvar = 'E'
-          nomvar = trim(ControlVariable(var)%nomvar(cv_type))
-          etiket = 'DEBUG'
-          grtyp  = hco_bhi%grtyp
-          ig1    = hco_bhi%ig1
-          ig2    = hco_bhi%ig2
-          ig3    = hco_bhi%ig3
-          ig4    = hco_bhi%ig4
-          datyp  = 1
-
-          if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-            factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
-          else if ( trim(nomvar) == 'P0' ) then
-            factor = 0.01 ! Pa -> hPa
-          else
-            factor = 1.0
-          end if
-
-          !- Extract from EnsPerturbations
-          kgdim = ControlVariable(var)%kDimStart + k - 1
-          work2d(:,:) = factor * EnsPerturbations(:,:,kgdim,ens)
-
-          !- Writing 
-          ier = fstecr(work2d, work, npak, iunens, dateo, deet, npas, ni, nj, &
-                       nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                       ig1, ig2, ig3, ig4, datyp, .true.)
-
-        end do ! Vertical Levels
-
-      end do ! Variables
-    
-      ier =  fstfrm(iunens)
-      ier =  fclos (iunens)
-
-    end do ! Ensemble members
-
-    deallocate(work2d)
-
-  end subroutine WriteEnsemble
-
-!--------------------------------------------------------------------------
 ! Write3D
 !--------------------------------------------------------------------------
   subroutine Write3D(Field3d, iun, Etiket_in, cv_type)
@@ -3186,9 +2827,9 @@ module calcstatslam_mod
 
   end subroutine WritePowerSpectrum
 
-!--------------------------------------------------------------------------
-! WriteHorizScale
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WriteHorizScale
+  !--------------------------------------------------------------------------
   subroutine WriteHorizScale(HorizScale,iun,etiket_in,cv_type)
     implicit none
 
@@ -3253,9 +2894,9 @@ module calcstatslam_mod
 
   end subroutine WriteHorizScale
 
-!--------------------------------------------------------------------------
-! WriteTicTacToc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WriteTicTacToc
+  !--------------------------------------------------------------------------
   subroutine WriteTicTacToc(iun)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
     use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
@@ -3320,9 +2961,9 @@ module calcstatslam_mod
 
   end subroutine WriteTicTacToc
 
-!--------------------------------------------------------------------------
-! WriteControlVarInfo
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WriteControlVarInfo
+  !--------------------------------------------------------------------------
   subroutine WriteControlVarInfo(iun)
     implicit none
 
