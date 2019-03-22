@@ -18,21 +18,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Visibility and wind gust near the surface can now be assimilated (#173 and !176)
  * A sea ice concentration analysis can now be done with CIS daily ice charts (other obs types to come) (#163 and !175)
  * A horizontal land/sea mask can now be included in the analysisgrid file (#163 and !175)
- * The program, midas_obsSelection, was created, comprising O-P computations, background check, and thinning (#113 and !174)
+ * The program, midas_obsSelection, was created (so far only for aladin HLOS obs), comprising O-P computations, background check, and thinning (#113 and !174)
  * Enable `vcode=5005` for ensemble B matrix (#188 and !173)
  * The aladin HLOS wind observations can now be adjusted to compensate for the observations having been calculated at another meteorolgical facility (#139 and !172)
-   * A new namelist, NAMALADIN_OBS, is required when there are oop_geomht_nl (i.e. aladin) data to be treated.
-   * The result of assimilation will be different if the adjustment is enabled.
+   * A new namelist, NAMALADIN_OBS, is required when there are height-level observations (i.e. aladin) data to be treated.
  * Able to write contents of obsSpaceData to simplified sqlite files (useful when using another input file format and sqlite wanted for diagnostics) (#167 and !166)
- * Add observation operator for aladin (HLOS winds) (#114 and !163)
-    * Add aladin HLOS wind observations to the background check.
-    * Add the system test `var/Var3D/aladin_assim`.
-    * The minimum elements (in namelist `NAMSQLAL`) that must be read from the sql observation file is:
-      * `5021`, `40030` and `40031`
-    * New input and output files:  `obsfiles_al/obsal_*_*`
+ * Add observation operator and background check for aladin (HLOS winds) (#114 and !163)
  * New approach for horizontal/temporal interpolation of background state and increment to observation locations/times (small change to results for most applications) (#80 and !147)
     * Linear time interpolation can be applied to the background state when computing the innovations (controlled by namelist variable, default is nearest neighbour)
- * Level-depend steering flow scalefactor capability for advection (#168 and !146)
+ * Level-dependant steering flow scalefactor capability for advection (#168 and !146)
  * Add checks on humidity limits in ensManip (#164 and !143)
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
@@ -40,15 +34,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Use constituent BUFR elements from official tableburp file released 30 Sept 2018
-   * (#150 and !37)
-  * When compiling with `COMPILE_MIDAS_ADD_DEBUG_OPTIONS=yes`, the options `-debug -check all -O 0` are added to the compile command (#182 and !187)
-  * The body of the program `oMinusF` was extracted into a new module, `ominusf_mod` (#113 and !174)
-  * The input file trlp is no longer necessary in varbc mode (#145 and !129)
-    * Slight unsignificant change in the results
-  * change to the height (GZ) calculation within MIDAS so that GPS-RO and ground-based GPS now use the same heights as all other obs types (#141 and !191)
-    * along with the change to the height calculation, the variable was changed from geopotential to altitude
-    * new namelist variable to allow using static GPS-RO observation error variance
+ * Use constituent BUFR elements from official tableburp file released 30 Sept 2018 (#150 and !37)
+ * When compiling with `COMPILE_MIDAS_ADD_DEBUG_OPTIONS=yes`, the options `-debug -check all -O 0` are added to the compile command (#182 and !187)
+ * The body of the program `oMinusF` was extracted into a new module, `ominusf_mod` (#113 and !174)
+ * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
+ * Change to the height (GZ) calculation within MIDAS so that GPS-RO and GPS-gb now use same heights as other obs types (#141 and !191)
+    * The variable was also changed from geopotential to altitude
+    * New namelist variable to allow using static GPS-RO observation error variance
+    * Small change to H(x) results due to these modifications for GPS-RO, GPS-gb, GZ and possibly sfc obs
  * Replacing the old numerical recipe for generating gaussian random
    values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
