@@ -42,15 +42,15 @@ program midas_prepcma
   implicit none
 
   ! Namelist
-  NAMELIST /NAMPREPCMA/ infl_sigo,thinning,dyn_sw_oer
-  logical :: infl_sigo,thinning,dyn_sw_oer
+  NAMELIST /NAMPREPCMA/ cmahdr,cmabdy,cmadim,obsout,brpform
+  character(len=256) :: cmahdr,cmabdy,cmadim,obsout,brpform
 
   integer :: fnom, fclos, get_max_rss, nulnam, ierr, datestamp
   type(struct_obs),       target  :: obsSpaceData
 
   real(kind=8), dimension(1,1) :: hx_dummy
   integer, parameter :: zero_ens=0
-  integer :: ncmahdr,ncmahx,ncmabdy,ncmadim,nobsout
+  integer :: ncmahdr,ncmahx,ncmabdy,ncmadim,nobsout,nbrpform
 
   write(*,*) " --------------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM midas-prepcma ---"
@@ -93,31 +93,41 @@ program midas_prepcma
   call obsf_readFiles( obsSpaceData )
   call tmg_stop(11)
 
-  WRITE(*,*) 'midas_prepcma: obs_numheader(obsdat)', obs_numheader(obsdat)
-  WRITE(*,*) 'midas_prepcma: obs_numbody(obsdat)  ', obs_numbody  (obsdat)
+  WRITE(*,*) 'midas_prepcma: obs_numheader(obsSpaceData)', obs_numheader(obsSpaceData)
+  WRITE(*,*) 'midas_prepcma: obs_numbody(obsSpaceData)  ', obs_numbody  (obsSpaceData)
 
-  nobsout = -1
-  call openfile(nobsout,'cma.ascii.1','NEW','FORMATTED')
+  !- Write the results
+  write(*,*)
+  write(*,*) '> midas-prepcma: writing to files'
+
+  nobsout = 20
+  call openfile(nobsout,obsout,'NEW','FORMATTED')
   call obs_print(obsSpaceData,nobsout)
   close(nobsout)
 
-  ! 2.3 Write the results in CMA format
-  write(*,*)
-  write(*,*) '> midas-prepcma: writing to file'
+  ncmahdr = 21
+  call openfile(ncmahdr,cmahdr,'NEW','UNFORMATTED')
 
-  ncmahdr = 0
-  call openfile(ncmahdr,'cmaheader','NEW','FORMATTED')
-  ncmabdy = 0
-  call openfile(ncmabdy,'cmabdy','NEW','FORMATTED')
-  ncmadim = 0
-  call openfile(ncmadim,'cmadim','NEW','FORMATTED')
-  ncmahx  = 0
+  ncmabdy = 22
+  call openfile(ncmabdy,cmabdy,'NEW','UNFORMATTED')
 
+  ncmadim = 23
+  call openfile(ncmadim,cmadim,'NEW','FORMATTED')
+
+  !- Write the results in CMA format
+  ncmahx  = -1
   call obs_write(obsSpaceData,hx_dummy,zero_ens,ncmahdr,ncmabdy,ncmahx,ncmadim)
 
   close(ncmahdr)
   close(ncmabdy)
   close(ncmadim)
+
+  nbrpform = 0
+  call openfile(nbrpform,brpform,'NEW','FORMATTED')
+  !! This used to contain a .true. or .false. value indicating if observations passed the QCVar
+  !! Since, this is not the case, we can write .false.
+  write(nbrpform,*) .false.
+  close(nbrpform)
 
   !
   !- 3.  Ending

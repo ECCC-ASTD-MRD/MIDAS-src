@@ -1,7 +1,9 @@
  &NAMPREPCMA
-   INFL_SIGO  = .false
-   THINNING   = .true.
-   DYN_SW_OER = .false.
+   OBSOUT='cma.ascii.1'
+   CMAHDR='cmaheader'
+   CMABDY='cmabdy'
+   CMADIM='cmadim'
+   BRPFORM='brpform'
 /
  &NAMDIMO
    NMXOBS=30000,
