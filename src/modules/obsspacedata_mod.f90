@@ -6803,14 +6803,15 @@ contains
       integer,      intent(in)  :: kobs,kulout,irealBodies
       integer,      intent(out) :: nrealBodies
 
-      integer :: i,j
+      integer :: i,j,nprocs_mpi,ierr
 
 
       ! (note that as a part of the writing, the body is being sorted
       !  so that the order of the observations in the body array 
       !  corresponds with the order of the headers in the header array).
+      call rpn_comm_size("GRID",nprocs_mpi,ierr)
 
-      if(obsdat%mpi_local) then
+      if(obsdat%mpi_local .and. nprocs_mpi>1) then
          call obs_abort('obs_write_hdr() is not equipped to handle the ' // &
                         'case, mpi_local=.true.')
          return

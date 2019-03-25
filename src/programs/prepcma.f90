@@ -96,6 +96,10 @@ program midas_prepcma
   WRITE(*,*) 'midas_prepcma: obs_numheader(obsSpaceData)', obs_numheader(obsSpaceData)
   WRITE(*,*) 'midas_prepcma: obs_numbody(obsSpaceData)  ', obs_numbody  (obsSpaceData)
 
+  if (mpi_nprocs /= 1) then
+    call obs_expandToMpiGlobal( obsSpaceData )
+  end if
+
   !- Write the results
   write(*,*)
   write(*,*) '> midas-prepcma: writing to files'
