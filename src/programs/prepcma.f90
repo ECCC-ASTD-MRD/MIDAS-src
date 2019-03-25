@@ -93,7 +93,8 @@ program midas_prepcma
   call obsf_readFiles( obsSpaceData )
   call tmg_stop(11)
 
-  call selectb(obsSpaceData)
+  WRITE(*,*) 'midas_prepcma: obs_numheader(obsdat)', obs_numheader(obsdat)
+  WRITE(*,*) 'midas_prepcma: obs_numbody(obsdat)  ', obs_numbody  (obsdat)
 
   nobsout = -1
   call openfile(nobsout,'cma.ascii.1','NEW','FORMATTED')
@@ -168,56 +169,5 @@ contains
 
     return
   end subroutine openfile
-
-  subroutine selectb(obsdat)
-    !
-    !      PURPOSE: READ CMC BURP FILES FILL UP CMA FILE
-    !
-    !    ARGUMENTS:
-    !            obsdat   - obsdat-file object
-    !            input:  nfiles   - number of input files
-    !
-    !       AUTHOR: P. KOCLAS(CMC CMDA)
-    !
-    type (struct_obs), intent(inout) :: obsdat
-
-    integer :: bodyIndex,headerIndex
-
-    WRITE(*,*)'midas_prepcma: selectb begins'
-
-    ! loop over all header indices of family 'TO'
-    call obs_set_current_header_list(obsSpaceData,'TO')
-    HEADER: do
-       headerIndex = obs_getHeaderIndex(obsSpaceData)
-       if (headerIndex < 0) exit HEADER
-
-       ! loop over all body indices for this headerIndex
-       call obs_set_current_body_list(obsSpaceData, headerIndex)
-       BODY: do
-         bodyIndex = obs_getBodyIndex(obsSpaceData)
-         if (bodyIndex < 0) exit BODY
-
-         call obsu_windDirectionToUV(obsdat,bodyIndex,bodyIndex,MPC_missingValue_R4)
-         call obsu_adjustHumGZ(obsdat,bodyIndex,bodyIndex)
-         call obsu_computeVertCoordSurfObs(obsdat,bodyIndex,bodyIndex)
-       end do BODY
-    end do HEADER
-
-    do bodyIndex=1,obs_numbody(obsdat)
-      call obs_bodySet_r(obsdat,OBS_OMA ,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_OMP ,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_OMP6,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_OMA0,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_OER ,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_HPHT,bodyIndex,MPC_missingValue_R4)
-      call obs_bodySet_r(obsdat,OBS_HAHT,bodyIndex,MPC_missingValue_R4)
-    end do !! bodyIndex
-
-  WRITE(*,*) 'midas_prepcma: selectb obs_numheader(obsdat)', obs_numheader(obsdat)
-  WRITE(*,*) 'midas_prepcma: selectb obs_numbody(obsdat)  ', obs_numbody  (obsdat)
-
-  WRITE(*,*)'midas_prepcma: selectb ends'
-
- end subroutine selectb
 
 end program
