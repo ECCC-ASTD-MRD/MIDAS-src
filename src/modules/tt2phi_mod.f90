@@ -54,8 +54,7 @@ module tt2phi_mod
   real(8), allocatable, save :: coeff_M_P0(:,:), coeff_M_P0_dP(:,:)
   real(8), allocatable, save :: coeff_T_P0(:), coeff_T_P0_dP(:)
 
-  ! constants from gps_mod {{{
-  real(8), parameter :: delta = 0.6077686814144D0
+contains
 
 subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   !
@@ -88,26 +87,31 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   type(struct_vco), pointer :: vco_ghr
   logical                   :: beSilent
 
-  real(8), parameter :: p_Rd = p_Avog*p_Boltz/(1.D-3*p_md)   ! per air mass
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .false.
+  end if
 
-  ! Angular velocity of the Earth (omegaPrime) (radians/s).
-  ! Standard Earth, rotating with a constant angular velocity (IAU, GRS67).
-  real(8), parameter :: WGS_OmegaPrime = 7292115.1467D-11
+  vco_ghr => col_getVco(columnghr)
+  status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
 
   nlev_T = col_getNumLev(columnghr,'TH')
   nlev_M = col_getNumLev(columnghr,'MM')
   if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
   if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
 
-  if (Vcode == 5005 .and. mpi_myid == 0 .and. .not.beSilent ) then
+  if (Vcode == 5005) then
     status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=alt_sfcOffset_M_r4)
     status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=alt_sfcOffset_T_r4)
-    write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', alt_sfcOffset_M_r4, ' metres'
-    write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', alt_sfcOffset_T_r4, ' metres'
-    if ( .not.columnghr%addGZsfcOffset ) then
-      write(*,*) '----------------------------------------------------------------------------------'
-      write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-      write(*,*) '----------------------------------------------------------------------------------'
+    if ( mpi_myid == 0 .and. .not.beSilent ) then
+      write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', alt_sfcOffset_M_r4, ' metres'
+      write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', alt_sfcOffset_T_r4, ' metres'
+      if ( .not.columnghr%addGZsfcOffset ) then
+        write(*,*) '----------------------------------------------------------------------------------'
+        write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+        write(*,*) '----------------------------------------------------------------------------------'
+      end if
     end if
   end if
 
@@ -148,11 +152,10 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
     ! compute altitude on bottom momentum level
     if (Vcode == 5002) then
       alt_M(nlev_M) = rMT
-    elseif (Vcode == 5005) then
-      status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_M_r4)
-      write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
-      AL_M(nlev_M) = gz_sfcOffset_M_r4
-    endif
+    else if (Vcode == 5005) then
+      alt_M(nlev_M) = alt_sfcOffset_M_r4
+    end if
+
     ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
               col_getElem(columnghr,1,columnIndex,'P0') )
 
@@ -162,9 +165,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
     dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
     Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      alt_M(nlev_M) = rMT + delThick
-    end if
+    delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+    alt_M(nlev_M-1) = rMT + delThick
 
     ! compute altitude on rest of momentum levels
     do lev_M = nlev_M-2, 1, -1
@@ -215,9 +217,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       alt_T(1) = alt_M(1) + delThick
 
     elseif (Vcode == 5005) then
-      status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_T_r4)
-      write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
-      AL_T(nlev_T) = gz_sfcOffset_T_r4
+      alt_T(nlev_T) = alt_sfcOffset_T_r4
       do lev_T = 1, nlev_T-2
         lev_M = lev_T + 1  ! momentum level just below thermo level being computed
         ScaleFactorBottom = log( col_getPressure(columnghr,lev_T  ,columnIndex,'TH')   / &
@@ -237,8 +237,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      alt_T(nlev_T) = rMT + delThick
+      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+      alt_T(nlev_T-1) = rMT + delThick
     end if
 
     ! fill the height array
@@ -257,17 +257,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   deallocate(alt_T)
   deallocate(alt_M)
 
-  ! m = omega^2 a^2 b / GM
-  real(8), parameter :: WGS_m = 0.00344978650684D0
-  ! }}}
+end subroutine tt2phi
 
-  ! private module variables
-  real(8), allocatable, save :: coeff_T_TT(:,:), coeff_T_HU(:,:)
-  real(8), allocatable, save :: coeff_T_P0(:,:), coeff_T_P0_dP(:,:)
-  real(8), allocatable, save :: ratioP(:,:), ratioP1(:)
-  real(8), allocatable, save :: diff_delLnP_T(:,:), diff_delLnP_M1(:)
-
-contains
 
 subroutine tt2phi_tl(column,columng,obsSpaceData)
   !
@@ -391,7 +382,7 @@ subroutine tt2phi_tl(column,columng,obsSpaceData)
 
   deallocate(delThick)
 
-end subroutine tt2phi_tl !}}}
+end subroutine tt2phi_tl
 
 
 subroutine tt2phi_ad(column,columng,obsSpaceData)
@@ -672,514 +663,6 @@ subroutine calcAltitudeCoeff(columng,obsSpaceData)
     end if
 
   end do
-
-  deallocate(delLnP_M)
-
-  Write(*,*) "Exit subroutine calcAltitudeCoeff"
-
-end subroutine calcAltitudeCoeff
-
-
-function gpscompressibility(p,t,q)
-  real(8), intent(in)  :: p,t,q
-  real(8)              :: gpscompressibility
-
-  real(8), parameter   :: a0= 1.58123D-6
-  real(8), parameter   :: a1=-2.9331D-8
-  real(8), parameter   :: a2= 1.1043D-10
-  real(8), parameter   :: b0= 5.707D-6
-  real(8), parameter   :: b1=-2.051D-8
-  real(8), parameter   :: c0= 1.9898D-4
-  real(8), parameter   :: c1=-2.376D-6
-  real(8), parameter   :: d = 1.83D-11
-  real(8), parameter   :: e =-0.765D-8
-
-  real(8)         :: x,tc,pt,tc2,x2
-
-  x  = p_wa * q / (1.D0 + p_wb * q)
-  ! Estimate, from CIPM, Picard (2008)
-  tc = t - MPC_K_C_DEGREE_OFFSET_R8
-  pt = p / t
-  tc2= tc * tc
-  x2 = x * x
-  gpscompressibility = 1.D0 - pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + pt*pt*(d+e*x2)
-end function gpscompressibility
-
-function gpscompressibility_TT(p,t,q)
-  real(8), intent(in)  :: p,t,q
-  real(8)              :: gpscompressibility_TT
-
-  real(8), parameter   :: a0= 1.58123D-6
-  real(8), parameter   :: a1=-2.9331D-8
-  real(8), parameter   :: a2= 1.1043D-10
-  real(8), parameter   :: b0= 5.707D-6
-  real(8), parameter   :: b1=-2.051D-8
-  real(8), parameter   :: c0= 1.9898D-4
-  real(8), parameter   :: c1=-2.376D-6
-  real(8), parameter   :: d = 1.83D-11
-  real(8), parameter   :: e =-0.765D-8
-
-  real(8)         :: x,tc,pt,tc2,x2
-  real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
-
-  x  = p_wa * q / (1.D0 + p_wb * q)
-  d_x  = 0.0D0
-  ! Estimate, from CIPM, Picard (2008)
-  tc = t - MPC_K_C_DEGREE_OFFSET_R8
-  d_tc = 1.D0
-  pt = p / t
-  d_pt = - p / t**2
-  tc2= tc * tc
-  d_tc2= 2 * tc * d_tc
-  x2 = x * x
-  d_x2 = 2 * x * d_x
-  gpscompressibility_TT = -d_pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + &
-          -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
-          2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
-end function gpscompressibility_TT
-
-function gpscompressibility_HU(p,t,q)
-  real(8), intent(in)  :: p,t,q
-  real(8)              :: gpscompressibility_HU
-
-  real(8), parameter   :: a0= 1.58123D-6
-  real(8), parameter   :: a1=-2.9331D-8
-  real(8), parameter   :: a2= 1.1043D-10
-  real(8), parameter   :: b0= 5.707D-6
-  real(8), parameter   :: b1=-2.051D-8
-  real(8), parameter   :: c0= 1.9898D-4
-  real(8), parameter   :: c1=-2.376D-6
-  real(8), parameter   :: d = 1.83D-11
-  real(8), parameter   :: e =-0.765D-8
-
-  real(8)         :: x,tc,pt,tc2,x2
-  real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
-
-  x  = p_wa * q / (1.D0+p_wb*q)
-  d_x  = p_wa * (1.0D0 / (1.D0+p_wb*q) - q / (1.D0+p_wb*q)**2 * p_wb * 1.0D0)
-  ! Estimate, from CIPM, Picard (2008)
-  tc = t - MPC_K_C_DEGREE_OFFSET_R8
-  d_tc = 0.0D0
-  pt = p / t
-  d_pt = 0.0D0
-  tc2= tc * tc
-  d_tc2= 2 * tc * d_tc
-  x2 = x * x
-  d_x2 = 2 * x * d_x
-  gpscompressibility_HU = -d_pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + &
-          -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
-          2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
-end function gpscompressibility_HU
-
-function gpscompressibility_P0(p,t,q,dpdp0)
-  real(8), intent(in)  :: p,t,q,dpdp0
-  real(8)              :: gpscompressibility_P0
-
-  real(8), parameter   :: a0= 1.58123D-6
-  real(8), parameter   :: a1=-2.9331D-8
-  real(8), parameter   :: a2= 1.1043D-10
-  real(8), parameter   :: b0= 5.707D-6
-  real(8), parameter   :: b1=-2.051D-8
-  real(8), parameter   :: c0= 1.9898D-4
-  real(8), parameter   :: c1=-2.376D-6
-  real(8), parameter   :: d = 1.83D-11
-  real(8), parameter   :: e =-0.765D-8
-
-  real(8)         :: x,tc,pt,tc2,x2
-  real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
-
-  x  = p_wa * q / (1.D0+p_wb*q)
-  d_x  = 0.0D0
-  ! Estimate, from CIPM, Picard (2008)
-  tc = t - MPC_K_C_DEGREE_OFFSET_R8
-  d_tc = 0.0D0
-  pt = p / t
-  d_pt = dpdp0 / t
-  tc2= tc * tc
-  d_tc2= 2 * tc * d_tc
-  x2 = x * x
-  d_x2 = 2 * x * d_x
-  gpscompressibility_P0 = -d_pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) + &
-          -pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + (c0+c1*tc)*d_x2) + &
-          2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
-end function gpscompressibility_P0
-
-  logical, save :: firstTime = .true.
-
-  vco_anl => col_getVco(columng)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
-  nlev_T = col_getNumLev(columng,'TH')
-  nlev_M = col_getNumLev(columng,'MM')
-
-  allocate(delThick(nlev_T-1))
-
-  ! generate the height coefficients
-  call calcAltitudeCoeff(columng)
-
-!$OMP PARALLEL DO PRIVATE(columnIndex,gz_M,gz_T,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,ScaleFactorBottom,ScaleFactorTop)
-  do columnIndex = 1, col_getNumCol(columng)
-
-    gz_M => col_getColumn(columng,columnIndex,'GZ','MM')
-    gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
-
-    delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
-    delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
-    delTT   => col_getColumn(column,columnIndex,'TT')
-    delHU   => col_getColumn(column,columnIndex,'HU')
-    delP0   => col_getColumn(column,columnIndex,'P0')
-
-    ! ensure increment at sfc/fixed height level is zero
-    delGz_M(nlev_M) = 0.0d0
-    delGz_T(nlev_T) = 0.0d0
-
-    if (Vcode_anl == 5002) then
-
-      ! compute increment to thickness for each layer between the two momentum levels
-      do lev_T = 2, (nlev_T-1)
-        delThick(lev_T) = coeff_M_TT   (lev_T,columnIndex) * delTT(lev_T) + &
-                          coeff_M_HU   (lev_T,columnIndex) * delHU(lev_T) + &
-                          coeff_M_P0   (lev_T,columnIndex) * delP0(1)     + & 
-                          coeff_M_P0_dP(lev_T,columnIndex) * delP0(1) 
-
-      enddo
-
-      ! compute GZ increment on momentum levels above the surface
-      do lev_M = nlev_M-1, 1, -1
-        lev_T = lev_M + 1 ! thermo level just below momentum level being computed
-        delGz_M(lev_M) = delGz_M(lev_M+1) + delThick(lev_T)
-      enddo
-
-      ! compute GZ increment on thermo levels using weighted average of GZ increment of momentum levels
-      do lev_T = 2, (nlev_T-1)
-        lev_M = lev_T ! momentum level just below thermo level being computed
-        ScaleFactorBottom = (gz_T(lev_T) - gz_M(lev_M-1)) / &
-                            (gz_M(lev_M) - gz_M(lev_M-1))
-        ScaleFactorTop    = 1 - ScaleFactorBottom
-        delGz_T(lev_T) = ScaleFactorBottom * delGz_M(lev_M) + ScaleFactorTop * delGz_M(lev_M-1)
-      enddo
-
-      ! compute GZ increment for top thermo level (from top momentum level)
-      delGz_T(1) = delGz_M(1) + &
-                    coeff_T_TT(columnIndex) * delTT(1) + &
-                    coeff_T_HU(columnIndex) * delHU(1) + &
-                    coeff_T_P0(columnIndex) * delP0(1) + & 
-                    coeff_T_P0_dP(columnIndex) * delP0(1)
-
-    elseif (Vcode_anl == 5005) then
-
-      ! compute increment to thickness for each layer between the two momentum levels
-      do lev_T = 1, (nlev_T-1)
-        delThick(lev_T) = coeff_M_TT   (lev_T,columnIndex) * delTT(lev_T) + &
-                          coeff_M_HU   (lev_T,columnIndex) * delHU(lev_T) + &
-                          coeff_M_P0   (lev_T,columnIndex) * delP0(1)     + & 
-                          coeff_M_P0_dP(lev_T,columnIndex) * delP0(1) 
-
-      enddo
-
-      ! compute GZ increment on momentum levels above the surface
-      do lev_M = nlev_M-1, 1, -1
-        lev_T = lev_M ! thermo level just below momentum level being computed
-        delGz_M(lev_M) = delGz_M(lev_M+1) + delThick(lev_T)
-      enddo
-
-      ! compute GZ increment on thermo levels using weighted average of GZ increment of momentum levels
-      do lev_T = 1, (nlev_T-1)
-        lev_M = lev_T + 1 ! momentum level just below thermo level being computed
-        ScaleFactorBottom = (gz_T(lev_T) - gz_M(lev_M-1)) / &
-                            (gz_M(lev_M) - gz_M(lev_M-1))
-        ScaleFactorTop    = 1 - ScaleFactorBottom
-        delGz_T(lev_T) = ScaleFactorBottom * delGz_M(lev_M) + ScaleFactorTop * delGz_M(lev_M-1)
-      enddo
-
-    endif
-
-  enddo
-!$OMP END PARALLEL DO
-
-  deallocate(delThick)
-
-end subroutine tt2phi_tl
-
-
-subroutine tt2phi_ad(column,columng,obsSpaceData)
-  !
-  !**s/r tt2phi_ad - Adjoint of temperature to geopotential transformation on GEM4 staggered levels
-  !               NOTE: we assume 
-  !                     1) nlev_T = nlev_M+1 
-  !                     2) GZ_T(nlev_T) = GZ_M(nlev_M), both at the surface
-  !                     3) a thermo level exists at the top, higher than the highest momentum level
-  !                     4) the placement of the thermo levels means that GZ_T is the average of 2 nearest GZ_M
-  !                        (according to Ron and Claude)
-  !
-  ! NOTE: after revision 680 removed code for vcode=5005 when rewriting for increased efficiency (M. Buehner)
-  !
-  !Author  : M. Buehner, February 2014
-  !
-  !Revision 001 : M. Bani Shahabadi, October 2018
-  !          - adaptation of GPSRO calculation of delAL
-  !
-  implicit none
-
-  type(struct_columnData) :: column,columng
-  type(struct_obs)        :: obsSpaceData
-
-  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
-  real(8) :: ScaleFactorBottom, ScaleFactorTop
-  real(8), allocatable :: delThick(:)
-  real(8), pointer     :: gz_T(:),gz_M(:)
-  real(8), allocatable :: delGz_M(:),delGz_T(:)
-  real(8), pointer     :: delGz_M_in(:),delGz_T_in(:),delTT(:),delHU(:),delP0(:)
-  type(struct_vco), pointer :: vco_anl
-
-  vco_anl => col_getVco(columng)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
-  nlev_T = col_getNumLev(columng,'TH')
-  nlev_M = col_getNumLev(columng,'MM')
-
-  allocate(delThick(0:nlev_T))
-  allocate(delGz_M(nlev_M))
-  allocate(delGz_T(nlev_T))
-
-  ! generate the height coefficients
-  call calcAltitudeCoeff(columng,obsSpaceData)
-
-!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,delP0,lev_M,lev_T,delGz_M_in,delGz_T_in,gz_M,gz_T,ScaleFactorBottom,ScaleFactorTop)
-  do columnIndex = 1, col_getNumCol(columng)
-
-    gz_M => col_getColumn(columng,columnIndex,'GZ','MM')
-    gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
-
-    delGz_M_in => col_getColumn(column,columnIndex,'GZ','MM')
-    delGz_T_in => col_getColumn(column,columnIndex,'GZ','TH')
-    delTT      => col_getColumn(column,columnIndex,'TT')
-    delHU      => col_getColumn(column,columnIndex,'HU')
-    delP0      => col_getColumn(column,columnIndex,'P0')
-
-    delGz_M(:) = delGz_M_in(:)
-    delGz_T(:) = delGz_T_in(:)
-
-    ! adjoint of compute GZ increment on momentum levels using weighted average of GZ increment of thermo levels
-    if (Vcode_anl == 5002) then
-
-      do lev_T = 2, (nlev_T-1)
-        lev_M = lev_T ! momentum level just below thermo level being computed
-        ScaleFactorBottom = (gz_T(lev_T) - gz_M(lev_M-1)) / &
-                            (gz_M(lev_M) - gz_M(lev_M-1))
-        ScaleFactorTop    = 1 - ScaleFactorBottom
-        delGz_M(lev_M-1) = delGz_M(lev_M-1) + ScaleFactorTop     * delGz_T(lev_T)
-        delGz_M(lev_M  ) = delGz_M(lev_M  ) + ScaleFactorBottom  * delGz_T(lev_T)
-      enddo
-
-      ! adjoint of compute GZ increment for top thermo level (from top momentum level)
-      delGz_M(1) = delGz_M(1) + delGz_T(1)
-      delTT(1) = delTT(1) + coeff_T_TT   (columnIndex) * delGz_T(1)
-      delHU(1) = delHU(1) + coeff_T_HU   (columnIndex) * delGz_T(1)
-      delP0(1) = delP0(1) + coeff_T_P0   (columnIndex) * delGz_T(1) + & 
-                            coeff_T_P0_dP(columnIndex) * delGz_T(1)
-
-      ! adjoint of compute GZ increment on momentum levels above the surface
-      delThick(0:1) = 0.0D0
-      do lev_M = 1, (nlev_M-1)
-        lev_T = lev_M + 1 ! thermo level just below momentum level being computed
-        delThick(lev_T) = delThick(lev_T-1) + delGz_M(lev_M)
-      enddo
-
-      ! adjoint of compute increment to thickness for each layer between the two momentum levels
-      do lev_T = 2, nlev_T-1
-        delTT(lev_T) = delTT(lev_T) + coeff_M_TT   (lev_T,columnIndex) * delThick(lev_T)
-        delHU(lev_T) = delHU(lev_T) + coeff_M_HU   (lev_T,columnIndex) * delThick(lev_T)
-        delP0(1)     = delP0(1)     + coeff_M_P0   (lev_T,columnIndex) * delThick(lev_T) + &
-                                      coeff_M_P0_dP(lev_T,columnIndex) * delThick(lev_T)
-      enddo
-
-    elseif (Vcode_anl == 5005) then
-
-      do lev_T = 1, nlev_T-1
-        lev_M = lev_T + 1 ! momentum level just below thermo level being computed
-        ScaleFactorBottom = (gz_T(lev_T) - gz_M(lev_M-1)) / &
-                            (gz_M(lev_M) - gz_M(lev_M-1))
-        ScaleFactorTop    = 1 - ScaleFactorBottom
-        delGz_M(lev_M-1) = delGz_M(lev_M-1) + ScaleFactorTop     * delGz_T(lev_T)
-        delGz_M(lev_M  ) = delGz_M(lev_M  ) + ScaleFactorBottom  * delGz_T(lev_T)
-      enddo
-
-      ! adjoint of compute GZ increment on momentum levels above the surface
-      delThick(0) = 0.0D0
-      do lev_M = 1, nlev_M-1
-        lev_T = lev_M ! thermo level just below momentum level being computed
-        delThick(lev_T) = delThick(lev_T-1) + delGz_M(lev_M)
-      enddo
-
-      ! adjoint of compute increment to thickness for each layer between the two thermo levels
-      do lev_T = 1, nlev_T-1
-        delTT(lev_T) = delTT(lev_T) + coeff_M_TT   (lev_T,columnIndex) * delThick(lev_T)
-        delHU(lev_T) = delHU(lev_T) + coeff_M_HU   (lev_T,columnIndex) * delThick(lev_T)
-        delP0(1)     = delP0(1)     + coeff_M_P0   (lev_T,columnIndex) * delThick(lev_T) + &
-                                      coeff_M_P0_dP(lev_T,columnIndex) * delThick(lev_T)
-      enddo
-
-    endif
-
-  enddo
-!$OMP END PARALLEL DO
-
-  deallocate(delThick)
-  deallocate(delGz_M)
-  deallocate(delGz_T)
-
-end subroutine tt2phi_ad
-
-
-subroutine calcAltitudeCoeff(columng,obsSpaceData)
-  !
-  !**s/r calcAltitudeCoeff - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
-  !
-  !Author  : M. Bani Shahabadi, Oct 2018
-  !          - based on the original tt2phi_tl/tt2phi_ad by Mark Buehner 
-  !
-  implicit none
-
-  type(struct_columnData) :: columng
-  type(struct_obs)        :: obsSpaceData
-
-  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
-  real(8) :: hu,tt,Pr,cmp,cmp_TT,cmp_HU,cmp_P0,delLnP_M1,delLnP_T1, ScaleFactorBottom, ScaleFactorTop, ratioP1
-  real(8), allocatable :: delLnP_M(:)
-  real(8), pointer     :: gz_T(:),gz_M(:)
-  real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delHU(:),delP0(:)
-  real(8) :: rLat
-  real(8) :: h0, Rgh, sLat, cLat
-  type(struct_vco), pointer :: vco_anl
-
-  logical, save :: firstTimeAltCoeff = .true.
-
-  if ( .not. firstTimeAltCoeff ) return
-
-  Write(*,*) "Entering subroutine calcAltitudeCoeff"
-
-  ! initialize and save coefficients for increased efficiency (assumes no relinearization)
-  firstTimeAltCoeff = .false.
-
-  vco_anl => col_getVco(columng)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
-  nlev_T = col_getNumLev(columng,'TH')
-  nlev_M = col_getNumLev(columng,'MM')
-
-  allocate(delLnP_M(nlev_M))
-
-  ! saved arrays
-  allocate(coeff_M_TT   (nlev_T,col_getNumCol(columng)))
-  allocate(coeff_M_HU   (nlev_T,col_getNumCol(columng)))
-  allocate(coeff_M_P0   (nlev_T,col_getNumCol(columng)))
-  allocate(coeff_M_P0_dP(nlev_T,col_getNumCol(columng)))
-  allocate(coeff_T_TT   (col_getNumCol(columng)))
-  allocate(coeff_T_HU   (col_getNumCol(columng)))
-  allocate(coeff_T_P0   (col_getNumCol(columng)))
-  allocate(coeff_T_P0_dP(col_getNumCol(columng)))
-
-  coeff_M_TT(:,:) = 0.0D0
-  coeff_M_HU(:,:) = 0.0D0
-  coeff_M_P0(:,:) = 0.0D0
-  coeff_M_P0_dP(:,:) = 0.0D0
-  coeff_T_TT(:) = 0.0D0  
-  coeff_T_HU(:) = 0.0D0  
-  coeff_T_P0(:) = 0.0D0
-  coeff_T_P0_dP(:) = 0.0D0  
-
-  do columnIndex = 1, col_getNumCol(columng)
-
-    gz_T => col_getColumn(columng,columnIndex,'GZ','TH')
-
-    ! latitude
-    rLat = obs_headElem_r(obsSpaceData,OBS_LAT,columnIndex)
-    sLat = sin(rLat)
-    cLat = cos(rLat)
-
-    ! compute momentum level properties
-    do lev_M = 1,nlev_M
-      delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')/  &
-                        col_getPressure(columng,lev_M,columnIndex,'MM')
-    enddo
-
-    if (Vcode_anl == 5002) then
-
-      do lev_T = 2, (nlev_T-1)
-        ratioP1 = log( col_getPressure(columng,lev_T  ,columnIndex,'MM') /  &
-                       col_getPressure(columng,lev_T-1,columnIndex,'MM') )
-
-        hu = col_getElem(columng,lev_T,columnIndex,'HU')
-        tt = col_getElem(columng,lev_T,columnIndex,'TT')
-        Pr = col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        cmp = gpscompressibility(Pr,tt,hu)
-        cmp_TT = gpscompressibility_TT(Pr,tt,hu)
-        cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-        cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,lev_T,columnIndex,'TH'))
-
-        ! Gravity acceleration 
-        h0  = gz_T(lev_T)
-        Rgh = phf_gravityalt(sLat, h0)
-
-        coeff_M_TT(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1 
-        coeff_M_HU(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
-        coeff_M_P0(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M(lev_T) - delLnP_M(lev_T-1))
-        coeff_M_P0_dP(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
-      enddo
-
-      ! compute the property of the top layer (between first momentum and first thermo level for Vcode=5002)
-      ratioP1 = log( col_getPressure(columng,1,columnIndex,'MM') /  &
-                     col_getPressure(columng,1,columnIndex,'TH') )
-
-      hu = col_getElem(columng,1,columnIndex,'HU')
-      tt = col_getElem(columng,1,columnIndex,'TT')
-      Pr = col_getPressure(columng,1,columnIndex,'TH')
-
-      cmp = gpscompressibility(Pr,tt,hu)
-      cmp_TT = gpscompressibility_TT(Pr,tt,hu)
-      cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-      cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,1,columnIndex,'TH'))
-
-      delLnP_M1 = col_getPressureDeriv(columng,1,columnIndex,'MM') / &
-                       col_getPressure(columng,1,columnIndex,'MM')
-      delLnP_T1 = col_getPressureDeriv(columng,1,columnIndex,'TH') / &
-                       col_getPressure(columng,1,columnIndex,'TH')
-
-      coeff_T_TT   (columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1
-      coeff_T_HU   (columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
-      coeff_T_P0   (columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M1 - delLnP_T1)
-      coeff_T_P0_dP(columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
-
-    elseif (Vcode_anl == 5005) then
-
-      do lev_T = 1, (nlev_T-1)
-        ratioP1 = log( col_getPressure(columng,lev_T+1,columnIndex,'MM') /  &
-                       col_getPressure(columng,lev_T  ,columnIndex,'MM') )
-
-        hu = col_getElem(columng,lev_T,columnIndex,'HU')
-        tt = col_getElem(columng,lev_T,columnIndex,'TT')
-        Pr = col_getPressure(columng,lev_T,columnIndex,'TH')
-
-        cmp = gpscompressibility(Pr,tt,hu)
-        cmp_TT = gpscompressibility_TT(Pr,tt,hu)
-        cmp_HU = gpscompressibility_HU(Pr,tt,hu)
-        cmp_P0 = gpscompressibility_P0(Pr,tt,hu,col_getPressureDeriv(columng,lev_T,columnIndex,'TH'))
-
-        ! Gravity acceleration 
-        h0  = gz_T(lev_T)
-        Rgh = phf_gravityalt(sLat, h0)
-
-        coeff_M_TT(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + fotvt8(tt,hu) * cmp_TT) * ratioP1 
-        coeff_M_HU(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
-        coeff_M_P0(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp * (delLnP_M(lev_T+1) - delLnP_M(lev_T))
-        coeff_M_P0_dP(lev_T,columnIndex) = (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0 * ratioP1
-      enddo
-
-    endif
-
-  enddo
 
   deallocate(delLnP_M)
 

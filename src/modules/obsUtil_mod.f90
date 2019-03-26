@@ -490,76 +490,48 @@ module obsUtil_mod
     character(len=9)  :: family
 
     family = codtypfam(codtyp)
-    !#########################################################!
-    !        Variable initialization and default value        !
-    surfvcord = 0.0
-    !#########################################################!
-    select case(type)
-      case (1)
-        select case(ilem)
+
+    select case(family)
+      case ('synop')
+        select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            ! us,vs,ffs,dds,gust
-            vcordsf2 = 10.0
-          case (bufr_nepn)
-            vcordsf2 = 0.0
-          case (bufr_neps)
-            vcordsf2 = 0.0
-          case (bufr_nets)
-            vcordsf2 = 1.5
-          case (bufr_nees, bufr_ness)
-            vcordsf2 = 1.5
+            surfvcord = 10.0
+          case (bufr_nets, bufr_ness)
+            surfvcord = 1.5
           case (bufr_vis)
-            vcordsf2 = 1.5
+            surfvcord = 1.5
         end select
-      case (2)
-        select case(ilem)
-          ! us,vs,ffs,dds
+      case ('ship')
+        select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            vcordsf2 = 20.0
-          case (bufr_nepn)
-            vcordsf2 = 0.0
-          case (bufr_neps)
-            vcordsf2 = 0.0
-          case (bufr_nets)
-            vcordsf2 = 11.5
-          case (bufr_nees, bufr_ness)
-            vcordsf2 = 11.5
+            surfvcord = 30.0
+          case (bufr_nets, bufr_ness)
+            surfvcord = 21.5
           case (bufr_vis)
-            vcordsf2 = 11.5
-       end select
-     case (3)
-       select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-           vcordsf2 = 10.0
-         case (bufr_nepn)
-           vcordsf2 = 0.0
-         case (bufr_neps)
-           vcordsf2 = 0.0
-         case (bufr_nets)
-           vcordsf2 = 1.5
-         case (bufr_nees)
-           vcordsf2 = 0.0
-         case (bufr_ness)
-           vcordsf2 = 1.5
-         case (bufr_vis)
-            vcordsf2 = 1.5
-       end select
-     case (4)
-       select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-           vcordsf2 = 20.0
-         case (bufr_nepn)
-           vcordsf2 = 0.0
-         case (bufr_neps)
-           vcordsf2 = 0.0
-         case (bufr_nets)
-           vcordsf2 = 1.5
-         case (bufr_nees)
-           vcordsf2 = 0.0
-         case (bufr_ness)
-           vcordsf2 = 1.5
-         case (bufr_vis)
-            vcordsf2 = 1.5
+            surfvcord = 21.5
+        end select
+      case ('upairland')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
+            surfvcord = 10.0
+          case (bufr_nets, bufr_ness)
+            surfvcord = 1.5
+          case (bufr_vis)
+            surfvcord = 1.5
+        end select
+      case ('upairship')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
+            surfvcord = 30.0
+          case (bufr_nets, bufr_ness)
+            surfvcord = 21.5
+          case (bufr_vis)
+            surfvcord = 21.5
+        end select
+      case ('scatwinds')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+            surfvcord = 10.0
         end select
       case default
         surfvcord = 0.0

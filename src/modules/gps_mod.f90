@@ -839,7 +839,7 @@ contains
     real(dp), parameter           :: delta = 0.6077686814144_dp
 
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                      :: h0,dh,Rgh, sLat, cLat
+    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
@@ -935,12 +935,14 @@ contains
        dx = xi(i)-xi(i+1)
        tvm = 0.5_dp*(tv(i)+tv(i+1))
        !
-       ! Gravity acceleration
+       ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Rgh = gpsgravityalt(sLat, h0)
+       Eot = 2*WGS_OmegaPrime*cLat*rUU(i)
+       Eot2= (rUU(i)**2+rVV(i)**2)/WGS_a
+       Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
        !
        ! Height increment
        !
@@ -1086,12 +1088,9 @@ contains
 
 !modgps04profilezd
 
-  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rAL,lbevis,refopt,prf)
+  subroutine gps_structztd(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
-!
-! Revision 01: M. Bani Shahabadi, Dec 2018
-!       - the height calculation (prf%gst) comes from tt2phi_mod, similar to GPSRO.
 !
     integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
     real(dp)          , intent(in)  :: rLat             ! radians
@@ -1102,7 +1101,6 @@ contains
     real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
     real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
-    real(dp)          , intent(in)  :: rAL (ngpssize)   ! altitude at each level
     
 !   lbevis determines which set of refractivity constants to use (Bevis or Rueger)
     logical           , intent(in)  :: lbevis
@@ -1149,7 +1147,7 @@ contains
     real(dp)            :: k1, k2, k3, k2p
     real(dp)            :: h0, dh, Rgh, sLat, ptop
     type(gps_diff)       :: p, t, q, x, na, tvm, z
-    type(gps_diff)       :: tv(ngpssize), cmp(ngpssize), N(ngpssize) 
+    type(gps_diff)       :: xi(ngpssize), tv(ngpssize), cmp(ngpssize), N(ngpssize) 
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -1161,11 +1159,11 @@ contains
     !
     prf%P0%Var               = rP0
     prf%P0%DVar              = 0._dp
-    prf%P0%DVar(3*ngpslev+1) = 1._dp
+    prf%P0%DVar(2*ngpslev+1) = 1._dp
     do i = 1, ngpslev
        prf%pst(i)%Var               = rPP(i)
        prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+1) = rDP(i)
+       prf%pst(i)%DVar(2*ngpslev+1) = rDP(i)
     enddo
     ! Pressure at model top (Pa)
     ptop = rPP(1)
@@ -1186,15 +1184,6 @@ contains
        prf%qst(i)%Var               = rHU(i)
        prf%qst(i)%DVar              = 0._dp
        prf%qst(i)%DVar(ngpslev+i)   = 1._dp
-    enddo
-
-    !
-    ! Fill altitude (AL) placeholders (m):
-    !
-    do i = 1, ngpslev
-       prf%gst(i)%Var               = rAL(i)
-       prf%gst(i)%DVar              = 0._dp
-       prf%gst(i)%DVar(2*ngpslev+i) = 1._dp
     enddo
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
@@ -1264,10 +1253,32 @@ contains
        p = prf%pst(i)
        t = prf%tst(i)
        q = prf%qst(i)
+       xi(i) = log(p)
        tv(i) = (1._dp+delta*q) * t
     enddo
-
+    
+    ! Geometric height (m) profile from lowest model level to top  --> prf%gst
     sLat = sin(rLat)
+    dx  = xi(ngpslev)-log(prf%P0)
+    Rgh = gpsgravitysrf(sLat)
+    z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
+    prf%gst(ngpslev) = rMT + z
+    do i = ngpslev-1, 1, -1
+       dx = xi(i)-xi(i+1)
+       tvm = 0.5_dp*(tv(i)+tv(i+1))
+       !
+       ! Gravity acceleration
+       !
+       h0  = prf%gst(i+1)%Var
+       Rgh = gpsgravityalt(sLat, h0)
+       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
+       !
+       ! Height increment (m)
+       !
+       z   = (-p_Rd/Rgh) * tvm * dx
+       prf%gst(i) = prf%gst(i+1) + z
+    enddo
 
     ! Profile of dZTD/dp --> prf%rst
     do i = 1, ngpslev
@@ -1292,7 +1303,7 @@ contains
       prf%ztd(i) = prf%ztd(i-1) + z
     enddo
 
-  end subroutine gps_structztd_v2
+  end subroutine gps_structztd
 
 
   subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rALT,lbevis,refopt,prf)

@@ -2233,11 +2233,6 @@ contains
                      DO JV = 1, 3*NGPSLEV+1
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      END DO
-
-                     if ( firstheader ) then
-                        if ( NH1 == 1 ) write(*,*) 'MAZIAR oop_Hro, headerIndex, delAL_T, dN:'
-                        write(*,*) headerIndex,delAL_T(NH1),ZMHXL
-                     endif
                      !C
                      !C     *             Store in CMA
                      !C
@@ -2934,10 +2929,10 @@ contains
 
       real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:)
       INTEGER IDATYP
-      INTEGER JL, jll, JV, NGPSLEV, NWNDLEV, stat1, JJ
+      INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
 
-      LOGICAL  ASSIM, firstheader, LUSE, LFIRST
+      LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
 
@@ -3032,138 +3027,6 @@ contains
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
             ALT_column(JL) = DPJO0(JL+2*NGPSLEV)
-         END DO
-         ps_column(1) = DPJO0(1+3*NGPSLEV)
-      END DO HEADER
-
-      RETURN
-    END subroutine oop_HTro
-
-
-    SUBROUTINE oop_HTro_v2
-      !*
-      !* Purpose: Compute the adjoint operator for GPSRO observations.
-      !*
-      !*Author  : J. M. Aparicio Jan 2004
-      !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
-      !
-      ! revision 02: M. Bani Shahabadi, Nov 2018
-      !            - Calculation of the Jacobians is done separately in 
-      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
-      !              placed here in the observation operator.
-      !*    -------------------
-      use IndexListDepot_mod, only : struct_index_list
-      implicit none
-
-      REAL*8 DPJO0(ngpscvmx)
-      REAL*8 DPJO1(ngpscvmx)
-
-      REAL*8 ZINC
-
-      real*8, pointer :: tt_column(:),hu_column(:),AL_column(:),ps_column(:)
-      INTEGER IDATYP
-      INTEGER JL, NGPSLEV
-      integer :: headerIndex, bodyIndex, iProfile
-      type(struct_index_list), pointer :: local_current_list
-
-      LOGICAL  ASSIM, LUSE
-
-      INTEGER NH, NH1
-
-      !C     * 1.  Initializations
-      !C     *     ---------------
-      !C
-      NGPSLEV=col_getNumLev(column,'TH')
-
-      ! call to calculate the GPSRO Jacobians
-      call oop_calcGPSROJacobian(columng,obsSpaceData)
-
-      !C
-      !C    Loop over all header indices of the 'RO' family (Radio Occultation)
-      !C
-      ! Set the header list (start at the beginning of the list)
-      call obs_set_current_header_list(obsSpaceData,'RO')
-      nullify(local_current_list)
-      HEADER: do
-         headerIndex = obs_getHeaderIndex(obsSpaceData)
-         if (headerIndex < 0) exit HEADER
-
-         DPJO0 = 0.d0
-         !C
-         !C     * Process only refractivity data (codtyp 169)
-         !C
-         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-         DATYP: IF ( IDATYP == 169 ) THEN
-            !C
-            !C     *    Scan for requested data values of the profile, and count them
-            !C
-            ASSIM = .FALSE.
-            NH = 0
-            !C
-            !C     *    Loop over all body indices for this headerIndex:
-            !C     *    (start at the beginning of the list)
-            !C
-            call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                 current_list=local_current_list)
-            BODY: do 
-               bodyIndex = obs_getBodyIndex(local_current_list)
-               if (bodyIndex < 0) exit BODY
-
-               LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
-               IF ( LUSE ) THEN
-                  ASSIM = .TRUE.
-                  NH = NH + 1
-               END IF
-            END DO BODY
-            !C
-            !C     *    If assimilations are requested, prepare and apply the observation operator
-            !C
-            ASSIMILATE: IF (ASSIM) THEN
-               iProfile=gps_iprofile_from_index(headerIndex)
-               !C
-               !C     *       Perform the (H(xb)DX-Y')/S operation
-               !C
-               NH1 = 0
-               !C
-               !C     *       Loop over all body indices for this headerIndex:
-               !C     *       (start at the beginning of the list)
-               !C
-               call obs_set_current_body_list(obsSpaceData, headerIndex, &
-                    current_list=local_current_list)
-               BODY_3: do 
-                  bodyIndex = obs_getBodyIndex(local_current_list)
-                  if (bodyIndex < 0) exit BODY_3
-
-                  LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
-                  IF ( LUSE ) THEN
-                     NH1 = NH1 + 1
-                     !C
-                     !C     *             Normalized increment
-                     !C
-                     ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-                     !C
-                     !C     *             O-F Tested criteria:
-                     !C
-                     DPJO1(1:3*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
-                     !C
-                     !C     *             Accumulate the gradient of the observation cost function:
-                     !C
-                     DPJO0(1:3*NGPSLEV+1) = DPJO0(1:3*NGPSLEV+1) + DPJO1(1:3*NGPSLEV+1)
-                  END IF
-               END DO BODY_3
-            END IF ASSIMILATE
-         END IF DATYP
-         !C
-         !C     * Store H* (HX - Z)/SIGMA in COMMVO
-         !C
-         tt_column => col_getColumn(column,headerIndex,'TT')
-         hu_column => col_getColumn(column,headerIndex,'HU')
-         AL_column => col_getColumn(column,headerIndex,'GZ','TH')
-         ps_column => col_getColumn(column,headerIndex,'P0')
-         DO JL = 1, NGPSLEV
-            tt_column(JL) = DPJO0(JL)
-            hu_column(JL) = DPJO0(JL+NGPSLEV)
-            AL_column(JL) = DPJO0(JL+2*NGPSLEV)
          END DO
          ps_column(1) = DPJO0(1+3*NGPSLEV)
       END DO HEADER
