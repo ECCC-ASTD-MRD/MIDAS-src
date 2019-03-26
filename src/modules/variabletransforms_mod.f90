@@ -224,6 +224,8 @@ CONTAINS
       call HUtoLQ_ens(ens)
     case ('UVtoPsiChi')
       call UVtoPsiChi_ens(ens)
+    case ('UVtoVortDiv')
+      call UVtoVortDiv_ens(ens)
     case default
       call utl_abort('vtr_transform_ens: Unsupported function '//trim(transform))
     end select
@@ -730,5 +732,58 @@ CONTAINS
     write(*,*) 'vtr_UVtoPsiChi_ens: finished'
 
   end subroutine UVtoPsiChi_ens
+
+  !--------------------------------------------------------------------------
+  ! UVtoVortDiv_ens
+  !--------------------------------------------------------------------------
+  subroutine UVtoVortDiv_ens(ens)
+    implicit none
+   
+    type(struct_ens) :: ens
+
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_gsv) :: gridStateVector_oneMember
+
+    integer :: memberIndex
+
+    write(*,*)
+    write(*,*) 'vtr_UVtoVortDiv_ens: starting'
+
+    hco_ens => ens_getHco(ens)
+
+    if (hco_ens%global ) then
+      call utl_abort('vtr_UVtoVortDiv_ens: global mode not yet available')
+    end if
+
+    !
+    !- 1.  Create a working stateVector
+    !
+    call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
+                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      mpi_local_opt=.true., dataKind_opt=8)
+
+    !
+    !- 2.  Loop on members
+    !
+    do memberIndex = 1, ens_getNumMembers(ens)
+
+      !- 2.1 Copy to a stateVector
+      call ens_copyMember(ens, gridStateVector_oneMember, memberIndex)
+
+      !- 2.2 Do the transform
+      call UVtoVortDiv_gsv(gridStateVector_oneMember)
+
+      !- 2.3 Put the result back in the input ensembleStateVector
+      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex)
+    end do
+
+    !
+    !- 3. Cleaning
+    !
+    call gsv_deallocate(gridStateVector_oneMember)
+
+    write(*,*) 'vtr_UVtoVortDiv_ens: finished'
+
+  end subroutine UVtoVortDiv_ens
 
 end module variableTransforms_mod

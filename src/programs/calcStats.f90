@@ -136,7 +136,7 @@ program midas_calcstats
      if (hco_ens % global) then
         call csg_computeStats
      else
-        call csl_computeStats
+        call csl_computeBhi
      end if
   case ('BHI2')
      if (hco_ens % global) then

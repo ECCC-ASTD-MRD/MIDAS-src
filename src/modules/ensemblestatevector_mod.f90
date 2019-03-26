@@ -51,7 +51,7 @@ MODULE ensembleStateVector_mod
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
-  !public :: ens_varNameList
+  public :: ens_varNamesList
 
   integer,external   :: get_max_rss
 
@@ -618,6 +618,7 @@ CONTAINS
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
+    character(len=4), pointer :: varNamesInEns(:)
 
     if( present(subEnsIndex_opt) ) then
       subEnsIndex = subEnsIndex_opt
@@ -630,9 +631,13 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     if (.not. statevector%allocated) then
+      nullify(varNamesInEns)
+      call gsv_varNamesList(ens%statevector_work, varNamesInEns)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
+                        varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
+                        mpi_local_opt=.true., dataKind_opt=8 )
+      deallocate(varNamesInEns)
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
@@ -657,15 +662,20 @@ CONTAINS
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
+    character(len=4), pointer :: varNamesInEns(:)
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. statevector%allocated) then
+      nullify(varNamesInEns)
+      call gsv_varNamesList(ens%statevector_work, varNamesInEns)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
+                        varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
+                        mpi_local_opt=.true., dataKind_opt=8 )
+      deallocate(varNamesInEns)
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
@@ -689,7 +699,6 @@ CONTAINS
     integer           :: memberIndex
 
     ! locals
-    !real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
@@ -878,6 +887,24 @@ CONTAINS
     varExist = gsv_varExist(ens%statevector_work, varName)
 
   end function ens_varExist
+
+  !--------------------------------------------------------------------------
+  ! ens_varNamesList
+  !--------------------------------------------------------------------------
+  subroutine ens_varNamesList(ens,varNames)
+    implicit none
+    
+    ! arguments
+    type(struct_ens) :: ens
+    character(len=4), pointer :: varNames(:)
+    
+    if (associated(varNames)) then
+      call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
+    end if
+
+    call gsv_varNamesList(ens%statevector_work, varNames)
+    
+  end subroutine ens_varNamesList
 
   !--------------------------------------------------------------------------
   ! ens_getNumLev
