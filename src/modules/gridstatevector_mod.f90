@@ -2772,7 +2772,7 @@ module gridStateVector_mod
           field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
         end if
 
-        if ( trim(varName) == 'TT' .and. containsFullField ) then
+        if ( trim(varName) == 'TT' .or. trim(varName) == 'TM' .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
         end if
 
@@ -4781,7 +4781,7 @@ module gridStateVector_mod
                  dateStamp, ' ', -1, -1, -1, ' ', 'P0')
           ierr = fstfrm(nulTrial)
           ierr = fclos(nulTrial)
-          if (ikey.gt.0) exit
+          if ( ikey > 0 ) exit
         end do
 
         if ( ikey <= 0 .or. .not.fileExists ) then 
