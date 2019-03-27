@@ -1540,6 +1540,7 @@ CONTAINS
     REAL   , ALLOCATABLE   :: TRINFO(:)
 
     REAL   , ALLOCATABLE   :: EMIS(:,:),SURF_EMIS(:)
+    REAL   , ALLOCATABLE   :: BCOR(:,:),BiasCorrection(:)
 
     REAL(OBS_REAL), ALLOCATABLE  :: CFRAC(:,:)
 
@@ -1552,7 +1553,7 @@ CONTAINS
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
     INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
-    INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS
+    INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
     INTEGER                :: vcord_type(10),SUM,vcoord_type
@@ -2044,15 +2045,20 @@ CONTAINS
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
             if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
+            IND_BCOR  = BURP_Find_Element(Block_in, ELEMENT=12233,IOSTAT=error)
+
             if( TRIM(FAMILYTYPE2) == 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
             ALLOCATE(EMIS(nvale,nte))
             ALLOCATE(SURF_EMIS(nvale))
+            ALLOCATE(BCOR(nvale,nte))
+            ALLOCATE(BiasCorrection(nvale))
             EMIS(:,:)       = MPC_missingValue_R4
             OBSVALUE(:,:,:) = MPC_missingValue_R4
-
+            BCOR(:,:) =  MPC_missingValue_R4
+           
             do IL = 1, NELE
 
               iele=LISTE_ELE(IL)
@@ -2086,6 +2092,13 @@ CONTAINS
                   IF (IND_EMIS > 0) THEN
                     EMIS(j,k) =BURP_Get_Rval(Block_in, &
                                            & NELE_IND = IND_EMIS, &
+                                           & NVAL_IND = j, &
+                                           & NT_IND   = k)
+                  END IF
+
+                  IF (IND_BCOR > 0) THEN
+                    BCOR(j,k) =BURP_Get_Rval(Block_in, &
+                                           & NELE_IND = IND_BCOR, &
                                            & NVAL_IND = j, &
                                            & NT_IND   = k)
                   END IF
@@ -2408,6 +2421,7 @@ CONTAINS
           IF  (HIRES ) THEN
 
             if (allocated(EMIS))     SURF_EMIS(1:NVAL)    =EMIS      (1:NVAL,k)
+            if (allocated(BCOR))     BiasCorrection(1:NVAL) = BCOR (1:NVAL,k)
 
             NDATA   =0
             NDATA_SF=0
@@ -2462,7 +2476,8 @@ CONTAINS
                 time2=time_sonde/10000
 
                 VCORD(1)=VCOORD(jj,k)
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE, &
+                     SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
 
                 IF (NDATA > 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
@@ -2494,7 +2509,8 @@ CONTAINS
 
           ELSE
 
-            if (allocated(EMIS))      SURF_EMIS(1:NVAL)        =EMIS     (1:NVAL,k)
+            if (allocated(EMIS))     SURF_EMIS(1:NVAL)      = EMIS     (1:NVAL,k)
+            if (allocated(BCOR))     BiasCorrection(1:NVAL) = BCOR (1:NVAL,k)
 
             NDATA   =0
             NDATA_SF=0
@@ -2537,8 +2553,8 @@ CONTAINS
               OBSERV(1:NELE,1:NVAL)    =obsvalue(1:NELE,1:NVAL,k)
               QCFLAGS(1:NELE,1:NVAL)   =qcflag  (1:NELE,1:NVAL,k)
               VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
-              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS)
-
+              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE, &
+                   SURF_EMIS_opt = SURF_EMIS, BiasCorrection_opt = BiasCorrection)
               IF (NDATA > 0) THEN
 
                 IF (NDATA_SF == 0) THEN
@@ -2654,6 +2670,9 @@ CONTAINS
         if (allocated(azimuth)) then
           deallocate(azimuth)
         end if
+        if ( allocated(BCOR) ) then
+          DEALLOCATE (BCOR,BiasCorrection)
+        end if
 
         !---------SURFACE-----------------------------
         if ( allocated(obsvalue_sfc) ) then
@@ -2717,7 +2736,21 @@ CONTAINS
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
-                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS_opt)
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS_opt, &
+                      BiasCorrection_opt)
+
+    !******************************************************************************** 
+    !
+    !       REVISION:
+    !                 Ping Du (CMDA), Nov 2014
+    !                  -- Added  CASE ('CH') with VCO=4 
+    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015, June 2015
+    !                  -- Added VCOORD_TYPE as input argument and applied in function.
+    !                  -- Added new VCO cases for the CH family.
+    !                  -- Added abort statement if constituent vertical coordinate not recognized.
+    !
+    !****************************************************************************
+
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 
@@ -2726,6 +2759,7 @@ CONTAINS
     REAL   , allocatable,optional ::   SURF_EMIS_opt(:)
     INTEGER, allocatable          ::     QCFLAG(:,:)
     REAL   , allocatable          ::  VERTCOORD(:)
+    REAL   , allocatable,optional ::  BiasCorrection_opt(:)
 
     CHARACTER*2 ::   FAMTYP
     REAL        ::   ELEVFACT,VCOORD
@@ -2737,19 +2771,18 @@ CONTAINS
     INTEGER     ::   NOBS
     INTEGER     ::   VARNO,IL,J,COUNT,NLV
 
-
     INTEGER     ::   IFLAG,BITSflagoff,BITSflagon
-    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite
+    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite,BCOR
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
     LOGICAL     ::   L_EMISS
+    LOGICAL     ::   L_BCOR
+
     
-    if(present(SURF_EMIS_opt)) then
-      L_EMISS=.true.
-    else
-      L_EMISS=.false.
-    end if
+    
+    L_EMISS = present( SURF_EMIS_opt )
+    L_BCOR  = present( BiasCorrection_opt )
 
     NONELEV  =-1
 
@@ -2853,6 +2886,9 @@ CONTAINS
             REMIS = MISG
           end if
         end if
+        if ( L_BCOR )  then
+          BCOR  =  BiasCorrection_opt(j)
+        end if
         IFLAG = INT(qCflag(il,j))
 
         if(iand(iflag,BITSflagoff) /= 0) cycle
@@ -2868,6 +2904,11 @@ CONTAINS
           ELEV_R=VCOORD + ELEV*ELEVFACT
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
+
+          if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+            call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
+          end if
+
           if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
