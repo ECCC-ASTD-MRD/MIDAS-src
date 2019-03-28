@@ -199,15 +199,16 @@ contains
   !--------------------------------------------------------------------------
   ! col_allocate
   !--------------------------------------------------------------------------
-  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
+  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
-    ! arguments
-    type(struct_columnData) :: column
-    integer, intent(in)     :: numCol
-    logical, optional       :: mpiLocal_opt
-    logical, optional       :: beSilent_opt
-    logical, optional       :: setToZero_opt
+      ! arguments
+    type(struct_columnData)   :: column
+    integer, intent(in)       :: numCol
+    logical, optional         :: mpiLocal_opt
+    logical, optional         :: beSilent_opt
+    logical, optional         :: setToZero_opt
+    character(len=*),optional :: varNames_opt(:)
 
     ! locals
     integer :: iloc, jvar, jvar2
@@ -252,12 +253,26 @@ contains
       call utl_abort('col_allocate: VerticalCoord has not been initialized!')
     endif
 
+
+    if ( present(varNames_opt) ) then      
+      column%varExistList(:) = .false.
+      numvar = size( varNames_opt ) 
+      do varIndex2 = 1, numvar
+        varIndex = vnl_varListIndex(varNames_opt(varIndex2))
+        column%varExistList(varIndex) = .true.
+      end do
+    else
+      ! use the global variable list
+      column%varExistList(:) = varExistList(:)
+      numvar = vnl_numvarmax
+    end if
+
     allocate(column%varOffset(vnl_numvarmax))
     column%varOffset(:)=0
     allocate(column%varNumLev(vnl_numvarmax))
     column%varNumLev(:)=0
 
-    iloc=0
+    iloc = 0
     do jvar = 1, vnl_numvarmax3d
       if(column%varExistList(jvar)) then
         column%varOffset(jvar)=iloc
@@ -348,6 +363,12 @@ contains
       end if
     end if
 
+    if (present(column_opt)) then  
+      varExist = column_opt % varExistList(vnl_varListIndex(varName))
+    else
+      varExist = varExistList(vnl_varListIndex(varName))
+    end if
+  
   end function col_varExist
 
   !--------------------------------------------------------------------------

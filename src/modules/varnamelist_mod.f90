@@ -41,7 +41,7 @@ module varNameList_mod
 
   ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 39,  VNLnumvarmax2D = 32
+  integer, parameter          :: VNLnumvarmax3D = 39,  VNLnumvarmax2D = 33
 
   integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
 
@@ -73,19 +73,19 @@ module varNameList_mod
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
                                  'GL  ','WGE ','BIN ','MG  ','TM  ','QI1 ','QO1 ','STOR','ALFS', &
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
-                                 'DN  ','FB  ','FI  ','MSKC','LZS '/)
+                                 'DN  ','FB  ','FI  ','MSKC','LZS ','WT  '/)
 
   character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF', 'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
                                  'MT',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
-                                 'MT',  'MT',  'MT',  'MT',  'HY'/)
+                                 'MT',  'MT',  'MT',  'MT',  'HY','MT'/)
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D
 
