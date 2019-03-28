@@ -118,9 +118,9 @@ module multi_ir_bgck_mod
                                                             9.0,10.0,10.0, &
                                                             18.0,16.0,10.0 /),(/3,3/) )
   
-  real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
-                                                                5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
-                                                                4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
+  real(8) :: seuilbt_homog(NVIS+1:nChanAVHRR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
+                                                                  5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
+                                                                  4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
 
   namelist /NAMBGCKIR/ NINST, INST, IWINDOW, IWINDOW_ALT, ILIST1, ILIST2, ILIST2_PAIR, ICHN_SUN
   namelist /NAMBGCKIR/ DTW, DTL, PCO2MIN, PCO2MAX, NIGHT_ANG
