@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * 3DVar analysis of SST data (family 'TM') can now be computed on Yin part of Yin-Yang grid without MPI (#203 and !195)
+ * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
    depot (#187 and !186).  See the [README](README.md) for more information.
  * A column `OBS_CRPS` has been added to `obsSpaceData` (#185 and !188).
