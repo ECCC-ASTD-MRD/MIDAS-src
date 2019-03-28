@@ -36,6 +36,7 @@
 ../../src/modules/minimization_mod.f90
 ../../src/modules/mpi_mod.f90
 ../../src/modules/mpivar_mod.f90
+../../src/modules/multi_ir_bgck_mod.f90
 ../../src/modules/obserrors_mod.f90
 ../../src/modules/obsfilter_mod.f90
 ../../src/modules/obsoperators_mod.f90

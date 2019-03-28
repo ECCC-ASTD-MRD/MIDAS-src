@@ -1,7 +1,10 @@
-# These source-code files have not yet been tested with sphinx.
-# As they are tested, one by one, they will be moved from this list
-# to mod_files_list.txt which is ingested by sphinx
 
-# I (Jeff Blezius) am working on this list, from the top down.
-
-../../src/modules/multi_ir_bgck_mod.f90
+modules/diffusion_mod.f90
+modules/enkf_mod.f90
+modules/ensemblestatevector_mod.f90
+modules/filenames_mod.f90
+modules/lambmatrixhi_mod.f90
+modules/lamspectraltransform_mod.f90
+modules/localizationfunction_mod.f90
+modules/localizationspectral_mod.f890
+modules/minimization_mod.f90
