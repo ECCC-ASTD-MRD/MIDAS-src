@@ -83,6 +83,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEDWDT=40033 ! derivative of HLOS wrt T
  integer, parameter :: BUFR_NEDW=11200 ! Doppler wind 
  integer, parameter :: bufr_sst =22042
+ integer, parameter :: bufr_soz =07025
  integer, parameter :: BUFR_ICEC=20237
  integer, parameter :: bufr_vis =20001 
  integer, parameter :: bufr_gust=11041 

@@ -4469,7 +4469,7 @@ module gridStateVector_mod
             work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
             !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. trim(nomvar) == 'TT' ) then
+            if (containsFullField .and. trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM'  ) then
               work2d_r4(:,:) = work2d_r4(:,:) - MPC_K_C_DEGREE_OFFSET_R4
             end if
 

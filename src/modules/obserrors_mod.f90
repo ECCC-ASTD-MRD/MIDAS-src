@@ -57,12 +57,15 @@ module obsErrors_mod
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,6)
   real(8) :: xstd_pr(2)
-  real(8) :: xstd_sc(1), xstd_sst(1)
+  real(8) :: xstd_sc(1)
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
 
   ! Sea Ice Concentration obs-error standard deviation
 
   real(8) :: xstd_sic(9)
+
+  ! SST
+  real(8) :: xstd_sst(5,2)
 
   integer :: n_sat_type, n_categorie
   integer :: tbl_m(200), tbl_h(200), tbl_t(200), tbl_g(200)
@@ -136,7 +139,7 @@ contains
     ! Read in the observation stddev errors for radiance data
     !
     if (obs_famexist(lobsSpaceData,'TO')) then
-      call read_obs_erreurs_tovs
+      call oer_readObsErrorsTOVS
     else 
       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
     end if
@@ -146,9 +149,9 @@ contains
     !
     if ( obs_famExist( lobsSpaceData, 'UA' ) .or. obs_famExist( lobsSpaceData, 'AI' ) .or. obs_famExist( lobsSpaceData, 'SW' ) .or. &
          obs_famExist( lobsSpaceData, 'SF' ) .or. obs_famExist( lobsSpaceData, 'GP' ) .or. obs_famExist( lobsSpaceData, 'SC' ) .or. &
-         obs_famExist( lobsSpaceData, 'PR' ) .or. obs_famExist( lobsSpaceData, 'TM' ) ) then
+         obs_famExist( lobsSpaceData, 'PR' ) ) then
 
-      call read_obs_erreurs_conv( lobsSpaceData )
+      call oer_readObsErrorsCONV( lobsSpaceData )
 
     else
 
@@ -169,15 +172,22 @@ contains
     ! Read in the observation-error stddev for sea ice concentration
     !
     if (obs_famexist(lobsSpaceData,'GL')) then
-      call read_obs_err_ice
+      call oer_readObsErrorsICE
     else
       write(*,*) "oer_setObsErrors: No GL observations found."
     end if
 
+    if (obs_famexist(lobsSpaceData,'TM')) then
+      call oer_readObsErrorsSST
+    else
+      write(*,*) "oer_setObsErrors: No TM observations found."
+    end if
+
+
     !
     ! Set obs error information in obsSpaceData object
     !
-    call fill_obs_erreurs(lobsSpaceData)
+    call oer_fillObsErrors(lobsSpaceData)
 
     !
     ! Deallocate temporary storage
@@ -189,7 +199,7 @@ contains
   !-----------------------------------------------------------------------------------------
   !-----------------------------------------------------------------------------------------
 
-  subroutine read_obs_erreurs_tovs
+  subroutine oer_readObsErrorsTOVS
     !
     ! s/r read_obs_erreurs_tovs
     ! - Read the observation erreur statistics and utilization flag for TOVS processing.
@@ -242,7 +252,7 @@ contains
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
-    write(*,'(//,10x,"-read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
+    write(*,'(//,10x,"-oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing")')
 
     !
     !    1. Initialize
@@ -276,8 +286,8 @@ contains
     ilutov = 0
     IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
     if(IER < 0)THEN
-      write ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-      call utl_abort ('read_obs_erreurs_tovs')
+      write ( *, '(" oer_readObsErrorsTOVS: Problem opening ","file stats_tovs ")' )
+      call utl_abort ('oer_readObsErrorsTOVS')
     end if
 
     !
@@ -293,7 +303,7 @@ contains
     !        the observation errors and the utilization flags
     !        ----------------------------------------------------------
     !
-    write(*,'(5X,"read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
+    write(*,'(5X,"oer_readObsErrorsTOVS: Reading stats_tovs file: "//)')
 
     DO JL = 1, INUMSAT
 
@@ -314,15 +324,15 @@ contains
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
 
       if ( IPLATFORM(JL) == -1 ) THEN
-        write ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
-        call utl_abort ('read_obs_erreurs_tovs')
+        write ( *, '(" oer_readObsErrorsTOVS: Unknown platform!"/)' )
+        call utl_abort ('oer_readObsErrorsTOVS')
       end if
 
       IINSTRUMENT(JL) = tvs_getInstrumentId(CINSTR)
       
       if ( IINSTRUMENT(JL) == -1 ) THEN
-        write ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
-        call utl_abort ('read_obs_erreurs_tovs')
+        write ( *, '(" oer_readObsErrorsTOVS: Unknown instrument!"/)' )
+        call utl_abort ('oer_readObsErrorsTOVS')
       end if
 
       DO JI = 1, NUMCHNIN(JL)
@@ -345,7 +355,7 @@ contains
     !
     !   Fill the observation error array TOVERRST
     !
-    write(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
+    write(*,'(5X,"oer_readObsErrorsTOVS: Fill error array TOVERRST: "//)')
     DO JM= 1, INUMSAT
       DO JL = 1, tvs_nsensors
         if ( tvs_platforms (JL) == IPLATFORM(JM) .AND. tvs_satellites(JL) == ISATID(JM) ) THEN
@@ -376,12 +386,12 @@ contains
       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, tvs_platforms  (JL) )
       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, tvs_satellites (JL) )
       if ( IPLF == 0 .OR. ISAT == 0 ) THEN
-        write ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-        call utl_abort ('read_obs_erreurs_tovs')
+        write ( *, '(" oer_readObsErrorsTOVS: Observation errors not ","defined for sensor # ", I3)' ) JL
+        call utl_abort ('oer_readObsErrorsTOVS')
       end if
       if ( NUMCHN(JL) == 0 ) THEN 
-        write ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-        call utl_abort ('read_obs_erreurs_tovs')
+        write ( *, '(" oer_readObsErrorsTOVS: Problem setting errors ","for sensor # ", I3)' ) JL
+        call utl_abort ('oer_readObsErrorsTOVS')
       end if
     end do
 
@@ -413,7 +423,7 @@ contains
     !
     IER = FCLOS(ILUTOV)
     if(IER /= 0)THEN
-      call utl_abort ('read_obs_erreurs_tovs')
+      call utl_abort ('oer_readObsErrorsTOVS')
     end if
 
   contains
@@ -505,12 +515,12 @@ contains
 
     end subroutine split
 
-  end subroutine read_obs_erreurs_tovs
+  end subroutine oer_readObsErrorsTOVS
 
   !-----------------------------------------------------------------------------------------
   !-----------------------------------------------------------------------------------------
 
-  subroutine read_obs_erreurs_conv ( lobsSpaceData )
+  subroutine oer_readObsErrorsCONV ( lobsSpaceData )
     ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
     !
     ! Author  : S. Laroche  February 2014
@@ -540,12 +550,12 @@ contains
 
     read( nulnam, nml = NAMOER, iostat = ierr )
     if(ierr /= 0) then
-      write(*,*) 'read_obs_erreurs_conv : No valid namelist NAMOER found'
+      write(*,*) 'oer_readObsErrorsCONV : No valid namelist NAMOER found'
     end if
     ierr = fclos( nulnam )
 
-    write(*,*) 'read_obs_erreurs_conv : new_oer_sw      = ', new_oer_sw
-    write(*,*) 'read_obs_erreurs_conv : visAndGustAdded = ', visAndGustAdded
+    write(*,*) 'oer_readObsErrorsCONV : new_oer_sw      = ', new_oer_sw
+    write(*,*) 'oer_readObsErrorsCONV : visAndGustAdded = ', visAndGustAdded
 
     if (visAndGustAdded) then
       surfaceObsTypeNumber = 6
@@ -557,21 +567,21 @@ contains
     inquire( file = 'obserr', exist = LnewExists )
     if ( LnewExists ) then
       write(*,*) '--------------------------------------------------------'
-      write(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
+      write(*,*) 'oer_readObsErrorsCONV: reads observation errors in obserr'
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort('oer_readObsErrorsCONV: NO OBSERVATION STAT FILE FOUND!!')     
     end if
 
     ! Read observation errors from file obserr for conventional data
     nulstat=0
     ierr=fnom( nulstat, 'obserr', 'SEQ', 0 )
     if ( ierr == 0 ) then
-      write(*,*) 'read_obs_errors_conv: File =  ./obserr'
+      write(*,*) 'oer_readObsErrorsCONV: File =  ./obserr'
       write(*,*) ' opened as unit file ',nulstat
       open(unit=nulstat, file='obserr', status='OLD')
     else
-      call utl_abort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
+      call utl_abort('oer_readObsErrorsCONV: COULD NOT OPEN FILE obserr!!!')
     end if
 
     write(*, '(A)') ' '
@@ -613,15 +623,6 @@ contains
       read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,surfaceObsTypeNumber)
       write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,surfaceObsTypeNumber)
     end do
-
-    if ( obs_famExist( lobsSpaceData, 'TM' ) )  then
-      do jlev = 1,3
-        read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
-      end do
-      read(nulstat, * ) xstd_sst(1)
-      write(*, '(f8.3)' )  xstd_sst(1)
-    end if
 
     !
     !     Read height assignment errors
@@ -681,11 +682,11 @@ contains
     close( unit = nulstat )
     ierr = fclos( nulstat )
 
-  end subroutine read_obs_erreurs_conv
+  end subroutine oer_readObsErrorsCONV
 
   !-----------------------------------------------------------------------------------------
 
-  subroutine read_obs_err_ice
+  subroutine oer_readObsErrorsICE
     ! s/r read_obs_err_ice -READ OBSERVATION ERROR FOR SEA ICE
     !
     ! Author  : A. Caya  October 2018
@@ -706,21 +707,21 @@ contains
     inquire( file = fileName, exist = fileExists )
     if ( fileExists ) then
       write(*,*) '--------------------------------------------------------'
-      write(*,*) 'read_obs_err_ice: reads observation errors in ',fileName
+      write(*,*) 'oer_readObsErrorsICE: reads observation errors in ',fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('read_obs_err_ice: NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort('oer_readObsErrorsICE: NO OBSERVATION STAT FILE FOUND!!')     
     end if
 
     ! Read observation errors from file
     nulstat=0
     ierr=fnom( nulstat, fileName, 'SEQ', 0 )
     if ( ierr == 0 ) then
-      write(*,*) 'read_obs_err_ice: File = ./',fileName
+      write(*,*) 'oer_readObsErrorsICE: File = ./',fileName
       write(*,*) ' opened as unit file ',nulstat
       open(unit=nulstat, file=fileName, status='OLD')
     else
-      call utl_abort('read_obs_err_ice:COULD NOT OPEN FILE '//fileName//'!!!')
+      call utl_abort('oer_readObsErrorsICE: COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
     write(*, '(A)') ' '
@@ -747,11 +748,69 @@ contains
     close( unit = nulstat )
     ierr = fclos( nulstat )
 
-  end subroutine read_obs_err_ice
+  end subroutine oer_readObsErrorsICE
+
+  subroutine oer_readObsErrorsSST
+    implicit none
+
+    external fnom, fclos
+    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, timeIndex, nulstat
+    logical                      :: fileExists
+    character(len=128)           :: ligne
+    character(len=15), parameter :: fileName = 'obserr_sst'    
+    character(len=*), parameter  :: myName = 'oer_readObsErrorsSST'
+    character(len=*), parameter  :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter  :: myError   = '******** '// myName //' ERROR: '
+
+    inquire( file = fileName, exist = fileExists )
+    if ( fileExists ) then
+      write(*,*) '--------------------------------------------------------'
+      write(*,*) myName//': reads observation errors in ', fileName
+      write(*,*) '--------------------------------------------------------'
+    else
+      call utl_abort( myError//': NO OBSERVATION STAT FILE FOUND!!')     
+    end if
+
+    nulstat=0
+    ierr=fnom( nulstat, fileName, 'SEQ', 0 )
+    if ( ierr == 0 ) then
+      write(*,*) myName//': File = ./',fileName
+      write(*,*) myName//' opened as unit file ',nulstat
+      open(unit=nulstat, file=fileName, status='OLD')
+    else
+      call utl_abort( myError//': COULD NOT OPEN FILE '//fileName//'!!!')
+    end if
+
+    write(*, '(A)') ' '
+
+    SECTIONS: do sectionIndex = 1, 5
+
+      do lineIndex = 1, 3
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+
+      read(nulstat, * )   xstd_sst( sectionIndex, 1), xstd_sst( sectionIndex, 2)
+      write(*, '(2f6.2)') xstd_sst( sectionIndex, 1), xstd_sst( sectionIndex, 2) 
+
+      do lineIndex = 1, 2
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      end do
+
+    end do SECTIONS
+
+    write(*, '(A)') ' '
+
+    close( unit = nulstat )
+    ierr = fclos( nulstat )
+
+  end subroutine oer_readObsErrorsSST
 
   !-----------------------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------------------
 
-  subroutine fill_obs_erreurs(lobsSpaceData)
+  subroutine oer_fillObsErrors(lobsSpaceData)
     !
     ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
     !
@@ -778,15 +837,18 @@ contains
     integer :: isat, ichn, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev
-    real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev
+    real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     logical :: ifirst
     character(len=2)  :: cfam
     character(len=12) :: cstnid
+    character(len=*), parameter  :: myName = 'oer_fillObsErrors'
+    character(len=*), parameter  :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter  :: myError   = '******** '// myName //' ERROR: '
 
-    write(*,'(10X,"Fill_obs_errors")')
-    write(*,'(10X,"-----------------",/)')
-    write(*,'(10X,"***********************************")')
-    write(*,'(10X,"Fill_obs_errors:",/)')
+    write(*,'(10X, "oer_fillObsErrors" )')
+    write(*,'(10X, "-----------------", /)')
+    write(*,'(10X, "***********************************")')
+    write(*,'(10X, "oer_fillObsErrors", /)')
     write(*,'(10X,"***********************************")')
 
     header_prev=-1
@@ -986,13 +1048,13 @@ contains
               if (surfaceObsTypeNumber >= 5) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
               else
-                call utl_abort("fill_obs_erreurs: observation error missing for visibility")
+                call utl_abort( myError//": observation error missing for visibility" )
               end if
             else if ( ityp == bufr_gust ) then
               if (surfaceObsTypeNumber >= 6) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
               else
-                call utl_abort("fill_obs_erreurs: observation error missing for wind gust")
+                call utl_abort( myError//": observation error missing for wind gust")
               end if
             end if
 
@@ -1109,8 +1171,34 @@ contains
                 !***********************************************************************
 
           else if ( cfam == 'TM' ) then
+            
+            ! loop over all header indices of the specified family with surface obs
+            call obs_set_current_header_list( lobsSpaceData, cfam )
 
-            call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 1 ) )
+            if      ( codeType ==  18 ) then ! drifters
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 1, 1 ) )
+            else if ( codeType ==  13 ) then ! ships
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 2, 1 ) )
+            else if ( codeType == 147 ) then ! moored buoys
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
+            else if ( codeType ==  88 ) then ! all satellites: AVHRR, VIIRS and AMSR2
+              if ( cstnid == 'NOAA18' .or. cstnid == 'NOAA19' .or. &
+                   cstnid == 'METO-A' .or. cstnid == 'METO-B' .or. cstnid == 'NPP' ) then
+                if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) /= bufr_sst ) cycle BODY
+                solarZenith = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex + 1 )
+                if ( solarZenith <= 90. ) then   ! day
+                  call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 4, 1 ) )
+                else                             ! night
+                  call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 4, 2 ) )
+                end if   
+              else if ( cstnid == 'AMSR2' ) then   
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 5, 1 ) )
+              end if  
+            else
+              write(*,*) myName//': unsupported codeType for SST data found in the observations: ', codeType 
+              call utl_abort( myError//": unsupported codeType" )
+            end if  
+
 
                 !***********************************************************************
                 !               Sea Ice Concentration
@@ -1144,7 +1232,7 @@ contains
             else if (cstnid == 'CIS_REGIONAL') then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 9 ) )
             else
-              call utl_abort('fill_obs_erreurs: UNKNOWN station id: '//cstnid)
+              call utl_abort( myError//': UNKNOWN station id: '//cstnid)
             end if
 
           else
@@ -1173,7 +1261,7 @@ contains
                  obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex), &
                  obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
 
-            call utl_abort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+            call utl_abort(myError//': PROBLEM OBSERR VARIANCE.')
 
           end if
 
@@ -1186,7 +1274,7 @@ contains
     write(*,'(10X,"Fill_obs_errors")')
     write(*,'(10X,"---------------",/)')
 
-  end subroutine fill_obs_erreurs
+  end subroutine oer_fillObsErrors
 
 
   subroutine oer_sw(columnhr,obsSpaceData)

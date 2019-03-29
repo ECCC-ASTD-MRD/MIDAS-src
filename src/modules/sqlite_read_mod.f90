@@ -438,7 +438,7 @@ contains
         if ( trim(rdbSchema) /= 'csr' ) then
 
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
-          if ( azimuthReal_R8 .ne. MPC_missingValue_R8 ) then
+          if ( azimuthReal_R8 /= MPC_missingValue_R8 ) then
             azimuth = nint( azimuthReal_R8 * 100. )
           end if
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
@@ -459,19 +459,19 @@ contains
 
         if ( instrument == 420 ) obsSat  = 784
         ! zenith
-        if ( zenithReal .ne. MPC_missingValue_R4 ) then
+        if ( zenithReal /= MPC_missingValue_R4 ) then
           zenith = nint ( (90. + zenithReal ) * 100. )
         end if
         ! solarZenith
-        if (solarAzimuthReal .ne. MPC_missingValue_R4) then
+        if (solarAzimuthReal /= MPC_missingValue_R4) then
           solarZenith = nint ( (90. + solarZenithReal ) * 100. )
         endif
         ! cloudCover
-        if (cloudCoverReal .ne. MPC_missingValue_R4) then
+        if (cloudCoverReal /= MPC_missingValue_R4) then
           cloudCover   = nint ( cloudCoverReal * 1.     )
         end if
         ! solarAzimuth
-        if (solarAzimuthReal .ne. MPC_missingValue_R4 ) then
+        if (solarAzimuthReal /= MPC_missingValue_R4 ) then
           solarAzimuth = nint ( solarAzimuthReal * 100. )
         end if
 
@@ -506,7 +506,7 @@ contains
           earthLocRadCurv_R8 = earthLocRadCurv
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
-          if ( azimuthReal_R8 .ne. MPC_missingValue_R8 ) then
+          if ( azimuthReal_R8 /= MPC_missingValue_R8 ) then
             azimuth = nint( azimuthReal_R8 * 100. )
           end if
 
@@ -563,7 +563,7 @@ contains
           else ! CONV
  
            call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                obsValue, obsVarno, obsFlag,vertCoordType, bodyIndex)
+                                obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
             if ( obsVarno == bufr_nedd .or. obsVarno == bufr_neds ) then ! ALLOW EXTRA SPACE FOR U V COMPONENTS
 
@@ -572,21 +572,21 @@ contains
                 ! U COMPONENT
                 call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_neuu, 0, vertCoordType, bodyIndex+1)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_neuu, 0, vertCoordType, bodyIndex + 1 )
                 ! V COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevv, 0, vertCoordType, bodyIndex+2)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevv, 0, vertCoordType, bodyIndex + 2 )
               else if ( obsVarno == bufr_neds) then
 
                 ! Us COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_neus, 0, vertCoordType, bodyIndex+1)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_neus, 0, vertCoordType, bodyIndex + 1 )
                 ! Vs COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
                 call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevs, 0, vertCoordType, bodyIndex+2)
+                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevs, 0, vertCoordType, bodyIndex + 2 )
               end if
 
               bodyIndex = bodyIndex + 2
