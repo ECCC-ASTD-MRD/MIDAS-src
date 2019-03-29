@@ -240,11 +240,6 @@ EOF
 
 cat >> index.rst << EOF
 
-.. note::  Currently only a few programs/modules are included since significant
-           changes will be required in modifying existing comments to avoid sphinx
-           from aborting. For example, since ``-------`` is used in *reStructuredText* 
-           to indicate a heading, these must be removed from all comments.
-
 Programs
 ========
 
