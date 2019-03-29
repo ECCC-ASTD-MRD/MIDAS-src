@@ -37,8 +37,7 @@ for file in $program_filelist ; do
 done
 echo "Number of programs = $numPrograms"
 
-# SMALL NUMBER OF MODULE FILES (THE REST STILL NEED TO BE MODIFIED)
-module_filelist=`cat mod_files_list.txt`
+module_filelist=`ls -dR -1 $codedir/modules/*f*90 $codedir/modules/*/*f*90`
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
