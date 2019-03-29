@@ -363,18 +363,6 @@ module varNameList_mod
     ! vnl_varKindFromVarname
     !--------------------------------------------------------------------------
     function vnl_varKindFromVarname(varName) result(varKind)
-<<<<<<< HEAD
-=======
-!
-!   Purpose: Get the variable kind from the variable name
-!            as set in the array vnl_varKindList
-!
-!   Author: M. Sitwell (ARQI/AQRD) Oct 2015
-!           Following recommendation by M. Buehner.
-!
-!!--------------------------------------------------------------
-
->>>>>>> Revise mod_files_list.txt to include files that were fixed with simple syntax changes on comments
       implicit none
 
       character(len=*), intent(in) :: varName

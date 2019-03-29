@@ -195,21 +195,21 @@ contains
     !! - Read the observation erreur statistics and utilization flag for TOVS processing.
     !!
     !!
-    !! Author  : J. Halle !!CMDA/AES  May 08, 1996
+    !! Author  : J. Halle !CMDA/AES  May 08, 1996
     !!
-    !! Revision 01  : J. Halle !!CMDA/AES  Oct 1999
+    !! Revision 01  : J. Halle !CMDA/AES  Oct 1999
     !!               - change file name to stats_tovs
     !!
-    !! Revision 002  : J. Halle !!CMDA/AES  dec 2000
+    !! Revision 002  : J. Halle !CMDA/AES  dec 2000
     !!                adapt to TOVS level 1b.
     !!
-    !! Revision 003  : J. Halle !!CMDA/SMC  may 2002
+    !! Revision 003  : J. Halle !CMDA/SMC  may 2002
     !!                adapt to RTTOV-7.
     !!
-    !! Revision 004  : J. Halle !!CMDA/SMC  sept 2006
+    !! Revision 004  : J. Halle !CMDA/SMC  sept 2006
     !!                adapt to RTTOV-8.
     !!
-    !! Revision 005  : A. Beaulne !!CMDA/SMC  fevr 2007
+    !! Revision 005  : A. Beaulne !CMDA/SMC  fevr 2007
     !!                adapt utilization flag for AIRS channels
     !!
     !! Revision 006  : S. Heilliette
