@@ -6,10 +6,6 @@
 ../../src/modules/bmatrixchem_mod.f90
 ../../src/modules/bmatrixdiff_mod.f90
 ../../src/modules/bmatrixensemble_mod.f90
-../../src/modules/bmatrix_mod.f90
-../../src/modules/bmatrixchem_mod.f90
-../../src/modules/bmatrixdiff_mod.f90
-../../src/modules/bmatrixensemble_mod.f90
 ../../src/modules/bmatrixhi_mod.f90
 ../../src/modules/bmatrixlatbands_mod.f90
 ../../src/modules/burpfiles_mod.f90
@@ -26,6 +22,10 @@
 ../../src/modules/computeHBHT_mod.f90
 ../../src/modules/controlvector_mod.f90
 ../../src/modules/costfunction_mod.f90
+../../src/modules/diffusion_mod.f90
+../../src/modules/enkf_mod.f90
+../../src/modules/ensemblestatevector_mod.f90
+../../src/modules/filenames_mod.f90
 ../../src/modules/globalspectraltransform_mod.f90
 ../../src/modules/gps_mod.f90
 ../../src/modules/gridstatevector_mod.f90
@@ -33,6 +33,11 @@
 ../../src/modules/humiditylimits_mod.f90
 ../../src/modules/increment_mod.f90
 ../../src/modules/innovation_mod.f90
+../../src/modules/lambmatrixhi_mod.f90
+../../src/modules/lamspectraltransform_mod.f90
+../../src/modules/localization_mod.f90
+../../src/modules/localizationfunction_mod.f90
+../../src/modules/localizationspectral_mod.f90
 ../../src/modules/minimization_mod.f90
 ../../src/modules/mpi_mod.f90
 ../../src/modules/mpivar_mod.f90
