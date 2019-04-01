@@ -77,7 +77,7 @@ for file in $module_filelist ; do
   echo ADDING THIS FILE TO src_files: $file
   cd _src_files
   bname=`basename $file`
-  rm $bname
+  rm -f $bname
   ln -s ../$file ./
   cd ../
 done
