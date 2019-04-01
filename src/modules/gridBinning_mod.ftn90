@@ -36,9 +36,9 @@ module gridBinning_mod
   private
 
   ! public procedures
-  public :: struct_gbi, gbi_setup, gbi_deallocate
-  public :: gbi_stdDev
-  public :: gbi_statevectorMean
+  public :: struct_gbi
+  public :: gbi_setup, gbi_deallocate
+  public :: gbi_stdDev, gbi_mean
 
   type :: struct_gbi
     character(len=24) :: binningStrategy
@@ -55,6 +55,10 @@ module gridBinning_mod
   interface gbi_stdDev
     module procedure gbi_stdDev_ens
   end interface gbi_stdDev
+
+  interface gbi_mean
+    module procedure gbi_mean_gsv
+  end interface gbi_mean
 
 contains
 
@@ -260,9 +264,9 @@ contains
   end subroutine gbi_deallocate
 
   !--------------------------------------------------------------------------
-  ! gbi_statevectorMean
+  ! gbi_mean_gsv
   !--------------------------------------------------------------------------
-  subroutine gbi_statevectorMean(gbi, statevector_in, statevector_out)
+  subroutine gbi_mean_gsv(gbi, statevector_in, statevector_out)
     implicit none
 
     type(struct_gbi) :: gbi
@@ -286,7 +290,7 @@ contains
 
     if (mpi_myid == 0 .and. verbose) then
       write(*,*)
-      write(*,*) 'gbi_statevectorMean: Starting...'
+      write(*,*) 'gbi_mean_gsv: Starting...'
     end if
 
     nVarLev   = statevector_in%nk
@@ -346,10 +350,10 @@ contains
 
     if (mpi_myid == 0 .and. verbose) then
       write(*,*)
-      write(*,*) 'gbi_statevectorMean: Done!'
+      write(*,*) 'gbi_mean_gsv: Done!'
     end if
 
-  end subroutine gbi_statevectorMean
+  end subroutine gbi_mean_gsv
 
   !--------------------------------------------------------------------------
   ! gbi_stdDev_ens

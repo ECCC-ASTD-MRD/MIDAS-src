@@ -528,8 +528,6 @@ CONTAINS
 
     nTrunc = max(statevector%hco%ni,statevector%hco%nj)/4 + 1
 
-    write(*,*) 'JFC nTrunc for laplacian = ', nTrunc
-
     if (gsv_varExist(statevector,'QR') .and. &
         gsv_varExist(statevector,'DD')) then
       qr_ptr => gsv_getField_r8(statevector,'QR')
@@ -637,18 +635,12 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
 
-        write(*,*) 'copying into gridstate'
-        call flush(6)
-
         gridState(:,:,1:nlev_M)            = uu_ptr(:,:,:,stepIndex)
         gridState(:,:,(nlev_M+1):2*nlev_M) = vv_ptr(:,:,:,stepIndex)
-
-        write(*,*) 'first tranform'; call flush(6)
 
         call gst_setID(gstID)
         call gst_gdsp(spectralState,gridState,nlev_M)
 
-        write(*,*) 'scale spectral state'; call flush(6)
         do levIndex = 1, 2*nlev_M
           do ila_mpilocal = 1, nla_mpilocal
             ila_mpiglobal = ilaList_mpiglobal(ila_mpilocal)
@@ -658,11 +650,7 @@ CONTAINS
           enddo
         enddo
 
-        write(*,*) 'second transform'; call flush(6)
         call gst_speree(spectralState,gridState)
-
-        write(*,*) 'copying back to psi/chi'
-        call flush(6)
 
         psi_ptr(:,:,:,stepIndex) = gridState(:,:,1:nlev_M)
         chi_ptr(:,:,:,stepIndex) = gridState(:,:,(nlev_M+1):2*nlev_M)

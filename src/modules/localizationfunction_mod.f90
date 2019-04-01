@@ -387,11 +387,12 @@ CONTAINS
           if (gtg /= 0.d0) then
              gtginv = 1.d0 / gtg
           else
-             write(*,*) 'Lfn_Curvefit: gtg = 0 !'
+             write(*,*) 'Lfn_Curvefit: gtg = 0 ! Aborting the iteration process'
              DO i = 1, nmax
                 write(*,*) g(i), w(i), x(i), param 
              END DO
-             call utl_abort('Lfn_Curvefit')
+             gtginv = tiny(1.d0)
+             !call utl_abort('Lfn_Curvefit')
           end if
           
           ! 2.2.5  Find vector M (i.e. increment of PARAM)

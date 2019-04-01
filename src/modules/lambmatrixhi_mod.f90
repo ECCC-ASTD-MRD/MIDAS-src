@@ -1045,8 +1045,6 @@ contains
     do totwvnb = 0, trunc
 
       if ( lst_bhi%nePerK(totwvnb) == 0 ) then
-      !   print*
-      !   print*,'JFC: No spectral elements for this CPU for totwvnb = ', totwvnb
          cycle
       end if
 
@@ -1054,14 +1052,14 @@ contains
       allocate( sp_out(nksdim,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
 
       !- 1.1 Select spectral elements associated with the total wavenumber
-!$OMP PARALLEL DO PRIVATE(e,ila,k)
+      !$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
         do k = 1, nksdim
           sp_in(k,1:lst_bhi%nphase,e) = hiControlVector_in(ila,1:lst_bhi%nphase,k)
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       !- 1.2 Compute bsqrt * sp_in using DGEMM 
 
@@ -1082,14 +1080,14 @@ contains
                   ldc )                                         ! IN
 
       !- 1.3 Replace sp values with output matrix
-!$OMP PARALLEL DO PRIVATE(e,ila,k)
+      !$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
         do k = 1, nksdim
           hiControlVector_in(ila,1:lst_bhi%nphase,k) = sp_out(k,1:lst_bhi%nphase,e)
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       deallocate(sp_in)
       deallocate(sp_out)

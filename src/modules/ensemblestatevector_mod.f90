@@ -700,6 +700,7 @@ CONTAINS
 
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
     character(len=4), pointer :: varNamesInEns(:)
@@ -743,12 +744,21 @@ CONTAINS
           end do
         end do
       else if (ens%dataKind == 4) then
-        ptr4d_r8 => gsv_getField_r8(statevector)
-        do stepIndex = 1, numStep
-          do jk = k1, k2
-            ptr4d_r8(:,:,jk,stepIndex) = real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:),8)
+        if (gsv_getDataKind(statevector) == 8) then
+          ptr4d_r8 => gsv_getField_r8(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ptr4d_r8(:,:,jk,stepIndex) = real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:),8)
+            end do
           end do
-        end do
+        else
+          ptr4d_r4 => gsv_getField_r4(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+            end do
+          end do
+        end if
       end if
 
     else
@@ -765,13 +775,23 @@ CONTAINS
             end do
           end do
         else if (ens%dataKind == 4) then
-          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
-          do stepIndex = 1, numStep
-            do gsvLevIndex = 1, nLev
-              ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-              ptr4d_r8(:,:,gsvLevIndex,stepIndex) = real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+          if (gsv_getDataKind(statevector) == 8) then
+            ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ptr4d_r8(:,:,gsvLevIndex,stepIndex) = real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+              end do
             end do
-          end do
+          else
+            ptr4d_r4 => gsv_getField_r4(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ptr4d_r4(:,:,gsvLevIndex,stepIndex) = ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+              end do
+            end do
+          end if
         end if
       end do
 

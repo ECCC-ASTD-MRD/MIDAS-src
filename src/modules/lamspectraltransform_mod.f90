@@ -54,6 +54,8 @@ module LamSpectralTransform_mod
                                              !  nla spectral coefficient
      integer, allocatable :: nePerK(:)       ! Number of spectral element in each
                                              !  total wavenumber bands
+     integer, allocatable :: nePerKglobal(:) ! Number of spectral element in each
+                                             !  total wavenumber bands over ALL PROCESSORS
      integer, allocatable :: ilaFromEK(:,:)  ! ila index associated to each spectral element
                                              !  of total wavenumber band
      real(8), allocatable :: NormFactor(:,:)
@@ -558,12 +560,14 @@ contains
     allocate( lst_out%n(1:lst_out%nla) )
     allocate( lst_out%Weight(1:lst_out%nla) )
     allocate( lst_out%nePerK(0:lst(id)%ktrunc))
+    allocate( lst_out%nePerKglobal(0:lst(id)%ktrunc))
     allocate( lst_out%ilaFromEK(1:lst_out%nla,0:lst(id)%ktrunc))
     allocate( lst_out%ilaGlobal(1:lst_out%nla) )
 
     lst(id)%nla_Index(:,:) = -1
     lst_out%ilaFromEK(:,:) = -1
     lst_out%NEPerK(:)      =  0
+    lst_out%NEPerKglobal(:)=  0
 
     ila    = 0
     ilaglb = 0
@@ -603,6 +607,11 @@ contains
     end do
 
     lst_out%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
+
+    if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
+      call rpn_comm_allreduce(lst_out%nePerK, lst_out%nePerKglobal, lst(id)%ktrunc+1, &
+                              "mpi_integer", "mpi_sum", "GRID", ierr)
+    end if
 
     deallocate( Kr8fromMN )
     deallocate( KfromMN )

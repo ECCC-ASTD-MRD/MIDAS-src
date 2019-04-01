@@ -605,8 +605,8 @@ CONTAINS
       if (trim(varianceSmoothing) == 'horizMean') then
         if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
         call gbi_setup(gbi_horizontalMean, 'HorizontalMean', statevector_ensStdDev)
-        call gbi_horizontalMean(gbi_horizontalMean, statevector_ensStdDev, & ! IN
-                                statevector_ensStdDev)                       ! OUT
+        call gbi_mean(gbi_horizontalMean, statevector_ensStdDev, & ! IN
+                      statevector_ensStdDev)                       ! OUT
         call gbi_deallocate(gbi_horizontalMean)
       else if (trim(varianceSmoothing) == 'footprint') then
         call gsv_smoothHorizontal(statevector_ensStdDev, & ! INOUT

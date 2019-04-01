@@ -649,25 +649,20 @@ contains
   !--------------------------------------------------------------------------
   ! utl_matSqrt
   !--------------------------------------------------------------------------
-  subroutine utl_matsqrt(PA,KN,ZSIGN,printInformation_opt)
-    !
+  subroutine utl_matsqrt(matrix,rank,exponentSign,printInformation_opt)
     ! Calculate square root of an error covariance matrix
-    !
     implicit none
-    !
-    ! Arguments
-    !
-    INTEGER, intent(in)    :: KN ! order of the matrix
-    REAL(8), intent(inout) :: PA(KN,KN) ! on entry, the original matrix; on exit, the sqrt
-    REAL(8), intent(in)    :: ZSIGN ! sign of the exponent
-    LOGICAL, intent(in), optional :: printInformation_opt ! switch to print be more verbose
-    !
-    ! Local variables
-    !
-    LOGICAL :: printInformation
-    INTEGER :: JI, J, INFO, IER, IWORK
-    REAL(8) :: size_zwork
-    REAL(8), allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
+
+    integer, intent(in)    :: rank
+    real(8), intent(inout) :: matrix(rank,rank)
+    real(8), intent(in)    :: exponentSign
+    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+
+    real(8), allocatable :: eigenValues(:)
+    real(8), allocatable :: work(:)
+    real(8), allocatable :: eigenVectors(:,:)
+    integer :: sizework, info, index, index1, index2 
+    logical :: printInformation
 
     if (present(printInformation_opt)) then
        printInformation = printInformation_opt
@@ -676,75 +671,65 @@ contains
     end if
 
     if (printInformation) then
-       WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
-       WRITE(*,*)' zsign= ',zsign
-       WRITE(*,*)'  -----------------------------------------------'
+      write(*,*)
+      write(*,*) 'utl_matsqrt: Starting...'
     end if
-    !
-    !     1. Computation of eigenvalues and eigenvectors
-    !
-    allocate(ZRESULT(KN,KN))
-    allocate(ZEIGEN(KN,KN))
-    allocate(ZEIGENV2(KN,KN))
-    allocate(ZEIGENV(KN))
 
-    DO JI=1,KN
-       DO J=1,KN
-          ZEIGEN(JI,J)=PA(JI,J)
-       END DO
-    END DO
+    sizework = 64 * rank
+    allocate(work(sizework))
 
-    ! query the size of the 'zwork' vector by calling 'DSYEV' with 'iwork=-1'
-    iwork=-1
-    info = -1
-    CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,size_ZWORK, IWORK, INFO )
+    allocate(eigenValues (rank))
+    allocate(eigenVectors(rank,rank))
 
-    iwork=int(size_zwork)
-    allocate(zwork(iwork))
-    ! compute the eigenvalues
-    CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
-    deallocate(zwork)
-    !
-    if (printInformation) then
-       WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")')
-       WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN)
+    !- Calculate EigenVectors (V) and EigenValues (D) of B matrix
+    eigenVectors(:,:) = matrix(:,:)
+
+    call dsyev('V','U',rank,   & ! IN
+               eigenVectors,   & ! INOUT
+               rank,           & ! IN
+               eigenValues,    & ! OUT
+               work, sizework, & ! IN
+               info )            ! OUT
+
+    if ( info /= 0 ) then
+      write(*,*)
+      write(*,*) 'dsyev: ',info
+      call utl_abort('utl_matsqrt: DSYEV failed!')
     end if
-    !
-    !     2.  Take SQRT of eigenvalues
-    !
-    DO JI=1,KN
-       DO J=1,KN
-          ZEIGENV2(JI,J)= 0.0d0
-       END DO
-    END DO
-    DO JI=1,KN
-       ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
-    END DO
-    !
-    if (printInformation) then
-       WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")')
-       WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN)
-    end if
-    !
-    IF (ZSIGN < 0. .and. printInformation) THEN
-       Write(*,'(A,1x,e14.6)') "Condition number:", &
-            maxval(ZEIGENV)/minval(ZEIGENV)
-    END IF
-    CALL DGEMM('N','N',KN,KN,KN,1.0d0,ZEIGEN,KN,ZEIGENV2,KN, &
-         0.0D0 ,ZRESULT,KN)
-
-    CALL DGEMM('N','T',KN,KN,KN,1.0D0,ZRESULT,KN,ZEIGEN,KN, &
-         0.0d0,PA,KN)
-
-
-    !
-    !     4. Deallocate local arrays
-    !
-    deallocate(ZRESULT,ZEIGEN,ZEIGENV2,ZEIGENV)
 
     if (printInformation) then
-       WRITE(*,*)'MATSQRT-----------Done--------------- '
-       WRITE(*,*)' '
+      write(*,*)
+      write(*,'(1x,"Original EIGEN VALUES: ")')
+      write(*,'(1x,10f7.3)') (eigenValues(index),index=1,rank)
+      if (exponentSign < 0.d0) then
+        write(*,*)
+        write(*,'(A,1x,e14.6)') "Condition number:", &
+             maxval(eigenValues)/minval(eigenValues)
+      end if
+    end if
+
+    !- Calculate Matrix^0.5 = V D^0.5 V^t
+    where(eigenValues < 0.d0)
+      eigenValues = 0.d0
+    end where
+
+    eigenValues(:) = eigenValues(:)**(0.5d0*exponentSign)
+
+    do index1 = 1, rank
+      do index2 = 1, rank
+        matrix(index1,index2) = sum ( eigenVectors (index1,1:rank)   &
+                                    * eigenVectors (index2,1:rank)   &
+                                    * eigenValues(1:rank) )
+      end do
+    end do
+
+    deallocate(eigenVectors)
+    deallocate(eigenValues)
+    deallocate(work)
+    
+    if (printInformation) then
+      write(*,*)
+      write(*,*) 'utl_matsqrt: Ending...'
     end if
 
   end subroutine utl_matsqrt

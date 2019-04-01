@@ -28,6 +28,10 @@ module menetrierDiag_mod
   use localizationFunction_mod
   use varNameList_mod
   use horizontalCoord_mod
+  use gridStatevector_mod
+  use ensembleStatevector_mod
+  use timeCoord_mod
+  use mpi_mod
   implicit none
   save
   private
@@ -37,9 +41,11 @@ module menetrierDiag_mod
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
   integer :: nens, ni, nj, nLevEns_M, nLevEns_T, nkgdimEns
-  integer :: varLevOffset(6), nvar3d, nvar2d, nWaveBand
+  integer :: nvar3d, nvar2d, nWaveBand
 
-  character(len=4), allocatable :: nomvar3d(:,:), nomvar2d(:,:)
+  integer, allocatable :: varLevOffset(:)
+
+  character(len=4), allocatable :: nomvar3d(:), nomvar2d(:)
 
   integer :: strideForHLoc, strideForVloc, horizPadding
   logical :: hLoc, vLoc, global
@@ -54,48 +60,70 @@ contains
   !--------------------------------------------------------------------------
   ! bmd_setup
   !--------------------------------------------------------------------------
-  subroutine bmd_setup(hco_ens_in, nens_in, nLevEns_M_in, nLevEns_T_in,        &
-                       nkgdimEns_in, pressureProfile_M_in, pressureProfile_T_in, &
-                       nvar3d_in, nvar2d_in, varLevOffset_in, nomvar3d_in, nomvar2d_in, &
-                       nWaveBand_in)
+  subroutine bmd_setup(statevector_template, hco_core_in, nens_in, pressureProfile_M_in, &
+                       pressureProfile_T_in, nWaveBand_in)
     implicit none
 
-    
-    type(struct_hco), intent(in), pointer :: hco_ens_in ! Ensemble horizontal grid parameters
+    type(struct_gsv) :: statevector_template
+    type(struct_hco), pointer :: hco_core_in
 
-    integer, intent(in) :: nens_in, nLevEns_M_in, nLevEns_T_in, nkgdimEns_in
-    integer, intent(in) :: nvar3d_in, nvar2d_in, varLevOffset_in(6), nWaveBand_in
+    integer, intent(in) :: nens_in
+    integer, intent(in) :: nWaveBand_in
 
     real(8), intent(in), pointer :: pressureProfile_M_in(:), pressureProfile_T_in(:)
 
-    character(len=4) :: nomvar3d_in(:,:), nomvar2d_in(:,:)
-
     integer :: nulnam, ierr, fclos, fnom
+    integer :: nVar, varNameIndex, var2dIndex, var3dIndex
+
+    character(len=4), pointer :: varNamesList(:)
 
     NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc,horizPadding
 
     !
     !- 1.  Input parameters 
     !
-    hco_ens   => hco_ens_in
+    hco_ens   => hco_core_in
     nens      = nens_in
     ni        = hco_ens%ni
     nj        = hco_ens%nj
-    nLevEns_M = nLevEns_M_in
-    nLevEns_T = nLevEns_T_in
-    nkgdimEns = nkgdimEns_in
+    nLevEns_M = gsv_getNumLev(statevector_template,'MM') !nLevEns_M_in
+    nLevEns_T = gsv_getNumLev(statevector_template,'TH') !nLevEns_T_in
+    nkgdimEns = statevector_template%nk
     pressureProfile_M => pressureProfile_M_in
     pressureProfile_T => pressureProfile_T_in
-    nvar3d    = nvar3d_in
-    nvar2d    = nvar2d_in
-    varLevOffset = varLevOffset_in
     nWaveBand = nWaveBand_in
     global    = hco_ens%global
 
-    allocate(nomvar3d(nvar3d,3))
-    allocate(nomvar2d(nvar2d,3))
-    nomvar3d(:,:) = nomvar3d_in(:,:)
-    nomvar2d(:,:) = nomvar2d_in(:,:)
+    nullify(varNamesList)
+    call gsv_varNamesList(statevector_template,varNamesList)
+    
+    nVar = size(varNamesList)
+    allocate(varLevOffset(nVar))
+    nVar3d = 0
+    nVar2d = 0
+    do varNameIndex = 1, size(varNamesList)
+      varLevOffset(varNameIndex) = gsv_getOffsetFromVarName(statevector_template,varNamesList(varNameIndex))
+      if (vnl_varLevelFromVarname(varNamesList(varNameIndex)) == 'SF' ) then
+        nVar2d = nVar2d + 1
+      else
+        nVar3d = nVar3d + 1
+      end if
+    end do
+
+    allocate(nomvar3d(nvar3d))
+    allocate(nomvar2d(nvar2d))
+
+    var2dIndex = 0
+    var3dIndex = 0
+    do varNameIndex = 1, size(varNamesList)
+      if (vnl_varLevelFromVarname(varNamesList(varNameIndex)) == 'SF' ) then
+        var2dIndex = var2dIndex + 1
+        nomvar2d(var2dIndex) =  varNamesList(varNameIndex)
+      else
+        var3dIndex = var3dIndex + 1
+        nomvar3d(var3dIndex) =  varNamesList(varNameIndex)
+      end if
+    end do
 
     !
     !- 2.  Read Namelist
@@ -104,7 +132,7 @@ contains
     vLoc          = .true.
     strideForHLoc = 100 ! Horizontal correlations will be computed every "stride" gridpoint in x and y
     strideForVLoc = 50  ! Vertical   correlations will be computed every "stride" gridpoint in x and y
-    horizPadding  = 0   ! Number of grid point to discard along the horiontale edgeds (only for LAM)
+    horizPadding  = 0   ! Number of grid point to discard along the horizontal edges (only for LAM)
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -122,24 +150,22 @@ contains
   !--------------------------------------------------------------------------
   ! bmd_localizationRadii
   !--------------------------------------------------------------------------
-  subroutine bmd_localizationRadii(ensPerturbations,ensStdDev,variableType,waveBandIndex_opt)
+  subroutine bmd_localizationRadii(ensPerts,waveBandIndex_opt)
     implicit none
 
-    real(4), intent(in) :: ensPerturbations(:,:,:,:)
-    real(8), intent(in) :: ensStdDev(:,:,:)
-    integer, intent(in) :: variableType
+    type(struct_ens) :: ensPerts
     integer,optional, intent(in) :: waveBandIndex_opt
 
     !
     !- Estimate the horionzontal and vertical localization radii
     !
     if ( hLoc ) then
-      call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, & ! IN
-           variableType, waveBandIndex_opt=waveBandIndex_opt)                       ! IN
+      call calcHorizLocalizationRadii(ensPerts, strideForHLoc,           & ! IN
+                                      waveBandIndex_opt=waveBandIndex_opt) ! IN
     end if
     if ( vLoc ) then
-      call calcVertLocalizationRadii(ensPerturbations, ensStdDev, strideForVloc, &  ! IN
-           variableType, waveBandIndex_opt=waveBandIndex_opt)                       ! IN
+      call calcVertLocalizationRadii(ensPerts, strideForVloc,           &  ! IN
+                                     waveBandIndex_opt=waveBandIndex_opt)  ! IN
     end if
 
   end subroutine bmd_localizationRadii
@@ -147,21 +173,34 @@ contains
   !--------------------------------------------------------------------------
   ! CALCHORIZLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex_opt)
+  subroutine calcHorizLocalizationRadii(ensPerts,stride,waveBandIndex_opt)
     implicit none
 
-    real(4), intent(in) :: ensPerturbations(:,:,:,:)
-    real(8), intent(in) :: ensStdDev(:,:,:)
-    integer, intent(in) :: stride, variableType
+    type(struct_ens)    :: ensPerts
+    integer, intent(in) :: stride
     integer,optional, intent(in) :: waveBandIndex_opt
 
-    real*4, allocatable :: ensPert_local(:,:,:)
+    type(struct_gsv) :: statevector_ensStdDev
+    type(struct_gsv) :: statevector_ensStdDev_tiles
+    type(struct_gsv) :: statevector_oneMemberTiles
+    type(struct_gsv) :: statevector_oneMember(nens)
+
+    real(8), pointer :: ensStdDev(:,:,:)
+    real(4), pointer :: ptr3d_r4(:,:,:)
+
+    real(4), allocatable :: ensPert_local(:,:,:)
 
     real(8), allocatable :: meanCorrel(:,:)
     real(8), allocatable :: meanCorrelSquare(:,:)
     real(8), allocatable :: meanVarianceProduct(:,:)
     real(8), allocatable :: meanCovarianceSquare(:,:)
     real(8), allocatable :: meanFourthMoment(:,:)
+
+    real(8), allocatable :: meanCorrel_local(:,:)
+    real(8), allocatable :: meanCorrelSquare_local(:,:)
+    real(8), allocatable :: meanVarianceProduct_local(:,:)
+    real(8), allocatable :: meanCovarianceSquare_local(:,:)
+    real(8), allocatable :: meanFourthMoment_local(:,:)
 
     real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
 
@@ -174,6 +213,7 @@ contains
     real(8), allocatable :: gridPointWeight(:,:,:)   ! Weight given to grid point in the statistic computation
 
     real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
+    real(8), allocatable :: sumWeight_local(:,:)
 
     real(8), pointer :: PressureProfile(:)
 
@@ -182,16 +222,32 @@ contains
     real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
     real(8) :: t1, t2, t3, rmse
 
-    integer :: i, j, k, f, ens, bin, numbins, numFunctions
-    integer :: iref_id, jref_id, iref, jref
-    integer :: nLevEns, nLevStart, nLevEnd, jvar
+    integer :: i, j, k, f, ens, bin, numbins, numFunctions, nSize
+    integer :: iref_id, jref_id, iref, jref, ier
+    integer :: nLevEns, nLevStart, nLevEnd, jvar, mykBeg, mykEnd
 
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
+    character(len=4), pointer :: varNamesList(:)
 
     !
     !- 1.  Setup
     !
+    call ens_copyEnsStdDev(ensPerts, statevector_ensStdDev_tiles)
+
+    nullify(varNamesList)
+    call ens_varNamesList(ensPerts,varNamesList)
+    call gsv_allocate(statevector_ensStdDev, ens_getNumStep(ensPerts),                       &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='VarsLevs', dataKind_opt=8 )
+    call gsv_transposeTilesToVarsLevs(statevector_ensStdDev_tiles, statevector_ensStdDev)
+    ensStdDev => gsv_getField3D_r8(statevector_ensStdDev)
+
+    call gsv_deallocate(statevector_ensStdDev_tiles)
+
+    mykBeg = statevector_ensStdDev%mykBeg
+    mykEnd = statevector_ensStdDev%mykEnd
 
     numFunctions = 3
 
@@ -210,8 +266,6 @@ contains
       end if
     end if
 
-    allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
-
     allocate(meanCorrelSquare(numBins,nkgdimEns))
     allocate(meanCorrel(numBins,nkgdimEns))
     allocate(meanVarianceProduct(numBins,nkgdimEns))
@@ -219,16 +273,23 @@ contains
     allocate(meanFourthMoment(numBins,nkgdimEns))
     allocate(sumWeight(numBins,nkgdimEns))
 
+    allocate(meanCorrelSquare_local(numBins,nkgdimEns))
+    allocate(meanCorrel_local(numBins,nkgdimEns))
+    allocate(meanVarianceProduct_local(numBins,nkgdimEns))
+    allocate(meanCovarianceSquare_local(numBins,nkgdimEns))
+    allocate(meanFourthMoment_local(numBins,nkgdimEns))
+    allocate(sumWeight_local(numBins,nkgdimEns))
+
     allocate(gridPointWeight(ni,nj,nkgdimEns))
 
     allocate(distanceBinThresholds(numBins))
 
     ! Assign the (upper) threshold to each separation-distance-bin
-    write(6,*)
-    write(6,*) 'Separation distance bin'
+    write(*,*)
+    write(*,*) 'Separation distance bin'
     do bin = 1, numbins
       distanceBinThresholds(bin) = calcDistance(hco_ens%lat(nj/2),hco_ens%lon(1+horizPadding),hco_ens%lat(nj/2),hco_ens%lon(bin+horizPadding))
-      write(6,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1+horizPadding),hco_ens%lat(nj/2),hco_ens%lon(bin+horizPadding), distanceBinThresholds(bin)/1000.d0
+      write(*,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1+horizPadding),hco_ens%lon(bin+horizPadding), distanceBinThresholds(bin)/1000.d0
     end do
 
     maxDistance=distanceBinThresholds(numBins)
@@ -236,11 +297,11 @@ contains
     dnens = 1.0d0/dble(nens-1)
 
     ! Grid point Weight
-    write(6,*)
-    write(6,*) 'Grid point Weight'
+    write(*,*)
+    write(*,*) 'Grid point Weight'
     do j = 1, nj
       gridPointWeight(:,j,:) = cos(hco_ens%lat(j))
-      write(6,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
+      write(*,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
     end do
 
     !
@@ -248,28 +309,44 @@ contains
     !
 
     !- 2.1  Computation of various statistics for different separation distances
-    meanCorrelSquare(:,:)     = 0.d0
-    meanCorrel(:,:)           = 0.d0
-    meanCovarianceSquare(:,:) = 0.d0
-    meanVarianceProduct(:,:)  = 0.d0
-    meanFourthMoment(:,:)     = 0.d0
-    sumWeight(:,:) = 0.d0
+    meanCorrelSquare_local(:,:)     = 0.d0
+    meanCorrel_local(:,:)           = 0.d0
+    meanCovarianceSquare_local(:,:) = 0.d0
+    meanVarianceProduct_local(:,:)  = 0.d0
+    meanFourthMoment_local(:,:)     = 0.d0
+    sumWeight_local(:,:) = 0.d0
 
     allocate(ensPert_local(nens,ni,nj))
     allocate(gridPointAlreadyUsed(ni,nj))
 
+    call gsv_allocate(statevector_oneMemberTiles, ens_getNumStep(ensPerts),                  &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                      mpi_distribution_opt='Tiles', dataKind_opt=4 )
+
+    do ens = 1, nens
+      call gsv_allocate(statevector_oneMember(ens), ens_getNumStep(ensPerts),      &
+                        ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
+                        mpi_distribution_opt='VarsLevs', dataKind_opt=4 )
+      call ens_copyMember(ensPerts, statevector_oneMemberTiles, ens)
+      call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember(ens))
+    end do
+
+    call gsv_deallocate(statevector_oneMemberTiles)
+
     !$OMP PARALLEL
-    !$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
-    do k = 1, nkgdimEns
-      write(6,*) 'Computing distance-bin statistics for ensemble level: ', k
-      call flush(6)
+    !$OMP DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
+    do k = mykBeg, mykEnd
+      write(*,*) 'Computing distance-bin statistics for ensemble level: ', k
 
       !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
       !  because ensemble member is the last loop index below)
       do ens = 1, nens
+        ptr3d_r4 => gsv_getField3D_r4(statevector_oneMember(ens))
         do j = 1, nj
           do i = 1, ni
-            ensPert_local(ens,i,j) = ensPerturbations(i,j,k,ens)
+            ensPert_local(ens,i,j) = ptr3d_r4(i,j,k)
           end do
         end do
       end do
@@ -280,8 +357,7 @@ contains
         do iref = nint(stride/2.0)+horizPadding, ni-horizPadding, stride  ! Pick every stride point to save cost.
 
           if (k == 1) then
-            write(6,*) 'grid point info', iref, jref
-            call flush(6)
+            write(*,*) 'grid point info', iref, jref
           end if
 
           do j = 1+horizPadding, nj-horizPadding
@@ -311,13 +387,18 @@ contains
 
                 weight = sqrt(gridPointWeight(iref,jref,k)) * sqrt(gridPointWeight(i,j,k))
 
-                sumWeight(bin,k) = sumWeight(bin,k) + weight
+                sumWeight_local(bin,k) = sumWeight_local(bin,k) + weight
 
-                meanCorrel(bin,k)           = meanCorrel(bin,k)           + correlation    * weight
-                meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     + correlation**2 * weight
-                meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) + covariance**2  * weight
-                meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  + ensStdDev(i,j,k)**2 * ensStdDev(iref,jref,k)**2 * weight
-                meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment   * weight
+                meanCorrel_local(bin,k)           = meanCorrel_local(bin,k)           + &
+                                                    correlation    * weight
+                meanCorrelSquare_local(bin,k)     = meanCorrelSquare_local(bin,k)     + &
+                                                    correlation**2 * weight
+                meanCovarianceSquare_local(bin,k) = meanCovarianceSquare_local(bin,k) + &
+                                                    covariance**2  * weight
+                meanVarianceProduct_local(bin,k)  = meanVarianceProduct_local(bin,k)  + &
+                                                    ensStdDev(i,j,k)**2 * ensStdDev(iref,jref,k)**2 * weight
+                meanFourthMoment_local(bin,k)     = meanFourthMoment_local(bin,k)     + &
+                                                    fourthMoment   * weight
               end if
             end do
           end do
@@ -334,183 +415,215 @@ contains
 
     deallocate(ensPert_local)
     deallocate(gridPointAlreadyUsed)
-
-    !- 2.2  Computation of the localization functions
-    t1=dble((nens-1)**2)/dble(nens*(nens-3))
-    t2=dble(nens)/dble((nens-2)*(nens-3))
-    t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
-    !$OMP PARALLEL DO PRIVATE (k,bin)
-    do k = 1, nkgdimEns
-      do bin = 1, numbins
-
-        meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
-        meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
-        meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
-        meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
-        meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
-
-        if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
-          ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
-          localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
-               t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
-          ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
-          localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
-               (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
-        else
-          write(6,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
-          localizationFunctions(1,bin,k) = 0.d0
-          localizationFunctions(2,bin,k) = 0.d0
-        end if
-        ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
-        if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
-          localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
-               (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
-        else
-          write(6,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
-          localizationFunctions(3,bin,k) = 0.d0
-        end if
-      end do
-    end do
-    !$OMP END PARALLEL DO
-
-    !
-    !- 3.  Estimation of localization radii (curve fitting)
-    !
-    allocate(localizationRadii(numFunctions,nkgdimEns))
-    allocate(distanceBinMean(numBins))
-    allocate(distanceBinWeight(numBins))
-
-    call lfn_setup('FifthOrder') ! IN
-
-    localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
-    distanceBinWeight(:)   = 1.d0            ! Even weight
-    do bin = 1, numBins
-      if (bin == 1) then
-        distanceBinMean(bin) = distanceBinThresholds(bin) ! = 0 m
-      else
-        distanceBinMean(bin) = 0.5d0*(distanceBinThresholds(bin)+distanceBinThresholds(bin-1))
-      end if
+    do ens = 1, nens
+      call gsv_deallocate(statevector_oneMember(ens))
     end do
 
-    do f = 1, numFunctions
-      write(6,*)
-      write(6,*) 'Localization Function : ', f
-!!$OMP PARALLEL DO PRIVATE (k,rmse)
-      do k =  1, nkgdimEns
-        write(6,*) '         ----- EnsLev : ', k
-        call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
-             rmse,                         & ! OUT
-             localizationFunctions(f,:,k), & ! IN
-             distanceBinMean,              & ! IN
-             distanceBinWeight,            & ! IN
-             numbins )                       ! IN
-        !write(6,*) 'localizationRadii = ', localizationRadii(f,k), rmse
-      end do
-!!$OMP END PARALLEL DO
-    end do
+    !- 2.2 Gather the all the info in processor 0
+    nSize = nkgdimEns * numbins
+    call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCorrelSquare_local    ,meanCorrelSquare    ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanVarianceProduct_local ,meanVarianceProduct ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanFourthMoment_local    ,meanFourthMoment    ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCovarianceSquare_local,meanCovarianceSquare,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
 
-    !
-    !- 4.  Write to file
-    !
-    if ( nWaveBand /= 1 ) then
-      if (.not. present(waveBandIndex_opt)) then
-        write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-        call utl_abort('calbmatrix_glb')
-      end if
-      write(wbnum,'(I2.2)') waveBandIndex_opt
-    end if
+    deallocate(sumWeight_local)
+    deallocate(meanCorrel_local)
+    deallocate(meanCorrelSquare_local)
+    deallocate(meanVarianceProduct_local)
+    deallocate(meanFourthMoment_local)
+    deallocate(meanCovarianceSquare_local)
 
-    !- 4.1 Localization functions in txt format (for plotting purposes)
-    do jvar = 1, nvar3d
-      if ( nWaveBand == 1 ) then
-        outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//".txt"
-      else
-        outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
-      end if
-      open (unit=99,file=outfilename,action="write",status="new")
+    if (mpi_myid == 0) then
+      !- 2.3  Computation of the localization functions
+      allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
 
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-      else
-        nLevEns = nLevEns_T
-      endif
-      do k=1,nlevEns
+      t1=dble((nens-1)**2)/dble(nens*(nens-3))
+      t2=dble(nens)/dble((nens-2)*(nens-3))
+      t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
+      !$OMP PARALLEL DO PRIVATE (k,bin)
+      do k = 1, nkgdimEns
         do bin = 1, numbins
-          write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
-               distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,varLevOffset(jvar)+k)), &
-               meanCorrel(bin,varLevOffset(jvar)+k), &
-               localizationFunctions(3,bin,varLevOffset(jvar)+k), &
-               localizationFunctions(2,bin,varLevOffset(jvar)+k), &
-               localizationFunctions(1,bin,varLevOffset(jvar)+k), &
-               meanCorrelSquare(bin,varLevOffset(jvar)+k), &
-               meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
-               meanVarianceProduct(bin,varLevOffset(jvar)+k), &
-               meanFourthMoment(bin,varLevOffset(jvar)+k)
+          
+          meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
+          meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
+          meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
+          meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
+          meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+          
+          if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+            ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
+            localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
+                 t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
+            ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
+            localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                 (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
+          else
+            write(*,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
+            localizationFunctions(1,bin,k) = 0.d0
+            localizationFunctions(2,bin,k) = 0.d0
+          end if
+          ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
+          if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+            localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                 (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
+          else
+            write(*,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
+            localizationFunctions(3,bin,k) = 0.d0
+          end if
         end do
       end do
-      close(unit=99)
-    end do
+      !$OMP END PARALLEL DO
 
-    do jvar = 1, nvar2d
-      k = varLevOffset(nvar3d+1)+jvar
-      if ( nWaveBand == 1 ) then
-        outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//".txt"
-      else
-        outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
-      end if
-      open (unit=99,file=outfilename,action="write",status="new")
-      do bin = 1, numbins
-        write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') 1, bin, &
-             distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,k)), &
-             meanCorrel(bin,k), &
-             localizationFunctions(3, bin,k), &
-             localizationFunctions(2, bin,k), &
-             localizationFunctions(1, bin,k), &
-             meanCorrelSquare(bin,k), &
-             meanCovarianceSquare(bin,k), &
-             meanVarianceProduct(bin,k), &
-             meanFourthMoment(bin,k)
+      !
+      !- 3.  Estimation of localization radii (curve fitting)
+      !
+      allocate(localizationRadii(numFunctions,nkgdimEns))
+      allocate(distanceBinMean(numBins))
+      allocate(distanceBinWeight(numBins))
+      
+      call lfn_setup('FifthOrder') ! IN
+      
+      localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
+      distanceBinWeight(:)   = 1.d0            ! Even weight
+      do bin = 1, numBins
+        if (bin == 1) then
+          distanceBinMean(bin) = distanceBinThresholds(bin) ! = 0 m
+        else
+          distanceBinMean(bin) = 0.5d0*(distanceBinThresholds(bin)+distanceBinThresholds(bin-1))
+        end if
       end do
-      close(unit=99)
-    end do
-
-    !- 4.2 Localization radii in txt format (for plotting purposes)
-    do jvar = 1, nvar3d
-      if ( nWaveBand == 1 ) then
-        outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//".txt"
-      else
-        outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
-      end if
-      open (unit=99,file=outfilename,action="write",status="new")
-
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-        PressureProfile => pressureProfile_M
-      else
-        nLevEns = nLevEns_T
-        PressureProfile => pressureProfile_T
-      endif
-      do k=1,nlevEns
-        write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
-             localizationRadii(3,varLevOffset(jvar)+k)/1000.d0, &
-             localizationRadii(2,varLevOffset(jvar)+k)/1000.d0, &
-             localizationRadii(1,varLevOffset(jvar)+k)/1000.d0
+      
+      do f = 1, numFunctions
+        write(*,*)
+        write(*,*) 'Localization Function : ', f
+        do k =  1, nkgdimEns
+          write(*,*) '         ----- EnsLev : ', k
+          call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
+               rmse,                         & ! OUT
+               localizationFunctions(f,:,k), & ! IN
+               distanceBinMean,              & ! IN
+               distanceBinWeight,            & ! IN
+               numbins )                       ! IN
+        end do
       end do
-      close(unit=99)
-    end do
-
-    do jvar = 1, nvar2d
-      k = varLevOffset(nvar3d+1)+jvar
-      if ( nWaveBand == 1 ) then
-        outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//".txt"
-      else
-        outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+      
+      !
+      !- 4.  Write to file
+      !
+      if ( nWaveBand /= 1 ) then
+        if (.not. present(waveBandIndex_opt)) then
+          write(*,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
+          call utl_abort('calbmatrix_glb')
+        end if
+        write(wbnum,'(I2.2)') waveBandIndex_opt
       end if
-      open (unit=99,file=outfilename,action="write",status="new")
-      write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
-           localizationRadii(3,k)/1000.d0, localizationRadii(2,k)/1000.d0, localizationRadii(1,k)/1000.d0
-      close(unit=99)
-    end do
+      
+      !- 4.1 Localization functions in txt format (for plotting purposes)
+      do jvar = 1, nvar3d
+        if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar))//".txt"
+        else
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        
+        if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+        else
+          nLevEns = nLevEns_T
+        endif
+        do k=1,nlevEns
+          do bin = 1, numbins
+            write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
+                 distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,varLevOffset(jvar)+k)), &
+                 meanCorrel(bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(3,bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(2,bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(1,bin,varLevOffset(jvar)+k), &
+                 meanCorrelSquare(bin,varLevOffset(jvar)+k), &
+                 meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
+                 meanVarianceProduct(bin,varLevOffset(jvar)+k), &
+                 meanFourthMoment(bin,varLevOffset(jvar)+k)
+          end do
+        end do
+        close(unit=99)
+      end do
+      
+      do jvar = 1, nvar2d
+        k = varLevOffset(nvar3d+1)+jvar
+        if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar))//".txt"
+        else
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        do bin = 1, numbins
+          write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') 1, bin, &
+               distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,k)), &
+               meanCorrel(bin,k), &
+               localizationFunctions(3, bin,k), &
+               localizationFunctions(2, bin,k), &
+               localizationFunctions(1, bin,k), &
+               meanCorrelSquare(bin,k), &
+               meanCovarianceSquare(bin,k), &
+               meanVarianceProduct(bin,k), &
+               meanFourthMoment(bin,k)
+        end do
+        close(unit=99)
+      end do
+      
+      !- 4.2 Localization radii in txt format (for plotting purposes)
+      do jvar = 1, nvar3d
+        if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar))//".txt"
+        else
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        
+        if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+        else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+        endif
+        do k=1,nlevEns
+          write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
+               localizationRadii(3,varLevOffset(jvar)+k)/1000.d0, &
+               localizationRadii(2,varLevOffset(jvar)+k)/1000.d0, &
+               localizationRadii(1,varLevOffset(jvar)+k)/1000.d0
+        end do
+        close(unit=99)
+      end do
+      
+      do jvar = 1, nvar2d
+        k = varLevOffset(nvar3d+1)+jvar
+        if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar))//".txt"
+        else
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
+             localizationRadii(3,k)/1000.d0, localizationRadii(2,k)/1000.d0, localizationRadii(1,k)/1000.d0
+        close(unit=99)
+      end do
+
+      deallocate(localizationFunctions)
+      deallocate(localizationRadii)
+      deallocate(distanceBinMean)
+      deallocate(distanceBinWeight)
+
+    end if ! mpi_myid == 0
 
     deallocate(meanCorrelSquare)
     deallocate(meanCorrel)
@@ -519,14 +632,10 @@ contains
     deallocate(meanFourthMoment)
     deallocate(distanceBinThresholds)
     deallocate(sumWeight)
-    deallocate(localizationFunctions)
-    deallocate(localizationRadii)
-    deallocate(distanceBinMean)
-    deallocate(distanceBinWeight)
     deallocate(gridPointWeight)
 
-    write(6,*) 'finished estimating the horizontal localization radii...'
-    call flush(6)
+    write(*,*)
+    write(*,*) 'finished estimating the horizontal localization radii...'
 
   end subroutine calcHorizLocalizationRadii
 
@@ -551,7 +660,7 @@ contains
     end do
 
     if (binIndex == -1) then
-      write(6,*) 'findBinIndex: No match found! ABORTING'
+      write(*,*) 'findBinIndex: No match found! ABORTING'
       call utl_abort('findBinIndex')
     end if
 
@@ -585,13 +694,17 @@ contains
   !--------------------------------------------------------------------------
   ! CALCVERTLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex_opt)
+  subroutine calcVertLocalizationRadii(ensPerts,stride,waveBandIndex_opt)
     implicit none
 
-    real(4), intent(in) :: ensPerturbations(:,:,:,:)
-    real(8), intent(in) :: ensStdDev(:,:,:)
-    integer, intent(in) :: stride,variableType
+    type(struct_ens)    :: ensPerts
+    integer, intent(in) :: stride
     integer,optional, intent(in) :: waveBandIndex_opt
+
+    type(struct_gsv) :: statevector_ensStdDev
+
+    real(8), pointer :: ensStdDev(:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
 
     real*4, allocatable :: ensPert_local(:,:)
 
@@ -600,6 +713,12 @@ contains
     real(8), allocatable :: meanVarianceProduct(:,:)
     real(8), allocatable :: meanCovarianceSquare(:,:)
     real(8), allocatable :: meanFourthMoment(:,:)
+
+    real(8), allocatable :: meanCorrel_local(:,:)
+    real(8), allocatable :: meanCorrelSquare_local(:,:)
+    real(8), allocatable :: meanVarianceProduct_local(:,:)
+    real(8), allocatable :: meanCovarianceSquare_local(:,:)
+    real(8), allocatable :: meanFourthMoment_local(:,:)
 
     real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
 
@@ -612,6 +731,7 @@ contains
     real(8), allocatable :: gridPointWeight(:,:)   ! Weight given to grid point in the statistic computation
 
     real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
+    real(8), allocatable :: sumWeight_local(:,:)
 
     real(8), pointer :: PressureProfile(:)
     real(8), pointer :: distanceBinInLnP(:,:)
@@ -622,6 +742,7 @@ contains
     integer :: k, k2, kens, f, ens, bin, numbins, numFunctions
     integer :: iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
 
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
@@ -629,12 +750,14 @@ contains
     !
     !- 1.  Setup
     !
+    call ens_copyEnsStdDev(ensPerts, statevector_ensStdDev)
+    ensStdDev => gsv_getField3D_r8(statevector_ensStdDev)
 
     numFunctions = 3
 
-    numBins=max(nLevEns_M,nLevEns_T) !ni/4 !2
+    numBins=max(nLevEns_M,nLevEns_T)
 
-    allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+    call ens_getLatLonBounds(ensPerts, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
     allocate(meanCorrelSquare(numBins,nkgdimEns))
     allocate(meanCorrel(numBins,nkgdimEns))
@@ -642,6 +765,13 @@ contains
     allocate(meanCovarianceSquare(numBins,nkgdimEns))
     allocate(meanFourthMoment(numBins,nkgdimEns))
     allocate(sumWeight(numBins,nkgdimEns))
+    
+    allocate(meanCorrelSquare_local(numBins,nkgdimEns))
+    allocate(meanCorrel_local(numBins,nkgdimEns))
+    allocate(meanVarianceProduct_local(numBins,nkgdimEns))
+    allocate(meanCovarianceSquare_local(numBins,nkgdimEns))
+    allocate(meanFourthMoment_local(numBins,nkgdimEns))
+    allocate(sumWeight_local(numBins,nkgdimEns))
 
     allocate(gridPointWeight(ni,nj))
 
@@ -649,8 +779,6 @@ contains
     allocate(distanceBinInLnP_T(nLevEns_T,nLevEns_T))
 
     ! Compute the separation-distance in ln(p) between vertical levels
-    !write(6,*)
-    !write(6,*) 'Separation distance bin'
     do k = 1, nLevEns_M
       do k2 = 1, nLevEns_M
         distanceBinInLnP_M(k,k2) = abs(log(pressureProfile_M(k))-log(pressureProfile_M(k2)))
@@ -665,11 +793,8 @@ contains
     dnens = 1.0d0/dble(nens-1)
 
     ! Grid point Weight
-    write(6,*)
-    write(6,*) 'Grid point Weight'
     do jref = 1, nj
       gridPointWeight(:,jref) = cos(hco_ens%lat(jref))
-      write(6,*) jref, hco_ens%lat(jref), cos(hco_ens%lat(jref))
     end do
 
     !
@@ -677,30 +802,34 @@ contains
     !
 
     !- 2.1  Computation of various statistics for different separation distances
-    meanCorrelSquare(:,:)     = 0.d0
-    meanCorrel(:,:)           = 0.d0
-    meanCovarianceSquare(:,:) = 0.d0
-    meanVarianceProduct(:,:)  = 0.d0
-    meanFourthMoment(:,:)     = 0.d0
-    sumWeight(:,:) = 0.d0
+    meanCorrelSquare_local(:,:)     = 0.d0
+    meanCorrel_local(:,:)           = 0.d0
+    meanCovarianceSquare_local(:,:) = 0.d0
+    meanVarianceProduct_local(:,:)  = 0.d0
+    meanFourthMoment_local(:,:)     = 0.d0
+    sumWeight_local(:,:)            = 0.d0
 
     allocate(ensPert_local(nens,nkgdimEns))
 
     do jref = nint(stride/2.0)+horizPadding, nj-horizPadding, stride    ! Pick every stride point to save cost.
       do iref = nint(stride/2.0)+horizPadding, ni-horizPadding, stride  ! Pick every stride point to save cost.
 
+        if (iref < myLonBeg .or. iref > myLonEnd .or. &
+            jref < myLatBeg .or. jref > myLatEnd ) cycle
+
         !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
         !  because ensemble member is the last loop index below)
         do ens = 1, nens
           do k = 1, nkgdimEns
-            ensPert_local(ens,k) = ensPerturbations(iref,jref,k,ens)
+            ptr4d_r4 => ens_getOneLev_r4(ensPerts,k)
+            ensPert_local(ens,k) = ptr4d_r4(ens,1,iref,jref)
           end do
         end do
 
         ! Loop on all 3D variables
         do jvar = 1, nvar3d
 
-          if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          if (vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
             nLevEns = nLevEns_M
           else
             nLevEns = nLevEns_T
@@ -732,184 +861,219 @@ contains
 
               weight = gridPointWeight(iref,jref)
 
-              sumWeight(bin,k) = sumWeight(bin,k) + weight
+              sumWeight_local(bin,k) = sumWeight_local(bin,k) + weight
 
-              meanCorrel(bin,k)           = meanCorrel(bin,k)           + correlation    * weight
-              meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     + correlation**2 * weight
-              meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) + covariance**2  * weight
-              meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  + ensStdDev(iref,jref,k2)**2 * ensStdDev(iref,jref,k)**2 * weight
-              meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment   * weight
+              meanCorrel_local(bin,k)           = meanCorrel_local(bin,k)           + &
+                                                  correlation    * weight
+              meanCorrelSquare_local(bin,k)     = meanCorrelSquare_local(bin,k)     + &
+                                                  correlation**2 * weight
+              meanCovarianceSquare_local(bin,k) = meanCovarianceSquare_local(bin,k) + &
+                                                  covariance**2  * weight
+              meanVarianceProduct_local(bin,k)  = meanVarianceProduct_local(bin,k)  + &
+                                                  ensStdDev(iref,jref,k2)**2 * ensStdDev(iref,jref,k)**2 * weight
+              meanFourthMoment_local(bin,k)     = meanFourthMoment_local(bin,k)     + &
+                                                  fourthMoment   * weight
             end do
           end do
           !$OMP END PARALLEL DO
         end do ! var3D
 
       end do ! iref
-    end do    ! jref
+    end do ! jref
 
     deallocate(ensPert_local)
 
+    !- 2.2 Gather the all the info in processor 0
+    nSize = nkgdimEns * numbins
+    call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCorrelSquare_local    ,meanCorrelSquare    ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanVarianceProduct_local ,meanVarianceProduct ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanFourthMoment_local    ,meanFourthMoment    ,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call rpn_comm_reduce(meanCovarianceSquare_local,meanCovarianceSquare,nSize, &
+         "mpi_double_precision","mpi_sum",0,"GRID",ier)
 
-    !- 2.2  Computation of the localization functions
-    t1=dble((nens-1)**2)/dble(nens*(nens-3))
-    t2=dble(nens)/dble((nens-2)*(nens-3))
-    t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
+    deallocate(sumWeight_local)
+    deallocate(meanCorrel_local)
+    deallocate(meanCorrelSquare_local)
+    deallocate(meanVarianceProduct_local)
+    deallocate(meanFourthMoment_local)
+    deallocate(meanCovarianceSquare_local)
 
-    do jvar = 1, nvar3d
-      if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-      else
-        nLevEns = nLevEns_T
-      endif
-      nLevStart = varLevOffset(jvar)+ 1
-      nLevEnd   = varLevOffset(jvar)+ nLevEns
-      !$OMP PARALLEL DO PRIVATE (k,bin)       
-      do k = nLevStart, nLevEnd
-        do bin = 1, nLevEns
-          meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
-          meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
-          meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
-          meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
-          meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+    if (mpi_myid == 0) then
+      !- 2.3  Computation of the localization functions
+      allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+      
+      t1=dble((nens-1)**2)/dble(nens*(nens-3))
+      t2=dble(nens)/dble((nens-2)*(nens-3))
+      t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
 
-          if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
-            ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
-            localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
-                 t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
-            ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
-            localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
-                 (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
-          else
-            write(6,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
-            localizationFunctions(1,bin,k) = 0.d0
-            localizationFunctions(2,bin,k) = 0.d0
-          end if
-          ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
-          if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
-            localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
-                 (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
-          else
-            write(6,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
-            localizationFunctions(3,bin,k) = 0.d0
-          end if
+      do jvar = 1, nvar3d
+        if (vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+        else
+          nLevEns = nLevEns_T
+        endif
+        nLevStart = varLevOffset(jvar)+ 1
+        nLevEnd   = varLevOffset(jvar)+ nLevEns
+        !$OMP PARALLEL DO PRIVATE (k,bin)       
+        do k = nLevStart, nLevEnd
+          do bin = 1, nLevEns
+            meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
+            meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
+            meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
+            meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
+            meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+
+            if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+              ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
+              localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
+                   t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
+              ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
+              localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                   (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
+            else
+              write(*,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
+              localizationFunctions(1,bin,k) = 0.d0
+              localizationFunctions(2,bin,k) = 0.d0
+            end if
+            ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
+            if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+              localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                   (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
+            else
+              write(*,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
+              localizationFunctions(3,bin,k) = 0.d0
+            end if
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+      !
+      !- 3.  Estimation of localization radii (curve fitting)
+      !
+      allocate(localizationRadii(numFunctions,nkgdimEns))
+      allocate(distanceBinWeight(numBins))
+      
+      call lfn_setup('FifthOrder') ! IN
+      
+      localizationRadii(:,:) = 2.d0 ! First Guess (in ln(p) distance)
+      distanceBinWeight(:)   = 1.d0 ! Even weight
+
+      do jvar = 1, nvar3d
+        if (vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+          distanceBinInLnP => distanceBinInLnP_M
+        else
+          nLevEns = nLevEns_T
+          distanceBinInLnP => distanceBinInLnP_T
+        endif
+        nLevStart = varLevOffset(jvar)+ 1
+        nLevEnd   = varLevOffset(jvar)+ nLevEns
+        
+        write(*,*)
+        write(*,*) nomvar3d(jvar)
+        
+        do f = 1, numFunctions
+          
+          write(*,*)
+          write(*,*) 'Localization Function : ', f
+          do k =  nLevStart, nLevEnd
+            kens = k-nLevStart+1
+            write(*,*) '         ----- EnsLev : ', k
+            call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
+                                  rmse,                         & ! OUT
+                                  localizationFunctions(f,1:nLevEns,k), & ! IN
+                                  distanceBinInLnP(kens,:),     & ! IN
+                                  distanceBinWeight(1:nLevEns), & ! IN
+                                  nLevEns )                       ! IN
+          end do
         end do
       end do
-      !$OMP END PARALLEL DO
-    end do
 
-    !
-    !- 3.  Estimation of localization radii (curve fitting)
-    !
-    allocate(localizationRadii(numFunctions,nkgdimEns))
-    allocate(distanceBinWeight(numBins))
-
-    call lfn_setup('FifthOrder') ! IN
-
-    localizationRadii(:,:) = 2.d0 ! First Guess (in ln(p) distance)
-    distanceBinWeight(:)   = 1.d0 ! Even weight
-
-    do jvar = 1, nvar3d
-      if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-        distanceBinInLnP => distanceBinInLnP_M
-      else
-        nLevEns = nLevEns_T
-        distanceBinInLnP => distanceBinInLnP_T
-      endif
-      nLevStart = varLevOffset(jvar)+ 1
-      nLevEnd   = varLevOffset(jvar)+ nLevEns
-
-      write(6,*)
-      write(6,*) nomvar3d(jvar,variableType)
-
-      do f = 1, numFunctions
-
-        write(6,*)
-        write(6,*) 'Localization Function : ', f
-        do k =  nLevStart, nLevEnd
-          kens = k-nLevStart+1
-          write(6,*) '         ----- EnsLev : ', k
-          call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
-               rmse,                         & ! OUT
-               localizationFunctions(f,1:nLevEns,k), & ! IN
-               distanceBinInLnP(kens,:),        & ! IN
-               distanceBinWeight(1:nLevEns), & ! IN
-               nLevEns )                       ! IN
+      !
+      !- 4.  Write to file
+      !
+      if ( nWaveBand /= 1 ) then
+        if (.not. present(waveBandIndex_opt)) then
+          write(*,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
+          call utl_abort('calbmatrix_glb')
+        end if
+        write(wbnum,'(I2.2)') waveBandIndex_opt
+      end if
+      
+      !- 4.1 Localization functions in txt format (for plotting purposes)
+      do jvar = 1, nvar3d
+        if ( nWaveBand == 1 ) then
+          outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar))//".txt"
+        else
+          outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        
+        if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+          distanceBinInLnP => distanceBinInLnP_M 
+        else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+          distanceBinInLnP => distanceBinInLnP_T
+        endif
+        
+        do k=1,nlevEns
+          do bin = 1, nlevEns
+            write(99,'(I3,2X,I3,2X,F6.1,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
+                 PressureProfile(bin)/100.d0, distanceBinInLnP(k,bin), nint(sumWeight(bin,varLevOffset(jvar)+k)), &
+                 meanCorrel(bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(3,bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(2,bin,varLevOffset(jvar)+k), &
+                 localizationFunctions(1,bin,varLevOffset(jvar)+k), &
+                 meanCorrelSquare(bin,varLevOffset(jvar)+k), &
+                 meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
+                 meanVarianceProduct(bin,varLevOffset(jvar)+k), &
+                 meanFourthMoment(bin,varLevOffset(jvar)+k)
+          end do
         end do
+        close(unit=99)
       end do
-    end do
-
-    !
-    !- 4.  Write to file
-    !
-    if ( nWaveBand /= 1 ) then
-      if (.not. present(waveBandIndex_opt)) then
-        write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-        call utl_abort('calbmatrix_glb')
-      end if
-      write(wbnum,'(I2.2)') waveBandIndex_opt
-    end if
-
-    !- 4.1 Localization functions in txt format (for plotting purposes)
-    do jvar = 1, nvar3d
-      if ( nWaveBand == 1 ) then
-        outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//".txt"
-      else
-        outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
-      end if
-      open (unit=99,file=outfilename,action="write",status="new")
-
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-        PressureProfile => pressureProfile_M
-        distanceBinInLnP => distanceBinInLnP_M 
-      else
-        nLevEns = nLevEns_T
-        PressureProfile => pressureProfile_T
-        distanceBinInLnP => distanceBinInLnP_T
-      endif
-
-      do k=1,nlevEns
-        do bin = 1, nlevEns
-          write(99,'(I3,2X,I3,2X,F6.1,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
-               PressureProfile(bin)/100.d0, distanceBinInLnP(k,bin), nint(sumWeight(bin,varLevOffset(jvar)+k)), &
-               meanCorrel(bin,varLevOffset(jvar)+k), &
-               localizationFunctions(3,bin,varLevOffset(jvar)+k), &
-               localizationFunctions(2,bin,varLevOffset(jvar)+k), &
-               localizationFunctions(1,bin,varLevOffset(jvar)+k), &
-               meanCorrelSquare(bin,varLevOffset(jvar)+k), &
-               meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
-               meanVarianceProduct(bin,varLevOffset(jvar)+k), &
-               meanFourthMoment(bin,varLevOffset(jvar)+k)
+      
+      !- 4.2 Localization radii in txt format (for plotting purposes)
+      do jvar = 1, nvar3d
+        if ( nWaveBand == 1 ) then
+          outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar))//".txt"
+        else
+          outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
+        end if
+        open (unit=99,file=outfilename,action="write",status="new")
+        
+        if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+        else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+        endif
+        do k=1,nlevEns
+          write(99,'(I3,2X,F6.1,2X,F7.2,2X,F7.2,2X,F7.2)') k, PressureProfile(k)/100.d0, &
+               localizationRadii(3,varLevOffset(jvar)+k), &
+               localizationRadii(2,varLevOffset(jvar)+k), &
+               localizationRadii(1,varLevOffset(jvar)+k)
         end do
+        close(unit=99)
       end do
-      close(unit=99)
-    end do
 
-    !- 4.2 Localization radii in txt format (for plotting purposes)
-    do jvar = 1, nvar3d
-      if ( nWaveBand == 1 ) then
-        outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//".txt"
-      else
-        outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
-      end if
-      open (unit=99,file=outfilename,action="write",status="new")
+      deallocate(localizationFunctions)
+      deallocate(localizationRadii)
+      deallocate(distanceBinWeight)
 
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
-        nLevEns = nLevEns_M
-        PressureProfile => pressureProfile_M
-      else
-        nLevEns = nLevEns_T
-        PressureProfile => pressureProfile_T
-      endif
-      do k=1,nlevEns
-        write(99,'(I3,2X,F6.1,2X,F7.2,2X,F7.2,2X,F7.2)') k, PressureProfile(k)/100.d0, &
-             localizationRadii(3,varLevOffset(jvar)+k), &
-             localizationRadii(2,varLevOffset(jvar)+k), &
-             localizationRadii(1,varLevOffset(jvar)+k)
-      end do
-      close(unit=99)
-    end do
+    end if ! mpi_myid == 0
 
     deallocate(meanCorrelSquare)
     deallocate(meanCorrel)
@@ -919,13 +1083,9 @@ contains
     deallocate(distanceBinInLnP_M)
     deallocate(distanceBinInLnP_T)
     deallocate(sumWeight)
-    deallocate(localizationFunctions)
-    deallocate(localizationRadii)
-    deallocate(distanceBinWeight)
     deallocate(gridPointWeight)
 
-    write(6,*) 'finished estimating the vertical localization radii...'
-    call flush(6)
+    write(*,*) 'finished estimating the vertical localization radii...'
 
   end subroutine calcVertLocalizationRadii
 
