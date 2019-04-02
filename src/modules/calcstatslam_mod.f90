@@ -78,12 +78,13 @@ module calcstatslam_mod
 
   logical :: initialized = .false.
   logical :: NormByStdDev, SetTGtoZero, writeEnsPert
-  logical :: vertLoc, horizLoc, correlationLQ
+  logical :: vertLoc, horizLoc
   logical :: ensContainsFullField
 
   character(len=12) :: WindTransform
   character(len=12) :: SpectralWeights
   character(len=2)  :: ctrlVarHumidity
+  character(len=4)  :: correlatedVariables(vnl_numvarmax)
 
   type(struct_ens)  :: ensPerts
 
@@ -97,7 +98,7 @@ contains
   !--------------------------------------------------------------------------
   ! csl_setup
   !--------------------------------------------------------------------------
-  subroutine csl_setup(nEns_in, ensFileName, hco_ens_in, vco_ens_in, ip2_in)
+  subroutine csl_setup(nEns_in, hco_ens_in, vco_ens_in, ip2_in)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
@@ -105,7 +106,6 @@ contains
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
     integer,                   intent(in)   :: ip2_in
-    character(len=*), intent(in)   :: ensFileName
 
     integer :: nulnam, ier, status
     integer :: fclos, fnom, fstouv, fstfrm
@@ -126,7 +126,7 @@ contains
                                SetTGtoZero,writeEnsPert,SpectralWeights,              &
                                vLocalize_wind,vlocalize_mass,vlocalize_humidity,      &
                                hLocalize_wind,hlocalize_mass,hlocalize_humidity,      &
-                               correlationLQ
+                               correlatedVariables
 
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
@@ -160,7 +160,7 @@ contains
     NormByStdDev  = .true.   ! Default value
     SetTGtoZero   = .false.  ! Default value
     writeEnsPert  = .false.  ! Default value
-    correlationLQ = .false.  ! Default value
+    correlatedVariables = '    '
     SpectralWeights = 'lst'  ! Default value
     vLocalize_wind      = -1.0d0 ! Default value (no vloc)
     vLocalize_mass      = -1.0d0 ! Default value (no vloc)
@@ -331,7 +331,7 @@ contains
 
     if (writeEnsPert) then
       call ens_writeEnsemble(ensPerts, './', 'CTRLVAR', ctrlVarHumidity, 'CTRLVAR', 'E', &
-           containsFullField_opt = ensContainsFullField)
+                             containsFullField_opt = ensContainsFullField)
     end if
 
     !
@@ -1149,34 +1149,12 @@ contains
     do var2 = 1, bhi%nControlVariable
       do var1 = 1, var2
         if (var1 == var2) then
-          KeepOrDiscard(var1,var2) = 1.d0 ! Keep Auto-Correlations
-        elseif( (bhi%controlVariable(var2)%nomvar(cv_bhi) == bhi%momentumControlVar(2) .and. & ! e.g. PP-CC
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(1)) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-(PP, QR or UU)
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(1)) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'LQ'                  .and. & ! LQ-(PP, QR or UU)
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(1) .and. &
-             correlationLQ ) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-(PP, QR or UU)
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(1)) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-TT
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == 'TT')                  .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-LQ
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == 'LQ'                  .and. &
-             correlationLQ ) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'LQ'                  .and. & ! LQ-TT
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == 'TT'                  .and. &
-             correlationLQ ) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-(CC, DD or VV)
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(2)) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'LQ'                  .and. & ! LQ-VV
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(2) .and. &
-             correlationLQ ) .or. &
-             (bhi%controlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-(CC, DD or VV)
-             bhi%controlVariable(var1)%nomvar(cv_bhi) == bhi%momentumControlVar(2)) ) then
+          KeepOrDiscard(var1,var2) = 1.d0 ! Keep the Auto-Correlations
+        elseif( any(correlatedVariables == bhi%controlVariable(var1)%nomvar(cv_bhi)) .and. &
+                any(correlatedVariables == bhi%controlVariable(var2)%nomvar(cv_bhi)) ) then
           KeepOrDiscard(var1,var2) = 1.d0 ! Keep these Cross-Correlations
         else
-          KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlation
+          KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlations
         end if
         write(*,*) var1, var2, bhi%controlVariable(var1)%nomvar(cv_bhi), bhi%controlVariable(var2)%nomvar(cv_bhi), KeepOrDiscard(var1,var2) 
       end do

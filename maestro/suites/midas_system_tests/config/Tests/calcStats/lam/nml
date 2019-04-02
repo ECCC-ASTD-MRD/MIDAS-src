@@ -19,7 +19,11 @@
    GRD_EXT_Y = 184
    NORMBYSTDDEV  = .TRUE.
    WRITEENSPERT  = .FALSE.
-   CORRELATIONLQ = .TRUE.
+   correlatedVariables(1) = 'PP'
+   correlatedVariables(2) = 'CC'
+   correlatedVariables(3) = 'TT'
+   correlatedVariables(4) = 'LQ'
+   correlatedVariables(5) = 'P0'
 /
  &NAMTIME
   DSTEPOBSINC = 6.0d0
