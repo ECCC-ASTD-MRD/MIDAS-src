@@ -107,7 +107,7 @@ module gridStateVector_mod
   real(8) :: rhumin, gsv_rhumin
 
   ! Logical to turn on unit conversion for variables of CH kind when unitConversion=.true.
-  logical :: unitConversion_varKindCH, gsv_unitConversion_varKindCH 
+  logical :: unitConversion_varKindCH
   
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:,:)
@@ -310,7 +310,6 @@ module gridStateVector_mod
     ierr=fclos(nulnam)
 
     gsv_rhumin = rhumin
-    gsv_unitConversion_varKindCH = unitConversion_varKindCH
 
     if (varneed('GZ')) call utl_abort('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
 
@@ -2769,9 +2768,9 @@ module gridStateVector_mod
           multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
         else if ( trim(varName) == 'P0' ) then
           multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
-        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. gsv_unitConversion_varKindCH ) then 
+        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. unitConversion_varKindCH ) then 
           if ( trim(varName) == 'TO3' ) then
-            multFactor = 1.E9*48.0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+            multFactor = 1.0d9*48.0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
           else
             multFactor = 1.0d0 ! no conversion
           end if
@@ -4467,11 +4466,11 @@ module gridStateVector_mod
                 factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
               else if ( trim(nomvar) == 'P0' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
-              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. gsv_unitConversion_varKindCH ) then 
+              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. unitConversion_varKindCH ) then 
                 if ( trim(nomvar) == 'TO3' ) then
-                  factor_r4 = 1.0d-9*MPC_MOLAR_MASS_DRY_AIR_R4/48.0 ! micrograms/kg -> vmr
+                  factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4/48.0 ! micrograms/kg -> vmr
                 else
-                  factor_r4 = 1.0d0 ! no conversion
+                  factor_r4 = 1.0 ! no conversion
                 end if
               else
                 factor_r4 = 1.0
