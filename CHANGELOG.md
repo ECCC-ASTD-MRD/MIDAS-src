@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change '!' to '!!' in those places that bothered Sphinx.
 
 ### Added
-	
+
+ * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
    depot (#187 and !186).  See the [README](README.md) for more information.
@@ -31,7 +32,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
  * New functionality: now able to read various types of sea ice data (family =*GL*) (#127 and !131)
- * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
 	
 ### Changed
 
@@ -69,8 +69,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * The positional records will now have the same etiket at the fields they represent (#190 and !178)
  * Initialize 4 variables in routine write_info in the module burpread_mod (#172 and !182)
+ * The positional records will now have the same etiket at the fields they represent (#190 and !178)
 
 ## [3.3.1]:
 
