@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Adding support for CrIS FSR radiances (#205 and !193)
+   * It needs a modified version of RTTOV-12.
+   * New input files were added to work around the file size limit of
+     BURP:
+     * `brpcrisfsr`, `brpcrisfsr1`, `brpcrisfsr2`
+     * `obscrisfsr`, `obscrisfsr1`, `obscrisfsr2`
 
 ### Changed
 

@@ -52,7 +52,7 @@ module multi_ir_bgck_mod
   integer ,parameter :: nChanAVHRR = NIR + NVIS
   integer ,parameter :: NMAXINST = 10
 
-  character(len=6) :: INST(NMAXINST)
+  character(len=7) :: INST(NMAXINST)
   integer :: NINST
   ! Reference (and alternate) window channel for clear / cloudy profile detection
   ! (subroutine cloud_height)
