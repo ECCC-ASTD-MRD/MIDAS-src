@@ -118,9 +118,9 @@ module multi_ir_bgck_mod
                                                             9.0,10.0,10.0, &
                                                             18.0,16.0,10.0 /),(/3,3/) )
   
-  real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
-                                                                5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
-                                                                4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
+  real(8) :: seuilbt_homog(NVIS+1:nChanAVHRR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
+                                                                  5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
+                                                                  4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
 
   namelist /NAMBGCKIR/ NINST, INST, IWINDOW, IWINDOW_ALT, ILIST1, ILIST2, ILIST2_PAIR, ICHN_SUN
   namelist /NAMBGCKIR/ DTW, DTL, PCO2MIN, PCO2MAX, NIGHT_ANG
@@ -973,28 +973,28 @@ contains
   end subroutine BGCK_GET_QCID
 
   subroutine irbg_doQualityControl ( lcolumnhr, lobsSpaceData,CINST,id_opt)
-!
-!**ID irbg_doQualityControl -- QUALITY CONTROL OF HYPERSPECTRAL INFRARED OBSERVATIONS
-!
-!       SCIENCE:  L. GARAND
-!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
-!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
-!                 S. HEILLIETTE           February 2008 (adaptation to IASI)
-!                 S. MACPHERSON, S.HEILLIETTE (ARMA) February 2013 
-!                   -- modify test pour detecter le isatzen manquant ou anormal
-!
-!       REVISION:
-!
-!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS 
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -LOOP_DONE : NUMBER OF PREVIOUS CALLS TO irbg_doQualityControl
-!
-!          OUTPUT:
-!            -LEND       : AT THE END OF THIS CALL TO irbg_doQualityControl, DO ALL 
-!                               PROFILES BEEN TREATED (true) OR NOT (false)
-!
+!!
+!!**ID irbg_doQualityControl -- QUALITY CONTROL OF HYPERSPECTRAL INFRARED OBSERVATIONS
+!!
+!!       SCIENCE:  L. GARAND
+!!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
+!!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
+!!                 S. HEILLIETTE           February 2008 (adaptation to IASI)
+!!                 S. MACPHERSON, S.HEILLIETTE (ARMA) February 2013 
+!!                   -- modify test pour detecter le isatzen manquant ou anormal
+!!
+!!       REVISION:
+!!
+!!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS 
+!!
+!!       ARGUMENTS:
+!!          INPUT:
+!!            -LOOP_DONE : NUMBER OF PREVIOUS CALLS TO irbg_doQualityControl
+!!
+!!          OUTPUT:
+!!            -LEND       : AT THE END OF THIS CALL TO irbg_doQualityControl, DO ALL 
+!!                               PROFILES BEEN TREATED (true) OR NOT (false)
+!!
     implicit none
     integer,intent(in),optional :: id_opt
     type(struct_columnData),intent(in) :: lcolumnhr
@@ -2068,43 +2068,43 @@ contains
   subroutine CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
        rcal,rcld,robs,ps,plev,nlev,nchn,cldflag,rejflag, &
        lev_start,ichref,ilist,ilist_pair)
-!
-!**ID CO2_SLICING -- CLOUD TOP HEIGHT COMPUTATION
-!
-!       AUTHOR:   L. GARAND               July 2004
-!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION: 001 O. Pancrati various improvements
-!
-!       OBJECT:   CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -RCLD(NCHN,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
-!            -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (")
-!            -PS             : SURFACE PRESSURE (HPA)
-!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
-!            -NLEV                 : NUMBER OF VERTICAL LEVELS
-!            -NCHN                 : NUMBER OF CHANNELS
-!            -CLDFLAG        : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
-!            -REJFLAG(NCHN,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
-!            -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
-!            -ICHREF         : WINDOW CHANNEL TO PREDETERMINE CLEAR
-!            -NCO2                 : NUMBER OF CHANNELS TO GET ESTIMATES IN
-!                                     COMBINATION WITH ICHREF_CO2 (NOT INCLUDED)
-!            -ILIST(NCO2)          : LIST OF THE CHANNEL NUMBERS, ICHREF_CO2 NOT INCLUDED
-!                                     (SUBSET VALUES)
-!
-!          INPUT/OUTPUT:
-!            -LEV_START      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!
-!          OUTPUT:
-!            -PTOP(NCO2)      : CLOUD TOP (HPA)
-!            -FCLOUD(NCO2)    : CLOUD FRACTION
-!            -NTOP(NCO2)      : NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
-!                                     (PTOP <= PS)
-!
+!!
+!!*ID CO2_SLICING -- CLOUD TOP HEIGHT COMPUTATION
+!!
+!!      AUTHOR:   L. GARAND               July 2004
+!!                A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
+!!
+!!      REVISION: 001 O. Pancrati various improvements
+!!
+!!      OBJECT:   CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
+!!
+!!      ARGUMENTS:
+!!         INPUT:
+!!           -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!!           -RCLD(NCHN,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+!!           -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (")
+!!           -PS             : SURFACE PRESSURE (HPA)
+!!           -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
+!!           -NLEV                 : NUMBER OF VERTICAL LEVELS
+!!           -NCHN                 : NUMBER OF CHANNELS
+!!           -CLDFLAG        : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
+!!           -REJFLAG(NCHN,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
+!!           -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
+!!           -ICHREF         : WINDOW CHANNEL TO PREDETERMINE CLEAR
+!!           -NCO2                 : NUMBER OF CHANNELS TO GET ESTIMATES IN
+!!                                    COMBINATION WITH ICHREF_CO2 (NOT INCLUDED)
+!!           -ILIST(NCO2)          : LIST OF THE CHANNEL NUMBERS, ICHREF_CO2 NOT INCLUDED
+!!                                    (SUBSET VALUES)
+!!
+!!         INPUT/OUTPUT:
+!!           -LEV_START      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!!
+!!         OUTPUT:
+!!           -PTOP(NCO2)      : CLOUD TOP (HPA)
+!!           -FCLOUD(NCO2)    : CLOUD FRACTION
+!!           -NTOP(NCO2)      : NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
+!!                                    (PTOP <= PS)
+!!
     implicit none
     integer ,intent (in) :: NLEV,NCHN
     real(8) ,intent (in) :: RCAL(NCHN),RCLD(NCHN,NLEV),ROBS(NCHN)
@@ -2567,43 +2567,43 @@ contains
   subroutine CLOUD_HEIGHT (PTOP,NTOP, &
        btobs,cldflag,tt,gz,ps,plev,nlev, &
        nchn,ichref,lev_start,iopt)
-!
-!**ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
-!
-!       SCIENCE:  L. GARAND
-!       AUTHOR:   A. BEAULNE (CMDA/SMC)   August 2004
-!                 A. BEAULNE (CMDA/SMC) February 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
-!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
-!          REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
-!          TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
-!            -CLDFLAG    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!            -TT(NLEV)    : TEMPERATURE PROFILES (DEG K)
-!            -GZ(NLEV)    : HEIGHT PROFILES ABOVE GROUND (M)
-!            -PS(NPRF)         : SURFACE PRESSURE (HPA)
-!            -PLEV(NLEV)  : PRESSURE LEVELS (HPA)
-!            -NLEV             : NUMBER OF VERTICAL LEVELS
-!            -NCHN             : NUMBER OF CHANNELS
-!            -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
-!            -IOPT             : LEVELS USING PLEV (1) OR GZ (2)
-!
-!
-!          INPUT/OUTPUT:
-!            -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!
-!          OUTPUT:
-!            -PTOP    : CHOSEN EQUIVALENT CLOUD TOPS 
-!                             (IN HPA|M WITH IOPT = 1|2) 
-!            -NTOP    : NUMBER OF POSSIBLE PTOP SOLUTIONS
-!
-!
+!!
+!!*ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
+!!
+!!      SCIENCE:  L. GARAND
+!!      AUTHOR:   A. BEAULNE (CMDA/SMC)   August 2004
+!!                A. BEAULNE (CMDA/SMC) February 2006  (ADAPT TO 3DVAR)                 
+!!
+!!      REVISION:
+!!
+!!      OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!!         BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
+!!         REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
+!!         TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
+!!
+!!      ARGUMENTS:
+!!         INPUT:
+!!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
+!!           -CLDFLAG    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!!           -TT(NLEV)    : TEMPERATURE PROFILES (DEG K)
+!!           -GZ(NLEV)    : HEIGHT PROFILES ABOVE GROUND (M)
+!!           -PS(NPRF)         : SURFACE PRESSURE (HPA)
+!!           -PLEV(NLEV)  : PRESSURE LEVELS (HPA)
+!!           -NLEV             : NUMBER OF VERTICAL LEVELS
+!!           -NCHN             : NUMBER OF CHANNELS
+!!           -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
+!!           -IOPT             : LEVELS USING PLEV (1) OR GZ (2)
+!!
+!!
+!!         INPUT/OUTPUT:
+!!           -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!!
+!!         OUTPUT:
+!!           -PTOP    : CHOSEN EQUIVALENT CLOUD TOPS 
+!!                            (IN HPA|M WITH IOPT = 1|2) 
+!!           -NTOP    : NUMBER OF POSSIBLE PTOP SOLUTIONS
+!!
+!!
     implicit none
     integer ,intent (in) :: NCHN,NLEV,IOPT,ICHREF,CLDFLAG
     real(8) ,intent (in) :: BTOBS(NCHN),TT(NLEV),GZ(NLEV),PS,PLEV(NLEV)
@@ -2651,34 +2651,34 @@ contains
  
   subroutine GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
        nchn,ptop_eq,ntop_eq,ichref)
-!
-!**ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
-!
-!       SCIENCE:  L. GARAND AND S. NADON
-!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
-!          THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
-!          WITH CHANNEL IREF
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
-!            -TG         : GUESS SKIN TEMPERATURES (DEG K)
-!            -TT(NLEV)    : GUESS TEMPERATURE PROFILES (DEG K)
-!            -GZ(NLEV)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
-!            -NLEV             : NUMBER OF VERTICAL LEVELS
-!            -NCHN             : NUMBER OF CHANNELS
-!            -PTOP_EQ    : CHOSEN EQUIVALENT CLOUD TOPS (M)
-!            -NTOP_EQ    : NUMBER OF POSSIBLE PTOP_EQ SOLUTIONS
-!            -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
-!
-!          INPUT/OUTPUT:
-!            -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!
+!!
+!!*ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
+!!
+!!      SCIENCE:  L. GARAND AND S. NADON
+!!      AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
+!!                A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!!
+!!      REVISION:
+!!
+!!      OBJECT:   DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
+!!         THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
+!!         WITH CHANNEL IREF
+!!
+!!      ARGUMENTS:
+!!         INPUT:
+!!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!!           -TG         : GUESS SKIN TEMPERATURES (DEG K)
+!!           -TT(NLEV)    : GUESS TEMPERATURE PROFILES (DEG K)
+!!           -GZ(NLEV)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
+!!           -NLEV             : NUMBER OF VERTICAL LEVELS
+!!           -NCHN             : NUMBER OF CHANNELS
+!!           -PTOP_EQ    : CHOSEN EQUIVALENT CLOUD TOPS (M)
+!!           -NTOP_EQ    : NUMBER OF POSSIBLE PTOP_EQ SOLUTIONS
+!!           -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
+!!
+!!         INPUT/OUTPUT:
+!!           -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!!
     implicit none
     integer ,intent (in) :: NLEV,NCHN
     real(8) ,intent (in) :: BTOBS(NCHN),TG,GZ(NLEV),TT(NLEV),PTOP_EQ

@@ -42,27 +42,27 @@ module varqc_mod
   contains
 
   subroutine vqc_setup(obsSpaceData)
-    !
-    !s/r vqc_setup - SET CERTAIN PARAMETERS FOR THE ASYMMETRIC
-    !                CHECK AND FOR VARIATIONAL QUALITY CONTROL
-    !
-    !Author  : B. BRASNETT CMDA   JUNE 1999
-    !Revision:
-    !          S. Pellerin ARMA/SMC Nov. 2002
-    !             . Elemination of nincrem variable
-    !          R. Sarrazin/B. Brasnett CMC March 2004
-    !             . tighten rejection on satwinds
-    !          J. Hale CMC Sept. 2005
-    !             . added MHS (codtyp=182).
-    !          S. Macpherson ARMA/CMC Sept. 2007
-    !             . add parameters for GB-GPS ZTD
-    !          S. Macpherson ARMA/CMC March 2013
-    !             . modified GPS ZTD parameters to increase QC-Var rejections
-    !          Y.J. Rochon ARQI/AQRD, Feb 2015
-    !             . Added ZACH and ZDCH for chemical constituents
-    !             . Added call to bufr_IsAtmosConstituent(ITYP)
-    !               with addition of 'use varNamelist_mod'
-    !
+    !!
+    !!s/r vqc_setup - SET CERTAIN PARAMETERS FOR THE ASYMMETRIC
+    !!                CHECK AND FOR VARIATIONAL QUALITY CONTROL
+    !!
+    !!Author  : B. BRASNETT CMDA   JUNE 1999
+    !!Revision:
+    !!          S. Pellerin ARMA/SMC Nov. 2002
+    !!             . Elemination of nincrem variable
+    !!          R. Sarrazin/B. Brasnett CMC March 2004
+    !!             . tighten rejection on satwinds
+    !!          J. Hale CMC Sept. 2005
+    !!             . added MHS (codtyp=182).
+    !!          S. Macpherson ARMA/CMC Sept. 2007
+    !!             . add parameters for GB-GPS ZTD
+    !!          S. Macpherson ARMA/CMC March 2013
+    !!             . modified GPS ZTD parameters to increase QC-Var rejections
+    !!          Y.J. Rochon ARQI/AQRD, Feb 2015
+    !!             . Added ZACH and ZDCH for chemical constituents
+    !!             . Added call to bufr_IsAtmosConstituent(ITYP)
+    !!               with addition of 'use varNamelist_mod'
+    !!
     implicit none
     type(struct_obs) :: obsSpaceData
 
@@ -457,26 +457,26 @@ module varqc_mod
 
 
   subroutine vqc_listrej(lobsSpaceData)
-    !
-    !PURPOSE: LIST ALL OBSERVATIONS REJECTED BY THE VARIATIONAL QC
-    !         SET QC FLAGS CONSISTENT WITH VARQC DECISIONS
-    !         SET GLOBAL FLAG INDICATING REPORT CONTAINS REJECTED OBSERVATION
-    !           AS REQUIRED
-    !
-    !
-    !AUTHOR: B. BRASNETT (CMDA/MSC) MARCH 2000
-    !
-    !*REVISION: Y.J. Rochon ARQI Jan 2015
-    !          - Additions of CH families with CODTYP=195 (remote sounding)
-    !            and 196 (in-situ). 
-    !          - Changed meters to hectometers (hm) for CH output
-    !          - Output ZVAR, ZFCST and ZANA as percent difference relative to 
-    !            ZFCST for CH constituents 
-    !          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
-    !            from I5 to I7.
-    !          Y. Rochon and M. Sitwell, June 2016
-    !          - Introduction of codtypname to prevent recursive write error and 
-    !            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
+    !!
+    !!PURPOSE: LIST ALL OBSERVATIONS REJECTED BY THE VARIATIONAL QC
+    !!         SET QC FLAGS CONSISTENT WITH VARQC DECISIONS
+    !!         SET GLOBAL FLAG INDICATING REPORT CONTAINS REJECTED OBSERVATION
+    !!           AS REQUIRED
+    !!
+    !!
+    !!AUTHOR: B. BRASNETT (CMDA/MSC) MARCH 2000
+    !!
+    !!*REVISION: Y.J. Rochon ARQI Jan 2015
+    !!          - Additions of CH families with CODTYP=195 (remote sounding)
+    !!            and 196 (in-situ). 
+    !!          - Changed meters to hectometers (hm) for CH output
+    !!          - Output ZVAR, ZFCST and ZANA as percent difference relative to 
+    !!            ZFCST for CH constituents 
+    !!          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
+    !!            from I5 to I7.
+    !!          Y. Rochon and M. Sitwell, June 2016
+    !!          - Introduction of codtypname to prevent recursive write error and 
+    !!            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
     implicit none
     type(struct_obs) :: lobsSpaceData
     integer, parameter :: numFamily = 13

@@ -22,19 +22,19 @@
 !!
 !--------------------------------------------------------------------------
 module obsSpaceDiag_mod
-!
-! Author: Mark Buehner, ARMA.
-!
-! Revisions: M. Sitwell, ARQI (July 2015)
-!            - Addition of lrandom logical (see osd_setup)
-!            Y. Rochon, ARQI (Oct 2015)
-!            - Addition of public procedure 'osd_ObsSpaceDiag'
-!            Y. Rochon and M. Sitwell (Feb 2017)
-!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
-!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
-!
-!
-!-------------------------------------------------------------------------------------------
+!!
+!! Author: Mark Buehner, ARMA.
+!!
+!! Revisions: M. Sitwell, ARQI (July 2015)
+!!            - Addition of lrandom logical (see osd_setup)
+!!            Y. Rochon, ARQI (Oct 2015)
+!!            - Addition of public procedure 'osd_ObsSpaceDiag'
+!!            Y. Rochon and M. Sitwell (Feb 2017)
+!!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
+!!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
+!!
+!!
+!!------------------------------------------------------------------------------------------
   use mpi_mod
   use mpivar_mod
   use bufr_mod
@@ -182,25 +182,25 @@ contains
 
 !-------------------------------------------------------------------------------------------
   subroutine osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt)
-!           
-! Purpose: Calls routines to perform observation-space diagnostic tasks
-!
-! Author:  Y. Rochon, ARQI (Oct 2015, followed by additions in June 2016)
-!
-! Revisions:
-!
-! Arguments
-!
-!   Input
-!
-!     obsSpaceData   Obs space data structure
-!     columng        Structure of vertical columns at obs locations.
-!                    Expected to be for analysis vertical levels if to be used.
-!     analysisMode   logical indicating if following analysis mode or not (optional)
-!                    Assumed .true. if not present.
-!   Output 
-!       
-!-------------------------------------------------------------------------------------------
+!!           
+!! Purpose: Calls routines to perform observation-space diagnostic tasks
+!!
+!! Author:  Y. Rochon, ARQI (Oct 2015, followed by additions in June 2016)
+!!
+!! Revisions:
+!!
+!! Arguments
+!!
+!!   Input
+!!
+!!     obsSpaceData   Obs space data structure
+!!     columng        Structure of vertical columns at obs locations.
+!!                    Expected to be for analysis vertical levels if to be used.
+!!     analysisMode   logical indicating if following analysis mode or not (optional)
+!!                    Assumed .true. if not present.
+!!   Output 
+!!       
+!!------------------------------------------------------------------------------------------
 
     implicit none
     type(struct_obs) :: obsSpaceData
@@ -262,7 +262,7 @@ contains
 !            Y. Rochon, ARQI (Oct 2015)
 !            - Some of the above indicated additions moved to routine osd_obspsace_diag.
 !       
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     implicit none
     type(struct_obs) :: obsSpaceData
@@ -649,7 +649,7 @@ contains
 !             - Account for vco=4,5 (total column and constituent surface measurements)
 !             - Adjusted latIndex and lonIndex settings
 !
-!------------------------------------------------------------------------------------
+!!-----------------------------------------------------------------------------------
     implicit none
     type(struct_obs) :: obsSpaceData
     integer :: bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
@@ -698,7 +698,7 @@ contains
 ! Revisions: M. Sitwell, ARQI (July 2015)
 !            - Added lrandom with initialization to .false.
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
  
     implicit none
     logical :: nmlExists
@@ -788,7 +788,7 @@ contains
 !          
 !          Content can be augmented as needed.
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
     ! arguments
@@ -830,7 +830,7 @@ contains
 !
 !   Output 
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     implicit none
 
@@ -908,7 +908,7 @@ contains
 
   end subroutine osd_obsPostProc
   
-!-------------------------------------------------------------------------------------------
+!------------------------------------------------------------------------------------------
 
   subroutine osd_obsDiagnostics(obsSpaceData,columng,obsfam,codtyplist,filename,save_diagn,date, &
                                 deltaLat,deltaLon,deltaPressure,pressmin,anlm_mode)
@@ -950,7 +950,7 @@ contains
 !     to osd_obsspace_diagn_add, it is recalculated in osd_obsspace_diagn_add since OBS_JOBS
 !     will be set to zero for diagnostic-only observations.
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1211,7 +1211,7 @@ contains
 !
 !   status_hpht      logical indicating if successfully retrieved sqrtHPHT from obs file
 !
-!-----------------------------------------------------------------------------------
+!!----------------------------------------------------------------------------------
 
     implicit none
 
@@ -1312,7 +1312,7 @@ contains
 !     deltaPressure  pressures bin size in Pa (approximate)
 !     pressmin       bottom of top layer for diagnostics (in Pa).
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1372,7 +1372,7 @@ contains
 !           M. Sitwell ARQI/AQRD Aug 2016
 !           - Cast as a separate subroutine
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1405,7 +1405,7 @@ contains
 !           M. Sitwell ARQI/AQRD Aug 2016
 !           - Cast as a separate subroutine
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1421,39 +1421,39 @@ contains
 
   subroutine osd_obsspace_diagn_add(obs_diagn,lat,lon,pressure,pressmin,OmP,obs,sigma_obs,nlev_obs, &
                                     unilevel,assim_obs,status,OmA_opt,sqrtHPHT_opt)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Adds an observation to the diagnostic arrays in obs_diagn.
-!
-! Revisions:
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!          
-! Arguments:
-!
-!   Input
-!
-!     lat            latitude in degrees
-!     lon            longitutde in degrees
-!     pressure       pressures of the profile (Pa)
-!     pressmin       bottom of top layer for diagnostics (in Pa).
-!     OmP            obs - background
-!     OmA            obs - analysis
-!     obs            observations
-!     Jo             cost function
-!     sigma_obs      observation error standard deviation
-!     sqrtHPHT       forecast error standard deviation in obs space
-!     assim_obs      indicates if the profile belongs to an assimilated data set
-!     status         indicates status of the observations, with values denoting:
-!                      0 - observation has been rejected and not included in diagnostics
-!                      1 - observation has been assimilated
-!                      2 - observation has been used for diagnostics only (not assimilated)
-!                    only observations with status=1,2 will be added to the statistic arrays
-!     nlev_obs       number of observations in the profile
-!     unilevel       if the observation does not have a defined height coordinate
-!
-!----------------------------------------------------------------------------------------
+!!
+!! Author:  M. Sitwell, ARQI/AQRD June 2015
+!!          
+!! Purpose: Adds an observation to the diagnostic arrays in obs_diagn.
+!!
+!! Revisions:
+!!           M. Sitwell ARQI/AQRD Aug 2016
+!!           - Cast as a separate subroutine
+!!          
+!! Arguments:
+!!
+!!   Input
+!!
+!!     lat            latitude in degrees
+!!     lon            longitutde in degrees
+!!     pressure       pressures of the profile (Pa)
+!!     pressmin       bottom of top layer for diagnostics (in Pa).
+!!     OmP            obs - background
+!!     OmA            obs - analysis
+!!     obs            observations
+!!     Jo             cost function
+!!     sigma_obs      observation error standard deviation
+!!     sqrtHPHT       forecast error standard deviation in obs space
+!!     assim_obs      indicates if the profile belongs to an assimilated data set
+!!     status         indicates status of the observations, with values denoting:
+!!                      0 - observation has been rejected and not included in diagnostics
+!!                      1 - observation has been assimilated
+!!                      2 - observation has been used for diagnostics only (not assimilated)
+!!                    only observations with status=1,2 will be added to the statistic arrays
+!!     nlev_obs       number of observations in the profile
+!!     unilevel       if the observation does not have a defined height coordinate
+!!
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1556,7 +1556,7 @@ contains
 !           M. Sitwell ARQI/AQRD Aug 2016
 !           - Cast as a separate subroutine
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -1619,34 +1619,34 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine osd_obsspace_diagn_print(obs_diagn,filename,save_diagn,print_type,pressmin,status_hpht,label_opt,openfile_opt)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
-!          printed statistics will be added to the total diagnostic arrays.
-!
-! Revisions: 
-!           Y. Rochon ARQI/AQRD July 2015
-!           - Further generalizations.
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!          
-! Arguments:
-!
-!   Input
-!
-!     filename       output file name
-!     save_diagn     Logical indicating gridded diagnostics are to be save
-!     print_type     Specifies which statistics to print, with possible values:
-!                      'stats'  - prints statistics for the the arrays within obs_diagn
-!                      'summary'- prints total statistics held in the saved variables
-!                                 within this subrouine
-!     pressmin       min pressure level for output
-!     label          label to print (only relevant if print_type = 'stats')
-!     openfile       logical indicating if file filename is to be opened.
-!     status_hpht    logical indicating if sqrtHPHT were available.
-!
-!----------------------------------------------------------------------------------------
+!!
+!! Author:  M. Sitwell, ARQI/AQRD June 2015
+!!          
+!! Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
+!!          printed statistics will be added to the total diagnostic arrays.
+!!
+!! Revisions: 
+!!           Y. Rochon ARQI/AQRD July 2015
+!!           - Further generalizations.
+!!           M. Sitwell ARQI/AQRD Aug 2016
+!!           - Cast as a separate subroutine
+!!          
+!! Arguments:
+!!
+!!   Input
+!!
+!!     filename       output file name
+!!     save_diagn     Logical indicating gridded diagnostics are to be save
+!!     print_type     Specifies which statistics to print, with possible values:
+!!                      'stats'  - prints statistics for the the arrays within obs_diagn
+!!                      'summary'- prints total statistics held in the saved variables
+!!                                 within this subrouine
+!!     pressmin       min pressure level for output
+!!     label          label to print (only relevant if print_type = 'stats')
+!!     openfile       logical indicating if file filename is to be opened.
+!!     status_hpht    logical indicating if sqrtHPHT were available.
+!!
+!!---------------------------------------------------------------------------------------
     
     implicit none
 
@@ -2079,7 +2079,7 @@ contains
       !            - Changed printing of HPHT stats as HPHT is currently not available
       !              in assimilation mode.
       ! 
-      !---------------------------------------------------------------------------------------
+      !!--------------------------------------------------------------------------------------
 
       implicit none
 

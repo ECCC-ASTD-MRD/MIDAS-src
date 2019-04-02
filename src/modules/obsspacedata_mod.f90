@@ -9,75 +9,76 @@
 !             HeaderIndex,etc.-necessarily a row index
 
 module IndexListDepot_mod
-   !
-   ! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects and utilities')
-   !
-   ! PURPOSE:
-   !    The raison d'etre of this module is to support ObsSpaceData_mod in
-   !    facilitating the traversal of a selection of the rows in its table.  The
-   !    selection of rows could be from either the header table or the body
-   !    table. ObsSpaceData_mod currently populates the list with one of:
-   !                 all header members of a given family
-   !                 all   body members of a given family
-   !                 all   body members of a given header row index
-   !
-   ! USAGE:
-   !    An ObsSpaceData_mod client must first call either
-   !    obs_set_current_body_list or obs_set_current_header_list, specifying
-   !    either the family of interest or the header row index of interest. 
-   !    This does not return the list directly to the caller, but rather writes
-   !    the list, as a struct_index_list, to the private contents of the obs
-   !    oject that is returned to the caller but which cannot be examined by the
-   !    caller.  Two lists can be active simultaneously:  one header list and one
-   !    body list.
-   !
-   !    In order to access the indices that are in the list, the ObsSpaceData_mod
-   !    client must call either obs_getHeaderIndex or obs_getBodyIndex, giving
-   !    the ObsSpaceData object as the only argument.  On each call, one index is
-   !    returned.  On calls after the last index in the list, a value of -1 is
-   !    returned.
-   !
-   !    This is not a fully fledged module.  It is better described as a
-   !    structure definition with a couple of helpful methods.  It is intended
-   !    that the client, ObsSpaceData_mod, read/write directly from/to instances
-   !    of these structures.
-   !
-   ! STRUCT_INDEX_LIST:
-   !    A struct_index_list contains the identity of the family or header that
-   !    was used to create the list, the actual list of indices, and the number
-   !    of the list element that was last returned to the user.
-   !
-   ! STRUCT_INDEX_LIST_DEPOT:
-   !    Because it is typical for a client to traverse a small group of lists
-   !    several times each, performance is improved by retaining recent lists,
-   !    thus avoiding having to regenerate them on each request.  Recent lists
-   !    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
-   !    struct_index_list_depot for header lists and another for body lists.
-   !    The struct_index_list_depot structure contains current_list, a pointer to
-   !    the list in the depot that was last requested by the ObsSpaceData_mod
-   !    client.
-   !
-   ! OMP:
-   !    ObsSpaceData_mod has been designed so that it may be called from within
-   !    an OMP section of code.  If there are n OMP threads, it is possible that
-   !    there be as many as n lists in use simultaneously.  The parameter, 
-   !    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
-   !    this case, because the current_list of the depot is not OMP-private, it
-   !    cannot be asked to remember the current list for each of the OMP threads.
-   !    Therefore, obs_set_current_header/body_list returns to the client an
-   !    additional pointer to the list itself.  This pointer must then be passed
-   !    as an optional parameter to obs_getHeader/BodyIndex.  When a new list is
-   !    requested by an OMP thread, the same physical memory is re-used for the
-   !    new list.
-   !
-   !    In order to ensure that the same physical memory is not initially
-   !    distributed to more than one OMP thread, the two small sections of
-   !    IndexListDepot_mod that accomplish this are marked omp-critical.
-   !
-   ! author  : J.W. Blezius - 2012
-   !
-   ! Revisions:
-   !
+   !!
+   !! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects
+   !!                            and utilities')
+   !!
+   !! PURPOSE:
+   !!    The raison d'etre of this module is to support ObsSpaceData_mod in
+   !!    facilitating the traversal of a selection of the rows in its table.  The
+   !!    selection of rows could be from either the header table or the body
+   !!    table. ObsSpaceData_mod currently populates the list with one of:
+   !!                 all header members of a given family
+   !!                 all   body members of a given family
+   !!                 all   body members of a given header row index
+   !!
+   !! USAGE:
+   !!    An ObsSpaceData_mod client must first call either
+   !!    obs_set_current_body_list or obs_set_current_header_list, specifying
+   !!    either the family of interest or the header row index of interest. 
+   !!    This does not return the list directly to the caller, but rather writes
+   !!    the list, as a struct_index_list, to the private contents of the obs
+   !!    oject that is returned to the caller but which cannot be examined by the
+   !!    caller.  Two lists can be active simultaneously:  one header list and
+   !!    one body list.
+   !!
+   !!    In order to access the indices that are in the list, the
+   !!    ObsSpaceData_mod client must call either obs_getHeaderIndex or
+   !!    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
+   !!    On each call, one index is returned.  On calls after the last index in
+   !!    the list, a value of -1 is returned.
+   !!
+   !!    This is not a fully fledged module.  It is better described as a
+   !!    structure definition with a couple of helpful methods.  It is intended
+   !!    that the client, ObsSpaceData_mod, read/write directly from/to instances
+   !!    of these structures.
+   !!
+   !! STRUCT_INDEX_LIST:
+   !!    A struct_index_list contains the identity of the family or header that
+   !!    was used to create the list, the actual list of indices, and the number
+   !!    of the list element that was last returned to the user.
+   !!
+   !! STRUCT_INDEX_LIST_DEPOT:
+   !!    Because it is typical for a client to traverse a small group of lists
+   !!    several times each, performance is improved by retaining recent lists,
+   !!    thus avoiding having to regenerate them on each request.  Recent lists
+   !!    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
+   !!    struct_index_list_depot for header lists and another for body lists.
+   !!    The struct_index_list_depot structure contains current_list, a pointer
+   !!    to the list in the depot that was last requested by the ObsSpaceData_mod
+   !!    client.
+   !!
+   !! OMP:
+   !!    ObsSpaceData_mod has been designed so that it may be called from within
+   !!    an OMP section of code.  If there are n OMP threads, it is possible that
+   !!    there be as many as n lists in use simultaneously.  The parameter, 
+   !!    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
+   !!    this case, because the current_list of the depot is not OMP-private, it
+   !!    cannot be asked to remember the current list for each of the OMP
+   !!    threads.  Therefore, obs_set_current_header/body_list returns to the
+   !!    client an additional pointer to the list itself.  This pointer must then
+   !!    be passed as an optional parameter to obs_getHeader/BodyIndex.  When a
+   !!    new list is requested by an OMP thread, the same physical memory is
+   !!    re-used for the new list.
+   !!
+   !!    In order to ensure that the same physical memory is not initially
+   !!    distributed to more than one OMP thread, the two small sections of
+   !!    IndexListDepot_mod that accomplish this are marked omp-critical.
+   !!
+   !! author  : J.W. Blezius - 2012
+   !!
+   !! Revisions:
+   !!
 
    implicit none
    save
@@ -273,15 +274,15 @@ contains
 
 
    subroutine ild_initialize(depot, numHeaderBody_max)
-      !
-      ! PURPOSE:
-      !      Initialize the indicated list depot
-      !      NOTE:  indices is allocated with 2 extra elements to make room for
-      !             the end-of-list flag that is set in
-      !             obs_set_current_header/body_list
-      !
-      ! author  : J.W. Blezius - 2012
-      !
+      !!
+      !! PURPOSE:
+      !!      Initialize the indicated list depot
+      !!      NOTE:  indices is allocated with 2 extra elements to make room for
+      !!             the end-of-list flag that is set in
+      !!             obs_set_current_header/body_list
+      !!
+      !! author  : J.W. Blezius - 2012
+      !!
       implicit none
                                         ! the depot to be initialized
       type(struct_index_list_depot), intent(inout) :: depot
@@ -308,23 +309,24 @@ end module IndexListDepot_mod
 
 
 module ObsColumnNames_mod
-   !
-   ! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects and utilities')
-   !
-   ! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
-   !        In fact, if fortran allowed it, ObsColumnNames_mod would be
-   !        'contain'ed inside the ObsSpaceData_mod module.  For this reason, and
-   !        more importantly because these parameters constitute a part of the
-   !        visible (from outside ObsSpaceData_mod) interface to
-   !        ObsSpaceData_mod, the parameters defined in this module carry the
-   !        prefix, OBS_, and not CN_.
-   !
-   ! Revisions:
-   !           Y.J. Rochon (ARQI), Dec 2014
-   !           -- Addition of OBS_CHM integer header element
-   !              for identifying the constituent type according
-   !              to BUFR code table 08046 (plus local additions).
-   !
+   !!
+   !! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects
+   !!                            and utilities')
+   !!
+   !! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
+   !!        In fact, if fortran allowed it, ObsColumnNames_mod would be
+   !!        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
+   !!        more importantly because these parameters constitute a part of the
+   !!        visible (from outside ObsSpaceData_mod) interface to
+   !!        ObsSpaceData_mod, the parameters defined in this module carry the
+   !!        prefix, OBS, and not CN.
+   !!
+   !! Revisions:
+   !!           Y.J. Rochon (ARQI), Dec 2014
+   !!           -- Addition of OBS_CHM integer header element
+   !!              for identifying the constituent type according
+   !!              to BUFR code table 08046 (plus local additions).
+   !!
 
    public
 
@@ -1545,27 +1547,27 @@ contains
 
 
    subroutine obs_abort(cdmessage)
-      ! s/r OBS_ABORT  - Abort a job on error
-      !
-      !
-      !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !Revision:
-      !     . P. Gauthier *ARMA/AES  January 29, 1996 
-      !     . P. Koclas   CMC/CMSV   January  1997 
-      !         -add call to abort
-      !     . S. Pellerin ARMA/SMC   October 2000
-      !         - replace call to abort for call to exit(1)
-      !     . C. Charette ARMA/SMC   October 2001
-      !         - replace SUTERM by SUTERMF to only close files
-      !     . J. Blezius  ARMA/SMC   2012
-      !         - import utl_abort into obsspacedata_mod as OBS_ABORT
-      !         - delete call to SUTERMF
-      !    -------------------
-      ! Purpose:
-      !      To stop a job when an error occurred
-      !
-      !Arguments
-      !     i     CDMESSAGE: message to be printed
+      !! s/r OBS_ABORT  - Abort a job on error
+      !!
+      !!
+      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+      !!Revision:
+      !!     . P. Gauthier *ARMA/AES  January 29, 1996 
+      !!     . P. Koclas   CMC/CMSV   January  1997 
+      !!         -add call to abort
+      !!     . S. Pellerin ARMA/SMC   October 2000
+      !!         - replace call to abort for call to exit(1)
+      !!     . C. Charette ARMA/SMC   October 2001
+      !!         - replace SUTERM by SUTERMF to only close files
+      !!     . J. Blezius  ARMA/SMC   2012
+      !!         - import utl_abort into obsspacedata_mod as OBS_ABORT
+      !!         - delete call to SUTERMF
+      !!
+      !! Purpose:
+      !!      To stop a job when an error occurred
+      !!
+      !!Arguments
+      !!     i     CDMESSAGE: message to be printed
 
 !#if defined(UNIT_TESTING)
 !      use pFUnit
@@ -2223,28 +2225,28 @@ contains
 
 
    subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar)
-      !
-      ! object  - remove all observations from the obsdat  
-      !         that will not be assimilated. 
-      !
-      !author  : Peter Houtekamer
-      !     revision may 2005. Houtekamer and Mitchell. Addition of the
-      !          hx and nens arguments
-      !
-      !arguments
-      !     nobsout       : unit number for the ASCII output
-      !     qcvar         : input logical indicating if the input obsdat 
-      !                     data have benefited from a qc-var procedure
-      !
-      !the logic applied:
-      !     A body (and its associated header)
-      !     will be retained if these three conditions are all met:
-      !        1) either of:
-      !             1a) btest(obsdat%intBodies%columns(OBS_FLG,jdata),12)
-      !             1b) .not. qcvar (the 5th parameter of obs_clean)
-      !        2) obsdat% intBodies%columns(OBS_ASS,jdata) == 1
-      !        3) obsdat%realBodies%columns(OBS_ZHA,jdata) >= 0.0
-      !
+      !!
+      !! object  - remove all observations from the obsdat  
+      !!         that will not be assimilated. 
+      !!
+      !!author  : Peter Houtekamer
+      !!     revision may 2005. Houtekamer and Mitchell. Addition of the
+      !!          hx and nens arguments
+      !!
+      !!arguments
+      !!     nobsout       : unit number for the ASCII output
+      !!     qcvar         : input logical indicating if the input obsdat 
+      !!                     data have benefited from a qc-var procedure
+      !!
+      !!the logic applied:
+      !!     A body (and its associated header)
+      !!     will be retained if these three conditions are all met:
+      !!        1) either of:
+      !!             1a) btest(obsdat%intBodies%columns(OBS_FLG,jdata),12)
+      !!             1b) .not. qcvar (the 5th parameter of obs_clean)
+      !!        2) obsdat% intBodies%columns(OBS_ASS,jdata) == 1
+      !!        3) obsdat%realBodies%columns(OBS_ZHA,jdata) >= 0.0
+      !!
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
@@ -2604,18 +2606,18 @@ contains
 
 
    subroutine obs_comm(obsdat,myip,nens,nstncom,hx)
-      !authors  Peter Houtekamer and Herschel Mitchell May 2005
-      !     (this routine evolved from the earlier routine commstns that worked
-      !      per analysis pass and did not consider hx).
-      !
-      !object: communicate information on the stations and the observations
-      !        between the processes
-      !
-      !input variables:
-      !     myip: number of the processor.
-      !     nens: number of ensemble members for hx (may be zero)
-      !     nstncom: we wish to exchange the obsdat for stations 1 ... nstncom
-      !       (nstncom may be less than obsdat%numHeader_max).
+      !!authors  Peter Houtekamer and Herschel Mitchell May 2005
+      !!     (this routine evolved from the earlier routine commstns that worked
+      !!      per analysis pass and did not consider hx).
+      !!
+      !!object: communicate information on the stations and the observations
+      !!        between the processes
+      !!
+      !!input variables:
+      !!     myip: number of the processor.
+      !!     nens: number of ensemble members for hx (may be zero)
+      !!     nstncom: we wish to exchange the obsdat for stations 1 ... nstncom
+      !!       (nstncom may be less than obsdat%numHeader_max).
 
       implicit none
 
@@ -3026,60 +3028,60 @@ contains
                            pvalues,klist,kflags,profil, &
                            ldairs,kndat,kvcord,pvcord,kindex,kidtyp, &
                            nvcordtyp, vcordsf)
-      !s/r obs_enkf_bdy -FILL BODY OF OBSDAT REPORT
-      !
-      !Author    . P. KOCLAS(CMC TEL. 4665)
-      !
-      !Revision:
-      !          . P. Koclas *CMC/AES Sept  1994: Add call to cvt3d
-      !          .   before insertion of U and V for consistency
-      !          . P. Koclas *CMC/AES February  1995:
-      !          .  New call sequence neccessary to :
-      !          . -allow insertion of "grouped data" records in BURP files.
-      !          . -allow data observed in various vertical coordinates
-      !          . -observation errors no longer initialized
-      !
-      !          . P. Koclas *CMC/AES March     1995:
-      !            -Additions for humsat and satem data
-      !          .
-      !          . C. Charette *ARMA Jan        2001
-      !            -Max value for T-Td surface element(12203)
-      !
-      !           JM Belanger CMDA/SMC  Feb 2001
-      !                   . 32 bits conversion
-      !           P. Houtekamer July 2005. Remove the lines for HUMSAT data
-      !          . A. Beaulne *CMDA/SMC  Aug 2006
-      !                     -Additions for AIRS data
-      !           Xingxiu Deng, August 2008. added calling readpeak, calling airszha
-      !                     to define realBodies(ncmzha,:) for AIRS
-      !           Xingxiu Deng, July 2009. added including column.cdk, calling readip1
-      !                     to get ptop and define ncmzha for AMSU-A channel 11 and 12
-      !                      if ptop is equal or higher than 2 hPa.
-      !
-      !    PURPOSE : TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
-      !              THE IN-CORE FORMAT (OBSDAT) OF THE ANALYSIS
-      !
-      !    ARGUMENTS:
-      !     INPUT:
-      !
-      !           -PVALUES : DATA BLOCK
-      !           -KLIST   : LIST OF BUFR ELEMENTS
-      !           -KFLAGS  : QUALITY CONTROL FLAGS
-      !
-      !           -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
-      !
-      !           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
-      !           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
-      !           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
-      !           -KIDTYP  :  burptype
-      !           -vconv   :  conversion factor for pressure coordinate
-      !           -profil  :  for GOES and AIRS
-      !           -nvcordtyp :
-      !
-      !    OUTPUT:
-      !           -KNDAT   : NUMBER OF DATA INSERTED IN OBSDAT FILE
-      !           -OBSDAT%REALBODIES, OBSDAT%INTBODIES: obsdat body-information (new information added)
-      !
+      !!s/r obs_enkf_bdy -FILL BODY OF OBSDAT REPORT
+      !!
+      !!Author    . P. KOCLAS(CMC TEL. 4665)
+      !!
+      !!Revision:
+      !!         . P. Koclas *CMC/AES Sept  1994: Add call to cvt3d
+      !!         .   before insertion of U and V for consistency
+      !!         . P. Koclas *CMC/AES February  1995:
+      !!         .  New call sequence neccessary to :
+      !!         . -allow insertion of "grouped data" records in BURP files.
+      !!         . -allow data observed in various vertical coordinates
+      !!         . -observation errors no longer initialized
+      !!
+      !!         . P. Koclas *CMC/AES March     1995:
+      !!           -Additions for humsat and satem data
+      !!         .
+      !!         . C. Charette *ARMA Jan        2001
+      !!           -Max value for T-Td surface element(12203)
+      !!
+      !!          JM Belanger CMDA/SMC  Feb 2001
+      !!                  . 32 bits conversion
+      !!          P. Houtekamer July 2005. Remove the lines for HUMSAT data
+      !!         . A. Beaulne *CMDA/SMC  Aug 2006
+      !!                    -Additions for AIRS data
+      !!          Xingxiu Deng, August 2008. added calling readpeak, calling airszha
+      !!                    to define realBodies(ncmzha,:) for AIRS
+      !!          Xingxiu Deng, July 2009. added including column.cdk, calling readip1
+      !!                    to get ptop and define ncmzha for AMSU-A channel 11 and 12
+      !!                     if ptop is equal or higher than 2 hPa.
+      !!
+      !!   PURPOSE : TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
+      !!             THE IN-CORE FORMAT (OBSDAT) OF THE ANALYSIS
+      !!
+      !!   ARGUMENTS:
+      !!    INPUT:
+      !!
+      !!          -PVALUES : DATA BLOCK
+      !!          -KLIST   : LIST OF BUFR ELEMENTS
+      !!          -KFLAGS  : QUALITY CONTROL FLAGS
+      !!
+      !!          -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
+      !!
+      !!          -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+      !!          -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+      !!          -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
+      !!          -KIDTYP  :  burptype
+      !!          -vconv   :  conversion factor for pressure coordinate
+      !!          -profil  :  for GOES and AIRS
+      !!          -nvcordtyp :
+      !!
+      !!   OUTPUT:
+      !!          -KNDAT   : NUMBER OF DATA INSERTED IN OBSDAT FILE
+      !!          -OBSDAT%REALBODIES, OBSDAT%INTBODIES: obsdat body-information (new information added)
+      !!
       use EarthConstants_mod, only:  GRAV
       use MathPhysConstants_mod
       implicit none
@@ -3207,17 +3209,17 @@ contains
 
 
    subroutine obs_enkf_prntbdy(obsdat,kstn,kulout)
-      !
-      ! object  - print all data records associated with an observation
-      !
-      !author  : P. Gauthier, C. Charette
-      !revision:
-      !      P. Houtekamer mrb 2000: reduction and improved readability of output
-      !
-      !arguments
-      !     i   kstn  : no. of station 
-      !     i   kulout: unit used for printing
-      !
+      !!
+      !! object  - print all data records associated with an observation
+      !!
+      !!author  : P. Gauthier, C. Charette
+      !!revision:
+      !!     P. Houtekamer mrb 2000: reduction and improved readability of output
+      !!
+      !!arguments
+      !!     i   kstn  : no. of station 
+      !!     i   kulout: unit used for printing
+      !!
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
@@ -3280,16 +3282,16 @@ contains
 
 
    subroutine obs_enkf_prnthdr(obsdat,kobs,kulout)
-      !
-      ! object  - printing of the header of an observation record
-      !
-      !author  : P. Gauthier *arma/aes  June 9, 1992
-      !revision:
-      !     . P. Houtekamer modification of the cma format 
-      !arguments
-      !     i   kobs  : no. of observation
-      !     i   kulout: unit used for optional printing
-      !
+      !!
+      !! object  - printing of the header of an observation record
+      !!
+      !!author  : P. Gauthier *arma/aes  June 9, 1992
+      !!revision:
+      !!     . P. Houtekamer modification of the cma format 
+      !!arguments
+      !!     i   kobs  : no. of observation
+      !!     i   kulout: unit used for optional printing
+      !!
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
@@ -3342,21 +3344,22 @@ contains
 
 
    subroutine obs_expandToMpiGlobal(obsdat)
-      !
-      !**s/r obs_expandToMpiGlobal - restore Global array realBodies and intBodies.
-      !
-      ! PURPOSE:
-      !      To reconstitute the mpi-global observation object by gathering the
-      !      necessary data from all processors (to all processors).
-      !
-      ! NOTE: for the character data cstnid(:), this is converted to integers
-      !       with IACHAR and back to characters with ACHAR, to facilitate this
-      !       gather through rpn_comm_allreduce
-      !
-      ! author  : Bin He (ARMA/MRB )
-      ! Revision: Mark Buehner - replaced rpn_comm_allreduce with rpn_comm_gather 
-      !                          and complete rewrite
-      !
+      !!
+      !!**s/r obs_expandToMpiGlobal - restore Global array realBodies and
+      !!                              intBodies.
+      !!
+      !! PURPOSE:
+      !!      To reconstitute the mpi-global observation object by gathering the
+      !!      necessary data from all processors (to all processors).
+      !!
+      !! NOTE: for the character data cstnid(:), this is converted to integers
+      !!       with IACHAR and back to characters with ACHAR, to facilitate this
+      !!       gather through rpn_comm_allreduce
+      !!
+      !! author  : Bin He (ARMA/MRB )
+      !! Revision: Mark Buehner - replaced rpn_comm_allreduce with
+      !!                          rpn_comm_gather  and complete rewrite
+      !!
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
@@ -4660,22 +4663,22 @@ contains
 
 
    subroutine obs_prntbdy(obsdat,index_header,unitout)
-      !
-      !**s/r PRNTBDY  - Print all data records associated with an observation
-      !
-      !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !Revision:
-      !     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-      !
-      !     . C. Charette *ARMA/AES Mar 1996 : format statement
-      !     . C. Charette *ARMA/AES Nov 1999 : Added print of flag OBS_ASS
-      !       JM Belanger CMDA/SMC  Jul 2000
-      !                   . 32 bits conversion
-      !
-      !Arguments
-      !     i   index_header  : index of the group of observations to be printed
-      !     i   unitout       : unit number on which to print
-      !
+      !!
+      !!*s/r PRNTBDY  - Print all data records associated with an observation
+      !!
+      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+      !!Revision:
+      !!    . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+      !!
+      !!    . C. Charette *ARMA/AES Mar 1996 : format statement
+      !!    . C. Charette *ARMA/AES Nov 1999 : Added print of flag OBS_ASS
+      !!      JM Belanger CMDA/SMC  Jul 2000
+      !!                  . 32 bits conversion
+      !!
+      !!Arguments
+      !!    i   index_header  : index of the group of observations to be printed
+      !!    i   unitout       : unit number on which to print
+      !!
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
@@ -4759,19 +4762,19 @@ contains
 
 
    subroutine obs_prnthdr(obsdat,index_hd,unitout)
-      !
-      !**s/r PRNTHDR  - Printing of the header of an observation record
-      !
-      !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !Revision:
-      !     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-      !     . P. Koclas   *CMC: Format for transformed latitude has been modified
-      !     .                   to handle an integer (latitude index of the first
-      !     .                   latitude circle north of the observation)
-      !Arguments
-      !     i   index_hd  : index of the header to be printed
-      !     i   unitout       : unit number on which to print
-      !
+      !!
+      !!*s/r PRNTHDR  - Printing of the header of an observation record
+      !!
+      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+      !!Revision:
+      !!    . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+      !!    . P. Koclas   *CMC: Format for transformed latitude has been modified
+      !!    .                   to handle an integer (latitude index of the first
+      !!    .                   latitude circle north of the observation)
+      !!Arguments
+      !!    i   index_hd  : index of the header to be printed
+      !!    i   unitout       : unit number on which to print
+      !!
 
       implicit none
 
@@ -4948,26 +4951,26 @@ contains
 
    subroutine obs_readstns(obsdat,myip,ipasscur,iregcur,nobshdr,nobsbdy,np, &
                            mxstn,mxobs)
-      !
-      ! obs_readstns
-      !
-      !authors Peter Houtekamer and Herschel Mitchell October 1999
-      !
-      !object: read the stations for one analysis pass, from unformatted files,
-      !        and store them in an ObsSpaceData_mod object.  The files have been
-      !        written by obs_write().
-      !        (this routine is intended for the master mpi process,
-      !         other processes exit immediately)
-      !
-      !   input: 
-      !      myip:     number of the process
-      !      ipasscur: number of the current analysis pass (i.e. batch)
-      !      nobshdr:  unit number of the file with obsdat header info.
-      !      nobsbdy:  unit number of the file with obsdat body info.
-      !      np   :    total number of processes used in MPI. 
-      !   output:
-      !      iregcur: number of the region to be done for this pass. 
-      !
+      !!
+      !!obs_readstns
+      !!
+      !!authors Peter Houtekamer and Herschel Mitchell October 1999
+      !!
+      !!object: read the stations for one analysis pass, from unformatted files,
+      !!       and store them in an ObsSpaceData_mod object.  The files have been
+      !!       written by obs_write().
+      !!       (this routine is intended for the master mpi process,
+      !!        other processes exit immediately)
+      !!
+      !!  input: 
+      !!     myip:     number of the process
+      !!     ipasscur: number of the current analysis pass (i.e. batch)
+      !!     nobshdr:  unit number of the file with obsdat header info.
+      !!     nobsbdy:  unit number of the file with obsdat body info.
+      !!     np   :    total number of processes used in MPI. 
+      !!  output:
+      !!     iregcur: number of the region to be done for this pass. 
+      !!
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
@@ -5114,16 +5117,16 @@ contains
 
    subroutine obs_creatSubCMA(cma,cma_sub,ipasscur,np)
    !
-   !  obs_creatSubCMA 
-   !  Authors:  
-   !  Objects:  create a sub-CMA from the global CMA.   
-   !  input: 
-   !      cma :  the global CMA. 
-   !      ipasscur :  current pass number    
-   !      np       :  number of processors  used .  
-   !  output:  
-   !      cma_sub  :  the sub-CMA created from the global CMA.  
-   ! 
+   !! obs_creatSubCMA 
+   !! Authors:  
+   !! Objects:  create a sub-CMA from the global CMA.   
+   !! input: 
+   !!     cma :  the global CMA. 
+   !!     ipasscur :  current pass number    
+   !!     np       :  number of processors  used .  
+   !! output:  
+   !!     cma_sub  :  the sub-CMA created from the global CMA.  
+   !!
    implicit none
 
    integer,intent(in) :: ipasscur,np

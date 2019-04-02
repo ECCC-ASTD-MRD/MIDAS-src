@@ -463,8 +463,8 @@ contains
     !     i   press_dest(ni_dest,nj_dest,numLev_dest) : Vertical levels, pressure (destination)
     !     o   qmin/max_dest(ni_dest,nj_dest,numLev_dest) : Interpolated profiles (destination)
     !
-    !    -------------------
-    !*    Purpose: Performs the vertical interpolation in log of pressure
+    !!    ------------------
+    !     Purpose: Performs the vertical interpolation in log of pressure
     !              and constant value extrapolation of one-dimensional vectors.
     implicit none
 
