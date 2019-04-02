@@ -170,18 +170,12 @@ contains
     character (len=*)  :: filestat
     character (len=*)  :: fileform
 
-    write(*,*) 'open file: ',filename
+    write(*,*) 'program prepcma (openfile): filename ', trim(filename)
     open(unit=unitnum,file=trim(filename),access='sequential', &
          form=trim(fileform),status=trim(filestat),IOSTAT=ierror)
     if (ierror.ne.0) then
-      write(*,*) 'could not open unit ',unitnum, &
-           ' for file: ',filename
-      write(*,*) 'system error number: ',ierror
-      call qqexit(1)
-      stop
+      call utl_abort('program prepcma (openfile): could not open file '// trim(filename))
     endif
-
-    return
   end subroutine openfile
 
 end program
