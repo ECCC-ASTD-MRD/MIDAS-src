@@ -19,7 +19,7 @@
 !! *Purpose*: Main program for Observation minus Forecast (O-F) computation
 !!
 !--------------------------------------------------------------------------
-program midas_prepcma
+program midas_ominusf
   !
   ! **Purpose**: Main program for Observation minus Forecast (O-F) computation
   !
