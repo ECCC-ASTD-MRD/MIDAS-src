@@ -93,8 +93,8 @@ program midas_prepcma
   call obsf_readFiles( obsSpaceData )
   call tmg_stop(11)
 
-  WRITE(*,*) 'midas_prepcma: obs_numheader(obsSpaceData)', obs_numheader(obsSpaceData)
-  WRITE(*,*) 'midas_prepcma: obs_numbody(obsSpaceData)  ', obs_numbody  (obsSpaceData)
+  write(*,*) 'midas_prepcma: obs_numheader(obsSpaceData)', obs_numheader(obsSpaceData)
+  write(*,*) 'midas_prepcma: obs_numbody(obsSpaceData)  ', obs_numbody  (obsSpaceData)
 
   if (mpi_nprocs /= 1) then
     call obs_expandToMpiGlobal( obsSpaceData )
