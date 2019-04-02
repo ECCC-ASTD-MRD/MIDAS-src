@@ -67,10 +67,6 @@ module varNameList_mod
                                  'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF'/)
 
-  character(len=5), parameter :: varTypeList2D(vnl_numvarmax2D) = (/     &
-                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL'/)
-
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', &
                                  'MT', 'MT', 'MT', 'MT', 'MT'/)

@@ -759,8 +759,6 @@ contains
     character(len=128)           :: ligne
     character(len=15), parameter :: fileName = 'obserr_sst'    
     character(len=*), parameter  :: myName = 'oer_readObsErrorsSST'
-    character(len=*), parameter  :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter  :: myError   = '******** '// myName //' ERROR: '
 
     inquire( file = fileName, exist = fileExists )
     if ( fileExists ) then
@@ -768,7 +766,7 @@ contains
       write(*,*) myName//': reads observation errors in ', fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort( myError//': NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort( myName//': NO OBSERVATION STAT FILE FOUND!!')     
     end if
 
     nulstat=0
@@ -778,7 +776,7 @@ contains
       write(*,*) myName//' opened as unit file ',nulstat
       open(unit=nulstat, file=fileName, status='OLD')
     else
-      call utl_abort( myError//': COULD NOT OPEN FILE '//fileName//'!!!')
+      call utl_abort( myName//': COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
     write(*, '(A)') ' '
@@ -833,17 +831,16 @@ contains
     ! arguments
     type(struct_obs) :: lobsSpaceData
     !  locals
-    integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
-    integer :: isat, ichn, iplatf, instr, iplatform, instrum
+    integer :: jn, JI, bodyIndex, bodyIndex2, headerIndex, ityp, iass, idata, idatend, codeType
+    integer :: isat, ichn, iplatf, instr, iplatform, instrum, ivnm
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
-    logical :: ifirst
+    logical :: ifirst, llok
     character(len=2)  :: cfam
     character(len=12) :: cstnid
     character(len=*), parameter  :: myName = 'oer_fillObsErrors'
     character(len=*), parameter  :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter  :: myError   = '******** '// myName //' ERROR: '
 
     write(*,'(10X, "oer_fillObsErrors" )')
     write(*,'(10X, "-----------------", /)')
@@ -1048,13 +1045,13 @@ contains
               if (surfaceObsTypeNumber >= 5) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
               else
-                call utl_abort( myError//": observation error missing for visibility" )
+                call utl_abort( myName//": observation error missing for visibility" )
               end if
             else if ( ityp == bufr_gust ) then
               if (surfaceObsTypeNumber >= 6) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 6 ))
               else
-                call utl_abort( myError//": observation error missing for wind gust")
+                call utl_abort( myName//": observation error missing for wind gust")
               end if
             end if
 
@@ -1171,32 +1168,64 @@ contains
                 !***********************************************************************
 
           else if ( cfam == 'TM' ) then
-            
-            ! loop over all header indices of the specified family with surface obs
-            call obs_set_current_header_list( lobsSpaceData, cfam )
+
+            if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) /= bufr_sst ) cycle BODY
 
             if      ( codeType ==  18 ) then ! drifters
+
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 1, 1 ) )
+
             else if ( codeType ==  13 ) then ! ships
+
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 2, 1 ) )
+
             else if ( codeType == 147 ) then ! moored buoys
+
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 3, 1 ) )
+
             else if ( codeType ==  88 ) then ! all satellites: AVHRR, VIIRS and AMSR2
+                      
               if ( cstnid == 'NOAA18' .or. cstnid == 'NOAA19' .or. &
                    cstnid == 'METO-A' .or. cstnid == 'METO-B' .or. cstnid == 'NPP' ) then
+
+                llok = .false.
+                BODY2: do bodyIndex2 = idata, idatend          
+                  if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_soz ) then
+                    cycle BODY2
+                  else  
+                    llok = .true.
+                    solarZenith = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex2 )
+                  end if  
+                end do BODY2
+
+                if ( solarZenith == MPC_missingValue_R8 .or. .not. llok ) then
+                  write(*,*) myWarning//': Solar zenith value is missing for the headerIndex ', headerIndex,', bodyIndex ', bodyIndex
+                  call utl_abort( myName//': Solar zenith value is missing')
+                end if  
+
                 if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) /= bufr_sst ) cycle BODY
-                solarZenith = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex + 1 )
+
                 if ( solarZenith <= 90. ) then   ! day
+
                   call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 4, 1 ) )
+
                 else                             ! night
+
                   call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 4, 2 ) )
+
                 end if   
+
               else if ( cstnid == 'AMSR2' ) then   
+
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 5, 1 ) )
+
               end if  
+
             else
+
               write(*,*) myName//': unsupported codeType for SST data found in the observations: ', codeType 
-              call utl_abort( myError//": unsupported codeType" )
+              call utl_abort( myName//": unsupported codeType" )
+
             end if  
 
 
@@ -1213,7 +1242,7 @@ contains
               case('DMSP16','DMSP17','DMSP18')
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 2 ) )
               case DEFAULT
-                call utl_abort('fill_obs_erreurs: UNKNOWN station id: '//cstnid)
+                call utl_abort( myName//': UNKNOWN station id: '//cstnid)
               end select
             else if (cstnid == 'GCOM-W1') then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 3 ) )
@@ -1232,7 +1261,7 @@ contains
             else if (cstnid == 'CIS_REGIONAL') then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 9 ) )
             else
-              call utl_abort( myError//': UNKNOWN station id: '//cstnid)
+              call utl_abort( myName//': UNKNOWN station id: '//cstnid)
             end if
 
           else
@@ -1261,7 +1290,7 @@ contains
                  obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex), &
                  obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
 
-            call utl_abort(myError//': PROBLEM OBSERR VARIANCE.')
+            call utl_abort(myName//': PROBLEM OBSERR VARIANCE.')
 
           end if
 
