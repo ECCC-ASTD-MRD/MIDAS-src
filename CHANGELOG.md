@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
      BURP:
      * `brpcrisfsr`, `brpcrisfsr1`, `brpcrisfsr2`
      * `obscrisfsr`, `obscrisfsr1`, `obscrisfsr2`
+ * With GOES-R, it will be ABI instrument instead of `goesimager`.
+   The code was modified to account for that. (#211 and !196)
 
 ### Changed
 

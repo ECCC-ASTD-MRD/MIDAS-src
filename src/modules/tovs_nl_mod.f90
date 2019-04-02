@@ -681,7 +681,7 @@ contains
 !     .      --------------------------------------------------------------------
 
     do J = 1, tvs_nsensors
-      if ( tvs_satelliteName(J)(1:4) == "GOES") then !cas particulier
+      if ( tvs_instrumentName(J)(1:10) == "GOESIMAGER") then !cas particulier
         tvs_instruments(J) = inst_id_goesim
       else if ( tvs_satelliteName(J)(1:5) == "MTSAT") then !autre cas particulier
         tvs_instruments(J) = inst_id_gmsim
