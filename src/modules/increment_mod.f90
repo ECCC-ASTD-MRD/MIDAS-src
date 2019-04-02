@@ -591,17 +591,18 @@ CONTAINS
       increment   => gsv_getField_r8  (statevector_in_hvInterp)
       analIncMask => gsv_getField3D_r8(mask2d_opt)
       do stepIndex = 1, statevector_in_hvInterp%numStep
-          !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
-          do kIndex = 1, statevector_in_hvInterp%nk
-            do latIndex =  statevector_in_hvInterp%myLatBeg,  statevector_in_hvInterp%myLatEnd
-              do lonIndex =  statevector_in_hvInterp%myLonBeg,  statevector_in_hvInterp%myLonEnd
-                increment(lonIndex,latIndex,kIndex,stepIndex) = increment(lonIndex,latIndex,kIndex,stepIndex) * &
-                                                                analIncMask(lonIndex,latIndex,1)
-              end do
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
+        do kIndex = 1, statevector_in_hvInterp%nk
+          do latIndex =  statevector_in_hvInterp%myLatBeg,  statevector_in_hvInterp%myLatEnd
+            do lonIndex =  statevector_in_hvInterp%myLonBeg,  statevector_in_hvInterp%myLonEnd
+              increment(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
             end do
           end do
-          !$OMP END PARALLEL DO
         end do
+        !$OMP END PARALLEL DO
+      end do
     end if
 
     !
