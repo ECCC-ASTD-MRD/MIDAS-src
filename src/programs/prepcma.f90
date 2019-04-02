@@ -175,7 +175,7 @@ contains
          form=trim(fileform),status=trim(filestat),IOSTAT=ierror)
     if (ierror.ne.0) then
       call utl_abort('program prepcma (openfile): could not open file '// trim(filename))
-    endif
+    end if
   end subroutine openfile
 
 end program

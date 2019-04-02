@@ -23,7 +23,10 @@ program midas_ominusf
   !
   ! **Purpose**: Main program for Observation minus Forecast (O-F) computation
   !
+  use oMinusF_mod
   use obsSpaceData_mod
+  use computeHBHT_mod
+  use columnData_mod
   use obsFiles_mod
   use utilities_mod
   use mpi_mod
