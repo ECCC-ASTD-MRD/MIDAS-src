@@ -2782,7 +2782,7 @@ module gridStateVector_mod
           field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
         end if
 
-        if ( trim(varName) == 'TT' .or. trim(varName) == 'TM' .and. containsFullField ) then
+        if ( (trim(varName) == 'TT' .or. trim(varName) == 'TM') .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + MPC_K_C_DEGREE_OFFSET_R8, 4 )
         end if
 
@@ -4485,7 +4485,7 @@ module gridStateVector_mod
             work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
             !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM'  ) then
+            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')  ) then
               work2d_r4(:,:) = work2d_r4(:,:) - MPC_K_C_DEGREE_OFFSET_R4
             end if
 
