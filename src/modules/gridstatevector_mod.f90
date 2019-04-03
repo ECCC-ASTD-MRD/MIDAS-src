@@ -2770,7 +2770,7 @@ module gridStateVector_mod
           multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
         else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. unitConversion_varKindCH ) then 
           if ( trim(varName) == 'TO3' ) then
-            multFactor = 1.0d9*48.0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+            multFactor = 1.0d9*48.0d0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
           else
             multFactor = 1.0d0 ! no conversion
           end if
