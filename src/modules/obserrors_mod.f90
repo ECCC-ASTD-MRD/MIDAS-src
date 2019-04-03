@@ -1203,8 +1203,6 @@ contains
                   call utl_abort( myName//': Solar zenith value is missing')
                 end if  
 
-                if ( obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) /= bufr_sst ) cycle BODY
-
                 if ( solarZenith <= 90. ) then   ! day
 
                   call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sst( 4, 1 ) )
