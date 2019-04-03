@@ -427,10 +427,10 @@ contains
     clvalu(79) = 'obsgl_cisR'
     ! file name for CMA format used by EnKF
     clvalu(80) = 'cmaheader'
-    ! Sea Surface Temperature data file name
     clvalu(81) = 'brpsst'
     clvalu(82) = 'obsal'
     clvalu(83) = 'obsradar'
+    clvalu(84) = 'obssst'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -517,6 +517,7 @@ contains
     cfami(81)  = 'TM'
     cfami(82)  = 'AL'
     cfami(83)  = 'RA'
+    cfami(84)  = 'TM'
 
     obsDirectory = 'obs'
 

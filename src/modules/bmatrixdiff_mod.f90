@@ -149,6 +149,13 @@ CONTAINS
        bdiff_varNameList(numvar2d) = 'GL  '
 
     end if
+    if(gsv_varExist(varName='TM  ')) then
+
+       numvar2d = numvar2d + 1
+       nsposit(numvar2d+1) = nsposit(numvar2d)+1
+       bdiff_varNameList(numvar2d) = 'TM  '
+
+    end if
 
     if (numvar2d == 0) then    
        if(mpi_myid == 0) then

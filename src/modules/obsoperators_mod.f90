@@ -767,8 +767,9 @@ contains
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
     ! locals
-    integer :: ivnm, headerIndex, bodyIndex
-    real(8) :: obsValue
+    integer          :: ivnm, headerIndex, bodyIndex
+    real(8)          :: obsValue
+    character(len=4) :: varName
 
     write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
 
@@ -796,10 +797,16 @@ contains
         ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
         if( ivnm /= bufr_sst ) cycle BODY
+        
+        if ( col_varExist( 'TM' )) then
+          varName = 'TM'
+        else
+          varName = 'TG'
+        end if
 
         obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
         call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
-                            obsValue - ( col_getElem( columnhr, 1, headerIndex, 'TG' ) ))
+                            obsValue - ( col_getElem( columnhr, 1, headerIndex, varName ) ))
 
         ! contribution to jobs
         jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
@@ -2050,6 +2057,7 @@ contains
       ! locals
       integer :: headerIndex, bodyIndex, ityp
       real(8) :: columnVarB
+      character(len=4) :: varName
 
       call obs_set_current_body_list( obsSpaceData, 'TM' )
 
@@ -2062,11 +2070,16 @@ contains
 
         if ( ityp /= bufr_sst ) cycle BODY
 
+        if ( col_varExist( 'TM' )) then
+          varName = 'TM'
+        else
+          varName = 'TG'
+        end if
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-          columnVarB = col_getElem( column, 1, headerIndex, varName_opt = 'TG' )
+          columnVarB = col_getElem( column, 1, headerIndex, varName_opt = varName )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
 
@@ -2845,6 +2858,7 @@ contains
       real(8) :: residual
       integer :: headerIndex, bodyIndex, ityp 
       real(8), pointer :: columnTG(:)
+      character(len=4) :: varName
 
       call obs_set_current_body_list( obsSpaceData, 'TM' )
 
@@ -2858,11 +2872,19 @@ contains
 
         if ( ityp /= bufr_sst ) cycle BODY
 
+        if ( col_varExist( 'TM' )) then
+          varName = 'TM'
+        else
+          varName = 'TG'
+        end if
+
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
+
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
-          columnTG => col_getColumn( column, headerIndex, varName_opt = 'TG', varLevel_opt = 'TH' ) 
+          columnTG => col_getColumn( column, headerIndex, varName_opt = varName, varLevel_opt = 'TH' ) 
           columnTG(1) = columnTG(1) + residual
+
         end if
 
       end do BODY
