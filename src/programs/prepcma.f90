@@ -67,7 +67,7 @@ program midas_prepcma
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('PREPCMA_BEG')
-  endif
+  end if
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -147,7 +147,7 @@ program midas_prepcma
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('PREPCMA_END')
-  endif
+  end if
 
 contains
 
@@ -173,7 +173,7 @@ contains
     write(*,*) 'program prepcma (openfile): filename ', trim(filename)
     open(unit=unitnum,file=trim(filename),access='sequential', &
          form=trim(fileform),status=trim(filestat),IOSTAT=ierror)
-    if (ierror.ne.0) then
+    if (ierror /= 0) then
       call utl_abort('program prepcma (openfile): could not open file '// trim(filename))
     end if
   end subroutine openfile
