@@ -73,7 +73,8 @@ contains
     integer :: fnom,fclos,nulnam,ierr
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
-    namelist /namstate/anlvar,rhumin,anltime_bin,AddGZSfcOffset
+    logical :: unitConversion_varKindCH
+    namelist /namstate/anlvar,rhumin,anltime_bin,AddGZSfcOffset,unitConversion_varKindCH
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -86,6 +87,7 @@ contains
     rhumin = MPC_MINIMUM_HU_R8
     anltime_bin = 'MIDDLE'
     AddGZSfcOffset = .false.
+    unitConversion_varKindCH = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

@@ -1540,16 +1540,6 @@ CONTAINS
           call utl_abort(': BCHM_RDSTD3D record not found')
         endif
         
-        !t For temporary conversion from ug/kg to vmr when the input trial fields
-        !t are in vmr instead of ug/kg, uncomment the lines below with !!t.
-        !t See similar statement in chem_obsoperators.f90
-        
-        !!t if (trim(clnomvar).eq.'TO3') then
-        !!t   rgsig3d(:,:,1)=rgsig3d(:,:,1)*1.E-9*MPC_MOLAR_MASS_DRY_AIR/48.0
-        !!t else
-        !!t   call utl_abort('BCHM_RDSTD3D: Unaccounted unit conversion')
-        !!t end if
-        
         ! Move to rgsig
         if (inj == nj_l .and. ini == ni_l) then
           rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)) = rgsig3d(:,:,1) 
