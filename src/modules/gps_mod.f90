@@ -2894,24 +2894,24 @@ contains
 !modgpsztd_mod
 
   SUBROUTINE GPS_SETUPGB
-!
-!**s/r GPS_SETUPGB : Initialisation of ground-based GPS
-!
-!Author  : Stephen Macpherson *ARMA/MRD August 2008
-!Revsions:
-!     Stephen Macpherson  December 2012
-!        -- modifcation to GB-GPS namelist parameters
-!
-!    -------------------
-!*    Purpose: to read and initialize GB-GPS namelist parameters and print information
-!*             on options selected.
-!
+!!
+!!**s/r GPS_SETUPGB : Initialisation of ground-based GPS
+!!
+!!Author  : Stephen Macpherson *ARMA/MRD August 2008
+!!Revsions:
+!!     Stephen Macpherson  December 2012
+!!        -- modifcation to GB-GPS namelist parameters
+!!
+!!   -------------------
+!!*    Purpose: to read and initialize GB-GPS namelist parameters and print information
+!!*             on options selected.
+!!
     IMPLICIT NONE
     INTEGER J
     integer :: nulnam,ierr,fnom,fclos
 
 !*  .  1.1 Default values
-!   .      --------------
+!!  .      --------------
 
     DZMIN  = 2.0D0
     DZMAX  = 1000.0D0

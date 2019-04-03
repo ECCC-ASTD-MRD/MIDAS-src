@@ -886,7 +886,6 @@ contains
     !             in gps_diff object w.r.t TT/HU/GZ/P0. The indirect dependency refractivity 
     !             to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
     !
-    !    -------------------
     !*    Purpose:
     !
     !Arguments
@@ -1149,42 +1148,42 @@ contains
 
 
   subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs,analysisMode_opt)
-    !
-    !**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
-    !
-    !
-    !Author  : S. Macpherson  ARMA/MRD
-    !Revisions:
-    !          S. Macpherson Oct 2012
-    !           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
-    !           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
-    !           -- option to use old NL operator removed
-    !           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
-    !           -- Uses columnData_mod.
-    !
-    !          S. Macpherson Dec 2012 - Jan 2013
-    !           -- update from Rev189 to Rev213
-    !           -- new namelist parameters in modgpsztd_mod
-    !           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
-    !           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
-    !           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
-    !           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
-    !
-    !          S. Macpherson Jun 2013
-    !           -- Use true implementation of ZDP (dP/dP0), although not needed here
-    !
-    !          S. Macpherson Nov 2014
-    !           -- modifications for case where P(nlev) is not equal to P0
-    !
-    !          S. Macpherson Jan 2015
-    !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
-    !
-    !          M. Bani Shahabadi Dec 2018
-    !           -- use the calculated height in tt2phi in the gps_structztd_v2
-    !
-    !Arguments (out)
-    !     jobs: total value of Jo for all GB-GPS (ZTD) observations
-    !
+    !!
+    !!**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
+    !!
+    !!
+    !!Author  : S. Macpherson  ARMA/MRD
+    !!Revisions:
+    !!          S. Macpherson Oct 2012
+    !!           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
+    !!           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
+    !!           -- option to use old NL operator removed
+    !!           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
+    !!           -- Uses columnData_mod.
+    !!
+    !!          S. Macpherson Dec 2012 - Jan 2013
+    !!           -- update from Rev189 to Rev213
+    !!           -- new namelist parameters in modgpsztd_mod
+    !!           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
+    !!           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
+    !!           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
+    !!           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
+    !!
+    !!          S. Macpherson Jun 2013
+    !!           -- Use true implementation of ZDP (dP/dP0), although not needed here
+    !!
+    !!          S. Macpherson Nov 2014
+    !!           -- modifications for case where P(nlev) is not equal to P0
+    !!
+    !!          S. Macpherson Jan 2015
+    !!           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
+    !!
+    !!          M. Bani Shahabadi Dec 2018
+    !!           -- use the calculated height in tt2phi in the gps_structztd_v2
+    !!
+    !!Arguments (out)
+    !!     jobs: total value of Jo for all GB-GPS (ZTD) observations
+    !!
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -1685,7 +1684,7 @@ contains
     !
     ! Comments:
     !
-    !-----------------------------------------------------------------------------------
+    !!----------------------------------------------------------------------------------
 
     implicit none
     

@@ -228,18 +228,18 @@ contains
 
 
   subroutine filt_suprep(obsSpaceData)
-    !
-    !Author  : P. Koclas *CMC/AES  September 1994
-    !
-    !Revisions:
-    !          S. Heilliette, ARMA/MRD, 2016
-    !          - Updates for TO family
-    !          Y. Rochon. ARQI/AQRD, June 2016
-    !          - Move of tvs_Is_idburp_tovs condition within brightness
-    !          temp conditional test.
-    !
-    !*    Purpose: Select the data in the obsSpaceData which are to be assimilated
-    !
+    !!
+    !!Author  : P. Koclas *CMC/AES  September 1994
+    !!
+    !!Revisions:
+    !!          S. Heilliette, ARMA/MRD, 2016
+    !!          - Updates for TO family
+    !!          Y. Rochon. ARQI/AQRD, June 2016
+    !!          - Move of tvs_Is_idburp_tovs condition within brightness
+    !!          temp conditional test.
+    !!
+    !!*    Purpose: Select the data in the obsSpaceData which are to be assimilated
+    !!
     implicit none
     type(struct_obs) :: obsSpaceData
     integer bodyIndex,headerIndex
@@ -339,9 +339,9 @@ contains
 
   subroutine filt_topo(columnhr,obsSpaceData,beSilent)
 
-    ! Revisions:
-    !           Y.J. Rochon (ARQI/AQRD), Jan 2015
-    !           - Added call to filt_topoChm
+    !! Revisions:
+    !!           Y.J. Rochon (ARQI/AQRD), Jan 2015
+    !!           - Added call to filt_topoChm
 
     implicit none
 
@@ -375,13 +375,13 @@ contains
 
 
   subroutine filt_topoSfc(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author  : P. Koclas *CMC/AES  October  1998
-    !
-    ! Purpose: Refuse elements which are too far away from the surface.
-    !          Replace the pressure of elements which are slightly below
-    !          the model surface by the pressure of the trial field.
-    !
+    !!
+    !! Author  : P. Koclas *CMC/AES  October  1998
+    !!
+    !! Purpose: Refuse elements which are too far away from the surface.
+    !!          Replace the pressure of elements which are slightly below
+    !!          the model surface by the pressure of the trial field.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -490,13 +490,13 @@ contains
 
 
   subroutine filt_topoRaob(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author  : P. Koclas *CMC/AES  October  1998
-    !
-    ! Purpose: Refuse elements which are too far away from the surface of the model
-    !          Refuse elements which are considered in the free atmosphere of
-    !          the RAOB but fall in the surface boundary layer of the model atmosphere.
-    !
+    !!
+    !! Author  : P. Koclas *CMC/AES  October  1998
+    !!
+    !! Purpose: Refuse elements which are too far away from the surface of the model
+    !!          Refuse elements which are considered in the free atmosphere of
+    !!          the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -683,11 +683,11 @@ contains
 
 
   subroutine filt_topoAISW(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author  : R. Sarrazin *CMC/AES  February 2000
-    !
-    ! Purpose:  Refuse elements which are too close to the surface.
-    !
+    !!
+    !! Author  : R. Sarrazin *CMC/AES  February 2000
+    !!
+    !! Purpose:  Refuse elements which are too close to the surface.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -773,15 +773,15 @@ contains
 
 
   subroutine filt_topoProf(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author: J. St-James October 2002
-    !          - Based on the subroutine filt_toporaob.  Adapt to
-    !            Profiler data
-    !
-    ! Purpose: Refuse elements which are too far away from the surface of the model
-    !          Refuse elements which are considered in the free atmosphere of
-    !          the RAOB but fall in the surface boundary layer of the model atmosphere.
-    !
+    !!
+    !! Author: J. St-James October 2002
+    !!          - Based on the subroutine filt_toporaob.  Adapt to
+    !!            Profiler data
+    !!
+    !! Purpose: Refuse elements which are too far away from the surface of the model
+    !!          Refuse elements which are considered in the free atmosphere of
+    !!          the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -908,11 +908,11 @@ contains
 !!
 !--------------------------------------------------------------------------
   subroutine filt_topoAladin(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author: JW Blezius March 2018
-    !          - Based on the subroutines filt_topoProf and filt_topoSfc.  Adapt
-    !            to Aladin data.
-    !
+    !!
+    !! Author: JW Blezius March 2018
+    !!          - Based on the subroutines filt_topoProf and filt_topoSfc.  Adapt
+    !!            to Aladin data.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1025,13 +1025,13 @@ contains
 
 
   subroutine filt_topoCsbt(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author  : R. Sarrazin *CMC/AES  June 2008
-    ! Revision: A. Beaulne  CMDA      October 2012
-    !           Set bit 9 in addition to the already setting of bit 18
-    !
-    ! Purpose:  Refuse data which are too close to the surface.
-    !
+    !!
+    !! Author  : R. Sarrazin *CMC/AES  June 2008
+    !! Revision: A. Beaulne  CMDA      October 2012
+    !!           Set bit 9 in addition to the already setting of bit 18
+    !!
+    !! Purpose:  Refuse data which are too close to the surface.
+    !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1107,9 +1107,9 @@ contains
   end subroutine filt_topocsbt
 
   SUBROUTINE filt_surfaceWind(lobsSpaceData,beSilent)
-    !
-    !*    Purpose:
-    !      Zap sfc wind components at land stations
+    !!
+    !!*    Purpose:
+    !!      Zap sfc wind components at land stations
     IMPLICIT NONE
     type(struct_obs) :: lobsSpaceData
     logical :: beSilent
@@ -1236,14 +1236,14 @@ contains
 
   SUBROUTINE FILT_GPSRO(lcolumnhr,lobsSpaceData)
 
-    !**s/r FILTERGPSRO - Filter GPSRO observations
-    !                    Guarantee that altitude and observation values are
-    !                    within bounds for further processing
-    !
-    !                    For noncompliant GPSRO observations:
-    !                    -Set assimilable flag to 0
-    !                    -Set bit of cma flag 11 ON
-    !
+    !!**s/r FILTERGPSRO - Filter GPSRO observations
+    !!                    Guarantee that altitude and observation values are
+    !!                    within bounds for further processing
+    !!
+    !!                    For noncompliant GPSRO observations:
+    !!                    -Set assimilable flag to 0
+    !!                    -Set bit of cma flag 11 ON
+    !!
     use gps_mod
     IMPLICIT NONE
     !
@@ -1392,25 +1392,25 @@ contains
   END SUBROUTINE FILT_GPSRO
 
   SUBROUTINE filt_topoChm(columnhr,obsSpaceData,beSilent)
-    !
-    ! Author: Y.J. Rochon Feb 2015
-    !          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
-    !            Adapted to chemical constituent data.
-    !
-    ! Revisions:  M. Sitwell Nov 2015
-    !             - Removed call to subroutine chm_adj_model_bndry for consistency
-    !               in the flagging of obs above/below the model done in vobslyrs
-    !             M. Sitwell Sept 2016
-    !             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
-    !               mismatch of number of levels of mantissa and exponent.
-    !
-    ! Purpose: Rejects elements which are too far below the model surface
-    !          or above the model top.
-    !
-    ! Comments:
-    !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
-    !     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
-    !
+    !!
+    !! Author: Y.J. Rochon Feb 2015
+    !!          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
+    !!            Adapted to chemical constituent data.
+    !!
+    !! Revisions:  M. Sitwell Nov 2015
+    !!             - Removed call to subroutine chm_adj_model_bndry for consistency
+    !!               in the flagging of obs above/below the model done in vobslyrs
+    !!             M. Sitwell Sept 2016
+    !!             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
+    !!               mismatch of number of levels of mantissa and exponent.
+    !!
+    !! Purpose: Rejects elements which are too far below the model surface
+    !!          or above the model top.
+    !!
+    !! Comments:
+    !!   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
+    !!     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
+    !!
 
     implicit none
     type(struct_columnData) :: columnhr

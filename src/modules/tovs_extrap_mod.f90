@@ -124,7 +124,7 @@ module tovs_extrap_mod
 !     i   JPLEV                 : number of pressure levels
 !     i   KNPF                  : Number of profiles
 !
-!    -------------------
+!!   -------------------
 !*    Purpose: extrapolate temperature profile above top level
 
       IMPLICIT NONE
@@ -181,7 +181,7 @@ module tovs_extrap_mod
 !     i   JPLEV                 : number of pressure levels
 !     i   KNPF                  : Number of profiles
 !
-!    -------------------
+!!   -------------------
 !*    Purpose: tangent linear of extrapolation of temperature profile above top level
 
       IMPLICIT NONE
@@ -236,7 +236,7 @@ module tovs_extrap_mod
 !     i   JPLEV                 : number of pressure levels
 !     i   KNPF                  : Number of profiles
 !
-!    -------------------
+!!   -------------------
 !*    Purpose: adjoint of extrapolation of  temperature profile above the top level
 
       IMPLICIT NONE

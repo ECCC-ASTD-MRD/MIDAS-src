@@ -15,39 +15,39 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsSubSpaceData_mod
-!
-! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
-!
-! PURPOSE: Repository of obs space structures, arrays, and routines specific to obs 
-!          data pertinent to subspaces of the overall ObsSpaceData. Most tools are
-!          independent of ObsSpaceData and can be used by themselves for the users's
-!          application(s).
-!
-! Author: Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!
-! Revisions:
-!
-! Public routines:
-!
-!       - "oss_obsdata_get_*" to get arrays or elements from input 
-!         'struc_oss_obsdata' structure.
-!         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"           
-! 
-!       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d 
-!         with associated identifier code.
-!
-!       - "oss_obsdata_MPIallgather" gathers previously saved obsdata 
-!         from all processors.
-!
-!       - "oss_obsdata_code_len" to pass on oss_code_len value
-!
-!       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
-!          or (stnid,varno,multi/uni-level) combinations to be used in searches.
-!
-!       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
-!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
-!
-!----------------------------------------------------------------------------------
+!!
+!! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
+!!
+!! PURPOSE: Repository of obs space structures, arrays, and routines specific to obs 
+!!          data pertinent to subspaces of the overall ObsSpaceData. Most tools are
+!!          independent of ObsSpaceData and can be used by themselves for the users's
+!!          application(s).
+!!
+!! Author: Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!!
+!! Revisions:
+!!
+!! Public routines:
+!!
+!!       - "oss_obsdata_get_*" to get arrays or elements from input 
+!!         'struc_oss_obsdata' structure.
+!!         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"           
+!! 
+!!       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d 
+!!         with associated identifier code.
+!!
+!!       - "oss_obsdata_MPIallgather" gathers previously saved obsdata 
+!!         from all processors.
+!!
+!!       - "oss_obsdata_code_len" to pass on oss_code_len value
+!!
+!!       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
+!!          or (stnid,varno,multi/uni-level) combinations to be used in searches.
+!!
+!!       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
+!!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
+!!
+!!---------------------------------------------------------------------------------
 
   use codePrecision_mod
   use utilities_mod    
@@ -142,7 +142,7 @@ contains
 !    dim1         first dimension length of the array associated to each observation/report
 !    dim2         second dimension length of the array associated to each observation/report (optional)
 !
-!---------------------------------------------------------------------------------------
+!!--------------------------------------------------------------------------------------
 
     implicit none
 
@@ -186,7 +186,7 @@ contains
 !
 ! Purpose: Deallocates memory for structure struct_oss_obsdata
 !
-!---------------------------------------------------------------------------------------
+!!--------------------------------------------------------------------------------------
 
     implicit none
 
@@ -198,7 +198,7 @@ contains
 
   end subroutine oss_obsdata_dealloc
 
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
   function oss_obsdata_get_element(obsdata,code,idim1,stat_opt) result(element)
 ! 
@@ -220,7 +220,7 @@ contains
 !           element       retrieved element from obsdata%data1d
 !           stat          status code
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in)  :: code
@@ -272,7 +272,7 @@ contains
 !           array        retrieved array from obsdata%data1d of dimension obsdata%dim1
 !           stat         search success (0 - found; 1 = no data; 2 = not found)
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
@@ -323,7 +323,7 @@ contains
 !           stat         search success (0 - found; 1 = no data; 2 = not found)
 !    
 ! 
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
     implicit none
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
@@ -364,7 +364,7 @@ contains
 !           array        retrieved array from obsdata%data2d of dimension (obsdata%dim1,obsdata%dim2)
 !           stat         search success (0 - found; 1 = no data; 2 = not found)
 !
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
@@ -419,15 +419,15 @@ contains
 !  Output
 !           obsdata%irep      current index position for the observation/report
 !           stat_opt          status of call (optional)
-!                               0: no errors
-!                               1: no reports available
-!                               2: report not found
+!!                              0: no errors
+!!                              1: no reports available
+!!                              2: report not found
 !
 !  Comments:
 !    - If the optional argument stat_opt is provided and an error occurs, the error code will
 !      be returned and the abort will not be called to allow for error handling.
 ! 
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
@@ -531,7 +531,7 @@ contains
   !  Output
   !           found         logical indicating if a match has been found.  
   ! 
-  !-------------------------------------------------------------------------------------------
+  !!------------------------------------------------------------------------------------------
 
     implicit none
 
@@ -587,7 +587,7 @@ contains
 !  Output
 !           code          unique code
 ! 
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     implicit none
 
@@ -633,7 +633,7 @@ contains
 !  Output
 !           code          unique code
 ! 
-!-------------------------------------------------------------------------------------------
+!!------------------------------------------------------------------------------------------
 
     implicit none
 
@@ -680,7 +680,7 @@ contains
 !   including those without associated data. This is to ensure that rpn_comm_allgather will work 
 !   in routine obsdata_MPIGather.
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none 
     
@@ -739,7 +739,7 @@ contains
 !
 ! - Assumes obsdata%dim1 (and obsdata%dim2) the same over all processors.
 !
-!----------------------------------------------------------------------------------------
+!!---------------------------------------------------------------------------------------
 
     implicit none
 
@@ -881,11 +881,11 @@ contains
 !   unilev_list      List of unique uni/multi-level identifications
 !   num_elements     Number of unique elements in *_list arrrays
 !   nset             Integer indicating grouping, with values indicating
-!                      1: group by stnid
-!                      2: group by (stnid,bufr)
-!                      3: group by (stnid,bufr,multi/uni-level)
+!!                     1: group by stnid
+!!                     2: group by (stnid,bufr)
+!!                     3: group by (stnid,bufr,multi/uni-level)
 !
-!-----------------------------------------------------------------------------------
+!!----------------------------------------------------------------------------------
 
     implicit none
 
@@ -986,9 +986,9 @@ contains
   !       nset           Integer indicating grouping of diagnostics. Input variable
   !                      if initialize=.true., output variable otherwise.
   !                      Values indicate
-  !                       1: group by stnid
-  !                       2: group by (stnid,bufr)
-  !                       3: group by (stnid,bufr,multi/uni-level)
+  !!                      1: group by stnid
+  !!                      2: group by (stnid,bufr)
+  !!                      3: group by (stnid,bufr,multi/uni-level)
   !
   !       all combos     Indicates if all combinations specified by nset are to
   !                      be use, or only those specified in the namelist NAMCHEM
@@ -1002,7 +1002,7 @@ contains
   !       unilev_list    List of unique uni/multi-level identifications
   !       num_elements   Number of unique elements in *_list arrrays
   !
-  !-------------------------------------------------------------------------------------------
+  !!------------------------------------------------------------------------------------------
    
     implicit none
     
@@ -1157,7 +1157,7 @@ contains
 !
 ! Purpose: Pass on oss_code_len value.
 !
-!----------------------------------------------------------------------------------------
+!!----------------------------------------------------------------------------------------
 
     implicit none
     

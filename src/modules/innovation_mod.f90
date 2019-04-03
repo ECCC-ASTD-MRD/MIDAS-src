@@ -69,18 +69,18 @@ contains
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
        innovationMode_in, obsClean_opt )
-    !
-    !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
-    !
-    ! Revisions:
-    !           Y. Rochon and M. Sitwell, Jan 2016
-    !           - Use of obs_famExist and corresponding move of calls
-    !             to gps_setupro, gps_setupgb and tovs_setup after the call to obsf_readFiles
-    !             as initialization of family list in obs_famExist must follow
-    !             saving of the obs in obsSpaceData.
-    !           - Addition of call to chm_setup for inclusion of constituent data
-    !             info not included in obsSpaceData_mod and reading of NAMCHEM.
-    !
+    !!
+    !! s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
+    !!
+    !! Revisions:
+    !!          Y. Rochon and M. Sitwell, Jan 2016
+    !!          - Use of obs_famExist and corresponding move of calls
+    !!            to gps_setupro, gps_setupgb and tovs_setup after the call to obsf_readFiles
+    !!            as initialization of family list in obs_famExist must follow
+    !!            saving of the obs in obsSpaceData.
+    !!          - Addition of call to chm_setup for inclusion of constituent data
+    !!            info not included in obsSpaceData_mod and reading of NAMCHEM.
+    !!
     IMPLICIT NONE
 
     type(struct_obs)                        :: obsSpaceData

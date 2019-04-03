@@ -37,8 +37,7 @@ for file in $program_filelist ; do
 done
 echo "Number of programs = $numPrograms"
 
-# SMALL NUMBER OF MODULE FILES (THE REST STILL NEED TO BE MODIFIED)
-module_filelist=`ls -dR -1 $codedir/modules/utilities_mod.f90 $codedir/modules/mpi_mod.f90 $codedir/modules/mpivar_mod.f90 $codedir/modules/gridstatevector_mod.f90 $codedir/modules/minimization_mod.f90 $codedir/modules/statetocolumn_mod.f90`
+module_filelist=`ls -dR -1 $codedir/modules/*f*90 $codedir/modules/*/*f*90`
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
@@ -78,7 +77,7 @@ for file in $module_filelist ; do
   echo ADDING THIS FILE TO src_files: $file
   cd _src_files
   bname=`basename $file`
-  rm $bname
+  rm -f $bname
   ln -s ../$file ./
   cd ../
 done
@@ -240,11 +239,6 @@ https://matplotlib.org/sampledoc/cheatsheet.html
 EOF
 
 cat >> index.rst << EOF
-
-.. note::  Currently only a few programs/modules are included since significant
-           changes will be required in modifying existing comments to avoid sphinx
-           from aborting. For example, since ``-------`` is used in *reStructuredText* 
-           to indicate a heading, these must be removed from all comments.
 
 Programs
 ========

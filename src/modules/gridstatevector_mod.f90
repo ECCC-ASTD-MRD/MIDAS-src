@@ -106,6 +106,9 @@ module gridStateVector_mod
   integer, external :: get_max_rss
   real(8) :: rhumin, gsv_rhumin
 
+  ! Logical to turn on unit conversion for variables of CH kind when unitConversion=.true.
+  logical :: unitConversion_varKindCH
+  
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:,:)
   real(8), allocatable :: gd_send_varsLevs_r8(:,:,:,:,:), gd_recv_varsLevs_r8(:,:,:,:,:)
@@ -285,7 +288,7 @@ module gridStateVector_mod
     integer :: varIndex, fnom, fclos, nulnam, ierr
     CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
     logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
-    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
+    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset,unitConversion_varKindCH
 
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -297,7 +300,8 @@ module gridStateVector_mod
     ANLTIME_BIN = 'MIDDLE'
     rhumin = MPC_MINIMUM_HU_R8
     AddGZSfcOffset = .false.
-
+    unitConversion_varKindCH = .false.
+    
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
@@ -2764,7 +2768,13 @@ module gridStateVector_mod
           multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
         else if ( trim(varName) == 'P0' ) then
           multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
-        else
+        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. unitConversion_varKindCH ) then 
+          if ( trim(varName) == 'TO3' ) then
+            multFactor = 1.0d9*48.0d0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+          else
+            multFactor = 1.0d0 ! no conversion
+          end if
+        else         
           multFactor = 1.0d0 ! no conversion
         end if
 
@@ -4456,6 +4466,12 @@ module gridStateVector_mod
                 factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
               else if ( trim(nomvar) == 'P0' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
+              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. unitConversion_varKindCH ) then 
+                if ( trim(nomvar) == 'TO3' ) then
+                  factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4/48.0 ! micrograms/kg -> vmr
+                else
+                  factor_r4 = 1.0 ! no conversion
+                end if
               else
                 factor_r4 = 1.0
               end if

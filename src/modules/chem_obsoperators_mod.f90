@@ -1287,17 +1287,6 @@ contains
        exp_T = exp_T+1 ! multiply by T
        exp_P = exp_P-1 ! divide by P
        
-    !t For temporary conversion from vmr to ug/kg when the input trial fields
-    !t are in vmr instead of ug/kg, uncomment the lines below with !!t.
-    !t See similar statement in bmatrixchem_mod.f90
-    
-    !!t else if (obsoper%varname(1:1).eq.'T') then
-       
-    !!t   ! Conversion from vmr to ug/kg
-       
-    !!t    zcoef = zcoef * 1.E9 * chm_setup_get_float('amu',obsoper%constituent_id) &
-    !!t        /MPC_MOLAR_MASS_DRY_AIR_R8
-
     end if
   
     ! Convert from ug/kg to desired unit if ppb_out = .false.
