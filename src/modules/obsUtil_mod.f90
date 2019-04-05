@@ -530,7 +530,7 @@ module obsUtil_mod
 
   end function  surfvcord
 
-  function codtypfam(codtyp) return(family)
+  function codtypfam(codtyp) result(family)
     implicit none
     integer          :: codtyp
     character(len=9) :: family
