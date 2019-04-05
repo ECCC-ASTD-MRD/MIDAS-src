@@ -490,42 +490,35 @@ module obsUtil_mod
     character(len=9)  :: family
 
     family = codtypfam(codtyp)
+    surfvcord = 0.0
 
     select case(family)
       case ('synop')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 10.0
-          case (bufr_nets, bufr_ness)
-            surfvcord = 1.5
-          case (bufr_vis)
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
             surfvcord = 1.5
         end select
       case ('ship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 30.0
-          case (bufr_nets, bufr_ness)
-            surfvcord = 21.5
-          case (bufr_vis)
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
             surfvcord = 21.5
         end select
       case ('upairland')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 10.0
-          case (bufr_nets, bufr_ness)
-            surfvcord = 1.5
-          case (bufr_vis)
+          case (bufr_nets, bufr_ness, bufr_vis)
             surfvcord = 1.5
         end select
       case ('upairship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 30.0
-          case (bufr_nets, bufr_ness)
-            surfvcord = 21.5
-          case (bufr_vis)
+          case (bufr_nets, bufr_ness, bufr_vis)
             surfvcord = 21.5
         end select
       case ('scatwinds')
@@ -533,22 +526,21 @@ module obsUtil_mod
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
             surfvcord = 10.0
         end select
-      case default
-        surfvcord = 0.0
     end select
 
   end function  surfvcord
 
-  character function codtypfam(codtyp)
+  function codtypfam(codtyp) return(family)
     implicit none
     integer          :: codtyp
+    character(len=9) :: family
 
     if (       codtyp == codtyp_get_codtyp('synopnonauto')   .or. codtyp == codtyp_get_codtyp('synopmobil')      &
        .or.    codtyp == codtyp_get_codtyp('asynopauto') ) then
-       codtypfam = 'synop'
+       family = 'synop'
     else if (  codtyp == codtyp_get_codtyp('shipnonauto')    .or. codtyp == codtyp_get_codtyp('drifter')         &
        .or.    codtyp == codtyp_get_codtyp('synoppatrol')    .or. codtyp == codtyp_get_codtyp('ashipauto') ) then
-       codtypfam = 'ship'
+       family = 'ship'
     else if (  codtyp == codtyp_get_codtyp('temppilot')      .or. codtyp == codtyp_get_codtyp('tempsynop')       &
        .or.    codtyp == codtyp_get_codtyp('pilotsynop')     .or. codtyp == codtyp_get_codtyp('temppilotsynop')  &
        .or.    codtyp == codtyp_get_codtyp('pilot')          .or. codtyp == codtyp_get_codtyp('pilotmobil')      &
@@ -556,15 +548,15 @@ module obsUtil_mod
        .or.    codtyp == codtyp_get_codtyp('tempmobil')      .or. codtyp == codtyp_get_codtyp('temppilotmobil')  &
        .or.    codtyp == codtyp_get_codtyp('tempsynopmobil') .or. codtyp == codtyp_get_codtyp('pilotsynopmobil') &
        .or.    codtyp == codtyp_get_codtyp('temppilotsynopmobil') ) then
-       codtypfam = 'upairland'
+       family = 'upairland'
     else if (  codtyp == codtyp_get_codtyp('temppilotship')  .or. codtyp ==codtyp_get_codtyp('tempshipship')     &
        .or.    codtyp == codtyp_get_codtyp('tempsshipship')  .or. codtyp ==codtyp_get_codtyp('pilotshipship')    &
        .or.    codtyp == codtyp_get_codtyp('pilotship')      .or. codtyp ==codtyp_get_codtyp('tempship') ) then
-       codtypfam = 'upairship'
+       family = 'upairship'
     else if (  codtyp == codtyp_get_codtyp('ascat') ) then
-       codtypfam = 'scatwinds'
+       family = 'scatwinds'
     else
-       codtypfam = 'other'
+       family = 'other'
     end if
 
   end function codtypfam
