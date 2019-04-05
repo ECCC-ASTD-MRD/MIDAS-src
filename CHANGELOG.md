@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change '!' to '!!' in those places that bothered Sphinx.
 
 ### Added
-
+	
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
    depot (#187 and !186).  See the [README](README.md) for more information.
@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * CalcStats in LAM mode was made MPI compatible (#158 and !202)
  * Replacing the old numerical recipe for generating gaussian random
    values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
