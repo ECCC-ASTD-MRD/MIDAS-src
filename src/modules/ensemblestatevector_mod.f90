@@ -632,7 +632,7 @@ CONTAINS
 
     if (.not. statevector%allocated) then
       nullify(varNamesInEns)
-      call gsv_varNamesList(ens%statevector_work, varNamesInEns)
+      call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
                         varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
@@ -670,7 +670,7 @@ CONTAINS
 
     if (.not. statevector%allocated) then
       nullify(varNamesInEns)
-      call gsv_varNamesList(ens%statevector_work, varNamesInEns)
+      call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
                         varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
@@ -711,7 +711,7 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     nullify(varNamesInEns)
-    call gsv_varNamesList(ens%statevector_work, varNamesInEns)
+    call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
     if (.not. statevector%allocated) then
       call gsv_allocate( statevector, numStep,  &
@@ -721,7 +721,7 @@ CONTAINS
       varNamesInGsv => varNamesInEns
     else
       nullify(varNamesInGsv)
-      call gsv_varNamesList(statevector, varNamesInGsv)
+      call gsv_varNamesList(varNamesInGsv, statevector)
     end if
 
     sameVariables = .false.
@@ -830,9 +830,9 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     nullify(varNamesInEns)
-    call gsv_varNamesList(ens%statevector_work, varNamesInEns)
+    call gsv_varNamesList(varNamesInEns, ens%statevector_work)
     nullify(varNamesInGsv)
-    call gsv_varNamesList(statevector, varNamesInGsv)
+    call gsv_varNamesList(varNamesInGsv, statevector)
 
     sameVariables = .false.
     if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
@@ -911,19 +911,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_varNamesList
   !--------------------------------------------------------------------------
-  subroutine ens_varNamesList(ens,varNames)
+  subroutine ens_varNamesList(varNames,ens)
     implicit none
     
     ! arguments
-    type(struct_ens) :: ens
-    character(len=4), pointer :: varNames(:)
-    
+    type(struct_ens), optional :: ens
+    character(len=4), pointer  :: varNames(:)
+
     if (associated(varNames)) then
       call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
     end if
 
-    call gsv_varNamesList(ens%statevector_work, varNames)
-    
+    if (present(ens)) then
+      call gsv_varNamesList(varNames, ens%statevector_work)
+    else
+      call gsv_varNamesList(varNames)
+    end if
+
   end subroutine ens_varNamesList
 
   !--------------------------------------------------------------------------
@@ -1718,6 +1722,7 @@ CONTAINS
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
+    character(len=4), pointer :: anlVar(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
     logical :: containsFullField
@@ -1789,8 +1794,11 @@ CONTAINS
 
     ! Set up hco and vco for ensemble files
     call fln_ensFileName(ensFileName, ensPathName, 1, copyToRamDisk_opt=.false.)
+
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
     nullify(hco_file)
-    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
+    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID', varName_opt=anlVar(1))
     if ( present(vco_file_opt) ) then
       ! use the input vertical grid provided
       vco_file => vco_file_opt
@@ -2058,7 +2066,7 @@ CONTAINS
       allocate(varNamesInEns(size(varNames_opt)))
       varNamesInEns(:) = varNames_opt(:)
     else
-      call gsv_varNamesList(ens%statevector_work, varNamesInEns)
+      call gsv_varNamesList(varNamesInEns, ens%statevector_work)
     end if
 
     if (present(ip3_opt)) then

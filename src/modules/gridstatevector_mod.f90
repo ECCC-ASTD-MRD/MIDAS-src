@@ -232,12 +232,12 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_varNamesList
   !--------------------------------------------------------------------------
-  subroutine gsv_varNamesList(statevector,varNames)
+  subroutine gsv_varNamesList(varNames,statevector)
     implicit none
     
     ! arguments
-    type(struct_gsv) :: statevector
     character(len=4), pointer :: varNames(:)
+    type(struct_gsv), optional :: statevector
     
     ! locals
     integer :: varLevIndex, varNumberIndex, varIndex, numFound
@@ -251,25 +251,45 @@ module gridStateVector_mod
     !- 1. How many variables do we have?
     !
     numFound = 0
-    do varIndex = 1, vnl_numvarmax
-      if ( gsv_varExist(statevector,vnl_varNameList(varIndex)) ) numFound = numFound + 1
-    end do
+    if (present(statevector)) then
+      do varIndex = 1, vnl_numvarmax
+        if ( gsv_varExist(statevector,vnl_varNameList(varIndex)) ) numFound = numFound + 1
+      end do
+    else
+      do varIndex = 1, vnl_numvarmax
+        if (varExistList(varIndex)) numFound = numFound + 1
+      end do
+    end if
 
     !
-    !- 2. List the variables based on the varLevIndex ordering
+    !- 2. List the variables
     !
     allocate(varNames(numFound))
     varNames(:) = ''
 
     varNumberIndex = 0
-    do varLevIndex = 1, statevector%nk
-      varName = gsv_getVarNameFromK(statevector,varLevIndex)
-      if ( .not. ANY(varNames == varName) ) then
-        varNumberIndex = varNumberIndex + 1
-        varNames(varNumberIndex) = varName
-      end if
-    end do
-    
+    if (present(statevector)) then
+      !- 2.1 List the variables based on the varLevIndex ordering
+      do varLevIndex = 1, statevector%nk
+        varName = gsv_getVarNameFromK(statevector,varLevIndex)
+        if ( .not. ANY(varNames == varName) ) then
+          varNumberIndex = varNumberIndex + 1
+          varNames(varNumberIndex) = varName
+        end if
+      end do
+    else
+      !- 2.2 List the variables based on the varnamelist_mod ordering
+      do varIndex = 1, vnl_numvarmax
+        if (varExistList(varIndex)) then
+          varName = vnl_varNameList(varIndex)
+          if ( .not. ANY(varNames == varName) ) then
+            varNumberIndex = varNumberIndex + 1
+            varNames(varNumberIndex) = varName
+          end if
+        end if
+      end do
+    end if
+
   end subroutine gsv_varNamesList
 
   !--------------------------------------------------------------------------
@@ -4418,7 +4438,7 @@ module gridStateVector_mod
     if ( stateVector_in%mpi_distribution == 'VarsLevs' .and. &
          stateVector_in%mpi_local ) then
       nullify(varNamesToRead)
-      call gsv_varNamesList(statevector_in,varNamesToRead) 
+      call gsv_varNamesList(varNamesToRead,statevector_in) 
       call gsv_allocate(statevector_tiles, statevector_in%numStep, statevector_in%hco, &
                         statevector_in%vco, dataKind_opt=statevector_in%dataKind,      &
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles',            &
@@ -4750,7 +4770,7 @@ module gridStateVector_mod
        ip3      =  statevector%hco%ig3
        npas     =  0
        datyp    =  1
-       grtyp    = 'E'
+       grtyp    =  statevector%hco%grtypTicTac
        typvar   = 'X'
        dateo =  0
 
@@ -4785,11 +4805,11 @@ module gridStateVector_mod
     !
     !- Writing Toc-Toc
     !
-    if ( trim(statevector%vco%setupType) == 'FromFile' ) then 
-       status = vgd_write(statevector%vco%vgrid,iun,'fst')
-       if ( status /= VGD_OK ) then
-          call utl_abort('writeTicTacToc: ERROR with vgd_write')
-       end if
+    if ( statevector%vco%vgridPresent ) then
+      status = vgd_write(statevector%vco%vgrid,iun,'fst')
+      if ( status /= VGD_OK ) then
+        call utl_abort('writeTicTacToc: ERROR with vgd_write')
+      end if
     end if
 
   end subroutine writeTicTacToc

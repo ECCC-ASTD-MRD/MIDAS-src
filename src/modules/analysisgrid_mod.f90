@@ -1046,7 +1046,7 @@ contains
     ip3      =  hco_core%ig3
     npas     =  0
     datyp    =  1
-    grtyp    = 'E'
+    grtyp    =  hco_core%grtypTicTac
     typvar   = 'X'
     etiket   = 'COREGRID'
     dateo =  0
@@ -1084,7 +1084,7 @@ contains
     grtyp     =  hco_core%grtyp
     typvar    = 'A'
     etiket    = 'COREGRID'
-    dateo  =  0
+    dateo     =  0
     ig1       =  hco_core%ig1
     ig2       =  hco_core%ig2
     ig3       =  hco_core%ig3
@@ -1129,10 +1129,10 @@ contains
     ip3      =  0
     npas     =  0
     datyp    =  1
-    grtyp    = 'E'
+    grtyp    =  hco_core%grtypTicTac
     typvar   = 'X'
     etiket   = 'ANALYSIS'
-    dateo =  0
+    dateo    =  0
     ig1      =  ig1_tictac
     ig2      =  ig2_tictac
     ig3      =  ig3_tictac
@@ -1164,7 +1164,7 @@ contains
     grtyp     =  hco_core%grtyp
     typvar    = 'A'
     etiket    = 'ANALYSIS'
-    dateo  =  0
+    dateo     =  0
     ig1       =  hco_core%ig1 + 100 ! Must be different from the core grid
     ig2       =  hco_core%ig2 + 100 ! Must be different from the core grid
     ig3       =  0
@@ -1181,49 +1181,51 @@ contains
     !- 4. Write the vertical grid description
     !
 
-    !- 4.1 Write the toc-toc
-    status = vgd_write(vco%vgrid,iun,'fst')
+    if (vco%vgridPresent) then
+      !- 4.1 Write the toc-toc
+      status = vgd_write(vco%vgrid,iun,'fst')
+      
+      if ( status /= VGD_OK ) then
+        call utl_abort('createLamTemplateGrids: ERROR with vgd_write')
+      end if
+      
+      !- 4.2 Write a dummy 2D field for each MM and TH levels
+      npak   = -12
+      dateo  = 0
+      deet   = 0
+      npas   = 0
+      ni     = 4
+      nj     = 2
+      nk     = 1
+      ip2    = 0
+      ip3    = 0
+      typvar = 'A'
+      etiket = 'VERTICALGRID'
+      grtyp  = 'G'
+      ig1    = 0
+      ig2    = 0
+      ig3    = 0
+      ig4    = 0
+      datyp  = 1
+      
+      allocate(dummy2D(ni,nj))
+      dummy2D(:,:) = 0.0
+      
+      do lev = 1, vco%nlev_M
+        ip1 = vco%ip1_M(lev)
+        ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, 'MM', etiket, grtyp,              &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
+      end do
+      do lev = 1, vco%nlev_T
+        ip1 = vco%ip1_T(lev)
+        ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, 'TH', etiket, grtyp,              &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
+      end do
 
-    if ( status /= VGD_OK ) then
-      call utl_abort('createLamTemplateGrids: ERROR with vgd_write')
-    end if
-
-    !- 4.2 Write a dummy 2D field for each MM and TH levels
-    npak   = -12
-    dateo  = 0
-    deet   = 0
-    npas   = 0
-    ni     = 4
-    nj     = 2
-    nk     = 1
-    ip2    = 0
-    ip3    = 0
-    typvar = 'A'
-    etiket = 'VERTICALGRID'
-    grtyp  = 'G'
-    ig1    = 0
-    ig2    = 0
-    ig3    = 0
-    ig4    = 0
-    datyp  = 1
-
-    allocate(dummy2D(ni,nj))
-    dummy2D(:,:) = 0.0
-
-    do lev = 1, vco%nlev_M
-      ip1 = vco%ip1_M(lev)
-      ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
-           nk, ip1, ip2, ip3, typvar, 'MM', etiket, grtyp,              &
-           ig1, ig2, ig3, ig4, datyp, .true.)
-    end do
-    do lev = 1, vco%nlev_T
-      ip1 = vco%ip1_T(lev)
-      ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
-           nk, ip1, ip2, ip3, typvar, 'TH', etiket, grtyp,              &
-           ig1, ig2, ig3, ig4, datyp, .true.)
-    end do
-
-    deallocate(dummy2D)
+      deallocate(dummy2D)
+    end if ! vco%vgridPresent
 
     !
     !- 5.  Closing the output template file

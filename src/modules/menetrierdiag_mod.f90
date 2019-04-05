@@ -95,7 +95,7 @@ contains
     global    = hco_ens%global
 
     nullify(varNamesList)
-    call gsv_varNamesList(statevector_template,varNamesList)
+    call gsv_varNamesList(varNamesList, statevector_template)
     
     nVar = size(varNamesList)
     allocate(varLevOffset(nVar))
@@ -236,7 +236,7 @@ contains
     call ens_copyEnsStdDev(ensPerts, statevector_ensStdDev_tiles)
 
     nullify(varNamesList)
-    call ens_varNamesList(ensPerts,varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts)
     call gsv_allocate(statevector_ensStdDev, ens_getNumStep(ensPerts),                       &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                &
@@ -335,8 +335,7 @@ contains
 
     call gsv_deallocate(statevector_oneMemberTiles)
 
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
+    !$OMP PARALLEL DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
     do k = mykBeg, mykEnd
       write(*,*) 'Computing distance-bin statistics for ensemble level: ', k
 
@@ -410,8 +409,7 @@ contains
       end do   ! jref
 
     end do ! nkgdimEns
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     deallocate(ensPert_local)
     deallocate(gridPointAlreadyUsed)

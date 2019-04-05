@@ -233,7 +233,7 @@ contains
     !- 5.  Setup the control variables (model space and B_hi space)
     !
     nullify(controlVarNames)
-    call ens_varNamesList(ensPerts,controlVarNames)
+    call ens_varNamesList(controlVarNames,ensPerts)
 
     bhi%nControlVariable = size(controlVarNames) !count(mask) 
     write(*,*)
@@ -370,39 +370,42 @@ contains
     !
     !- 9.  Setup pressure profile for vertical localization
     !
-    SurfacePressure = 101000.D0
+    if (vco_bhi%vgridPresent) then
+      SurfacePressure = 101000.D0
 
-    status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M,     & ! IN
-                        levels=pressureProfile_M,                  & ! OUT
-                        sfc_field=SurfacePressure, in_log=.false.)   ! IN
+      status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M,     & ! IN
+                          levels=pressureProfile_M,                  & ! OUT
+                          sfc_field=SurfacePressure, in_log=.false.)   ! IN
 
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
-      call utl_abort('csl_setup')
-    else
-      write(*,*)
-      write(*,*) 'Pressure profile...'
-      do k = 1, vco_bhi%nlev_M
-        write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
-      end do
-    endif
+      if ( status /= VGD_OK ) then
+        write(*,*)
+        write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
+        call utl_abort('csl_setup')
+      else
+        write(*,*)
+        write(*,*) 'Pressure profile...'
+        do k = 1, vco_bhi%nlev_M
+          write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
+        end do
+      end if
+      
+      status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_T,     & ! IN
+                          levels=pressureProfile_T,                  & ! OUT
+                          sfc_field=SurfacePressure, in_log=.false.)   ! IN
+      
+      if ( status /= VGD_OK ) then
+        write(*,*)
+        write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
+        call utl_abort('csl_setup')
+      else
+        write(*,*)
+        write(*,*) 'Pressure profile...'
+        do k = 1, vco_bhi%nlev_T
+          write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
+        end do
+      end if
 
-    status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_T,     & ! IN
-                        levels=pressureProfile_T,                  & ! OUT
-                        sfc_field=SurfacePressure, in_log=.false.)   ! IN
-
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
-      call utl_abort('csl_setup')
-    else
-      write(*,*)
-      write(*,*) 'Pressure profile...'
-      do k = 1, vco_bhi%nlev_T
-        write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
-      end do
-    endif
+    end if
 
     !
     !- 10.  Ending
@@ -451,7 +454,7 @@ contains
     !- 1.  Calculate the gridded binned Std. Dev. to be used in the analysis step
     !
     nullify(varNamesList)
-    call ens_varNamesList(ensPerts,varNamesList) 
+    call ens_varNamesList(varNamesList,ensPerts) 
     call gsv_allocate(statevector_stdDev, ens_getNumStep(ensPerts),                            &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
@@ -603,7 +606,7 @@ contains
        write(*,*) 'Computing Standard-Deviations'
        
        nullify(varNamesList)
-       call ens_varNamesList(ensPerts,varNamesList) 
+       call ens_varNamesList(varNamesList,ensPerts) 
        call gsv_allocate(statevector_stdDev, ens_getNumStep(ensPerts),                            &
                          ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
@@ -639,7 +642,7 @@ contains
     !
     !- 2.  Write the estimated pressure profiles
     !
-    if (mpi_myid == 0) then
+    if (mpi_myid == 0 .and. vco_bhi%vgridPresent) then
       call writePressureProfiles
     end if
 
@@ -731,8 +734,7 @@ contains
                              kind, bhi%nVarLev     )       ! IN
 
       !- 2.3 Compute the covariances
-      !$OMP PARALLEL
-      !$OMP DO PRIVATE (totwvnb,weight,e,ila,p,k2,k1)
+      !$OMP PARALLEL DO PRIVATE(totwvnb,weight,e,ila,p,k2,k1)
       do totwvnb = 0, nTrunc
         do e = 1, lst_bhi%nePerK(totwvnb)
           ila = lst_bhi%ilaFromEK(e,totwvnb)
@@ -752,8 +754,7 @@ contains
           end do
         end do
       end do
-      !$OMP END DO
-      !$OMP END PARALLEL
+      !$OMP END PARALLEL DO
 
     end do ! Loop in Ensemble
 
@@ -804,8 +805,7 @@ contains
       !
       !- 3.  Calculate the Vertical Correlations in Spectral Space
       !
-      !$OMP PARALLEL
-      !$OMP DO PRIVATE (totwvnb,k2,k1)
+      !$OMP PARALLEL DO PRIVATE (totwvnb,k2,k1)
       do totwvnb = 0, nTrunc
         do k2 = 1, bhi%nVarLev
           do k1 = 1, bhi%nVarLev 
@@ -819,8 +819,7 @@ contains
           end do
         end do
       end do
-      !$OMP END DO
-      !$OMP END PARALLEL
+      !$OMP END PARALLEL DO
       
       ! Apply vertical localization (if wanted)
       if (vertLoc) then                                                                 
@@ -844,8 +843,7 @@ contains
       !- 5.  Normalize the spectral vertical correlation matrix to ensure correlations in horizontal
       !
       
-      !$OMP PARALLEL
-      !$OMP DO PRIVATE (totwvnb,k2,k1)
+      !$OMP PARALLEL DO PRIVATE (totwvnb,k2,k1)
       do totwvnb = 0, nTrunc
         do k2 = 1, bhi%nVarLev
           do k1 = 1, bhi%nVarLev
@@ -854,8 +852,7 @@ contains
           end do
         end do
       end do
-      !$OMP END DO
-      !$OMP END PARALLEL
+      !$OMP END PARALLEL DO
       
       deallocate(NormPowerSpectrum)
 
@@ -905,8 +902,7 @@ contains
 
     !- 1.1 Part 1
 
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE (totwvnb,k,sum)
+    !$OMP PARALLEL DO PRIVATE (totwvnb,k,sum)
     do k = 1, bhi%nVarLev
       sum = 0.0d0
       do totwvnb = 0, nTrunc
@@ -920,8 +916,7 @@ contains
         end if
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     !- 1.2 Part 2
     allocate( SpectralStateVar(lst_norm%nla,lst_norm%nphase,bhi%nVarLev) )
@@ -938,8 +933,7 @@ contains
                            kind, bhi%nVarLev     )  ! IN
 
     !- 1.2.2 Apply the horizontal correlation function
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE (totwvnb,e,ila,p,k)
+    !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
     do totwvnb = 0, nTrunc
       do e = 1, lst_norm%nePerK(totwvnb)
         ila = lst_norm%ilaFromEK(e,totwvnb)
@@ -951,8 +945,7 @@ contains
         end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     !- 1.2.3 Move back to physical space
     kind = 'SpectralToGridPoint'
@@ -1231,8 +1224,7 @@ contains
 
     do memberIndex = 1, nEns
 
-      !$OMP PARALLEL
-      !$OMP DO PRIVATE (k1,k2,ptr4d_k1_r4,ptr4d_k2_r4,latIndex,lonIndex)
+      !$OMP PARALLEL DO PRIVATE (k1,k2,ptr4d_k1_r4,ptr4d_k2_r4,latIndex,lonIndex)
       do k2 = 1, bhi%nVarLev
         do k1 = 1, bhi%nVarLev
           
@@ -1252,8 +1244,7 @@ contains
 
         end do
       end do
-      !$OMP END DO
-      !$OMP END PARALLEL
+      !$OMP END PARALLEL DO
 
     end do ! Loop in Ensemble
 
@@ -1311,7 +1302,7 @@ contains
     character(len=24) :: kind
 
     nullify(varNamesList)
-    call ens_varNamesList(ensPerts,varNamesList) 
+    call ens_varNamesList(varNamesList,ensPerts) 
     call gsv_allocate(statevector, ens_getNumStep(ensPerts),  &
                       hco_bhi, ens_getVco(ensPerts), varNames_opt=varNamesList, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false.,                &
@@ -1339,8 +1330,7 @@ contains
                            kind, bhi%nVarLev     )  ! IN
 
     !- 3.2.2 Apply the horizontal correlation function
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE (totwvnb,e,ila,p,k)
+    !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
     do totwvnb = 0, nTrunc
       do e = 1, lst_cor%nePerK(totwvnb)
         ila = lst_cor%ilaFromEK(e,totwvnb)
@@ -1352,8 +1342,7 @@ contains
         end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     !- 3.2.3 Move back to physical space
     kind = 'SpectralToGridPoint'
@@ -1427,8 +1416,7 @@ contains
                            kind, bhi%nVarLev     )       ! IN
 
     !- 1.2 Apply the horizontal correlation function
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE (totwvnb,e,ila,p,k)
+    !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
     do totwvnb = 0, nTrunc
       do e = 1, lst_hloc%nePerK(totwvnb)
         ila = lst_hloc%ilaFromEK(e,totwvnb)
@@ -1440,8 +1428,7 @@ contains
         end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
     !- 1.3 Move back to physical space
     kind = 'SpectralToGridPoint'
@@ -2203,7 +2190,7 @@ contains
     ! around each reference point
 
     nullify(varNamesList)
-    call ens_varNamesList(ensPerts,varNamesList) 
+    call ens_varNamesList(varNamesList,ensPerts) 
 
     call gsv_allocate(statevector_locHorizCor, ens_getNumStep(ensPerts),                     &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &

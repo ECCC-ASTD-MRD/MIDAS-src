@@ -389,8 +389,8 @@ contains
 
     if (.not. statevector%allocated) then
       nullify(varNamesList)
-      call ens_varNamesList(ens,varNamesList) 
-      call gsv_allocate(statevector, ens_getNumStep(ens),                            &
+      call ens_varNamesList(varNamesList,ens) 
+      call gsv_allocate(statevector, ens_getNumStep(ens),               &
            ens_getHco(ens), ens_getVco(ens), varNames_opt=varNamesList, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
            dataKind_opt=8 )

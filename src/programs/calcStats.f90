@@ -34,7 +34,7 @@ program midas_calcstats
   use calcstatslam_mod
   use utilities_mod
   use ramDisk_mod
-  !use gridStateVector
+  use gridStateVector_mod
   use timeCoord_mod
   implicit none
 
@@ -53,6 +53,7 @@ program midas_calcstats
   character(len=256):: ensfilebasename
   character(len=256) :: ensFileName
   character(len=60) :: mode
+  character(len=4), pointer :: anlVar(:)
 
   NAMELIST /NAMCONF/mode
   NAMELIST /NAMENS/nens,ensfilebasename,ip2
@@ -91,20 +92,14 @@ program midas_calcstats
   ierr=fclos(nulnam)
 
   !- 2.3 Initialize variables of the model states
-  !call gsv_setup
+  call gsv_setup
 
-  !allocate(cflensin(nens))
-  !do ens = 1,nens
-  !  write(censnumber,'(i4.4)') ens
-  !  cflensin(ens)= trim(enspathname) // '/' // trim(ensfilebasename) // '024' // censnumber
-  !  write(*,*) 'ensemble file: ',ens, trim(cflensin(ens))
-  !end do
   call fln_ensfileName(ensFileName, ensPathName, 1)
 
-  !write(*,*) 'JFC ensFileName', ensFileName
-
   !- 1.3 Initialize the horizontal grid
-  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'Ensemble' ) ! IN
+  nullify(anlVar)
+  call gsv_varNamesList(anlVar)
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'Ensemble', varName_opt=anlVar(1)) ! IN
 
   !- 1.4 Initialize the vertical grid
   call vco_SetupFromFile( vco_ens,        & ! OUT
@@ -127,7 +122,7 @@ program midas_calcstats
   if (hco_ens % global) then
      call csg_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   else
-     call csl_setup( nens, ensFileName, hco_ens, vco_ens, ip2) ! IN
+     call csl_setup( nens, hco_ens, vco_ens, ip2) ! IN
   end if
 
   !- 2.2 Mode selection
