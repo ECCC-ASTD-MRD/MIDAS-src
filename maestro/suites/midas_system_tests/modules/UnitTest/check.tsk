@@ -80,21 +80,21 @@ function check_result {
 	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
-	        not_validating="yes"
+	        not_validating=yes
                 maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
 	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
-		    not_validating="yes"
+		    not_validating=yes
                     maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	        fi
 	    fi
         elif [ "${method}" = cmp ]; then
-	    cmp live rfrn || not_validating="yes"
+	    cmp live rfrn || not_validating=yes
         elif [ "${method}" = diff ]; then
-	    diff ${diff_options} live rfrn || not_validating="yes"
+	    diff ${diff_options} live rfrn || not_validating=yes
         elif [ "${method}" = SQLite ]; then
 	    status=0
 	    diff live rfrn > /dev/null || status=1
@@ -109,14 +109,14 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		sed 's/^livetables_/rfrntables_/' livetables | diff ${diff_options} - rfrntables || status=1
                 if [ "${status}" -ne 0 ]; then
                     echo "The two files does not contain the same tables."
-                    not_validating="yes"
+                    not_validating=yes
                 fi
                 ## check the content of common tables
                 for livetable in livetables_*; do
                     suffix=${livetable#*_}
                     rfrntable=rfrntables_${suffix}
                     if [ ! -f "${rfrntable}" ]; then
-                        not_validating="yes"
+                        not_validating=yes
                     else
 		        status=0
                         cmp ${livetable} ${rfrntable} || status=1
@@ -124,7 +124,7 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
                             status=0
 		            diff ${diff_options} ${livetable} ${rfrntable} || status=1
                             if [ "${status}" -ne 0 ]; then
-                                not_validating="yes"
+                                not_validating=yes
                             fi
                         fi
                     fi
@@ -139,7 +139,7 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		status=0
 		cmp live.liburp rfrn.liburp || status=1
 		if [ "${status}" -ne 0 ]; then
-		    diff ${diff_options} live.liburp rfrn.liburp || not_validating="yes"
+		    diff ${diff_options} live.liburp rfrn.liburp || not_validating=yes
 		fi
 	    fi
         elif [ "${method}" = liburp-noresume ]; then
@@ -153,10 +153,10 @@ EOF
 EOF
             ${TASK_BIN}/liburp -wide live.nores > live.liburp
             ${TASK_BIN}/liburp -wide rfrn.nores > rfrn.liburp
-            cmp live.liburp rfrn.liburp || not_validating="yes"
+            cmp live.liburp rfrn.liburp || not_validating=yes
 	    if [ -n "${not_validating}" ]; then
 	        ## Alors on trouve ce qui ne valide pas
-                diff ${diff_options} live.liburp rfrn.liburp > diff.liburp || not_validating="yes"
+                diff ${diff_options} live.liburp rfrn.liburp > diff.liburp || not_validating=yes
 	    fi
             if [ -n "${not_validating}" ]; then
                 cat diff.liburp
@@ -178,15 +178,15 @@ EOF
 	    ${TASK_BIN}/burp2rdb -in live  -out live.sql -type ${typ} || status=1
 	    if [ "${status}" -ne 0 ]; then
 	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "Problem with rdb2burp with file ${live}"
-	        not_validating="problem"
+	        not_validating=problem
 	    else
 	        ${TASK_BIN}/burp2rdb -in rfrn -out rfrn.sql -type ${typ} || status=1
 	        if [ "${status}" -ne 0 ]; then
 		    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${rfrn}"
-		    not_validating="problem"
+		    not_validating=problem
 	        else
 		    case "${fam}" in
-		        to_amsua|to_amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
+		        to_amsua|to_amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr";;
 		        *) satel_elem="" ;;
 		    esac
 		    cat > sqldir <<EOF
@@ -198,14 +198,14 @@ EOF
                     cat sqldir | ${TASK_BIN}/d.sqlite -noheader live.sql | sort -n > live.sqllist || status=1
 		    if [ "${status}" -ne 0 ]; then
 		        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${live}"
-		        not_validating="problem"
+		        not_validating=problem
 		    else
                         cat sqldir | ${TASK_BIN}/d.sqlite -noheader rfrn.sql | sort -n > rfrn.sqllist || status=1
 		        if [ "${status}" -ne 0 ]; then
 			    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${rfrn}"
-			    not_validating="problem"
+			    not_validating=problem
 		        else
-			    diff ${diff_options} live.sqllist rfrn.sqllist || not_validating="yes"
+			    diff ${diff_options} live.sqllist rfrn.sqllist || not_validating=yes
 			    cmp live.sqllist rfrn.sqllist || echo "'cmp' found files different"
 		        fi
 		    fi
@@ -228,7 +228,7 @@ EOF
         fi
 	echo "${message}"
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox  -m "${message}"
-	NOT_VALIDATING="yes"
+	NOT_VALIDATING=yes
         return 1
     else
 	message="The file ${live} is validating with method '${method}'!"
