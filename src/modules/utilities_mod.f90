@@ -704,12 +704,12 @@ contains
       if (exponentSign < 0.d0) then
         write(*,*)
         write(*,'(A,1x,e14.6)') "Condition number:", &
-             maxval(eigenValues)/minval(eigenValues)
+             maxval(eigenValues(:))/minval(eigenValues(:))
       end if
     end if
 
     !- Calculate Matrix^0.5 = V D^0.5 V^t
-    where(eigenValues < 0.d0)
+    where(eigenValues(:) < 0.d0)
       eigenValues = 0.d0
     end where
 
