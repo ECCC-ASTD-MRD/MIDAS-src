@@ -82,7 +82,6 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
                 maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
 	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
@@ -91,7 +90,6 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		    not_validating="yes"
                     maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	        fi
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
         elif [ "${method}" = cmp ]; then
 	    cmp live rfrn || not_validating="yes"
@@ -127,11 +125,7 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		            diff ${diff_options} ${livetable} ${rfrntable} || status=1
                             if [ "${status}" -ne 0 ]; then
                                 not_validating="yes"
-                            else
-                                rm ${livetable} ${rfrntable}
                             fi
-                        else
-			    rm ${livetable} ${rfrntable}
                         fi
                     fi
                 done
@@ -146,9 +140,6 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		cmp live.liburp rfrn.liburp || status=1
 		if [ "${status}" -ne 0 ]; then
 		    diff ${diff_options} live.liburp rfrn.liburp || not_validating="yes"
-		    if [ -z "${not_validating}" ]; then
-			rm live.liburp rfrn.liburp
-		    fi
 		fi
 	    fi
         elif [ "${method}" = liburp-noresume ]; then
@@ -167,10 +158,7 @@ EOF
 	        ## Alors on trouve ce qui ne valide pas
                 diff ${diff_options} live.liburp rfrn.liburp > diff.liburp || not_validating="yes"
 	    fi
-            if [ -z "${not_validating}" ]; then
-                rm live.liburp rfrn.liburp live.nores rfrn.nores
-	        [ -f diff.liburp ] && rm diff.liburp
-            else
+            if [ -n "${not_validating}" ]; then
                 cat diff.liburp
             fi
         elif [ "${method}" = SQL ]; then
@@ -219,9 +207,6 @@ EOF
 		        else
 			    diff ${diff_options} live.sqllist rfrn.sqllist || not_validating="yes"
 			    cmp live.sqllist rfrn.sqllist || echo "'cmp' found files different"
-			    if [ -z "${not_validating}" ]; then
-			        rm live.sql rfrn.sql live.sqllist rfrn.sqllist
-			    fi
 		        fi
 		    fi
 	        fi
