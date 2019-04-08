@@ -214,9 +214,9 @@ EOF
         elif [ "${method}" = not_the_same_type ]; then
             not_validating=yes
         else
-	    echo "In function check_result:  method=${method} is not one of the possibility"
-	    echo "Please use 'fstcomp', 'cmp' or 'diff'"
-	    exit 1
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "In function check_result: method='${method}' is not one of the possibility to compare files"
+	    NOT_VALIDATING=yes
+	    return 1
         fi
     fi ## Fin du 'if [ "${cmp_not_identical}" = yes ]'
 
