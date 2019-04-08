@@ -797,8 +797,8 @@ CONTAINS
 
     end if
 
-    deallocate(varNamesInGsv)
-    deallocate(varNamesInEns)
+    if (associated(varNamesInGsv)) deallocate(varNamesInGsv)
+    if (associated(varNamesInEns)) deallocate(varNamesInEns)
 
   end subroutine ens_copyMember
 
@@ -888,8 +888,8 @@ CONTAINS
 
     end if
 
-    deallocate(varNamesInGsv)
-    deallocate(varNamesInEns)
+    if (associated(varNamesInGsv)) deallocate(varNamesInGsv)
+    if (associated(varNamesInEns)) deallocate(varNamesInEns)
 
   end subroutine ens_insertMember
 
@@ -995,6 +995,10 @@ CONTAINS
     type(struct_ens)             :: ens
     character(len=*), intent(in) :: varName
     integer                      :: offset
+
+    if (.not. ens_varExist(ens,varName)) then
+      call utl_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
+    end if
 
     offset=gsv_getOffsetFromVarName(ens%statevector_work,varName)
 
@@ -1696,7 +1700,6 @@ CONTAINS
     type(struct_ens) :: ens
     character(len=*) :: ensPathName
     logical          :: biPeriodic
-    !character(len=*) :: ctrlVarHumidity
     character(len=*), optional          :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
     logical, optional                   :: checkModelTop_opt

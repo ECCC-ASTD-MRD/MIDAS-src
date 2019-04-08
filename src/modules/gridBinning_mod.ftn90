@@ -323,7 +323,10 @@ contains
 
         !- Compute the mean per bin
         call rpn_comm_allreduce(myBinCount,binCount,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
-        call rpn_comm_allreduce(myBinSum  ,binMean ,gbi%numBins2d,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ier)
+        do binIndex = 1, gbi%numBins2d
+          binMean(binIndex) = myBinSum(binIndex)
+          call mpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
+        end do
 
         do binIndex = 1, gbi%numBins2d
           if (binCount(binIndex) /= 0 ) then
@@ -414,19 +417,19 @@ contains
         !- Sum the square values per bin
         myBinCount(:) = 0
         myBinSum  (:) = 0.d0
-        do memberIndex = 1, nEns
-          do latIndex = myLatBeg, myLatEnd
-            do lonIndex = myLonBeg, myLonEnd
-              binIndex = int(bin2d(lonIndex,latIndex,1))
-              if (binIndex /= -1) then
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            binIndex = int(bin2d(lonIndex,latIndex,1))
+            if (binIndex /= -1) then
+              do memberIndex = 1, nEns
                 myBinCount(binIndex) = myBinCount(binIndex) + 1
                 myBinSum(binIndex)   = myBinSum(binIndex)   + real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8)**2
-              end if
-            end do
+              end do
+            end if
           end do
         end do
 
-        !- Compute the mean per bin
+        !- Compute the stdDev per bin
         call rpn_comm_allreduce(myBinCount,binCount ,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
         call rpn_comm_allreduce(myBinSum  ,binStdDev,gbi%numBins2d,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ier)
 

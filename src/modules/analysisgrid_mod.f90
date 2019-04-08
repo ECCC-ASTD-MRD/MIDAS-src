@@ -1126,7 +1126,11 @@ contains
     deet     =  0
     ip1      =  hco_core%ig1 + 100 ! Must be different from the core grid
     ip2      =  hco_core%ig2 + 100 ! Must be different from the core grid
-    ip3      =  0
+    if (hco_core%ig3 > 0) then
+      ip3      =  hco_core%ig3 + 100 ! Must be different from the core grid
+    else
+      ip3      =  0
+    end if
     npas     =  0
     datyp    =  1
     grtyp    =  hco_core%grtypTicTac
@@ -1167,7 +1171,11 @@ contains
     dateo     =  0
     ig1       =  hco_core%ig1 + 100 ! Must be different from the core grid
     ig2       =  hco_core%ig2 + 100 ! Must be different from the core grid
-    ig3       =  0
+    if (hco_core%ig3 > 0) then
+      ig3      =  hco_core%ig3 + 100 ! Must be different from the core grid
+    else
+      ig3      =  0
+    end if
     ig4       =  0
 
     ier = utl_fstecr(Field2d, npak,                                  &

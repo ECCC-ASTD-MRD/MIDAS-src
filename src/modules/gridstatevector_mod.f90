@@ -272,7 +272,7 @@ module gridStateVector_mod
       !- 2.1 List the variables based on the varLevIndex ordering
       do varLevIndex = 1, statevector%nk
         varName = gsv_getVarNameFromK(statevector,varLevIndex)
-        if ( .not. ANY(varNames == varName) ) then
+        if ( .not. ANY(varNames(:) == varName) ) then
           varNumberIndex = varNumberIndex + 1
           varNames(varNumberIndex) = varName
         end if
@@ -282,7 +282,7 @@ module gridStateVector_mod
       do varIndex = 1, vnl_numvarmax
         if (varExistList(varIndex)) then
           varName = vnl_varNameList(varIndex)
-          if ( .not. ANY(varNames == varName) ) then
+          if ( .not. ANY(varNames(:) == varName) ) then
             varNumberIndex = varNumberIndex + 1
             varNames(varNumberIndex) = varName
           end if
@@ -3302,9 +3302,6 @@ module gridStateVector_mod
     ! send copy of wind component to task that has other component
     if ( gsv_varExist(stateVector_out, 'UU') .and.  &
          gsv_varExist(stateVector_out, 'VV') ) then
-!      if ( outKind /= 8 ) then
-!        call utl_abort('gsv_transposeTilesToVarsLevs: only compatible with real*8 output')
-!      end if
 
       if ( statevector_out%UVComponentPresent ) then
         if ( outKind == 8 ) then
