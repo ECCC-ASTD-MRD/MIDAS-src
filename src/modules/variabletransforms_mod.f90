@@ -27,6 +27,7 @@ module variableTransforms_mod
   use earthConstants_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use ensembleStateVector_mod
   use lamSpectralTransform_mod
   use globalSpectralTransform_mod
   use analysisGrid_mod
@@ -45,7 +46,13 @@ module variableTransforms_mod
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv)    :: statevector_trial_hu
+  type(struct_gsv) :: statevector_trial_hu
+
+  ! module interfaces
+  interface vtr_transform
+    module procedure vtr_transform_gsv
+    module procedure vtr_transform_ens
+  end interface vtr_transform
 
 CONTAINS
 
@@ -96,9 +103,9 @@ CONTAINS
   end subroutine vtr_setupTrials
 
   !--------------------------------------------------------------------------
-  ! vtr_transform
+  ! vtr_transform_gsv
   !--------------------------------------------------------------------------
-  subroutine vtr_transform(statevector,transform, statevectorOut_opt)
+  subroutine vtr_transform_gsv(statevector,transform, statevectorOut_opt)
     implicit none
    
     type(struct_gsv) :: statevector
@@ -114,7 +121,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for UVtoVortDiv, the option statevectorOut_opt is not yet available')
       end if
-      call UVtoVortDiv(statevector)
+      call UVtoVortDiv_gsv(statevector)
     case ('VortDivToPsiChi')
       if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
         call utl_abort('vtr_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
@@ -122,7 +129,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for VortDivToPsiChi, the option statevectorOut_opt is not yet available')
       end if
-      call VortDivToPsiChi(statevector)
+      call VortDivToPsiChi_gsv(statevector)
     case ('UVtoPsiChi')
       if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
         call utl_abort('vtr_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
@@ -130,7 +137,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for UVToPsiChi, the option statevectorOut_opt is not yet available')
       end if
-      call UVtoPsiChi(statevector)
+      call UVtoPsiChi_gsv(statevector)
     case ('LQtoHU')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
@@ -146,7 +153,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for HUtoLQ, the option statevectorOut_opt is not yet available')
       end if
-      call HUtoLQ(statevector)
+      call HUtoLQ_gsv(statevector)
     case ('LQtoHU_tlm')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU_tlm, variable HU must be allocated in gridstatevector')
@@ -200,7 +207,30 @@ CONTAINS
       call utl_abort('vtr_transform')
     end select
 
-  end subroutine vtr_transform
+  end subroutine vtr_transform_gsv
+
+  !--------------------------------------------------------------------------
+  ! vtr_transform_ens
+  !--------------------------------------------------------------------------
+  subroutine vtr_transform_ens(ens,transform)
+    implicit none
+   
+    type(struct_ens) :: ens
+ 
+    character(len=*), intent(in) :: transform
+
+    select case(trim(transform))
+    case ('HUtoLQ')
+      call HUtoLQ_ens(ens)
+    case ('UVtoPsiChi')
+      call UVtoPsiChi_ens(ens)
+    case ('UVtoVortDiv')
+      call UVtoVortDiv_ens(ens)
+    case default
+      call utl_abort('vtr_transform_ens: Unsupported function '//trim(transform))
+    end select
+
+  end subroutine vtr_transform_ens
 
   !--------------------------------------------------------------------------
   ! LQtoHU
@@ -231,9 +261,9 @@ CONTAINS
   end subroutine LQtoHU
 
   !--------------------------------------------------------------------------
-  ! HUtoLQ
+  ! HUtoLQ_gsv
   !--------------------------------------------------------------------------
-  subroutine HUtoLQ(statevector)
+  subroutine HUtoLQ_gsv(statevector)
     implicit none
 
     type(struct_gsv)    :: statevector
@@ -278,7 +308,45 @@ CONTAINS
 
     end if
 
-  end subroutine HUtoLQ
+  end subroutine HUtoLQ_gsv
+
+  !--------------------------------------------------------------------------
+  ! HUtoLQ_ens
+  !--------------------------------------------------------------------------
+  subroutine HUtoLQ_ens(ens)
+    implicit none
+
+    type(struct_ens) :: ens
+
+    integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
+
+    character(len=4) :: varName
+
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+
+    call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+
+    do levIndex = 1, ens_getNumK(ens)
+
+      varName = ens_getVarNameFromK(ens,levIndex)
+      if (varName /= 'HU') cycle
+
+      ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)
+    
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do stepIndex = 1, ens_getNumStep(ens)
+            do memberIndex = 1, ens_getNumMembers(ens)
+              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),real(gsv_rhumin,4)))
+            end do
+          end do
+        end do
+      end do
+
+    end do
+
+  end subroutine HUtoLQ_ens
 
   !--------------------------------------------------------------------------
   ! LQtoHU_tlm
@@ -402,9 +470,9 @@ CONTAINS
   end subroutine LVIStoVIS
 
   !--------------------------------------------------------------------------
-  ! UVtoVortDiv
+  ! UVtoVortDiv_gsv
   !--------------------------------------------------------------------------
-  subroutine UVtoVortDiv(statevector)
+  subroutine UVtoVortDiv_gsv(statevector)
     implicit none
    
     type(struct_gsv) :: statevector
@@ -417,12 +485,19 @@ CONTAINS
 
     uu_ptr => gsv_getField_r8(statevector,'UU')
     vv_ptr => gsv_getField_r8(statevector,'VV')
-    qr_ptr => gsv_getField_r8(statevector,'QR')
-    dd_ptr => gsv_getField_r8(statevector,'DD')
+    if (gsv_varExist(statevector,'QR') .and. &
+        gsv_varExist(statevector,'DD')) then
+      qr_ptr => gsv_getField_r8(statevector,'QR')
+      dd_ptr => gsv_getField_r8(statevector,'DD')
+    else
+      qr_ptr => gsv_getField_r8(statevector,'UU')
+      dd_ptr => gsv_getField_r8(statevector,'VV')
+    end if
+
     nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
-      call utl_abort('UVtoVortDiv:global mode not available')
+      call utl_abort('UVtoVortDiv_gsv: global mode not available')
     else
       do stepIndex = 1, statevector%numStep
         call agd_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
@@ -431,63 +506,84 @@ CONTAINS
       end do
     end if
 
-  end subroutine UVtoVortDiv
+  end subroutine UVtoVortDiv_gsv
 
   !--------------------------------------------------------------------------
-  ! VortDivToPsiChi
+  ! vortDivToPsiChi_gsv
   !--------------------------------------------------------------------------
-  subroutine VortDivToPsiChi(statevector)
+  subroutine vortDivToPsiChi_gsv(statevector)
     implicit none
    
     type(struct_gsv) :: statevector
     integer :: stepIndex
 
+    logical, save :: firstTime = .true.
+
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
 
-    type(struct_lst)     :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
+    type(struct_lst), save :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
     integer :: nlev_M
-    integer :: trunc=125 !!!!!********** UGLY *********!!!!!!!
+    integer :: nTrunc
 
-    qr_ptr => gsv_getField_r8(statevector,'QR')
-    dd_ptr => gsv_getField_r8(statevector,'DD')
-    pp_ptr => gsv_getField_r8(statevector,'PP')
-    cc_ptr => gsv_getField_r8(statevector,'CC')
-    nlev_M =  gsv_getNumLev  (statevector,'MM')
-    
-    if (  statevector%hco%global ) then
-       call utl_abort('VortDivToPsiChi:global mode not available')
+    nTrunc = max(statevector%hco%ni,statevector%hco%nj)/4 + 1
+
+    if (gsv_varExist(statevector,'QR') .and. &
+        gsv_varExist(statevector,'DD')) then
+      qr_ptr => gsv_getField_r8(statevector,'QR')
+      dd_ptr => gsv_getField_r8(statevector,'DD')
     else
-       call lst_Setup( lst_lapl,                                & ! OUT
-                       statevector%hco%ni, statevector%hco%nj,  & ! IN
-                       statevector%hco%dlon, trunc,             & ! IN
-                      'LatLonMN', nlev_M )                        ! IN
-
-       do stepIndex = 1, statevector%numStep
-          
-          pp_ptr(:,:,:,stepIndex) = qr_ptr(:,:,:,stepIndex)
-          cc_ptr(:,:,:,stepIndex) = dd_ptr(:,:,:,stepIndex)
-         
-          ! Vort -> Psi
-          call lst_Laplacian( lst_lapl%id,             & ! IN
-                              pp_ptr(:,:,:,stepIndex), & ! INOUT
-                              'Inverse', nlev_M )        ! IN
-
-          ! Div -> Chi
-          call lst_Laplacian( lst_lapl%id,             & ! IN
-                              cc_ptr(:,:,:,stepIndex), & ! INOUT
-                              'Inverse', nlev_M )        ! IN
-
-       end do
-       
+      qr_ptr => gsv_getField_r8(statevector,'UU')
+      dd_ptr => gsv_getField_r8(statevector,'VV')
     end if
 
-  end subroutine VortDivToPsiChi
+    if (gsv_varExist(statevector,'PP') .and. &
+        gsv_varExist(statevector,'CC')) then
+      pp_ptr => gsv_getField_r8(statevector,'PP')
+      cc_ptr => gsv_getField_r8(statevector,'CC')
+    else
+      pp_ptr => gsv_getField_r8(statevector,'UU')
+      cc_ptr => gsv_getField_r8(statevector,'VV')
+    end if
+
+    nlev_M =  gsv_getNumLev  (statevector,'MM')
+
+    if ( statevector%hco%global ) then
+      call utl_abort('vortDivToPsiChi_gsv: global mode not available')
+    else
+      if (firstTime) then
+        call lst_Setup( lst_lapl,                                & ! OUT
+                        statevector%hco%ni, statevector%hco%nj,  & ! IN
+                        statevector%hco%dlon, nTrunc,            & ! IN
+                        'LatLonMN', nlev_M )                       ! IN
+        firstTime = .false.
+      end if
+
+      do stepIndex = 1, statevector%numStep
+          
+        pp_ptr(:,:,:,stepIndex) = qr_ptr(:,:,:,stepIndex)
+        cc_ptr(:,:,:,stepIndex) = dd_ptr(:,:,:,stepIndex)
+         
+        ! Vort -> Psi
+        call lst_Laplacian( lst_lapl%id,             & ! IN
+                            pp_ptr(:,:,:,stepIndex), & ! INOUT
+                            'Inverse', nlev_M )        ! IN
+
+        ! Div -> Chi
+        call lst_Laplacian( lst_lapl%id,             & ! IN
+                            cc_ptr(:,:,:,stepIndex), & ! INOUT
+                            'Inverse', nlev_M )        ! IN
+
+      end do
+
+    end if
+
+  end subroutine VortDivToPsiChi_gsv
 
   !--------------------------------------------------------------------------
-  ! UVtoPsiChi
+  ! UVtoPsiChi_gsv
   !--------------------------------------------------------------------------
-  subroutine UVtoPsiChi(statevector)
+  subroutine UVtoPsiChi_gsv(statevector)
     implicit none
    
     type(struct_gsv) :: statevector
@@ -507,18 +603,21 @@ CONTAINS
     integer, save :: mynBeg,mynEnd,mynSkip,mynCount
     integer, save, pointer :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
 
-    write(*,*) 'UVtoPsiChi: starting'
+    write(*,*) 'UVtoPsiChi_gsv: starting'
     call flush(6)
 
-    uu_ptr  => gsv_getField_r8(statevector,'UU')
-    vv_ptr  => gsv_getField_r8(statevector,'VV')
-    psi_ptr => gsv_getField_r8(statevector,'PP')
-    chi_ptr => gsv_getField_r8(statevector,'CC')
-    nlev_M = gsv_getNumLev(statevector,'MM')
-    
     if ( .not. statevector%hco%global ) then
-      call utl_abort('UVtoPsiChi:only global is available')
+
+      call UVtoVortDiv_gsv    (statevector)
+      call vortDivToPsiChi_gsv(statevector)
+
     else
+
+      uu_ptr  => gsv_getField_r8(statevector,'UU')
+      vv_ptr  => gsv_getField_r8(statevector,'VV')
+      psi_ptr => gsv_getField_r8(statevector,'PP')
+      chi_ptr => gsv_getField_r8(statevector,'CC')
+      nlev_M = gsv_getNumLev(statevector,'MM')
 
       if ( gstID < 0 ) then
         !ntrunc = statevector%nj
@@ -536,18 +635,12 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
 
-        write(*,*) 'copying into gridstate'
-        call flush(6)
-
         gridState(:,:,1:nlev_M)            = uu_ptr(:,:,:,stepIndex)
         gridState(:,:,(nlev_M+1):2*nlev_M) = vv_ptr(:,:,:,stepIndex)
-
-        write(*,*) 'first tranform'; call flush(6)
 
         call gst_setID(gstID)
         call gst_gdsp(spectralState,gridState,nlev_M)
 
-        write(*,*) 'scale spectral state'; call flush(6)
         do levIndex = 1, 2*nlev_M
           do ila_mpilocal = 1, nla_mpilocal
             ila_mpiglobal = ilaList_mpiglobal(ila_mpilocal)
@@ -557,11 +650,7 @@ CONTAINS
           enddo
         enddo
 
-        write(*,*) 'second transform'; call flush(6)
         call gst_speree(spectralState,gridState)
-
-        write(*,*) 'copying back to psi/chi'
-        call flush(6)
 
         psi_ptr(:,:,:,stepIndex) = gridState(:,:,1:nlev_M)
         chi_ptr(:,:,:,stepIndex) = gridState(:,:,(nlev_M+1):2*nlev_M)
@@ -574,9 +663,115 @@ CONTAINS
 
     end if
 
-    write(*,*) 'UVtoPsiChi: finished'
+    write(*,*) 'UVtoPsiChi_gsv: finished'
     call flush(6)
 
-  end subroutine UVtoPsiChi
+  end subroutine UVtoPsiChi_gsv
+  
+  !--------------------------------------------------------------------------
+  ! UVtoPsiChi_ens
+  !--------------------------------------------------------------------------
+  subroutine UVtoPsiChi_ens(ens)
+    implicit none
+   
+    type(struct_ens) :: ens
+
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_gsv) :: gridStateVector_oneMember
+
+    integer :: memberIndex
+
+    write(*,*)
+    write(*,*) 'vtr_UVtoPsiChi_ens: starting'
+
+    hco_ens => ens_getHco(ens)
+
+    if (hco_ens%global ) then
+      call utl_abort('vtr_UVtoPsiChi_ens: global mode not yet available')
+    end if
+
+    !
+    !- 1.  Create a working stateVector
+    !
+    call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
+                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      mpi_local_opt=.true., dataKind_opt=8)
+
+    !
+    !- 2.  Loop on members
+    !
+    do memberIndex = 1, ens_getNumMembers(ens)
+
+      !- 2.1 Copy to a stateVector
+      call ens_copyMember(ens, gridStateVector_oneMember, memberIndex)
+
+      !- 2.2 Do the transform
+      call UVtoPsiChi_gsv(gridStateVector_oneMember)
+
+      !- 2.3 Put the result back in the input ensembleStateVector
+      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex)
+    end do
+
+    !
+    !- 3. Cleaning
+    !
+    call gsv_deallocate(gridStateVector_oneMember)
+
+    write(*,*) 'vtr_UVtoPsiChi_ens: finished'
+
+  end subroutine UVtoPsiChi_ens
+
+  !--------------------------------------------------------------------------
+  ! UVtoVortDiv_ens
+  !--------------------------------------------------------------------------
+  subroutine UVtoVortDiv_ens(ens)
+    implicit none
+   
+    type(struct_ens) :: ens
+
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_gsv) :: gridStateVector_oneMember
+
+    integer :: memberIndex
+
+    write(*,*)
+    write(*,*) 'vtr_UVtoVortDiv_ens: starting'
+
+    hco_ens => ens_getHco(ens)
+
+    if (hco_ens%global ) then
+      call utl_abort('vtr_UVtoVortDiv_ens: global mode not yet available')
+    end if
+
+    !
+    !- 1.  Create a working stateVector
+    !
+    call gsv_allocate(gridStateVector_oneMember, 1, hco_ens, ens_getVco(ens), &
+                      varNames_opt=(/'UU','VV'/), datestamp_opt=tim_getDatestamp(), &
+                      mpi_local_opt=.true., dataKind_opt=8)
+
+    !
+    !- 2.  Loop on members
+    !
+    do memberIndex = 1, ens_getNumMembers(ens)
+
+      !- 2.1 Copy to a stateVector
+      call ens_copyMember(ens, gridStateVector_oneMember, memberIndex)
+
+      !- 2.2 Do the transform
+      call UVtoVortDiv_gsv(gridStateVector_oneMember)
+
+      !- 2.3 Put the result back in the input ensembleStateVector
+      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex)
+    end do
+
+    !
+    !- 3. Cleaning
+    !
+    call gsv_deallocate(gridStateVector_oneMember)
+
+    write(*,*) 'vtr_UVtoVortDiv_ens: finished'
+
+  end subroutine UVtoVortDiv_ens
 
 end module variableTransforms_mod

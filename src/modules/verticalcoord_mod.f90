@@ -32,7 +32,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_ensureCompatibleTops
   public :: vco_subsetOrNot, vco_levelMatchingList
 
@@ -50,7 +50,7 @@ module verticalCoord_mod
      integer,pointer,dimension(:) :: ip1_T => null()
      integer,pointer,dimension(:) :: ip1_M => null()  ! encoded IP1 levels (Thermo/Moment)
      type(vgrid_descriptor) :: vgrid
-     character(len=8) :: setuptype
+     logical :: vgridPresent
   end type struct_vco
 
 contains
@@ -80,52 +80,6 @@ contains
   end subroutine vco_allocate
 
   !--------------------------------------------------------------------------
-  ! vco_setupManual
-  !--------------------------------------------------------------------------
-  subroutine vco_setupManual(vco,ip1,numLev)
-    implicit none
-    type(struct_vco), pointer :: vco
-    integer, intent(in) :: numLev
-    integer, intent(in) :: ip1(numlev)
-
-    integer :: ip1_sfc
-    character(len=10) :: blk_S
-
-    write(*,*) 
-    write(*,*) 'vco_setupManual: Creating an adhoc verticalgrid using'
-    write(*,*) '                   number of level = ', numLev
-    write(*,*) '                   ip1             = ', ip1
-
-    if ( associated(vco) ) then
-      call utl_abort('vco_setupManual: the supplied vco pointer is not null!')
-    endif
-
-    allocate(vco)
-
-    vco%setupType = 'Manual'
- 
-    vco%nlev_T    = numLev
-    vco%nlev_M    = numLev
-    vco%Vcode     = -1
-    !vco%vgrid    = ???
-
-    call vco_allocate(vco)
-
-    vco%ip1_T(:)  = ip1(:)
-    vco%ip1_M(:)  = ip1(:)
-
-    ! determine IP1 of sfc (hyb=1.0)
-    call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
-    vco%ip1_sfc   = ip1_sfc
-
-    ! determine IP1s of 2m and 10m levels
-    call set_2m_10m_levels(vco)
-
-    vco%initialized=.true.
-
-  end subroutine vco_SetupManual
-
-  !--------------------------------------------------------------------------
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
   subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
@@ -139,16 +93,24 @@ contains
     logical           :: beSilent
     character(len=12) :: etiket
     integer :: Vcode,kind,jlev,nlevMatched,stat,sigdigits,nultemplate,ierr,ikey
-    integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
+    integer, parameter :: maxnumRecords = 500
+    integer :: recordIndex, numRecords, ikeys(maxnumRecords)
+    integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm,fstinl
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     integer :: ip1_sfc
     real    :: hyb_r4
     real*8  :: zterm
     character(len=10) :: blk_S
-    logical :: isExist_L, ip1_found
+    logical :: isExist_L, ip1_found, sfcFieldFound
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
+    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
+    integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
+    integer :: iextra1, iextra2, iextra3
+    character(len=2)  :: typvar
+    character(len=4)  :: nomvar
+    character(len=1)  :: grtyp
 
     nullify(vgd_ip1_M, vgd_ip1_T)
 
@@ -186,15 +148,62 @@ contains
       call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     endif
 
-    vco%setupType='FromFile'
-
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file (vgd_new reads "!!" record)
 
     stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
-    if(stat.ne.VGD_OK)then
-      call utl_abort('vco_setupFromFile: ERROR with vgd_new')
-    endif
+    if(stat == VGD_OK) then
+      vco%vgridPresent = .true.
+    else
+      write(*,*) 'vco_setupFromFile: Problem with vgd_new, check if surface-only file'
+
+      ierr = fstinl(nultemplate,ini,inj,ink,-1,etiket,-1,-1,-1,' ', &
+                    ' ',ikeys,numRecords,maxnumRecords)
+      if ( ikeys(1) <= 0 ) then
+        call utl_abort('vco_setupFromFile: Could not find any records ' //  &
+                       'in the supplied file')
+      end if
+      write(*,*) 'vco_setupFromFile: number of records found = ', numRecords
+      sfcFieldFound = .false.
+      record_loop: do recordIndex = 1, numRecords
+        ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, ini, inj, &
+                      ink, inbits, idatyp, ip1, ip2, ip3, &
+                      typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
+                      iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
+
+        ! abort if !! record present, even though vgd_new failed
+        if (trim(nomvar) == '!!') call utl_abort('vco_setupFromFile: found !! record')
+
+        ! ignore horizontal coordinate records
+        if (trim(nomvar) == '^^' .or. trim(nomvar) == '>>' .or.  &
+            trim(nomvar) == '^>') cycle record_loop
+
+        ! check for record with surface data
+        call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
+        if (ip1 == 0 .or. ip1 == ip1_sfc) then
+          sfcFieldFound = .true.
+          cycle record_loop
+        end if
+        
+        ! something else was found, abort
+        write(*,*) 'vco_setupFromFile: found non-surface record'
+        write(*,*) 'varName = ', trim(nomvar), ' typvar = ', typvar, ' ip1 = ', ip1
+        call utl_abort('vco_setupFromFile: found a non-surface field')
+
+      end do record_loop
+      if (.not. sfcFieldFound) call utl_abort('vco_setupFromFile: no surface field found')
+      write(*,*) 'vco_setupFromFile: found only surface fields, proceed without vgrid descriptor'
+      vco%vgridPresent = .false.
+      vco%nlev_T = 0
+      vco%nlev_M = 0
+      vco%Vcode = -1
+      vco%initialized=.true.
+
+      ierr =  fstfrm(nultemplate)
+      ierr =  fclos (nultemplate)
+
+      return ! skip the rest
+    end if
 
     ! Print out vertical structure 
     if(mpi_myid.eq.0 .and. .not.beSilent) then
@@ -381,10 +390,12 @@ contains
     type(struct_vco), pointer :: vco
     integer :: stat
 
-    deallocate (vco%ip1_M)
-    deallocate (vco%ip1_T)
-    stat = vgd_free(vco%vgrid)
-   
+    if (vco%vgridPresent) then
+      deallocate (vco%ip1_M)
+      deallocate (vco%ip1_T)
+      stat = vgd_free(vco%vgrid)
+    end if
+
     nullify(vco)
 
   end subroutine vco_deallocate
@@ -434,13 +445,14 @@ contains
       endif
     endif
 
-    call rpn_comm_bcast(vco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_T   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_M   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_sfc  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_T_2m , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_M_10m, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%Vcode    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%initialized , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%vgridPresent, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_T      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_M      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_sfc     , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_T_2m    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     if ( mpi_myid == 0 ) then
       vgd_nlev_M = size(vco%ip1_M)
       vgd_nlev_T = size(vco%ip1_T)
@@ -453,56 +465,59 @@ contains
     endif
     call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(vco%setuptype, len(vco%setuptype), 'MPI_CHARACTER', 0, 'GRID', ierr)
 
     ! now do bcast for vgrid object
-    if ( mpi_myid == 0 ) then
-      ierr = vgd_get(vco%vgrid,'VTBL',vgdtable)
-      vgdtable_dim1 = size(vgdtable,1)
-      vgdtable_dim2 = size(vgdtable,2)
-      vgdtable_dim3 = size(vgdtable,3)
-      ierr = vgd_get(vco%vgrid,'DATE',vgddate)
-      ierr = vgd_get(vco%vgrid,'ETIK',vgdetik)
-      ierr = vgd_get(vco%vgrid,'IG_1',vgdig1)
-      ierr = vgd_get(vco%vgrid,'IG_2',vgdig2)
-      ierr = vgd_get(vco%vgrid,'IG_3',vgdig3)
-      ierr = vgd_get(vco%vgrid,'IG_4',vgdig4)
-      ierr = vgd_get(vco%vgrid,'IP_1',vgdip1)
-      ierr = vgd_get(vco%vgrid,'IP_2',vgdip2)
-      ierr = vgd_get(vco%vgrid,'IP_3',vgdip3)
-    endif
+    if (vco%vgridPresent) then
 
-    ! 3D table of real*8
-    call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdtable_dim2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdtable_dim3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mpi_myid > 0 ) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
-    call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
-    ! others
-    call rpn_comm_bcast(vgddate, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(vgdetik, len(vgdetik), 'MPI_CHARACTER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdip1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdip2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgdip3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if ( mpi_myid == 0 ) then
+        ierr = vgd_get(vco%vgrid,'VTBL',vgdtable)
+        vgdtable_dim1 = size(vgdtable,1)
+        vgdtable_dim2 = size(vgdtable,2)
+        vgdtable_dim3 = size(vgdtable,3)
+        ierr = vgd_get(vco%vgrid,'DATE',vgddate)
+        ierr = vgd_get(vco%vgrid,'ETIK',vgdetik)
+        ierr = vgd_get(vco%vgrid,'IG_1',vgdig1)
+        ierr = vgd_get(vco%vgrid,'IG_2',vgdig2)
+        ierr = vgd_get(vco%vgrid,'IG_3',vgdig3)
+        ierr = vgd_get(vco%vgrid,'IG_4',vgdig4)
+        ierr = vgd_get(vco%vgrid,'IP_1',vgdip1)
+        ierr = vgd_get(vco%vgrid,'IP_2',vgdip2)
+        ierr = vgd_get(vco%vgrid,'IP_3',vgdip3)
+      endif
 
-    if ( mpi_myid > 0 ) then
-      ierr = vgd_new(vco%vgrid,vgdtable)
-      ierr = vgd_put(vco%vgrid,'DATE',vgddate)
-      ierr = vgd_put(vco%vgrid,'ETIK',vgdetik)
-      ierr = vgd_put(vco%vgrid,'IG_1',vgdig1)
-      ierr = vgd_put(vco%vgrid,'IG_2',vgdig2)
-      ierr = vgd_put(vco%vgrid,'IG_3',vgdig3)
-      ierr = vgd_put(vco%vgrid,'IG_4',vgdig4)
-      ierr = vgd_put(vco%vgrid,'IP_1',vgdip1)
-      ierr = vgd_put(vco%vgrid,'IP_2',vgdip2)
-      ierr = vgd_put(vco%vgrid,'IP_3',vgdip3)
-    endif
+      ! 3D table of real*8
+      call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdtable_dim2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdtable_dim3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if ( mpi_myid > 0 ) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
+      call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
+      ! others
+      call rpn_comm_bcast(vgddate, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcastc(vgdetik, len(vgdetik), 'MPI_CHARACTER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdip1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdip2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgdip3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      
+      if ( mpi_myid > 0 ) then
+        ierr = vgd_new(vco%vgrid,vgdtable)
+        ierr = vgd_put(vco%vgrid,'DATE',vgddate)
+        ierr = vgd_put(vco%vgrid,'ETIK',vgdetik)
+        ierr = vgd_put(vco%vgrid,'IG_1',vgdig1)
+        ierr = vgd_put(vco%vgrid,'IG_2',vgdig2)
+        ierr = vgd_put(vco%vgrid,'IG_3',vgdig3)
+        ierr = vgd_put(vco%vgrid,'IG_4',vgdig4)
+        ierr = vgd_put(vco%vgrid,'IP_1',vgdip1)
+        ierr = vgd_put(vco%vgrid,'IP_2',vgdip2)
+        ierr = vgd_put(vco%vgrid,'IP_3',vgdip3)
+      endif
+      
+      deallocate(vgdtable) 
 
-    deallocate(vgdtable) 
+    end if
 
     write(*,*) 'vco_mpiBcast: done'
 
@@ -575,7 +590,7 @@ contains
 
     equal = .true.
 
-    if ( trim(vco1%setupType) == 'fromFile' .and. trim(vco2%setupType) == 'fromFile' ) then
+    if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
        equal = equal .and. (vco1%vgrid == vco2%vgrid)
        if (.not. equal) then
           write(*,*) 'vco_equal: vgrid not equal'

@@ -44,6 +44,7 @@ module HorizontalCoord_mod
      integer              :: ni
      integer              :: nj
      character(len=1)     :: grtyp
+     character(len=1)     :: grtypTicTac
      integer              :: ig1
      integer              :: ig2
      integer              :: ig3
@@ -104,7 +105,7 @@ module HorizontalCoord_mod
 
     character(len=4 ) :: nomvar
     character(len=2 ) :: typvar
-    character(len=1 ) :: grtyp, grtyp_tictac, grtyp_yy
+    character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
 
     if( .not.associated(hco) ) then
@@ -162,8 +163,8 @@ module HorizontalCoord_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
-      write(*,*) 'hco_SetupFromFile: with etiket = ',trim(EtiketName)
-      call utl_abort('hco_setupFromFile')
+      write(*,*) '                   with etiket = ',trim(EtiketName)
+      call utl_abort('hco_setupFromFile: unable to setup the structure')
     end if
 
     ier = fstprm( key,                                             & ! IN
@@ -193,6 +194,8 @@ module HorizontalCoord_mod
     xlon1_yan_4 = -999.9
     xlat2_yan_4 = -999.9
     xlon2_yan_4 = -999.9
+
+    grtypTicTac = 'X'
 
     if (mpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
 
@@ -273,11 +276,11 @@ module HorizontalCoord_mod
        ier = fstprm( key,                                           & ! IN
                      dateo, deet, npas, ni_t, nj_t, nk, nbits,      & ! OUT
                      datyp, ip1, ip2, ip3, typvar, nomvar, etiket,  & ! OUT
-                     grtyp_tictac, ig1_tictac, ig2_tictac,          & ! OUT
+                     grtypTicTac, ig1_tictac, ig2_tictac,           & ! OUT
                      ig3_tictac, ig4_tictac, swa, lng, dltf,        & ! OUT
                      ubc, extra1, extra2, extra3 )                    ! OUT
 
-       call cigaxg ( grtyp_tictac,                                  & ! IN
+       call cigaxg ( grtypTicTac,                                   & ! IN
                      xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
                      ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac ) ! IN
 
@@ -360,15 +363,15 @@ module HorizontalCoord_mod
       !-  2.4.3 Determine parameters related to Yin and Yan grid rotations
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
 
-      ier = ezgprm( EZscintIDsubGrids(1), grtyp_yy, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
-      grtyp_yy = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg ( grtyp_yy,                           & ! IN
+      ier = ezgprm( EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
+      call cigaxg ( grtypTicTac,                        & ! IN
                     xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
                     ig1_yy, ig2_yy, ig3_yy, ig4_yy )      ! IN
 
-      ier = ezgprm( EZscintIDsubGrids(2), grtyp_yy, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
-      grtyp_yy = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg ( grtyp_yy,                                           & ! IN
+      ier = ezgprm( EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
+      call cigaxg ( grtypTicTac,                                        & ! IN
                     xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
                     ig1_yy, ig2_yy, ig3_yy, ig4_yy )                      ! IN
 
@@ -397,6 +400,7 @@ module HorizontalCoord_mod
     hco % ni                   = ni
     hco % nj                   = nj
     hco % grtyp                = trim(grtyp) 
+    hco % grtypTicTac          = trim(grtypTicTac)
     hco % ig1                  = ig1
     hco % ig2                  = ig2
     hco % ig3                  = ig3
@@ -532,6 +536,7 @@ module HorizontalCoord_mod
     call rpn_comm_bcast(hco%ni, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%nj, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcastc(hco%grtyp, len(hco%grtyp), 'MPI_CHARACTER', 0, 'GRID', ierr)
+    call rpn_comm_bcastc(hco%grtypTicTac, len(hco%grtypTicTac), 'MPI_CHARACTER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)

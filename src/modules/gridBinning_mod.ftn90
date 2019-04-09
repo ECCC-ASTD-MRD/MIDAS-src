@@ -30,14 +30,15 @@ module gridBinning_mod
   use utilities_mod
   use analysisGrid_mod
   use horizontalCoord_mod
+  use timeCoord_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: struct_gbi, gbi_setup, gbi_deallocate
-  !public :: gbi_ensembleMean, gbi_ensembleStdDev
-  public :: gbi_statevectorMean !, gbi_statevectorStdDev
+  public :: struct_gbi
+  public :: gbi_setup, gbi_deallocate
+  public :: gbi_stdDev, gbi_mean
 
   type :: struct_gbi
     character(len=24) :: binningStrategy
@@ -49,6 +50,15 @@ module gridBinning_mod
 
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .true.
+
+  ! module interfaces
+  interface gbi_stdDev
+    module procedure gbi_stdDev_ens
+  end interface gbi_stdDev
+
+  interface gbi_mean
+    module procedure gbi_mean_gsv
+  end interface gbi_mean
 
 contains
 
@@ -88,6 +98,10 @@ contains
     !- 1.  Allocate a 2D statevector that will contains the bin category for each 
     !      grid point
     !
+    if (.not. statevector_template%allocated) then
+      call utl_abort('gbi_setup: the input template statevector was not allocated')
+    end if
+
     mpi_local = statevector_template%mpi_local
     if (present(mpi_distribution_opt)) then
       mpi_distribution = mpi_distribution_opt
@@ -250,9 +264,9 @@ contains
   end subroutine gbi_deallocate
 
   !--------------------------------------------------------------------------
-  ! gbi_statevectorMean
+  ! gbi_mean_gsv
   !--------------------------------------------------------------------------
-  subroutine gbi_statevectorMean(gbi, statevector_in, statevector_out)
+  subroutine gbi_mean_gsv(gbi, statevector_in, statevector_out)
     implicit none
 
     type(struct_gbi) :: gbi
@@ -276,7 +290,7 @@ contains
 
     if (mpi_myid == 0 .and. verbose) then
       write(*,*)
-      write(*,*) 'gbi_statevectorMean: Starting...'
+      write(*,*) 'gbi_mean_gsv: Starting...'
     end if
 
     nVarLev   = statevector_in%nk
@@ -309,7 +323,10 @@ contains
 
         !- Compute the mean per bin
         call rpn_comm_allreduce(myBinCount,binCount,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
-        call rpn_comm_allreduce(myBinSum  ,binMean ,gbi%numBins2d,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ier)
+        do binIndex = 1, gbi%numBins2d
+          binMean(binIndex) = myBinSum(binIndex)
+          call mpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
+        end do
 
         do binIndex = 1, gbi%numBins2d
           if (binCount(binIndex) /= 0 ) then
@@ -336,9 +353,114 @@ contains
 
     if (mpi_myid == 0 .and. verbose) then
       write(*,*)
-      write(*,*) 'gbi_statevectorMean: Done!'
+      write(*,*) 'gbi_mean_gsv: Done!'
     end if
 
-  end subroutine gbi_statevectorMean
+  end subroutine gbi_mean_gsv
+
+  !--------------------------------------------------------------------------
+  ! gbi_stdDev_ens
+  !--------------------------------------------------------------------------
+  subroutine gbi_stdDev_ens(gbi, ens, statevector)
+    implicit none
+
+    type(struct_gbi) :: gbi
+    type(struct_ens) :: ens
+    type(struct_gsv) :: statevector
+
+    integer :: myBinCount(gbi%numBins2d)
+    integer :: binCount  (gbi%numBins2d)
+    real(8) :: myBinSum  (gbi%numBins2d)
+    real(8) :: binStdDev (gbi%numBins2d)
+
+    real(4), pointer :: ptr4d_r4 (:,:,:,:)
+    real(8), pointer :: stdDev_r8(:,:,:,:)
+
+    real(4), pointer :: bin2d(:,:,:)
+
+    integer :: myLonBeg, myLonEnd
+    integer :: myLatBeg, myLatEnd
+    integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex, memberIndex
+    integer :: nVarLev, nStep, nEns, ier
+
+    character(len=4), pointer :: varNamesList(:)
+
+    if (mpi_myid == 0 .and. verbose) then
+      write(*,*)
+      write(*,*) 'gbi_stdDev_ens: Starting...'
+    end if
+
+    if (.not. statevector%allocated) then
+      nullify(varNamesList)
+      call ens_varNamesList(varNamesList,ens) 
+      call gsv_allocate(statevector, ens_getNumStep(ens),               &
+           ens_getHco(ens), ens_getVco(ens), varNames_opt=varNamesList, &
+           datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
+           dataKind_opt=8 )
+    end if
+
+    call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+
+    nVarLev = ens_getNumK(ens)
+    nStep   = ens_getNumStep(ens)
+    nEns    = ens_getNumMembers(ens)
+
+    stdDev_r8 => gsv_getField_r8(statevector)
+    bin2d     => gsv_getField3D_r4(gbi%statevector_bin2d)
+
+    do varLevIndex = 1, nVarLev
+
+      ptr4d_r4 => ens_getOneLev_r4(ens,varLevIndex)
+
+      do stepIndex = 1, nStep
+
+        !- Sum the square values per bin
+        myBinCount(:) = 0
+        myBinSum  (:) = 0.d0
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            binIndex = int(bin2d(lonIndex,latIndex,1))
+            if (binIndex /= -1) then
+              do memberIndex = 1, nEns
+                myBinCount(binIndex) = myBinCount(binIndex) + 1
+                myBinSum(binIndex)   = myBinSum(binIndex)   + real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8)**2
+              end do
+            end if
+          end do
+        end do
+
+        !- Compute the stdDev per bin
+        call rpn_comm_allreduce(myBinCount,binCount ,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
+        call rpn_comm_allreduce(myBinSum  ,binStdDev,gbi%numBins2d,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ier)
+
+        do binIndex = 1, gbi%numBins2d
+          if (binCount(binIndex) /= 0 ) then
+            binStdDev(binIndex) = sqrt(binStdDev(binIndex) / real(binCount(binIndex)-1,8))
+          else
+            binStdDev(binIndex) = 0.d0
+          end if
+        end do
+
+        !- Distribute the bin stdDev values at each grid point
+        do latIndex= myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            binIndex = int(bin2d(lonIndex,latIndex,1))
+            if (binIndex /= -1) then
+              stdDev_r8(lonIndex,latIndex,varLevIndex,stepIndex) = binStdDev(binIndex)
+            else
+              stdDev_r8(lonIndex,latIndex,varLevIndex,stepIndex) = 0.d0
+            end if
+          end do
+        end do
+
+      end do
+    end do
+
+    if (mpi_myid == 0 .and. verbose) then
+      write(*,*)
+      write(*,*) 'gbi_stdDev_ens: Done!'
+    end if
+    
+  end subroutine gbi_stdDev_ens
 
 end module gridBinning_mod

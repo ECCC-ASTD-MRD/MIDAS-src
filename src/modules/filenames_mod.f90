@@ -68,7 +68,8 @@ contains
 
     ! Do this step only once in the program since this should not change during the program is running.
     if (firstTime) then
-      fileNamePattern = './' // trim(enspathname) // '/' // '*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9]_*001'
+      write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*001'
+      fileNamePattern = './' // trim(enspathname) // '/' // '*_*001'
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= 1) then
         call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')

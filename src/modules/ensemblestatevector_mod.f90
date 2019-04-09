@@ -35,7 +35,6 @@ MODULE ensembleStateVector_mod
   use utilities_mod
   use varNameList_mod
   use humidityLimits_mod
-  use variableTransforms_mod
   implicit none
   save
   private
@@ -43,13 +42,16 @@ MODULE ensembleStateVector_mod
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
-  public :: ens_getOneLevMean_r8
-  public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterState
+  public :: ens_getOneLevMean_r8, ens_modifyVarName
+  public :: ens_varExist, ens_getNumLev, ens_getNumMembers
+  public :: ens_computeMean, ens_removeMean, ens_recenter, ens_recenterState
+  public :: ens_copyEnsMean, ens_copyMember, ens_insertMember
   public :: ens_computeStdDev, ens_copyEnsStdDev, ens_clipHumidity, ens_normalize
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
+  public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
+  public :: ens_varNamesList
 
   integer,external   :: get_max_rss
 
@@ -258,6 +260,21 @@ CONTAINS
     ens%allocated = .false.
 
   end subroutine ens_deallocate
+
+  !--------------------------------------------------------------------------
+  ! ens_modifyVarName
+  !--------------------------------------------------------------------------
+  subroutine ens_modifyVarName(ens, oldVarName, newVarName) 
+    implicit none
+    
+    ! arguments
+    type(struct_ens) :: ens
+    character(len=*) :: oldVarName
+    character(len=*) :: newVarName
+    
+    call gsv_modifyVarName(ens%statevector_work,oldVarName, newVarName)
+    
+  end subroutine ens_modifyVarName
 
   !--------------------------------------------------------------------------
   ! ens_copy
@@ -601,6 +618,7 @@ CONTAINS
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
+    character(len=4), pointer :: varNamesInEns(:)
 
     if( present(subEnsIndex_opt) ) then
       subEnsIndex = subEnsIndex_opt
@@ -613,9 +631,13 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     if (.not. statevector%allocated) then
+      nullify(varNamesInEns)
+      call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
+                        varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
+                        mpi_local_opt=.true., dataKind_opt=8 )
+      deallocate(varNamesInEns)
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
@@ -640,15 +662,20 @@ CONTAINS
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
+    character(len=4), pointer :: varNamesInEns(:)
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. statevector%allocated) then
+      nullify(varNamesInEns)
+      call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
+                        varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
+                        mpi_local_opt=.true., dataKind_opt=8 )
+      deallocate(varNamesInEns)
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
@@ -672,38 +699,199 @@ CONTAINS
     integer           :: memberIndex
 
     ! locals
-    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep, varIndex
+    integer          :: gsvLevIndex, ensVarLevIndex, nLev
+    character(len=4), pointer :: varNamesInEns(:)
+    character(len=4), pointer :: varNamesInGsv(:)
+    character(len=4) :: varName
+    logical          :: sameVariables
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
+
+    nullify(varNamesInEns)
+    call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
     if (.not. statevector%allocated) then
       call gsv_allocate( statevector, numStep,  &
                          ens%statevector_work%hco, ens%statevector_work%vco,  &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                         dataKind_opt=ens%dataKind )
+                         varNames_opt=varNamesInEns , dataKind_opt=8)
+      varNamesInGsv => varNamesInEns
+    else
+      nullify(varNamesInGsv)
+      call gsv_varNamesList(varNamesInGsv, statevector)
     end if
 
-    if (ens%dataKind == 8) then
-      ptr4d_r8 => gsv_getField_r8(statevector)
-      do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
-        end do
-      end do
-    else if (ens%dataKind == 4) then
-      ptr4d_r4 => gsv_getField_r4(statevector)
-      do stepIndex = 1, numStep
-        do jk = k1, k2
-          ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
-        end do
-      end do
+    sameVariables = .false.
+    if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
+      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+        sameVariables = .true.
+      end if
     end if
+
+    if (sameVariables) then
+
+      k1 = ens%statevector_work%mykBeg
+      k2 = ens%statevector_work%mykEnd
+
+      if (ens%dataKind == 8) then
+        ptr4d_r8 => gsv_getField_r8(statevector)
+        do stepIndex = 1, numStep
+          do jk = k1, k2
+            ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
+          end do
+        end do
+      else if (ens%dataKind == 4) then
+        if (gsv_getDataKind(statevector) == 8) then
+          ptr4d_r8 => gsv_getField_r8(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ptr4d_r8(:,:,jk,stepIndex) = real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:),8)
+            end do
+          end do
+        else
+          ptr4d_r4 => gsv_getField_r4(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+            end do
+          end do
+        end if
+      end if
+
+    else
+
+      do varIndex = 1, size(varNamesInGsv)
+        varName = varNamesInGsv(varIndex)
+        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
+        if (ens%dataKind == 8) then
+          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+          do stepIndex = 1, numStep
+            do gsvLevIndex = 1, nLev
+              ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+              ptr4d_r8(:,:,gsvLevIndex,stepIndex) = ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+            end do
+          end do
+        else if (ens%dataKind == 4) then
+          if (gsv_getDataKind(statevector) == 8) then
+            ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ptr4d_r8(:,:,gsvLevIndex,stepIndex) = real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+              end do
+            end do
+          else
+            ptr4d_r4 => gsv_getField_r4(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ptr4d_r4(:,:,gsvLevIndex,stepIndex) = ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+              end do
+            end do
+          end if
+        end if
+      end do
+
+    end if
+
+    if (associated(varNamesInGsv)) deallocate(varNamesInGsv)
+    if (associated(varNamesInEns)) deallocate(varNamesInEns)
 
   end subroutine ens_copyMember
+
+  !--------------------------------------------------------------------------
+  ! ens_insertMember
+  !--------------------------------------------------------------------------
+  subroutine ens_insertMember(ens, statevector, memberIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer           :: memberIndex
+
+    ! locals
+    !real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep, varIndex
+    integer          :: gsvLevIndex, ensVarLevIndex, nLev
+    character(len=4), pointer :: varNamesInEns(:)
+    character(len=4), pointer :: varNamesInGsv(:)
+    character(len=4) :: varName
+    logical          :: sameVariables
+
+    if (.not. ens%statevector_work%allocated) then
+      call utl_abort('ens_insertMember: ens not allocated')
+    end if
+
+    numStep = ens%statevector_work%numStep
+
+    nullify(varNamesInEns)
+    call gsv_varNamesList(varNamesInEns, ens%statevector_work)
+    nullify(varNamesInGsv)
+    call gsv_varNamesList(varNamesInGsv, statevector)
+
+    sameVariables = .false.
+    if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
+      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+        sameVariables = .true.
+      end if
+    end if
+
+    if (sameVariables) then
+
+      k1 = ens%statevector_work%mykBeg
+      k2 = ens%statevector_work%mykEnd
+
+      if (ens%dataKind == 8) then
+        ptr4d_r8 => gsv_getField_r8(statevector)
+        do stepIndex = 1, numStep
+          do jk = k1, k2
+            ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+          end do
+        end do
+      else if (ens%dataKind == 4) then
+        ptr4d_r8 => gsv_getField_r8(statevector)
+        do stepIndex = 1, numStep
+          do jk = k1, k2
+            ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,jk,stepIndex),4)
+          end do
+        end do
+      end if
+
+    else
+
+      do varIndex = 1, size(varNamesInGsv)
+        varName = varNamesInGsv(varIndex)
+        nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
+        if (ens%dataKind == 8) then
+          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+          do stepIndex = 1, numStep
+            do gsvLevIndex = 1, nLev
+              ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+              ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r8(:,:,gsvLevIndex,stepIndex)
+            end do
+          end do
+        else if (ens%dataKind == 4) then
+          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+          do stepIndex = 1, numStep
+            do gsvLevIndex = 1, nLev
+              ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+              ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,gsvLevIndex,stepIndex),8)
+            end do
+          end do
+        end if
+      end do
+
+    end if
+
+    if (associated(varNamesInGsv)) deallocate(varNamesInGsv)
+    if (associated(varNamesInEns)) deallocate(varNamesInEns)
+
+  end subroutine ens_insertMember
 
   !--------------------------------------------------------------------------
   ! ens_varExist
@@ -721,6 +909,28 @@ CONTAINS
   end function ens_varExist
 
   !--------------------------------------------------------------------------
+  ! ens_varNamesList
+  !--------------------------------------------------------------------------
+  subroutine ens_varNamesList(varNames,ens)
+    implicit none
+    
+    ! arguments
+    type(struct_ens), optional :: ens
+    character(len=4), pointer  :: varNames(:)
+
+    if (associated(varNames)) then
+      call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
+    end if
+
+    if (present(ens)) then
+      call gsv_varNamesList(varNames, ens%statevector_work)
+    else
+      call gsv_varNamesList(varNames)
+    end if
+
+  end subroutine ens_varNamesList
+
+  !--------------------------------------------------------------------------
   ! ens_getNumLev
   !--------------------------------------------------------------------------
   function ens_getNumLev(ens,varLevel) result(nlev)
@@ -734,6 +944,20 @@ CONTAINS
     nlev = vco_getNumLev(ens%statevector_work%vco,varLevel)
 
   end function ens_getNumLev
+  
+  !--------------------------------------------------------------------------
+  ! ens_getNumMembers
+  !--------------------------------------------------------------------------
+  function ens_getNumMembers(ens) result(numMembers)
+    implicit none
+
+    ! arguments
+    type(struct_ens), intent(in)  :: ens
+    integer                       :: numMembers
+
+    numMembers = ens%numMembers
+
+  end function ens_getNumMembers
 
   !--------------------------------------------------------------------------
   ! ens_getNumK
@@ -771,6 +995,10 @@ CONTAINS
     type(struct_ens)             :: ens
     character(len=*), intent(in) :: varName
     integer                      :: offset
+
+    if (.not. ens_varExist(ens,varName)) then
+      call utl_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
+    end if
 
     offset=gsv_getOffsetFromVarName(ens%statevector_work,varName)
 
@@ -821,6 +1049,61 @@ CONTAINS
     varName = gsv_getVarNameFromK(ens%statevector_work,kIndex)
 
   end function ens_getVarNameFromK
+
+  !--------------------------------------------------------------------------
+  ! ens_getVco
+  !--------------------------------------------------------------------------
+  function ens_getVco(ens) result(vco_ptr)
+    implicit none
+    type(struct_ens)          :: ens
+    type(struct_vco), pointer :: vco_ptr
+
+    vco_ptr => ens%statevector_work%vco
+
+  end function ens_getVco
+
+  !--------------------------------------------------------------------------
+  ! ens_getHco
+  !--------------------------------------------------------------------------
+  function ens_getHco(ens) result(hco_ptr)
+    implicit none
+    type(struct_ens)          :: ens
+    type(struct_hco), pointer :: hco_ptr
+
+    hco_ptr => ens%statevector_work%hco
+
+  end function ens_getHco
+
+  !--------------------------------------------------------------------------
+  ! ens_getLatLonBounds
+  !--------------------------------------------------------------------------
+  subroutine ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    implicit none
+    type(struct_ens)       :: ens
+    integer, intent(out)   :: myLonBeg
+    integer, intent(out)   :: myLonEnd
+    integer, intent(out)   :: myLatBeg
+    integer, intent(out)   :: myLatEnd
+
+    myLonBeg = ens%statevector_work%myLonBeg
+    myLonEnd = ens%statevector_work%myLonEnd
+    myLatBeg = ens%statevector_work%myLatBeg
+    myLatEnd = ens%statevector_work%myLatEnd
+
+  end subroutine ens_getLatLonBounds
+
+  !--------------------------------------------------------------------------
+  ! ens_getNumStep
+  !--------------------------------------------------------------------------
+  function ens_getNumStep(ens) result(numStep)
+    implicit none
+    type(struct_ens) :: ens
+
+    integer :: numStep
+
+    numStep = ens%statevector_work%numStep
+
+  end function ens_getNumStep
 
   !--------------------------------------------------------------------------
   ! ens_computeMean
@@ -950,14 +1233,14 @@ CONTAINS
     ! locals
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
-    real(8), allocatable  :: subEnsStdDev(:)
+    real(8), allocatable :: subEnsStdDev(:)
     logical           :: containsScaledPerts
 
     if ( present(containsScaledPerts_opt) ) then
       containsScaledPerts = containsScaledPerts_opt
     else
       containsScaledPerts = .false.
-      if (.not.ens%meanIsComputed) then
+      if (.not.ens%meanIsRemoved .and. .not.ens%meanIsComputed) then
         if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
         call ens_computeMean( ens )
       end if
@@ -1027,17 +1310,29 @@ CONTAINS
             do stepIndex = 1, ens%statevector_work%numStep
 
               subEnsStdDev(:) = 0.0d0
-              do memberIndex = 1, ens%numMembers
-                subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
-                     subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
-                     (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)) - &
-                     ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
-              end do
+
+              if (ens%meanIsRemoved) then
+                do memberIndex = 1, ens%numMembers
+                  subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
+                       subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
+                       (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)))**2
+                end do
+              else
+                do memberIndex = 1, ens%numMembers
+                  subEnsStdDev(ens%subEnsIndexList(memberIndex)) =                      &
+                       subEnsStdDev(ens%subEnsIndexList(memberIndex)) +                 &
+                       (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj)) - &
+                       ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+                end do
+              end if
+
               do subEnsIndex = 1, ens%numSubEns
                 ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =      &
                      ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
                      ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
+                     
               end do
+
               ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) =        &
                    sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
               
@@ -1396,7 +1691,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_readEnsemble
   !--------------------------------------------------------------------------
-  subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
+  subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
                               containsFullField_opt)
     implicit none
@@ -1405,7 +1700,6 @@ CONTAINS
     type(struct_ens) :: ens
     character(len=*) :: ensPathName
     logical          :: biPeriodic
-    character(len=*) :: ctrlVarHumidity
     character(len=*), optional          :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
     logical, optional                   :: checkModelTop_opt
@@ -1431,6 +1725,7 @@ CONTAINS
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
+    character(len=4), pointer :: anlVar(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
     logical :: containsFullField
@@ -1502,8 +1797,11 @@ CONTAINS
 
     ! Set up hco and vco for ensemble files
     call fln_ensFileName(ensFileName, ensPathName, 1, copyToRamDisk_opt=.false.)
+
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
     nullify(hco_file)
-    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
+    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID', varName_opt=anlVar(1))
     if ( present(vco_file_opt) ) then
       ! use the input vertical grid provided
       vco_file => vco_file_opt
@@ -1633,9 +1931,6 @@ CONTAINS
 
           ! unit conversion
           call gsv_fileUnitsToStateUnits( statevector_member_r4, containsFullField)
-          if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ens,'HU') ) then
-            call vtr_transform(statevector_member_r4,'HUtoLQ')
-          end if
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -1722,7 +2017,8 @@ CONTAINS
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
-                               typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, numBits_opt)
+                               typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, &
+                               containsFullField_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1735,6 +2031,7 @@ CONTAINS
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
     logical, optional :: etiketAppendMemberNumber_opt
+    logical, optional :: containsFullField_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -1755,6 +2052,7 @@ CONTAINS
     !! The two next declarations are sufficient until we reach 10^10 members
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
+    character(len=4), pointer :: varNamesInEns(:)
     logical :: containsFullField
 
     write(*,*) 'ens_writeEnsemble: starting'
@@ -1765,6 +2063,14 @@ CONTAINS
     end if
 
     !- 1. Initial setup
+
+    nullify(varNamesInEns)
+    if (present(varNames_opt)) then
+      allocate(varNamesInEns(size(varNames_opt)))
+      varNamesInEns(:) = varNames_opt(:)
+    else
+      call gsv_varNamesList(varNamesInEns, ens%statevector_work)
+    end if
 
     if (present(ip3_opt)) then
       ip3 = ip3_opt
@@ -1818,7 +2124,7 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                        varNames_opt=varNames_opt, dataKind_opt=4)
+                        varNames_opt=varNamesInEns, dataKind_opt=4)
 
       do memberIndex = 1, ens%numMembers
 
@@ -1904,7 +2210,11 @@ CONTAINS
           end if
 
           ! Determine if ensemble is full fields (if yes, will be converted from K to C)
-          containsFullField =  ( .not. ens%meanIsRemoved )
+          if (present(containsFullField_opt)) then
+            containsFullField = containsFullField_opt
+          else
+            containsFullField = (.not. ens%meanIsRemoved)
+          end if
 
           call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
                                 typvar_opt = typvar, numBits_opt = numBits_opt,  &
@@ -1919,6 +2229,7 @@ CONTAINS
 
     end do ! time
 
+    deallocate(varNamesInEns)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)

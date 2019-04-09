@@ -1,0 +1,30 @@
+ &NAMCONF
+   MODE   = 'BHI'
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='LQ'
+   ANLVAR(5)   ='P0'
+/
+ &NAMENS
+   NENS=16
+   ENSFILEBASENAME='national_'
+   IP2=24
+/
+ &NAMCALCSTATS_LAM
+   NTRUNC    = 250
+   GRD_EXT_X = 196
+   GRD_EXT_Y = 184
+   NORMBYSTDDEV  = .TRUE.
+   WRITEENSPERT  = .FALSE.
+   correlatedVariables(1) = 'PP'
+   correlatedVariables(2) = 'CC'
+   correlatedVariables(3) = 'TT'
+   correlatedVariables(4) = 'LQ'
+   correlatedVariables(5) = 'P0'
+/
+ &NAMTIME
+  DSTEPOBSINC = 6.0d0
+/

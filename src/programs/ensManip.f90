@@ -60,6 +60,7 @@ program midas_ensManip
   use utilities_mod
   use ramDisk_mod
   use humidityLimits_mod
+  use variableTransforms_mod
   implicit none
 
   type(struct_gsv) :: statevector_mean, statevector_stddev
@@ -251,12 +252,17 @@ program midas_ensManip
     checkModelTop = .true.
   end if
 
-  call ens_readEnsemble(ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity, &
+  call ens_readEnsemble(ensemble, ensPathName, makeBiPeriodic, &
                         checkModelTop_opt=checkModelTop)
 
   if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
     call ens_clipHumidity(ensemble, imposeSaturationLimitOnInputs, imposeRttovHuLimitsOnInputs)
   end if
+
+  if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensemble,'HU')) then
+    call vtr_transform(ensemble,'HUtoLQ')
+  end if
+
   call tmg_stop(2)
 
   !

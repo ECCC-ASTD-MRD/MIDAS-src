@@ -27,17 +27,21 @@ program midas_calcstats
   !
   use mpi_mod
   use mpivar_mod
+  use fileNames_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
   use calcstatsglb_mod
   use calcstatslam_mod
   use utilities_mod
+  use ramDisk_mod
+  use gridStateVector_mod
+  use timeCoord_mod
   implicit none
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  character(len=256), parameter :: enspathname = './ensemble'
+  character(len=256), parameter :: enspathname = 'ensemble'
   character(len=4)   :: censnumber
   character(len=256), allocatable :: cflensin(:)
 
@@ -47,7 +51,9 @@ program midas_calcstats
   integer           :: nens   ! Ensemble size
   integer           :: ip2    ! Ensemble lead time (hour) selected within the file
   character(len=256):: ensfilebasename
+  character(len=256) :: ensFileName
   character(len=60) :: mode
+  character(len=4), pointer :: anlVar(:)
 
   NAMELIST /NAMCONF/mode
   NAMELIST /NAMENS/nens,ensfilebasename,ip2
@@ -68,6 +74,12 @@ program midas_calcstats
 
   call tmg_start(1,'MAIN')
 
+  ! Setup the ramdisk directory (if supplied)
+  call ram_setup
+
+  ! Setup time
+  call tim_setup
+
   !- 1.2 Read NAMENS namelist
   nens              = 96                ! default value
   ensfilebasename   = '2011011918_006_' ! default value
@@ -79,19 +91,19 @@ program midas_calcstats
   write(*     ,nml=namens)
   ierr=fclos(nulnam)
 
-  allocate(cflensin(nens))
-  do ens = 1,nens
-    write(censnumber,'(i4.4)') ens
-    cflensin(ens)= trim(enspathname) // '/' // trim(ensfilebasename) // censnumber
-    write(*,*) 'ensemble file: ',ens, trim(cflensin(ens))
-  end do
+  !- 2.3 Initialize variables of the model states
+  call gsv_setup
+
+  call fln_ensfileName(ensFileName, ensPathName, 1)
 
   !- 1.3 Initialize the horizontal grid
-  call hco_SetupFromFile(hco_ens, trim(cflensin(1)), ' ', 'Ensemble' ) ! IN
+  nullify(anlVar)
+  call gsv_varNamesList(anlVar)
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'Ensemble', varName_opt=anlVar(1)) ! IN
 
   !- 1.4 Initialize the vertical grid
   call vco_SetupFromFile( vco_ens,        & ! OUT
-                          cflensin(1), ' ') ! IN
+                          ensFileName, ' ') ! IN
 
   !- 1.5 Read NAMCONF namelist to find the mode
   mode  = 'BHI'  ! default value
@@ -110,7 +122,7 @@ program midas_calcstats
   if (hco_ens % global) then
      call csg_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   else
-     call csl_setup( nens, cflensin, hco_ens, vco_ens, ip2) ! IN
+     call csl_setup( nens, hco_ens, vco_ens, ip2) ! IN
   end if
 
   !- 2.2 Mode selection
@@ -119,7 +131,7 @@ program midas_calcstats
      if (hco_ens % global) then
         call csg_computeStats
      else
-        call csl_computeStats
+        call csl_computeBhi
      end if
   case ('BHI2')
      if (hco_ens % global) then
@@ -158,7 +170,7 @@ program midas_calcstats
   !
   !- 3.  Ending...
   !
-  deallocate(cflensin)
+  !deallocate(cflensin)
 
   write(*,*)
   write(*,*) '---------------------'

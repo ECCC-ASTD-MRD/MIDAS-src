@@ -473,10 +473,11 @@ module calcstatsglb_mod
     case ('LOCALIZATIONRADII')
        write(*,*)
        write(*,*) 'Estimating the optimal covariance localization radii'
-       call bmd_setup( hco_ens, nens, nLevEns_M, nLevEns_T,              & ! IN
-                       nkgdimEns, pressureProfile_M, pressureProfile_T,  & ! IN
-                       nvar3d, nvar2d, varLevOffset, nomvar3d, nomvar2d, & ! IN
-                       nWaveBand)                                          ! IN
+       !call bmd_setup( hco_ens, nens, nLevEns_M, nLevEns_T,              & ! IN
+       !                nkgdimEns, pressureProfile_M, pressureProfile_T,  & ! IN
+       !                nvar3d, nvar2d, varLevOffset, nomvar3d, nomvar2d, & ! IN
+       !                nWaveBand)                                          ! IN
+       call utl_abort('work still to be done')
     case default
        write(*,*)
        write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
@@ -531,8 +532,8 @@ module calcstatsglb_mod
        else if (trim(tool) == 'HVCORREL_LOCAL') then
           call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
           call calcLocalCorrelations(ensPerturbations, variableType, waveBandIndex_opt=waveBandIndex) ! IN
-       else
-          call bmd_localizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex_opt=waveBandIndex) ! IN
+       !else
+          !call bmd_localizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex_opt=waveBandIndex) ! IN
        end if
 
     end do

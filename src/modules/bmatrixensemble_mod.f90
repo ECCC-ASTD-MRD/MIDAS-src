@@ -605,8 +605,8 @@ CONTAINS
       if (trim(varianceSmoothing) == 'horizMean') then
         if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
         call gbi_setup(gbi_horizontalMean, 'HorizontalMean', statevector_ensStdDev)
-        call gbi_statevectorMean(gbi_horizontalMean, statevector_ensStdDev, & ! IN
-                                 statevector_ensStdDev)                       ! OUT
+        call gbi_mean(gbi_horizontalMean, statevector_ensStdDev, & ! IN
+                      statevector_ensStdDev)                       ! OUT
         call gbi_deallocate(gbi_horizontalMean)
       else if (trim(varianceSmoothing) == 'footprint') then
         call gsv_smoothHorizontal(statevector_ensStdDev, & ! INOUT
@@ -918,9 +918,14 @@ CONTAINS
     !- 2. Read ensemble
     makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent' .or. trim(varianceSmoothing) /= 'none')
     call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic,         &
-                          ctrlVarHumidity, vco_file_opt = vco_file,         &
+                          vco_file_opt = vco_file,                          &
                           varNames_opt = includeAnlVar(1:numIncludeAnlVar), & 
                           containsFullField_opt=ensContainsFullField)
+
+    if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensPerts(1),'HU') .and. &
+         ensContainsFullField ) then
+      call vtr_transform(ensPerts(1),'HUtoLQ')
+    end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
 

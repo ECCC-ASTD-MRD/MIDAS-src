@@ -25,6 +25,7 @@ module analysisGrid_mod
   use earthconstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
+  use verticalCoord_mod
   use mpi_mod
   use mpivar_mod
   use utilities_mod
@@ -35,7 +36,7 @@ module analysisGrid_mod
   ! public procedures
   public :: agd_SetupFromHCO, agd_mach, agd_mach_r4
   public :: agd_PsiChiToUV, agd_PsiChiToUVAdj, agd_UVToVortDiv
-  public :: agd_getHco
+  public :: agd_getHco, agd_createLamTemplateGrids
 
   ! Definition of some parameters characterizing the geometry of
   ! the Limited-Area (LA) analysis grid and associated metric factors
@@ -72,11 +73,11 @@ module analysisGrid_mod
 
   logical :: initialized = .false.
 
-  contains
+contains
 
-!--------------------------------------------------------------------------
-! agd_SetupFromHCO
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_SetupFromHCO
+  !--------------------------------------------------------------------------
   subroutine agd_SetupFromHCO( hco_ext_in, hco_core_opt )
     implicit none
 
@@ -369,9 +370,9 @@ module analysisGrid_mod
 
   end subroutine agd_SetupFromHCO
 
-!--------------------------------------------------------------------------
-! symmetrize_coef
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! symmetrize_coef
+  !--------------------------------------------------------------------------
   subroutine symmetrize_coef(coef_inout)
     implicit none
     !
@@ -393,9 +394,9 @@ module analysisGrid_mod
 
   end subroutine symmetrize_coef
 
-!--------------------------------------------------------------------------
-! agd_PsiChiToUV
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_PsiChiToUV
+  !--------------------------------------------------------------------------
   subroutine agd_PsiChiToUV(psi, chi, uphy, vphy, nk)
     implicit none
 
@@ -443,7 +444,7 @@ module analysisGrid_mod
     !- 2.  Compute Wind on staggered grid
     !
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       !- 2.1 u-wind component
        do j = myLatBeg, myLatEnd+1
@@ -460,7 +461,7 @@ module analysisGrid_mod
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 3.  Move to collocated (scalar) grid
@@ -472,12 +473,12 @@ module analysisGrid_mod
     !
     !- 4.  Convert Wind images to Physical (true) winds
     !
-!$OMP PARALLEL DO PRIVATE (j)
+    !$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
       uphy(:,j,:) =  glmf%conphy(j) * uimg(:,j,:)
       vphy(:,j,:) =  glmf%conphy(j) * vimg(:,j,:)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     deallocate(psi_ext)
     deallocate(chi_ext)
@@ -488,9 +489,9 @@ module analysisGrid_mod
 
   end subroutine agd_PsiChiToUV
 
-!--------------------------------------------------------------------------
-! agd_PsiChiToUVAdj
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_PsiChiToUVAdj
+  !--------------------------------------------------------------------------
   subroutine agd_PsiChiToUVAdj(psi, chi, uphy, vphy, nk)
     implicit none
 
@@ -529,12 +530,12 @@ module analysisGrid_mod
     !
     !- 4.  Convert Physical (true) winds to Wind images
     !
-!$OMP PARALLEL DO PRIVATE (j)
+    !$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
       uimg(:,j,:) =  glmf%conphy(j) * uphy(:,j,:)
       vimg(:,j,:) =  glmf%conphy(j) * vphy(:,j,:)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 3.  Move to stagerred grid
@@ -552,7 +553,7 @@ module analysisGrid_mod
     chi_ext(:,:,:) = 0.d0
     psi_ext(:,:,:) = 0.d0
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       !- 2.2 from v-wind component
       do j = myLatEnd, myLatBeg-1, -1
@@ -573,7 +574,7 @@ module analysisGrid_mod
         end do
      end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 1.  De-Symmetrize
@@ -597,9 +598,9 @@ module analysisGrid_mod
 
   end subroutine agd_PsiChiToUVAdj
 
-!--------------------------------------------------------------------------
-! uvStagToColloc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! uvStagToColloc
+  !--------------------------------------------------------------------------
   subroutine uvStagToColloc(uStag, vStag, uColloc, vColloc, iBeg, iEnd, jBeg, jEnd , nk)
     implicit none
 
@@ -611,7 +612,7 @@ module analysisGrid_mod
 
     integer :: i,j,k
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       do j = jBeg, jEnd
         do i = iBeg, iEnd
@@ -620,13 +621,13 @@ module analysisGrid_mod
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine uvStagToColloc
 
-!--------------------------------------------------------------------------
-! uvStagToCollocAdj
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! uvStagToCollocAdj
+  !--------------------------------------------------------------------------
   subroutine uvStagToCollocAdj(uStag, vStag, uColloc, vColloc, iBeg, iEnd, jBeg, jEnd , nk)
     implicit none
 
@@ -638,7 +639,7 @@ module analysisGrid_mod
 
     integer :: i, j, k
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       do j = jEnd, jBeg, -1
         do i = iEnd, iBeg, -1
@@ -649,13 +650,13 @@ module analysisGrid_mod
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine uvStagToCollocAdj
 
-!--------------------------------------------------------------------------
-! Symmetrize
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! Symmetrize
+  !--------------------------------------------------------------------------
   subroutine symmetrize(field_out, field_in, iBeg, iEnd, jBeg, jEnd, nk)
     implicit none
     !
@@ -687,9 +688,9 @@ module analysisGrid_mod
 
   end subroutine symmetrize
 
-!--------------------------------------------------------------------------
-! SymmetrizeAdj
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! SymmetrizeAdj
+  !--------------------------------------------------------------------------
   subroutine symmetrizeAdj(field_in, field_out, iBeg, iEnd, jBeg, jEnd, nk)
     implicit none
     !
@@ -713,7 +714,7 @@ module analysisGrid_mod
                             0,ni+1,0,nj+1,ni,nj,nk,  & ! IN
                             1,1,.true.,.true.,ni,0)    ! IN
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
        do j = jBeg, jEnd
           do i = iBeg, iEnd
@@ -721,15 +722,15 @@ module analysisGrid_mod
           end do
        end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     deallocate(field_8)
 
   end subroutine symmetrizeAdj
 
-!--------------------------------------------------------------------------
-! agd_Mach
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_Mach
+  !--------------------------------------------------------------------------
   subroutine agd_mach(gd,ni,nj,nk)
     implicit none
 
@@ -761,8 +762,8 @@ module analysisGrid_mod
       call utl_abort('agd_Mach: Invalid Dimensions')
     end if
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i,istart,jstart,con,a0,a1,b1,b2,del,deriv_istart,deriv_i0,deriv_jstart,deriv_j0,xp,yp)
+    !$OMP PARALLEL
+    !$OMP DO PRIVATE (k,j,i,istart,jstart,con,a0,a1,b1,b2,del,deriv_istart,deriv_i0,deriv_jstart,deriv_j0,xp,yp)
     do k = 1, nk
     !
     !- 1.  Periodicized in x-direction from ni_core to ni
@@ -806,14 +807,14 @@ module analysisGrid_mod
     end if
 
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END DO
+    !$OMP END PARALLEL
 
   end subroutine agd_mach
 
-!--------------------------------------------------------------------------
-! agd_Mach_r4
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_Mach_r4
+  !--------------------------------------------------------------------------
   subroutine agd_mach_r4(gd,ni,nj,nk)
     implicit none
 
@@ -845,8 +846,8 @@ module analysisGrid_mod
       call utl_abort('agd_Mach_r4 : Invalid Dimensions')
     end if
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i,istart,jstart,con,a0,a1,b1,b2,del,deriv_istart,deriv_i0,deriv_jstart,deriv_j0,xp,yp)
+    !$OMP PARALLEL
+    !$OMP DO PRIVATE (k,j,i,istart,jstart,con,a0,a1,b1,b2,del,deriv_istart,deriv_i0,deriv_jstart,deriv_j0,xp,yp)
     do k = 1, nk
     !
     !- 1.  Periodicized in x-direction from ni_core to ni
@@ -890,14 +891,14 @@ module analysisGrid_mod
     end if
 
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+    !$OMP END DO
+    !$OMP END PARALLEL
 
   end subroutine agd_mach_r4
 
-!--------------------------------------------------------------------------
-! agd_UVToVortDiv
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_UVToVortDiv
+  !--------------------------------------------------------------------------
   subroutine agd_UVToVortDiv(Vorticity, Divergence, uphy, vphy, nk)
     implicit none
 
@@ -932,12 +933,12 @@ module analysisGrid_mod
     !
     !- 2.  Convert Physical (true) winds to Wind images
     !
-!$OMP PARALLEL DO PRIVATE (j)
+    !$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
           uimg(:,j,:) =  glmf%conima(j) * uphy(:,j,:)
           vimg(:,j,:) =  glmf%conima(j) * vphy(:,j,:)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 3.  Symmetrize
@@ -952,7 +953,7 @@ module analysisGrid_mod
     !- 4.  Compute Vorticity and Divergence
     !
 
-!$OMP PARALLEL DO PRIVATE (k,j,i)
+    !$OMP PARALLEL DO PRIVATE (k,j,i)
      do k = 1, nk
        do j = myLatBeg, myLatEnd
          do i = myLonBeg, myLonEnd
@@ -966,16 +967,16 @@ module analysisGrid_mod
          end do
        end do
      end do
-!$OMP END PARALLEL DO
+     !$OMP END PARALLEL DO
 
     deallocate(uimg_sym)
     deallocate(vimg_sym)
 
   end subroutine agd_UVToVortDiv
 
-!--------------------------------------------------------------------------
-! agd_getHco
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! agd_getHco
+  !--------------------------------------------------------------------------
   function agd_getHco(gridname) result(hco_ptr)
     implicit none
 
@@ -991,5 +992,255 @@ module analysisGrid_mod
     endif
 
   end function agd_getHco
+
+  !--------------------------------------------------------------------------
+  ! agd_createLamTemplateGrids
+  !--------------------------------------------------------------------------
+  subroutine agd_createLamTemplateGrids(templateFileName, hco_core, vco, &
+                                        grd_ext_x, grd_ext_y)
+    implicit none
+
+    character(len=*), intent(in) :: templateFileName
+    type(struct_hco) :: hco_core
+    type(struct_vco) :: vco
+    integer         , intent(in) :: grd_ext_x
+    integer         , intent(in) :: grd_ext_y
+
+    integer :: ni_ext, nj_ext, i, j, lev, ni, nj, nk
+    integer :: iun = 0
+    integer :: ier, fnom, fstouv, fstfrm, fclos, fstecr
+
+    real(8), allocatable :: Field2d(:,:)
+    real(8), allocatable :: lat_ext(:)
+    real(8), allocatable :: lon_ext(:)
+
+    real(4), allocatable :: dummy2D(:,:)
+
+    real(8) :: dlat, dlon
+    real(4) :: work
+
+    integer :: dateo,npak,status
+    integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
+    integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
+
+    character(len=1)  :: grtyp
+    character(len=2)  :: typvar
+    character(len=12) :: etiket
+
+    !
+    !- 1.  Opening the output template file
+    !
+    ier = fnom(iun, trim(templateFileName), 'RND', 0)
+    ier = fstouv(iun, 'RND')
+
+    npak     = -32
+
+    !
+    !- 2.  Writing the core grid (Ensemble) template
+    !
+
+    !- 2.1 Tic-Tac
+    deet     =  0
+    ip1      =  hco_core%ig1
+    ip2      =  hco_core%ig2
+    ip3      =  hco_core%ig3
+    npas     =  0
+    datyp    =  1
+    grtyp    =  hco_core%grtypTicTac
+    typvar   = 'X'
+    etiket   = 'COREGRID'
+    dateo =  0
+
+    call cxgaig ( grtyp,                                          & ! IN
+         ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
+         real(hco_core%xlat1), real(hco_core%xlon1),   & ! IN
+         real(hco_core%xlat2), real(hco_core%xlon2)  )   ! IN
+
+    ig1      =  ig1_tictac
+    ig2      =  ig2_tictac
+    ig3      =  ig3_tictac
+    ig4      =  ig4_tictac
+
+    ier = utl_fstecr(hco_core%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+         iun, dateo, deet, npas, hco_core%ni, 1, 1, ip1,    &
+         ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+         ig2, ig3, ig4, datyp, .true.)
+
+    ier = utl_fstecr(hco_core%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+         iun, dateo, deet, npas, 1, hco_core%nj, 1, ip1,    &
+         ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+         ig2, ig3, ig4, datyp, .true.)
+
+    !- 2.2 2D Field
+    allocate(Field2d(hco_core%ni,hco_core%nj))
+    Field2d(:,:) = 10.d0
+
+    deet      =  0
+    ip1       =  0
+    ip2       =  0
+    ip3       =  0
+    npas      =  0
+    datyp     =  1
+    grtyp     =  hco_core%grtyp
+    typvar    = 'A'
+    etiket    = 'COREGRID'
+    dateo     =  0
+    ig1       =  hco_core%ig1
+    ig2       =  hco_core%ig2
+    ig3       =  hco_core%ig3
+    ig4       =  hco_core%ig4
+
+    ier = utl_fstecr(Field2d, npak,                                    &
+         iun, dateo, deet, npas, hco_core%ni, hco_core%nj, 1, ip1, &
+         ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,                &
+         ig2, ig3, ig4, datyp, .true.)
+
+    deallocate(Field2d)
+
+    !
+    !- 3.  Create and Write the extended grid (Analysis) template
+    !
+    ni_ext = hco_core%ni + grd_ext_x
+    nj_ext = hco_core%nj + grd_ext_y
+
+    !- 3.1 Tic-Tac
+    allocate(lon_ext(ni_ext))
+    allocate(lat_ext(nj_ext))
+
+    !- Copy core grid info
+    lon_ext(1:hco_core%ni) = hco_core%lon(:) 
+    lat_ext(1:hco_core%nj) = hco_core%lat(:)
+
+    !- Extend the lat lon
+    dlon = hco_core%lon(2) - hco_core%lon(1) 
+    do i = hco_core%ni + 1, ni_ext
+      lon_ext(i) = lon_ext(hco_core%ni) + (i - hco_core%ni) * dlon
+    end do
+
+    dlat = hco_core%lat(2) - hco_core%lat(1) 
+    do j = hco_core%nj + 1, nj_ext
+      lat_ext(j) = lat_ext(hco_core%nj) + (j - hco_core%nj) * dlat
+    end do
+
+    !- Write
+    deet     =  0
+    ip1      =  hco_core%ig1 + 100 ! Must be different from the core grid
+    ip2      =  hco_core%ig2 + 100 ! Must be different from the core grid
+    if (hco_core%ig3 > 0) then
+      ip3      =  hco_core%ig3 + 100 ! Must be different from the core grid
+    else
+      ip3      =  0
+    end if
+    npas     =  0
+    datyp    =  1
+    grtyp    =  hco_core%grtypTicTac
+    typvar   = 'X'
+    etiket   = 'ANALYSIS'
+    dateo    =  0
+    ig1      =  ig1_tictac
+    ig2      =  ig2_tictac
+    ig3      =  ig3_tictac
+    ig4      =  ig4_tictac
+
+    ier = utl_fstecr(lon_ext*MPC_DEGREES_PER_RADIAN_R8, npak, &
+         iun, dateo, deet, npas, ni_ext, 1, 1, ip1,  &
+         ip2, ip3, typvar, '>>', etiket, grtyp, ig1,    &
+         ig2, ig3, ig4, datyp, .true.)
+
+    ier = utl_fstecr(lat_ext*MPC_DEGREES_PER_RADIAN_R8, npak, &
+         iun, dateo, deet, npas, 1, nj_ext, 1, ip1,  &
+         ip2, ip3, typvar, '^^', etiket, grtyp, ig1,    &
+         ig2, ig3, ig4, datyp, .true.)
+
+    deallocate(lon_ext)
+    deallocate(lat_ext)
+
+    !- 3.2 2D Field
+    allocate(Field2d(ni_ext,nj_ext))
+    Field2d(:,:) = 10.d0
+
+    deet      =  0
+    ip1       =  0
+    ip2       =  0
+    ip3       =  0
+    npas      =  0
+    datyp     =  1
+    grtyp     =  hco_core%grtyp
+    typvar    = 'A'
+    etiket    = 'ANALYSIS'
+    dateo     =  0
+    ig1       =  hco_core%ig1 + 100 ! Must be different from the core grid
+    ig2       =  hco_core%ig2 + 100 ! Must be different from the core grid
+    if (hco_core%ig3 > 0) then
+      ig3      =  hco_core%ig3 + 100 ! Must be different from the core grid
+    else
+      ig3      =  0
+    end if
+    ig4       =  0
+
+    ier = utl_fstecr(Field2d, npak,                                  &
+         iun, dateo, deet, npas, ni_ext, nj_ext, 1, ip1, &
+         ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,     &
+         ig2, ig3, ig4, datyp, .true.)
+
+    deallocate(Field2d)
+
+    !
+    !- 4. Write the vertical grid description
+    !
+
+    if (vco%vgridPresent) then
+      !- 4.1 Write the toc-toc
+      status = vgd_write(vco%vgrid,iun,'fst')
+      
+      if ( status /= VGD_OK ) then
+        call utl_abort('createLamTemplateGrids: ERROR with vgd_write')
+      end if
+      
+      !- 4.2 Write a dummy 2D field for each MM and TH levels
+      npak   = -12
+      dateo  = 0
+      deet   = 0
+      npas   = 0
+      ni     = 4
+      nj     = 2
+      nk     = 1
+      ip2    = 0
+      ip3    = 0
+      typvar = 'A'
+      etiket = 'VERTICALGRID'
+      grtyp  = 'G'
+      ig1    = 0
+      ig2    = 0
+      ig3    = 0
+      ig4    = 0
+      datyp  = 1
+      
+      allocate(dummy2D(ni,nj))
+      dummy2D(:,:) = 0.0
+      
+      do lev = 1, vco%nlev_M
+        ip1 = vco%ip1_M(lev)
+        ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, 'MM', etiket, grtyp,              &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
+      end do
+      do lev = 1, vco%nlev_T
+        ip1 = vco%ip1_T(lev)
+        ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, 'TH', etiket, grtyp,              &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
+      end do
+
+      deallocate(dummy2D)
+    end if ! vco%vgridPresent
+
+    !
+    !- 5.  Closing the output template file
+    !
+    ier = fstfrm(iun)
+    ier = fclos (iun)
+
+  end subroutine agd_createLamTemplateGrids
 
 end module analysisGrid_mod
