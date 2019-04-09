@@ -259,7 +259,7 @@ program midas_var
     call min_minimize(trlColumnOnAnlLev,obsSpaceData,controlVector_incr)
 
     ! Compute satellite bias correction increment and write to file
-    call bias_writebias(controlVector_incr,cvm_nvadim)
+    call bias_writebias(controlVector_incr)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
