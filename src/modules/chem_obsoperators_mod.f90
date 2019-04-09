@@ -379,7 +379,7 @@ contains
             ! Check for success in calculations
             if (process_obs(iobslev).and..not.success(iobslev)) then
                ! Observation was flagged within this call of chm_observation_operators
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
@@ -388,7 +388,7 @@ contains
                cycle BODY2
             else if (iass(iobslev).eq.0) then
                ! Observation was flagged previous to this call of chm_observation_operators
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
@@ -410,7 +410,7 @@ contains
 
                if (chm_diagn_only('CH',stnid,varno,nobslev,flag(iobslev))) then
                   ! Observation is for diagnostics and is not to be assimilated
-                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                else if (present(jobs_opt).and.iass(iobslev).eq.1) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)

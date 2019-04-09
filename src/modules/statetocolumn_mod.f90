@@ -184,7 +184,7 @@ contains
           idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
           idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata -1
           do jdata = idata, idatend
-            call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
           end do
           call obs_headSet_i(obsSpaceData,OBS_ST1,headerIndex,  &
                              ibset( obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex), 05))
@@ -352,7 +352,7 @@ contains
           bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
           bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
           do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           end do
           call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
                ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
@@ -576,7 +576,7 @@ contains
                 bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
                 bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
                 do bodyIndex = bodyIndexBeg, bodyIndexEnd
-                  call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+                  call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
                 end do
                 call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
                      ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))

@@ -137,7 +137,7 @@ contains
     
   end subroutine LEXTHUM4
 
-  subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
+  subroutine tvslin_rttov_tl(column, columng, lobsSpaceData)
 !!-------------------------------------------------------------------------
 !! *Purpose*: Tangent linear of computation of radiance with rttov_tl
 !!
@@ -161,7 +161,6 @@ contains
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: column,columng
-    integer ,intent(in) :: obs_ass_val
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: iptobs    (:) 
     integer, allocatable :: iptobs_header (:) 
@@ -286,7 +285,7 @@ contains
       NOBMAX = iptobs(count_profile)
       !     compute the number of calculated radiances for one call
       count_tb = tvs_countRadiances(iptobs, count_profile, lobsSpaceData, &
-           assim_flag_val_opt=obs_ass_val)
+           assim_flag_val_opt=obs_assimilated)
       if ( count_tb == 0 ) cycle  sensor_loop
    
       allocate (xpres(nlevels))
@@ -530,10 +529,10 @@ contains
     
       !     get Hyperspecral IR emissivities
       if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensor_id, iptobs, &
-           count_profile, lobsSpaceData, surfem1,assim_flag_val_opt=obs_ass_val)
+           count_profile, lobsSpaceData, surfem1)
 
       call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof, &
-           iptobs_cma_opt=iptobs_body,assim_flag_val_opt=obs_ass_val)
+           iptobs_cma_opt=iptobs_body)
 
       call tvs_getOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
       

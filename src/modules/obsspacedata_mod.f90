@@ -1486,7 +1486,8 @@ module ObsSpaceData_mod
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: OBS_JPNBRELEM   = 57 ! obs variable-types table length
-   integer, public, parameter :: OBS_ASSIMILATED = 1  ! OBS_ASS value for assimilated obs
+   integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
+   integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
@@ -2288,7 +2289,7 @@ contains
                call obs_bodySet_i(obsdat, OBS_ASS, jdata, -1)
             endif
 
-            if (      (obs_bodyElem_i(obsdat, OBS_ASS, jdata) == 1) &
+            if (      (obs_bodyElem_i(obsdat, OBS_ASS, jdata) == obs_assimilated) &
                  .and.(var3d == 1)) then 
                ! the observation will be used in the analysis
                iaccept=iaccept+1
@@ -2372,7 +2373,7 @@ contains
        bodyIndexEnd = obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyIndexBeg - 1
        numBodyAccept = 0
        observations: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-         if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == 1 ) then
+         if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == obs_assimilated ) then
            ! the observation will be used in the analysis
            numBodyAccept = numBodyAccept + 1
            numBodyCleaned = numBodyCleaned + 1

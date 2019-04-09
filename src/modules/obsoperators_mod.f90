@@ -76,7 +76,6 @@ contains
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,ITYP
-    LOGICAL :: OK
     CHARACTER(len=2) :: varLevel
     integer :: headerIndex, bodyIndex
 
@@ -85,10 +84,8 @@ contains
     ! 2D mode patch
     if ( col_getNumLev(columnghr,'MM') <= 1 ) then 
       do bodyIndex = 1, obs_numbody( obsSpaceData )
-        ok = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .OR.  &
-                obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
-                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 )
-        if ( ok ) then
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+             obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 ) then
           call obs_bodySet_i(obsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0
         end if
       end do
@@ -107,12 +104,10 @@ contains
     !     1.1 PPP Vertical coordinate
     ! 
 
-!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,ityp,varLevel,zpt,zpb)
     DO JDATA= 1,obs_numbody(obsSpaceData)
-       OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .OR. &
-            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-       IF ( OK ) THEN
+       IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 ) THEN
           IF(obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) /= BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
@@ -136,7 +131,7 @@ contains
              !  current obs operators cannot deal with this situation (JFC)                  
              if(varLevel /= 'SF') then
                 write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, pressure = ', ZLEV,' < ',ZPT
-                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
              end if
           ELSE IF ( ZLEV > ZPB ) THEN
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
@@ -149,11 +144,10 @@ contains
     !
     !     1.2 ZZZ Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
+!$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
     do JDATA= 1,obs_numbody(obsSpaceData)
-      OK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
         if ( ITYP /= BUFR_NEDZ ) then
@@ -181,7 +175,7 @@ contains
         if ( ZLEV > ZPT ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
           write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, height =', ZLEV,' > ',ZPT
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
         else if ( ZLEV < ZPB ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
         else
@@ -198,13 +192,11 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
     do JDATA = 1, obs_numbody(obsSpaceData)
       call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA,0)
-      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .OR. &
-           obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -229,12 +221,10 @@ contains
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
+!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
     do JDATA = 1, obs_numbody(obsSpaceData)
-      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .OR. &
-           obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -549,7 +539,7 @@ contains
         if(.not. btest(found,0))then
           ! The azimuth was not found.  The observation cannot be treated
           ! Set the assimilation flag to 0 to ignore this datum later.
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
           cycle BODY
         end if
 
@@ -584,10 +574,10 @@ contains
         ! For aladin data, the temperature and pressure are really *reference*
         ! values.  They must not be assimilated.  Mark them so.
       case (BUFR_NETT)
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       case (BUFR_NEPS)
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       case (BUFR_NEES)
         call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
@@ -1374,7 +1364,7 @@ contains
        end if
 
        if ( llrej ) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, 0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, obs_notAssimilated)
           if ( .not. lassmet ) icount1 = icount1 + 1
        end if
 
@@ -1480,7 +1470,7 @@ contains
                 BODY_1: do 
                    bodyIndex = obs_getBodyIndex(obsSpaceData)
                    if (bodyIndex < 0) exit BODY_1
-                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, 0)
+                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, obs_notAssimilated)
                 end do BODY_1
              end if
           end do HEADER_1
@@ -1837,7 +1827,6 @@ contains
       REAL*8 ZLEV,ZPT,ZPB
       REAL*8 dPdPsT,dPdPsB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT
-      LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
 
@@ -1852,12 +1841,9 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY
 
-            llassim= (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-            lldiag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-            IF (llassim .or. lldiag) THEN
+            IF (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2 ) then
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -2144,7 +2130,7 @@ contains
       !     2.   Compute radiance
       !     .    ----------------
       !
-      call tvslin_rttov_tl(column, columng, obsSpaceData, obs_assimilated)
+      call tvslin_rttov_tl(column, columng, obsSpaceData)
 
 
     end subroutine oop_Hto
@@ -2601,7 +2587,6 @@ contains
       REAL*8 columngVarT,columngVarB
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
       REAL*8 :: dPdPsT,dPdPsB
-      logical :: llassim
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !
@@ -2616,13 +2601,12 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY
 
-            llassim= (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-
-            ! Process all data within the domain of the model
-            IF (llassim) THEN
-               headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+             ! Process all data within the domain of the model
+            IF (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2 ) then
+ 
+              headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)

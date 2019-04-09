@@ -663,7 +663,7 @@ contains
     integer :: numAnalyses,indexAnalysis,indexBatch,numPerturbations
     integer :: obs_column_index_src,obs_column_index_dest
 
-    integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily,iass
+    integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily
     integer, parameter :: numFamily=9
     real*8  :: zmean,originalOmp
     real*8  :: scaleFactor(numFamily)
@@ -733,8 +733,7 @@ contains
     ! apply perturbation for current analysis
     write(*,*) 'perturbObs: applying perturbation for analysis number: ',indexAnalysis
     do indexBody = 1,obs_numBody(obsSpaceData)      
-       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody)
-       if(iass.eq.1 .or. iass.eq.-1) then
+       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody) == obs_assimilated) then
           originalOmp = obs_bodyElem_r(obsSpaceData,obs_column_index_src,indexBody)
           call obs_bodySet_r(obsSpaceData,obs_column_index_dest,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
        endif

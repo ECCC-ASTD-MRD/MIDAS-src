@@ -112,7 +112,7 @@ contains
             my_inumheader(familyIndex,stepIndex) = my_inumheader(familyIndex,stepIndex)+1
             my_inumheader(familyIndex,nStepObs+1) = my_inumheader(familyIndex,nStepObs+1)+1
             do bodyIndex = bodyIndexBeg, bodyIndexEnd
-              if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) then
+              if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
                 my_idataass(familyIndex,stepIndex) = my_idataass(familyIndex,stepIndex) + 1
                 my_idataass(familyIndex,nStepObs+1) = &
                      my_idataass(familyIndex,nStepObs+1) + 1
@@ -403,7 +403,7 @@ contains
         bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
         end do
         call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
              ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))

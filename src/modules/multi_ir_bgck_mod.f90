@@ -1297,7 +1297,7 @@ contains
 
         nchannels = 0 ! number of channels available at that observation point
         do INDEX_BODY= IDATA, IDATEND
-          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
+          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) then
             ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
             ICHN = max( 0,min( ICHN,tvs_maxChannelNumber + 1 ) )
             call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
@@ -1825,7 +1825,7 @@ contains
 
         nchannels =0 
         do INDEX_BODY= IDATA, IDATEND
-          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
+          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) then
             nchannels =  nchannels + 1
             if (btest(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8)) REJFLAG(channelIndex(nchannels),8) = 1
           end if

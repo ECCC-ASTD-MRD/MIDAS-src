@@ -261,7 +261,7 @@ CONTAINS
         index_body = obs_getBodyIndex(obsSpaceData)
         if ( index_body < 0 ) exit BODY
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY   
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= obs_assimilated ) cycle BODY   
 
         iChannel = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body))
         iChannel = max(0,min(iChannel,tvs_maxChannelNumber+1))
@@ -620,7 +620,7 @@ CONTAINS
         index_body = obs_getBodyIndex(obsSpaceData)
         if ( index_body < 0 ) exit BODY
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY  
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= obs_assimilated ) cycle BODY  
         iChannel = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body))
         iChannel = max(0,min(iChannel,tvs_maxChannelNumber+1))
         iChannel = iChannel-tvs_channelOffset(iSensor)
