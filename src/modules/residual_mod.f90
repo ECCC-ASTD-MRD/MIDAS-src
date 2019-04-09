@@ -43,64 +43,43 @@ contains
 !!
 !!v     OBS_OMA         observation - analysis
 !!
-!! Revisions:
-!!v      M. Sitwell, March 2017
-!!v        - Added optional input argument obsAssVal
 !--------------------------------------------------------------------------
-  subroutine res_compute(obsSpaceData,obsAssVal_opt)
+  subroutine res_compute(obsSpaceData)
     implicit none
 
     type(struct_obs) :: obsSpaceData 
-    integer, intent(in), optional :: obsAssVal_opt
-    integer :: index_body, obsAssVal
+    integer :: index_body
 
-    if (present(obsAssVal_opt)) then
-      obsAssVal = obsAssVal_opt
-    else
-      obsAssVal = 1
-    endif
-
-!$OMP PARALLEL DO PRIVATE(index_body)
+    !$OMP PARALLEL DO PRIVATE(index_body)
     do index_body=1,obs_numbody(obsSpaceData)
-      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obsAssVal) then
+      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
         call obs_bodySet_r(obsSpaceData,OBS_OMA,index_body, &
              obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body) &
              -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
       endif
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine res_compute
 
 !--------------------------------------------------------------------------
 !! *Purpose*: Adjoint of computing residuals to observations.
 !!            OBS_WORK contains input and output.
-!!
-!! Revisions:
-!!v      M. Sitwell, March 2017
-!!v        - Added optional input argument obsAssVal_opt
 !--------------------------------------------------------------------------
-  subroutine res_computeAd(obsSpaceData,obsAssVal_opt)
+  subroutine res_computeAd(obsSpaceData)
     implicit none
 
     type(struct_obs) :: obsSpaceData
-    integer, intent(in), optional :: obsAssVal_opt
-    integer :: index_body,obsAssVal
+    integer :: index_body
     
-    if (present(obsAssVal_opt)) then
-      obsAssVal = obsAssVal_opt
-    else
-      obsAssVal = 1
-    endif
-
-!$OMP PARALLEL DO PRIVATE(index_body)
+    !$OMP PARALLEL DO PRIVATE(index_body)
     do index_body=1,obs_numbody(obsSpaceData)
-      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obsAssVal) then
+      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
         call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body, &
              -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
       endif
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine res_computeAd
 

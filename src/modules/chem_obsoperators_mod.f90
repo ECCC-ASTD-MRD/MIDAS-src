@@ -145,7 +145,7 @@ contains
 !!v            end do
 !!
 !--------------------------------------------------------------------------
-  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,obsAssVal_opt,jobs_opt)
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,jobs_opt)
 
     implicit none
     
@@ -155,13 +155,12 @@ contains
     type(struct_columnData), intent(inout), optional :: columnInc_opt
     type(struct_obs), intent(inout) :: obsSpaceData
     integer, intent(in) :: kmode
-    integer, intent(in), optional  :: obsAssVal_opt
     real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: unit,ier,obsAssVal
+    integer :: unit,ier
     integer, external :: fclos
 
     ! Obs space local variables
@@ -181,12 +180,6 @@ contains
     character(len=2), parameter :: varLevel = 'TH'
     
     type(struct_chm_obsoperators) :: obsoper
-
-    if (present(obsAssVal_opt)) then
-       obsAssVal = obsAssVal_opt
-    else
-       obsAssVal = 1
-    end if
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnInc_opt))) then
        write(*,*) "chm_observation_operators: columnInc_opt must be specified for kmode = ",kmode
@@ -270,9 +263,9 @@ contains
                
             ! Indicates if this obs should be processed by chm_obsoperators
             if (kmode.eq.1) then
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obsAssVal.or.iass(iobslev).eq.3).and.process_obs(iobslev)
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_assimilated.and.process_obs(iobslev)
             else
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obsAssVal
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_assimilated
             end if
 
          end if

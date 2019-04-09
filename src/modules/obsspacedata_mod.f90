@@ -1485,8 +1485,8 @@ module ObsSpaceData_mod
 
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
-                                        ! obs variable-types table length
-   integer, public, parameter :: OBS_JPNBRELEM = 57
+   integer, public, parameter :: OBS_JPNBRELEM   = 57 ! obs variable-types table length
+   integer, public, parameter :: OBS_ASSIMILATED = 1  ! OBS_ASS value for assimilated obs
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
