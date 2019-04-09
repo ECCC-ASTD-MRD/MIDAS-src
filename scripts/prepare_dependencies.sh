@@ -28,7 +28,7 @@ numberuses[$numModules]=0
 categories[$numModules]=0
 prefixes[$numModules]=""
 
-for fullfilename in modules/*_mod.f* modules/*/*_mod.f*; do
+for fullfilename in modules/*_mod.f*; do
   filename=`basename $fullfilename`
   modulenamelist=`grep -i "^ *module *[a-zA-Z]" $fullfilename |grep -iv "^ *module *procedure *" | sed 's/module //Ig' | tr '[:upper:]' '[:lower:]'`
   for modulename in $modulenamelist; do
