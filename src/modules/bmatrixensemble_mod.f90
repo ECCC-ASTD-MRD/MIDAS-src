@@ -1276,10 +1276,10 @@ CONTAINS
 
     else
       ! LAM mode
-      call lst_Setup( lst_ben_filter,                   & ! OUT
-           ni, nj, hco_ens%dlon, ntrunc,                & ! IN
-           'LatLonMN', maxlevels_opt=nEnsOverDimension, & ! IN
-           gridDataOrder_opt='kij' )                      ! IN
+      call lst_Setup(lst_ben_filter,                              & ! OUT
+                     ni, nj, hco_ens%dlon, ntrunc,                & ! IN
+                     'LatLonMN', maxlevels_opt=nEnsOverDimension, & ! IN
+                     gridDataOrder_opt='kij' )                      ! IN
 
       nla_filter = lst_ben_filter%nla
       nphase_filter = lst_ben_filter%nphase
@@ -1337,10 +1337,10 @@ CONTAINS
         else
           ! LAM mode
           kind = 'GridPointToSpectral'
-          call lst_VarTransform( lst_ben_filter%id,      & ! IN
-               ensPertSP,              & ! OUT
-               ensPertGD,              & ! IN 
-               kind, nEnsOverDimension ) ! IN
+          call lst_VarTransform(lst_ben_filter,         & ! IN
+                                ensPertSP,              & ! OUT
+                                ensPertGD,              & ! IN 
+                                kind, nEnsOverDimension ) ! IN
         end if
 
         !- 1.3 Filtering and transformation back to grid point space 
@@ -1366,10 +1366,10 @@ CONTAINS
           else
             ! LAM mode
             kind = 'SpectralToGridPoint'
-            call lst_VarTransform( lst_ben_filter%id,      & ! IN
-                                   ensPertSPfiltered,      & ! IN
-                                   ensPertGD,              & ! OUT
-                                   kind, nEnsOverDimension ) ! IN
+            call lst_VarTransform(lst_ben_filter,         & ! IN
+                                  ensPertSPfiltered,      & ! IN
+                                  ensPertGD,              & ! OUT
+                                  kind, nEnsOverDimension ) ! IN
           end if
           ptr4d_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
           !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)

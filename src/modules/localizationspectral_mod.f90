@@ -173,12 +173,11 @@ CONTAINS
 
     else
        ! LAM mode
-       call lst_Setup( lsp(id)%lst,                                 & ! OUT
-                       lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, lsp(id)%ntrunc, & ! IN
-                       'LatLonMN', maxlevels_opt=lsp(id)%nEnsOverDimension,  & ! IN
-                        gridDataOrder_opt='kij'                         ) ! IN
+       call lst_Setup(lsp(id)%lst,                                          & ! OUT
+                      lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, lsp(id)%ntrunc, & ! IN
+                      'LatLonMN', maxlevels_opt=lsp(id)%nEnsOverDimension,  & ! IN
+                       gridDataOrder_opt='kij')                               ! IN
 
-       if (mpi_myid == 0) write(*,*) 'lsp_setup: returned value of lstID = ', lsp(id)%lst%id
        lsp(id)%nphase       = lsp(id)%lst%nphase
        lsp(id)%nla_mpilocal = lsp(id)%lst%nla
        
@@ -455,9 +454,9 @@ CONTAINS
       !
 
       !- 1.1 Setup a non-MPI spectral transform
-      call lst_Setup( lst_hloc,                             & ! OUT
-                      lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, & ! IN
-                      lsp(id)%ntrunc, 'NoMpi')                ! IN
+      call lst_Setup(lst_hloc,                             & ! OUT
+                     lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, & ! IN
+                     lsp(id)%ntrunc, 'NoMpi')                ! IN
 
       !- 1.2 Create a correlation function in physical space
       allocate (gd(lsp(id)%ni,lsp(id)%nj,lsp(id)%nLev))
@@ -470,10 +469,10 @@ CONTAINS
       allocate (sp(lst_hloc%nla, lsp(id)%nphase, lsp(id)%nLev))
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc%id,        & ! IN
-                             sp,                 & ! OUT
-                             gd,                 & ! IN
-                             kind, lsp(id)%nLev )  ! IN
+      call lst_VarTransform(lst_hloc,           & ! IN
+                            sp,                 & ! OUT
+                            gd,                 & ! IN
+                            kind, lsp(id)%nLev)   ! IN
  
       !- 1.4 Compute band mean
       allocate(SumWeight(0:lsp(id)%nTrunc))
@@ -527,10 +526,10 @@ CONTAINS
       gd(lsp(id)%ni/2,lsp(id)%nj/2,:) = 1.d0
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc%id,        & ! IN
-                             sp,                 & ! OUT
-                             gd,                 & ! IN
-                             kind, lsp(id)%nLev )  ! IN
+      call lst_VarTransform(lst_hloc,           & ! IN
+                            sp,                 & ! OUT
+                            gd,                 & ! IN
+                            kind, lsp(id)%nLev )  ! IN
 
       !- 1.6.2 Apply the correlation function
 !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
@@ -549,10 +548,10 @@ CONTAINS
 
       !- 1.6.3 Move back to physical space
       kind = 'SpectralToGridPoint'
-      call lst_VarTransform( lst_hloc%id,        & ! IN
-                             sp,                 & ! IN
-                             gd,                 & ! OUT
-                             kind, lsp(id)%nLev )  ! IN
+      call lst_VarTransform(lst_hloc,           & ! IN
+                            sp,                 & ! IN
+                            gd,                 & ! OUT
+                            kind, lsp(id)%nLev )  ! IN
 
       !- 1.6.4 Normalize to 1
       do k = 1, lsp(id)%nLev
@@ -662,10 +661,10 @@ CONTAINS
           call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
        else
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
-                                 sp_vhLoc(:,:,levIndex,:),             & ! IN
-                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
-                                 kind, lsp(id)%nEnsOverDimension)        ! IN
+          call lst_VarTransform(lsp(id)%lst,                          & ! IN
+                                sp_vhLoc(:,:,levIndex,:),             & ! IN
+                                ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
+                                kind, lsp(id)%nEnsOverDimension)        ! IN
        end if
 
        call tmg_stop(64)
@@ -811,10 +810,10 @@ CONTAINS
         call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
       else
         kind = 'GridPointToSpectral'
-        call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
-                               sp_vhLoc(:,:,levIndex,:),             & ! OUT
-                               ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
-                               kind, lsp(id)%nEnsOverDimension )       ! IN
+        call lst_VarTransform(lsp(id)%lst,                          & ! IN
+                              sp_vhLoc(:,:,levIndex,:),             & ! OUT
+                              ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
+                              kind, lsp(id)%nEnsOverDimension )       ! IN
         end if
 
         call tmg_stop(64)

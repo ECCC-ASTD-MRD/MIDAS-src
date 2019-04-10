@@ -226,10 +226,10 @@ contains
     call mpivar_setup_latbands(hco_bhi%nj,                  & ! IN
                                latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
 
-    call lst_Setup( lst_bhi,                         & ! OUT
-                    hco_bhi%ni, hco_bhi%nj,          & ! IN
-                    hco_bhi%dlon, trunc,             & ! IN
-                    'LatLonMN', maxlevels_opt=nksdim ) ! IN
+    call lst_Setup(lst_bhi,                         & ! OUT
+                   hco_bhi%ni, hco_bhi%nj,          & ! IN
+                   hco_bhi%dlon, trunc,             & ! IN
+                   'LatLonMN', maxlevels_opt=nksdim)  ! IN
 
     cvDim     = nkgdim * lst_bhi%nla * lst_bhi%nphase
     cvDim_out = cvDim
@@ -239,10 +239,10 @@ contains
 
     !- 2.3 Initialized the Wind spectral transform
     if ( trim(WindTransform) == 'VortDiv' ) then
-       call lst_Setup( lst_wind,                       & ! OUT
-                       hco_bhi%ni, hco_bhi%nj,         & ! IN
-                       hco_bhi%dlon, trunc,            & ! IN
-                      'LatLonMN', maxlevels_opt=nlev_M ) ! IN
+       call lst_Setup(lst_wind,                       & ! OUT
+                      hco_bhi%ni, hco_bhi%nj,         & ! IN
+                      hco_bhi%dlon, trunc,            & ! IN
+                      'LatLonMN', maxlevels_opt=nlev_M) ! IN
     end if
 
     !
@@ -847,10 +847,10 @@ contains
     !- 2. Spectral Space -> Grid Point Space
     !
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform( lst_bhi%id,            & ! IN
-                           hiControlVector_in,    & ! IN
-                           gd_out,                & ! OUT
-                           kind, nksdim )           ! IN
+    call lst_VarTransform(lst_bhi,            & ! IN
+                          hiControlVector_in, & ! IN
+                          gd_out,             & ! OUT
+                          kind, nksdim )        ! IN
 
     !
     !- 3.  Multiply by the grid point standard deviations
@@ -887,14 +887,14 @@ contains
              chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
              
              !  4.1.2 Vort -> Psi
-             call lst_Laplacian( lst_wind%id,        & ! IN
-                                 Psi,                & ! INOUT
-                                 'Inverse', nlev_M )   ! IN    
+             call lst_Laplacian(lst_wind,           & ! IN
+                                Psi,                & ! INOUT
+                                'Inverse', nlev_M)    ! IN    
 
              !  4.1.3 Div -> Chi
-             call lst_Laplacian( lst_wind%id,        & ! IN
-                                 Chi,                & ! INOUT
-                                 'Inverse', nlev_M )   ! IN
+             call lst_Laplacian(lst_wind,          & ! IN
+                                Chi,               & ! INOUT
+                                'Inverse', nlev_M)   ! IN
 
           end if
 
@@ -905,9 +905,9 @@ contains
           end if
 
           !  4.2.1 Do Transform
-          call agd_PsiChiToUV( psi, chi,           & ! IN
-                               uphy, vphy,         & ! OUT
-                               nlev_M)               ! IN
+          call agd_PsiChiToUV(psi, chi,           & ! IN
+                              uphy, vphy,         & ! OUT
+                              nlev_M)               ! IN
 
           !  4.2.2 Insert results in gd_out and deallocate memories
           gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
@@ -973,14 +973,14 @@ contains
           if ( trim(WindTransform) == 'VortDiv' ) then
 
              !  4.1.2 Psi -> Vort
-             call lst_Laplacian( lst_wind%id,        & ! IN
-                                 Psi,                & ! INOUT
-                                 'Inverse', nlev_M )   ! IN    
+             call lst_Laplacian(lst_wind,          & ! IN
+                                Psi,               & ! INOUT
+                                'Inverse', nlev_M)   ! IN    
 
              !  4.1.3 Chi -> Vort
-             call lst_Laplacian( lst_wind%id,        & ! IN
-                                 Chi,                & ! INOUT
-                                 'Inverse', nlev_M )   ! IN
+             call lst_Laplacian(lst_wind,          & ! IN
+                                Chi,               & ! INOUT
+                                'Inverse', nlev_M)   ! IN
 
           end if
 
@@ -1013,10 +1013,10 @@ contains
     !- 2. Grid Point Space -> Spectral Space
     !
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_bhi%id,             & ! IN
-                           hiControlVector_out,    & ! OUT
-                           gd_in,                  & ! IN
-                           kind, nksdim )            ! IN
+    call lst_VarTransform(lst_bhi,                & ! IN
+                          hiControlVector_out,    & ! OUT
+                          gd_in,                  & ! IN
+                          kind, nksdim )            ! IN
 
     !
     !- 1. B^1/2 * xi (in spectral space)

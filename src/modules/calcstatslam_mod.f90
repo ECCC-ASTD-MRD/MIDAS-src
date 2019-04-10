@@ -728,10 +728,10 @@ contains
 
       !- 2.2 Grid Point Space -> Spectral Space
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_bhi%id,            & ! IN
-                             SpectralStateVar,      & ! OUT
-                             GridState,             & ! IN
-                             kind, bhi%nVarLev     )       ! IN
+      call lst_VarTransform(lst_bhi,               & ! IN
+                            SpectralStateVar,      & ! OUT
+                            GridState,             & ! IN
+                            kind, bhi%nVarLev)       ! IN
 
       !- 2.3 Compute the covariances
       !$OMP PARALLEL DO PRIVATE(totwvnb,weight,e,ila,p,k2,k1)
@@ -780,7 +780,7 @@ contains
       do totwvnb = 0, nTrunc
         if (trim(SpectralWeights) == 'legacy') then
           if (totwvnb /= 0 ) then
-            SumWeight(totwvnb) = 2.d0 * real(lst_bhi % nphase * lst_bhi % nePerKglobal(totwvnb),8) - 2.d0
+            SumWeight(totwvnb) = 2.d0 * real(lst_bhi%nphase * lst_bhi%nePerKglobal(totwvnb),8) - 2.d0
           else
             SumWeight(totwvnb) = 1.d0
           end if
@@ -927,10 +927,10 @@ contains
     GridState(hco_bhi%ni/2,hco_bhi%nj/2,:) = 1.d0
 
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_norm%id,           & ! IN
-                           SpectralStateVar,      & ! OUT
-                           GridState,             & ! IN
-                           kind, bhi%nVarLev     )  ! IN
+    call lst_VarTransform(lst_norm,           & ! IN
+                          SpectralStateVar,   & ! OUT
+                          GridState,          & ! IN
+                          kind, bhi%nVarLev)    ! IN
 
     !- 1.2.2 Apply the horizontal correlation function
     !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
@@ -949,10 +949,10 @@ contains
 
     !- 1.2.3 Move back to physical space
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform( lst_norm%id,      & ! IN
-         SpectralStateVar,  & ! IN
-         GridState,         & ! OUT
-         kind, bhi%nVarLev )       ! IN
+    call lst_VarTransform(lst_norm,          & ! IN
+                          SpectralStateVar,  & ! IN
+                          GridState,         & ! OUT
+                          kind, bhi%nVarLev)   ! IN
 
     !- 1.2.4 Normalize to 1
     do k = 1, bhi%nVarLev
@@ -1324,10 +1324,10 @@ contains
     GridState(hco_bhi%ni/2,hco_bhi%nj/2,:) = 1.d0
 
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_cor%id,            & ! IN
-                           SpectralStateVar,      & ! OUT
-                           GridState,             & ! IN
-                           kind, bhi%nVarLev     )  ! IN
+    call lst_VarTransform(lst_cor,            & ! IN
+                          SpectralStateVar,   & ! OUT
+                          GridState,          & ! IN
+                          kind, bhi%nVarLev)    ! IN
 
     !- 3.2.2 Apply the horizontal correlation function
     !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
@@ -1346,10 +1346,10 @@ contains
 
     !- 3.2.3 Move back to physical space
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform( lst_cor%id,       & ! IN
-                           SpectralStateVar, & ! IN
-                           GridState,        & ! OUT
-                           kind, bhi%nVarLev ) ! IN
+    call lst_VarTransform(lst_cor,          & ! IN
+                          SpectralStateVar, & ! IN
+                          GridState,        & ! OUT
+                          kind, bhi%nVarLev)  ! IN
 
     !
     !- 4.  Write to file
@@ -1410,10 +1410,10 @@ contains
     GridState(1,1,:) = 1.d0
 
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_hloc%id,            & ! IN
-                           SpectralStateVar,      & ! OUT
-                           GridState,             & ! IN
-                           kind, bhi%nVarLev     )       ! IN
+    call lst_VarTransform(lst_hloc,            & ! IN
+                          SpectralStateVar,    & ! OUT
+                          GridState,           & ! IN
+                          kind, bhi%nVarLev)     ! IN
 
     !- 1.2 Apply the horizontal correlation function
     !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
@@ -1432,10 +1432,10 @@ contains
 
     !- 1.3 Move back to physical space
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform( lst_hloc%id,        & ! IN
-         SpectralStateVar,  & ! IN
-         GridState,         & ! OUT
-         kind, bhi%nVarLev )       ! IN
+    call lst_VarTransform(lst_hloc,          & ! IN
+                          SpectralStateVar,  & ! IN
+                          GridState,         & ! OUT
+                          kind, bhi%nVarLev)   ! IN
 
     !
     !- 2.  Create and apply the localization function in gridpoint space
@@ -1482,10 +1482,10 @@ contains
 
     !- 3.1 Transform to spectral space
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_hloc%id   ,     & ! IN
-         SpectralStateVar,  & ! OUT
-         GridState,         & ! IN
-         kind, bhi%nVarLev )       ! IN
+    call lst_VarTransform(lst_hloc,          & ! IN
+                          SpectralStateVar,  & ! OUT
+                          GridState,         & ! IN
+                          kind, bhi%nVarLev)   ! IN
 
     !- 3.2 Compute band mean
     allocate(SumWeight(0:nTrunc))
