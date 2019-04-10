@@ -701,7 +701,7 @@ contains
       tvs_channelOffset(J) = IOFFSET1B(tvs_instruments(J))
     end do
 
-!*    .   1.3 Print the RTTOV-10 related variables
+!*    .   1.3 Print the RTTOV-12 related variables
 !     .       -----------------------------------
 
     if (mpi_myid == 0) then
