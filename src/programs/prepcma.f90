@@ -48,7 +48,7 @@ program midas_prepcma
   integer :: fnom, fclos, get_max_rss, nulnam, ierr, datestamp
   type(struct_obs),       target  :: obsSpaceData
 
-  real(kind=8), dimension(1,1) :: hx_dummy
+  real(kind=8) :: hx_dummy(1,1)
   integer, parameter :: zero_ens=0
   integer :: ncmahdr,ncmahx,ncmabdy,ncmadim,nobsout,nbrpform
 
