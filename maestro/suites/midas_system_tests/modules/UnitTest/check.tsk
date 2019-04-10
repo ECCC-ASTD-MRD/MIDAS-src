@@ -42,12 +42,15 @@ function check_result {
 
     ${TASK_BIN}/cmcarc -f ../${result_file} -x "${filename}" -O > ${rfrn}
 
+    ln -s ${rfrn}      rfrn
+    ln -s ${live_file} live
+
     cmp_identical=yes
-    cmp ${live_file} ${rfrn} || cmp_identical=no
+    cmp live rfrn || cmp_identical=no
     if [ "${cmp_identical}" = yes ]; then
         method=cmp
     else
-        ${TASK_BIN}/r.filetype ${live_file} > file.filetype ||  livetype=$?
+        ${TASK_BIN}/r.filetype ${live_file} > live.filetype ||  livetype=$?
         ${TASK_BIN}/r.filetype ${rfrn}      > rfrn.filetype || filetype2=$?
 
         if [ "${livetype}" -eq "${filetype2}" ]; then
@@ -58,7 +61,7 @@ function check_result {
                 6) method=${UnitTest_burp_diff};;
                 ## SQLite
                 255)
-                    if [ "$(cat file.filetype)" = "${live_file}: SQLite 3.x database" -a \
+                    if [ "$(cat live.filetype)" = "${live_file}: SQLite 3.x database" -a \
                          "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database" ]; then
                         method=SQLite
                     else
@@ -73,36 +76,32 @@ function check_result {
         fi
 
         if [ "${method}" = fstcomp ]; then
-            ln -s ${rfrn} rfrn
-            ln -s ${live_file} live
 	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
 	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
-	        not_validating="yes"
+	        not_validating=yes
                 maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
 	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
 AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
-		    not_validating="yes"
+		    not_validating=yes
                     maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	        fi
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
         elif [ "${method}" = cmp ]; then
-	    cmp ${live_file} ${rfrn} || not_validating="yes"
+	    cmp live rfrn || not_validating=yes
         elif [ "${method}" = diff ]; then
-	    diff ${diff_options} ${live_file} ${rfrn} || not_validating="yes"
+	    diff ${diff_options} live rfrn || not_validating=yes
         elif [ "${method}" = SQLite ]; then
 	    status=0
-	    diff ${live_file} ${rfrn} > /dev/null || status=1
+	    diff live rfrn > /dev/null || status=1
 	    if [ "${status}" -ne 0 ]; then
                 ## Extract the content of the two SQLite databases
-		${TASK_BIN}/lisqlite ${live_file} livetables
-		${TASK_BIN}/lisqlite ${rfrn}      rfrntables
+		${TASK_BIN}/lisqlite live livetables
+		${TASK_BIN}/lisqlite rfrn rfrntables
                 ## Check if the two SQLite databases contain the same tables
                 ls -1 livetables_* > livetables
                 ls -1 rfrntables_* > rfrntables
@@ -110,14 +109,14 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		sed 's/^livetables_/rfrntables_/' livetables | diff ${diff_options} - rfrntables || status=1
                 if [ "${status}" -ne 0 ]; then
                     echo "The two files does not contain the same tables."
-                    not_validating="yes"
+                    not_validating=yes
                 fi
                 ## check the content of common tables
                 for livetable in livetables_*; do
                     suffix=${livetable#*_}
                     rfrntable=rfrntables_${suffix}
                     if [ ! -f "${rfrntable}" ]; then
-                        not_validating="yes"
+                        not_validating=yes
                     else
 		        status=0
                         cmp ${livetable} ${rfrntable} || status=1
@@ -125,52 +124,42 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
                             status=0
 		            diff ${diff_options} ${livetable} ${rfrntable} || status=1
                             if [ "${status}" -ne 0 ]; then
-                                not_validating="yes"
-                            else
-                                rm ${livetable} ${rfrntable}
+                                not_validating=yes
                             fi
-                        else
-			    rm ${livetable} ${rfrntable}
                         fi
                     fi
                 done
 	    fi
         elif [ "${method}" = liburp ]; then
 	    status=0
-	    diff ${live_file} ${rfrn} > /dev/null || status=1
+	    diff live rfrn > /dev/null || status=1
 	    if [ "${status}" -ne 0 ]; then
-		${TASK_BIN}/liburp -wide ${live_file} > live.${live}
-		${TASK_BIN}/liburp -wide ${rfrn}      > rfrn.${live}
+		${TASK_BIN}/liburp -wide live > live.liburp
+		${TASK_BIN}/liburp -wide rfrn > rfrn.liburp
 		status=0
-		cmp live.${live} rfrn.${live} || status=1
+		cmp live.liburp rfrn.liburp || status=1
 		if [ "${status}" -ne 0 ]; then
-		    diff ${diff_options} live.${live} rfrn.${live} || not_validating="yes"
-		    if [ -z "${not_validating}" ]; then
-			rm live.${live} rfrn.${live}
-		    fi
+		    diff ${diff_options} live.liburp rfrn.liburp || not_validating=yes
 		fi
 	    fi
         elif [ "${method}" = liburp-noresume ]; then
             [[ -f live.nores ]] && rm -f live.nores
-            ${TASK_BIN}/editbrp -s ${live_file} -d live.nores -i<<EOF
+            ${TASK_BIN}/editbrp -s live -d live.nores -i<<EOF
  exclure('>>*******')
 EOF
             [[ -f rfrn.nores ]] && rm -f rfrn.nores
-            ${TASK_BIN}/editbrp -s ${rfrn} -d rfrn.nores -i<<EOF
+            ${TASK_BIN}/editbrp -s rfrn -d rfrn.nores -i<<EOF
  exclure('>>*******')
 EOF
-            ${TASK_BIN}/liburp -wide live.nores > live.${live}
-            ${TASK_BIN}/liburp -wide rfrn.nores > rfrn.${live}
-            cmp live.${live} rfrn.${live} || not_validating="yes"
+            ${TASK_BIN}/liburp -wide live.nores > live.liburp
+            ${TASK_BIN}/liburp -wide rfrn.nores > rfrn.liburp
+            cmp live.liburp rfrn.liburp || not_validating=yes
 	    if [ -n "${not_validating}" ]; then
 	        ## Alors on trouve ce qui ne valide pas
-                diff ${diff_options} live.${live} rfrn.${live} > diff.${live} || not_validating="yes"
+                diff ${diff_options} live.liburp rfrn.liburp > diff.liburp || not_validating=yes
 	    fi
-            if [ -z "${not_validating}" ]; then
-                rm live.${live} rfrn.${live} live.nores rfrn.nores
-	        [ -f diff.${live} ] && rm diff.${live}
-            else
-                cat diff.${live}
+            if [ -n "${not_validating}" ]; then
+                cat diff.liburp
             fi
         elif [ "${method}" = SQL ]; then
 	    fam=$(basename ${live} | cut -d. -f3 | cut -d_ -f2-)
@@ -185,18 +174,19 @@ EOF
 	    else
 	        typ=$fam
 	    fi
-	    ${TASK_BIN}/burp2rdb -in ${live_file}  -out live.sql.${live} -type ${typ} || rm live.sql.${live}
-	    if [ ! -s live.sql.${live} ]; then
-	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${live}"
-	        not_validating="problem"
+            status=0
+	    ${TASK_BIN}/burp2rdb -in live  -out live.sql -type ${typ} || status=1
+	    if [ "${status}" -ne 0 ]; then
+	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "Problem with rdb2burp with file ${live}"
+	        not_validating=problem
 	    else
-	        ${TASK_BIN}/burp2rdb -in ${rfrn} -out rfrn.sql.${live} -type ${typ} || rm rfrn.sql.${live}
-	        if [ ! -s rfrn.sql.${live} ]; then
+	        ${TASK_BIN}/burp2rdb -in rfrn -out rfrn.sql -type ${typ} || status=1
+	        if [ "${status}" -ne 0 ]; then
 		    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${rfrn}"
-		    not_validating="problem"
+		    not_validating=problem
 	        else
 		    case "${fam}" in
-		        to_amsua|to_amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
+		        to_amsua|to_amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr";;
 		        *) satel_elem="" ;;
 		    esac
 		    cat > sqldir <<EOF
@@ -205,31 +195,28 @@ EOF
 select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data  order by concat(id_stn,lat,lon,date,time);
 EOF
 
-		    cat sqldir | ${TASK_BIN}/d.sqlite -noheader live.sql.${live} | sort -n > live.sqllist.${live} || rm live.sqllist.${live}
-		    if [ ! -s live.sqllist.${live} ]; then
+                    cat sqldir | ${TASK_BIN}/d.sqlite -noheader live.sql | sort -n > live.sqllist || status=1
+		    if [ "${status}" -ne 0 ]; then
 		        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${live}"
-		        not_validating="problem"
+		        not_validating=problem
 		    else
-		        cat sqldir | ${TASK_BIN}/d.sqlite -noheader rfrn.sql.${live} | sort -n > rfrn.sqllist.${live} || rm rfrn.sqllist.${live}
-		        if [ ! -s rfrn.sqllist.${live} ]; then
+                        cat sqldir | ${TASK_BIN}/d.sqlite -noheader rfrn.sql | sort -n > rfrn.sqllist || status=1
+		        if [ "${status}" -ne 0 ]; then
 			    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${rfrn}"
-			    not_validating="problem"
+			    not_validating=problem
 		        else
-			    diff ${diff_options} live.sqllist.${live} rfrn.sqllist.${live} || not_validating="yes"
-			    cmp live.sqllist.${live} rfrn.sqllist.${live} || echo "'cmp' found files different"
-			    if [ -z "${not_validating}" ]; then
-			        rm live.sql.${live} rfrn.sql.${live} live.sqllist.${live} rfrn.sqllist.${live}
-			    fi
-		        fi ## Fin du else pour le 'if [ ! -s rfrn.sqllist.${live} ]'
-		    fi ## Fin du else pour le 'if [ ! -s live.sqllist.${live} ]'
-	        fi ## Fin du else pour le 'if [ ! -s rfrn.sql.${live} ]'
-	    fi ## Fin du else pour le 'if [ ! -s live.sql.${live} ]'
+			    diff ${diff_options} live.sqllist rfrn.sqllist || not_validating=yes
+			    cmp live.sqllist rfrn.sqllist || echo "'cmp' found files different"
+		        fi
+		    fi
+	        fi
+	    fi
         elif [ "${method}" = not_the_same_type ]; then
             not_validating=yes
         else
-	    echo "In function check_result:  method=${method} is not one of the possibility"
-	    echo "Please use 'fstcomp', 'cmp' or 'diff'"
-	    exit 1
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "In function check_result: method='${method}' is not one of the possibility to compare files"
+	    NOT_VALIDATING=yes
+	    return 1
         fi
     fi ## Fin du 'if [ "${cmp_not_identical}" = yes ]'
 
@@ -241,7 +228,7 @@ EOF
         fi
 	echo "${message}"
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox  -m "${message}"
-	NOT_VALIDATING="yes"
+	NOT_VALIDATING=yes
         return 1
     else
 	message="The file ${live} is validating with method '${method}'!"

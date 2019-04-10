@@ -3085,9 +3085,17 @@ CONTAINS
     RTANGENT_RADIUS=real(MPC_missingValue_R8,OBS_REAL)
     RGEOID=real(MPC_missingValue_R8,OBS_REAL)
     TERRAIN_TYPE=99
-    !CLOUD_COVER = 0
-    CONSTITUENT_TYPE = -99
-    IFOV = -99
+    RCLOUD_COVER = MPC_missingValue_R4
+    CONSTITUENT_TYPE = MPC_missingValue_INT
+    IFOV = MPC_missingValue_INT
+    RIGQISQUALINDEXLOC = MPC_missingValue_R4
+    RIGQISFLAGQUAL = MPC_missingValue_R4
+    RRO_QCFLAG = MPC_missingValue_R4
+
+    IGQISFLAGQUAL = 0
+    IGQISQUALINDEXLOC = 0
+    CLOUD_COVER = 0
+    IRO_QCFLAG = -99
 
     !if ( allocated(rinfo) ) then
 
@@ -3246,6 +3254,7 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_SUN) ) call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
     if ( obs_columnActive_IH(obsdat,OBS_SAZ) ) call obs_headSet_i(obsdat,OBS_SAZ,nobs,SOLAR_AZIMUTH )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
+    if ( obs_columnActive_IH(obsdat,OBS_TEC) ) call obs_headSet_i(obsdat,OBS_TEC,nobs,0)
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     !if( trim(FAMTYP) == trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID

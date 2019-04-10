@@ -255,7 +255,7 @@ module obsUtil_mod
     write(*,'(a,2i8)')   my_name//': first and last observations: ', headerIndexStart, headerIndexEnd
     write(*,'(a,f12.4)') my_name//': missing value: ', missingValue
     write(*,*)'****************************************************' 
-   
+
     HEADER1: do headerIndex = headerIndexStart, headerIndexEnd
       
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )

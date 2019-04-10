@@ -3237,8 +3237,8 @@ contains
       else
          write(kulout,fmt=9100)idata,kstn
       end if
-9100  format(2x,'there are ',i3,1x,'data in record no.',1x,i6)
-9101  format(2x,'there is ',i3,1x,'data in record no.',1x,i6)
+9100  format(2x,'there are ',i6,1x,'data in record no.',1x,i6)
+9101  format(2x,'there is ', i6,1x,'data in record no.',1x,i6)
 
       ! print all data records
 
@@ -3270,11 +3270,10 @@ contains
             var3d, &
             obsdat%realBodies%columns(OBS_ZHA )%value_r(jdata), &
             obsdat%intBodies%columns(OBS_VCO )%value_i(jdata)
-
       enddo
 
-9201  format(1x,i3,1x,i6,1x,f7.0,1x,i3,10(1x,f10.3),1x,i2, &
-         1x,f10.3,1x,i2)
+9201  format(1x,i6,1x,i6,1x,f7.0,1x,i3,10(1x,f10.3),1x,i2, &
+           1x,f10.3,1x,i2)
 
       return
 
@@ -6803,14 +6802,15 @@ contains
       integer,      intent(in)  :: kobs,kulout,irealBodies
       integer,      intent(out) :: nrealBodies
 
-      integer :: i,j
+      integer :: i,j,nprocs_mpi,ierr
 
 
       ! (note that as a part of the writing, the body is being sorted
       !  so that the order of the observations in the body array 
       !  corresponds with the order of the headers in the header array).
+      call rpn_comm_size("GRID",nprocs_mpi,ierr)
 
-      if(obsdat%mpi_local) then
+      if(obsdat%mpi_local .and. nprocs_mpi>1) then
          call obs_abort('obs_write_hdr() is not equipped to handle the ' // &
                         'case, mpi_local=.true.')
          return
