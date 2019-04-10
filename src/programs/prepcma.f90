@@ -83,7 +83,7 @@ program midas_prepcma
   call obsf_setup(dateStamp, 'analysis' )
 
   write(*,*)
-  write(*,*) '> midas-obsIO: setup - END'
+  write(*,*) '> midas-prepcma: setup - END'
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   call obs_class_initialize('ENKF')
