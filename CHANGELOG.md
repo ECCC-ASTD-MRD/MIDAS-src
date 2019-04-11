@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to define a local domain and control inclusion of each variable for energy norm (#207 and !204)
  * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
