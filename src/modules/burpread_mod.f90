@@ -3045,7 +3045,6 @@ CONTAINS
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 
-    !REAL   , allocatable  ::      RINFO(:)
     REAL        ::      RINFO(NELE_INFO)
 
     CHARACTER*2 ::   FAMTYP
@@ -3063,19 +3062,19 @@ CONTAINS
 
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
-    REAL(OBS_REAL)        ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
+    REAL(OBS_REAL) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
 
     NOBS=obs_numHeader(obsdat)
 
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
     !write(*,*)'  DEBUT WRITE_INFO NOBS CODTYP ----> ',NOBS,CODTYP,size(liste_info),size(RINFO),liste_info
-    LAND_SEA  =0
-    INSTRUMENT=0
-    ID_SAT    =0
-    SENSOR    =0
+    LAND_SEA   = 0
+    INSTRUMENT = 0
+    ID_SAT     = 0
+    SENSOR     = 0
 
-    IRO_QCFLAG=-99
+    IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
     IGQISFLAGQUAL=0
 
@@ -3091,8 +3090,7 @@ CONTAINS
     RSOLAR_AZIMUTH = real(MPC_missingValue_R8,OBS_REAL)
     RSOLAR_ZENITH = real(MPC_missingValue_R8,OBS_REAL)
     RZENITH = 90.
-
-    !if ( allocated(rinfo) ) then
+    RAZIMUTH = 0.
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3107,7 +3105,7 @@ CONTAINS
         CASE( 2048)
           RSENSOR = INFOV
           if (RSENSOR == MPC_missingValue_R4 ) THEN
-            SENSOR = -99
+            SENSOR = MPC_missingValue_INT
           ELSE
             SENSOR = NINT(RSENSOR)
           END IF
@@ -3176,7 +3174,7 @@ CONTAINS
         CASE( 33039)
           RRO_QCFLAG=INFOV
           if (RRO_QCFLAG == MPC_missingValue_R4 ) THEN
-            IRO_QCFLAG=-99
+            IRO_QCFLAG=MPC_missingValue_INT
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           END IF
@@ -3195,8 +3193,8 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! INSTRUMENT
-    IF ( SENSOR == -99)then
-      IF ( INSTRUMENT == -99)then
+    IF ( SENSOR == MPC_missingValue_INT) then
+      IF ( INSTRUMENT == MPC_missingValue_INT) then
         INSTRUMENT=0
       END IF
     ELSE

@@ -437,7 +437,7 @@ contains
         if ( trim(rdbSchema) /= 'csr' ) then
 
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
-
+         
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
         end if
@@ -487,7 +487,6 @@ contains
           earthLocRadCurv_R8 = earthLocRadCurv
           call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = obsSat, INT_MISSING=MPC_missingValue_INT )
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = azimuthReal_R8 )
-
 
         else if ( trim(rdbSchema)=='al' ) then
           call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = idProf )
