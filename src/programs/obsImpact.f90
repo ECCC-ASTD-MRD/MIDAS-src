@@ -72,12 +72,15 @@ program midas_obsimpact
 
   ! namelist variables
   integer             :: nvamaj, nitermax, nsimmax
-  real(8)             :: leadTime, repsg, rdf1fac
+  real(8)             :: leadTime, repsg, rdf1fac,latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
+  logical             :: includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm 
   character(len=256)  :: forecastPath
   character(len=4)    :: fsoMode
 
   NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
   NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
+  NAMELIST /NAMFSO/latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
+  NAMELIST /NAMFSO/includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
 
@@ -264,6 +267,15 @@ contains
     nsimmax  = 120
     repsg    = 1d-5
     rdf1fac  = 0.25d0
+    latMinNorm = -95.0d0
+    latMaxNorm = 95.0d0
+    lonMinNorm = -185.0d0
+    lonMaxNorm = 365.0d0
+    includeUVnorm=.true.
+    includeTTnorm=.true.
+    includeP0norm=.true.
+    includeHUnorm=.false.
+    includeTGnorm=.false.
     forecastPath = './forecasts'
     fsoMode  = 'HFSO' 
 
@@ -274,6 +286,11 @@ contains
     if(ierr /= 0) call utl_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
     ierr = fclos(nulnam)
+    ! convert Latmin,max and Lonmin,max from degres into RAD
+    latMinNorm = latMinNorm*MPC_RADIANS_PER_DEGREE_R8 
+    latMaxNorm = latMaxNorm*MPC_RADIANS_PER_DEGREE_R8 
+    lonMinNorm = lonMinNorm*MPC_RADIANS_PER_DEGREE_R8 
+    lonMaxNorm = lonMaxNorm*MPC_RADIANS_PER_DEGREE_R8 
 
     call ben_setFsoLeadTime(leadTime)
     fso_nsim = 0
@@ -445,12 +462,21 @@ contains
 
     call gsv_copy(statevector_fa,statevector_tempfa)
     call gsv_copy(statevector_fb,statevector_tempfb)
-    call gsv_multEnergyNorm(statevector_tempfa, statevector_a) ! use analysis as reference state
-    call gsv_multEnergyNorm(statevector_tempfb, statevector_a) ! use analysis as reference state
+    call gsv_multEnergyNorm(statevector_tempfa, statevector_a,  &
+                            latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
+                            includeUVnorm, includeTTnorm, includeP0norm,  &
+                            includeHUnorm, includeTGnorm) ! use analysis as reference state
+    call gsv_multEnergyNorm(statevector_tempfb, statevector_a,  &
+                            latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
+                            includeUVnorm, includeTTnorm, includeP0norm,  &
+                            includeHUnorm, includeTGnorm) ! use analysis as reference state
 
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
-    call gsv_multEnergyNorm(statevector_fb, statevector_a) ! use analysis as reference state
+    call gsv_multEnergyNorm(statevector_fb, statevector_a,  &
+                            latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
+                            includeUVnorm, includeTTnorm, includeP0norm,  &
+                            includeHUnorm, includeTGnorm) ! use analysis as reference state
     call gsv_copy(statevector_fb,statevector_out)
 
   end subroutine fso_calcFcstError

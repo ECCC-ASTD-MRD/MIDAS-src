@@ -5688,10 +5688,15 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_multEnergyNorm
   !--------------------------------------------------------------------------
-  subroutine gsv_multEnergyNorm(statevector_inout, statevector_ref )
+  subroutine gsv_multEnergyNorm(statevector_inout, statevector_ref,  &
+                                latMin, latMax, lonMin, lonMax,      &
+                                uvNorm,ttNorm,p0Norm,huNorm,tgNorm)
     implicit none
     type(struct_gsv)     :: statevector_inout, statevector_ref
-    integer              :: jstep, jlon, jlev, jlat, jlon2, jlat2, status, nLev_M, nLev_T
+    real(8)              :: latMin, latMax, lonMin, lonMax
+    logical              :: uvNorm, ttNorm, p0Norm, huNorm, tgNorm
+
+    integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, status, nLev_M, nLev_T
     real(8)              :: scaleFactor, scaleFactorConst, scaleFactorLat, scaleFactorLon, scaleFactorLev
     real(8)              :: pfac, tfac, qfac
     real(8)              :: sumScale , sumeu, sumev, sumep, sumet, sumeq
@@ -5737,187 +5742,257 @@ module gridStateVector_mod
     ! dlat * dlon
     scaleFactorConst = statevector_inout%hco%dlat*statevector_inout%hco%dlon
 
-    ! for wind components
+    ! for wind components if to include in Norm calculation
     field_UU => gsv_getField_r8(statevector_inout,'UU')
     field_VV => gsv_getField_r8(statevector_inout,'VV')
     sumeu = 0.0D0
     sumev = 0.0D0
-    sumScale = 0.0D0  
-    do jlev = 1, nLev_M
-      do jstep = 1, statevector_inout%numStep
-        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-          jlat2 = jlat - statevector_inout%myLatBeg + 1
-          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
-
-          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            jlon2 = jlon - statevector_inout%myLonBeg + 1
-            ! do all thermo levels for which there is a momentum level above and below
-            if ( jlev == nLev_M) then
-              scaleFactorLev = Press_M(jlon2, jlat2, nLev_M)-Press_T(jlon2, jlat2, nLev_T-1) 
-            else if ( Press_T(jlon2, jlat2, jlev) < 10000.0D0) then 
-              scaleFactorLev = 0.0D0
+    sumScale = 0.0D0 
+    if (uvNorm) then
+      do levIndex = 1, nLev_M
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
             else
-              scaleFactorLev = Press_T(jlon2, jlat2, jlev+1) -  Press_T(jlon2, jlat2, jlev)
+              scaleFactorLat = 0.0D0
             end if
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+                scaleFactorLon = 1.0D0
+              else
+                scaleFactorLon = 0.0D0
+              end if
+              ! do all thermo levels for which there is a momentum level above and below
+              if ( levIndex == nLev_M) then
+                scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1) 
+              else if ( Press_T(lonIndex2, latIndex2, levIndex) < 10000.0D0) then 
+                scaleFactorLev = 0.0D0
+              else
+                scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) -  Press_T(lonIndex2, latIndex2, levIndex)
+              end if
 
-              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
+              scaleFactor = scaleFactorConst * scaleFactorLat* scaleFactorLon * scaleFactorLev
               sumScale = sumScale + scaleFactor
 
               sumeu = sumeu + &
-                      0.5 * field_UU(jlon,jlat,jlev,jstep) * field_UU(jlon,jlat,jlev,jstep) * scaleFactor
+                      0.5 * field_UU(lonIndex,latIndex,levIndex,stepIndex) * field_UU(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
               sumev = sumev + &
-                      0.5 * field_VV(jlon,jlat,jlev,jstep) * field_VV(jlon,jlat,jlev,jstep) * scaleFactor
+                      0.5 * field_VV(lonIndex,latIndex,levIndex,stepIndex) * field_VV(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
 
-              field_UU(jlon,jlat,jlev,jstep) = &
-                   field_UU(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor
-              field_VV(jlon,jlat,jlev,jstep) = &
-                   field_VV(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor
-          end do !jlon
-        end do !jlat
-      end do ! jstep
-    end do ! jlev
+              field_UU(lonIndex,latIndex,levIndex,stepIndex) = &
+                   field_UU(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor
+              field_VV(lonIndex,latIndex,levIndex,stepIndex) = &
+                   field_VV(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor
+            end do !lonIndex
+          end do !latIndex
+        end do ! stepIndex
+      end do ! levIndex
+      call mpi_allreduce_sumreal8scalar(sumeu,'grid')
+      call mpi_allreduce_sumreal8scalar(sumev,'grid')
+      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
 
-    call mpi_allreduce_sumreal8scalar(sumeu,'grid')
-    call mpi_allreduce_sumreal8scalar(sumev,'grid')
-    call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumeu = sumeu/sumScale
+      sumev = sumev/sumScale
 
-    sumeu = sumeu/sumScale
-    sumev = sumev/sumScale
+      field_UU(:,:,:,:) = field_UU(:,:,:,:)/sumScale
+      field_VV(:,:,:,:) = field_VV(:,:,:,:)/sumScale
+    else
+      field_UU(:,:,:,:) = field_UU(:,:,:,:)*0.0D0
+      field_VV(:,:,:,:) = field_VV(:,:,:,:)*0.0D0
+    end if ! if uvNorm
 
     if (mpi_myid == 0)  write(*,*) 'energy for UU=', sumeu
     if (mpi_myid == 0)  write(*,*) 'energy for VV=', sumev
-
-    field_UU(:,:,:,:) = field_UU(:,:,:,:)/sumScale
-    field_VV(:,:,:,:) = field_VV(:,:,:,:)/sumScale
-
+      
     ! for Temperature
     field_T => gsv_getField_r8(statevector_inout,'TT')
     sumScale = 0.0D0
     sumet = 0.0D0
-
-    do jlev = 1, nLev_T
-      do jstep = 1, statevector_inout%numStep
-        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-          jlat2 = jlat - statevector_inout%myLatBeg + 1
-          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
-
-          ! do all thermo levels for which there is a momentum level above and below
-          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            jlon2 = jlon - statevector_inout%myLonBeg + 1
-
-            if (jlev == nLev_T) then  !surface
-              scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T)-Press_T(jlon2, jlat2, nLev_T-1) 
-            else if (jlev == 1)  then  ! top
-              scaleFactorLev = 0.0D0
-            else if ( Press_M(jlon2, jlat2, jlev-1) < 10000.0D0) then 
-              scaleFactorLev = 0.0D0
+    if (ttNorm) then
+      do levIndex = 1, nLev_T
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
             else
-              scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
+              scaleFactorLat = 0.0D0
             end if
-              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+                scaleFactorLon = 1.0D0
+              else
+                scaleFactorLon = 0.0D0
+              end if
+              ! do all thermo levels for which there is a momentum level above and below
+              if (levIndex == nLev_T) then  !surface
+                scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1) 
+              else if (levIndex == 1)  then  ! top
+                scaleFactorLev = 0.0D0
+              else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then 
+                scaleFactorLev = 0.0D0
+              else
+                scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+              end if
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
               sumet = sumet + &
-                   0.5 * tfac * field_T(jlon,jlat,jlev,jstep) * field_T(jlon,jlat,jlev,jstep) * scaleFactor
+                   0.5 * tfac * field_T(lonIndex,latIndex,levIndex,stepIndex) * field_T(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
               sumScale = sumScale + scaleFactor
-              field_T(jlon,jlat,jlev,jstep) = &
-                           field_T(jlon,jlat,jlev,jstep) * 0.5 * tfac * scaleFactor
+              field_T(lonIndex,latIndex,levIndex,stepIndex) = &
+                           field_T(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * tfac * scaleFactor
+            end do
           end do
-        end do
-      end do ! jstep
-    end do ! jlev
-    call mpi_allreduce_sumreal8scalar(sumet,'grid')
-    call mpi_allreduce_sumreal8scalar(sumScale,'grid')
-    sumet = sumet/sumScale
+        end do ! stepIndex
+      end do ! levIndex
+      call mpi_allreduce_sumreal8scalar(sumet,'grid')
+      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumet = sumet/sumScale
+      
+      field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
+    else 
+      field_T(:,:,:,:) = field_T(:,:,:,:)*0.0D0
+    end if ! if ttNorm
+
     if (mpi_myid == 0)  write(*,*) 'energy for TT=', sumet
-    field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
+
 
     ! humidity (set to zero, for now)
     field_LQ => gsv_getField_r8(statevector_inout,'HU')
     sumScale = 0.0D0
     sumeq = 0.0D0
-
-    do jlev = 1, nLev_T
-      do jstep = 1, statevector_inout%numStep
-        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-          jlat2 = jlat - statevector_inout%myLatBeg + 1
-          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
-          ! do all thermo levels for which there is a momentum level above and below
-          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            jlon2 = jlon - statevector_inout%myLonBeg + 1
-
-            if ( jlev == nLev_T) then !surface
-              scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T) - Press_T(jlon2, jlat2, nLev_T-1) 
-            else if (jlev == 1)  then  ! top
-              scaleFactorLev = 0.0D0
-            else if ( Press_M(jlon2, jlat2, jlev-1) < 10000.0D0) then 
-              scaleFactorLev = 0.0D0
+    if (huNorm) then
+      do levIndex = 1, nLev_T
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
             else
-              scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
+              scaleFactorLat = 0.0D0
             end if
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+                scaleFactorLon = 1.0D0
+              else
+                scaleFactorLon = 0.0D0
+              end if
+              ! do all thermo levels for which there is a momentum level above and below
+              if ( levIndex == nLev_T) then !surface
+                scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T) - Press_T(lonIndex2, latIndex2, nLev_T-1) 
+              else if (levIndex == 1)  then  ! top
+                scaleFactorLev = 0.0D0
+              else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then 
+                scaleFactorLev = 0.0D0
+              else
+                scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+              end if
 
-            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
-            sumScale = sumScale + scaleFactor
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
+              sumScale = sumScale + scaleFactor
 
-            sumeq = sumeq + 0.5 * qfac * &
-                    field_LQ(jlon,jlat,jlev,jstep) * field_LQ(jlon,jlat,jlev,jstep) * scaleFactor
+              sumeq = sumeq + 0.5 * qfac * &
+                    field_LQ(lonIndex,latIndex,levIndex,stepIndex) * field_LQ(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
 
-            field_LQ(jlon,jlat,jlev,jstep) = &
-                       field_LQ(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor * qfac * 0.0
+              field_LQ(lonIndex,latIndex,levIndex,stepIndex) = &
+                       field_LQ(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor * qfac * 0.0
 
+            end do
           end do
-        end do
-      end do ! jstep
-    end do ! jlat
-    call mpi_allreduce_sumreal8scalar(sumScale,'grid')
-    field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale*0.0
+        end do ! stepIndex
+      end do ! latIndex
+      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale
+    else 
+      field_LQ(:,:,:,:) = field_LQ(:,:,:,:)*0.0D0
+    end if ! if huNorm
+
+    if (mpi_myid == 0)  write(*,*) 'energy for HU=', sumeq
 
     ! surface pressure
     field_Psfc => gsv_getField_r8(statevector_inout,'P0')
     sumScale = 0.0D0
     sumep = 0.0
+    if (p0Norm) then
+      do stepIndex = 1, statevector_inout%numStep
+        do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
+            else
+              scaleFactorLat = 0.0D0
+            end if
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+                scaleFactorLon = 1.0D0
+              else
+                scaleFactorLon = 0.0D0
+              end if
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+              sumScale = sumScale + scaleFactor
+              sumep = sumep + 0.5 * pfac * &
+                  field_Psfc(lonIndex,latIndex,1,stepIndex) * field_Psfc(lonIndex,latIndex,1,stepIndex) * scaleFactor
+              field_Psfc(lonIndex,latIndex,1,stepIndex) = &
+              field_Psfc(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * pfac
+          end do
+        end do ! latIndex
+      end do ! stepIndex
 
-    do jstep = 1, statevector_inout%numStep
-      do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-        scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
-        do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-          scaleFactor = scaleFactorConst * scaleFactorLat
-          sumScale = sumScale + scaleFactor
-          sumep = sumep + 0.5 * pfac * &
-                  field_Psfc(jlon,jlat,1,jstep) * field_Psfc(jlon,jlat,1,jstep) * scaleFactor
-          field_Psfc(jlon,jlat,1,jstep) = &
-            field_Psfc(jlon,jlat,1,jstep) * 0.5 * scaleFactor * pfac
-        end do
-      end do ! jlat
-    end do ! jstep
-
-    call mpi_allreduce_sumreal8scalar(sumep,'grid')
-    call mpi_allreduce_sumreal8scalar(sumScale,'grid')
-
-    sumep = sumep/sumScale
+      call mpi_allreduce_sumreal8scalar(sumep,'grid')
+      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumep = sumep/sumScale
+      field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
+    else
+      field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)*0.0D0
+    end if ! if p0Norm
 
     if (mpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
 
-    field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
 
     ! skin temperature (set to zero for now)
     field_TG => gsv_getField_r8(statevector_inout,'TG')
     sumScale = 0.0D0
-    do jstep = 1, statevector_inout%numStep
-      do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-        scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
-        do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-          scaleFactor = scaleFactorConst * scaleFactorLat
-          sumScale = sumScale + scaleFactor
-          field_TG(jlon,jlat,1,jstep) = &
-                  field_TG(jlon,jlat,1,jstep) * 0.5 * scaleFactor * 0.0
-        end do
-      end do ! jlat
-    end do ! jstep
+    if (tgNorm) then
+      do stepIndex = 1, statevector_inout%numStep
+        do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
+            else
+              scaleFactorLat = 0.0D0
+            end if
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+                scaleFactorLon = 1.0D0
+              else
+                scaleFactorLon = 0.0D0
+              end if
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+              sumScale = sumScale + scaleFactor
+              field_TG(lonIndex,latIndex,1,stepIndex) = &
+              field_TG(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * 0.0
+          end do
+        end do ! latIndex
+      end do ! stepIndex
+      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale 
+    else
+      field_TG(:,:,:,:) = field_TG(:,:,:,:)*0.0D0
+    end if ! if tgNorm
 
-    call mpi_allreduce_sumreal8scalar(sumScale,'grid')
-
-    field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale * 0.0
     if (mpi_myid == 0) write(*,*) 'energy for total=', sumeu + sumev + sumet + sumep
-
     deallocate(Press_T,Press_M)
     deallocate(Psfc_ref)
 
