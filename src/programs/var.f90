@@ -282,14 +282,11 @@ program midas_var
       call utl_writeStatus(clmsg)
     end if
 
+    call gsv_deallocate(statevector_incr)
+
     ! write the Hessian
     call min_writeHessian(controlVector_incr)
     deallocate(controlVector_incr)
-
-    ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
-    call var_calcOmA(statevector_incr,trlColumnOnAnlLev,obsSpaceData,obsAssVal=3)
-
-    call gsv_deallocate(statevector_incr)
 
     ! Deallocate memory related to variational bias correction
     call bias_finalize()
@@ -332,14 +329,8 @@ program midas_var
   call rpn_comm_finalize(ierr) 
 
 contains
-
   !--------------------------------------------------------------------------
-  !! *Purpose*: Control of the preprocessing of the variational assimilation
-  !!
-  !! Revisions:
-  !!           Y.J. Rochon, Jan 2016
-  !!           - Addition of test on availability of input trial fields according
-  !!             to related observation families.
+  !- var_setup
   !--------------------------------------------------------------------------
   subroutine var_setup(obsColumnMode)
     implicit none
@@ -436,57 +427,5 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine var_setup
-
-!--------------------------------------------------------------------------
-!! *Purpose*: Calculates the OmA for diagnostic (i.e. valid but non-assimilated)
-!!            observations.
-!!
-!!            The last argument, 'obsAssVal', contains the value of
-!!            'OBS_ASS' to test against to know which observations are
-!!            not assimilated.
-!!
-!! @author M. Sitwell Sept 2015
-!--------------------------------------------------------------------------
-  subroutine var_calcOmA(statevector_incr,columng,obsSpaceData,obsAssVal)
-    implicit none
-
-    type(struct_gsv), intent(inout) :: statevector_incr
-    type(struct_columnData), intent(inout) :: columng
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer :: obsAssVal
-
-    type(struct_columnData) :: column
-    integer :: bodyIndex,headerIndex,ierr,diagnosticObsAssValue
-    logical :: calc_OmA,calc_OmA_global
-
-    ! Check for the presence of diagnostic only observations
-    calc_OmA = .false.
-    call obs_set_current_body_list(obsSpaceData)
-    BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.obsAssVal) then
-          calc_OmA = .true.
-          exit BODY
-       end if
-    end do BODY
-
-    call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
-    if (.not.calc_OmA_global) return
-
-    ! Initialize columnData object for increment
-    call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-
-    ! Put H_horiz dx in column
-    call s2c_tl(statevector_incr,column,columng,obsSpaceData)
-
-    ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=obsAssVal)
-
-    ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-    call res_compute(obsSpaceData,obsAssVal_opt=obsAssVal)
-
-  end subroutine var_calcOmA
 
 end program midas_var

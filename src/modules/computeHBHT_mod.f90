@@ -856,7 +856,7 @@ end subroutine hbht_compute_ensemble
 !*    1. Computation of sigmap
 !     .  -----------------------------
 !
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 .AND.   &
+            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND.   &
                  obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2      ) then
             IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
@@ -947,7 +947,7 @@ end subroutine hbht_compute_ensemble
 !C*    1. Computation of sigmap
 !C     .  -----------------------------
 !C
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == 1 .AND. &
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND. &
                     obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == 1 )then
                   ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                   varLevel = vnl_varLevelFromVarnum(ityp)
@@ -1040,7 +1040,7 @@ end subroutine hbht_compute_ensemble
 !*    1. Computation of sigmap
 !     .  -----------------------------
 !
-         IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) .and.    &
+         IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.    &
               (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. BUFR_NETT) ) THEN
 
             IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
@@ -1115,7 +1115,7 @@ end subroutine hbht_compute_ensemble
              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
              ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_vis  .or. ityp == bufr_gust ) then
 
-          ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 )
+          ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
 
         else if ( ityp == BUFR_NEZD ) then
 
@@ -1124,7 +1124,7 @@ end subroutine hbht_compute_ensemble
 
         else
 
-          ok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
+          ok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and. &
                 obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) >= 0)
           if ( ok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
           if ( ok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
@@ -1290,7 +1290,7 @@ end subroutine hbht_compute_ensemble
             BODY: do
                INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
                if (INDEX_BODY < 0) exit BODY
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
                ENDIF
@@ -1355,7 +1355,7 @@ end subroutine hbht_compute_ensemble
                   BODY_2: do
                      INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
                      if (INDEX_BODY < 0) exit BODY_2
-                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
                         NH1      = NH1 + 1
                         H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                         AZMV(NH1)= zAzm
@@ -1395,7 +1395,7 @@ end subroutine hbht_compute_ensemble
                BODY_3: do
                   INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
                   if (INDEX_BODY < 0) exit BODY_3
-                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
                      NH1 = NH1 + 1
 !C
 !C     *             Observation jacobian
@@ -1604,7 +1604,7 @@ end subroutine hbht_compute_ensemble
 !C
                   DO INDEX_BODY= IDATA, IDATEND
                      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                     OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
+                     OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) )
                      IF ( OK ) THEN
                         ASSIM = .TRUE.
                         ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -1646,7 +1646,7 @@ end subroutine hbht_compute_ensemble
 !c
                      DO INDEX_BODY= IDATA, IDATEND
                         ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
+                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP.EQ.BUFR_NEZD ) THEN
 !C
 !C     *                    Observation error    SDERR
 !c                           ZOER = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -1741,7 +1741,7 @@ end subroutine hbht_compute_ensemble
          DO INDEX_BODY = IDATA, IDATEND
            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
            IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-           IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 .AND. ITYP .EQ. BUFR_NEZD ) THEN
+           IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP .EQ. BUFR_NEZD ) THEN
              varLevel = vnl_varLevelFromVarnum(ITYP)
              ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
              ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)

@@ -873,7 +873,7 @@ contains
         iass  = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
         zval  = obs_bodyElem_r( lobsSpaceData, OBS_VAR, bodyIndex )
 
-        if ( iass == 1 ) then
+        if ( iass == obs_assimilated ) then
 
              !***********************************************************************
              !                           TOVS DATA
@@ -1292,7 +1292,7 @@ contains
 
           end if
 
-        end if ! end of iass == 1
+        end if ! end of iass == obs_assimilated
 
       end do BODY 
 
@@ -1348,7 +1348,7 @@ contains
       ! Only process pressure level observations flagged to be assimilated
       iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
-      if(iass /= 1 .or. ivco /= 2) cycle BODY
+      if(iass /= obs_assimilated .or. ivco /= 2) cycle BODY
 
       ixtr = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
       ivnm = obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
@@ -1582,7 +1582,7 @@ contains
         BODY: do 
           bodyIndex = obs_getBodyIndex(lobsSpaceData)
           if ( bodyIndex < 0) exit BODY
-          IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
+          IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
             ASSIM = .TRUE.
             NH = NH + 1
           end if
@@ -1660,7 +1660,7 @@ contains
           BODY_2: do 
             bodyIndex = obs_getBodyIndex(lobsSpaceData)
             if ( bodyIndex < 0) exit BODY_2
-            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )==1 ) then
+            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
               NH1      = NH1 + 1
               H(NH1)   = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex )
               AZMV(NH1)= zAzm
@@ -1759,7 +1759,7 @@ contains
           BODY_4: do 
             bodyIndex = obs_getBodyIndex(lobsSpaceData)
             if ( bodyIndex < 0) exit BODY_4
-            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
+            IF ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
               NH1 = NH1 + 1
               !
                    !     *              Observation error    S
@@ -1942,7 +1942,7 @@ contains
             ZZTD = zval
             LLZTD = .TRUE.
           end if
-          IF ( iass == 1 ) ASSIM = .TRUE.
+          IF ( iass == obs_assimilated ) ASSIM = .TRUE.
         end if
         IF ( ityp == BUFR_NEZW ) then
           IF ( zval  >  0.0D0 ) then

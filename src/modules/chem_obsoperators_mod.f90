@@ -145,7 +145,7 @@ contains
 !!v            end do
 !!
 !--------------------------------------------------------------------------
-  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,obsAssVal_opt,jobs_opt)
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,jobs_opt)
 
     implicit none
     
@@ -155,13 +155,12 @@ contains
     type(struct_columnData), intent(inout), optional :: columnInc_opt
     type(struct_obs), intent(inout) :: obsSpaceData
     integer, intent(in) :: kmode
-    integer, intent(in), optional  :: obsAssVal_opt
     real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: unit,ier,obsAssVal
+    integer :: unit,ier
     integer, external :: fclos
 
     ! Obs space local variables
@@ -181,12 +180,6 @@ contains
     character(len=2), parameter :: varLevel = 'TH'
     
     type(struct_chm_obsoperators) :: obsoper
-
-    if (present(obsAssVal_opt)) then
-       obsAssVal = obsAssVal_opt
-    else
-       obsAssVal = 1
-    end if
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnInc_opt))) then
        write(*,*) "chm_observation_operators: columnInc_opt must be specified for kmode = ",kmode
@@ -270,9 +263,9 @@ contains
                
             ! Indicates if this obs should be processed by chm_obsoperators
             if (kmode.eq.1) then
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obsAssVal.or.iass(iobslev).eq.3).and.process_obs(iobslev)
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_assimilated.and.process_obs(iobslev)
             else
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obsAssVal
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_assimilated
             end if
 
          end if
@@ -386,7 +379,7 @@ contains
             ! Check for success in calculations
             if (process_obs(iobslev).and..not.success(iobslev)) then
                ! Observation was flagged within this call of chm_observation_operators
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
@@ -395,7 +388,7 @@ contains
                cycle BODY2
             else if (iass(iobslev).eq.0) then
                ! Observation was flagged previous to this call of chm_observation_operators
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
@@ -417,7 +410,7 @@ contains
 
                if (chm_diagn_only('CH',stnid,varno,nobslev,flag(iobslev))) then
                   ! Observation is for diagnostics and is not to be assimilated
-                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                else if (present(jobs_opt).and.iass(iobslev).eq.1) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)

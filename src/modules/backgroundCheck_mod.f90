@@ -231,7 +231,7 @@ end subroutine bgck_bgcheck_conv
             if (index_body < 0) exit BODY
 
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-            LLOK=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1)
+            LLOK=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated)
             IF ( LLOK ) THEN
               INOBS = INOBS + 1
               IF (CDFAM .EQ. 'GP') THEN
@@ -373,7 +373,7 @@ end subroutine bgck_bgcheck_conv
           i_ass = obs_bodyElem_i (lobsSpaceData,OBS_ASS,index_body)
           i_vco = obs_bodyElem_i (lobsSpaceData,OBS_VCO,index_body)
 
-          if(i_ass.ne.1 .or. i_vco.ne.2) cycle bodyuv
+          if(i_ass /= obs_assimilated .or. i_vco.ne.2) cycle bodyuv
  
           index_header     = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
           index_body_start = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
@@ -566,7 +566,7 @@ end subroutine bgck_bgcheck_conv
 !C     *    Scan for requested assimilations, and count them
 !C
             DO INDEX_BODY= IDATA, IDATEND
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
                   HNH1 = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   IF (LEVELGPSRO.EQ.1) HNH1 = HNH1-Rad
 !C

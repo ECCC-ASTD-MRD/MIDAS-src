@@ -264,7 +264,7 @@ contains
         llok = ( ivnm == filt_nlist( loopIndex ) ) .or. llok
       end do
       if (.not.llok) then
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       end if
       !
@@ -316,10 +316,10 @@ contains
       end if
 
       if ( llok .and. .not. llrej ) then
-        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, 1 )
+        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, obs_assimilated )
         iknt = iknt + 1
       else
-        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, 0 )
+        call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated )
       end if
 
     end do body
@@ -439,7 +439,7 @@ contains
              if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.1) cycle BODY
 
              ! skip this obs if already flagged to not be assimilated
-             if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
+             if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
 
              ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              varLevel = vnl_varLevelFromVarnum(ivnm)
@@ -458,7 +458,7 @@ contains
                 ! obs does not pass the acceptance criteria, reject it
                 call obs_bodySet_i( obsSpaceData,OBS_FLG,bodyIndex,  &
                      ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
-                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                 countRej(elemIndex) = countRej(elemIndex)+1
              end if
           end do BODY
@@ -481,7 +481,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
     if ( .not.beSilent ) write(*,* ) ' '
@@ -554,7 +554,7 @@ contains
           if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
 
           ! skip this obs if already flagged to not be assimilated
-          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0 ) cycle BODY
+          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY
 
           ! skip this obs if it is not GZ
           ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -581,7 +581,7 @@ contains
              ! too far below surface, reject
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex) = itotrej(listIndex)+1
              igzrej(listIndex) = igzrej(listIndex)+1
           end if
@@ -615,7 +615,7 @@ contains
           if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
 
           ! skip this obs if already flagged to not be assimilated
-          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0 ) cycle BODY2
+          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY2
 
           ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
@@ -641,13 +641,13 @@ contains
           if(zlev .gt. zpb ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex) = itotrej(listIndex) + 1
              ibndrej(listIndex) = ibndrej(listIndex) + 1
           else if(zlev.le.zpb .and. zlev.gt.zpt ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex) = itotrej(listIndex) + 1
              isblrej(listIndex) = isblrej(listIndex) + 1
           end if
@@ -674,7 +674,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
@@ -727,7 +727,7 @@ contains
           if (bodyIndex < 0) exit BODY
 
           ! skip this observation if already flagged to not assimilate
-          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
+          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
 
           !
           ! reject data too close to the model orography, put to
@@ -740,7 +740,7 @@ contains
              ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              listIndex = findElemIndex(ivnm)
              if(listIndex.eq.-1) cycle BODY
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej(listIndex)=countRej(listIndex)+1
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
@@ -761,7 +761,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
@@ -837,7 +837,7 @@ contains
           if (bodyIndex < 0) exit BODY
 
           ! skip this obs if already flagged to not be assimilated
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
 
           ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
@@ -862,13 +862,13 @@ contains
           if(zlev.lt.zpb ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex)=itotrej(listIndex)+1
              ibndrej(listIndex)=ibndrej(listIndex)+1
           else if(zlev.ge.zpb .and. zlev.lt.zpt ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex)=itotrej(listIndex)+1
              isblrej(listIndex)=isblrej(listIndex)+1
           end if
@@ -892,7 +892,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
@@ -968,7 +968,7 @@ contains
           if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1) cycle BODY
 
           ! Skip this obs if already flagged not to be assimilated
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 0) cycle BODY
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
 
           ! Skip this obs if it is not in the list of element types
           ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -992,7 +992,7 @@ contains
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
 
              ! Do not assimilate the observation
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej(elemIndex)=countRej(elemIndex)+1
           end if
        end do BODY
@@ -1013,7 +1013,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) countAssim=countAssim+1
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
 
     if(.not. besilent)then
@@ -1074,7 +1074,7 @@ contains
 
           ! reject obs if the model surface pressure is below the minimum specified value
           if (col_getElem(columnhr,1,headerIndex,'P0') .lt. minSfcPressure) then
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej=countRej+1
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
@@ -1099,7 +1099,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .EQ. 1) countAssim=countAssim+1
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,* ) ' '
@@ -1186,10 +1186,10 @@ contains
              IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                    IF(IDBURP .EQ. IDLND(JID) .AND. &
-                        obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) THEN
+                        obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) THEN
                       call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, &
                            ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 19))
-                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
+                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,obs_notAssimilated)
                       DO J = 1, JPINEL
                          IF(ITYP .EQ.ILISTEL(J)) THEN
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -1225,7 +1225,7 @@ contains
     !
     IKOUNTT=0
     DO JDATA=1,obs_numbody(lobsSpaceData)
-       IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+       IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) == obs_assimilated) IKOUNTT=IKOUNTT+1
     END DO
     if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY 3D","-VAR AFTER ADJUSTMENTS: ",i10)') &
@@ -1351,7 +1351,7 @@ contains
              !     *        Mark as not assimilable unless all conditions are satisfied:
              !
              IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. IAZM.LT.0 .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
-                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
              END IF
           END DO BODY
@@ -1496,11 +1496,11 @@ contains
 
         ! Check for bit 4 of OBS_FLG, indicating a 'Suspicious element'
         if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) then
-           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
            warn_suspicious = .true.
         end if
 
-        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) then
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) then
 
             ! Already rejected from input marker/flag.
 
@@ -1518,7 +1518,7 @@ contains
            if( zlev.lt.zpb .or. zlev.gt.zpt ) then
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                    ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                countRej(listIndex)=countRej(listIndex)+1
                countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
            else
@@ -1533,7 +1533,7 @@ contains
            zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
            if ( zlev.gt.zP0 .or. zlev.lt.zPtop) then
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
                countRej(listIndex)=countRej(listIndex)+1
@@ -1581,7 +1581,7 @@ contains
 
        countAssim=0
        do bodyIndex=1,obs_numbody(obsSpaceData)
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
        end do
        write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
        write(*,*) ' '

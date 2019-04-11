@@ -500,7 +500,7 @@ contains
           if (bodyIndex < 0) exit BODY
 
           if(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.elementList(elementIndex) .and. &
-             obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
+             obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
 
             call osd_getIndices(obsSpaceData,bodyIndex,latIndex,lonIndex,verticalIndex)
             
@@ -1077,9 +1077,9 @@ contains
 
              assim_obs = ((.not.diagn_only).and.anlm_mode) .or. assim_obs
 
-             if (iass.eq.1) then
+             if (iass == obs_assimilated) then
                 status(ilev_obs) = 1
-             else if (iass.eq.3.and.diagn_only) then
+             else if (diagn_only) then
                 status(ilev_obs) = 2
              end if
              

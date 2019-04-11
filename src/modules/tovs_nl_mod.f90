@@ -316,7 +316,7 @@ contains
         index_body = obs_getBodyIndex(lobsSpaceData)
         if (index_body < 0) exit BODY
 
-        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == 1 ) THEN
+        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated ) THEN
           ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
           ICHN = max(0,min(ICHN,tvs_maxChannelNumber+1))
           
@@ -1260,24 +1260,16 @@ contains
 !! subroutine to initialize the chanprof structure used by RTTOV
 !--------------------------------------------------------------------------
 
-  subroutine TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma_opt,assim_flag_val_opt)
+  subroutine TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma_opt)
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
     integer ,intent(out),optional :: iptobs_cma_opt(:)
-    integer ,intent(in) ,optional :: assim_flag_val_opt
+
     type(struct_obs) :: ObsSpaceData
     type(rttov_chanprof) :: chanprof(:)
-!******************************************************************************
-    integer :: count, profile_index, header_index, istart, iend, body_index, ichn, nrank, iobs, assim_flag_val
-!******************************************************************************
-! Build the list of channels/profiles indices
+    integer :: count, profile_index, header_index, istart, iend, body_index, ichn, nrank, iobs
 
-    if (present(assim_flag_val_opt)) then
-      assim_flag_val = assim_flag_val_opt
-    else
-      assim_flag_val = 1
-    end if
-
+    ! Build the list of channels/profiles indices
     count = 0
          
     do profile_index = 1,  nprofiles
@@ -1286,7 +1278,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
       iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
-        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) then
+        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) then
           ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
           ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
           ICHN = ICHN - tvs_channelOffset(sensor_id)
@@ -1333,7 +1325,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
       iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) tvs_countRadiances  = tvs_countRadiances + 1
+        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
       end do
     end do
 
@@ -1342,22 +1334,14 @@ contains
 !--------------------------------------------------------------------------
 !! subroutine to get emissivity for Hyperspectral Infrared Sounders (AIRS, IASI, CrIS, ...)
 !--------------------------------------------------------------------------
-  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem,assim_flag_val_opt)
+  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
 
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
-    integer ,intent(in),optional :: assim_flag_val_opt
     type(struct_obs) :: ObsSpaceData
     real(8), intent(out) :: surfem(:)
-!***************************************************************************
-    integer :: count, profile_index, iobs, istart, iend, index_body, index_header, assim_flag_val
-!***************************************************************************
 
-    if (present(assim_flag_val_opt)) then
-      assim_flag_val = assim_flag_val_opt
-    else
-      assim_flag_val = 1
-    end if
+    integer :: count, profile_index, iobs, istart, iend, index_body, index_header
 
     count = 0 
     surfem(:) = 0.98d0
@@ -1367,7 +1351,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
       iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
       do index_body = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == assim_flag_val) then
+        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
           count = count + 1
           surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
         end if
@@ -4204,7 +4188,7 @@ contains
         end if
 
         ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) /= 1 ) cycle BODY                
+        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) /= obs_assimilated ) cycle BODY                
 
         ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
         ichn = max( 0 , min( ichn , tvs_maxChannelNumber + 1))

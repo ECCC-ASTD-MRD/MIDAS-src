@@ -76,7 +76,6 @@ contains
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,ITYP
-    LOGICAL :: OK
     CHARACTER(len=2) :: varLevel
     integer :: headerIndex, bodyIndex
 
@@ -85,10 +84,8 @@ contains
     ! 2D mode patch
     if ( col_getNumLev(columnghr,'MM') <= 1 ) then 
       do bodyIndex = 1, obs_numbody( obsSpaceData )
-        ok = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1   .OR.  &
-                obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) .AND. &
-                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 )
-        if ( ok ) then
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+             obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1 ) then
           call obs_bodySet_i(obsSpaceData,OBS_LYR,bodyIndex, 0) ! set OBS_LYR = 0
         end if
       end do
@@ -107,12 +104,10 @@ contains
     !     1.1 PPP Vertical coordinate
     ! 
 
-!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,ityp,varLevel,zpt,zpb)
     DO JDATA= 1,obs_numbody(obsSpaceData)
-       OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
-            obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-       IF ( OK ) THEN
+       IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 ) THEN
           IF(obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) /= BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
@@ -136,7 +131,7 @@ contains
              !  current obs operators cannot deal with this situation (JFC)                  
              if(varLevel /= 'SF') then
                 write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, pressure = ', ZLEV,' < ',ZPT
-                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
              end if
           ELSE IF ( ZLEV > ZPB ) THEN
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
@@ -149,11 +144,10 @@ contains
     !
     !     1.2 ZZZ Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
+!$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,ityp,varLevel,zpt,zpb,nlev)
     do JDATA= 1,obs_numbody(obsSpaceData)
-      OK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1 .and. &
-            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
         if ( ITYP /= BUFR_NEDZ ) then
@@ -181,7 +175,7 @@ contains
         if ( ZLEV > ZPT ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
           write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, height =', ZLEV,' > ',ZPT
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
         else if ( ZLEV < ZPB ) then
           call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
         else
@@ -198,13 +192,11 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
+!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt,zpb)
     do JDATA = 1, obs_numbody(obsSpaceData)
       call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA,0)
-      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
-           obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -229,12 +221,10 @@ contains
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-!$OMP PARALLEL DO PRIVATE(jdata,ok,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
+!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,ityp,varLevel,ik,nlev,jk,zpt)
     do JDATA = 1, obs_numbody(obsSpaceData)
-      OK = ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == 1     .OR. &
-           obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == -1) .AND. &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 )
-      if ( OK ) then
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
@@ -488,7 +478,7 @@ contains
       if (bodyIndex < 0) exit BODY
 
       ! Process all geometric-height data within the domain of the model
-      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 .or.  &
+      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated .or.  &
           obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
           obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 ) &
         cycle BODY
@@ -549,7 +539,7 @@ contains
         if(.not. btest(found,0))then
           ! The azimuth was not found.  The observation cannot be treated
           ! Set the assimilation flag to 0 to ignore this datum later.
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
           cycle BODY
         end if
 
@@ -584,10 +574,10 @@ contains
         ! For aladin data, the temperature and pressure are really *reference*
         ! values.  They must not be assimilated.  Mark them so.
       case (BUFR_NETT)
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       case (BUFR_NEPS)
-        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       case (BUFR_NEES)
         call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
@@ -660,7 +650,7 @@ contains
 
           ! only process height level observations flagged to be assimilated
           if(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 .or.  &
-               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1) cycle BODY
+               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY
 
           ! only process this set of surface observations
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
@@ -792,7 +782,7 @@ contains
         if ( bodyIndex < 0 ) exit BODY
 
         ! only process observations flagged to be assimilated
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
 
         ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
@@ -849,7 +839,7 @@ contains
       if ( bodyIndex < 0 ) exit BODY
 
       ! only process observations flagged to be assimilated
-      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= 1 ) cycle BODY
+      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
 
       ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
@@ -968,7 +958,7 @@ contains
        BODY: do 
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
              assim = .true.
              nh = nh + 1
           end if
@@ -1046,7 +1036,7 @@ contains
        BODY_2: do 
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY_2
-          IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+          IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
              nh1      = nh1 + 1
              h(nh1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
              azmv(nh1)= zazm
@@ -1078,7 +1068,7 @@ contains
        BODY_3: do 
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY_3
-          IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+          IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
              nh1 = nh1 + 1
              !
              ! Altitude:
@@ -1301,7 +1291,7 @@ contains
           if (bodyIndex < 0) exit BODY
           ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           if ( (ityp == BUFR_NEZD) .and. &
-               (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) ) then
+               (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
              zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
              assim = .true.
              ! Index in body of ZTD datum (assume at most 1 per header)
@@ -1309,7 +1299,7 @@ contains
              icount = icount + 1
           end if
           if ( ityp == bufr_neps ) then
-             if ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) .or. llblmet ) then
+             if ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) .or. llblmet ) then
                 zpsobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
                 zpomps = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
              end if
@@ -1374,7 +1364,7 @@ contains
        end if
 
        if ( llrej ) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, 0)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, obs_notAssimilated)
           if ( .not. lassmet ) icount1 = icount1 + 1
        end if
 
@@ -1386,7 +1376,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY_2
           ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 .and.  &
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and.  &
                ityp == BUFR_NEZD ) then
              icountp = icountp + 1
              !
@@ -1480,7 +1470,7 @@ contains
                 BODY_1: do 
                    bodyIndex = obs_getBodyIndex(obsSpaceData)
                    if (bodyIndex < 0) exit BODY_1
-                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, 0)
+                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, obs_notAssimilated)
                 end do BODY_1
              end if
           end do HEADER_1
@@ -1533,7 +1523,7 @@ contains
                 bodyIndex = obs_getBodyIndex(obsSpaceData)
                 if (bodyIndex < 0) exit BODY_3
                 ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-                if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 .and.  &
+                if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and.  &
                      ityp == BUFR_NEZD ) then  
                    iztd = iztd + 1
                    vgpsztd_index(iztd) = headerIndex
@@ -1704,34 +1694,19 @@ contains
 !--------------------------------------------------------------------------
 !! *Purpose*: Compute simulated observations from profiled model increments.
 !!            It returns Hdx in OBS_WORK. Calls the several linear observation operators.
-!!
-!! Input
-!!
-!!v     obsAssVal_opt  value of OBS_ASS in obsSpaceData that Htl will be calculated for (optional, default = 1)
-!!
-!! Revisions
-!!v      M. Sitwell, Feb 2017
-!!v        - Added optional obsAssVal_opt input argument
 !--------------------------------------------------------------------------
-  subroutine oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt)
+  subroutine oop_Htl(column,columng,obsSpaceData,min_nsim)
     implicit none
 
     type(struct_columnData) :: column,columng
     type(struct_obs) :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     integer, intent(in) :: min_nsim
-    integer, intent(in), optional :: obsAssVal_opt
-    integer :: obsAssVal
+
     logical, save :: firstTime = .true.
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_Htl - Linearized observation operators'
-    end if
-
-    if (present(obsAssVal_opt)) then
-       obsAssVal = obsAssVal_opt
-    else
-       obsAssVal = 1
     end if
 
     vco_anl => col_getVco(columng)
@@ -1747,39 +1722,39 @@ contains
     end if
 
     call tmg_start(42,'OBS_PPP_TLAD')
-    call oop_Hpp(obsAssVal)           ! fill in OBS_WORK : Hdx
+    call oop_Hpp()           ! fill in OBS_WORK : Hdx
     call tmg_stop(42)
 
     call tmg_start(43,'OBS_SFC_TLAD')
-    call oop_Hsf(obsAssVal)           ! fill in OBS_WORK : Hdx
+    call oop_Hsf()           ! fill in OBS_WORK : Hdx
     call tmg_stop (43)
 
     call tmg_start(44,'OBS_TOV_TLAD')
-    call oop_Hto(obsAssVal)           ! fill in OBS_WORK : Hdx
+    call oop_Hto()           ! fill in OBS_WORK : Hdx
     call tmg_stop (44)
 
     call tmg_start(45,'OBS_GPSRO_TLAD')
-    call oop_Hro(obsAssVal)
+    call oop_Hro()
     call tmg_stop (45)
 
     call tmg_start(46,'OBS_ZZZ_TLAD')
-    call oop_Hzp(obsAssVal)
+    call oop_Hzp()
     call tmg_stop (46)
 
     call tmg_start(47,'OBS_GPSGB_TLAD')
-    if (numGPSZTD > 0)  call oop_Hgp(obsAssVal)
+    if (numGPSZTD > 0)  call oop_Hgp()
     call tmg_stop (47)
 
     call tmg_start(126,'OBS_CHM_TL')
-    call oop_Hchm(obsAssVal)          ! fill in OBS_WORK : Hdx
+    call oop_Hchm()          ! fill in OBS_WORK : Hdx
     call tmg_stop (126)
 
     call tmg_start(190,'OBS_SST_TLAD')
-    call oop_Hsst(obsAssVal)          ! fill in OBS_WORK : Hdx
+    call oop_Hsst()          ! fill in OBS_WORK : Hdx
     call tmg_stop (190)
 
     call tmg_start(49,'OBS_ICE_TLAD')
-    call oop_Hice(obsAssVal)          ! fill in OBS_WORK : Hdx
+    call oop_Hice()          ! fill in OBS_WORK : Hdx
     call tmg_stop (49)
 
 
@@ -1831,7 +1806,7 @@ contains
     end subroutine subasic_obs
 
 
-    SUBROUTINE oop_Hpp(obsAssVal)
+    SUBROUTINE oop_Hpp()
       !*
       !* Purpose: Compute simulated Upper Air observations from profiled model
       !*          increments.
@@ -1844,8 +1819,6 @@ contains
 
       implicit none
 
-      integer, intent(in) :: obsAssVal
-
       INTEGER IPB,IPT
       INTEGER headerIndex,INDEX_FAMILY,IK
       INTEGER J,bodyIndex,ITYP,nlev_T
@@ -1854,7 +1827,6 @@ contains
       REAL*8 ZLEV,ZPT,ZPB
       REAL*8 dPdPsT,dPdPsB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT
-      LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
 
@@ -1869,12 +1841,9 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY
 
-            llassim= (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-            lldiag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == -1) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-            IF (llassim .or. lldiag) THEN
+            IF (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2 ) then
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -1932,15 +1901,13 @@ contains
     end subroutine oop_Hpp
 
 
-    SUBROUTINE oop_Hsf(obsAssVal)
+    SUBROUTINE oop_Hsf()
       !*
       !* Purpose: Compute simulated surface observations from profiled model
       !*          increments.
       !*          It returns Hdx in OBS_WORK
       !*
       IMPLICIT NONE
-
-      integer, intent(in) :: obsAssVal
 
       INTEGER IPB,IPT,IXTR
       INTEGER headerIndex,IK
@@ -1975,7 +1942,7 @@ contains
             ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             if ( ityp == bufr_nezd ) cycle BODY
             if(    (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) &
-                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) &
+                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
@@ -2045,16 +2012,14 @@ contains
     END subroutine oop_Hsf
 
 
-    subroutine oop_Hsst(obsAssVal)
+    subroutine oop_Hsst()
       !*
       !* Purpose: Compute simulated sea surface temperature observations 
       !*          from profiled model increments.
       !*          It returns Hdx in OBS_WORK
       !*
       implicit none
-      ! arguments
-      integer, intent(in) :: obsAssVal
-      ! locals
+
       integer :: headerIndex, bodyIndex, ityp
       real(8) :: columnVarB
       character(len=4) :: varName
@@ -2076,7 +2041,7 @@ contains
           varName = 'TG'
         end if
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal ) then
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           columnVarB = col_getElem( column, 1, headerIndex, varName_opt = varName )
@@ -2088,16 +2053,14 @@ contains
     end subroutine oop_Hsst
 
 
-    subroutine oop_Hice(obsAssVal)
+    subroutine oop_Hice()
       !*
       !* Purpose: Compute simulated sea ice concentration observations 
       !*          from profiled model increments.
       !*          It returns Hdx in OBS_WORK
       !*
       implicit none
-      ! arguments
-      integer, intent(in) :: obsAssVal
-      ! locals
+
       integer :: headerIndex, bodyIndex, ityp
       real(8) :: columnVarB
       character(len=4) :: varName
@@ -2114,7 +2077,7 @@ contains
         if ( ityp /= bufr_icec ) cycle BODY
 
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obsAssVal &
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated &
              ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
@@ -2128,7 +2091,7 @@ contains
     end subroutine oop_Hice
 
 
-    subroutine oop_Hto(obsAssVal)
+    subroutine oop_Hto()
       !
       ! Purpose: Compute simulated radiances observations from profiled model
       !          increments.
@@ -2146,8 +2109,6 @@ contains
       !                    - call to oop_storeHdx_radiances instead computing Jo
       !
       implicit none
-
-      integer, intent(in) :: obsAssVal
 
       integer :: datestamp
 
@@ -2169,13 +2130,13 @@ contains
       !     2.   Compute radiance
       !     .    ----------------
       !
-      call tvslin_rttov_tl(column, columng, obsSpaceData, obsAssVal)
+      call tvslin_rttov_tl(column, columng, obsSpaceData)
 
 
     end subroutine oop_Hto
 
 
-    SUBROUTINE oop_Hro(obsAssVal)
+    SUBROUTINE oop_Hro()
       !*
       !* Purpose: Compute the tangent operator for GPSRO observations.
       !*
@@ -2189,8 +2150,6 @@ contains
       !*    -------------------
 
       implicit none
-
-      integer, intent(in) :: obsAssVal
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
@@ -2210,7 +2169,7 @@ contains
       NWNDLEV=col_getNumLev(column,'MM')
 
       ! call to calculate the GPSRO Jacobians
-      call oop_calcGPSROJacobian(columng,obsSpaceData,obsAssVal)
+      call oop_calcGPSROJacobian(columng,obsSpaceData)
 
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
@@ -2238,7 +2197,7 @@ contains
             BODY: do 
                bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
-               IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+               IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
                END IF
@@ -2266,7 +2225,7 @@ contains
                BODY_3: do 
                   bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
-                  IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) THEN
+                  IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
                      NH1 = NH1 + 1
                      !C
                      !C     *             Evaluate H(xb)DX
@@ -2289,7 +2248,7 @@ contains
     END subroutine oop_Hro
 
 
-    SUBROUTINE oop_Hzp(obsAssVal)
+    SUBROUTINE oop_Hzp()
       !*
       !* Purpose: Compute simulated geometric-height based observations from
       !*          profiled model
@@ -2303,8 +2262,6 @@ contains
       !*           J.W. Blezius arma     March 2018 add aladin winds
 
       implicit none
-
-      integer, intent(in) :: obsAssVal
 
       INTEGER IPB,IPT
       INTEGER headerIndex,IK,familyIndex
@@ -2328,7 +2285,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
-          IF (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)==obsAssVal)&
+          IF (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
               .AND.(obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
               .AND.(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  )THEN
 
@@ -2402,7 +2359,7 @@ contains
     END subroutine oop_Hzp
 
 
-    SUBROUTINE oop_Hgp(obsAssVal)
+    SUBROUTINE oop_Hgp()
       !*
       !***s/r  -oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
       !*
@@ -2420,8 +2377,6 @@ contains
       !*
       implicit none
 
-      integer, intent(in) :: obsAssVal
-
       REAL*8 ZHX
       REAL*8 DX (ngpscvmx)
 
@@ -2435,7 +2390,7 @@ contains
       icount = 0
 
       ! call to calculate the GPSGB Jacobians
-      call oop_calcGPSGBJacobian(columng,obsSpaceData,obsAssVal)
+      call oop_calcGPSGBJacobian(columng,obsSpaceData)
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       call obs_set_current_header_list(obsSpaceData,'GP')
@@ -2454,7 +2409,7 @@ contains
 
             if (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) ) then
+                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                ASSIM = .TRUE.
             END IF
          END DO BODY
@@ -2493,7 +2448,7 @@ contains
 
                IF (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-                    .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) ) then
+                    .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                   call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZHX)
                   icount = icount + 1
                   if ( icount <= 3 .and. LTESTOP ) then
@@ -2520,7 +2475,7 @@ contains
     END subroutine oop_Hgp
 
 
-    subroutine oop_Hchm(obsAssVal)
+    subroutine oop_Hchm()
       !
       !**s/r oop_Hchm- Compute simulated chemical constituents observations from profiled model
       !                increments, and returns Hdx in OBS_WORK
@@ -2539,11 +2494,9 @@ contains
 
       implicit none
 
-      integer, intent(in) :: obsAssVal
-
       if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) return
       
-      call chm_observation_operators(columng,obsSpaceData,kmode=2,columnInc_opt=column,obsAssVal_opt=obsAssVal) ! kmode=2 for tangent linear operator
+      call chm_observation_operators(columng,obsSpaceData,kmode=2,columnInc_opt=column) ! kmode=2 for tangent linear operator
 
     end subroutine oop_Hchm
 
@@ -2634,7 +2587,6 @@ contains
       REAL*8 columngVarT,columngVarB
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
       REAL*8 :: dPdPsT,dPdPsB
-      logical :: llassim
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !
@@ -2649,13 +2601,12 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY
 
-            llassim= (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-                 .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2)
-
-            ! Process all data within the domain of the model
-            IF (llassim) THEN
-               headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+             ! Process all data within the domain of the model
+            IF (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2 ) then
+ 
+              headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -2765,7 +2716,7 @@ contains
             ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             if ( ityp == bufr_nezd ) cycle BODY
             if(    (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) &
-                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
+                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
@@ -2878,7 +2829,7 @@ contains
           varName = 'TG'
         end if
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) then
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
@@ -2914,8 +2865,7 @@ contains
 
         if ( ityp /= bufr_icec ) cycle BODY
 
-        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == 1       &
-           ) then
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = 100.0d0*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           varName = vnl_varNameFromVarNum(ityp)
@@ -3024,7 +2974,7 @@ contains
                bodyIndex = obs_getBodyIndex(obsSpaceData)
                if (bodyIndex < 0) exit BODY
 
-               LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
+               LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated )
                IF ( LUSE ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
@@ -3048,7 +2998,7 @@ contains
                   bodyIndex = obs_getBodyIndex(obsSpaceData)
                   if (bodyIndex < 0) exit BODY_3
 
-                  LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 )
+                  LUSE=( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated )
                   IF ( LUSE ) THEN
                      NH1 = NH1 + 1
                      !C
@@ -3124,7 +3074,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
-          IF (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) &
+          IF (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
               .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
               .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
@@ -3268,7 +3218,7 @@ contains
 
             IF (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) ) then
+                 .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                ASSIM = .TRUE.
             END IF
          END DO BODY
@@ -3295,7 +3245,7 @@ contains
                if (bodyIndex < 0) exit BODY_2
                if (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex ) == 189) &
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-                    .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) ) then
+                    .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
                   ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                   !C     *       Accumulate the gradient of the observation cost function
                   DPJO0(1:3*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
@@ -3446,7 +3396,7 @@ contains
   end subroutine HUtoES_ad
 
 
-  subroutine oop_calcGPSROJacobian(columng,obsSpaceData,obsAssVal_opt)
+  subroutine oop_calcGPSROJacobian(columng,obsSpaceData)
     !
     !**s/r oop_calcGPSROJacobian - Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
     !
@@ -3457,9 +3407,7 @@ contains
     implicit none
     type(struct_columnData) :: columng
     type(struct_obs) :: obsSpaceData
-    integer, intent(in), optional :: obsAssVal_opt
 
-    integer :: obsAssVal
     real(8) :: zlat, lat, slat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
@@ -3483,12 +3431,6 @@ contains
     write(*,*) 'ENTER oop_calcGPSROJacobian'
 
     lfirst=.FALSE.
-
-    if (present(obsAssVal_opt)) then
-      obsAssVal = obsAssVal_opt
-    else
-      obsAssVal = 1
-    end if
 
     ! Initializations
     ngpslev=col_getNumLev(columng,'TH')
@@ -3529,7 +3471,7 @@ contains
         BODY: do 
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             assim = .true.
             nh = nh + 1
           endif
@@ -3595,7 +3537,7 @@ contains
           BODY_2: do 
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY_2
-            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal ) then
+            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
               nh1      = nh1 + 1
               h(nh1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
               azmv(nh1)= zazm
@@ -3634,7 +3576,7 @@ contains
   end subroutine oop_calcGPSROJacobian
 
 
-  subroutine oop_calcGPSGBJacobian(columng,obsSpaceData,obsAssVal_opt)
+  subroutine oop_calcGPSGBJacobian(columng,obsSpaceData)
     !
     !**s/r oop_calcGPSGBJacobian - Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
     !
@@ -3644,7 +3586,6 @@ contains
     implicit none
     type(struct_columnData) :: columng
     type(struct_obs) :: obsSpaceData
-    integer, intent(in), optional :: obsAssVal_opt
 
     REAL*8 ZLAT, Lat
     REAL*8 ZLON, Lon
@@ -3674,20 +3615,12 @@ contains
     type(struct_vco), pointer :: vco_anl
 
     logical, save :: lfirstGB = .true.
-    integer :: obsAssVal
-
 
     if ( .not. lfirstGB ) return
 
     write(*,*) 'ENTER oop_calcGPSGBJacobian'
 
     lfirstGB = .FALSE.
-
-    if (present(obsAssVal_opt)) then
-      obsAssVal = obsAssVal_opt
-    else
-      obsAssVal = 1
-    end if
 
     vco_anl => col_getVco(columng)
     stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
@@ -3731,7 +3664,7 @@ contains
         if (bodyIndex < 0) exit BODY_0
         if (   (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == 189) &
              .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEZD) &
-             .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obsAssVal) ) then
+             .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) ) then
           ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           ASSIM = .TRUE.
         end if

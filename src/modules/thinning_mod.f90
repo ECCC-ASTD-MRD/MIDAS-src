@@ -114,7 +114,7 @@ contains
       if (bodyIndex < 0) exit BODY
 
       ! If the datum is not being assimilated, ignore it
-      if(            obs_bodyElem_i(obsdat, OBS_ASS,  bodyIndex) == 0) cycle BODY
+      if(            obs_bodyElem_i(obsdat, OBS_ASS,  bodyIndex) == obs_notAssimilated) cycle BODY
 
       ! If datum already rejected, ignore it
       flag         = obs_bodyElem_i(obsdat, OBS_FLG,  bodyIndex  )

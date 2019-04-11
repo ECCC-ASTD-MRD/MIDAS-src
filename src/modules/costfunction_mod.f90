@@ -53,7 +53,7 @@ contains
     ! Applied observation error variances to ROBDATA8(k_src,*)
     ! and store it in the elem_src_s of lobsSpaceData
     !
-    integer :: bodyIndex, iass, headerIndex
+    integer :: bodyIndex, headerIndex
     integer :: idata, idatend, idatyp, count, ichn
     real(8) :: x( tvs_maxChannelNumber ), y( tvs_maxChannelNumber )
     integer :: list_chan( tvs_maxChannelNumber )
@@ -71,9 +71,7 @@ contains
 
         do bodyIndex = idata, idatend
 
-          iass = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
-
-          if (iass == 1 .or. iass == -1 ) then
+          if (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
             ichn = nint( obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ))
             ichn = max( 0, min( ichn, tvs_maxChannelNumber + 1 ))
             count = count + 1
@@ -90,8 +88,7 @@ contains
           count = 0
           do bodyIndex = idata, idatend
 
-            iass = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
-            if ( iass == 1 .or. iass == -1) then
+            if ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated) then
               count = count + 1
               call obs_bodySet_r(lobsSpaceData, elem_dest_i, bodyIndex,y(count))
             end if
@@ -102,8 +99,7 @@ contains
       else
 
         do bodyIndex = idata, idatend
-          iass = obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex )
-          if (iass == 1 .or. iass == -1) then
+          if (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated) then
             call obs_bodySet_r( lobsSpaceData, elem_dest_i, bodyIndex, &
                      obs_bodyElem_r( lobsSpaceData, elem_src_i, bodyIndex) / obs_bodyElem_r( lobsSpaceData, OBS_OER, bodyIndex ))
           end if
@@ -130,7 +126,7 @@ contains
 !$OMP PARALLEL DO PRIVATE(bodyIndex)
     do bodyIndex=1,obs_numbody(lobsSpaceData)
 
-      if ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex) == 1) then
+      if ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
         call obs_bodySet_r( lobsSpaceData, OBS_JOBS, bodyIndex, &
              ( obs_bodyElem_r( lobsSpaceData, OBS_WORK, bodyIndex ) &
              * obs_bodyElem_r( lobsSpaceData, OBS_WORK, bodyIndex ) &

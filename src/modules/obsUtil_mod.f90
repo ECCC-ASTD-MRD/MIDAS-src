@@ -139,7 +139,7 @@ module obsUtil_mod
       ! Process all data within the domain of the model
       BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
 
-        llok = ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. &
+        llok = ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and. &
                  obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == iuu )
 
         if ( llok ) then
@@ -188,7 +188,7 @@ module obsUtil_mod
               call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
                                   - real(1.0d0,OBS_REAL) * obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2 ) )
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
-              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, 1 )
+              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated )
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0 )
             end if
             if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) == iff .and. &
@@ -196,7 +196,7 @@ module obsUtil_mod
               call obs_bodySet_r( obsSpaceData, elem_i,  bodyIndex2, &
                                   obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - module )
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
-              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, 1)
+              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0)
             end if
 
@@ -223,7 +223,7 @@ module obsUtil_mod
     ! Process all data
     BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
 
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) &
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) &
         call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex, &
                             ibset( obs_bodyElem_i(obsSpaceData, OBS_FLG,bodyIndex), 12 ))
     end do BODY
@@ -783,7 +783,7 @@ module obsUtil_mod
       bodyIndexEnd = obs_headElem_i(obsdat,OBS_NLV,headerIndex) + bodyIndexBeg - 1
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == 1 ) then
+        if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == obs_assimilated ) then
           FSOVal = obs_bodyElem_r(obsdat,OBS_FSO,bodyIndex)
           ! FSO value is quite small so giving scale factor 1.0e6 for storage in burp
           ! but treating GBGPS variable 15031 differently from the others
