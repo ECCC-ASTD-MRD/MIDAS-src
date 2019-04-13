@@ -109,7 +109,7 @@ contains
   ! lst_setup
   !--------------------------------------------------------------------------
   subroutine lst_Setup(lst, ni_in, nj_in, dlon_in, ktrunc_in,    &
-                        MpiMode, maxlevels_opt, gridDataOrder_opt)
+                       MpiMode, maxlevels_opt, gridDataOrder_opt)
     implicit none
 
     type(struct_lst)                :: lst
@@ -133,7 +133,7 @@ contains
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kref, mref, nref
-    integer                         :: m, n, k, ila, nfact
+    integer                         :: m, n, k, ila, nfact_lon, nfact_lat
     integer                         :: ier, ilaglb, i, j, p
     real(8)                         :: a, b, r
     real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq
@@ -181,20 +181,21 @@ contains
        call utl_abort('lst_setup')
     end if
 
-    nfact = lst%ni
-    call ngfft(nfact) ! INOUT
-    if (nfact /= lst%ni) then
-       write(*,*) 'Error: A fast transform cannot be used in X'
-       write(6,6130) lst%ni, nfact
-       call utl_abort('lst_setup')
-    end if
+    nfact_lon = lst%ni
+    call ngfft(nfact_lon) ! INOUT
+    nfact_lat = lst%nj
+    call ngfft(nfact_lat) ! INOUT
 
-    nfact = lst%nj
-    call ngfft(nfact) ! INOUT
-    if (nfact /= lst%nj) then
-       write(*,*) 'Error: A fast transform cannot be used in Y'
-       write(6,6140) lst%nj, nfact
-       call utl_abort('lst_setup')
+    if (nfact_lon /= lst%ni .or. nfact_lat /= lst%nj) then
+      if (nfact_lon /= lst%ni) then
+        write(*,*) 'Error: A fast transform cannot be used in X'
+        write(6,6130) lst%ni, nfact_lon
+      end if
+      if (nfact_lat /= lst%nj) then
+        write(*,*) 'Error: A fast transform cannot be used in Y'
+        write(6,6140) lst%nj, nfact_lat
+      end if
+      call utl_abort('lst_setup')
     end if
 
 6130 FORMAT('N = ni = ', I4,' the nearest factorizable N = ',I4)

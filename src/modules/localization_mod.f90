@@ -34,13 +34,12 @@ module localization_mod
   save
   private
 
+  ! public structure
+  public :: struct_loc
   ! public procedures
   public :: loc_setup, loc_Lsqrt, loc_LsqrtAd, loc_finalize
-  public :: loc_getLocInfo, loc_getNumLocActive
   public :: loc_reducetompilocal, loc_reducetompilocal_r4
   public :: loc_expandtompiglobal, loc_expandtompiglobal_r4
-
-  public :: struct_loc
 
   type :: struct_loc
      logical             :: initialized = .false.
@@ -53,22 +52,20 @@ module localization_mod
      type(struct_hco), pointer :: hco => null()
   end type struct_loc
 
-  integer, parameter :: nMaxLoc = 10
-  integer            :: nLocAlreadyAllocated = 0
-  type(struct_loc), target :: loc(nMaxLoc)
-
   logical, parameter :: verbose = .false.
 
 CONTAINS
 
-!--------------------------------------------------------------------------
-! loc_setup
-!--------------------------------------------------------------------------
-  subroutine loc_setup(hco_loc, vco_loc, nEns, pressureProfile, ntrunc, locType, &
-                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, cvDim_out, &
-                       id_out)
+  !--------------------------------------------------------------------------
+  ! loc_setup
+  !--------------------------------------------------------------------------
+  subroutine loc_setup(loc, cvDim_out, hco_loc, vco_loc, nEns, pressureProfile, ntrunc, locType, &
+                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale)
     implicit none
   
+    type(struct_loc) :: loc
+    integer, intent(out) :: cvDim_out
+
     type(struct_hco), pointer, intent(in) :: hco_loc
     type(struct_vco), pointer, intent(in) :: vco_loc
 
@@ -82,9 +79,6 @@ CONTAINS
 
     character(len=*), intent(in) :: locType, locMode
 
-    integer, intent(out) :: cvDim_out
-    integer, intent(out) :: id_out
-
     integer :: id, nEnsOverDimension
 
     call tmg_start(130,'LOC_SETUP')
@@ -92,26 +86,13 @@ CONTAINS
     if (verbose) write(*,*) 'Entering loc_Setup'
 
     !
-    !- 1.  ID allocation
-    !
-    nLocAlreadyAllocated = nLocAlreadyAllocated + 1
-    if (nLocAlreadyAllocated <= nMaxLoc) then
-       id = nLocAlreadyAllocated
-       id_out = id
-       write(*,*)
-       write(*,*) "loc_setup: Setting localization id = ",id
-    else
-       call utl_abort('loc_setup: Too many localizations!!!')
-    end if
-
-    !
     !- 2.  Setup
     !
-    loc(id)%locType = trim(locType)
-    loc(id)%hco => hco_loc
-    loc(id)%vco => vco_loc
+    loc%locType = trim(locType)
+    loc%hco => hco_loc
+    loc%vco => vco_loc
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
        if (mpi_myid == 0) write(*,*)
        if (mpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
@@ -124,59 +105,61 @@ CONTAINS
        call utl_abort('loc_setup: unknown locType')
     end select
 
-    loc(id)%id    = id
-    loc(id)%cvDim = cvDim_out
-    loc(id)%nEnsOverDimension = nEnsOverDimension 
+    loc%id    = id
+    loc%cvDim = cvDim_out
+    loc%nEnsOverDimension = nEnsOverDimension 
 
     !
     !- 3.  Ending
     !
-    loc(id)%initialized = .true.
+    loc%initialized = .true.
 
     call tmg_stop(130)
 
   end subroutine loc_setup
 
-!--------------------------------------------------------------------------
-! loc_Lsqrt
-!--------------------------------------------------------------------------
-  subroutine loc_Lsqrt(id, controlVector, ensAmplitude, stepIndex)
+  !--------------------------------------------------------------------------
+  ! loc_Lsqrt
+  !--------------------------------------------------------------------------
+  subroutine loc_Lsqrt(loc, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    integer, intent(in)  :: id, stepIndex
+    type(struct_loc)     :: loc
+
+    integer, intent(in)  :: stepIndex
     real(8), intent(in)  :: controlVector(:)
     type(struct_ens)     :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_Lsqrt'
-    call idcheck(id)
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_Lsqrt(loc(id)%id, controlVector, & ! IN
-                      ensAmplitude,              & ! OUT
-                      stepIndex)                   ! IN
+      call lsp_Lsqrt(loc%id, controlVector, & ! IN
+                     ensAmplitude,          & ! OUT
+                     stepIndex)               ! IN
     case default
        call utl_abort('loc_Lsqrt: unknown locType')
     end select
 
   end subroutine loc_Lsqrt
 
-!--------------------------------------------------------------------------
-! loc_LsqrtAd
-!--------------------------------------------------------------------------
-  subroutine loc_LsqrtAd(id, ensAmplitude, controlVector, stepIndex)
+  !--------------------------------------------------------------------------
+  ! loc_LsqrtAd
+  !--------------------------------------------------------------------------
+  subroutine loc_LsqrtAd(loc, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    integer, intent(in)   :: id, stepIndex
+    type(struct_loc)      :: loc
+
+    integer, intent(in)   :: stepIndex
     real(8), intent(out)  :: controlVector(:)
     type(struct_ens)      :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_LsqrtAd'
-    call idcheck(id)
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_LsqrtAd(loc(id)%id,   & ! IN
+       call lsp_LsqrtAd(loc%id,       & ! IN
                         ensAmplitude, & ! INOUT
                         controlVector,& ! OUT
                         stepIndex )     ! IN
@@ -186,164 +169,117 @@ CONTAINS
 
   end subroutine loc_LsqrtAd
 
-!--------------------------------------------------------------------------
-! loc_finalize
-!--------------------------------------------------------------------------
-  subroutine loc_finalize(id)
+  !--------------------------------------------------------------------------
+  ! loc_finalize
+  !--------------------------------------------------------------------------
+  subroutine loc_finalize(loc)
     implicit none
 
-    integer, intent(in)  :: id
+    type(struct_loc) :: loc
 
     if (verbose) write(*,*) 'Entering loc_finalize'
-    call idcheck(id)
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_finalize(loc(id)%id)
+      call lsp_finalize(loc%id)
     case default
-       call utl_abort('loc_finalize: unknown locType')
+      call utl_abort('loc_finalize: unknown locType')
     end select
 
   end subroutine loc_finalize
 
-!--------------------------------------------------------------------------
-! loc_reduceToMPILocal
-!--------------------------------------------------------------------------
-  subroutine loc_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! loc_reduceToMPILocal
+  !--------------------------------------------------------------------------
+  subroutine loc_reduceToMPILocal(loc,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in) :: id
+    type(struct_loc)     :: loc
 
     real(8), intent(out) :: cv_mpilocal(:)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal'
-    call idcheck(id)
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_reduceToMPILocal(loc(id)%id,     & ! IN
-                                 cv_mpilocal,    & ! OUT
-                                 cv_mpiglobal)     ! IN
+      call lsp_reduceToMPILocal(loc%id,      & ! IN
+                                cv_mpilocal, & ! OUT
+                                cv_mpiglobal)  ! IN
     case default
-       call utl_abort('loc_reduceToMPILocal: unknown locType')
+      call utl_abort('loc_reduceToMPILocal: unknown locType')
     end select
 
- end subroutine loc_reduceToMPILocal
-
-!--------------------------------------------------------------------------
-! loc_reduceToMPILocal_r4
-!--------------------------------------------------------------------------
-  subroutine loc_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal)
+  end subroutine loc_reduceToMPILocal
+ 
+  !--------------------------------------------------------------------------
+  ! loc_reduceToMPILocal_r4
+  !--------------------------------------------------------------------------
+  subroutine loc_reduceToMPILocal_r4(loc,cv_mpilocal,cv_mpiglobal)
     implicit none
-    integer, intent(in)  :: id
+
+    type(struct_loc)     :: loc
+
     real(4), intent(out) :: cv_mpilocal(:)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal_r4'
-    call idcheck(id)
 
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_reduceToMPILocal_r4(loc(id)%id,    & ! IN
-                                    cv_mpilocal,   & ! OUT
-                                    cv_mpiglobal)    ! IN
+      call lsp_reduceToMPILocal_r4(loc%id,       & ! IN
+                                   cv_mpilocal,  & ! OUT
+                                   cv_mpiglobal)   ! IN
     case default
-       call utl_abort('loc_reduceToMPILocal_r4: unknown locType')
+      call utl_abort('loc_reduceToMPILocal_r4: unknown locType')
     end select
 
- end subroutine loc_reduceToMPILocal_r4
-
-!--------------------------------------------------------------------------
-! loc_expandToMPIGlobal
-!--------------------------------------------------------------------------
-  subroutine loc_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal)
+  end subroutine loc_reduceToMPILocal_r4
+ 
+  !--------------------------------------------------------------------------
+  ! loc_expandToMPIGlobal
+  !--------------------------------------------------------------------------
+  subroutine loc_expandToMPIGlobal(loc,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in)  :: id
+    type(struct_loc)     :: loc
+
     real(8), intent(in)  :: cv_mpilocal(:)
     real(8), intent(out) :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
-    call idcheck(id)
     
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_expandToMPIGlobal(loc(id)%id, cv_mpilocal,  & ! IN
-                                  cv_mpiglobal)               ! OUT
+      call lsp_expandToMPIGlobal(loc%id, cv_mpilocal,  & ! IN
+                                 cv_mpiglobal)           ! OUT
     case default
-       call utl_abort('loc_expandToMPIGlobal: unknown locType')
+      call utl_abort('loc_expandToMPIGlobal: unknown locType')
     end select
 
   end subroutine loc_expandToMPIGlobal
 
-!--------------------------------------------------------------------------
-! loc_expandToMPIGlobal_r4
-!--------------------------------------------------------------------------
-  subroutine loc_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! loc_expandToMPIGlobal_r4
+  !--------------------------------------------------------------------------
+  subroutine loc_expandToMPIGlobal_r4(loc,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in)  :: id
+    type(struct_loc)     :: loc
+
     real(4), intent(in)  :: cv_mpilocal(:)
     real(4), intent(out) :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
-    call idcheck(id)
     
-    select case (trim(loc(id)%locType))
+    select case (trim(loc%locType))
     case('spectral')
-       call lsp_expandToMPIGlobal_r4(loc(id)%id, cv_mpilocal, & ! IN
-                                     cv_mpiglobal)              ! OUT
+      call lsp_expandToMPIGlobal_r4(loc%id, cv_mpilocal, & ! IN
+                                    cv_mpiglobal)          ! OUT
     case default
-       call utl_abort('loc_expandToMPIGlobal_r4: unknown locType')
+      call utl_abort('loc_expandToMPIGlobal_r4: unknown locType')
     end select
 
   end subroutine  loc_expandToMPIGlobal_r4
-
-!--------------------------------------------------------------------------
-!   IDCHECK
-!--------------------------------------------------------------------------
-  subroutine idcheck(id)
-    implicit none
-
-    integer, intent(in) :: id
-
-    if ( .not. loc(id)%initialized) then
-       write(*,*)
-       write(*,*) "transform ID ", id
-       call utl_abort('loc_IDCHECK: Unknown transform ID')
-    end if
-
-  end subroutine idcheck
-
-!--------------------------------------------------------------------------
-!   loc_getNumLocActive
-!--------------------------------------------------------------------------
-  function loc_getNumLocActive() result(numLocActive)
-    implicit none
-
-    integer :: numLocActive
-
-    if (verbose) write(*,*) 'Entering loc_getNumLocActive'
-
-    numLocActive = nLocAlreadyAllocated
-
-  end function loc_getNumLocActive
-
-!--------------------------------------------------------------------------
-!   loc_getLocInfo
-!--------------------------------------------------------------------------
-  function loc_getLocInfo(id) result(locInfo_ptr)
-    implicit none
-
-    integer, intent(in) :: id
-    type(struct_loc), pointer :: locInfo_ptr
-
-    if (verbose) write(*,*) 'Entering loc_getLocInfo'
-    call idcheck(id)
-
-    locInfo_ptr => loc(id)
-
-  end function loc_getLocInfo
 
 end module localization_mod
