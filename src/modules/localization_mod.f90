@@ -43,7 +43,7 @@ module localization_mod
 
   type :: struct_loc
      logical             :: initialized = .false.
-     integer             :: id
+     type(struct_lsp), pointer :: lsp => null()
      integer             :: nEns
      integer             :: nEnsOverDimension
      integer             :: cvDim
@@ -79,7 +79,7 @@ CONTAINS
 
     character(len=*), intent(in) :: locType, locMode
 
-    integer :: id, nEnsOverDimension
+    integer :: nEnsOverDimension
 
     call tmg_start(130,'LOC_SETUP')
 
@@ -98,14 +98,13 @@ CONTAINS
        if (mpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
        call lsp_setup(hco_loc, nEns, vco_loc%nLev_M, pressureProfile, ntrunc, locType,& ! IN
                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, & ! IN
-                      cvDim_out, id, nEnsOverDimension)                                 ! OUT
+                      cvDim_out, loc%lsp, nEnsOverDimension)                                 ! OUT
     case default
        write(*,*)
        write(*,*) 'locType = ', trim(locType)
        call utl_abort('loc_setup: unknown locType')
     end select
 
-    loc%id    = id
     loc%cvDim = cvDim_out
     loc%nEnsOverDimension = nEnsOverDimension 
 
@@ -134,7 +133,7 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_Lsqrt(loc%id, controlVector, & ! IN
+      call lsp_Lsqrt(loc%lsp, controlVector, & ! IN
                      ensAmplitude,          & ! OUT
                      stepIndex)               ! IN
     case default
@@ -159,7 +158,7 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-       call lsp_LsqrtAd(loc%id,       & ! IN
+       call lsp_LsqrtAd(loc%lsp,       & ! IN
                         ensAmplitude, & ! INOUT
                         controlVector,& ! OUT
                         stepIndex )     ! IN
@@ -181,7 +180,7 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_finalize(loc%id)
+      call lsp_finalize(loc%lsp)
     case default
       call utl_abort('loc_finalize: unknown locType')
     end select
@@ -203,7 +202,7 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_reduceToMPILocal(loc%id,      & ! IN
+      call lsp_reduceToMPILocal(loc%lsp,      & ! IN
                                 cv_mpilocal, & ! OUT
                                 cv_mpiglobal)  ! IN
     case default
@@ -227,7 +226,7 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_reduceToMPILocal_r4(loc%id,       & ! IN
+      call lsp_reduceToMPILocal_r4(loc%lsp,       & ! IN
                                    cv_mpilocal,  & ! OUT
                                    cv_mpiglobal)   ! IN
     case default
@@ -251,7 +250,7 @@ CONTAINS
     
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_expandToMPIGlobal(loc%id, cv_mpilocal,  & ! IN
+      call lsp_expandToMPIGlobal(loc%lsp, cv_mpilocal,  & ! IN
                                  cv_mpiglobal)           ! OUT
     case default
       call utl_abort('loc_expandToMPIGlobal: unknown locType')
@@ -274,7 +273,7 @@ CONTAINS
     
     select case (trim(loc%locType))
     case('spectral')
-      call lsp_expandToMPIGlobal_r4(loc%id, cv_mpilocal, & ! IN
+      call lsp_expandToMPIGlobal_r4(loc%lsp, cv_mpilocal, & ! IN
                                     cv_mpiglobal)          ! OUT
     case default
       call utl_abort('loc_expandToMPIGlobal_r4: unknown locType')

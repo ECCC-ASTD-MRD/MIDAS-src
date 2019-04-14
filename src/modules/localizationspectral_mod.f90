@@ -36,6 +36,8 @@ MODULE localizationSpectral_mod
   save
   private
 
+  ! public derived type
+  public :: struct_lsp
   ! public procedures
   public :: lsp_setup, lsp_Lsqrt, lsp_LsqrtAd, lsp_finalize
   public :: lsp_reducetompilocal, lsp_reducetompilocal_r4
@@ -66,10 +68,6 @@ MODULE localizationSpectral_mod
      logical             :: global
   end type struct_lsp
 
-  integer, parameter :: nMaxLoc = 10
-  integer            :: nLocAlreadyAllocated = 0
-  type(struct_lsp)   :: lsp(nMaxLoc)
-
   real(8), parameter :: rsq2 = sqrt(2.0d0)
 
   logical, parameter :: verbose = .false.
@@ -81,10 +79,12 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, &
-                       cvDim_out, id_out, nEnsOverDimension_out)
+                       cvDim_out, lsp, nEnsOverDimension_out)
     implicit none
   
-    type(struct_hco), pointer, intent(in) :: hco_loc
+    type(struct_lsp), pointer ::  lsp
+
+    type(struct_hco), pointer :: hco_loc
 
     integer, intent(in) :: nEns
     integer, intent(in) :: nLev
@@ -98,26 +98,21 @@ CONTAINS
     character(len=*), intent(in) :: locType, locMode
 
     integer, intent(out) :: cvDim_out
-    integer, intent(out) :: id_out
     integer, intent(out) :: nEnsOverDimension_out
 
-    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, id, maxMyNla
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, maxMyNla
     integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount, ierr
 
     if (verbose) write(*,*) 'Entering lsp_Setup'
 
     !
-    !- 1.  ID allocation
+    !- 1.  Allocation
     !
-    nLocAlreadyAllocated = nLocAlreadyAllocated + 1
-    if (nLocAlreadyAllocated <= nMaxLoc) then
-       id = nLocAlreadyAllocated
-       id_out = id
-       write(*,*)
-       write(*,*) "lsp_setup: Setting localization id = ",id
+    if (.not. associated(lsp)) then
+      allocate(lsp)
     else
-       call utl_abort('lsp_setup: Too many localizations!!!')
-    end if
+      call utl_abort('lsp_setup: supplied lsp must be null')
+    endif
 
     !
     !- 2.  Settings
@@ -134,18 +129,18 @@ CONTAINS
     end if
 
     !- 2.2 Ensemble members and Levels
-    lsp(id)%nEns=nEns
-    lsp(id)%nLev=nLev
+    lsp%nEns=nEns
+    lsp%nLev=nLev
  
     !- 2.3 Horizontal grid
-    lsp(id)%ni   = hco_loc%ni
-    lsp(id)%nj   = hco_loc%nj
+    lsp%ni   = hco_loc%ni
+    lsp%nj   = hco_loc%nj
 
-    call mpivar_setup_latbands(lsp(id)%nj, latPerPE, latPerPEmax, lsp(id)%myLatBeg, lsp(id)%myLatEnd)
-    call mpivar_setup_lonbands(lsp(id)%ni, lonPerPE, lonPerPEmax, lsp(id)%myLonBeg, lsp(id)%myLonEnd)
+    call mpivar_setup_latbands(lsp%nj, latPerPE, latPerPEmax, lsp%myLatBeg, lsp%myLatEnd)
+    call mpivar_setup_lonbands(lsp%ni, lonPerPE, lonPerPEmax, lsp%myLonBeg, lsp%myLonEnd)
 
-    lsp(id)%global = hco_loc%global
-    if (lsp(id)%global) then
+    lsp%global = hco_loc%global
+    if (lsp%global) then
       if (mpi_myid == 0) write(*,*)
       if (mpi_myid == 0) write(*,*) 'lsp_setup: GLOBAL mode activated'
     else
@@ -154,121 +149,122 @@ CONTAINS
     end if
 
     !- 2.4 Spectral Transform
-    lsp(id)%nTrunc=nTrunc
-    lsp(id)%dlon = hco_loc%dlon
+    lsp%nTrunc=nTrunc
+    lsp%dlon = hco_loc%dlon
 
-    call mpivar_setup_levels(lsp(id)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
+    call mpivar_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                               1,"MPI_INTEGER","mpi_max","GRID",ierr)
     nEnsOverDimension_out     = mpi_npex * maxMyMemberCount
-    lsp(id)%nEnsOverDimension = nEnsOverDimension_out
+    lsp%nEnsOverDimension = nEnsOverDimension_out
 
-    if (lsp(id)%global) then
+    if (lsp%global) then
        ! Global Mode
-       lsp(id)%nphase = 2
-       lsp(id)%nla_mpiglobal = (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+2)/2
+       lsp%nphase = 2
+       lsp%nla_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+2)/2
        
-       lsp(id)%gstID = gst_setup(lsp(id)%ni,lsp(id)%nj,lsp(id)%ntrunc,lsp(id)%nEnsOverDimension)
-       if (mpi_myid == 0) write(*,*) 'lsp_setup: returned value of gstID = ',lsp(id)%gstID
+       lsp%gstID = gst_setup(lsp%ni,lsp%nj,lsp%ntrunc,lsp%nEnsOverDimension)
+       if (mpi_myid == 0) write(*,*) 'lsp_setup: returned value of gstID = ',lsp%gstID
 
     else
        ! LAM mode
-       call lst_Setup(lsp(id)%lst,                                          & ! OUT
-                      lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, lsp(id)%ntrunc, & ! IN
-                      'LatLonMN', maxlevels_opt=lsp(id)%nEnsOverDimension,  & ! IN
+       call lst_Setup(lsp%lst,                                          & ! OUT
+                      lsp%ni, lsp%nj, lsp%dlon, lsp%ntrunc, & ! IN
+                      'LatLonMN', maxlevels_opt=lsp%nEnsOverDimension,  & ! IN
                        gridDataOrder_opt='kij')                               ! IN
 
-       lsp(id)%nphase       = lsp(id)%lst%nphase
-       lsp(id)%nla_mpilocal = lsp(id)%lst%nla
+       lsp%nphase       = lsp%lst%nphase
+       lsp%nla_mpilocal = lsp%lst%nla
        
     end if
 
     !- 2.5 Distribute control vector over mpi processes according to member index and m
-    call mpivar_setup_m(lsp(id)%ntrunc,lsp(id)%mymBeg,lsp(id)%mymEnd,lsp(id)%mymSkip,mymCount)
-    call mpivar_setup_n(lsp(id)%ntrunc,lsp(id)%mynBeg,lsp(id)%mynEnd,lsp(id)%mynSkip,mynCount)
+    call mpivar_setup_m(lsp%ntrunc,lsp%mymBeg,lsp%mymEnd,lsp%mymSkip,mymCount)
+    call mpivar_setup_n(lsp%ntrunc,lsp%mynBeg,lsp%mynEnd,lsp%mynSkip,mynCount)
 
-    if (lsp(id)%global) then
+    if (lsp%global) then
        ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal
-       call gst_ilaList_mpiglobal(lsp(id)%ilaList_mpiglobal,lsp(id)%nla_mpilocal,maxMyNla,lsp(id)%gstID, &
-                                  lsp(id)%mymBeg,lsp(id)%mymEnd,lsp(id)%mymSkip,lsp(id)%mynBeg, &
-                                  lsp(id)%mynEnd,lsp(id)%mynSkip)
-       call gst_ilaList_mpilocal(lsp(id)%ilaList_mpilocal,lsp(id)%gstID,lsp(id)%mymBeg,lsp(id)%mymEnd, &
-                                 lsp(id)%mymSkip,lsp(id)%mynBeg,lsp(id)%mynEnd,lsp(id)%mynSkip)
-       write(*,*) 'lsp_setup: nla_mpiglobal, nla_mpilocal, maxMyNla = ', lsp(id)%nla_mpiglobal, &
-            lsp(id)%nla_mpilocal, maxMyNla
+       call gst_ilaList_mpiglobal(lsp%ilaList_mpiglobal,lsp%nla_mpilocal,maxMyNla,lsp%gstID, &
+                                  lsp%mymBeg,lsp%mymEnd,lsp%mymSkip,lsp%mynBeg, &
+                                  lsp%mynEnd,lsp%mynSkip)
+       call gst_ilaList_mpilocal(lsp%ilaList_mpilocal,lsp%gstID,lsp%mymBeg,lsp%mymEnd, &
+                                 lsp%mymSkip,lsp%mynBeg,lsp%mynEnd,lsp%mynSkip)
+       write(*,*) 'lsp_setup: nla_mpiglobal, nla_mpilocal, maxMyNla = ', lsp%nla_mpiglobal, &
+            lsp%nla_mpilocal, maxMyNla
     end if
 
     !- 2.6 Localization
     call lfn_setup('FifthOrder') ! IN
 
-    call setupLocalizationMatrices(id, horizLengthScale1, horizLengthScale2, & ! IN
+    call setupLocalizationMatrices(lsp, horizLengthScale1, horizLengthScale2, & ! IN
                                    vertLengthScale, pressureProfile, locMode)  ! IN
 
-    if (lsp(id)%global) then
-       lsp(id)%cvDim_mpiglobal = (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)*lsp(id)%nLev*lsp(id)%nEns
-       lsp(id)%cvDim_mpilocal  = 0
+    if (lsp%global) then
+       lsp%cvDim_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev*lsp%nEns
+       lsp%cvDim_mpilocal  = 0
        
-       do mIndex = lsp(id)%mymBeg, lsp(id)%mymEnd, lsp(id)%mymSkip
-          do nIndex = lsp(id)%mynBeg, lsp(id)%mynEnd, lsp(id)%mynSkip
+       do mIndex = lsp%mymBeg, lsp%mymEnd, lsp%mymSkip
+          do nIndex = lsp%mynBeg, lsp%mynEnd, lsp%mynSkip
              if (mIndex.le.nIndex) then
                 if (mIndex == 0) then
                    ! controlVector only contains real part for mIndex=0
-                   lsp(id)%cvDim_mpilocal = lsp(id)%cvDim_mpilocal + 1*lsp(id)%nLev*lsp(id)%nEns
+                   lsp%cvDim_mpilocal = lsp%cvDim_mpilocal + 1*lsp%nLev*lsp%nEns
                 else
                    ! controlVector contains real and imag parts for mIndex>0
-                   lsp(id)%cvDim_mpilocal = lsp(id)%cvDim_mpilocal + 2*lsp(id)%nLev*lsp(id)%nEns
+                   lsp%cvDim_mpilocal = lsp%cvDim_mpilocal + 2*lsp%nLev*lsp%nEns
                 end if
              end if
           end do
        end do
     else
-       lsp(id)%cvDim_mpiglobal = lsp(id)%lst%nlaGlobal * lsp(id)%nphase * lsp(id)%nLev * lsp(id)%nEns
-       lsp(id)%cvDim_mpilocal  = lsp(id)%nla_mpilocal      * lsp(id)%nphase * lsp(id)%nLev * lsp(id)%nEns
-       write(*,*) 'cvDim_mpiglobal ', lsp(id)%cvDim_mpiglobal, lsp(id)%lst%nlaGlobal, &
-            lsp(id)%nphase, lsp(id)%nLev, lsp(id)%nEns
-       write(*,*) 'cvDim_mpilocal  ', lsp(id)%cvDim_mpilocal, lsp(id)%nla_mpilocal, &
-            lsp(id)%nphase, lsp(id)%nLev, lsp(id)%nEns
+       lsp%cvDim_mpiglobal = lsp%lst%nlaGlobal * lsp%nphase * lsp%nLev * lsp%nEns
+       lsp%cvDim_mpilocal  = lsp%nla_mpilocal      * lsp%nphase * lsp%nLev * lsp%nEns
+       write(*,*) 'cvDim_mpiglobal ', lsp%cvDim_mpiglobal, lsp%lst%nlaGlobal, &
+            lsp%nphase, lsp%nLev, lsp%nEns
+       write(*,*) 'cvDim_mpilocal  ', lsp%cvDim_mpilocal, lsp%nla_mpilocal, &
+            lsp%nphase, lsp%nLev, lsp%nEns
     end if
-    cvDim_out = lsp(id)%cvDim_mpilocal
+    cvDim_out = lsp%cvDim_mpilocal
 
     !
     !- 3.  Ending
     !
-    lsp(id)%initialized = .true.
+    lsp%initialized = .true.
 
   END SUBROUTINE lsp_setup
 
 !--------------------------------------------------------------------------
 ! setupLocalizationMatrices
 !--------------------------------------------------------------------------
-  SUBROUTINE setupLocalizationMatrices(id,horizLengthScale1,horizLengthScale2 ,vertLengthScale,&
+  SUBROUTINE setupLocalizationMatrices(lsp,horizLengthScale1,horizLengthScale2 ,vertLengthScale,&
                                        pressureProfile,localizationMode)
     implicit none
 
-    integer, intent(in) :: id
+    type(struct_lsp), pointer    :: lsp
+
     real(8), intent(in) :: horizLengthScale1,horizLengthScale2 
     real(8), intent(in) :: vertLengthScale
-    real(8), intent(in) :: pressureProfile(lsp(id)%nLev)
+    real(8), intent(in) :: pressureProfile(lsp%nLev)
     character(len=*), intent(in) :: localizationMode
 
     real(8)  :: zr,zpole,zcorr
 
     integer :: ilen,nIndex,latIndex,jla,lonIndex,levIndex,levIndex1,levIndex2,nsize,ierr
 
-    real(8) :: horizLengthScaleAll(lsp(id)%nLev)
+    real(8) :: horizLengthScaleAll(lsp%nLev)
 
     if (verbose) write(*,*) 'Entering setupLocalizationMatrices'
 
     !
     !- 1.  Allocation
     !
-    allocate(lsp(id)%LhorizSqrt(0:lsp(id)%nTrunc,lsp(id)%nLev),stat=ierr)
+    allocate(lsp%LhorizSqrt(0:lsp%nTrunc,lsp%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'lsp_setup: Problem allocating memory! id=9',ierr
        call utl_abort('setupLocalizationMatrices')
     end if
     
-    allocate(lsp(id)%LvertSqrt(lsp(id)%nLev,lsp(id)%nLev),stat=ierr)
+    allocate(lsp%LvertSqrt(lsp%nLev,lsp%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
        call utl_abort('setupLocalizationMatrices')
@@ -285,12 +281,12 @@ CONTAINS
        horizLengthScaleAll(:) = horizLengthScale1
     else
        ! vertically varying horizontal localization (linear in log P)
-       do levIndex = 1, lsp(id)%nLev
+       do levIndex = 1, lsp%nLev
           horizLengthScaleAll(levIndex) = ( horizLengthScale1*( log(pressureProfile(levIndex)) - &
                                           log(pressureProfile(1       )) ) +    &
-                                            horizLengthScale2*( log(pressureProfile(lsp(id)%nLev    )) - &
+                                            horizLengthScale2*( log(pressureProfile(lsp%nLev    )) - &
                                           log(pressureProfile(levIndex)) ) ) /  &
-                                          ( log(pressureProfile(lsp(id)%nLev))-log(pressureProfile(1)) )
+                                          ( log(pressureProfile(lsp%nLev))-log(pressureProfile(1)) )
           if (mpi_myid == 0) then
              write(*,*) 'loc: localization length scale (',levIndex,') = ',horizLengthScaleAll(levIndex)
           end if
@@ -298,10 +294,10 @@ CONTAINS
     end if
 
     !- 2.2 Compute the matrix
-    if (lsp(id)%global) then
-       call setupGlobalSpectralHLoc(id,horizLengthScaleAll) ! IN
+    if (lsp%global) then
+       call setupGlobalSpectralHLoc(lsp,horizLengthScaleAll) ! IN
     else
-       call setupLamSpectralHLoc(id,horizLengthScaleAll) ! IN
+       call setupLamSpectralHLoc(lsp,horizLengthScaleAll) ! IN
     end if
     
     !
@@ -310,20 +306,20 @@ CONTAINS
 
     !  3.1 Calculate 5'th order function
     if (vertLengthScale > 0.0d0) then
-      do levIndex1 = 1, lsp(id)%nLev
-        do levIndex2 = 1, lsp(id)%nLev
+      do levIndex1 = 1, lsp%nLev
+        do levIndex2 = 1, lsp%nLev
           ZR = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
           zcorr = lfn_response(zr,vertLengthScale)
-          lsp(id)%LvertSqrt(levIndex1,levIndex2) = zcorr
+          lsp%LvertSqrt(levIndex1,levIndex2) = zcorr
         end do
       end do
     else
-      lsp(id)%LvertSqrt(:,:) = 1.d0 ! no vertical localization
+      lsp%LvertSqrt(:,:) = 1.d0 ! no vertical localization
     end if
 
     !- 3.2 Compute sqrt of the matrix if vertical localization requested
     if (vertLengthScale > 0.0d0) then
-      call utl_matSqrt(lsp(id)%LvertSqrt(1,1),lsp(id)%nLev,1.0d0,.false.)
+      call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
     end if
 
   END SUBROUTINE setupLocalizationMatrices
@@ -331,36 +327,37 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! setupGlobalSpectralHLoc
 !--------------------------------------------------------------------------
-  SUBROUTINE setupGlobalSpectralHLoc(id, local_length)
+  SUBROUTINE setupGlobalSpectralHLoc(lsp, local_length)
     implicit none
 
-    integer, intent(in)  :: id
-    real(8), intent(in)  :: local_length(lsp(id)%nLev)
+    type(struct_lsp), pointer     :: lsp
+
+    real(8), intent(in)  :: local_length(lsp%nLev)
 
     real(8) ::   zlc,zr,zpole,zcorr
 
     ! NOTE: arrays passed to spectral transform are dimensioned as follows
     !       gd: lat/lon tiles and sp: member index
-    real(8) :: sp_mpilocal(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev)
-    real(8) :: sp_mpiglobal(lsp(id)%nla_mpiglobal,lsp(id)%nphase,lsp(id)%nLev)
-    real(8) :: sp_mympiglobal(lsp(id)%nla_mpiglobal,lsp(id)%nphase,lsp(id)%nLev)
-    real(8) :: zgd_gst(lsp(id)%myLonBeg:lsp(id)%myLonEnd,lsp(id)%myLatBeg:lsp(id)%myLatEnd,lsp(id)%nLev)
+    real(8) :: sp_mpilocal(lsp%nla_mpilocal,lsp%nphase,lsp%nLev)
+    real(8) :: sp_mpiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
+    real(8) :: sp_mympiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
+    real(8) :: zgd_gst(lsp%myLonBeg:lsp%myLonEnd,lsp%myLatBeg:lsp%myLatEnd,lsp%nLev)
 
     integer :: ilen,nIndex,latIndex,jla,lonIndex,levIndex,levIndex1,levIndex2,nsize,ierr
     integer :: ila_mpiglobal,jla_mpilocal,gstID2
 
     if (local_length(1).gt.0.0d0) then
 
-      gstID2 = gst_setup(lsp(id)%ni,lsp(id)%nj,lsp(id)%ntrunc,lsp(id)%nLev)
+      gstID2 = gst_setup(lsp%ni,lsp%nj,lsp%ntrunc,lsp%nLev)
 
       zgd_gst(:,:,:) = 0.0d0
-      do levIndex = 1, lsp(id)%nLev
+      do levIndex = 1, lsp%nLev
         ! Calculate 5th Order Correlation Functions in Physical Space
         zlc = 1000.0d0*local_length(levIndex)
-        do latIndex = lsp(id)%myLatBeg, lsp(id)%myLatEnd
+        do latIndex = lsp%myLatBeg, lsp%myLatEnd
           zr = ra * acos(gst_getrmu(latIndex,gstID2))
           zcorr = lfn_response(zr,zlc)
-          do lonIndex = lsp(id)%myLonBeg, lsp(id)%myLonEnd
+          do lonIndex = lsp%myLonBeg, lsp%myLonEnd
             zgd_gst(lonIndex,latIndex,levIndex) = zcorr
           end do
         end do
@@ -373,54 +370,54 @@ CONTAINS
 
       ! Make mpiglobal in spectral space
       sp_mympiglobal(:,:,:) = 0.0d0
-      do jla_mpilocal = 1, lsp(id)%nla_mpilocal
-        ila_mpiglobal = lsp(id)%ilaList_mpiglobal(jla_mpilocal)
+      do jla_mpilocal = 1, lsp%nla_mpilocal
+        ila_mpiglobal = lsp%ilaList_mpiglobal(jla_mpilocal)
         sp_mympiglobal(ila_mpiglobal,:,:) = sp_mpilocal(jla_mpilocal,:,:)
       end do
-      nsize = lsp(id)%nla_mpiglobal*lsp(id)%nphase*lsp(id)%nLev
+      nsize = lsp%nla_mpiglobal*lsp%nphase*lsp%nLev
       sp_mpiglobal(:,:,:) = 0.0d0
       call rpn_comm_allreduce(sp_mympiglobal,sp_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
       
-      do levIndex = 1, lsp(id)%nLev
-        do nIndex = 0, lsp(id)%ntrunc
-          lsp(id)%LhorizSqrt(nIndex,levIndex) = sp_mpiglobal(nIndex+1,1,levIndex)
+      do levIndex = 1, lsp%nLev
+        do nIndex = 0, lsp%ntrunc
+          lsp%LhorizSqrt(nIndex,levIndex) = sp_mpiglobal(nIndex+1,1,levIndex)
         end do
       end do
 
       ! Make sure it's one at the pole
-      do levIndex = 1, lsp(id)%nLev
-        do  nIndex = 0, lsp(id)%ntrunc
-          lsp(id)%LhorizSqrt(nIndex,levIndex) = abs(lsp(id)%LhorizSqrt(nIndex,levIndex))
+      do levIndex = 1, lsp%nLev
+        do  nIndex = 0, lsp%ntrunc
+          lsp%LhorizSqrt(nIndex,levIndex) = abs(lsp%LhorizSqrt(nIndex,levIndex))
         end do
       end do
-      do levIndex = 1, lsp(id)%nLev
+      do levIndex = 1, lsp%nLev
         zpole = 0.d0
-        do  nIndex = 0, lsp(id)%ntrunc
-          zpole = zpole + lsp(id)%LhorizSqrt(nIndex,levIndex)*sqrt((2.d0*nIndex+1.d0)/2.d0)
+        do  nIndex = 0, lsp%ntrunc
+          zpole = zpole + lsp%LhorizSqrt(nIndex,levIndex)*sqrt((2.d0*nIndex+1.d0)/2.d0)
         end do
         if (zpole.le.0.d0) then
           write(*,*)'POLE VALUE NEGATIVE IN setupGlobalSpectralHLoc levIndex=',levIndex
           call utl_abort('setupGlobalSpectralHLoc')
         end if
-        do nIndex = 0, lsp(id)%ntrunc
-          lsp(id)%LhorizSqrt(nIndex,levIndex) = lsp(id)%LhorizSqrt(nIndex,levIndex)/zpole
+        do nIndex = 0, lsp%ntrunc
+          lsp%LhorizSqrt(nIndex,levIndex) = lsp%LhorizSqrt(nIndex,levIndex)/zpole
         end do
       end do
 
       ! Convert back to correlations and take sqrt
-      do levIndex = 1, lsp(id)%nLev
-        do nIndex = 0, lsp(id)%ntrunc
-          lsp(id)%LhorizSqrt(nIndex,levIndex) = sqrt( 0.5d0*lsp(id)%LhorizSqrt(nIndex,levIndex) * &
+      do levIndex = 1, lsp%nLev
+        do nIndex = 0, lsp%ntrunc
+          lsp%LhorizSqrt(nIndex,levIndex) = sqrt( 0.5d0*lsp%LhorizSqrt(nIndex,levIndex) * &
                                                        ((2.0d0/(2.0d0*nIndex+1.0d0))**0.5d0) )
         end do
       end do
 
     else
 
-       ! NO HORIZONTAL LOCALIZATION, set lsp(id)%LhorizSqrt to 1.0 for wavenumber 0
-       do levIndex = 1, lsp(id)%nLev
-          lsp(id)%LhorizSqrt(:,levIndex) = 0.0d0
-          lsp(id)%LhorizSqrt(0,levIndex) = 1.0d0
+       ! NO HORIZONTAL LOCALIZATION, set lsp%LhorizSqrt to 1.0 for wavenumber 0
+       do levIndex = 1, lsp%nLev
+          lsp%LhorizSqrt(:,levIndex) = 0.0d0
+          lsp%LhorizSqrt(0,levIndex) = 1.0d0
        end do
     end if
 
@@ -429,12 +426,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! setupLamSpectralHLoc
 !--------------------------------------------------------------------------
-  SUBROUTINE setupLamSpectralHLoc(id, local_length)
+  SUBROUTINE setupLamSpectralHLoc(lsp, local_length)
     implicit none
 
-    integer, intent(in) :: id
-
-    real(8), intent(in)  :: local_length(lsp(id)%nLev)
+    type(struct_lsp), pointer     :: lsp
+    
+    real(8), intent(in)  :: local_length(lsp%nLev)
 
     real(8), allocatable :: sp(:,:,:)
     real(8), allocatable :: gd(:,:,:)
@@ -455,48 +452,48 @@ CONTAINS
 
       !- 1.1 Setup a non-MPI spectral transform
       call lst_Setup(lst_hloc,                             & ! OUT
-                     lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, & ! IN
-                     lsp(id)%ntrunc, 'NoMpi')                ! IN
+                     lsp%ni, lsp%nj, lsp%dlon, & ! IN
+                     lsp%ntrunc, 'NoMpi')                ! IN
 
       !- 1.2 Create a correlation function in physical space
-      allocate (gd(lsp(id)%ni,lsp(id)%nj,lsp(id)%nLev))
+      allocate (gd(lsp%ni,lsp%nj,lsp%nLev))
 
       call lfn_CreateBiPerFunction( gd,                                  & ! OUT
-                                    local_length, lsp(id)%dlon,          & ! IN
-                                    lsp(id)%ni, lsp(id)%nj, lsp(id)%nLev ) ! IN
+                                    local_length, lsp%dlon,          & ! IN
+                                    lsp%ni, lsp%nj, lsp%nLev ) ! IN
 
       !- 1.3 Transform to spectral space
-      allocate (sp(lst_hloc%nla, lsp(id)%nphase, lsp(id)%nLev))
+      allocate (sp(lst_hloc%nla, lsp%nphase, lsp%nLev))
 
       kind = 'GridPointToSpectral'
       call lst_VarTransform(lst_hloc,           & ! IN
                             sp,                 & ! OUT
                             gd,                 & ! IN
-                            kind, lsp(id)%nLev)   ! IN
+                            kind, lsp%nLev)   ! IN
  
       !- 1.4 Compute band mean
-      allocate(SumWeight(0:lsp(id)%nTrunc))
+      allocate(SumWeight(0:lsp%nTrunc))
       SumWeight  (:)  = 0.d0
 
-      lsp(id)%LhorizSqrt(:,:) = 0.d0
-      do totwvnb = 0, lsp(id)%ntrunc
+      lsp%LhorizSqrt(:,:) = 0.d0
+      do totwvnb = 0, lsp%ntrunc
          do e = 1, lst_hloc%nePerK(totwvnb)
             ila = lst_hloc%ilaFromEK(e,totwvnb)
             do p = 1, lst_hloc%nphase
                SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc%Weight(ila)
-               do k = 1, lsp(id)%nLev
-                  lsp(id)%LhorizSqrt(totwvnb,k) = lsp(id)%LhorizSqrt(totwvnb,k) + &
+               do k = 1, lsp%nLev
+                  lsp%LhorizSqrt(totwvnb,k) = lsp%LhorizSqrt(totwvnb,k) + &
                                                              lst_hloc%Weight(ila) * abs(sp(ila,p,k))
                 end do
              end do
          end do
       end do
 
-      do totwvnb = 0, lsp(id)%ntrunc
+      do totwvnb = 0, lsp%ntrunc
          if (SumWeight(totwvnb) /= 0.d0) then
-            lsp(id)%LhorizSqrt(totwvnb,:) = lsp(id)%LhorizSqrt(totwvnb,:) / SumWeight(totwvnb)
+            lsp%LhorizSqrt(totwvnb,:) = lsp%LhorizSqrt(totwvnb,:) / SumWeight(totwvnb)
          else
-            lsp(id)%LhorizSqrt(totwvnb,:) = 0.d0
+            lsp%LhorizSqrt(totwvnb,:) = 0.d0
          end if
       end do
 
@@ -504,16 +501,16 @@ CONTAINS
 
       !- 1.5 Normalization to one of correlation function from spectral densities: Part 1
 !$OMP PARALLEL DO PRIVATE (totwvnb,k,sum)
-      do k = 1, lsp(id)%nLev
+      do k = 1, lsp%nLev
          sum = 0.0d0
-         do totwvnb = 0, lsp(id)%ntrunc
-            sum = sum + real(totwvnb,8) * lsp(id)%LhorizSqrt(totwvnb,k)
+         do totwvnb = 0, lsp%ntrunc
+            sum = sum + real(totwvnb,8) * lsp%LhorizSqrt(totwvnb,k)
          end do
-         do totwvnb = 0, lsp(id)%ntrunc
+         do totwvnb = 0, lsp%ntrunc
             if ( sum /= 0.0d0 ) then
-               lsp(id)%LhorizSqrt(totwvnb,k) = lsp(id)%LhorizSqrt(totwvnb,k) / sum
+               lsp%LhorizSqrt(totwvnb,k) = lsp%LhorizSqrt(totwvnb,k) / sum
             else
-               lsp(id)%LhorizSqrt(totwvnb,k) = 0.d0
+               lsp%LhorizSqrt(totwvnb,k) = 0.d0
             end if
          end do
       end do
@@ -523,22 +520,22 @@ CONTAINS
 
       !- 1.6.1 Spectral transform of a delta function (at the center of the domain)
       gd(:,:,:) = 0.d0
-      gd(lsp(id)%ni/2,lsp(id)%nj/2,:) = 1.d0
+      gd(lsp%ni/2,lsp%nj/2,:) = 1.d0
 
       kind = 'GridPointToSpectral'
       call lst_VarTransform(lst_hloc,           & ! IN
                             sp,                 & ! OUT
                             gd,                 & ! IN
-                            kind, lsp(id)%nLev )  ! IN
+                            kind, lsp%nLev )  ! IN
 
       !- 1.6.2 Apply the correlation function
 !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
-      do totwvnb = 0, lsp(id)%ntrunc
+      do totwvnb = 0, lsp%ntrunc
          do e = 1, lst_hloc%nePerK(totwvnb)
             ila = lst_hloc%ilaFromEK(e,totwvnb)
-            do p = 1, lsp(id)%nphase
-               do k = 1, lsp(id)%nLev
-                  sp(ila,p,k) = sp(ila,p,k) * lsp(id)%LhorizSqrt(totwvnb,k) * &
+            do p = 1, lsp%nphase
+               do k = 1, lsp%nLev
+                  sp(ila,p,k) = sp(ila,p,k) * lsp%LhorizSqrt(totwvnb,k) * &
                                 lst_hloc%NormFactor(ila,p) * lst_hloc%NormFactorAd(ila,p)
                end do
             end do
@@ -551,22 +548,22 @@ CONTAINS
       call lst_VarTransform(lst_hloc,           & ! IN
                             sp,                 & ! IN
                             gd,                 & ! OUT
-                            kind, lsp(id)%nLev )  ! IN
+                            kind, lsp%nLev )  ! IN
 
       !- 1.6.4 Normalize to 1
-      do k = 1, lsp(id)%nLev
-         if ( gd(lsp(id)%ni/2,lsp(id)%nj/2,k) <= 0.d0 ) then
-            write(*,*) 'setupLamSpectralHLoc: Problem in normalization ',gd(lsp(id)%ni/2,lsp(id)%nj/2,k)
+      do k = 1, lsp%nLev
+         if ( gd(lsp%ni/2,lsp%nj/2,k) <= 0.d0 ) then
+            write(*,*) 'setupLamSpectralHLoc: Problem in normalization ',gd(lsp%ni/2,lsp%nj/2,k)
             call utl_abort('setupLamSpectralHLoc')
          end if
          if ( mpi_myid == 0 ) then
-           write(*,*) 'setupLamSpectralHLoc: Normalization factor = ', k, gd(lsp(id)%ni/2,lsp(id)%nj/2,k), 1.d0 / gd(lsp(id)%ni/2,lsp(id)%nj/2,k)
+           write(*,*) 'setupLamSpectralHLoc: Normalization factor = ', k, gd(lsp%ni/2,lsp%nj/2,k), 1.d0 / gd(lsp%ni/2,lsp%nj/2,k)
          end if
-         lsp(id)%LhorizSqrt(:,k) = lsp(id)%LhorizSqrt(:,k) / gd(lsp(id)%ni/2,lsp(id)%nj/2,k)
+         lsp%LhorizSqrt(:,k) = lsp%LhorizSqrt(:,k) / gd(lsp%ni/2,lsp%nj/2,k)
       end do
 
       !- 1.7 Take sqrt
-      lsp(id)%LhorizSqrt(:,:) = sqrt(lsp(id)%LhorizSqrt(:,:))
+      lsp%LhorizSqrt(:,:) = sqrt(lsp%LhorizSqrt(:,:))
 
       deallocate(sp)
       deallocate(gd)
@@ -575,8 +572,8 @@ CONTAINS
       !
       !- 2. NO HORIZONTAL LOCALIZATION: set ensLocal%LhorizSqrt to 1.0 for wavenumber 0
       !
-      lsp(id)%LhorizSqrt(:,:) = 0.0d0
-      lsp(id)%LhorizSqrt(0,:) = 1.0d0
+      lsp%LhorizSqrt(:,:) = 0.0d0
+      lsp%LhorizSqrt(0,:) = 1.0d0
     end if
 
   END SUBROUTINE setupLamSpectralHLoc
@@ -584,11 +581,13 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_Lsqrt
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_Lsqrt(id, controlVector, ensAmplitude, stepIndex)
+  SUBROUTINE lsp_Lsqrt(lsp, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    integer, intent(in)  :: id, stepIndex
-    real(8), intent(in)  :: controlVector(lsp(id)%cvDim_mpilocal)
+    type(struct_lsp), pointer     :: lsp
+
+    integer, intent(in)  :: stepIndex
+    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
     type(struct_ens)     :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,p,memberIndex
@@ -599,21 +598,21 @@ CONTAINS
 
     real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
-    allocate(sp_vhLoc(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEnsOverDimension))
-    allocate(sp_hLoc (lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns             ))
+    allocate(sp_vhLoc(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEnsOverDimension))
+    allocate(sp_hLoc (lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns             ))
 
     if (verbose) write(*,*) 'Entering lsp_Lsqrt'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     !
     !- 1.  Horizontal Localization
     !
-    if (lsp(id)%global) then
-       call globalSpectralHLoc( id,           & ! IN
+    if (lsp%global) then
+       call globalSpectralHLoc( lsp,           & ! IN
                                 sp_hLoc,      & ! OUT
                                 controlVector ) ! IN
     else
-       call lamSpectralHLoc( id,           & ! IN
+       call lamSpectralHLoc( lsp,           & ! IN
                              sp_hLoc,      & ! OUT
                              controlVector ) ! IN
     end if
@@ -621,19 +620,19 @@ CONTAINS
     !
     !- 2.  Vertical localization
     !
-    if (lsp(id)%nEnsOverDimension > lsp(id)%nEns) then
-       sp_vhLoc(:,:,:,lsp(id)%nEns+1:lsp(id)%nEnsOverDimension) = 0.0d0
+    if (lsp%nEnsOverDimension > lsp%nEns) then
+       sp_vhLoc(:,:,:,lsp%nEns+1:lsp%nEnsOverDimension) = 0.0d0
     end if
 
 !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
-    do memberIndex = 1, lsp(id)%nEns
+    do memberIndex = 1, lsp%nEns
       sp_vhLoc(:,:,:,memberIndex) = 0.0d0
-      do levIndex1 = 1, lsp(id)%nLev
-        do levIndex2 = 1, lsp(id)%nLev
-          do p = 1, lsp(id)%nphase
-            do jla = 1, lsp(id)%nla_mpilocal
+      do levIndex1 = 1, lsp%nLev
+        do levIndex2 = 1, lsp%nLev
+          do p = 1, lsp%nphase
+            do jla = 1, lsp%nla_mpilocal
               sp_vhLoc(jla,p,levIndex1,memberIndex) = sp_vhLoc(jla,p,levIndex1,memberIndex) +  &
-                          lsp(id)%LvertSqrt(levIndex1,levIndex2)*sp_hLoc(jla,p,levIndex2,memberIndex)
+                          lsp%LvertSqrt(levIndex1,levIndex2)*sp_hLoc(jla,p,levIndex2,memberIndex)
             end do
           end do
         end do
@@ -644,27 +643,27 @@ CONTAINS
     !
     !- 3.  Transform to gridpoint space all ensemble amplitudes
     !
-    do levIndex = 1, lsp(id)%nLev ! loop over all levels for the amplitudes
+    do levIndex = 1, lsp%nLev ! loop over all levels for the amplitudes
 
       ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
 
 !$OMP PARALLEL DO PRIVATE (latIndex)
-       do latIndex = lsp(id)%myLatBeg, lsp(id)%myLatEnd
+       do latIndex = lsp%myLatBeg, lsp%myLatEnd
           ensAmplitude_oneLev(:,stepIndex,:,latIndex) = 0.0d0
        end do
 !$OMP END PARALLEL DO
 
        call tmg_start(64,'LOC_SPECTRAL')
        
-       if (lsp(id)%global) then
-          call gst_setID(lsp(id)%gstID)
+       if (lsp%global) then
+          call gst_setID(lsp%gstID)
           call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
        else
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform(lsp(id)%lst,                          & ! IN
+          call lst_VarTransform(lsp%lst,                          & ! IN
                                 sp_vhLoc(:,:,levIndex,:),             & ! IN
                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
-                                kind, lsp(id)%nEnsOverDimension)        ! IN
+                                kind, lsp%nEnsOverDimension)        ! IN
        end if
 
        call tmg_stop(64)
@@ -679,40 +678,41 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! globalSpectralHLoc
 !--------------------------------------------------------------------------
-  SUBROUTINE globalSpectralHLoc(id, sp_all, controlVector)
+  SUBROUTINE globalSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
-    integer, intent(in)  :: id
-    real(8), intent(in)  :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(out) :: sp_all(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns)
+    type(struct_lsp), pointer     :: lsp
+
+    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8), intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
 
     if (verbose) write(*,*) 'Entering globalSpectralHloc'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     dimIndex = 0
 
-    do memberIndex = 1, lsp(id)%nEns
+    do memberIndex = 1, lsp%nEns
 
-      do levIndex = 1, lsp(id)%nLev
-        do mIndex = lsp(id)%mymBeg, lsp(id)%mymEnd, lsp(id)%mymSkip
-          do nIndex = lsp(id)%mynBeg, lsp(id)%mynEnd, lsp(id)%mynSkip
+      do levIndex = 1, lsp%nLev
+        do mIndex = lsp%mymBeg, lsp%mymEnd, lsp%mymSkip
+          do nIndex = lsp%mynBeg, lsp%mynEnd, lsp%mynSkip
             if (mIndex .le. nIndex) then
 
-              ila_mpiglobal = gst_getnind(mIndex,lsp(id)%gstID) + nIndex - mIndex
-              ila_mpilocal  = lsp(id)%ilaList_mpilocal(ila_mpiglobal)
+              ila_mpiglobal = gst_getnind(mIndex,lsp%gstID) + nIndex - mIndex
+              ila_mpilocal  = lsp%ilaList_mpilocal(ila_mpiglobal)
               if (mIndex == 0) then
                 ! controlVector only contain real part for mIndex=0
                 dimIndex = dimIndex + 1
-                sp_all(ila_mpilocal,1,levIndex,memberIndex) = controlVector(dimIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)*rsq2
+                sp_all(ila_mpilocal,1,levIndex,memberIndex) = controlVector(dimIndex)*lsp%LhorizSqrt(nIndex,levIndex)*rsq2
                 sp_all(ila_mpilocal,2,levIndex,memberIndex) = 0.0d0
               else
                 ! controlVector contains real and imag parts for mIndex>0
                 dimIndex = dimIndex + 1
-                sp_all(ila_mpilocal,1,levIndex,memberIndex) = controlVector(dimIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)
+                sp_all(ila_mpilocal,1,levIndex,memberIndex) = controlVector(dimIndex)*lsp%LhorizSqrt(nIndex,levIndex)
                 dimIndex = dimIndex + 1
-                sp_all(ila_mpilocal,2,levIndex,memberIndex) = controlVector(dimIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)
+                sp_all(ila_mpilocal,2,levIndex,memberIndex) = controlVector(dimIndex)*lsp%LhorizSqrt(nIndex,levIndex)
               end if
 
             end if
@@ -720,8 +720,8 @@ CONTAINS
         end do
       end do
 
-      if (dimIndex.gt.lsp(id)%cvDim_mpilocal) then
-        write(*,*) 'loc globalSpectralHLoc: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
+      if (dimIndex.gt.lsp%cvDim_mpilocal) then
+        write(*,*) 'loc globalSpectralHLoc: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
         call utl_abort('globalSpectralHLoc')
       end if
 
@@ -732,37 +732,38 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lamSpectralHLoc
 !--------------------------------------------------------------------------
-  SUBROUTINE lamSpectralHLoc(id, sp_all, controlVector)
+  SUBROUTINE lamSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
-    integer, intent(in)  :: id
-    real(8), intent(in)  :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(out) :: sp_all(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns)
+    type(struct_lsp), pointer     :: lsp
+
+    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8), intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     integer :: levIndex,jla, dimIndex, memberIndex, p 
 
     if (verbose) write(*,*) 'Entering lamSpectralHloc'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     !
     !- Reshape + Horizontal localization + Scaling (parseval)
     !
     dimIndex = 0
 
-    do memberIndex = 1, lsp(id)%nEns
+    do memberIndex = 1, lsp%nEns
 
-       do levIndex = 1, lsp(id)%nLev
-         do jla = 1, lsp(id)%nla_mpilocal
-            do p = 1, lsp(id)%nphase
+       do levIndex = 1, lsp%nLev
+         do jla = 1, lsp%nla_mpilocal
+            do p = 1, lsp%nphase
               dimIndex = dimIndex + 1
               sp_all(jla,p,levIndex,memberIndex) = controlVector(dimIndex)           * &
-                                                lsp(id)%LhorizSqrt(lsp(id)%lst%k(jla),levIndex) * &
-                                                lsp(id)%lst%NormFactor(jla,p)
+                                                lsp%LhorizSqrt(lsp%lst%k(jla),levIndex) * &
+                                                lsp%lst%NormFactor(jla,p)
             end do
          end do
        end do
-       if (dimIndex > lsp(id)%cvDim_mpilocal ) then
-          write(*,*) 'loc lamSpectralHLoc: dimIndex > cvDim! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
+       if (dimIndex > lsp%cvDim_mpilocal ) then
+          write(*,*) 'loc lamSpectralHLoc: dimIndex > cvDim! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
           call utl_abort('lamSpectralHLoc')
        end if
 
@@ -773,11 +774,13 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! spectralLocalizationSqrtAd
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_LsqrtAd(id, ensAmplitude, controlVector, stepIndex)
+  SUBROUTINE lsp_LsqrtAd(lsp, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    integer, intent(in)   :: id, stepIndex
-    real(8), intent(out)  :: controlVector(lsp(id)%cvDim_mpilocal)
+    type(struct_lsp), pointer      :: lsp
+
+    integer, intent(in)   :: stepIndex
+    real(8), intent(out)  :: controlVector(lsp%cvDim_mpilocal)
     type(struct_ens)      :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,memberIndex,p
@@ -789,15 +792,15 @@ CONTAINS
     real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     if (verbose) write(*,*) 'Entering lsp_LsqrtAd'
-    call idcheck(id)
+    call lsp_check(lsp)
 
-    allocate(sp_vhLoc(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEnsOverDimension))
-    allocate(sp_hLoc (lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns             ))
+    allocate(sp_vhLoc(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEnsOverDimension))
+    allocate(sp_hLoc (lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns             ))
 
     !
     !- 3.  Transform to gridpoint space all ensemble amplitudes
     !
-    do levIndex = 1, lsp(id)%nLev ! loop over all levels for the amplitudes
+    do levIndex = 1, lsp%nLev ! loop over all levels for the amplitudes
 
       ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
 
@@ -805,15 +808,15 @@ CONTAINS
 
       call tmg_start(64,'LOC_SPECTRAL')
 
-      if (lsp(id)%global) then
-        call gst_setID(lsp(id)%gstID)
+      if (lsp%global) then
+        call gst_setID(lsp%gstID)
         call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
       else
         kind = 'GridPointToSpectral'
-        call lst_VarTransform(lsp(id)%lst,                          & ! IN
+        call lst_VarTransform(lsp%lst,                          & ! IN
                               sp_vhLoc(:,:,levIndex,:),             & ! OUT
                               ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
-                              kind, lsp(id)%nEnsOverDimension )       ! IN
+                              kind, lsp%nEnsOverDimension )       ! IN
         end if
 
         call tmg_stop(64)
@@ -824,14 +827,14 @@ CONTAINS
      !- 2.  Vertical Localization
      !
 !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
-     do memberIndex = 1, lsp(id)%nEns
+     do memberIndex = 1, lsp%nEns
         sp_hLoc(:,:,:,memberIndex) = 0.0d0
-        do levIndex1 = 1, lsp(id)%nLev
-           do levIndex2 = 1, lsp(id)%nLev
-              do p = 1, lsp(id)%nphase
-                 do jla = 1, lsp(id)%nla_mpilocal
+        do levIndex1 = 1, lsp%nLev
+           do levIndex2 = 1, lsp%nLev
+              do p = 1, lsp%nphase
+                 do jla = 1, lsp%nla_mpilocal
                     sp_hLoc(jla,p,levIndex2,memberIndex) = sp_hLoc(jla,p,levIndex2,memberIndex) +  & 
-                         lsp(id)%LvertSqrt(levIndex2,levIndex1)*sp_vhLoc(jla,p,levIndex1,memberIndex)
+                         lsp%LvertSqrt(levIndex2,levIndex1)*sp_vhLoc(jla,p,levIndex1,memberIndex)
                  end do
               end do
            end do
@@ -842,11 +845,11 @@ CONTAINS
     !
     !- 1.  Horizontal Localization
     !
-    if (lsp(id)%global) then
-      call globalSpectralHLocAd( id, sp_hLoc,  & ! IN
+    if (lsp%global) then
+      call globalSpectralHLocAd( lsp, sp_hLoc,  & ! IN
                                  controlVector ) ! OUT
     else
-      call lamSpectralHLocAd( id, sp_hLoc,  & ! IN
+      call lamSpectralHLocAd( lsp, sp_hLoc,  & ! IN
                               controlVector ) ! OUT
     end if
 
@@ -858,42 +861,43 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! globalSpectralHLocAd
 !--------------------------------------------------------------------------
-  SUBROUTINE globalSpectralHLocAd(id, sp_all, controlVector)
+  SUBROUTINE globalSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
-    integer, intent(in)    :: id
-    real(8), intent(out)   :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(in)    :: sp_all(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns)
+    type(struct_lsp), pointer       :: lsp
+
+    real(8), intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8), intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
 
     if (verbose) write(*,*) 'Entering globalSpectralHLocAd'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     dimIndex = 0
 
-    do memberIndex = 1, lsp(id)%nEns
+    do memberIndex = 1, lsp%nEns
 
-       do levIndex = 1, lsp(id)%nLev
-          do mIndex = lsp(id)%mymBeg, lsp(id)%mymEnd, lsp(id)%mymSkip
-            do nIndex = lsp(id)%mynBeg, lsp(id)%mynEnd, lsp(id)%mynSkip
+       do levIndex = 1, lsp%nLev
+          do mIndex = lsp%mymBeg, lsp%mymEnd, lsp%mymSkip
+            do nIndex = lsp%mynBeg, lsp%mynEnd, lsp%mynSkip
               if (mIndex .le. nIndex) then
 
-                ila_mpiglobal = gst_getnind(mIndex,lsp(id)%gstID) + nIndex - mIndex
-                ila_mpilocal  = lsp(id)%ilaList_mpilocal(ila_mpiglobal)
+                ila_mpiglobal = gst_getnind(mIndex,lsp%gstID) + nIndex - mIndex
+                ila_mpilocal  = lsp%ilaList_mpilocal(ila_mpiglobal)
                 if (mIndex == 0) then
                   ! controlVector only contain real part for mIndex=0
                   dimIndex = dimIndex + 1
                   controlVector(dimIndex) = controlVector(dimIndex) +  &
-                                            sp_all(ila_mpilocal,1,levIndex,memberIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)*rsq2
+                                            sp_all(ila_mpilocal,1,levIndex,memberIndex)*lsp%LhorizSqrt(nIndex,levIndex)*rsq2
                 else
                   ! controlVector contains real and imag parts for mIndex>0
                   dimIndex = dimIndex + 1
                   controlVector(dimIndex) = controlVector(dimIndex) +  &
-                                            sp_all(ila_mpilocal,1,levIndex,memberIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)*2.0d0
+                                            sp_all(ila_mpilocal,1,levIndex,memberIndex)*lsp%LhorizSqrt(nIndex,levIndex)*2.0d0
                   dimIndex = dimIndex + 1
                   controlVector(dimIndex) = controlVector(dimIndex) +  &
-                                            sp_all(ila_mpilocal,2,levIndex,memberIndex)*lsp(id)%LhorizSqrt(nIndex,levIndex)*2.0d0
+                                            sp_all(ila_mpilocal,2,levIndex,memberIndex)*lsp%LhorizSqrt(nIndex,levIndex)*2.0d0
                 end if
 
              end if
@@ -901,8 +905,8 @@ CONTAINS
          end do
        end do
 
-       if (dimIndex.gt.lsp(id)%cvDim_mpilocal) then
-          write(*,*) 'loc globalSpectralHLocAd: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp(id)%cvDim_mpilocal
+       if (dimIndex.gt.lsp%cvDim_mpilocal) then
+          write(*,*) 'loc globalSpectralHLocAd: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
           call utl_abort('globalSpectralHLocAd')
        end if
     
@@ -913,38 +917,39 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lamSpectralHLocAd
 !--------------------------------------------------------------------------
-  SUBROUTINE lamSpectralHLocAd(id, sp_all, controlVector)
+  SUBROUTINE lamSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
-    integer, intent(in)    :: id
-    real(8), intent(out)   :: controlVector(lsp(id)%cvDim_mpilocal)
-    real(8), intent(in)    :: sp_all(lsp(id)%nla_mpilocal,lsp(id)%nphase,lsp(id)%nLev,lsp(id)%nEns)
+    type(struct_lsp), pointer       :: lsp
+
+    real(8), intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8), intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     integer :: jla, levIndex, dimIndex, memberIndex, p
 
     if (verbose) write(*,*) 'Entering lamSpectralHLocAd'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     !
     !- Reshape + Horizontal localization + Scaling (parseval)
     !
     dimIndex = 0
 
-    do memberIndex = 1, lsp(id)%nEns
+    do memberIndex = 1, lsp%nEns
 
-       do levIndex = 1, lsp(id)%nLev
-         do jla = 1, lsp(id)%nla_mpilocal
-           do p = 1, lsp(id)%nphase
+       do levIndex = 1, lsp%nLev
+         do jla = 1, lsp%nla_mpilocal
+           do p = 1, lsp%nphase
              dimIndex = dimIndex + 1
              controlVector(dimIndex) = controlVector(dimIndex) +           &
                                        ( sp_all(jla,p,levIndex,memberIndex)  * &
-                                         lsp(id)%LhorizSqrt(lsp(id)%lst%k(jla),levIndex) * &
-                                         lsp(id)%lst%NormFactorAd(jla,p)    )
+                                         lsp%LhorizSqrt(lsp%lst%k(jla),levIndex) * &
+                                         lsp%lst%NormFactorAd(jla,p)    )
            end do
          end do
        end do
-       if (dimIndex > lsp(id)%cvDim_mpilocal ) then
-          write(*,*) 'BEN: lamSpectralHLocAD: dimIndex > cvDim! ',dimIndex, memberIndex, lsp(id)%cvDim_mpilocal
+       if (dimIndex > lsp%cvDim_mpilocal ) then
+          write(*,*) 'BEN: lamSpectralHLocAD: dimIndex > cvDim! ',dimIndex, memberIndex, lsp%cvDim_mpilocal
           call utl_abort('lamSpectralHLocAd')
        end if
 
@@ -955,28 +960,28 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_finalize
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_finalize(id)
+  SUBROUTINE lsp_finalize(lsp)
     implicit none
 
-    integer, intent(in)    :: id
+    type(struct_lsp), pointer      :: lsp
 
     if (verbose) write(*,*) 'Entering lsp_finalize'
-    call idcheck(id)
+    call lsp_check(lsp)
 
-    deallocate(lsp(id)%LhorizSqrt)
-    deallocate(lsp(id)%LvertSqrt )
+    deallocate(lsp%LhorizSqrt)
+    deallocate(lsp%LvertSqrt )
 
   end SUBROUTINE lsp_finalize
 
 !--------------------------------------------------------------------------
 ! lsp_reduceToMPILocal
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal)
+  SUBROUTINE lsp_reduceToMPILocal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in) :: id
+    type(struct_lsp), pointer     :: lsp
 
-    real(8), intent(out) :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
+    real(8), intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
@@ -994,39 +999,39 @@ CONTAINS
     integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal'
-    call idcheck(id)
+    call lsp_check(lsp)
 
-    call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal, cvDim_maxmpilocal, &
+    call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
     allocate(cvDim_allMpiLocal(mpi_nprocs))
-    call rpn_comm_allgather(lsp(id)%cvDim_mpiLocal   ,1,"mpi_integer",       &
+    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
     ! assign part of mpiglobal vector from current mpi process
 
-    if (lsp(id)%global) then
+    if (lsp%global) then
 
        ! Global
 
        allocate(allnBeg(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynBeg,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
                                allnBeg,1,"mpi_integer","GRID",ierr)
        allocate(allnEnd(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynEnd,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
                                allnEnd,1,"mpi_integer","GRID",ierr)
        allocate(allnSkip(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynSkip,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
                                allnSkip,1,"mpi_integer","GRID",ierr)
 
        allocate(allmBeg(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymBeg,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
                                allmBeg,1,"mpi_integer","GRID",ierr)
        allocate(allmEnd(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymEnd,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
                                allmEnd,1,"mpi_integer","GRID",ierr)
        allocate(allmSkip(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymSkip,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
                                allmSkip,1,"mpi_integer","GRID",ierr)
 
 
@@ -1039,27 +1044,27 @@ CONTAINS
              cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
              dimIndex_mpilocal = 0
-             do memberIndex = 1, lsp(id)%nEns
+             do memberIndex = 1, lsp%nEns
 
-                do levIndex = 1, lsp(id)%nLev
+                do levIndex = 1, lsp%nLev
                    do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                       do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
                          if (mIndex.le.nIndex) then
 
                             ! figure out index into global control vector
-                            ila_mpiglobal = gst_getNIND(mIndex,lsp(id)%gstID) + nIndex - mIndex
+                            ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
                             if (mIndex == 0) then
                                ! for mIndex=0 only real part
                                dimIndex_mpiglobal = ila_mpiglobal
                             else
                                ! for mIndex>0 both real and imaginary part
-                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp(id)%ntrunc+1)
+                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
                             end if
                             ! add offset for level
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)
+                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
                             ! add offset for member index
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)*lsp(id)%nLev
+                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
                             
                             if (mIndex == 0) then
                                ! controlVector only contain real part for mIndex=0
@@ -1079,9 +1084,9 @@ CONTAINS
                                write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                                call utl_abort('lsp_reduceToMPILocal')
                             end if
-                            if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                            if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                                write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                                write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                                call utl_abort('lsp_reduceToMPILocal')
                             end if
@@ -1110,7 +1115,7 @@ CONTAINS
     else
        
       ! LAM
-      call rpn_comm_allreduce(lsp(id)%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
       if (mpi_myid == 0) then
          allocate(allnlaLocal(mpi_nprocs))
@@ -1122,9 +1127,9 @@ CONTAINS
       
       allocate(ilaGlobal(nlaMax))
       ilaGlobal(:)             = -1
-      ilaGlobal(1:lsp(id)%lst%nla) = lsp(id)%lst%ilaGlobal(:)
+      ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
       
-      call rpn_comm_gather(lsp(id)%lst%nla, 1, "mpi_integer",       &
+      call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
                            allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
       call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
                            allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
@@ -1137,23 +1142,23 @@ CONTAINS
 
          do jproc = 0, (mpi_nprocs-1)
             cv_allmaxmpilocal(:,jproc+1) = 0.d0
-            do memberIndex = 1, lsp(id)%nEns
-               do levIndex = 1, lsp(id)%nLev
+            do memberIndex = 1, lsp%nEns
+               do levIndex = 1, lsp%nLev
                   do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                     do p = 1, lsp(id)%lst%nphase
+                     do p = 1, lsp%lst%nphase
 
-                        dimIndex_mpilocal = ( (levIndex-1) * lsp(id)%nEns * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                                               ( (ila_mpilocal-1) * lsp(id)%lst%nphase ) + p
+                        dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                               ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                         ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                         if ( ila_mpiglobal <= 0 ) then 
                            write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
                            call utl_abort('lsp_reduceToMPILocal')
                         end if
-                        dimIndex_mpiglobal = ( (levIndex-1) * lsp(id)%nEns * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                         ( (memberIndex-1) * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                                           ( (ila_mpiglobal-1) * lsp(id)%lst%nphase ) + p
+                        dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                         ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                           ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
   
                         if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                             write(*,*)
@@ -1161,9 +1166,9 @@ CONTAINS
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_reduceToMPILocal')
                          end if
-                         if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_reduceToMPILocal')
                          end if
@@ -1192,7 +1197,7 @@ CONTAINS
    end do
 
    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                          cv_mpiLocal, lsp(id)%cvDim_mpiLocal, "mpi_double_precision", &
+                          cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_double_precision", &
                           0, "GRID", ierr)
 
    deallocate(displs) 
@@ -1204,10 +1209,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_reduceToMPILocal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal)
+  SUBROUTINE lsp_reduceToMPILocal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
-    integer, intent(in)  :: id
-    real(4), intent(out) :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
+
+    type(struct_lsp), pointer     :: lsp
+
+    real(4), intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
@@ -1225,39 +1232,39 @@ CONTAINS
     integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
 
    if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
-    call idcheck(id)
+    call lsp_check(lsp)
 
-    call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal, cvDim_maxmpilocal, &
+    call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
     allocate(cvDim_allMpiLocal(mpi_nprocs))
-    call rpn_comm_allgather(lsp(id)%cvDim_mpiLocal   ,1,"mpi_integer",       &
+    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
     ! assign part of mpiglobal vector from current mpi process
 
-    if (lsp(id)%global) then
+    if (lsp%global) then
 
        ! Global
 
        allocate(allnBeg(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynBeg,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
                                allnBeg,1,"mpi_integer","GRID",ierr)
        allocate(allnEnd(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynEnd,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
                                allnEnd,1,"mpi_integer","GRID",ierr)
        allocate(allnSkip(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mynSkip,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
                                allnSkip,1,"mpi_integer","GRID",ierr)
 
        allocate(allmBeg(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymBeg,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
                                allmBeg,1,"mpi_integer","GRID",ierr)
        allocate(allmEnd(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymEnd,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
                                allmEnd,1,"mpi_integer","GRID",ierr)
        allocate(allmSkip(mpi_nprocs))
-       call rpn_comm_allgather(lsp(id)%mymSkip,1,"mpi_integer",       &
+       call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
                                allmSkip,1,"mpi_integer","GRID",ierr)
 
 
@@ -1270,27 +1277,27 @@ CONTAINS
              cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
              dimIndex_mpilocal = 0
-             do memberIndex = 1, lsp(id)%nEns
+             do memberIndex = 1, lsp%nEns
 
-                do levIndex = 1, lsp(id)%nLev
+                do levIndex = 1, lsp%nLev
                    do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                       do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
                          if (mIndex.le.nIndex) then
 
                             ! figure out index into global control vector
-                            ila_mpiglobal = gst_getNIND(mIndex,lsp(id)%gstID) + nIndex - mIndex
+                            ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
                             if (mIndex == 0) then
                                ! for mIndex=0 only real part
                                dimIndex_mpiglobal = ila_mpiglobal
                             else
                                ! for mIndex>0 both real and imaginary part
-                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp(id)%ntrunc+1)
+                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
                             end if
                             ! add offset for level
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)
+                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
                             ! add offset for member index
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)*lsp(id)%nLev
+                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
                             
                             if (mIndex == 0) then
                                ! controlVector only contain real part for mIndex=0
@@ -1310,9 +1317,9 @@ CONTAINS
                                write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                                call utl_abort('lsp_reduceToMPILocal')
                             end if
-                            if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                            if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                                write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                                write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                                call utl_abort('lsp_reduceToMPILocal')
                             end if
@@ -1341,7 +1348,7 @@ CONTAINS
     else
        
       ! LAM
-      call rpn_comm_allreduce(lsp(id)%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
       if (mpi_myid == 0) then
          allocate(allnlaLocal(mpi_nprocs))
@@ -1353,9 +1360,9 @@ CONTAINS
       
       allocate(ilaGlobal(nlaMax))
       ilaGlobal(:)             = -1
-      ilaGlobal(1:lsp(id)%lst%nla) = lsp(id)%lst%ilaGlobal(:)
+      ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
       
-      call rpn_comm_gather(lsp(id)%lst%nla, 1, "mpi_integer",       &
+      call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
                            allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
       call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
                            allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
@@ -1368,23 +1375,23 @@ CONTAINS
 
          do jproc = 0, (mpi_nprocs-1)
             cv_allmaxmpilocal(:,jproc+1) = 0.d0
-            do memberIndex = 1, lsp(id)%nEns
-               do levIndex = 1, lsp(id)%nLev
+            do memberIndex = 1, lsp%nEns
+               do levIndex = 1, lsp%nLev
                   do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                     do p = 1, lsp(id)%lst%nphase
+                     do p = 1, lsp%lst%nphase
 
-                        dimIndex_mpilocal = ( (levIndex-1) * lsp(id)%nEns * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                                               ( (ila_mpilocal-1) * lsp(id)%lst%nphase ) + p
+                        dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                               ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                         ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                         if ( ila_mpiglobal <= 0 ) then 
                            write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
                            call utl_abort('lsp_reduceToMPILocal')
                         end if
-                        dimIndex_mpiglobal = ( (levIndex-1) * lsp(id)%nEns * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                         ( (memberIndex-1) * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                                           ( (ila_mpiglobal-1) * lsp(id)%lst%nphase ) + p
+                        dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                         ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                           ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
   
                         if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                             write(*,*)
@@ -1392,9 +1399,9 @@ CONTAINS
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_reduceToMPILocal')
                          end if
-                         if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_reduceToMPILocal')
                          end if
@@ -1423,7 +1430,7 @@ CONTAINS
    end do
 
    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                          cv_mpiLocal, lsp(id)%cvDim_mpiLocal, "mpi_real4", &
+                          cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_real4", &
                           0, "GRID", ierr)
 
    deallocate(displs) 
@@ -1435,11 +1442,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_expandToMPIGlobal
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal)
+  SUBROUTINE lsp_expandToMPIGlobal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in)  :: id
-    real(8), intent(in)  :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
+    type(struct_lsp), pointer     :: lsp
+
+    real(8), intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
 
     real(8), allocatable :: cv_maxmpilocal(:)
@@ -1457,21 +1465,21 @@ CONTAINS
     integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mpi_nprocs))
-    call rpn_comm_allgather(lsp(id)%cvDim_mpiLocal   ,1,"mpi_integer",       &
+    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
-    call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     cv_maxmpilocal(:) = 0.0d0
-    cv_maxmpilocal(1:lsp(id)%cvDim_mpilocal) = cv_mpilocal(1:lsp(id)%cvDim_mpilocal)
+    cv_maxmpilocal(1:lsp%cvDim_mpilocal) = cv_mpilocal(1:lsp%cvDim_mpilocal)
 
     nullify(cv_allmaxmpilocal)
     if (mpi_myid == 0) then
@@ -1487,7 +1495,7 @@ CONTAINS
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if (lsp(id)%global) then
+    if (lsp%global) then
 
        ! Global
        if (mpi_myid == 0) then
@@ -1506,18 +1514,18 @@ CONTAINS
           allocate(allmSkip(1))
        end if
 
-       call rpn_comm_gather(lsp(id)%mynBeg  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynBeg  ,1,"mpi_integer",       &
                             allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mynEnd  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynEnd  ,1,"mpi_integer",       &
                             allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mynSkip ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynSkip ,1,"mpi_integer",       &
                             allnSkip,1,"mpi_integer",0,"GRID",ierr)
 
-       call rpn_comm_gather(lsp(id)%mymBeg  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymBeg  ,1,"mpi_integer",       &
                             allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mymEnd  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymEnd  ,1,"mpi_integer",       &
                             allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mymSkip ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymSkip ,1,"mpi_integer",       &
                             allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
@@ -1527,26 +1535,26 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
          do jproc = 0, (mpi_nprocs-1)
            dimIndex_mpilocal = 0
-           do memberIndex = 1, lsp(id)%nEns
+           do memberIndex = 1, lsp%nEns
 
-             do levIndex = 1, lsp(id)%nLev
+             do levIndex = 1, lsp%nLev
                do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                  do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
                    if (mIndex.le.nIndex) then
 
                      ! figure out index into global control vector
-                     ila_mpiglobal = gst_getNIND(mIndex,lsp(id)%gstID) + nIndex - mIndex
+                     ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
                      if (mIndex == 0) then
                        ! for mIndex=0 only real part
                        dimIndex_mpiglobal = ila_mpiglobal
                      else
                        ! for mIndex>0 both real and imaginary part
-                       dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp(id)%ntrunc+1)
+                       dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
                      end if
                      ! add offset for level
-                     dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)
+                     dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
                      ! add offset for member index
-                     dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)*lsp(id)%nLev
+                     dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
 
                      ! index into local control vector
                      if (mIndex == 0) then
@@ -1567,9 +1575,9 @@ CONTAINS
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                         call utl_abort('lsp_expandToMPIGlobal')
                      end if
-                     if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                     if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                         write(*,*)
-                        write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                        write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                         call utl_abort('lsp_expandToMPIGlobal')
                      end if
@@ -1594,7 +1602,7 @@ CONTAINS
     else
 
       ! LAM
-       call rpn_comm_allreduce(lsp(id)%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
        if (mpi_myid == 0) then
           allocate(allnlaLocal(mpi_nprocs))
@@ -1606,9 +1614,9 @@ CONTAINS
 
        allocate(ilaGlobal(nlaMax))
        ilaGlobal(:)             = -1
-       ilaGlobal(1:lsp(id)%lst%nla) = lsp(id)%lst%ilaGlobal(:)
+       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
-       call rpn_comm_gather(lsp(id)%lst%nla, 1, "mpi_integer",       &
+       call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
                             allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
        call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
                             allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
@@ -1619,14 +1627,14 @@ CONTAINS
           cv_mpiglobal(:) = 0.0d0
 
           do jproc = 0, (mpi_nprocs-1)
-             do memberIndex = 1, lsp(id)%nEns
-                do levIndex = 1, lsp(id)%nLev
+             do memberIndex = 1, lsp%nEns
+                do levIndex = 1, lsp%nLev
                    do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                      do p = 1, lsp(id)%lst%nphase
+                      do p = 1, lsp%lst%nphase
 
-                         dimIndex_mpilocal = ( (levIndex-1) * lsp(id)%nEns * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                         ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                                      ( (ila_mpilocal-1) * lsp(id)%lst%nphase ) + p
+                         dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                         ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                      ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                          if ( ila_mpiglobal <= 0 ) then 
@@ -1634,9 +1642,9 @@ CONTAINS
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
 
-                         dimIndex_mpiglobal = ( (levIndex-1) * lsp(id)%nEns * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                          ( (memberIndex-1) * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                                            ( (ila_mpiglobal-1) * lsp(id)%lst%nphase ) + p
+                         dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                          ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                            ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
 
                          if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                             write(*,*)
@@ -1644,9 +1652,9 @@ CONTAINS
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
-                         if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
@@ -1674,11 +1682,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_expandToMPIGlobal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal)
+  SUBROUTINE lsp_expandToMPIGlobal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    integer, intent(in)  :: id
-    real(4), intent(in)  :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
+    type(struct_lsp), pointer     :: lsp
+
+    real(4), intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
 
     real(4), allocatable :: cv_maxmpilocal(:)
@@ -1696,21 +1705,21 @@ CONTAINS
     integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal_r4'
-    call idcheck(id)
+    call lsp_check(lsp)
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mpi_nprocs))
-    call rpn_comm_allgather(lsp(id)%cvDim_mpiLocal   ,1,"mpi_integer",       &
+    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
-    call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     cv_maxmpilocal(:) = 0.0d0
-    cv_maxmpilocal(1:lsp(id)%cvDim_mpilocal) = cv_mpilocal(1:lsp(id)%cvDim_mpilocal)
+    cv_maxmpilocal(1:lsp%cvDim_mpilocal) = cv_mpilocal(1:lsp%cvDim_mpilocal)
 
     nullify(cv_allmaxmpilocal)
     if (mpi_myid == 0) then
@@ -1726,7 +1735,7 @@ CONTAINS
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if (lsp(id)%global) then
+    if (lsp%global) then
 
        ! Global
        if (mpi_myid == 0) then
@@ -1745,18 +1754,18 @@ CONTAINS
           allocate(allmSkip(1))
        end if
 
-       call rpn_comm_gather(lsp(id)%mynBeg  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynBeg  ,1,"mpi_integer",       &
                             allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mynEnd  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynEnd  ,1,"mpi_integer",       &
                             allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mynSkip ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mynSkip ,1,"mpi_integer",       &
                             allnSkip,1,"mpi_integer",0,"GRID",ierr)
 
-       call rpn_comm_gather(lsp(id)%mymBeg  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymBeg  ,1,"mpi_integer",       &
                             allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mymEnd  ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymEnd  ,1,"mpi_integer",       &
                             allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp(id)%mymSkip ,1,"mpi_integer",       &
+       call rpn_comm_gather(lsp%mymSkip ,1,"mpi_integer",       &
                             allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
@@ -1766,26 +1775,26 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
          do jproc = 0, (mpi_nprocs-1)
            dimIndex_mpilocal = 0
-           do memberIndex = 1, lsp(id)%nEns
+           do memberIndex = 1, lsp%nEns
 
-             do levIndex = 1, lsp(id)%nLev
+             do levIndex = 1, lsp%nLev
                do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                  do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
                    if (mIndex.le.nIndex) then
 
                      ! figure out index into global control vector
-                     ila_mpiglobal = gst_getNIND(mIndex,lsp(id)%gstID) + nIndex - mIndex
+                     ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
                      if (mIndex == 0) then
                        ! for mIndex=0 only real part
                        dimIndex_mpiglobal = ila_mpiglobal
                      else
                        ! for mIndex>0 both real and imaginary part
-                       dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp(id)%ntrunc+1)
+                       dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
                      end if
                      ! add offset for level
-                     dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)
+                     dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
                      ! add offset for member index
-                     dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp(id)%ntrunc+1)*(lsp(id)%ntrunc+1)*lsp(id)%nLev
+                     dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
 
                      ! index into local control vector
                      if (mIndex == 0) then
@@ -1806,9 +1815,9 @@ CONTAINS
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                         call utl_abort('lsp_expandToMPIGlobal')
                      end if
-                     if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                     if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                         write(*,*)
-                        write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                        write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                         call utl_abort('lsp_expandToMPIGlobal')
                      end if
@@ -1833,7 +1842,7 @@ CONTAINS
     else
 
       ! LAM
-       call rpn_comm_allreduce(lsp(id)%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
        if (mpi_myid == 0) then
           allocate(allnlaLocal(mpi_nprocs))
@@ -1845,9 +1854,9 @@ CONTAINS
 
        allocate(ilaGlobal(nlaMax))
        ilaGlobal(:)             = -1
-       ilaGlobal(1:lsp(id)%lst%nla) = lsp(id)%lst%ilaGlobal(:)
+       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
-       call rpn_comm_gather(lsp(id)%lst%nla, 1, "mpi_integer",       &
+       call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
                             allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
        call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
                             allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
@@ -1858,14 +1867,14 @@ CONTAINS
           cv_mpiglobal(:) = 0.0d0
 
           do jproc = 0, (mpi_nprocs-1)
-             do memberIndex = 1, lsp(id)%nEns
-                do levIndex = 1, lsp(id)%nLev
+             do memberIndex = 1, lsp%nEns
+                do levIndex = 1, lsp%nLev
                    do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                      do p = 1, lsp(id)%lst%nphase
+                      do p = 1, lsp%lst%nphase
 
-                         dimIndex_mpilocal = ( (levIndex-1) * lsp(id)%nEns * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                         ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp(id)%lst%nphase ) + &
-                                                      ( (ila_mpilocal-1) * lsp(id)%lst%nphase ) + p
+                         dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                         ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                      ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                          if ( ila_mpiglobal <= 0 ) then 
@@ -1873,9 +1882,9 @@ CONTAINS
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
 
-                         dimIndex_mpiglobal = ( (levIndex-1) * lsp(id)%nEns * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                          ( (memberIndex-1) * lsp(id)%lst%nlaGlobal * lsp(id)%lst%nphase ) + &
-                                                            ( (ila_mpiglobal-1) * lsp(id)%lst%nphase ) + p
+                         dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                          ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                            ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
 
                          if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                             write(*,*)
@@ -1883,9 +1892,9 @@ CONTAINS
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
-                         if (dimIndex_mpiglobal > lsp(id)%cvDim_mpiglobal) then
+                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp(id)%cvDim_mpiglobal
+                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
@@ -1911,19 +1920,17 @@ CONTAINS
   end SUBROUTINE lsp_expandToMPIGlobal_r4
 
 !--------------------------------------------------------------------------
-!   IDCHECK
+!   LSP_CHECK
 !--------------------------------------------------------------------------
-  subroutine idcheck(id)
+  subroutine lsp_check(lsp)
     implicit none
 
-    integer, intent(in) :: id
+    type(struct_lsp), pointer :: lsp
 
-    if ( .not. lsp(id)%initialized) then
-       write(*,*)
-       write(*,*) "transform ID ", id
-       call utl_abort('lsp_IDCHECK: Unknown transform ID')
+    if ( .not. lsp%initialized) then
+       call utl_abort('lsp_check: structure not initialized')
     end if
 
-  end subroutine idcheck
+  end subroutine lsp_check
 
 end module localizationSpectral_mod
