@@ -52,6 +52,9 @@ doc_sphinx:
   - ./build_html.sh ../../src $midasdoc/$docname
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+  only:
+    - master
+    - v_3.3
 
 ssm:
   stage: deploy
