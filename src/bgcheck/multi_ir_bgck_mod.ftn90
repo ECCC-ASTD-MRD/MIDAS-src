@@ -1105,27 +1105,28 @@ contains
     if ( count == 0 ) return
     ! ** find number of channels and RTTOV levels
 
-    NCHN = tvs_coefs(id)%coef%fmv_chn
-    nch_sel = hir_get_nchan_selected(cinst)
+    NCHN = tvs_coefs(id)%coef%fmv_chn         ! Nombre de canaux recus pour la tache MPI courante (peut etre different de la valeur nominale pour IASI le plus souvent)
+    nch_sel = hir_get_nchan_selected(cinst)  ! Nombre de canaux recus "nominal" (281 pour AIRS, 616 pour IASI, 1305 pour CrIS, etc ...) 
+                                                                                ! tel que hardcode dans le module  hirChannels_mod
 
-    if (NCHN /= nch_sel) then
-      write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
-      call obs_set_current_header_list(lobsSpaceData,'TO')
-      HEADER3: do
-        index_header = obs_getHeaderIndex(lobsSpaceData)
-        if (index_header < 0) exit HEADER3
-        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-        if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id ) THEN
-          idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
-          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + idata - 1
-          do index_body = idata, idatend
-            ! on allume le bit 9; ca devrait etre suffisant
-            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
-          end do
-        end if
-      end do HEADER3
-      return
-    end if
+!    if (NCHN /= nch_sel) then
+!      write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
+!      call obs_set_current_header_list(lobsSpaceData,'TO')
+!      HEADER3: do
+!        index_header = obs_getHeaderIndex(lobsSpaceData)
+!        if (index_header < 0) exit HEADER3
+!        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+!        if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id ) THEN
+!          idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
+!          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + idata - 1
+!          do index_body = idata, idatend
+!            ! on allume le bit 9; ca devrait etre suffisant
+!            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
+!          end do
+!        end if
+!      end do HEADER3
+!      return
+!    end if
 
     NLEV = tvs_coefs(id) % coef % nlevels 
     allocate (xpres(NLEV))
@@ -1505,7 +1506,7 @@ contains
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
 
         call ESTIM_TS(ZTS, ztg, emi_sfc, rcal_clr, robs, &
-             sfctau, cldflag, ichref, nchn, tvs_coefs(id) )
+             sfctau, cldflag, ichref, nch_sel, tvs_coefs(id) )
 
         if ( CLDFLAG == 0 .and. KSURF == 1 &
              .and. abs(ZTS-ZTG) > DTW ) CLDFLAG = 1 
