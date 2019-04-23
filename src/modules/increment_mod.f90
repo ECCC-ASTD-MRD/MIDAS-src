@@ -32,6 +32,7 @@ MODULE increment_mod
   use variableTransforms_mod
   use BMatrix_mod
   use chem_postproc_mod
+  use varNamelist_mod
   implicit none
   save
   private
@@ -42,12 +43,13 @@ MODULE increment_mod
   ! namelist variables
   integer  :: writeNumBits
   logical  :: writeHiresIncrement
-  logical  :: imposeRttovHuLimits
+  logical  :: imposeRttovHuLimits, useAnalIncMask
   character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
   character(len=12) :: hInterpolationDegree
 
   NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
-       etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree
+       etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree, &
+       useAnalIncMask
 
 CONTAINS
 
@@ -64,6 +66,7 @@ CONTAINS
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
     type(struct_gsv) :: statevector_PsfcLowRes_varsLevs, statevector_Psfc_varsLevs
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
+    type(struct_gsv) :: statevector_mask
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_vco), pointer :: vco_inc => null()
@@ -73,15 +76,16 @@ CONTAINS
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep, middleStep
     integer              :: nulnam, dateStamp, numBatch, batchIndex, procToWrite
     integer, allocatable :: dateStampList(:)
-    integer              :: get_max_rss
+    integer              :: get_max_rss, latIndex, kIndex, lonIndex
 
     character(len=256)  :: trialFileName, incFileName, anlFileName
     character(len=4)    :: coffset
 
     real(8)             :: deltaHours
-    real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
+    real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:), analInc(:,:,:,:)
     real(8), pointer    :: PsfcIncrement(:,:,:,:)
     real(8), pointer    :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
+    real(8), pointer    :: analIncMask(:,:,:)
     real(8), pointer    :: GZsfc_increment(:,:), GZsfc_trial(:,:)
 
     logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
@@ -93,6 +97,7 @@ CONTAINS
     !- Setting default values
     writeHiresIncrement = .true.
     imposeRttovHuLimits = .true.
+    useAnalIncMask      = .false.
     etiket_rehm = 'INCREMENT'
     etiket_rebm = 'INCREMENT'
     etiket_anlm = 'ANALYSIS'
@@ -161,7 +166,7 @@ CONTAINS
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
-    ! Read trial files
+    !- Read trial files
     !
     if(mpi_myid == 0) write(*,*) ''
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
@@ -171,6 +176,17 @@ CONTAINS
     call tmg_start(180,'INC_READTRIALS')
     call gsv_readTrials(statevector_trial)
     call tmg_stop(180)
+
+    !
+    !- Read the analysis mask (in LAM mode only)
+    !
+    if (.not. hco_trl%global .and. useAnalIncMask) then
+      call gsv_allocate(statevector_mask, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
+                        mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
+                        hInterpolateDegree_opt=hInterpolationDegree)
+      call gsv_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
+                            vcoFileIn_opt=vco_trl)
+    end if
 
     !
     !- Get the increment of Psfc
@@ -226,7 +242,14 @@ CONTAINS
       PsfcIncrement => gsv_getField_r8(statevector_Psfc ,'P0')
       PsfcAnalysis  => gsv_getField_r8(statevector_Psfc ,'P0')
 
-      PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
+      if (.not. hco_trl%global .and. useAnalIncMask) then
+        analIncMask   => gsv_getField3D_r8(statevector_mask)
+        do stepIndex = 1, statevector_trial%numStep
+          PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + PsfcIncrement(:,:,1,stepIndex)*analIncMask(:,:,1)
+        end do
+      else
+        PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)  
+      end if
 
       !
       !- Copy the surface GZ from trial into statevector_Psfc
@@ -257,11 +280,21 @@ CONTAINS
 
     if (present(statevector_incLowRes_opt)) then
       !- Interpolate and add the input increments
-      if (gsv_varExist(varName='P0')) then
-        call gsv_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis,&
-                                   PsfcReference_opt=PsfcAnalysis(:,:,1,:))
+      if (.not. hco_trl%global .and. useAnalIncMask) then
+        if (gsv_varExist(varName='P0')) then
+          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis, &
+                                     PsfcReference_opt=PsfcAnalysis(:,:,1,:), mask2d_opt=statevector_mask)
+        else
+          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis, &
+                                     mask2d_opt=statevector_mask)
+        end if
       else
-        call gsv_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis)
+        if (gsv_varExist(varName='P0')) then
+          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis,&
+                                     PsfcReference_opt=PsfcAnalysis(:,:,1,:))
+        else
+          call inc_interpolateAndAdd(statevector_incLowRes_opt, statevector_analysis)
+        end if
       end if
     else
       !- Read the increments from files
@@ -288,6 +321,23 @@ CONTAINS
                                  containsFullField_opt=.false. )
         end if
       end do
+
+      if (.not. hco_trl%global .and. useAnalIncMask) then
+        nullify(analIncMask)
+        analInc       => gsv_getField_r8(statevector_incHighRes)
+        analIncMask   => gsv_getField3D_r8(statevector_mask)
+        do stepIndex = 1, statevector_incHighRes%numStep
+          !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
+          do kIndex = 1, statevector_incHighRes%nk
+            do latIndex = statevector_incHighRes%myLatBeg, statevector_incHighRes%myLatEnd
+              do lonIndex = statevector_incHighRes%myLonBeg, statevector_incHighRes%myLonEnd
+                analInc(lonIndex,latIndex,kIndex,stepIndex) = analInc(lonIndex,latIndex,kIndex,stepIndex) * &
+                                                              analIncMask(lonIndex,latIndex,1)
+              end do
+            end do
+          end do
+        end do
+      end if
 
       call gsv_add(statevector_incHighRes, statevector_analysis)
 
@@ -486,5 +536,83 @@ CONTAINS
     enddo
 
   end subroutine inc_writeIncrement
+
+  !--------------------------------------------------------------------------
+  ! inc_interpolateAndAdd
+  !--------------------------------------------------------------------------
+  subroutine inc_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
+                                   PsfcReference_opt, mask2d_opt)
+    implicit none
+    type(struct_gsv)  :: statevector_in, statevector_inout
+
+    real(8), optional :: scaleFactor_opt
+    real(8), optional :: PsfcReference_opt(:,:,:)
+    type(struct_gsv), optional :: mask2d_opt
+
+    type(struct_gsv) :: statevector_in_hvInterp
+
+    real(8), pointer :: increment(:,:,:,:)
+    real(8), pointer :: analIncMask(:,:,:)
+
+    integer :: latIndex,kIndex,lonIndex, stepIndex
+
+    character(len=4), pointer :: varNamesToInterpolate(:)
+
+    !
+    !- Error traps
+    !
+    if (.not.statevector_in%allocated) then
+      call utl_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if (.not.statevector_inout%allocated) then
+      call utl_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
+    end if
+
+    nullify(varNamesToInterpolate)
+    call vnl_varNamesFromExistList(varNamesToInterpolate, statevector_in%varExistlist(:))
+
+    !
+    !- Do the interpolation of statevector_in onto the grid of statevector_inout
+    !
+    call gsv_allocate(statevector_in_hvInterp, statevector_inout%numstep,                       &
+                      statevector_inout%hco, statevector_inout%vco,                             &
+                      mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
+                      dataKind_opt=statevector_inout%dataKind,                                  &
+                      allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
+                      varNames_opt=varNamesToInterpolate,                                       &
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree)
+
+    call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
+
+    !
+    !- Masking
+    !
+    if (present(mask2d_opt)) then
+      increment   => gsv_getField_r8  (statevector_in_hvInterp)
+      analIncMask => gsv_getField3D_r8(mask2d_opt)
+      do stepIndex = 1, statevector_in_hvInterp%numStep
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)    
+        do kIndex = 1, statevector_in_hvInterp%nk
+          do latIndex =  statevector_in_hvInterp%myLatBeg,  statevector_in_hvInterp%myLatEnd
+            do lonIndex =  statevector_in_hvInterp%myLonBeg,  statevector_in_hvInterp%myLonEnd
+              increment(lonIndex,latIndex,kIndex,stepIndex) =      &
+                   increment(lonIndex,latIndex,kIndex,stepIndex) * &
+                   analIncMask(lonIndex,latIndex,1)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+    end if
+
+    !
+    !- Do the summation
+    !
+    call gsv_add(statevector_in_hvInterp,statevector_inout,scaleFactor_opt=scaleFactor_opt)
+
+    call gsv_deallocate(statevector_in_hvInterp)
+    deallocate(varNamesToInterpolate)
+
+  end subroutine inc_interpolateAndAdd
 
 END MODULE increment_mod

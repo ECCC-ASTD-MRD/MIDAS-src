@@ -25,7 +25,8 @@
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
-   etiket_rebm ='XXXXXX'
+   etiket_rebm = 'XXXXXX'
+   useAnalIncMask = .true.
 /
  &NAMDIMO
    NMXOBS=500000,
