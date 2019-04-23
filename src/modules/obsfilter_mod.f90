@@ -1352,7 +1352,7 @@ contains
              !
 
              IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. AZM.LT.0. .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
-                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
              END IF
           END DO BODY
