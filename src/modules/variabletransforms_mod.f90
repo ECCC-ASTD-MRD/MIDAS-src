@@ -552,10 +552,10 @@ CONTAINS
       call utl_abort('vortDivToPsiChi_gsv: global mode not available')
     else
       if (firstTime) then
-        call lst_Setup( lst_lapl,                                & ! OUT
-                        statevector%hco%ni, statevector%hco%nj,  & ! IN
-                        statevector%hco%dlon, nTrunc,            & ! IN
-                        'LatLonMN', nlev_M )                       ! IN
+        call lst_Setup(lst_lapl,                                & ! OUT
+                       statevector%hco%ni, statevector%hco%nj,  & ! IN
+                       statevector%hco%dlon, nTrunc,            & ! IN
+                       'LatLonMN', nlev_M )                       ! IN
         firstTime = .false.
       end if
 
@@ -565,14 +565,14 @@ CONTAINS
         cc_ptr(:,:,:,stepIndex) = dd_ptr(:,:,:,stepIndex)
          
         ! Vort -> Psi
-        call lst_Laplacian( lst_lapl%id,             & ! IN
-                            pp_ptr(:,:,:,stepIndex), & ! INOUT
-                            'Inverse', nlev_M )        ! IN
+        call lst_Laplacian(lst_lapl,                & ! IN
+                           pp_ptr(:,:,:,stepIndex), & ! INOUT
+                           'Inverse', nlev_M )        ! IN
 
         ! Div -> Chi
-        call lst_Laplacian( lst_lapl%id,             & ! IN
-                            cc_ptr(:,:,:,stepIndex), & ! INOUT
-                            'Inverse', nlev_M )        ! IN
+        call lst_Laplacian(lst_lapl,                & ! IN
+                           cc_ptr(:,:,:,stepIndex), & ! INOUT
+                           'Inverse', nlev_M )        ! IN
 
       end do
 

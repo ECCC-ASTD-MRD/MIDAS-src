@@ -52,7 +52,7 @@ MODULE BmatrixEnsemble_mod
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize
   public :: ben_setFsoLeadTime, ben_getNumStepAmplitudeAssimWindow, ben_getAmplitudeAssimWindow
-  public :: ben_getAmp3dStepIndexAssimWindow
+  public :: ben_getAmp3dStepIndexAssimWindow, ben_getNumLoc, ben_getLoc
 
   logical             :: initialized = .false.
 
@@ -83,7 +83,7 @@ MODULE BmatrixEnsemble_mod
 
   ! Localizations
   integer, parameter  :: maxNumLocalLength = 20
-  integer             :: nWaveBand
+  integer             :: nWaveBand         = 0
 
   ! Ensemble perturbations
   type(struct_ens), allocatable :: ensPerts(:)
@@ -93,7 +93,7 @@ MODULE BmatrixEnsemble_mod
   character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
 
   ! Localization
-  integer, allocatable :: locIDs(:)
+  type(struct_loc), pointer :: locStorage(:)
 
   ! The HU LQ mess
   logical :: gsvHUcontainsLQ
@@ -193,7 +193,7 @@ CONTAINS
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
     integer        :: fnom,fclos,ierr,nulnam
-    integer        :: waveBandIndex,locID, stepIndex
+    integer        :: waveBandIndex, stepIndex
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
     integer        :: dateStampFSO
@@ -501,13 +501,12 @@ CONTAINS
       allocate(pressureProfileEns_M(nLevEns_M))
       pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
 
-      allocate(locIDs(nWaveBand))
+      allocate(locStorage(nWaveBand))
       do waveBandIndex = 1, nWaveBand
-        call loc_setup(hco_ens, vco_ens, nEns, pressureProfileEns_M, nTrunc, 'spectral', & ! IN
-             LocalizationType, hLocalize(waveBandIndex), hLocalize(waveBandIndex+1),     & ! IN
-             vLocalize(waveBandIndex),                                                   & ! IN
-             cvDim_mpilocal, locID)                                                        ! OUT
-        locIDs(waveBandIndex) = locID
+        call loc_setup(locStorage(waveBandIndex), cvDim_mpilocal,                              & ! OUT
+                       hco_ens, vco_ens, nEns, pressureProfileEns_M, nTrunc, 'spectral',       & ! IN
+                       LocalizationType, hLocalize(waveBandIndex), hLocalize(waveBandIndex+1), & ! IN
+                       vLocalize(waveBandIndex))                                                 ! IN
       end do
 
       cvDim_out = cvDim_mpilocal
@@ -853,7 +852,7 @@ CONTAINS
       write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
       do waveBandIndex = 1, nWaveBand
         call ens_deallocate(ensPerts(waveBandIndex))
-        call loc_finalize(locIDs(waveBandIndex))
+        call loc_finalize(locStorage(waveBandIndex))
       end do
       deallocate(ensPerts)
       if (keepAmplitude) call ens_deallocate(ensAmplitudeStorage)
@@ -1276,10 +1275,10 @@ CONTAINS
 
     else
       ! LAM mode
-      call lst_Setup( lst_ben_filter,                   & ! OUT
-           ni, nj, hco_ens%dlon, ntrunc,                & ! IN
-           'LatLonMN', maxlevels_opt=nEnsOverDimension, & ! IN
-           gridDataOrder_opt='kij' )                      ! IN
+      call lst_Setup(lst_ben_filter,                              & ! OUT
+                     ni, nj, hco_ens%dlon, ntrunc,                & ! IN
+                     'LatLonMN', maxlevels_opt=nEnsOverDimension, & ! IN
+                     gridDataOrder_opt='kij' )                      ! IN
 
       nla_filter = lst_ben_filter%nla
       nphase_filter = lst_ben_filter%nphase
@@ -1337,10 +1336,10 @@ CONTAINS
         else
           ! LAM mode
           kind = 'GridPointToSpectral'
-          call lst_VarTransform( lst_ben_filter%id,      & ! IN
-               ensPertSP,              & ! OUT
-               ensPertGD,              & ! IN 
-               kind, nEnsOverDimension ) ! IN
+          call lst_VarTransform(lst_ben_filter,         & ! IN
+                                ensPertSP,              & ! OUT
+                                ensPertGD,              & ! IN 
+                                kind, nEnsOverDimension ) ! IN
         end if
 
         !- 1.3 Filtering and transformation back to grid point space 
@@ -1366,10 +1365,10 @@ CONTAINS
           else
             ! LAM mode
             kind = 'SpectralToGridPoint'
-            call lst_VarTransform( lst_ben_filter%id,      & ! IN
-                                   ensPertSPfiltered,      & ! IN
-                                   ensPertGD,              & ! OUT
-                                   kind, nEnsOverDimension ) ! IN
+            call lst_VarTransform(lst_ben_filter,         & ! IN
+                                  ensPertSPfiltered,      & ! IN
+                                  ensPertGD,              & ! OUT
+                                  kind, nEnsOverDimension ) ! IN
           end if
           ptr4d_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
           !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
@@ -1432,7 +1431,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_reduceToMPILocal'
 
-    call loc_reduceToMPILocal(locIDs(1),cv_mpilocal,cv_mpiglobal)
+    call loc_reduceToMPILocal(locStorage(1),cv_mpilocal,cv_mpiglobal)
 
  END SUBROUTINE ben_reduceToMPILocal
 
@@ -1446,7 +1445,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering reduceToMPILocal_r4'
 
-    call loc_reduceToMPILocal_r4(locIDs(1),cv_mpilocal,cv_mpiglobal) ! IN
+    call loc_reduceToMPILocal_r4(locStorage(1),cv_mpilocal,cv_mpiglobal) ! IN
 
  END SUBROUTINE ben_reduceToMPILocal_r4
 
@@ -1461,8 +1460,8 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal'
 
-    call loc_expandToMPIGlobal(locIDs(1), cv_mpilocal,  & ! IN
-                               cv_mpiglobal)              ! OUT  
+    call loc_expandToMPIGlobal(locStorage(1), cv_mpilocal,  & ! IN
+                               cv_mpiglobal)                  ! OUT  
 
   end SUBROUTINE ben_expandToMPIGlobal
 
@@ -1477,8 +1476,8 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal_r4'
 
-    call loc_expandToMPIGlobal_r4(locIDs(1), cv_mpilocal,  & ! IN
-                                  cv_mpiglobal)              ! OUT
+    call loc_expandToMPIGlobal_r4(locStorage(1), cv_mpilocal,  & ! IN
+                                  cv_mpiglobal)                  ! OUT
 
   end SUBROUTINE ben_expandToMPIGlobal_r4
 
@@ -1560,9 +1559,9 @@ CONTAINS
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.1 Compute the ensemble amplitudes
-      call loc_Lsqrt( locIDs(waveBandIndex),controlVector_in, & ! IN
-                      ensAmplitude_M_ptr,                     & ! OUT
-                      amp3dStepIndex)                           ! IN
+      call loc_Lsqrt(locStorage(waveBandIndex),controlVector_in, & ! IN
+                     ensAmplitude_M_ptr,                         & ! OUT
+                     amp3dStepIndex)                               ! IN
 
       ! 2.2 Advect the amplitudes
       if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
@@ -1720,9 +1719,9 @@ CONTAINS
       end if
 
       ! 2.1 Compute the ensemble amplitudes
-      call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitude_M_ptr, & ! IN
-                        controlVector_out,                        & ! OUT
-                        amp3dStepIndex)                             ! IN
+      call loc_LsqrtAd(locStorage(waveBandIndex),ensAmplitude_M_ptr, & ! IN
+                       controlVector_out,                            & ! OUT
+                       amp3dStepIndex)                                 ! IN
 
     end do ! Loop on WaveBand
 
@@ -2271,5 +2270,28 @@ CONTAINS
     stepIndex = amp3dStepIndexAssimWindow
 
   end function ben_getAmp3dStepIndexAssimWindow
+
+  !--------------------------------------------------------------------------
+  ! ben_getNumLoc
+  !--------------------------------------------------------------------------
+  function ben_getNumLoc() result(numLoc)
+    implicit none
+    integer  :: numLoc
+
+    numLoc = nWaveBand
+
+  end function ben_getNumLoc
+
+  !--------------------------------------------------------------------------
+  ! ben_getLoc
+  !--------------------------------------------------------------------------
+  function ben_getLoc(locIndex) result(loc)
+    implicit none
+    integer, intent(in)  :: locIndex
+    type(struct_loc), pointer :: loc
+
+    loc => locStorage(locIndex)
+
+  end function ben_getLoc
 
 END MODULE BMatrixEnsemble_mod

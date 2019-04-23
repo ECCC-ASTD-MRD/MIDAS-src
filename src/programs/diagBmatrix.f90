@@ -42,15 +42,14 @@ program midas_diagBmatrix
   use randomNumber_mod
   use utilities_mod
   use ramDisk_mod
-  use globalSpectralTransform_mod
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector, statevectorEnsAmplitude
   type(struct_ens) :: ensAmplitude
-  type(struct_hco), pointer :: hco_anl => null()
+  type(struct_hco), pointer :: hco_anl  => null()
   type(struct_hco), pointer :: hco_core => null()
-  type(struct_vco), pointer :: vco_anl => null()
-  type(struct_loc), pointer :: locInfo => null()
+  type(struct_vco), pointer :: vco_anl  => null()
+  type(struct_loc), pointer :: loc      => null()
   type(struct_adv), pointer :: adv_amplitudeAssimWindow
 
   real(8), pointer :: field4d(:,:,:,:)
@@ -323,7 +322,7 @@ program midas_diagBmatrix
     !
     !- Compute columns of the L matrix
     !
-    numLoc = loc_getNumLocActive()
+    numLoc = ben_getNumLoc()
     numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
     amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 
@@ -338,19 +337,19 @@ program midas_diagBmatrix
     end if
 
     do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
-      locInfo => loc_getLocInfo(locIndex)
+      loc => ben_getLoc(locIndex)
 
-      call mpivar_setup_latbands(locInfo%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-      call mpivar_setup_lonbands(locInfo%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+      call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+      call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-      call ens_allocate(ensAmplitude, locInfo%nEnsOverDimension, numStepAmplitude, locInfo%hco, locInfo%vco, &
+      call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
                         datestampList=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8)
 
-      call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, locInfo%hco, locInfo%vco, &
+      call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, loc%hco, loc%vco, &
                         dateStampList_opt=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8, &
                         mpi_local_opt=.true.)
 
-      allocate(controlVector(locInfo%cvDim))
+      allocate(controlVector(loc%cvDim))
 
       write(*,*) '********************************************'
       write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
@@ -362,9 +361,9 @@ program midas_diagBmatrix
 
       if (numLoc > 1) then
         write(locIndexString,'(i1)') locIndex
-        filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+        filename = 'columnL_' // trim(loc%locType) // '_' // locIndexString // '_' // datestr // '.fst'
       else
-        filename = 'columnL_' // trim(locInfo%locType) // '_' // datestr // '.fst'
+        filename = 'columnL_' // trim(loc%locType) // '_' // datestr // '.fst'
       end if
 
       ip3 = 0
@@ -386,11 +385,11 @@ program midas_diagBmatrix
                                     adv_amplitudeAssimWindow, nEns )  ! IN
             end if
 
-            call loc_LsqrtAd(locIndex,      & ! IN
+            call loc_LsqrtAd(loc,           & ! IN
                              ensAmplitude,  & ! IN
                              controlVector, & ! OUT
                              amp3dStepIndex)  ! IN
-            call loc_Lsqrt  (locIndex,      & ! IN
+            call loc_Lsqrt  (loc,           & ! IN
                              controlVector, & ! IN
                              ensAmplitude,  & ! OUT
                              amp3dStepIndex)  ! IN
