@@ -1105,10 +1105,11 @@ contains
     if ( count == 0 ) return
     ! ** find number of channels and RTTOV levels
 
-    NCHN = tvs_coefs(id)%coef%fmv_chn
-    nch_sel = hir_get_nchan_selected(cinst)
+    NCHN = tvs_coefs(id)%coef%fmv_chn         ! Nombre de canaux recus pour la tache MPI courante (peut etre different de la valeur nominale pour IASI le plus souvent)
+    nch_sel = hir_get_nchan_selected(cinst)  ! Nombre de canaux recus "nominal" (281 pour AIRS, 616 pour IASI, 1305 pour CrIS, etc ...) 
+                                                                                ! tel que hardcode dans le module  hirChannels_mod
 
-    if (NCHN /= nch_sel) then
+    if (.not. lcris .and. NCHN /= nch_sel) then
       write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
       call obs_set_current_header_list(lobsSpaceData,'TO')
       HEADER3: do
@@ -1505,7 +1506,7 @@ contains
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
 
         call ESTIM_TS(ZTS, ztg, emi_sfc, rcal_clr, robs, &
-             sfctau, cldflag, ichref, nchn, tvs_coefs(id) )
+             sfctau, cldflag, ichref, nch_sel, tvs_coefs(id) )
 
         if ( CLDFLAG == 0 .and. KSURF == 1 &
              .and. abs(ZTS-ZTG) > DTW ) CLDFLAG = 1 
