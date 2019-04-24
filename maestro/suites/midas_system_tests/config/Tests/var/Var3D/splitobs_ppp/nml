@@ -3,6 +3,7 @@
 /
  &NAMBHI
    NTRUNC  = 270,
+   SCALEFACTOR = 100*1.0D0
 /
  &NAMBEN
 /

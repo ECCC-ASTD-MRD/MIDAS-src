@@ -154,6 +154,40 @@ CONTAINS
        if(mpi_myid == 0) write(*,*) 'bmatrixHI: Analysis mode activated (by default)'
     end if
 
+    ! default values for namelist variables
+    ntrunc = 108
+    scaleFactor(:) = 0.0d0
+    scaleFactorLQ(:) = 1.0d0
+    scaleFactorCC(:) = 1.0d0
+    scaleTG = .true.
+    numModeZero = 0
+    squareSqrt = .false.
+    TweakTG = .false.
+    ReadWrite_sqrt = .false.
+    stddevMode = 'SP2D'
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=nambhi,iostat=ierr)
+    if ( ierr /= 0 ) call utl_abort( 'bhi_setup: Error reading namelist' )
+    if ( mpi_myid == 0 ) write( *, nml = nambhi )
+    ierr = fclos( nulnam )
+
+    do jlev = 1, maxNumLevels
+      if( scaleFactor( jlev ) > 0.0d0 ) then 
+        scaleFactor( jlev ) = sqrt( scaleFactor( jlev ))
+      else
+        scaleFactor( jlev ) = 0.0d0
+      endif
+    enddo
+
+    if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
+      if ( mpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
+      cvdim_out = 0
+      call tmg_stop(15)
+      return
+    end if
+
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
@@ -177,40 +211,6 @@ CONTAINS
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmatrixHI: unknown vertical coordinate type!')
     endif
-
-    ! default values for namelist variables
-    ntrunc = 108
-    scaleFactor(:) = 1.0d0
-    scaleFactorLQ(:) = 1.0d0
-    scaleFactorCC(:) = 1.0d0
-    scaleTG = .true.
-    numModeZero = 0
-    squareSqrt = .false.
-    TweakTG = .false.
-    ReadWrite_sqrt = .false.
-    stddevMode = 'SP2D'
-
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambhi,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('bhi_setup: Error reading namelist')
-    if(mpi_myid == 0) write(*,nml=nambhi)
-    ierr = fclos(nulnam)
-
-    do jlev = 1, max(nLev_M,nLev_T)
-      if(scaleFactor(jlev).gt.0.0d0) then 
-        scaleFactor(jlev) = sqrt(scaleFactor(jlev))
-      else
-        scaleFactor(jlev) = 0.0d0
-      endif
-    enddo
-
-    if (sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
-      if(mpi_myid == 0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
-      cvdim_out = 0
-      call tmg_stop(15)
-      return
-    end if
 
     if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
                gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
