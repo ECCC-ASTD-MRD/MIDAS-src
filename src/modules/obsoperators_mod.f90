@@ -892,7 +892,7 @@ contains
     real(8) :: zlat, lat, slat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
-    integer :: iazm, isat, iclf, jj
+    integer :: isat, iclf, jj
     real(8) :: rad, geo, rad1, wfgps
     real(8), allocatable :: zpp(:)
     real(8), allocatable :: zdp(:)
@@ -970,12 +970,11 @@ contains
        !
        ! Basic geometric variables of the profile:
        !
-       iazm = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
        isat = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
        iclf = obs_headElem_i(obsSpaceData,OBS_ROQF,headerIndex)
        rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
        geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
-       zazm = 0.01d0*iazm / MPC_DEGREES_PER_RADIAN_R8
+       azm  = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
        zmt  = col_getHeight(columnhr,0,headerIndex,'SF')
        wfgps=0.d0
        do jj=1,numgpssats
@@ -988,7 +987,7 @@ contains
        zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
        lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
        lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
-       azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
+       zazm = azm / MPC_DEGREES_PER_RADIAN_R8
        zp0  = col_getElem(columnhr,1,headerIndex,'P0')
        do jl = 1, ngpslev
           !
@@ -3411,7 +3410,7 @@ contains
     real(8) :: zlat, lat, slat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
-    integer :: iazm, isat
+    integer :: isat
     real(8) :: rad, geo, wfgps, zp0
     REAL(8), allocatable :: zpp(:), zdp(:), ztt(:), zhu(:), zALT(:), zuu(:), zvv(:)
     real(8) :: zmt,radw
@@ -3485,11 +3484,10 @@ contains
           ! Basic geometric variables of the profile:
           zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
           zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
-          iazm = obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
           isat = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex)
           rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
           geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
-          zazm = 0.01d0 * iazm / MPC_DEGREES_PER_RADIAN_R8
+          azm = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
           zmt  = col_getHeight(columng,0,headerIndex,'SF')
           wfgps= 0.d0
           do jj = 1,numgpssats
@@ -3497,7 +3495,7 @@ contains
           enddo
           lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
           lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
-          azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
+          zazm = azm / MPC_DEGREES_PER_RADIAN_R8
           zp0  = col_getElem(columng,1,headerIndex,'P0')
           do jl = 1, ngpslev
             ! Profile x_b

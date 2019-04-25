@@ -356,24 +356,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_IPF = OBS_IP+1  ! mpi task id for file
    integer, parameter, public :: OBS_IPC = OBS_IPF+1 ! mpi task id for column/obsspacedata
    integer, parameter, public :: OBS_IPT = OBS_IPC+1 ! mpi task id for latlontile
-   integer, parameter, public :: OBS_AZA = OBS_IPT+1 ! satellite azimuthal angle
-   integer, parameter, public :: OBS_SZA = OBS_AZA+1 ! satellite zenith angle
-   integer, parameter, public :: OBS_SUN = OBS_SZA+1 ! sun zenith angle
-   integer, parameter, public :: OBS_CLF = OBS_SUN+1 ! cloud fraction
-   integer, parameter, public :: OBS_ST1 = OBS_CLF+1 ! header level status/rejection flag
+   integer, parameter, public :: OBS_ST1 = OBS_IPT+1 ! header level status/rejection flag
    integer, parameter, public :: OBS_IDO = OBS_ST1+1 ! (absolutely) unique station id no.
    integer, parameter, public :: OBS_IDF = OBS_IDO+1 ! id. no. of observation-source file
-   integer, parameter, public :: OBS_SAZ = OBS_IDF+1 ! sun azimuth angle
-   integer, parameter, public :: OBS_GQF = OBS_SAZ+1 ! iasi GQISFLAGQUAL
+   integer, parameter, public :: OBS_GQF = OBS_IDF+1 ! iasi GQISFLAGQUAL
    integer, parameter, public :: OBS_GQL = OBS_GQF+1 ! iasi GQISQUALINDEXLOC
-   integer, parameter, public :: OBS_CF1 = OBS_GQL+1 ! AVHRR fraction of class 1
-   integer, parameter, public :: OBS_CF2 = OBS_CF1+1 ! AVHRR fraction of class 2
-   integer, parameter, public :: OBS_CF3 = OBS_CF2+1 ! AVHRR fraction of class 3
-   integer, parameter, public :: OBS_CF4 = OBS_CF3+1 ! AVHRR fraction of class 4
-   integer, parameter, public :: OBS_CF5 = OBS_CF4+1 ! AVHRR fraction of class 5
-   integer, parameter, public :: OBS_CF6 = OBS_CF5+1 ! AVHRR fraction of class 6
-   integer, parameter, public :: OBS_CF7 = OBS_CF6+1 ! AVHRR fraction of class 7
-   integer, parameter, public :: OBS_NCO2= OBS_CF7+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
+   integer, parameter, public :: OBS_NCO2= OBS_GQL+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
    integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
@@ -391,9 +379,8 @@ module ObsColumnNames_mod
    !  
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
-         'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
-         'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','CF1 ','CF2 ','CF3 ', &
-         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
+         'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
+         'ST1 ','IDO ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF','CHM ','FOV ','PRFL'/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -507,7 +494,14 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_S7C4  = OBS_S7C3 +1 ! stdev for class 7 AVHRR channel 4
    integer, parameter, public :: OBS_S7C5  = OBS_S7C4 +1 ! stdev for class 7 AVHRR channel 5
    integer, parameter, public :: OBS_S7C6  = OBS_S7C5 +1 ! stdev for class 7 AVHRR channel 6
-   integer, parameter, public :: OBS_ETOP  = OBS_S7C6 +1 ! CO2 slicing consensus (median) cloud top pressure
+   integer, parameter, public :: OBS_CF1   = OBS_S7C6 +1 ! AVHRR fraction of class 1
+   integer, parameter, public :: OBS_CF2   = OBS_CF1  +1 ! AVHRR fraction of class 2
+   integer, parameter, public :: OBS_CF3   = OBS_CF2  +1 ! AVHRR fraction of class 3
+   integer, parameter, public :: OBS_CF4   = OBS_CF3  +1 ! AVHRR fraction of class 4
+   integer, parameter, public :: OBS_CF5   = OBS_CF4  +1 ! AVHRR fraction of class 5
+   integer, parameter, public :: OBS_CF6   = OBS_CF5  +1 ! AVHRR fraction of class 6
+   integer, parameter, public :: OBS_CF7   = OBS_CF6  +1 ! AVHRR fraction of class 7
+   integer, parameter, public :: OBS_ETOP  = OBS_CF7  +1 ! CO2 slicing consensus (median) cloud top pressure
    integer, parameter, public :: OBS_VTOP  = OBS_ETOP +1 ! estimated error on CO2 slicing cloud top pressure
    integer, parameter, public :: OBS_ECF   = OBS_VTOP +1 ! CO2 slicing effective cloud fraction 
    integer, parameter, public :: OBS_VCF   = OBS_ECF  +1 ! estimated error on CO2 CO2 slicing cloud  fraction 
@@ -519,9 +513,14 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ZPS   = OBS_ZLQM +1 ! surface model pressure in Pa
    integer, parameter, public :: OBS_TRAD  = OBS_ZPS  +1 ! Local EARTH Radius Metres
    integer, parameter, public :: OBS_GEOI  = OBS_TRAD +1 ! Geoid Undulation  Metres
+   integer, parameter, public :: OBS_CLF   = OBS_GEOI +1 ! cloud fraction
+   integer, parameter, public :: OBS_SUN   = OBS_CLF  +1 ! sun zenith angle
+   integer, parameter, public :: OBS_SZA   = OBS_SUN  +1 ! satellite zenith angle
+   integer, parameter, public :: OBS_AZA   = OBS_SZA  +1 ! satellite azimuthal angle
+   integer, parameter, public :: OBS_SAZ   = OBS_AZA  +1 ! sun azimuth angle
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_GEOI
+   integer, parameter :: NHDR_REAL_END = OBS_SAZ
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -543,8 +542,10 @@ module ObsColumnNames_mod
         'S5C1','S5C2','S5C3','S5C4','S5C5','S5C6', &
         'S6C1','S6C2','S6C3','S6C4','S6C5','S6C6', &
         'S7C1','S7C2','S7C3','S7C4','S7C5','S7C6', &
-        'ETOP','VTOP','ECF ','VCF ','HE  ','ZTSR', &
-        'ZTM ','ZTGM','ZLQM','ZPS ','TRAD','GEOI' /)
+        'CF1 ','CF2 ','CF3 ','CF4 ','CF5 ','CF6 ', &
+        'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
+        'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
+        'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ' /)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -978,12 +979,12 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_SAZ, OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+              OBS_ST1, OBS_IDO, OBS_IDF, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,(0,ii=9,100)/)
+              OBS_GEOI,OBS_CLF,OBS_SUN,OBS_SZA,OBS_AZA,OBS_SAZ, (0,ii=14,100)/)
 
          bdy_int_column_list(:)    = 0
          bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
@@ -1022,12 +1023,12 @@ contains
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
               OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF, &
-              OBS_SAZ, OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+              OBS_ST1, OBS_IDO, OBS_IDF, &
+              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
 
          hdr_real_column_list= &
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,(0,ii=9,100)/)
+              OBS_GEOI,OBS_CLF, OBS_SUN, OBS_SZA, OBS_AZA, OBS_SAZ,(0,ii=14,100)/)
 
          bdy_int_column_list= &
             (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
@@ -1065,7 +1066,7 @@ contains
       elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if( column_index < OBS_CF1 .or. column_index > OBS_STYP  &
+            if( column_index < OBS_GQF .or. column_index > OBS_STYP  &
               ) call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
@@ -1451,9 +1452,8 @@ module ObsSpaceData_mod
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
    public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP
    public :: OBS_IPF, OBS_IPC, OBS_IPT
-   public :: OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF
-   public :: OBS_SAZ, OBS_GQF, OBS_GQL
-   public :: OBS_CF1, OBS_CF2, OBS_CF3, OBS_CF4, OBS_CF5, OBS_CF6, OBS_CF7
+   public :: OBS_ST1, OBS_IDO, OBS_IDF
+   public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM, OBS_FOV, OBS_PRFL
 
    !    real-header column numbers
@@ -1472,8 +1472,10 @@ module ObsSpaceData_mod
    public :: OBS_S5C1, OBS_S5C2, OBS_S5C3, OBS_S5C4, OBS_S5C5, OBS_S5C6
    public :: OBS_S6C1, OBS_S6C2, OBS_S6C3, OBS_S6C4, OBS_S6C5, OBS_S6C6
    public :: OBS_S7C1, OBS_S7C2, OBS_S7C3, OBS_S7C4, OBS_S7C5, OBS_S7C6
+   public :: OBS_CF1,  OBS_CF2,  OBS_CF3,  OBS_CF4,  OBS_CF5,  OBS_CF6, OBS_CF7
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
+   public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_IDD
@@ -3319,14 +3321,16 @@ contains
          obs_headElem_r(obsdat, OBS_ALT, kobs), &
          obs_headElem_r(obsdat, OBS_BX , kobs), &
          obs_headElem_r(obsdat, OBS_BY , kobs), &
-         obs_headElem_r(obsdat, OBS_BZ , kobs)
+         obs_headElem_r(obsdat, OBS_BZ , kobs), &
+         obs_headElem_r(obsdat, OBS_AZA, kobs)
+
       write(kulout,fmt=9201) & 
          obs_headElem_i(obsdat, OBS_NLV, kobs), &
          obs_headElem_i(obsdat, OBS_OFL, kobs), &
          obs_headElem_i(obsdat, OBS_PAS, kobs), &
          obs_headElem_i(obsdat, OBS_REG, kobs), &
-         obs_headElem_i(obsdat, OBS_IP , kobs), &
-         obs_headElem_i(obsdat, OBS_AZA, kobs)
+         obs_headElem_i(obsdat, OBS_IP , kobs)
+         
 
 9200  format(2x,'position within realBodies:',i8,1x,'stn. number:',i6,1x,/, &
          '  date: ',i10,1x,' time: ',i8,/, &
@@ -3334,10 +3338,10 @@ contains
          'obs. type:',i8,1x,/, &
          '  (lat,lon):',f12.6,1x,f12.6,1x, &
          'stations altitude:',f12.6,1x,/,2x, &
-         'block location: ',3(f12.6,1x))
+         'block location: ',3(f12.6,1x),/,2x, &
+         'azimuth angle:',f12.6)
 9201  format('  number of data:',i6,1x,'report status: ',i6,1x, &
-         ' pass: ',i6,' region: ',i6,/,2x, &
-         'processor: ',i6,' azimuth angle: ',i6)
+         ' pass: ',i6,' region: ',i6,/,2x,'processor: ',i6)
 
       return
    end subroutine obs_enkf_prnthdr
@@ -3772,8 +3776,8 @@ contains
 
 
    subroutine obs_generate_header(obsdat, ilat, ilon, ialt, inbon, instrum, &
-                                  isatzen, isat, itech, nvtyp, ity, idate, &
-                                  itime, clstnid, imask, isatazim, isunza, iclfr)
+                                  satzen, isat, itech, nvtyp, ity, idate, &
+                                  itime, clstnid, imask, satazim, sunza, clfr)
       !
       !    OUTPUT:
       !           obsdat%realHeaders%columns(OBS_LON,) - in degrees
@@ -3784,9 +3788,10 @@ contains
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer, intent(in) :: ilat, ilon, ialt, inbon, instrum, isatzen
+      integer, intent(in) :: ilat, ilon, ialt, inbon, instrum
       integer, intent(in) :: isat, itech, nvtyp, ity, idate, itime
-      integer, intent(in) :: imask, isatazim, isunza, iclfr
+      integer, intent(in) :: imask
+      real(kind=OBS_REAL) :: clfr, sunza, satzen, satazim
       character(len=9), intent(in) :: clstnid
       real(kind=8) :: torad
 
@@ -3826,7 +3831,6 @@ contains
          !
          call obs_headSet_i(obsdat, OBS_ONM, obsdat%numHeader, obsdat%numHeader)
          call obs_headSet_i(obsdat, OBS_INS, obsdat%numHeader, instrum )
-         call obs_headSet_i(obsdat, OBS_SZA, obsdat%numHeader, isatzen)
          call obs_headSet_i(obsdat, OBS_SAT, obsdat%numHeader, isat)
          call obs_headSet_i(obsdat, OBS_TEC, obsdat%numHeader, itech)
          call obs_headSet_i(obsdat, OBS_OTP, obsdat%numHeader, nvtyp)
@@ -3836,9 +3840,10 @@ contains
          obsdat%cstnid(obsdat%numHeader)         = clstnid
          ! PLH       call obs_headSet_i(obsdat, ncmoec, obsdat%numHeader, 999)
          call obs_headSet_i(obsdat, OBS_OFL, obsdat%numHeader, imask)
-         call obs_headSet_i(obsdat, OBS_AZA, obsdat%numHeader, isatazim)
-         call obs_headSet_i(obsdat, OBS_SUN, obsdat%numHeader, isunza)
-         call obs_headSet_i(obsdat, OBS_CLF, obsdat%numHeader, iclfr)
+         call obs_headSet_r(obsdat, OBS_AZA, obsdat%numHeader, satazim)
+         call obs_headSet_r(obsdat, OBS_SUN, obsdat%numHeader, sunza)
+         call obs_headSet_r(obsdat, OBS_SZA, obsdat%numHeader, satzen)
+         call obs_headSet_r(obsdat, OBS_CLF, obsdat%numHeader, clfr)
          ! PLH       call obs_headSet_i(obsdat, ncmst1, obsdat%numHeader, iflgs)
       endif
 

@@ -1212,8 +1212,8 @@ end subroutine hbht_compute_ensemble
       CHARACTER*2 CDFAM
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
-      REAL*8 zAzm, Azm
-      INTEGER IAZM, ISAT
+      REAL*8 zAzm !, Azm
+      INTEGER ISAT
       REAL*8 Rad, Geo, WFGPS
       REAL*8, allocatable :: zPP(:)
       REAL*8, allocatable :: zDP(:)
@@ -1309,11 +1309,10 @@ end subroutine hbht_compute_ensemble
 !C
                   zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
                   zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-                  IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
                   ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
                   Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
-                  zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+                  zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
                   zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')
                   WFGPS= 0.d0
                   DO JJ=1,NUMGPSSATS
@@ -1321,7 +1320,7 @@ end subroutine hbht_compute_ensemble
                   ENDDO
                   Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
-                  Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+                  !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')

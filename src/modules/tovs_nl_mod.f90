@@ -1416,11 +1416,8 @@ contains
 
     logical :: diagTtop,TopAt10hPa
 
-    integer :: ksurf, jpmotop, jpmolev
-    integer :: isatzen 
-    integer :: isatazim, instrum, iplatform
-    integer :: isunazim
-    integer :: isunza
+    integer :: ksurf, jpmotop, jpmolev 
+    integer :: instrum, iplatform
     integer :: nlevels,nobmax
     integer :: j, i, sensor_id, iobs, jj
     integer :: count_profile, header_index
@@ -1568,10 +1565,9 @@ contains
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
-        isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
-        tvs_profiles(iobs) % zenangle   = (isatzen - 9000) / 100.0
+        tvs_profiles(iobs) % zenangle   = obs_headElem_r(lobsSpaceData,OBS_SZA,header_index)
 
-        !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
+        !pour ne pas faire planter RTTOV dans le cas (rare) ou l'angle zenithal n'est pas defini ou invalide         
         if (tvs_profiles(iobs) % zenangle < 0.0d0 .or. &
              tvs_profiles(iobs) % zenangle > zenmax ) then
           write(*,*) "!!! WARNING !!!"
@@ -1581,19 +1577,16 @@ contains
           tvs_profiles(iobs) % zenangle = 0.d0
         end if
  
-        isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
-        isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
-        tvs_profiles(iobs) % azangle   = ( isatazim / 100.0d0 )
-        tvs_profiles(iobs) % sunazangle  =  ( isunazim / 100.0d0 )! necessaire pour radiation solaire
+        tvs_profiles(iobs) % azangle  = obs_headElem_r(lobsSpaceData,OBS_AZA,header_index)
+        tvs_profiles(iobs) % sunazangle  = obs_headElem_r(lobsSpaceData,OBS_SAZ,header_index) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensor_id) % coef % id_platform
         instrum = tvs_coefs(sensor_id) % coef % id_inst
         if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
           !Correction sur la definition de l'angle. A ammeliorer. Ok pour l'instant.
-          tvs_profiles(iobs) % azangle   = (isatazim + isunazim) / 100.d0
+          tvs_profiles(iobs) % azangle   = tvs_profiles(iobs) % sunazangle + tvs_profiles(iobs) % azangle
           if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle = tvs_profiles(iobs) % azangle - 360.d0
         end if
-        isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
-        tvs_profiles(iobs) % sunzenangle = (isunza - 9000) / 100.0d0
+        tvs_profiles(iobs) % sunzenangle = obs_headElem_r(lobsSpaceData,OBS_SUN,header_index)
         zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
         zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
         tvs_profiles(iobs) % longitude = zlon

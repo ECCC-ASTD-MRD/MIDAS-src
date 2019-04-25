@@ -1576,8 +1576,9 @@ CONTAINS
     REAL   , ALLOCATABLE   :: OBSVALUE(:,:,:),OBSVALUE_SFC(:,:,:)
     REAL   , ALLOCATABLE   :: OBSERV  (:,:),    OBSERV_SFC(:,:)
 
-    INTEGER, ALLOCATABLE   :: QI1VAL(:) ,QI2VAL(:), QIVAL(:), MTVAL(:), LSVAL(:), HAVAL(:), GAVAL(:)
-    INTEGER, ALLOCATABLE   :: azimuth(:)
+    INTEGER, ALLOCATABLE   ::  MTVAL(:)
+    REAL(OBS_REAL) , ALLOCATABLE  :: HAVAL(:), GAVAL(:), QIVAL(:), QI1VAL(:) ,QI2VAL(:), LSVAL(:)
+    REAL(OBS_REAL) , ALLOCATABLE  :: azimuth(:)
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
 
@@ -1593,7 +1594,7 @@ CONTAINS
 
     REAL   , ALLOCATABLE   :: EMIS(:,:),SURF_EMIS(:)
 
-    INTEGER, ALLOCATABLE   :: CFRAC(:,:)
+    REAL(OBS_REAL), ALLOCATABLE  :: CFRAC(:,:)
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
@@ -2113,20 +2114,20 @@ CONTAINS
             ALLOCATE(lsval(nte))
             ALLOCATE(haval(nte))
             ALLOCATE(gaval(nte))
-            QI1VAL(:) = 0
-            QI2VAL(:) = 0
-            QIVAL (:) = 0
+            QI1VAL(:) = 0.
+            QI2VAL(:) = 0.
+            QIVAL (:) = 0.
             MTVAL (:) = 0
-            LSVAL (:) = 0
-            HAVAL (:) = 0
-            GAVAL (:) = 0
+            LSVAL (:) = 0.
+            HAVAL (:) = 0.
+            GAVAL (:) = 0.
 
             if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) then
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33007, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                QI1VAL(k)= BURP_Get_Tblval(Block_in, &
+                QI1VAL(k)= BURP_Get_Rval(Block_in, &
                                            NELE_IND = IND_SW, &
                                            NVAL_IND = 1, &
                                            NT_IND   = k, &
@@ -2136,11 +2137,11 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33194, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                QI2VAL(k)= BURP_Get_Tblval(Block_in, &
-                                           NELE_IND = IND_SW, &
-                                           NVAL_IND = 1, &
-                                           NT_IND   = k, &
-                                           IOSTAT   = error)
+                QI2VAL(k)= BURP_Get_Rval(Block_in, &
+                                         NELE_IND = IND_SW, &
+                                         NVAL_IND = 1, &
+                                         NT_IND   = k, &
+                                         IOSTAT   = error)
               end do
 
               do k = 1, nte
@@ -2161,7 +2162,7 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=8012, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                LSVAL(k)= BURP_Get_Tblval(Block_in, &
+                LSVAL(k)= BURP_Get_Rval(Block_in, &
                                           NELE_IND = IND_SW, &
                                           NVAL_IND = 1, &
                                           NT_IND   = k, &
@@ -2171,7 +2172,7 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=13039, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                GAVAL(k)= BURP_Get_Tblval(Block_in, &
+                GAVAL(k)= BURP_Get_Rval(Block_in, &
                                           NELE_IND = IND_SW, &
                                           NVAL_IND = 1, &
                                           NT_IND   = k, &
@@ -2181,11 +2182,11 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2163, IOSTAT=error)
               if (IND_SW <= 0 ) cycle
               do k = 1, nte
-                HAVAL(k)= BURP_Get_Tblval(Block_in, &
-                                          NELE_IND = IND_SW, &
-                                          NVAL_IND = 1, &
-                                          NT_IND   = k, &
-                                          IOSTAT   = error)
+                HAVAL(k)= BURP_Get_Rval(Block_in, &
+                                        NELE_IND = IND_SW, &
+                                        NVAL_IND = 1, &
+                                        NT_IND   = k, &
+                                        IOSTAT   = error)
               end do
 
             !====================================================================
@@ -2195,7 +2196,7 @@ CONTAINS
             else if (trim(familytype) == 'AL') then
               if (.not. allocated(azimuth)) then
                 allocate(azimuth(nte))
-                azimuth(:) = 0
+                azimuth(:) = 0.
               end if
 
               ! Read in the azimuth)
@@ -2203,7 +2204,7 @@ CONTAINS
               if (ind_al <= 0 ) cycle
 
               do k = 1, nte
-                azimuth(k)= BURP_Get_Tblval(Block_in, &
+                azimuth(k)= BURP_Get_Rval(Block_in, &
                                             nele_ind = ind_al, &
                                             nval_ind = 1, &
                                             nt_ind   = k, &
@@ -2343,7 +2344,7 @@ CONTAINS
 
             RADMOY(:,:,:)=MPC_missingValue_R4
             RADSTD(:,:,:)=MPC_missingValue_R4
-            CFRAC(:,:)=-999
+            CFRAC(:,:)=MPC_missingValue_R4
 
             IASIQUAL: DO k = 1, nte
               iclass=1
@@ -2577,8 +2578,8 @@ CONTAINS
 
               iclass=1
               do iobs=OBS_CF1,OBS_CF7
-                if(obs_columnActive_IH(obsdat,iobs)) then
-                  call obs_headSet_i(obsdat,iobs,OBSN,CFRAC(iclass,k))
+                if(obs_columnActive_RH(obsdat,iobs)) then
+                  call obs_headSet_r(obsdat,iobs,OBSN,CFRAC(iclass,k))
                   iclass=iclass+1
                 end if
               end do
@@ -2999,16 +3000,17 @@ CONTAINS
 
     implicit none
     type (struct_obs), intent(inout) :: obsdat
-    INTEGER     ::  QIvalue, MTvalue, LSvalue, HAvalue, GAvalue
+    INTEGER     ::  MTvalue
+    Real(kind=OBS_REAL) :: HAvalue, GAvalue, QIvalue, LSvalue
     INTEGER     ::  NOBS
 
     NOBS = obs_numHeader(obsdat)
 
-    call obs_headSet_i(obsdat,OBS_SZA,nobs,QIvalue)
+    call obs_headSet_r(obsdat,OBS_SZA,nobs,QIvalue)
     call obs_headSet_i(obsdat,OBS_TEC,nobs,MTvalue)
-    call obs_headSet_i(obsdat,OBS_AZA,nobs,LSvalue)
-    call obs_headSet_i(obsdat,OBS_SUN,nobs,GAvalue)
-    call obs_headSet_i(obsdat,OBS_CLF,nobs,HAvalue)
+    call obs_headSet_r(obsdat,OBS_AZA,nobs,LSvalue)
+    call obs_headSet_r(obsdat,OBS_SUN,nobs,GAvalue)
+    call obs_headSet_r(obsdat,OBS_CLF,nobs,HAvalue)
 
   END SUBROUTINE  WRITE_QI
 
@@ -3018,11 +3020,12 @@ CONTAINS
   subroutine write_al(obsdat, azimuth)
     implicit none
     type (struct_obs), intent(inout) :: obsdat
-    integer :: azimuth, nobs
+    real(kind=OBS_REAL) :: azimuth
+    integer :: nobs
 
     nobs = obs_numHeader(obsdat)
 
-    call obs_headSet_i(obsdat,OBS_AZA,nobs,azimuth)
+    call obs_headSet_r(obsdat,OBS_AZA,nobs,azimuth)
   end subroutine write_al
 
 !!------------------------------------------------------------------------------------
@@ -3042,7 +3045,6 @@ CONTAINS
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 
-    !REAL   , allocatable  ::      RINFO(:)
     REAL        ::      RINFO(NELE_INFO)
 
     CHARACTER*2 ::   FAMTYP
@@ -3054,34 +3056,28 @@ CONTAINS
 
     INTEGER     ::   IL,J,NOBS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
-    INTEGER     ::   TERRAIN_TYPE,ZENITH,SOLAR_ZENITH,AZIMUTH,CLOUD_COVER,SOLAR_AZIMUTH
+    INTEGER     ::   TERRAIN_TYPE
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
     INTEGER     ::   IFOV
 
-    REAL        ::   RSOLAR_ZENITH,RCLOUD_COVER,RZENITH,RAZIMUTH,RSOLAR_AZIMUTH
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
-    REAL(OBS_REAL)        ::   RTANGENT_RADIUS,RGEOID
+    REAL(OBS_REAL) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
 
     NOBS=obs_numHeader(obsdat)
 
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
     !write(*,*)'  DEBUT WRITE_INFO NOBS CODTYP ----> ',NOBS,CODTYP,size(liste_info),size(RINFO),liste_info
-    LAND_SEA  =0
-    INSTRUMENT=0
-    ID_SAT    =0
-    ZENITH    =0
-    SENSOR    =0
-    AZIMUTH   =0
+    LAND_SEA   = 0
+    INSTRUMENT = 0
+    ID_SAT     = 0
+    SENSOR     = 0
 
-    IRO_QCFLAG=-99
+    IRO_QCFLAG=MPC_missingValue_INT
     IGQISQUALINDEXLOC=0
     IGQISFLAGQUAL=0
-    CLOUD_COVER=0
 
-    SOLAR_AZIMUTH = 0
-    SOLAR_ZENITH = 0
     RTANGENT_RADIUS=real(MPC_missingValue_R8,OBS_REAL)
     RGEOID=real(MPC_missingValue_R8,OBS_REAL)
     TERRAIN_TYPE=99
@@ -3091,13 +3087,10 @@ CONTAINS
     RIGQISQUALINDEXLOC = MPC_missingValue_R4
     RIGQISFLAGQUAL = MPC_missingValue_R4
     RRO_QCFLAG = MPC_missingValue_R4
-
-    IGQISFLAGQUAL = 0
-    IGQISQUALINDEXLOC = 0
-    CLOUD_COVER = 0
-    IRO_QCFLAG = -99
-
-    !if ( allocated(rinfo) ) then
+    RSOLAR_AZIMUTH = real(MPC_missingValue_R8,OBS_REAL)
+    RSOLAR_ZENITH = real(MPC_missingValue_R8,OBS_REAL)
+    RZENITH = 90.
+    RAZIMUTH = 0.
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3112,7 +3105,7 @@ CONTAINS
         CASE( 2048)
           RSENSOR = INFOV
           if (RSENSOR == MPC_missingValue_R4 ) THEN
-            SENSOR = -99
+            SENSOR = MPC_missingValue_INT
           ELSE
             SENSOR = NINT(RSENSOR)
           END IF
@@ -3133,24 +3126,14 @@ CONTAINS
         CASE( 7024)
           RZENITH = INFOV
           if (RZENITH == MPC_missingValue_R4 ) THEN
-            ZENITH = 9000
-          ELSE
-            ZENITH = NINT ( (90.0 + RZENITH)*100 )
+            RZENITH = 90.
           END IF
         CASE( 7025)
           RSOLAR_ZENITH = INFOV
-          if (RSOLAR_ZENITH == MPC_missingValue_R4 )  THEN 
-            SOLAR_ZENITH = 0
-            SOLAR_ZENITH = -99
-          ELSE
-            SOLAR_ZENITH = NINT ( (90.0 + RSOLAR_ZENITH)*100 )
-          END IF
         CASE( 5021)
           RAZIMUTH=INFOV
           if (RAZIMUTH == MPC_missingValue_R4 ) THEN
-            AZIMUTH=0
-          ELSE
-            AZIMUTH=NINT ( (RAZIMUTH)*100 )
+            RAZIMUTH = 0.
           END IF
         CASE( 33060)
           RIGQISFLAGQUAL=INFOV
@@ -3168,12 +3151,6 @@ CONTAINS
           END IF
         CASE( 5022)
           RSOLAR_AZIMUTH=INFOV
-          if (RSOLAR_AZIMUTH == MPC_missingValue_R4 )  then
-            SOLAR_AZIMUTH=0
-            SOLAR_AZIMUTH=-99
-          ELSE
-            SOLAR_AZIMUTH=NINT ( (RSOLAR_AZIMUTH)*100 )
-          END IF
         CASE( 8012)
           RLAND_SEA=INFOV
           if (RLAND_SEA == MPC_missingValue_R4 ) THEN
@@ -3190,11 +3167,6 @@ CONTAINS
           END IF
         CASE( 20010)
           RCLOUD_COVER=INFOV
-          if (RCLOUD_COVER == MPC_missingValue_R4 ) THEN
-            CLOUD_COVER=0
-          ELSE
-            CLOUD_COVER=NINT ( RCLOUD_COVER )
-          END IF
         CASE( 10035)
           RTANGENT_RADIUS=INFOV
         CASE( 10036)
@@ -3202,7 +3174,7 @@ CONTAINS
         CASE( 33039)
           RRO_QCFLAG=INFOV
           if (RRO_QCFLAG == MPC_missingValue_R4 ) THEN
-            IRO_QCFLAG=-99
+            IRO_QCFLAG=MPC_missingValue_INT
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           END IF
@@ -3221,8 +3193,8 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! INSTRUMENT
-    IF ( SENSOR == -99)then
-      IF ( INSTRUMENT == -99)then
+    IF ( SENSOR == MPC_missingValue_INT) then
+      IF ( INSTRUMENT == MPC_missingValue_INT) then
         INSTRUMENT=0
       END IF
     ELSE
@@ -3234,7 +3206,7 @@ CONTAINS
 
     if (  trim(FAMTYP) == trim('GO') ) then
       LAND_SEA=0
-      ZENITH=0
+      RZENITH=90.
     END IF
    
 
@@ -3247,18 +3219,18 @@ CONTAINS
 
     if ( obs_columnActive_IH(obsdat,OBS_OFL) ) call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
     if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
-    if ( obs_columnActive_IH(obsdat,OBS_SZA) ) call obs_headSet_i(obsdat,OBS_SZA,nobs,ZENITH )
     if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
-    if ( obs_columnActive_IH(obsdat,OBS_CLF) ) call obs_headSet_i(obsdat,OBS_CLF,nobs,CLOUD_COVER )
-    if ( obs_columnActive_IH(obsdat,OBS_AZA) ) call obs_headSet_i(obsdat,OBS_AZA,nobs,AZIMUTH )
-    if ( obs_columnActive_IH(obsdat,OBS_SUN) ) call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
-    if ( obs_columnActive_IH(obsdat,OBS_SAZ) ) call obs_headSet_i(obsdat,OBS_SAZ,nobs,SOLAR_AZIMUTH )
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
     if ( obs_columnActive_IH(obsdat,OBS_TEC) ) call obs_headSet_i(obsdat,OBS_TEC,nobs,0)
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     !if( trim(FAMTYP) == trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID
     if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
+    if ( obs_columnActive_RH(obsdat,OBS_CLF) ) call obs_headSet_r(obsdat,OBS_CLF,nobs,RCLOUD_COVER )
+    if ( obs_columnActive_RH(obsdat,OBS_SUN) ) call obs_headSet_r(obsdat,OBS_SUN,nobs,RSOLAR_ZENITH )
+    if ( obs_columnActive_RH(obsdat,OBS_SAZ) ) call obs_headSet_r(obsdat,OBS_SAZ,nobs,RSOLAR_AZIMUTH )
+    if ( obs_columnActive_RH(obsdat,OBS_SZA) ) call obs_headSet_r(obsdat,OBS_SZA,nobs,RZENITH )
+    if ( obs_columnActive_RH(obsdat,OBS_AZA) ) call obs_headSet_r(obsdat,OBS_AZA,nobs,RAZIMUTH )
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
     if (trim(FAMTYP) == trim('CH')) then

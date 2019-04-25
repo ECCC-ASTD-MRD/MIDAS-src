@@ -1059,7 +1059,6 @@ contains
     real(8) :: minpavhrr(2:3)
     real(8) :: anisot,zlamb,zcloud,scos,del,deltaphi
     integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1),iobs
-    integer :: isatzen
     integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
 !***************************************************************************************
     integer :: nlv_T,id,KRTID, QCID, nchannels
@@ -1247,7 +1246,7 @@ contains
           INDX = index_header
           iclass = 1
           do iobs=OBS_CF1, OBS_CF7
-            avhrr_bgck(INDEX_HEADER)%CFRAC(iclass) = obs_headElem_i(lobsSpaceData,iobs,index_header)
+            avhrr_bgck(INDEX_HEADER)%CFRAC(iclass) = obs_headElem_r(lobsSpaceData,iobs,index_header)
             iclass = iclass + 1
           end do
           iclass = 1
@@ -1270,7 +1269,7 @@ contains
               iclass = iclass + 1
             end if
           end do
-          SUNAZIM = 0.01d0 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
+          SUNAZIM = obs_headElem_r(lobsSpaceData,OBS_SAZ,index_header)
         end if
 
         ZTG = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
@@ -1334,16 +1333,15 @@ contains
         end do
 
         KSURF = tvs_profiles(tvs_nobtov) % skin % surftype
-!Test pour detecter le isatzen manquant (-1) ou anormal
+!Test pour detecter l angle zenithal  manquant (-1) ou anormal
 ! (angle negatif ou superieur a 75 degres )
-        isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
-        if ( isatzen < 9000 .or. &
-             isatzen > 16500 ) then
+        satzen= obs_headElem_r(lobsSpaceData,OBS_SZA,INDEX_HEADER)
+        if ( satzen < 0 .or. satzen > 75. ) then
           REJFLAG(:,9) = 1
         end if
 !**************************************************************
         CLFR = 0.
-        if (lairs) CLFR = obs_headElem_i(lobsSpaceData,OBS_CLF,INDEX_HEADER)
+        if (lairs) CLFR = obs_headElem_r(lobsSpaceData,OBS_CLF,INDEX_HEADER)
 
         do JL = 1, NLEVB
           TOEXT(JL) = tvs_profiles(tvs_nobtov)%t(jl + iextr)
@@ -1352,7 +1350,6 @@ contains
         SUNZA = tvs_profiles(tvs_nobtov) % sunzenangle
         if (liasi) then
           SATAZIM = tvs_profiles(tvs_nobtov) % azangle 
-          SATZEN = tvs_profiles(tvs_nobtov) % zenangle
         end if
         ALBEDO =  tvs_surfaceParameters(tvs_nobtov) % albedo
         ICE =  tvs_surfaceParameters(tvs_nobtov) % ice

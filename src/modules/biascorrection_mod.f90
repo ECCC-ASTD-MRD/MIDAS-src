@@ -493,13 +493,13 @@ CONTAINS
         predictor(iPredictor) = trialGZ5m50(index_obs)/1000.0d0  !-0.72d0 tried de-biasing
       else if ( iPredictor == 9 ) then
         ! satellite zenith angle (degrees/100)^1
-        predictor(iPredictor) = (obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0
+        predictor(iPredictor) = obs_headElem_r(obsSpaceData,OBS_SZA,index_header)
       else if ( iPredictor == 10 ) then
         ! satellite zenith angle (degrees/100)^2
-        predictor(iPredictor) = ((obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0)**2
+        predictor(iPredictor) = ( obs_headElem_r(obsSpaceData,OBS_SZA,index_header) )**2
       else if ( iPredictor == 11 ) then
         ! satellite zenith angle (degrees/100)^3
-        predictor(iPredictor) = ((obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0)**3
+        predictor(iPredictor) = ( obs_headElem_r(obsSpaceData,OBS_SZA,index_header) )**3
       end if
 
     end do
