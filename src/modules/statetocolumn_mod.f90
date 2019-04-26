@@ -817,7 +817,7 @@ contains
 
     ! Do final preparations of columnData objects (compute GZ increment)
     if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') .and. col_getNumLev(column,'MM') > 1 ) then
+         col_varExist('P0') ) then
       call tt2phi_tl(column,columng,obsSpaceData)
     end if
 
@@ -882,7 +882,7 @@ contains
     end if
 
     ! Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and.  &
+    if (gsv_varExist(statevector,'TT') .and.  &
         gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
        call tt2phi_ad(column,columng,obsSpaceData)
     end if
