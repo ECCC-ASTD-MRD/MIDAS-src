@@ -503,9 +503,9 @@ module obsUtil_mod
       case ('ship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            surfvcord = 30.0
+            surfvcord = 20.0
           case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
-            surfvcord = 21.5
+            surfvcord = 11.5
         end select
       case ('upairland')
         select case(varno)
@@ -517,9 +517,9 @@ module obsUtil_mod
       case ('upairship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            surfvcord = 30.0
+            surfvcord = 20.0
           case (bufr_nets, bufr_ness, bufr_vis)
-            surfvcord = 21.5
+            surfvcord = 11.5
         end select
       case ('scatwinds')
         select case(varno)
