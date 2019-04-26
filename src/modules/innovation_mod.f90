@@ -258,7 +258,7 @@ contains
       call col_calcPressure(columnhr)
     end if
     if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') .and. col_getNumLev(columnhr,'MM') > 1 ) then
+         col_varExist('P0') ) then
       call tt2phi(columnhr,obsSpaceData)
     end if
 
@@ -337,7 +337,7 @@ contains
       do columnIndex = 1, col_getNumCol(columng)
         columng%gz_sfc(1,columnIndex) = columnhr%gz_sfc(1,columnIndex)
       end do
-      if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng,obsSpaceData)
+      call tt2phi(columng,obsSpaceData)
     else
       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
