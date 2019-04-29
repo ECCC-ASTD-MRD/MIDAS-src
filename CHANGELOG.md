@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change '!' to '!!' in those places that bothered Sphinx.
 
 ### Added
-
+ * The logical namelist variable ltopofilt has been replaced by the string array namelist variable list_topoFilt which allow to activate the topographic rejection criteria for selected observation families (#225 and !211).
  * Add ability to define a local domain and control inclusion of each variable for energy norm (#207 and !204)
  * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
