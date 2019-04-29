@@ -36,8 +36,8 @@
   NLISTFLG(3)=5,
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
-  LTOPOFILT=.TRUE.,
   RLIMLVHU   = 70.D0
+  list_topofilt(1) = 'SF'
 /
  &NAMRMAT
 /

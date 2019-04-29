@@ -49,7 +49,7 @@
   NLISTFLG(4)=11,
   NLISTFLG(5)=-5,
   NLISTFLG(6)=-8,
-  LTOPOFILT=.TRUE.,
+  list_topoFilt(1) = 'CH'
   RLIMLVHU=70.,
 /
  &NAMSTATE

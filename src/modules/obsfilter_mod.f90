@@ -48,38 +48,41 @@ module obsFilter_mod
   integer filt_nelems, filt_nlist(30)
   integer filt_nflags, filt_nlistflg(15)
 
-  logical ltopofilt, discardlandsfcwind
+  logical discardlandsfcwind
 
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
   integer, parameter :: numElem = 19
   real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
-       (/ 50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
-       800.d0,    800.d0,   1000.d0,    50.d0,     50.d0,     50.d0,     50.d0,  &
-       50.d0,     50.d0,     50.d0,      50.d0,    50.d0 /)
+       (/     50.d0,    50.d0,     50.d0,      50.d0,     50.d0,    800.d0,    800.d0,  &
+             800.d0,   800.d0,   1000.d0,      50.d0,     50.d0,     50.d0,     50.d0,  &
+              50.d0,    50.d0,     50.d0,      50.d0,     50.d0 /)
   integer, parameter :: elemList(numElem) =  &
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
-       BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
-       BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis, bufr_gust /)
-  real(8) :: bndryCritPres         = 5000.0d0  ! in Pascals
-  real(8) :: bndryCritHeightProf   =  400.0d0  ! in Metres
-  real(8) :: bndryCritHeightAladin =  400.0D0  ! in Metres
+          BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
+          BUFR_NEES, BUFR_NETT, BUFR_NEAL,  bufr_vis, bufr_gust /)
+
+  real(8) :: surfaceBufferZone_Pres
+  real(8) :: surfaceBufferZone_Height
+
+  integer, parameter :: nTopoFiltFam = 8
+  character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
 
   character(len=48) :: filterMode
 
 contains
 
-!--------------------------------------------------------------------------
-! findElemIndex
-!------------------------------------------------------------------------- 
- function findElemIndex(varNum) result(listIndex)
+  !--------------------------------------------------------------------------
+  ! findElemIndex
+  !------------------------------------------------------------------------- 
+  function findElemIndex(varNum) result(listIndex)
     implicit none
     integer :: varNum, listIndex, elemIndex
 
     listIndex = -1
     do elemIndex=1,numElem
-       if(varNum.eq.elemList(elemIndex)) listIndex = elemIndex
+       if(varNum == elemList(elemIndex)) listIndex = elemIndex
     end do
 
     if (listIndex == -1) then
@@ -88,9 +91,9 @@ contains
 
   end function findElemIndex
 
-!--------------------------------------------------------------------------
-! filt_setup
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! filt_setup
+  !--------------------------------------------------------------------------
   subroutine filt_setup(filterMode_in)
     implicit none
 
@@ -99,9 +102,11 @@ contains
     integer :: nulnam, ierr, elem, elem2, jflag, ibit, itotelem, ielem
     integer :: fnom, fclos
     integer :: nelems, nlist(30)
-    integer :: nflags, nlistflg(15)
+    integer :: nflags, nlistflg(15), obsFamilyIndex
     integer :: nelems_altDiffMax, list_altDiffMax(numElem), elemIndex
     
+    character(len=2) :: list_topoFilt(nTopoFiltFam)
+
     real(8) :: value_altDiffMax(numElem)
     real(8) :: rlimlvhu
 
@@ -129,8 +134,9 @@ contains
          'ELEMENT EXCEEDS CLIMATE EXTREME   ', &
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
-    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu,discardlandsfcwind, &
-         nelems_altDiffMax, list_altDiffMax, value_altDiffMax
+    namelist /namfilt/nelems,nlist,nflags,nlistflg,rlimlvhu,discardlandsfcwind, &
+         nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
+         surfaceBufferZone_Height, list_topoFilt
 
     filterMode = filterMode_in
 
@@ -157,15 +163,19 @@ contains
     value_altDiffMax(:) = -1.d0
     nelems_altDiffMax = 0
 
-    ltopofilt = .true.
+    list_topoFilt(:) = '**'
+
     rlimlvhu = 300.d0
     discardlandsfcwind = .true.
+
+    surfaceBufferZone_Pres   = 5000.0d0 ! default value in Pascals
+    surfaceBufferZone_Height =  400.0d0 ! default value in Metres
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
     if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=namfilt)
+    if(mpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
     ! Force nlist to be in the same sequence as NVNUMB for invariance in
@@ -179,7 +189,7 @@ contains
           nlist(itotelem) = nlist(elem2)
           nlist(elem2) = ielem
        else 
-          if(mpi_myid.eq.0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(elem2)
+          if(mpi_myid == 0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(elem2)
        end if
     end do
 
@@ -189,7 +199,7 @@ contains
     filt_nflags      = nflags
     filt_nlistflg(:) = nlistflg(:)
 
-    if(mpi_myid.eq.0) then
+    if(mpi_myid == 0) then
        write(*,'(1X,"***********************************")')
        write(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
        write(*,'(1X,"***********************************")')
@@ -224,19 +234,33 @@ contains
       end do
     end if
 
+    !
+    !- Set the topographic rejection list 
+    !
+    if (all(list_topoFilt(:) == '**')) then
+      ! default list
+      filtTopoList(1) = 'SF'
+      filtTopoList(2) = 'UA'
+      filtTopoList(3) = 'AI'
+      filtTopoList(4) = 'SW'
+      filtTopoList(5) = 'PR'
+      filtTopoList(6) = 'AL'
+      filtTopoList(7) = 'TO'
+      filtTopoList(8) = 'CH'
+    else
+      do obsFamilyIndex = 1, nTopoFiltFam
+        if (list_topoFilt(obsFamilyIndex) /= '**') then
+          filtTopoList(obsFamilyIndex) = list_topoFilt(obsFamilyIndex)
+        end if
+      end do
+    end if
+
   end subroutine filt_setup
 
-
+  !--------------------------------------------------------------------------
+  ! filt_suprep
+  !--------------------------------------------------------------------------
   subroutine filt_suprep(obsSpaceData)
-    !!
-    !!Author  : P. Koclas *CMC/AES  September 1994
-    !!
-    !!Revisions:
-    !!          S. Heilliette, ARMA/MRD, 2016
-    !!          - Updates for TO family
-    !!          Y. Rochon. ARQI/AQRD, June 2016
-    !!          - Move of tvs_Is_idburp_tovs condition within brightness
-    !!          temp conditional test.
     !!
     !!*    Purpose: Select the data in the obsSpaceData which are to be assimilated
     !!
@@ -336,47 +360,51 @@ contains
 
   end subroutine filt_suprep
 
-
+  !--------------------------------------------------------------------------
+  ! filt_topo
+  !--------------------------------------------------------------------------
   subroutine filt_topo(columnhr,obsSpaceData,beSilent)
-
-    !! Revisions:
-    !!           Y.J. Rochon (ARQI/AQRD), Jan 2015
-    !!           - Added call to filt_topoChm
-
     implicit none
 
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_obs)        :: obsSpaceData
+    logical, intent(in)     :: beSilent
 
-    if (ltopofilt) then
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    filt_topo:                         *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
-       call filt_toposfc(columnhr,obsSpaceData,beSilent)
-       call filt_toporaob(columnhr,obsSpaceData,beSilent)
-       call filt_topoaisw(columnhr,obsSpaceData,beSilent)
-       call filt_topoprof(columnhr,obsSpaceData,beSilent)
-       call filt_topoaladin(columnhr,obsSpaceData,beSilent)
-       call filt_topocsbt(columnhr,obsSpaceData,beSilent)
-       call filt_topoChm(columnhr,obsSpaceData,beSilent)
+    if (all(filtTopoList(:) == '  ')) then
+
+      if (mpi_myid == 0 .and. .not.beSilent) then
+        write(*,*)
+        write(*,*)' --------------------------------------------------------------'
+        write(*,*)' - filt_topo: NO topographic filtering                         '
+        write(*,*)' --------------------------------------------------------------'
+      end if
+
     else
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    filt_topo:                         *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
+
+      if (mpi_myid == 0 .and. .not.beSilent) then
+        write(*,*)
+        write(*,*)' --------------------------------------------------------------'
+        write(*,*)' - filt_topo: topographic filtering of the following obs family'
+        write(*,*)' --------------------------------------------------------------'
+      end if
+
+      if (any(filtTopoList(:) == 'SF')) call filt_topoSurface   (columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'UA')) call filt_topoRadiosonde(columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'AI')) call filt_topoAISW      (columnhr,obsSpaceData,'AI',beSilent)
+      if (any(filtTopoList(:) == 'SW')) call filt_topoAISW      (columnhr,obsSpaceData,'SW',beSilent)
+      if (any(filtTopoList(:) == 'PR')) call filt_topoProfiler  (columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'AL')) call filt_topoAladin    (columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'TO')) call filt_topoTovs      (columnhr,obsSpaceData,beSilent)
+      if (any(filtTopoList(:) == 'CH')) call filt_topoChemistry (columnhr,obsSpaceData,beSilent)
+
     end if
+
   end subroutine filt_topo
 
-
-  subroutine filt_topoSfc(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author  : P. Koclas *CMC/AES  October  1998
+  !--------------------------------------------------------------------------
+  ! filt_topoSurface
+  !--------------------------------------------------------------------------
+  subroutine filt_topoSurface(columnhr,obsSpaceData,beSilent)
     !!
     !! Purpose: Refuse elements which are too far away from the surface.
     !!          Replace the pressure of elements which are slightly below
@@ -403,7 +431,7 @@ contains
 
     if (  .not.beSilent ) then
       write(*,*) ' '
-      write(*,*) ' SUBROUTINE filt_topoSFC '
+      write(*,*) ' filt_topoSurface: '
       write(*,*) ' '
       write(*,*) '*****************************************************'
       write(*,222) 'ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
@@ -449,7 +477,7 @@ contains
              ! apply filter to selected elements
              !
              elemIndex = findElemIndex(ivnm)
-             if (elemIndex.eq.-1) cycle BODY
+             if (elemIndex == -1) cycle BODY
 
              if (zdiff.le.altDiffMax(elemIndex)) then
                 ! obs passes the acceptance criteria
@@ -486,12 +514,12 @@ contains
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
     if ( .not.beSilent ) write(*,* ) ' '
 
-  end subroutine filt_toposfc
+  end subroutine filt_topoSurface
 
-
-  subroutine filt_topoRaob(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author  : P. Koclas *CMC/AES  October  1998
+  !--------------------------------------------------------------------------
+  ! filt_topoRadiosonde
+  !--------------------------------------------------------------------------
+  subroutine filt_topoRadiosonde(columnhr,obsSpaceData,beSilent)
     !!
     !! Purpose: Refuse elements which are too far away from the surface of the model
     !!          Refuse elements which are considered in the free atmosphere of
@@ -516,12 +544,12 @@ contains
 
     if ( .not.beSilent ) then
       write(*,*) ' '
-      write(*,*) ' SUBROUTINE filt_topoRAOB '
+      write(*,*) ' filt_topoRadiosonde: '
       write(*,*) ' '
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
       write(*,223) ' REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION SBL (PASCAL)    ',(bndryCritPres,elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (PASCAL)    ',(surfaceBufferZone_Pres,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
     end if
@@ -559,7 +587,7 @@ contains
           ! skip this obs if it is not GZ
           ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
-          llok = (ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1)
+          llok = (ivnm == BUFR_NEGZ .and. listIndex.ne.-1)
           if (.not. llok ) cycle BODY
 
           ! convert altitude read from column to geopotential
@@ -624,11 +652,11 @@ contains
 
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = col_getElem(columnhr,1,headerIndex,'P0')
-          zpt = zpb - bndryCritPres
+          zpt = zpb - surfaceBufferZone_Pres
           zdelp = 999999.0d0
           if (zdifalt .gt. 0.0d0) then
              zdelp = zdifalt * 100.d0 / 8.0d0
-             zpt   = zpb - (zdelp + bndryCritPres)
+             zpt   = zpb - (zdelp + surfaceBufferZone_Pres)
           end if
 
           if(abs(zdifalt).le.altDiffMax(listIndex)) then
@@ -679,89 +707,83 @@ contains
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
 
-  end subroutine filt_toporaob
+  end subroutine filt_topoRadiosonde
 
-
-  subroutine filt_topoAISW(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author  : R. Sarrazin *CMC/AES  February 2000
+  !--------------------------------------------------------------------------
+  ! filt_topoAISW
+  !--------------------------------------------------------------------------
+  subroutine filt_topoAISW(columnhr,obsSpaceData,obsFamily,beSilent)
     !!
     !! Purpose:  Refuse elements which are too close to the surface.
     !!
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    logical,          intent(in) :: beSilent
+    character(len=2), intent(in) :: obsFamily
 
-    integer :: headerIndex, bodyIndex, familyIndex, listIndex, elemIndex
+    integer :: headerIndex, bodyIndex, elemIndex, listIndex
     integer :: ivnm, countRej(numElem), countAssim
     real(8) :: zval, zdiff
-    character(len=2) :: list_family(2)
 
-    !    DATA    RLISTCRIT/50.d0/
-    !    DATA    ILISTEL/11003,11004,12001,12192/
+    if (obsFamily /= 'AI' .and. obsFamily /= 'SW') then
+      call utl_abort('filt_topoAISW: only AI and SW family are handled by this routine. You ask for '//obsFamily)
+    end if
 
     if ( .not.beSilent ) then
       write(*,*) ' '
-      write(*,*) ' SUBROUTINE filt_topoAISW '
+      write(*,*) ' filt_topoAISW for obsFamily = ', obsFamily
       write(*,*) ' '
       write(*,*) '****************************************************'
       write(*,222) 'ELEMENTS                 ', (elemList(elemIndex),elemIndex=1,numElem)
-      write(*,223) 'REJECTION BOUNDARY(HPA)  ', (bndryCritPres,elemIndex=1,numElem)
+      write(*,223) 'REJECTION BOUNDARY(HPA)  ', (surfaceBufferZone_Pres,elemIndex=1,numElem)
       write(*,*) '****************************************************'
       write(*,*) ' '
     end if
 
-    ! Loop over the families of interest
-    list_family(1) = 'AI'
-    list_family(2) = 'SW'
-    FAMILY: do familyIndex = 1,2
+    ! set counters to zero
+    countRej(:)=0
 
-       ! set counters to zero
-       countRej(:)=0
+    ! loop over all body indices of each family
+    call obs_set_current_body_list(obsSpaceData, obsFamily)
+    BODY: do 
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
 
-       ! loop over all body indices of each family
-       call obs_set_current_body_list(obsSpaceData, list_family(familyIndex))
-       BODY: do 
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
+      ! skip this observation if already flagged to not assimilate
+      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
 
-          ! skip this observation if already flagged to not assimilate
-          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
+      !
+      ! reject data too close to the model orography, put to
+      ! model orography, data which is below , but close to the surface.
+      !
+      zval = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+      zdiff = col_getElem(columnhr,1,headerIndex,'P0') - zval
+      if ( zdiff .lt. surfaceBufferZone_Pres ) then
+        ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        if(listIndex == -1) cycle BODY
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        countRej(listIndex)=countRej(listIndex)+1
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+      end if
+    end do BODY
 
-          !
-          ! reject data too close to the model orography, put to
-          ! model orography, data which is below , but close to the surface.
-          !
-          zval = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-          zdiff = col_getElem(columnhr,1,headerIndex,'P0') - zval
-          if ( zdiff .lt. bndryCritPres ) then
-             ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-             listIndex = findElemIndex(ivnm)
-             if(listIndex.eq.-1) cycle BODY
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             countRej(listIndex)=countRej(listIndex)+1
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
-          end if
-       end do BODY
-
-       if ( .not.beSilent ) then
-         write(*,*) ' '
-         write(*,*) '*****************************************************************'
-         write(*,*) ' FAMILY = ',list_family(familyIndex)
-         write(*,222) 'ELEMENTS            ',(elemList(elemIndex),elemIndex=1,numElem)
-         write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
-         write(*,*) '*****************************************************************'
-         write(*,*) ' '
-       end if
-
-    end do FAMILY
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) '*****************************************************************'
+      write(*,*) ' FAMILY = ',obsFamily
+      write(*,222) 'ELEMENTS            ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '*****************************************************************'
+      write(*,*) ' '
+    end if
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
@@ -769,14 +791,12 @@ contains
 222 format(2x,a29,16(2x,i5))
 223 format(2x,a29,16(2x,f5.0))
 
-  end subroutine filt_topoaisw
+end subroutine filt_topoAISW
 
-
-  subroutine filt_topoProf(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author: J. St-James October 2002
-    !!          - Based on the subroutine filt_toporaob.  Adapt to
-    !!            Profiler data
+  !--------------------------------------------------------------------------
+  ! filt_topoProfiler
+  !--------------------------------------------------------------------------
+  subroutine filt_topoProfiler(columnhr,obsSpaceData,beSilent)
     !!
     !! Purpose: Refuse elements which are too far away from the surface of the model
     !!          Refuse elements which are considered in the free atmosphere of
@@ -796,12 +816,12 @@ contains
 
     if ( .not.beSilent ) then
       write(*,*) ' '
-      write(*,*) ' SUBROUTINE filt_topoPROF '
+      write(*,*) ' filt_topoProfiler: '
       write(*,*) ' '
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
       write(*,223) ' REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeightProf,elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (METRE) ',(surfaceBufferZone_Height,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
     end if
@@ -841,16 +861,16 @@ contains
 
           ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
-          llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1  &
+          llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1  &
                .and. ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
           if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = zModAlt
           if (zStnAlt .gt. zModAlt) then
-             zpt = zStnAlt + bndryCritHeightProf
+             zpt = zStnAlt + surfaceBufferZone_Height
           else
-             zpt = zModAlt + bndryCritHeightProf
+             zpt = zModAlt + surfaceBufferZone_Height
           end if
           if(abs(zStnAlt-zModAlt).le.altDiffMax(listIndex)) then
              !----Model surface and station altitude are very close
@@ -897,21 +917,16 @@ contains
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
 
-  end subroutine filt_topoProf
+  end subroutine filt_topoProfiler
 
-
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Refuse elements which are considered to be in the free atmosphere
-!!            of the Aladin instrument but which fall in the surface boundary
-!!            layer of the model atmosphere.
-!!
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! filt_topoAladin
+  !--------------------------------------------------------------------------
   subroutine filt_topoAladin(columnhr,obsSpaceData,beSilent)
     !!
-    !! Author: JW Blezius March 2018
-    !!          - Based on the subroutines filt_topoProf and filt_topoSfc.  Adapt
-    !!            to Aladin data.
+    !! *Purpose*: Refuse elements which are considered to be in the free atmosphere
+    !!            of the Aladin instrument but which fall in the surface boundary
+    !!            layer of the model atmosphere.
     !!
     implicit none
     type(struct_columnData) :: columnhr
@@ -927,11 +942,11 @@ contains
 
     if(.not. beSilent )then
       write(*,*) ' '
-      write(*,*) ' SUBROUTINE filt_topoALADIN '
+      write(*,*) ' filt_topoAladin: '
       write(*,*) ' '
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS              ',(elemList(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeightAladin,elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (METRE) ',(surfaceBufferZone_Height,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
     end if
@@ -957,7 +972,7 @@ contains
        !
        zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
                                headerIndex,'MM') 
-       zpt = zModAlt + bndryCritHeightAladin
+       zpt = zModAlt + surfaceBufferZone_Height
 
        ! Loop over all body indices (still in the 'AL' family)
        BODY: do 
@@ -1023,12 +1038,10 @@ contains
 
   end subroutine filt_topoAladin
 
-
-  subroutine filt_topoCsbt(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author  : R. Sarrazin *CMC/AES  June 2008
-    !! Revision: A. Beaulne  CMDA      October 2012
-    !!           Set bit 9 in addition to the already setting of bit 18
+  !--------------------------------------------------------------------------
+  ! filt_topoTovs
+  !--------------------------------------------------------------------------
+  subroutine filt_topoTovs(columnhr,obsSpaceData,beSilent)
     !!
     !! Purpose:  Refuse data which are too close to the surface.
     !!
@@ -1043,7 +1056,7 @@ contains
 
     if ( .not.beSilent ) then
       write(*,* ) ' '
-      write(*,* ) ' SUBROUTINE filt_topoCSBT '
+      write(*,* ) ' filt_topoTovs: '
       write(*,* ) ' '
       write(*,* ) '****************************************************'
       write(*,222) 'ELEMENTS                  ', BUFR_NBT3
@@ -1104,12 +1117,15 @@ contains
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,* ) ' '
 
-  end subroutine filt_topocsbt
+  end subroutine filt_topoTovs
 
+  !--------------------------------------------------------------------------
+  ! filt_surfaceWind
+  !--------------------------------------------------------------------------
   SUBROUTINE filt_surfaceWind(lobsSpaceData,beSilent)
     !!
-    !!*    Purpose:
-    !!      Zap sfc wind components at land stations
+    !!* Purpose: zap sfc wind components at land stations
+    !!
     IMPLICIT NONE
     type(struct_obs) :: lobsSpaceData
     logical :: beSilent
@@ -1134,7 +1150,7 @@ contains
     ILISTEL(2)=BUFR_NEVS
     if ( .not.beSilent ) then
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SFCWNDZAP '
+      WRITE(*,* ) ' filt_surfaceWind:'
       WRITE(*,* ) ' '
       WRITE(*,* ) '*****************************************************'
       WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,jpinel)
@@ -1183,15 +1199,15 @@ contains
              !             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
              ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
              IDBURP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-             IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
+             IF ( ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
-                   IF(IDBURP .EQ. IDLND(JID) .AND. &
+                   IF(IDBURP == IDLND(JID) .AND. &
                         obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) THEN
                       call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, &
                            ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 19))
                       call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,obs_notAssimilated)
                       DO J = 1, JPINEL
-                         IF(ITYP .EQ.ILISTEL(J)) THEN
+                         IF(ITYP ==ILISTEL(J)) THEN
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
                          END IF
                       END DO
@@ -1234,8 +1250,11 @@ contains
 
   END SUBROUTINE filt_surfaceWind
 
+  !--------------------------------------------------------------------------
+  ! filt_gpsro
+  !--------------------------------------------------------------------------
   SUBROUTINE FILT_GPSRO(lcolumnhr,lobsSpaceData)
-
+    !!
     !!**s/r FILTERGPSRO - Filter GPSRO observations
     !!                    Guarantee that altitude and observation values are
     !!                    within bounds for further processing
@@ -1256,7 +1275,8 @@ contains
     REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
     LOGICAL LLEV, LOBS, LNOM, LSAT
     !
-    WRITE(*,*)'ENTER FILTERGPSRO'
+    write(*,*)
+    write(*,*) 'filt_gpsro: begin'
     !
     !     Loop over all header indices of the 'RO' family:
     !
@@ -1269,7 +1289,7 @@ contains
        !     *  Process only refractivity data (codtyp 169)
        !
        IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-       IF ( IDATYP .EQ. 169 ) THEN
+       IF ( IDATYP == 169 ) THEN
           gps_numROProfiles=gps_numROProfiles+1
           !
           !     *     Basic geometric variables of the profile:
@@ -1286,7 +1306,7 @@ contains
           IF ( NUMGPSSATS .GE. 1 ) THEN
              LSAT = .FALSE.
              DO I=1,NUMGPSSATS
-                LSAT=( LSAT .OR. (ISAT.EQ.IGPSSAT(I)) )
+                LSAT=( LSAT .OR. (ISAT == IGPSSAT(I)) )
              END DO
           ELSE
              LSAT = .TRUE.
@@ -1303,7 +1323,7 @@ contains
           !     *     Discard low data for METOP/GRAS:
           !
           IF ( NUMGPSSATS .GE. 1 ) THEN
-             IF ( ISAT.EQ.3 .OR. ISAT.EQ.4 .OR. ISAT.EQ.5 ) THEN
+             IF ( ISAT == 3 .OR. ISAT == 4 .OR. ISAT == 5 ) THEN
                 IF (HSF .LT. 10000.d0) HSF=10000.d0
              END IF
           END IF
@@ -1326,7 +1346,7 @@ contains
              !     *        Altitude:
              !
              HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-             IF (LEVELGPSRO.EQ.1) HNH1=HNH1-Rad
+             IF (LEVELGPSRO == 1) HNH1=HNH1-Rad
              !
              !     *        Observation:
              !
@@ -1334,7 +1354,7 @@ contains
              !
              !     *        Reference order of magnitude value:
              !
-             IF (LEVELGPSRO.EQ.1) THEN
+             IF (LEVELGPSRO == 1) THEN
                 ZREF = 0.025d0*exp(-HNH1/6500.d0)
              ELSE
                 ZREF = 300.d0*exp(-HNH1/6500.d0)
@@ -1376,7 +1396,7 @@ contains
           !     *  Process only refractivity data (codtyp 169)
           !
           IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-          IF ( IDATYP .EQ. 169 ) THEN
+          IF ( IDATYP == 169 ) THEN
              iProfile=iProfile+1
              gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
              zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
@@ -1388,31 +1408,22 @@ contains
 
     END IF
 
-    WRITE(*,*)'EXIT FILTERGPSRO'
+    write(*,*) 'filt_gpsro: end'
 
   END SUBROUTINE FILT_GPSRO
 
-  SUBROUTINE filt_topoChm(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Author: Y.J. Rochon Feb 2015
-    !!          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
-    !!            Adapted to chemical constituent data.
-    !!
-    !! Revisions:  M. Sitwell Nov 2015
-    !!             - Removed call to subroutine chm_adj_model_bndry for consistency
-    !!               in the flagging of obs above/below the model done in vobslyrs
-    !!             M. Sitwell Sept 2016
-    !!             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
-    !!               mismatch of number of levels of mantissa and exponent.
+  !--------------------------------------------------------------------------
+  ! filt_topoChemistry
+  !--------------------------------------------------------------------------
+  SUBROUTINE filt_topoChemistry(columnhr,obsSpaceData,beSilent)
     !!
     !! Purpose: Rejects elements which are too far below the model surface
     !!          or above the model top.
     !!
     !! Comments:
-    !!   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
+    !!   - Flagging of bit 4 in OBS_FLG done in filt_topoChemistry instead of set_scale_chm
     !!     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
     !!
-
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1470,7 +1481,7 @@ contains
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
       bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.BUFR_SCALE_EXPONENT) &
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl) == BUFR_SCALE_EXPONENT) &
              nobslev = nobslev-1
       end do
 
@@ -1488,10 +1499,10 @@ contains
         if (bodyIndex < 0) exit BODY
 
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-        if (ivnm.eq.BUFR_SCALE_EXPONENT) cycle BODY
+        if (ivnm == BUFR_SCALE_EXPONENT) cycle BODY
 
         !  Identify element index of constituent ID list for the CH family.
-        if (icount.eq.0) call utl_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
+        if (icount == 0) call utl_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
                               iConstituentList,Num_chm,Nmax,listIndex)
         icount=icount+1
 
@@ -1510,7 +1521,7 @@ contains
             countRejflg(listIndex)=countRejflg(listIndex)+1
             countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
 
-        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1) then
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) then
 
            ! Check as a function of altitude.
 
@@ -1527,7 +1538,7 @@ contains
                countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
            end if 
 
-        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.2) then
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2) then
 
            ! Check as a function of pressure.
 
@@ -1552,7 +1563,7 @@ contains
 
       if (warn_suspicious) then
          call utl_open_asciifile(chm_setup_get_str('message'),unit)
-         write(unit,'(A)') "filt_topoChm: Number of levels mismatch between mantissa and exponent for observation"
+         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
          write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
          write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
@@ -1566,7 +1577,7 @@ contains
     if (Num_stnid_chm.gt.0 .and. .not.beSilent) then
        write(*,*) ' '
        write(*,*) '*****************************************************************'
-       write(*,*) ' SUBROUTINE filt_topoChm '
+       write(*,*) ' filt_topoChemistry: '
        write(*,*) ' FAMILY = CH'
        write(*,222) 'ELEMENTS for CH stnids',(CstnidList_chm(elemIndex),elemIndex=1,Num_stnid_chm)
        write(*,223) 'ACCEPTED for CH stnids',(countAcc_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
@@ -1584,13 +1595,13 @@ contains
        do bodyIndex=1,obs_numbody(obsSpaceData)
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
        end do
-       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
+       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChemistry):",i10)') countAssim
        write(*,*) ' '
     end if
 222 format(2x,a29,100(2x,a10))
 223 format(2x,a29,100(2x,i8,2x))
 224 format(2x,a29,100(2x,i6))
 
-  END SUBROUTINE filt_topoChm
+  END SUBROUTINE filt_topoChemistry
 
 end module obsFilter_mod

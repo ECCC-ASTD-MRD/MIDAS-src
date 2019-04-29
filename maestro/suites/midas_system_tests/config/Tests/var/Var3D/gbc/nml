@@ -40,8 +40,6 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
-!  NELEMS = 1,
-!  NLIST(1)=12001,
   NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,
@@ -65,9 +63,13 @@
   NLISTFLG(3)=5,
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
-  LTOPOFILT=.TRUE.,
+  list_topoFilt(1) = 'SF'
+  list_topoFilt(2) = 'UA'	
+  list_topoFilt(3) = 'AI'
+  list_topoFilt(4) = 'SW'
+  list_topoFilt(5) = 'PR'
+  list_topoFilt(6) = 'TO'
   RLIMLVHU=70.D0,
-/
 /
  &NAMSTATE
    AddGZSfcOffset = .false.
