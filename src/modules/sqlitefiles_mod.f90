@@ -48,7 +48,7 @@ module sqliteFiles_mod
     integer                      :: dateStamp
     character(len=*), intent(in) :: sqliteFileName
     ! locals
-    logical             :: isExistLogical 
+    logical             :: fileExists 
     integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
     integer             :: inrecs, mrfopc, dateSqlite , timeSqlite
     real(8)             :: delhh
@@ -60,9 +60,9 @@ module sqliteFiles_mod
     ivals = 8
     kdate = MPC_missingValue_INT 
     ktime = MPC_missingValue_INT 
-    inquire(file = trim(sqliteFileName), exist = isExistLogical )
+    inquire(file = trim(sqliteFileName), exist = fileExists )
 
-    if ( isExistLogical ) then
+    if ( fileExists ) then
       write(*,*)' Open File : ', trim(sqliteFileName)
       call fSQL_open( db, trim(sqliteFileName), statusSqlite )
       querySqlite = "select date from resume;"
