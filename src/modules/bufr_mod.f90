@@ -71,12 +71,14 @@ module bufr_mod
  integer, parameter :: BUFR_NEAL=40030 ! aladin HLOS wind
  integer, parameter :: BUFR_NEDWDP=40032 ! derivative of HLOS wrt P
  integer, parameter :: BUFR_NEDWDT=40033 ! derivative of HLOS wrt T
- integer, parameter :: BUFR_NEDW=11200 ! Doppler wind 
+ integer, parameter :: BUFR_NEDW=11200 ! Doppler wind
  integer, parameter :: bufr_sst =22042
  integer, parameter :: bufr_soz =07025
- integer, parameter :: BUFR_ICEC=20237
- integer, parameter :: bufr_vis =20001 
- integer, parameter :: bufr_gust=11041 
+ integer, parameter :: BUFR_ICEC=20237 ! concentration (%) from ice charts
+ integer, parameter :: BUFR_ICEP=20222 ! concentration (%) from passive microwave retrievals
+ integer, parameter :: BUFR_ICEV=21169 ! presence of ice retrieval from Vis/IR
+ integer, parameter :: bufr_vis =20001
+ integer, parameter :: bufr_gust=11041
 
  !
  ! Table C-14: (for Code Table 08046)
