@@ -37,8 +37,13 @@
   NLISTFLG(3)=5,
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
-  LTOPOFILT=.TRUE.,
   RLIMLVHU=70.D0,
+  list_topoFilt(1) = 'SF'
+  list_topoFilt(2) = 'UA'	
+  list_topoFilt(3) = 'AI'
+  list_topoFilt(4) = 'SW'
+  list_topoFilt(5) = 'PR'
+  list_topoFilt(6) = 'TO'
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.
