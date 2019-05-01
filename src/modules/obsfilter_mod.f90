@@ -174,7 +174,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replaced ltopofilt by list_topoFilt?')
     if(mpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
