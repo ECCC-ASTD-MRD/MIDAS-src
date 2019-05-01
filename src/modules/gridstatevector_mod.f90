@@ -1487,21 +1487,18 @@ module gridStateVector_mod
       end if
 
     else if ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 8 ) then
-
-      if ( trim(gsvCopyType) == 'kIndex' ) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,stepIn)
-        do kIndex = k1, k2
-          do stepIndex = step1, step2
-            if (present(stepIndexOut_opt)) then
-              stepIn = 1
-            else
-              stepIn = stepIndex
-            end if
-            do latIndex = lat1, lat2
-              do lonIndex = lon1, lon2
-                statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndex) =  &
-                  real(statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIn),4)
-              end do
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,stepIn)
+      do kIndex = k1, k2
+        do stepIndex = step1, step2
+          if (present(stepIndexOut_opt)) then
+            stepIn = 1
+          else
+            stepIn = stepIndex
+          end if
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndex) =  &
+                real(statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIn),4)
             end do
           end do
         end do
@@ -2628,6 +2625,8 @@ module gridStateVector_mod
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
     else if ( .not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local ) then
+             readGZsfc, containsFullField)
+    else if ( .not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local  .and. statevector_out%mpi_distribution=='Tiles' ) then
       call gsv_readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)

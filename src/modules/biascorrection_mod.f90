@@ -44,7 +44,7 @@ MODULE biasCorrection_mod
 
   public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize, bias_cvToCoeff
   public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection
-  public               :: bias_doRegression, bias_do_regression
+  public               :: bias_doRegression, bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -55,7 +55,7 @@ MODULE biasCorrection_mod
     real(8),allocatable  :: coeffIncr(:)
     real(8),allocatable  :: coeff_fov(:)
     real(8),allocatable  :: coeff_offset(:)
-!    integer   :: coeff_nobs
+    integer   :: coeff_nobs
     real(8),allocatable  :: coeffIncr_fov(:)
     real(8),allocatable  :: stddev(:)
   end type struct_chaninfo
@@ -86,18 +86,19 @@ MODULE biasCorrection_mod
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   character (len=5)     :: biasMode
-  logical  :: lvarbc
+  logical  :: lvarbc, loutstats
   logical  :: doRegression, bias_doRegression
-  logical  :: lMimicSatbcor, lweightedEstimate
+  logical  :: lMimicSatbcor, lweightedEstimate, filterObs
   real(8)  :: bg_stddev(NumPredictors),predScalingFactor(NumPredictors),predOffset(NumPredictors)
   real(8)  :: scanBiasCorLength 
-  logical  :: removeBiasCorrection, refreshBiasCorrection
+  logical  :: removeBiasCorrection, refreshBiasCorrection, centerPredictors
   character (len=3) :: cglobal(25)
   character (len=7) :: cinst(25)
   integer :: nbscan(25)
+  integer, external            :: fnom,fclos 
   namelist /nambias/ lvarbc,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
-  namelist /nambias/ doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
-  namelist /nambias/ cglobal, cinst, nbscan 
+  namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
+  namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats
 CONTAINS
  
   !-----------------------------------------------------------------------
@@ -110,9 +111,7 @@ CONTAINS
     integer  :: iSensor, iPredictor, instIndex
     integer  :: iChan
     integer  :: ierr,nulnam
-    integer  :: fnom,fclos
     integer  :: iPred,jPred, kPred,iScan1, iScan2, myNbScan
-!    integer  :: maxcol,mincol,nbcol
     integer  :: idNum(tvs_nSensors,NumPredictors)
     character(len=85)  :: filecoeff
     character(len=85)  :: bcifFile
@@ -127,9 +126,9 @@ CONTAINS
 
 !bcifFile, ncan, can, bcmode, bctype, npred, pred, "NON", exitcode
     character(len=2)   :: predBCIF(maxnumchannels,numpredictors)
-    integer            :: canBCIF(maxnumchannels), npredBCIF(maxnumchannels), ncanBcif, npredictors
+    integer                    :: canBCIF(maxnumchannels), npredBCIF(maxnumchannels), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(maxnumchannels), bctypeBCIF(maxnumchannels)
-    character(len=10)  :: sats(tvs_nSensors)    ! satellite names
+    character(len=10) :: sats(tvs_nSensors)    ! satellite names
     character(len=7)   :: cinstrum   ! string: instrument (e.g. AMSUB)
     character(len=3)   :: global 
     real(8),allocatable :: Bmatrix(:,:)
@@ -141,7 +140,9 @@ CONTAINS
     bg_stddev(:) = 0.0d0
 
     removeBiasCorrection = .false.
+    filterObs = .false.
     refreshBiasCorrection = .false.
+    centerPredictors = .false.
     doRegression = .false.
     lMimicSatbcor = .true.
     scanBiasCorLength = -1.d0
@@ -149,9 +150,8 @@ CONTAINS
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
+    loutstats = .false.
     ! read in the namelist NAMBIAS
-    Write(*,*) "Before reading namelist nambias"
-    write(*,nml=nambias)
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambias,iostat=ierr)
@@ -173,7 +173,7 @@ CONTAINS
 
       do iSensor = 1, tvs_nSensors
 
-        Write(*,*) "iSensor = ",iSensor
+        write(*,*) "iSensor = ",iSensor
        
         instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
@@ -190,9 +190,9 @@ CONTAINS
           end if
         end do
         if ( myNbScan == -1) then
-          Write(*,*) "Problem with instrName ",instrNamecoeff
-          Write(*,'(15(A10,1x))')  cinst(:)
-          Write(*,*) "check nambias namelist"
+          write(*,*) "Problem with instrName ",instrNamecoeff
+          write(*,'(15(A10,1x))')  cinst(:)
+          write(*,*) "check nambias namelist"
           call utl_abort('bias_setup')
         end if
 
@@ -204,7 +204,7 @@ CONTAINS
                canBCIF, bcmodeBCIF, bctypeBCIF, npredBCIF, predBCIF, global, exitcode)
 
           if (exitcode /= 0) then
-            Write(*,*) "Problem in read_bcif while reading ",bcifFile
+            write(*,*) "Problem in read_bcif while reading ",bcifFile
             call utl_abort('bias_setup')
           end if
 
@@ -214,7 +214,7 @@ CONTAINS
           
           do ichan=1, ncanBcif 
             bias(iSensor) % chans(ichan) % channelNum = canBCIF(ichan + 1) 
-!            bias(iSensor) % chans(ichan) % coeff_nobs = 0
+            bias(iSensor) % chans(ichan) % coeff_nobs = 0
             bias(iSensor) % chans(ichan) %isDynamic = ( (biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
             npredictors =  1 + npredBCIF(ichan + 1)
             bias(iSensor) % chans(ichan) % numActivePredictors = npredictors
@@ -226,6 +226,7 @@ CONTAINS
             bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
+
             bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
             jPred = 1
             do ipred = 1, npredBCIF(ichan + 1)
@@ -242,14 +243,14 @@ CONTAINS
               case('SV')
                 kpred = 6
               case default
-                Write(*,*) "Unknown predictor ",predBCIF(ichan+1,ipred),ichan,ipred
+                write(*,*) "Unknown predictor ",predBCIF(ichan+1,ipred),ichan,ipred
                 call utl_abort('bias_setup')
               end select
               bias(iSensor)%chans(ichan)% predictorIndex(jPred) = kpred
             end do
           end do
         else
-          Write(*,*) "Error : ", trim(bcifFile) , " not present !"
+          write(*,*) "Error : ", trim(bcifFile) , " not present !"
           call utl_abort('bias_setup')
         end if
  
@@ -273,7 +274,7 @@ CONTAINS
             end do
           end do
         else
-          Write(*,*) "Error : ", trim(filecoeff) , " not present !"
+          write(*,*) "Error : ", trim(filecoeff) , " not present !"
           call utl_abort('bias_setup')
         end if
 
@@ -285,15 +286,16 @@ CONTAINS
           end if
         end do
 
-        !change dimension of control vector
-        do iSat = 1, nsat             
-          if ( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle 
-          do  ichan=1, ncanBcif
-            if  (bias(iSensor)% chans(ichan) % isDynamic) &
-                 cvdim = cvdim + bias(iSensor)% chans(ichan) % numActivePredictors - 1 + bias(iSensor)%numScan
+        if  ( trim(biasMode) == "varbc" ) then
+          !change dimension of control vector
+          do iSat = 1, nsat             
+            if ( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle 
+            do  ichan=1, ncanBcif
+              if  (bias(iSensor)% chans(ichan) % isDynamic) &
+                   cvdim = cvdim + bias(iSensor)% chans(ichan) % numActivePredictors - 1 + bias(iSensor)%numScan
+            end do
           end do
-        end do
-        
+        end if
 
         if (allocated(Bmatrix)) then
           if (scanBiasCorLength > 0.d0) then
@@ -320,14 +322,126 @@ CONTAINS
       end do
 
     end if
-    
-    if ( cvdim > 0 ) then
+
+    if  ( trim(biasMode) == "varbc"  .and.  cvdim > 0 ) then
       if ( mpi_myid > 0 ) cvdim = 0 ! for minimization, all coefficients only on task 0
       call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
 
   end subroutine bias_setup
 
+  subroutine bias_computePredictorBiases(obsSpaceData)
+    type(struct_obs),intent(inout)  :: obsSpaceData
+
+    real(8)  :: predictor(NumPredictors)
+    integer :: iobs,iChannel,nsize,i,j,npred
+    integer :: headerIndex, idatyp, indxtovs
+    integer :: iSensor,iFov,iPredictor,ierr
+    integer :: bodyIndex, jpred, chanIndx
+    real(8),allocatable ::  temp_offset(:,:)
+    integer,allocatable ::  temp_nobs(:)
+    real(8),allocatable ::  temp_offset2(:,:,:)
+    integer,allocatable ::  temp_nobs2(:,:)
+
+    if (centerPredictors) then
+      write(*,*) "Entering  bias_computePredictorBiases"
+      npred = 0
+      do iSensor=1, tvs_nSensors
+        npred = max(npred,maxval(bias(iSensor)%chans(:)%numActivePredictors))
+      end do
+      allocate( temp_offset2( tvs_nsensors, maxval(bias(:)%numChannels), 2:npred ) )
+      allocate( temp_nobs2( tvs_nsensors, maxval(bias(:)%numChannels)) )
+      temp_offset2(:,:,:) = 0.d0
+      temp_nobs2(:,:) = 0
+
+      call obs_set_current_header_list(obsSpaceData,'TO')
+      iobs = 0
+      HEADER: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER
+
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+        if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
+      
+        indxtovs = tvs_ltovsno(headerIndex)
+        if ( indxtovs == 0 ) then
+          call utl_abort('bias_computePredictorBiases')
+        end if
+
+        iobs = iobs + 1
+        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
+
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if ( bodyIndex < 0 ) exit BODY
+
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY   
+
+          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          if (chanindx > 0) then
+            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
+              jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
+              temp_offset2(iSensor,chanIndx,iPredictor) =  temp_offset2(iSensor,chanIndx,iPredictor) + predictor(jPred)
+            end do
+            temp_nobs2(iSensor,chanIndx) =  temp_nobs2(iSensor,chanIndx) + 1
+          end if
+        end do BODY
+      end do HEADER
+
+      allocate( temp_offset(maxval(bias(:)%numChannels), 2:npred))
+      allocate( temp_nobs( maxval(bias(:)%numChannels) ) )
+
+      do iSensor =1,tvs_nSensors 
+        temp_offset(:,:) = 0.0d0
+        nsize=size( temp_offset )
+        call rpn_comm_allreduce(temp_offset2(iSensor,:,:),temp_offset(:,:),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+        if ( ierr /= 0) then
+          write(*,*) "Erreur de communication MPI 1"
+          call utl_abort('bias_computePredictorBiases')
+        end if
+       
+        do i=1, bias(iSensor)%numChannels
+          do j=2,bias(iSensor)%chans(i)%numActivePredictors
+            bias(iSensor)%chans(i)%coeff_offset(j) = temp_offset(i,j)
+          end do
+        end do
+
+        temp_nobs(:) = 0
+        nsize=size( temp_nobs )
+        call rpn_comm_allreduce(temp_nobs2(iSensor,:),temp_nobs,nsize,"mpi_integer","mpi_sum","GRID",ierr)
+        if ( ierr /= 0) then
+          write(*,*) "Erreur de communication MPI 2"
+          call utl_abort('bias_computePredictorBiases')
+        end if
+
+       
+        do i=1, bias(iSensor)%numChannels
+          bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
+        end do
+        
+        do i=1, bias(iSensor)%numChannels
+          if (bias(iSensor)%chans(i)%coeff_nobs > 0) then
+            bias(iSensor)%chans(i)%coeff_offset(:) = bias(iSensor)%chans(i)%coeff_offset / bias(iSensor)%chans(i)%coeff_nobs
+          end if
+        end do
+
+      end do
+
+      deallocate( temp_offset )
+      deallocate( temp_nobs )
+      deallocate( temp_offset2 )
+      deallocate( temp_nobs2 )
+
+      write(*,*) "Exiting  bias_computePredictorBiases"
+    end if
+   
+
+  end subroutine bias_computePredictorBiases
 
 
   !---------------------------------------
@@ -340,7 +454,7 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
     type(struct_columnData) :: columnhr
 
-    integer  :: index_header,index_body,iobs, indxtovs, idatyp
+    integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,index_cv,chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -348,66 +462,216 @@ CONTAINS
 
     if ( .not. lvarbc ) return
 
+    write(*,*) "Entering bias_calcBias"
+
     if ( .not. allocated(trialHeight300m1000) ) then
       call bias_getTrialPredictors(obsSpaceData,columnhr)
 !      call bias_calcMeanPredictors(obsSpaceData)
     end if
 
-    ! apply bias increment to specified obs column
     iobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
 
       ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-      indxtovs = tvs_ltovsno(index_header)
+      indxtovs = tvs_ltovsno(headerIndex)
       if ( indxtovs == 0 ) then
         call utl_abort('bias_calcBias')
       end if
 
       iobs = iobs + 1
-      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+      iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
 
-      call obs_set_current_body_list(obsSpaceData, index_header)
-      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
+
+      if ( bias(iSensor)%numScan > 1 ) then
+        iScan = iFov
+      else
+        iScan = 1
+      end if
+
 
       BODY: do
-        index_body = obs_getBodyIndex(obsSpaceData)
-        if ( index_body < 0 ) exit BODY
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY   
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY   
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,index_body)
+        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
         if (chanindx > 0) then
-          call bias_getPredictors(predictor,index_header,iobs,chanindx,obsSpaceData)
           biasCor = 0.0d0
-          do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
-            jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
-            if ( iPredictor == 1 ) then
-              if ( bias(iSensor)%numScan > 1 ) then
-                iScan = iFov
-              else
-                iScan = 1
-              end if
-              biasCor = biasCor + bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                   bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
-            else
-              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
+          if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
+            call bias_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
+                 bias(iSensor)%chans(chanIndx)%coeff(1) 
+            if (iSensor ==1 .and. chanIndx==36) then
+              Write(*,*) "XX",biasCor,bias(iSensor)%chans(chanIndx)%coeff_fov(iScan), bias(iSensor)%chans(chanIndx)%coeff(1)
             end if
-          end do
+            do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
+              jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
+              biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
+              if (iSensor ==1 .and. chanIndx==36) then
+                Write(*,*) "YY",jpred,biasCor,predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
+              end if
+            end do
+          end if
 
           biasCor = -1.d0 * biascor
 
-          call obs_bodySet_r( obsSpaceData, OBS_BCOR, index_body, biasCor)
+          call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
+
         end if
       end do BODY
     end do HEADER
 
+    write(*,*) "Exiting bias_calcBias"
+
   end subroutine bias_calcBias
+
+
+  !---------------------------------------
+  ! bias_computeStatistics
+  ! compute residuals mean and standard deviation by intrument, channel and scan position 
+  !---------------------------------------- 
+  subroutine bias_computeResidualsStatistics(obsSpaceData,prefix)
+    implicit none
+
+    type(struct_obs)  :: obsSpaceData
+    character (len=*) :: prefix
+    real(8),allocatable :: tbias(:,:),tstd(:,:)
+    integer,allocatable :: tcount(:,:)
+    real(8),allocatable :: biasMpiGlobal(:,:),stdMpiGLobal(:,:)
+    integer,allocatable :: countMpiGlobal(:,:)
+    integer :: sensorIndex, headerIndex, bodyIndex
+    integer :: nchans, nscan
+    integer :: iSensor, iScan, chanIndx, iFov
+    real(8)  ::  OmF, bcor
+    integer :: ierr,nulfile1,nulfile2
+    character (len=10) :: instrName,satNamecoeff
+
+
+    if ( .not. lvarbc ) return
+
+    if (.not. loutstats) return
+
+    write(*,*) "Entering bias_computeResidualsStatistics"
+
+
+    SENSORS:do sensorIndex = 1, tvs_nsensors
+
+      if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
+
+      write(*,*) " sensorIndex ",  sensorIndex
+
+      nchans = bias(sensorIndex)%numChannels
+      nscan   = bias(sensorIndex)% numscan
+     
+      allocate(tbias(nchans,nscan) )
+      tbias(:,:) = 0.d0
+      allocate( tstd(nchans,nscan) )
+      tstd(:,:) = 0.d0
+      allocate( tcount(nchans,nscan) )
+      tcount(:,:) = 0
+
+      call obs_set_current_header_list(obsSpaceData,'TO')
+
+      HEADER: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER
+
+        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        if (iSensor /= sensorIndex) cycle HEADER
+          
+        iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
+        if ( nscan > 1 ) then
+          iScan = iFov
+        else
+          iScan = 1
+        end if
+
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if ( bodyIndex < 0 ) exit BODY
+          
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY 
+          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          if (chanindx > 0) then
+            OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+            bcor =  obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
+            tbias(chanIndx,iScan) = tbias(chanIndx,iScan) + ( OmF + bcor )
+            tstd(chanIndx,iScan) = tstd(chanIndx,iScan) + ( OmF + bcor ) ** 2
+            tcount(chanIndx,iScan) =  tcount(chanIndx,iScan) + 1
+          end if
+        end do BODY
+      end do HEADER
+
+      allocate( biasMpiGlobal(nchans,nscan) )
+      allocate( stdMpiGlobal(nchans,nscan) )
+      allocate( countMpiGlobal(nchans,nscan) )
+
+      call RPN_COMM_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 1",  ierr 
+        call utl_abort("bias_computeResidualsStatistics")
+      end if
+
+      call RPN_COMM_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 2",  ierr 
+        call utl_abort("bias_computeResidualsStatistics")
+      end if
+
+      call RPN_COMM_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 3",  ierr 
+        call utl_abort("bias_computeResidualsStatistics")
+      end if
+
+      if ( mpi_myId == 0 ) then
+        where( countMpiGlobal > 0 ) 
+          biasMpiGlobal = biasMpiGlobal / countMpiGlobal
+          stdMpiGlobal = sqrt( stdMpiGlobal/ countMpiGlobal  - biasMpiGlobal**2)
+        end where
+      
+        instrName = InstrNametoCoeffFileName(tvs_instrumentName(sensorIndex))
+        satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(sensorIndex)) 
+
+        nulfile1 = 0
+        ierr = fnom(nulfile1, './std_' // trim(instrName) // '_' // trim(satNamecoeff) // trim(prefix) // '.dat', 'FTN+FMT',0)
+        nulfile2 = 0
+        ierr = fnom(nulfile2, './mean_' // trim(instrName) // '_' // trim(satNamecoeff) // trim(prefix) // '.dat', 'FTN+FMT',0)
+
+        do chanIndx=1, nchans
+          if ( sum( countMpiGlobal(chanIndx,:)) > 0 ) then
+            write(nulfile2,'(i4,1x,100e14.6)') chanIndx,  biasMpiGlobal(chanindx,:)
+            write(nulfile1,'(i4,1x,100e14.6)') chanIndx,  stdMpiGlobal(chanindx,:)
+          end if
+        end do
+        ierr = fclos(nulfile1)
+        ierr = fclos(nulfile2)
+       
+      end if
+
+      deallocate( biasMpiGlobal )
+      deallocate( stdMpiGlobal )
+      deallocate( countMpiGlobal )
+
+      deallocate(tbias)
+      deallocate( tstd )
+      deallocate( tcount )
+ 
+    end do SENSORS
+
+    write(*,*) "Exiting bias_computeResidualsStatistics"
+    
+  end subroutine bias_computeResidualsStatistics
 
 
   !---------------------------------------
@@ -421,7 +685,7 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
     type(struct_columnData) :: columnhr
 
-    integer  :: index_header,index_body,iobs, indxtovs, idatyp
+    integer  :: headerIndex,bodyIndex,iobs, indxtovs, idatyp
     integer  :: iSensor,iPredictor,index_cv,chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -434,6 +698,7 @@ CONTAINS
     if ( .not. allocated(trialHeight300m1000) ) then
       call bias_getTrialPredictors(obsSpaceData,columnhr)
 !      call bias_calcMeanPredictors(obsSpaceData)
+      call bias_computePredictorBiases(obsSpaceData)
       call bias_getRadiosondeWeight(obsSpaceData, lmodify_obserror_opt=.true.)
     end if
 
@@ -457,37 +722,38 @@ CONTAINS
     iobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
 
       ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-      indxtovs = tvs_tovsIndex(index_header)
+      indxtovs = tvs_tovsIndex(headerIndex)
+
       if ( indxtovs == 0 ) then
         call utl_abort('bias_calcBias_tl')
       end if
 
       iobs = iobs + 1
 
-      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
-      call obs_set_current_body_list(obsSpaceData, index_header)
-      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
 
       BODY: do
-        index_body = obs_getBodyIndex(obsSpaceData)
-        if ( index_body < 0 ) exit BODY
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= obs_assimilated ) cycle BODY   
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY   
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,index_body)
+        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
 
         if (chanindx > 0) then
           biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bias_getPredictors(predictor,index_header,iobs,chanindx,obsSpaceData)
+            call bias_getPredictors(predictor,headerIndex,iobs,chanindx,obsSpaceData)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if ( iPredictor == 1 ) then
@@ -502,8 +768,8 @@ CONTAINS
               end if
             end do
           end if
-          call obs_bodySet_r( obsSpaceData, obsColumnIndex, index_body, &
-               obs_bodyElem_r(obsSpaceData,obsColumnIndex,index_body) - biasCor)
+          call obs_bodySet_r( obsSpaceData, obsColumnIndex, bodyIndex, &
+               obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex) - biasCor)
         end if
       end do BODY
     end do HEADER
@@ -519,16 +785,16 @@ CONTAINS
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs)  :: obsSpaceData
-    integer  :: index_header, idatyp, nobs
+    integer  :: headerIndex, idatyp, nobs
     real(8)  :: height1, height2
- 
+
     ! count number of tovs locations
     nobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER 
       nobs = nobs + 1
     end do HEADER
@@ -550,33 +816,34 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
 
     HEADER2: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER2
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER2
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER2 
       nobs = nobs + 1
 
-      height1 = logInterpHeight(columnhr,index_header,1000.d0)
-      height2 = logInterpHeight(columnhr,index_header,300.d0)
+      height1 = logInterpHeight(columnhr,headerIndex,1000.d0)
+      height2 = logInterpHeight(columnhr,headerIndex,300.d0)
       
       trialHeight300m1000(nobs) = height2 - height1
 
-      height1 = logInterpHeight(columnhr,index_header,200.d0)
-      height2 = logInterpHeight(columnhr,index_header,50.d0)
+      height1 = logInterpHeight(columnhr,headerIndex,200.d0)
+      height2 = logInterpHeight(columnhr,headerIndex,50.d0)
 
       trialHeight50m200(nobs) = height2 - height1
 
       height1 = height2
-      height2 = logInterpHeight(columnhr,index_header,5.d0)
+      height2 = logInterpHeight(columnhr,headerIndex,5.d0)
 
       trialHeight5m50(nobs) = height2 - height1
 
-      height1 = logInterpHeight(columnhr,index_header,10.d0)
-      height2 = logInterpHeight(columnhr,index_header,1.d0)
+      height1 = logInterpHeight(columnhr,headerIndex,10.d0)
+      height2 = logInterpHeight(columnhr,headerIndex,1.d0)
 
       trialHeight1m10(nobs) = height2 - height1
 
-      trialTG(nobs) = col_getElem(columnhr,1,index_header,'TG')
+
+      trialTG(nobs) = col_getElem(columnhr,1,headerIndex,'TG')
 
     end do HEADER2
 
@@ -585,7 +852,7 @@ CONTAINS
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
-    trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion from to
+    trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion factor
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
@@ -604,14 +871,14 @@ CONTAINS
       real(8) :: zpt, zpb, zwt, zwb
       real(8),pointer :: col_ptr(:)
 
-      IK = 1
-      nlev = COL_GETNUMLEV(COLUMNHR,'TH')
-      do JK = 2,NLEV - 1
-        ZPT = col_getPressure(COLUMNHR,JK,headerIndex,'TH')* MPC_MBAR_PER_PA_R8
-        if( P > ZPT ) IK = JK
+      ik = 1
+      nlev = col_getNumLev(COLUMNHR,'TH')
+      do jk = 2,NLEV - 1
+        ZPT = col_getPressure(COLUMNHR,jk,headerIndex,'TH')* MPC_MBAR_PER_PA_R8
+        if( P > ZPT ) ik = jk
       end do
-      ZPT = col_getPressure(COLUMNHR,IK,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
-      ZPB = col_getPressure(COLUMNHR,IK+1,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+      ZPT = col_getPressure(COLUMNHR,ik,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+      ZPB = col_getPressure(COLUMNHR,ik+1,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
 
       zwb  = log(p/zpt) / log(zpb/zpt)
       zwt  = 1.d0 - zwb
@@ -701,11 +968,11 @@ CONTAINS
   !-----------------------------------
   ! bias_getPredictors
   !---------------------------------- 
-   subroutine bias_getPredictors(predictor,index_header,index_obs,chanindx,obsSpaceData)
+   subroutine bias_getPredictors(predictor,headerIndex,index_obs,chanindx,obsSpaceData)
     implicit none
 
     real(8),intent(out)  :: predictor(NumPredictors)
-    integer,intent(in)  :: index_header,index_obs,chanindx
+    integer,intent(in)  :: headerIndex,index_obs,chanindx
     type(struct_obs),intent(inout)  :: obsSpaceData
 
     integer  :: iSensor, iPredictor, jPredictor
@@ -734,13 +1001,12 @@ CONTAINS
 !        predictor(iPredictor) = trialTG(index_obs)
       else if ( iPredictor == 6 ) then
         ! SV secant of satellite zenith angle minus one
-        predictor(iPredictor) = (1.d0/cos((0.01d0*obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-90.) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+        predictor(iPredictor) = (1.d0/cos((0.01d0*obs_headElem_i(obsSpaceData,OBS_SZA,headerIndex)-90.) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
       end if
 
     end do
 
-    iSensor = tvs_lsensor(tvs_ltovsno(index_header))
-
+    iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
     do  iPredictor = 1,  bias(iSensor)%chans(chanIndx)%numActivePredictors
       jPredictor = bias(iSensor)%chans(chanIndx)%predictorIndex(iPredictor)
       predictor(jPredictor) =  predictor(jPredictor) - bias(iSensor)%chans(chanindx)%coeff_offset(iPredictor)
@@ -754,7 +1020,7 @@ CONTAINS
 !  subroutine bias_calcMeanPredictors(obsSpaceData)
 !    implicit none
 !    type(struct_obs)  :: obsSpaceData
-!    integer  :: index_header,iobs,idatyp,index_body
+!    integer  :: headerIndex,iobs,idatyp,bodyIndex
 !    integer  :: iSensor,iPredictor
 !    integer  :: countObs(NumPredictors)
 !    real(8)  :: meanAbsPredictors(NumPredictors)
@@ -771,16 +1037,18 @@ CONTAINS
 !    iobs = 0
 !    call obs_set_current_header_list(obsSpaceData,'TO')
 !    HEADER: do
-!      index_header = obs_getHeaderIndex(obsSpaceData)
-!      if ( index_header < 0 ) exit HEADER
-!      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+!      headerIndex = obs_getHeaderIndex(obsSpaceData)
+!      if ( headerIndex < 0 ) exit HEADER
+!      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 !      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
 !      iobs = iobs + 1
-!      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+!      iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
 !      BODY: do
-!        index_body = obs_getBodyIndex(obsSpaceData)
-!        if ( index_body < 0 ) exit BODY
-!        call bias_getPredictors(predictor,index_header,iobs,index_body,obsSpaceData)
+!        bodyIndex = obs_getBodyIndex(obsSpaceData)
+!        if ( bodyIndex < 0 ) exit BODY
+!
+!        call bias_getPredictors(predictor,headerIndex,iobs,bodyIndex,obsSpaceData)
+!
 !        do iPredictor = 2, bias(iSensor)%chans(1)%NumActivePredictors
 !          minPredictors(iPredictor) = min(minPredictors(iPredictor),predictor(bias(iSensor)%chans(1)%predictorIndex(iPredictor)))
 !          maxPredictors(iPredictor) = max(maxPredictors(iPredictor),predictor(bias(iSensor)%chans(1)%predictorIndex(iPredictor)))
@@ -809,7 +1077,7 @@ CONTAINS
     integer,intent(in)  :: obsColumnIndex
     type(struct_obs)  :: obsSpaceData
 
-    integer  :: index_header,index_body,iobs, idatyp
+    integer  :: headerIndex,bodyIndex,iobs, idatyp
     integer  :: iSensor,iChannel,iPredictor,index_cv,nsize,ierr,chanIndx
     integer  :: iScan, iFOV, jPred
     real(8)  :: predictor(NumPredictors)
@@ -848,30 +1116,30 @@ CONTAINS
     iobs = 0
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if ( index_header < 0 ) exit HEADER
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
 
       iobs = iobs + 1
-      if ( tvs_tovsIndex(index_header) < 0) cycle HEADER
-      iSensor = tvs_lsensor(tvs_tovsIndex(index_header))
+      if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER
+      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
-      call obs_set_current_body_list(obsSpaceData, index_header)
-      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
 
       BODY: do
-        index_body = obs_getBodyIndex(obsSpaceData)
-        if ( index_body < 0 ) exit BODY
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /=  obs_assimilated ) cycle BODY
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
 
-        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,index_body)
+        call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
 
         if (chanindx > 0) then
           if (bias(iSensor)%chans(chanIndx)%isDynamic) then
-            call bias_getPredictors(predictor,index_header,iobs,chanIndx,obsSpaceData)
-            biasCor = obs_bodyElem_r(obsSpaceData,obsColumnIndex,index_body)
+            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            biasCor = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if ( jPred == 1 ) then
@@ -1027,8 +1295,6 @@ CONTAINS
       call bias_cvToCoeff(cv_bias)
     end if
 
-    if ( mpi_myid /= 0 ) return 
-
     ! apply transformation to account for predictor offset
 
     do iSensor = 1, tvs_nSensors
@@ -1045,55 +1311,61 @@ CONTAINS
               end do
             end if
           end do
-          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0) Write(*,*) "zbias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
+          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0)  &
+               Write(*,*) "zbias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
     end do
    
-    ! write out bias coefficient increments in ascii file
-    nulfile_inc = 0
-    ierr = fnom(nulfile_inc,'./satbias_increment.dat','FTN+FMT',0)
 
-    do iSensor = 1, tvs_nSensors
-      write(nulfile_inc,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
-           iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
-      if (bias(iSensor)%numScan > 0) then
-        do iChannel = 1, bias(iSensor)%numChannels
-          if (bias(iSensor)%chans(iChannel)%isDynamic) then
-            iChannel2 = bias(iSensor)%chans(iChannel)%channelNum
-            if ( sum(bias(iSensor)%chans(iChannel)%coeffIncr(:)) /= 0.0d0 ) &
-                 write(nulfile_inc,'(3X,"Channel number=",I4)') iChannel2
-            do iPredictor = 2, bias(iSensor)%chans(iChannel)%numActivePredictors
-              if ( bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor) /= 0.0d0 ) &
-                   write(nulfile_inc,'(5X,"Predictor number=",I4,", Coefficient=",e12.4)') &
-                   iPredictor,bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor)
-            end do
-          end if
-        end do
-      end if
-    end do
+    if (.not. doRegression .and. mpi_myId==0) then
 
-    ierr = fclos(nulfile_inc)
+      ! write out bias coefficient increments in ascii file
+      nulfile_inc = 0
+      ierr = fnom(nulfile_inc,'./satbias_increment.dat','FTN+FMT',0)
 
-    ! write out fovbias coefficient increments in ascii file
-    nulfile_fov = 0
-    ierr = fnom(nulfile_fov,'./fovbias_incre.dat','FTN+FMT',0)
-    do iSensor = 1, tvs_nSensors
-      write(nulfile_fov,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
-           iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
-      if (bias(iSensor)%numScan > 0) then
-        do iChannel = 1, bias(iSensor)%numChannels
-          if (bias(iSensor)%chans(iChannel)%isDynamic) then
-            iChannel2 =  bias(iSensor)%chans(iChannel)%channelNum
-            if ( sum(bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)) /= 0.0d0 ) then
-              write(nulfile_fov,'(3X,"Channel number=",I4)') iChannel2 
-              write(nulfile_fov,*) bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)
+      do iSensor = 1, tvs_nSensors
+        write(nulfile_inc,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
+             iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
+        if (bias(iSensor)%numScan > 0) then
+          do iChannel = 1, bias(iSensor)%numChannels
+            if (bias(iSensor)%chans(iChannel)%isDynamic) then
+              iChannel2 = bias(iSensor)%chans(iChannel)%channelNum
+              if ( sum(bias(iSensor)%chans(iChannel)%coeffIncr(:)) /= 0.0d0 ) &
+                   write(nulfile_inc,'(3X,"Channel number=",I4)') iChannel2
+              do iPredictor = 2, bias(iSensor)%chans(iChannel)%numActivePredictors
+                if ( bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor) /= 0.0d0 ) &
+                     write(nulfile_inc,'(5X,"Predictor number=",I4,", Coefficient=",e12.4)') &
+                     iPredictor,bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor)
+              end do
             end if
-          end if
-        end do
-      end if
-    end do
-    ierr = fclos(nulfile_fov)
+          end do
+        end if
+      end do
+
+      ierr = fclos(nulfile_inc)
+
+      ! write out fovbias coefficient increments in ascii file
+      nulfile_fov = 0
+      ierr = fnom(nulfile_fov,'./fovbias_incre.dat','FTN+FMT',0)
+      do iSensor = 1, tvs_nSensors
+        write(nulfile_fov,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
+             iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
+        if (bias(iSensor)%numScan > 0) then
+          do iChannel = 1, bias(iSensor)%numChannels
+            if (bias(iSensor)%chans(iChannel)%isDynamic) then
+              iChannel2 =  bias(iSensor)%chans(iChannel)%channelNum
+              if ( sum(bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)) /= 0.0d0 ) then
+                write(nulfile_fov,'(3X,"Channel number=",I4)') iChannel2 
+                write(nulfile_fov,*) bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)
+              end if
+            end if
+          end do
+        end if
+      end do
+      ierr = fclos(nulfile_fov)
+
+    end if
 
     ! Find the background coeff_file number and name
     do iSensor = 1, tvs_nSensors
@@ -1121,19 +1393,16 @@ CONTAINS
     end do
 
     ! update coeff_file_instrument and write out
-    if ( mpi_myid == 0 ) then
-      do iInstr=1, numCoefFile 
-        biasCoeff_bg(:,:,:) = 0.0
-        fovbias_bg(:,:,:) = 0.0
-        BgFileName ='./coeff_file_'//coefInstrName(iInstr)
-        do instIndex =1,size(cinst)
-          if (trim(coefInstrName(iInstr)) == trim(cinst(instIndex))) then
-            myNbScan = nbscan(instIndex)
-          end if
-        end do
-        call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum,myNbScan)
+    do iInstr=1, numCoefFile 
+      BgFileName ='./coeff_file_'//coefInstrName(iInstr)
+      do instIndex =1,size(cinst)
+        if (trim(coefInstrName(iInstr)) == trim(cinst(instIndex))) then
+          myNbScan = nbscan(instIndex)
+        end if
       end do
-    end if
+      call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum,myNbScan)
+    end do
+
 
   end subroutine bias_writeBias
 
@@ -1177,7 +1446,6 @@ CONTAINS
     logical            :: newsat, verbose
     real               :: dummy
     integer            :: iun
-    integer            :: fnom, fclos
 
     ! update coeff files
     real               :: fovbias_an(maxsat,maxNumChannels,maxfov)
@@ -1237,12 +1505,10 @@ CONTAINS
 
             if (.not. allocated(bias(iSensor)%chans(jChannel)%coeff)) allocate( bias(iSensor)%chans(jChannel)%coeff( bias(iSensor)%chans(jChannel)%numActivePredictors))
 
-            if (.not. allocated(bias(iSensor)%chans(jChannel)%coeff_fov)) allocate( bias(iSensor)%chans(jChannel)%coeff_fov(bias(iSensor)%numScan))
+            if (.not. allocated(bias(iSensor)%chans(jChannel)%coeff_fov)) allocate( bias(iSensor)%chans(jChannel)%coeff_fov( nfov ))
             ! part 1 for coeffIncr
             do iFov = 1, nfov
-!              if ( fovbias(iSat,jChan,iFov) /= 0.0d0 ) then
               bias(iSensor)%chans(jchannel)%coeff_fov(iFov) = fovbias(iSat,jChan,iFov)
-!              end if
             end do ! iFov
 
             ! part 2 for coeffIncr_fov
@@ -1281,12 +1547,14 @@ CONTAINS
             ! part 1 for coeffIncr
             do iFov = 1, nfov
               fovbias_an(iSat,jChan,iFov) = fovbias(iSat,jChan,iFov) + bias(iSensor)%chans(jchannel)%coeffIncr_fov(iFov)
+              bias(iSensor)%chans(jchannel)%coeff_fov(iFov) =  fovbias_an(iSat,jChan,iFov) 
             end do ! iFov
 
             ! part 2 for coeffIncr_fov
             totPred  = bias(iSensor)%chans(jchannel)%NumActivePredictors 
             do iPred = 1, totPred
               coeff_an(iSat,jChan,iPred) = coeff(iSat,jChan,iPred) + bias(iSensor)%chans(jchannel)%coeffIncr(iPred)
+              bias(iSensor)%chans(jchannel)%coeff(iPred) = coeff_an(iSat,jChan,iPred)
             end do ! iPred
 
           end do ! jChannel
@@ -1297,27 +1565,34 @@ CONTAINS
     !
     !- 3. Write out updated_coeff
     ! 
-    iuncoef2 = 0
-    filename2 ='./anlcoeffs_'//cinstrum 
-    ierr = fnom(iuncoef2, filename2,'FTN+FMT',0)
 
-    write(*,*) 'bias_updateCoeff: write in bias_updateCoeff'
+    if (mpi_myId == 0 ) then
+
+      iuncoef2 = 0
+      filename2 ='./anlcoeffs_'//cinstrum 
+      ierr = fnom(iuncoef2, filename2,'FTN+FMT',0)
+
+      write(*,*) 'bias_updateCoeff: write in bias_updateCoeff'
    
-    do iSat = 1, nsat
-      do jChan = 1, nchan(iSat)      
-        numPred = npred(iSat,jChan)
-        write(iuncoef2, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') &
-          'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ', sats(iSat), cinstrum, chans(iSat,jChan), ndata(isat,jchan), numPred, nfov
-        write(iuncoef2, '(A7,6(1X,A2))') 'PTYPES:', (ptypes(iSat,jChan,kPred) , kPred=1,numPred)
-        write(iuncoef2,'(120(1x,ES17.10))') (fovbias_an(iSat,jChan,kFov),kFov=1,nfov)
-        write(iuncoef2,*) (coeff_an(iSat,jChan,kPred),kPred=1,numPred+1)
+      do iSat = 1, nsat
+        do jChan = 1, nchan(iSat)      
+          numPred = npred(iSat,jChan)
+          if (sum(abs(coeff_an(iSat,jchan,1:numpred+1)))/=0.d0 .and. sum(abs(fovbias_an(iSat,jChan,1:nfov)))/=0.d0) then 
+            write(iuncoef2, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') &
+                 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ', sats(iSat), cinstrum, chans(iSat,jChan), ndata(isat,jchan), numPred, nfov
+            write(iuncoef2, '(A7,6(1X,A2))') 'PTYPES:', (ptypes(iSat,jChan,kPred) , kPred=1,numPred)
+            write(iuncoef2,'(120(1x,ES17.10))') (fovbias_an(iSat,jChan,kFov),kFov=1,nfov)
+            write(iuncoef2,*) (coeff_an(iSat,jChan,kPred),kPred=1,numPred+1)
+          end if
+        end do
       end do
-    end do
 
-    ierr = fclos(iuncoef2) 
+      ierr = fclos(iuncoef2) 
    
-    write(*,*) 'bias_updateCoeff: finish writing coeffient file', filename2
+      write(*,*) 'bias_updateCoeff: finish writing coeffient file', filename2
     
+    end if
+
   end subroutine bias_updateCoeff
 
 
@@ -1330,7 +1605,7 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
     character (len=2),intent(in),optional :: family_opt
     integer :: nbcor
-    integer :: index_body
+    integer :: bodyIndex
     real(8) :: biascor, Obs
 
     if (.not. removeBiasCorrection) return
@@ -1341,14 +1616,14 @@ CONTAINS
     call obs_set_current_body_list(obsSpaceData,family_opt)
     
     BODY: do
-      index_body = obs_getBodyIndex(obsSpaceData)
-      if ( index_body < 0 ) exit BODY
-      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY  
-      biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,INDEX_BODY)
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if ( bodyIndex < 0 ) exit BODY
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY  
+      biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8) then
-        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
-        call obs_bodySet_r(obsSpaceData, OBS_VAR, INDEX_BODY, real(Obs - biasCor,OBS_REAL))
-        call obs_bodySet_r(obsSpaceData, OBS_BCOR, INDEX_BODY, real(0.d0,OBS_REAL))
+        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs - biasCor,OBS_REAL))
+        call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, real(0.d0,OBS_REAL))
         nbcor = nbcor + 1
       end if
     end do BODY
@@ -1360,6 +1635,153 @@ CONTAINS
 
   end subroutine bias_removeBiasCorrection
 
+ !-----------------------------------------
+  ! bias_filterObs
+  ! filter radiance observations to include into bias correction offline computation
+  ! same rules as in bgck.gen_table
+  !-----------------------------------------
+  subroutine bias_filterObs(obsSpaceData)
+    type(struct_obs) ,intent(inout) :: obsSpaceData
+
+    integer :: bodyIndex, headerIndex
+    integer :: assim,flag,codtyp
+    integer :: indxtovs, iSensor, instrum
+    logical :: lHyperIr, lGeo,lSsmis
+    integer, parameter :: bitListHyperIR(8)=(/6,7,9,16,18,19,21,23/)
+    integer, parameter :: bitListGeo(1)=(/11/)
+    integer, parameter :: bitListTovs(5)=(/6,7,9,16,18/)
+    integer, parameter :: bitListSsmis(5)=(/6,7,9,16,18/)
+    logical :: lBitsOn(23),lBitsOff(23)
+
+    if (.not.  filterObs ) return
+
+    if ( mpi_myid == 0 ) write(*,*) 'bias_filterObs starting'
+
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
+
+      indxtovs = tvs_ltovsno(headerIndex)
+
+      if ( indxtovs == 0 ) then
+        call utl_abort('bias_filterObs')
+      end if
+
+      codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      iSensor = tvs_lsensor( indxtovs )
+      instrum = tvs_coefs(iSensor) % coef % id_inst
+      lHyperIr = tvs_isInstrumHyperSpectral(instrum)
+      lGeo =  tvs_isInstrumHyperSpectral(instrum)
+      lSsmis = (codtyp == 168)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
+
+        flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
+
+        assim = 0
+
+        if (lHyperIr) then ! HyperSpectral IR case
+          lBitsOn = getBitsOn(flag,bitListHyperIR) 
+          lBitsOff = .not. lBitsOn
+          if (  (  lBitsOff(7) .and.  lBitsOff(9)  .and. lBitsOff(19)  .and. lBitsOff(21)  .and. lBitsOff(23)  ) .or. &
+                 ( lBitsOn(9)  .and. lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(16) .and. lBitsOff(7)  ) ) assim =1
+        else if ( lGeo ) then ! geostationnary imager case
+          lBitsOn = getBitsOn(flag,bitListGeo) 
+          lBitsOff = .not. lBitsOn
+          if ( lBitsOff(11) ) assim = 1
+        else if ( lSsmis)  then ! SSMIS case
+          lBitsOn = getBitsOn(flag,bitListSsmis) 
+          lBitsOff = .not. lBitsOn
+!! soit bit 9 eteint
+!! ou
+!! bit 9 allumé + bit 6 OFF + bit 16 ON + bit 18 OFF  + [bit 7 OFF]
+          if ( ( lBitsOff(9)) .or. &
+               ( lBitsOn(9) .and.  lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(18)  .and.  lBitsOff(7) ) ) assim =1
+        else ! AMSUA, AMSUAB, MHS, ATMS "TOVS"
+          lBitsOn = getBitsOn(flag,bitListTovs) 
+          lBitsOff = .not. lBitsOn
+! soit bit 9 eteint
+! ou
+! bit 9 allume et bit 6 eteint et bit 16 allume bit 18 eteint bit 7 eteint
+          if ( (lBitsOff(9))  .or. &
+                ( lBitsOn(9) .and. lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(18) .and. lBitsOff(7)  ) ) assim =1
+        end if
+
+        call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
+      
+       
+      end do BODY
+    end do HEADER
+
+!  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
+!      flag_str2  = ' AND (FLAG & 512 = 0)'
+!  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
+!      flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
+!      query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!      query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!      query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
+
+! Criteres SSMIS (online et all=oui : le defaut)
+
+!!  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
+
+!!Criteres AMSUA, AMSUB, ATMS
+
+! bit 9 allume et bit 6 eteint et bit 16 allume bit 18 eteint bit 7 eteint
+!  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
+!      flag_str2  = ' AND (FLAG & 512 = 0)'
+!  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
+!             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing!
+!      flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
+!      query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!      query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!      query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
+
+! Criteres CSR
+! bit 11 eteint
+ 
+!Criteres hyperspectraux (online et all =non le defaut)
+! flag_str  = ' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
+!bit 9 et 11 eteints, bit 8 eteint,  bit 23 eteint, bit 19 eteint 
+! 2**19 = 524288
+! 2**21 = 2097152
+! 2**23 = 8388608
+
+!Criteres hyperspectraux (online et all =oui) ! a choisir
+! soit bit 9, 23, 21, 19 et 7 eteint
+! 11010176 = 101010000000000010000000 = 2**23 +2**21 + 2*19 + 2**7
+! soit 
+!        flag_str2  = ' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+!        ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
+!        flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+!        query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!        query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
+!        query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
+
+
+  contains
+
+    function getBitsOn(flag,bitList)
+      integer ,intent(in) :: flag,bitList(:)
+      logical :: getBitsOn(23)
+
+      integer :: i,j
+
+      getBitsOn(:) = .false.
+
+      do i=1,size(  bitList )
+        j = bitList(i)
+        getBitsOn(j) = btest(flag,j)
+      end do
+
+    end function getBitsOn
+ 
+  end subroutine bias_filterObs
+
 
   !-----------------------------------------
   ! bias_applyBiasCorrection
@@ -1369,7 +1791,7 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
     character (len=2),intent(in),optional :: family_opt
     integer :: nbcor
-    integer :: index_body
+    integer :: bodyIndex
     real(8) :: biascor, Obs
 
     if ( mpi_myid == 0 ) write(*,*) 'bias_applyBiasCorrection starting'
@@ -1378,13 +1800,13 @@ CONTAINS
     call obs_set_current_body_list(obsSpaceData,family_opt)
     
     BODY: do
-      index_body = obs_getBodyIndex(obsSpaceData)
-      if ( index_body < 0 ) exit BODY
-      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY  
-      biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,INDEX_BODY)
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if ( bodyIndex < 0 ) exit BODY
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY  
+      biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8) then
-        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
-        call obs_bodySet_r(obsSpaceData, OBS_VAR, INDEX_BODY, real(Obs + biasCor,OBS_REAL))
+        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs + biasCor,OBS_REAL))
         nbcor = nbcor + 1
       end if
     end do BODY
@@ -1423,9 +1845,9 @@ CONTAINS
     implicit none
     type(struct_obs),intent(inout)  :: obsSpaceData
     logical,intent(in),optional     :: lmodify_obserror_opt
-    integer :: iobs, index_header, idatyp, nobs, index_body
+    integer :: iobs, headerIndex, idatyp, nobs, bodyIndex
     logical ::  lmodify_obserror
-    real(8) :: SigmaObs
+    real(8) :: sigmaObs
 
     lmodify_obserror =.false.
 
@@ -1438,40 +1860,42 @@ CONTAINS
 
       call gsv_allocate(statevector_mask, 1, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
            dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="VarsLevs")
+     
       call gsv_readFromFile(statevector_mask,'./raob_masque.std' , 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
+
       call col_setVco(column_mask,vco_mask)
       nobs = obs_numHeader(obsSpaceData)
       call col_allocate(column_mask, nobs,beSilent_opt=.false., varNames_opt=(/"WT"/) )
+     
       call s2c_nl( stateVector_mask, obsSpaceData, column_mask, 'NEAREST', varName_opt="WT", moveObsAtPole_opt=.true.)
-
 
       call obs_set_current_header_list(obsSpaceData,'TO')
       iobs = 0
       HEADER: do
-        index_header = obs_getHeaderIndex(obsSpaceData)
-        if ( index_header < 0 ) exit HEADER
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER
           
         ! process only radiance data to be assimilated?
-        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
         iobs = iobs + 1
 
-        RadiosondeWeight(iobs) = col_getElem(column_mask,1,index_header) 
+        RadiosondeWeight(iobs) = col_getElem(column_mask,1,headerIndex) 
 
         if (lmodify_obserror) then
-          call obs_set_current_body_list(obsSpaceData, index_header)
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
-            index_body = obs_getBodyIndex(obsSpaceData)
-            if ( index_body < 0 ) exit BODY
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if ( bodyIndex < 0 ) exit BODY
             
-            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) /= 1 ) cycle BODY
+            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY
 
-            SigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,index_body)
+            sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
-            SigmaObs = SigmaObs / sqrt( RadiosondeWeight(iobs) )
-            call obs_bodySet_r( obsSpaceData, OBS_OER, index_body, SigmaObs) 
+            sigmaObs = sigmaObs / sqrt( RadiosondeWeight(iobs) )
+            call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, sigmaObs) 
 
           end do BODY
 
@@ -1497,21 +1921,21 @@ CONTAINS
 
     integer    :: iSensor, iChannel, nobs, ifail, npred,nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex,iPred1,jPred1,iobs
-    integer    :: index_header, idatyp,nPredMax,ierr,iFov, iScan, idim
-    integer    :: indxtovs, index_body, chanIndx, predstart
-    real(8)    :: OmF, sigmaObs, lambda
+    integer    :: headerIndex, idatyp,nPredMax,ierr,iFov, iScan, idim
+    integer    :: indxtovs, bodyIndex, chanIndx, predstart, ntot
+    real(8)    :: OmF, sigmaObs, lambda,norm
     real(8)    :: predictor(NumPredictors)
     real(8),allocatable :: Matrix(:,:,:), Vector(:,:)
-    real(8),allocatable :: fullMatrix(:,:,:), fullVector(:,:)
-    real(8),allocatable :: pIMatrix(:,:),OmFBias(:,:),fullOmFBias(:,:)
+    real(8),allocatable :: matrixMpiGlobal(:,:,:), vectorMpiGlobal(:,:)
+    real(8),allocatable :: pIMatrix(:,:),OmFBias(:,:),omfBiasMpiGlobal(:,:)
     real(8),allocatable :: BMatrixMinusOne(:,:),LineVec(:,:)
-    integer, allocatable:: OmFCount(:,:),fullOmFCount(:,:)
+    integer, allocatable:: OmFCount(:,:),omfCountMpiGlobal(:,:)
 
-    
 
     Write(*,*) "Entering  bias_do_regression"
     if ( .not. allocated(trialHeight300m1000) ) then
       call bias_getTrialPredictors(obsSpaceData,columnhr)
+      call bias_computePredictorBiases(obsSpaceData)
     end if
 
     call  bias_getRadiosondeWeight(obsSpaceData)
@@ -1524,16 +1948,16 @@ CONTAINS
       nscan = bias(sensorIndex)% numscan
       npredMax = maxval( bias(sensorIndex)%chans(:)%numActivePredictors )
 
-
       if ( lMimicSatbcor ) then
         ndimmax = npredMax
         allocate( OmFBias(nchans,nscan) )
         OmFBias(:,:) = 0.d0
-        allocate( OmFCount(nchans,nscan) )
-        OmFCount(:,:) = 0
       else
         ndimmax = npredMax + nscan - 1
       end if
+
+      allocate( OmFCount(nchans,nscan) )
+      OmFCount(:,:) = 0
 
       allocate( Matrix( nchans,ndimmax,ndimmax) )
       Matrix(:,:,:) = 0.d0
@@ -1543,120 +1967,121 @@ CONTAINS
 
       allocate( LineVec(1,ndimmax ) )
 
-      if ( lMimicSatbcor ) then
-      ! First pass throught ObsSpaceData to estimate scan biases
+      ! First pass throught ObsSpaceData to estimate scan biases and count data
 
-        call obs_set_current_header_list(obsSpaceData,'TO')
-        iobs = 0
-        HEADER1: do
-          index_header = obs_getHeaderIndex(obsSpaceData)
-          if ( index_header < 0 ) exit HEADER1
+      call obs_set_current_header_list(obsSpaceData,'TO')
+      iobs = 0
+      HEADER1: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER1
           
-          ! process only radiance data to be assimilated?
-          idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-          if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER1
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+        if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER1
       
-          indxtovs = tvs_ltovsno(index_header)
-          if ( indxtovs == 0 ) then
-            call utl_abort('bias_do_regression')
-          end if
+        indxtovs = tvs_ltovsno(headerIndex)
+        if ( indxtovs == 0 ) then
+          call utl_abort('bias_do_regression')
+        end if
        
-          iobs = iobs + 1
+        iobs = iobs + 1
 
-          iSensor = tvs_lsensor(tvs_ltovsno(index_header))
-          if (iSensor /= sensorIndex) cycle HEADER1
+        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        if (iSensor /= sensorIndex) cycle HEADER1
+          
+        iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
+        if ( nscan > 1 ) then
+          iScan = iFov
+        else
+          iScan = 1
+        end if
 
-          call obs_set_current_body_list(obsSpaceData, index_header)
-          iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
-          if ( nscan > 1 ) then
-            iScan = iFov
-          else
-            iScan = 1
-          end if
-          BODY1: do
-            index_body = obs_getBodyIndex(obsSpaceData)
-            if ( index_body < 0 ) exit BODY1
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if ( bodyIndex < 0 ) exit BODY1
             
-            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY1 
-            call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,index_body)
-            if (chanindx > 0) then
-              OmF = obs_bodyElem_r(obsSpaceData,OBS_OMA,INDEX_BODY)
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY1 
+          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          if (chanindx > 0) then
+            if  (lMimicSatBcor) then
+              OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
               OmFBias(chanIndx,iScan) = OmFBias(chanIndx,iScan) + OmF
-              OmFCount(chanIndx,iScan) =  OmFCount(chanIndx,iScan) + 1
             end if
-          end do BODY1
-        end do HEADER1
+            OmFCount(chanIndx,iScan) =  OmFCount(chanIndx,iScan) + 1
+          end if
+        end do BODY1
+      end do HEADER1
 
-        allocate( fullOmFBias(nchans,nscan) )
-        allocate( fullOmFCount(nchans,nscan) )
+      if ( lMimicSatbcor ) allocate( omfBiasMpiGlobal(nchans,nscan) )
 
-        ierr = 0
-        call RPN_COMM_reduce(OmFBias , fullOmFBias, size(fullOmFBias), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      allocate( omfCountMpiGlobal(nchans,nscan) )
+
+      if ( lMimicSatbcor ) then
+        call RPN_COMM_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 1",  ierr 
           call utl_abort("bias_do_regression")
         end if
-        call RPN_COMM_reduce(OmFCount , fullOmFCount, size(fullOmFCount), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
-        if (ierr /=0) then
-          Write(*,*) " MPI communication error 2",  ierr 
-          call utl_abort("bias_do_regression")
+      end if
+      call RPN_COMM_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 2",  ierr 
+        call utl_abort("bias_do_regression")
+      end if
+      if ( lMimicSatbcor)  then
+        if (mpi_myId == 0) then
+          where( omfCountMpiGlobal == 0 ) omfBiasMpiGlobal = 0.d0
+          where( omfCountMpiGlobal > 0 ) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
-
-        if ( mpi_myId == 0 ) &
-             where( fullOmFCount > 0 ) fullOmFBias = fullOmFBias / fullOmFCount
-        
-        call RPN_COMM_bcast(fullOmFBias, size(fullOmFBias), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+        call RPN_COMM_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 3",  ierr 
           call utl_abort("bias_do_regression")
         end if
-
         do iChannel = 1, nchans
-          bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = fullOmFBias(iChannel,:)
+          bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = omfBiasMpiGlobal(iChannel,:)
         end do
-        deallocate( fullOmFBias )
-        deallocate( fullOmFCount )
-
+        deallocate( omfBiasMpiGlobal )
       end if
      
-
       ! Second pass to fill matrices and vectors
       call obs_set_current_header_list(obsSpaceData,'TO')
       iobs = 0
       HEADER2: do
-        index_header = obs_getHeaderIndex(obsSpaceData)
-        if ( index_header < 0 ) exit HEADER2
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER2
 
         ! process only radiance data to be assimilated?
-        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+        idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
       
-        indxtovs = tvs_ltovsno(index_header)
+        indxtovs = tvs_ltovsno(headerIndex)
         if ( indxtovs == 0 ) then
           call utl_abort('bias_do_regression')
         end if
         
         iobs = iobs + 1
 
-        iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
         if (iSensor /= sensorIndex) cycle HEADER2
           
-        call obs_set_current_body_list(obsSpaceData, index_header)
-        iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
         if ( nscan > 1 ) then
           iScan = iFov
         else
           iScan = 1
         end if
         BODY2: do
-          index_body = obs_getBodyIndex(obsSpaceData)
-          if ( index_body < 0 ) exit BODY2
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY2 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if ( bodyIndex < 0 ) exit BODY2
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY2 
 
-          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,index_body)
-          if (chanindx > 0) then
-            call bias_getPredictors(predictor,index_header,iobs,index_body,obsSpaceData)
-            OmF = obs_bodyElem_r(obsSpaceData,OBS_OMA,INDEX_BODY)
+          call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+          if (chanIndx > 0) then
+            call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
+            OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
 
             if (lMimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeffIncr_fov(iScan)
             
@@ -1670,8 +2095,8 @@ CONTAINS
               LineVec(1,iScan) = 1.d0
               idim = nscan
               predstart = 2
-              SigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,INDEX_BODY)
-              lambda = 1.d0 / ( SigmaObs **2 )
+              sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+              lambda = 1.d0 / ( sigmaObs **2 )
             end if
           
             lambda = lambda * RadiosondeWeight(iobs)
@@ -1690,28 +2115,35 @@ CONTAINS
       end do HEADER2
 
       if (mpi_myId == 0) then
-        allocate( fullMatrix(nchans,ndimmax,ndimmax) )
-        allocate( fullVector(nchans,ndimmax ) )
+        allocate( matrixMpiGlobal(nchans,ndimmax,ndimmax) )
+        allocate( vectorMpiGlobal(nchans,ndimmax ) )
       else
-        allocate( fullMatrix(1,1,1) )
-        allocate( fullVector(1,1)   )
+        allocate( matrixMpiGlobal(1,1,1) )
+        allocate( vectorMpiGlobal(1,1)   )
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call RPN_COMM_reduce(Matrix , fullMatrix, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call RPN_COMM_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 4",  ierr 
         call utl_abort("bias_do_regression")
       end if
-      call RPN_COMM_reduce(Vector , fullVector, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call RPN_COMM_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 5",  ierr 
         call utl_abort("bias_do_regression")
       end if
-        
-      if (mpi_myId == 0) then
-         
-        do iChannel = 1, nchans
+
+      do iChannel = 1, nchans
+
+        if (mpi_myId == 0) then
+          ntot = sum(omfCountMpiGlobal(iChannel,:) ) 
+          if (ntot > 0) then
+            norm = 1.d0 / ( ntot ) 
+            matrixMpiGlobal(iChannel,:,:) =  matrixMpiGlobal(iChannel,:,:) * norm
+            vectorMpiGlobal(iChannel,:) = vectorMpiGlobal(iChannel,:) * norm
+          end if
+
           nPred =  bias(sensorIndex)%chans(iChannel)%numActivePredictors
           if ( lMimicSatbcor ) then
             ndim = npred
@@ -1723,43 +2155,45 @@ CONTAINS
             do iPred1 = 2, bias(sensorIndex)%chans(iChannel)%numActivePredictors
               BMatrixMinusOne(nscan-1+iPred1,nscan-1+iPred1) =  ( 1.d0 / ( bias(sensorIndex)% chans(iChannel) % stddev(iPred1) )**2 )
             end do
-            fullMatrix(iChannel,1:ndim,1:ndim) =   fullMatrix(iChannel,1:ndim,1:ndim) + BMatrixMinusOne(:,:)
-          end if
-
-          allocate(pIMatrix(ndim,ndim))
-
-          call pseudo_inverse(ndim,ndim,fullMatrix(iChannel,1:ndim,1:ndim),pIMatrix)
-          LineVec(1,1:npred) = matmul(pIMatrix,fullVector(iChannel,:))
-!          call dsymv("L", ndim, 1.d0, pIMatrix, ndim,fullVector(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
-          if ( lMimicSatbcor ) then
-            bias(sensorIndex)%chans(iChannel)%coeffIncr(:) =  LineVec(1,1:npred)
-            print *,"bias(sensorIndex)%chans(iChannel)%coeffIncr(:) =",  bias(sensorIndex)%chans(iChannel)%coeffIncr(:)
-          else
-            bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = LineVec(1,1:nscan)
-            bias(sensorIndex)%chans(iChannel)%coeffIncr(1) = 0.d0
-            bias(sensorIndex)%chans(iChannel)%coeffIncr(2:) =  LineVec(1,nscan+1:ndim)
+            matrixMpiGlobal(iChannel,1:ndim,1:ndim) =   matrixMpiGlobal(iChannel,1:ndim,1:ndim) + BMatrixMinusOne(:,:)
             deallocate( BMatrixMinusOne)
           end if
 
-          Write(*,*) "Coeffs: ",  bias(sensorIndex)%chans(iChannel)%coeffIncr(:)
-
+          allocate(pIMatrix(ndim,ndim))
+          call pseudo_inverse(ndim,ndim,matrixMpiGlobal(iChannel,1:ndim,1:ndim),pIMatrix)
+          LineVec(1,:) = matmul(pIMatrix,vectorMpiGlobal(iChannel,:))
           deallocate( pIMatrix)
-          end do
+          !          call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
         end if
 
-        deallocate( LineVec )
-        deallocate( Matrix )
-        deallocate( Vector   )
-        deallocate( fullMatrix )
-        deallocate( fullVector   )
-        if ( allocated(OmFBias) ) then
-          deallocate( OmFBias )
-          deallocate( OmFCount )
+        call RPN_COMM_bcast(LineVec(1,:), size(LineVec(1,:)), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+        if (ierr /=0) then
+          Write(*,*) " MPI communication error 6",  ierr 
+          call utl_abort("bias_do_regression")
         end if
 
-      end do SENSORS
+        if ( lMimicSatbcor ) then
+          bias(sensorIndex)%chans(iChannel)%coeffIncr(:) =  LineVec(1,1:npred)
+        else
+          bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = LineVec(1,1:nscan)
+          bias(sensorIndex)%chans(iChannel)%coeffIncr(1) = 0.d0
+          bias(sensorIndex)%chans(iChannel)%coeffIncr(2:) =  LineVec(1,nscan+1:ndim)
+        end if
 
-    end subroutine bias_do_regression
+      end do
+
+      deallocate( LineVec )
+      deallocate( Matrix )
+      deallocate( Vector   )
+      deallocate( omfCountMpiGlobal )
+      deallocate( matrixMpiGlobal )
+      deallocate( vectorMpiGlobal   )
+      if ( allocated(OmFBias) ) deallocate( OmFBias )
+      deallocate( OmFCount )
+       
+    end do SENSORS
+
+  end subroutine bias_do_regression
 
 
   !----------------------
@@ -1943,7 +2377,6 @@ CONTAINS
      character(len=1)             :: xbcmode, xbctype
      character(len=2)             :: xpred(numpredictors)
      
-     integer, external            :: fnom,fclos 
      exitcode = -1
 
      iun = 0
@@ -2144,8 +2577,6 @@ CONTAINS
     logical                        :: newsat
     real                           :: dummy
     integer*4                      :: iun
-
-    integer, external              :: FNOM, FCLOS
 
 
     iun = 0

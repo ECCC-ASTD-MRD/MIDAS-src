@@ -47,9 +47,9 @@ program midas_gencoeff
   use statetocolumn_mod
   use biasCorrection_mod
   use increment_mod
-  use residual_mod
   use stateToColumn_mod
   use backgroundCheck_mod
+  use analysisGrid_mod
 
   implicit none
 
@@ -59,15 +59,18 @@ program midas_gencoeff
 
   type(struct_obs),        target  :: obsSpaceData
   type(struct_columnData), target  :: trlColumnOnTrlLev
+  type(struct_columnData), target  :: trlColumnOnAnlLev
+  type(struct_hco), pointer        :: hco_anl => null()
+  type(struct_vco), pointer        :: vco_anl => null()
 
 
-  character(len=9)  :: clmsg
+  character(len=12)  :: clmsg
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                  varMode        = 'analysis'
 
 
 
-  istamp = exdb('VAR','DEBUT','NON')
+  istamp = exdb('GENCOEFF','DEBUT','NON')
 
   write(*,'(/,' //                                                &
             '3(" *****************"),/,' //                       &
@@ -84,7 +87,7 @@ program midas_gencoeff
   call tmg_start(1,'MAIN')
 
   if(mpi_myid == 0) then
-    clmsg = 'VAR3D_BEG'
+    clmsg = 'GENCOEFF_BEG'
     call utl_writeStatus(clmsg)
   endif 
 
@@ -109,16 +112,11 @@ program midas_gencoeff
 
   ! Read trials and horizontally interpolate to columns
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns( trlColumnOnTrlLev, obsSpaceData )
-
-   
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  ! Compute observation innovations
-  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-  call tmg_stop(2)
+  call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData )
 
 
+
+  call bias_setup()
   !
   ! Remove bias correction if requested
   !
@@ -126,24 +124,49 @@ program midas_gencoeff
   call bias_removeBiasCorrection(obsSpaceData,"TO")
   call tmg_stop(3)
 
+   
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ! Compute observation innovations
+  call inn_computeInnovation(trlColumnOnAnlLev,obsSpaceData)
+  call tmg_stop(2)
+
+  
     !
     ! Refresh bias correction if requested
     !
   call tmg_start(4,'REFRESH_BCOR')
-  call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnTrlLev)
+  call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(4)
 
-  call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-  call bias_do_regression(trlColumnOnTrlLev,obsSpaceData)
+  !
+  ! Filter obs if requested
+  !
 
-  ! Write coefficiemts to file
+  call tmg_start(5,'FILTER_OBS')
+  call bias_filterObs(obsSpaceData)
+  call tmg_stop(5)
+ 
+  call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)
+
+  ! Write coefficients to file
   call bias_writebias()
   
-  if (mpi_myid == 0) then
-    clmsg = 'REBM_DONE'
-    call utl_writeStatus(clmsg)
-  end if
 
+  call bias_computeResidualsStatistics(obsSpaceData,"_raw")
+
+  !
+  ! fill OBS_BCOR with computed bias correction
+  !
+
+
+  call bias_calcBias(obsSpaceData,trlColumnOnAnlLev)
+
+  call  bias_computeResidualsStatistics(obsSpaceData,"_corrected")
+
+  ! Deallocate internal bias correction structures 
+
+  call bias_finalize()
 
    ! Deallocate copied obsSpaceData
    call obs_finalize(obsSpaceData)
@@ -179,6 +202,7 @@ contains
 
     character (len=*) :: obsColumnMode
     integer :: datestamp
+    type(struct_hco),pointer :: hco_core => null()
 
     write(*,*) ''
     write(*,*) '----------------------------------------'
@@ -210,6 +234,33 @@ contains
     !
     call gsv_setup
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize the Analysis grid
+    !
+    if(mpi_myid.eq.0) write(*,*)''
+    if(mpi_myid.eq.0) write(*,*)'gencoeff_setup: Set hco parameters for analysis grid'
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+
+    if ( hco_anl % global ) then
+      call agd_SetupFromHCO( hco_anl ) ! IN
+    else
+      !- Initialize the core (Non-Extended) analysis grid
+      if(mpi_myid.eq.0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
+      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      !- Setup the LAM analysis grid metrics
+      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+    end if
+
+    !     
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
+    !
+    call vco_SetupFromFile( vco_anl,        & ! OUT
+                            './analysisgrid') ! IN
+
+    call col_setVco(trlColumnOnAnlLev,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
 
     !
     !- Setup and read observations
