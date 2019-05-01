@@ -519,7 +519,7 @@ module obsUtil_mod
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 20.0
           case (bufr_nets, bufr_ness, bufr_vis)
-            surfvcord = 11.5
+            surfvcord = 1.5
         end select
       case ('scatwinds')
         select case(varno)

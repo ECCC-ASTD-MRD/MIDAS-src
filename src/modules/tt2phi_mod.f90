@@ -153,7 +153,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
     if (Vcode == 5002) then
       alt_M(nlev_M) = rMT
     else if (Vcode == 5005) then
-      alt_M(nlev_M) = alt_sfcOffset_M_r4
+      alt_M(nlev_M) = rMT + alt_sfcOffset_M_r4
     end if
 
     ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
@@ -217,7 +217,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       alt_T(1) = alt_M(1) + delThick
 
     elseif (Vcode == 5005) then
-      alt_T(nlev_T) = alt_sfcOffset_T_r4
+      alt_T(nlev_T) = rMT + alt_sfcOffset_T_r4
       do lev_T = 1, nlev_T-2
         lev_M = lev_T + 1  ! momentum level just below thermo level being computed
         ScaleFactorBottom = log( col_getPressure(columnghr,lev_T  ,columnIndex,'TH')   / &
