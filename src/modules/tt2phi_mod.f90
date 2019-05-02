@@ -156,7 +156,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       alt_M(nlev_M) = rMT + alt_sfcOffset_M_r4
     end if
 
-    if (nlev_M.gt.1) then
+    if (nlev_M > 1) then
       ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
@@ -231,7 +231,7 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       end do
 
       ! compute altitude on next to bottom thermo level
-      if (nlev_T.gt.1) then
+      if (nlev_T > 1) then
         ratioP  = log(col_getPressure(columnghr,nlev_T-1,columnIndex,'TH') / &
                   col_getElem(columnghr,1,columnIndex,'P0') )
 
