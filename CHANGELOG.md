@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.3.4]
+
+### Fixed
+
  * Reject unknown satellites instead of aborting (#221 et !221)
  * Correction of a bug in the update of cloud parameters and
    emissivity in IR bgcheck mode that was affecting CrIS FSR. (#240 and !223)
@@ -25,10 +35,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * `obscrisfsr3` and `obscrisfsr4`.
  * Bug fix for the BURP cloud parameters and emissivity update bugfix
    above to handle properly missing data cases (#240 and !225)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.3.3]
 
@@ -258,7 +264,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...HEAD
+[3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
 [3.3.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...v_3.3.3
 [3.3.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.1...v_3.3.2
 [3.3.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0...v_3.3.1
