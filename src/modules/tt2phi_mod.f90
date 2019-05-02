@@ -156,17 +156,19 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       alt_M(nlev_M) = rMT + alt_sfcOffset_M_r4
     end if
 
-    ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
-              col_getElem(columnghr,1,columnIndex,'P0') )
+    if (nlev_M.gt.1) then
+      ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
+                col_getElem(columnghr,1,columnIndex,'P0') )
 
-    ! Gravity acceleration 
-    h0  = rMT
-    Rgh = phf_gravityalt(sLat,h0)
-    dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-    Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+      ! Gravity acceleration 
+      h0  = rMT
+      Rgh = phf_gravityalt(sLat,h0)
+      dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-    delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-    alt_M(nlev_M-1) = rMT + delThick
+      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+      alt_M(nlev_M-1) = rMT + delThick
+    end if
 
     ! compute altitude on rest of momentum levels
     do lev_M = nlev_M-2, 1, -1
@@ -229,16 +231,18 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       end do
 
       ! compute altitude on next to bottom thermo level
-      ratioP  = log(col_getPressure(columnghr,nlev_T-1,columnIndex,'TH') / &
-                col_getElem(columnghr,1,columnIndex,'P0') )
+      if (nlev_T.gt.1) then
+        ratioP  = log(col_getPressure(columnghr,nlev_T-1,columnIndex,'TH') / &
+                  col_getElem(columnghr,1,columnIndex,'P0') )
 
-      h0  = rMT
-      Rgh = phf_gravityalt(sLat,h0)
-      dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+        h0  = rMT
+        Rgh = phf_gravityalt(sLat,h0)
+        dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-      alt_T(nlev_T-1) = rMT + delThick
+        delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        alt_T(nlev_T-1) = rMT + delThick
+      end if
     end if
 
     ! fill the height array
