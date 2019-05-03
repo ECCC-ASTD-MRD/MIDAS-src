@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change '!' to '!!' in those places that bothered Sphinx.
 
 ### Added
+
  * The logical namelist variable ltopofilt has been removed. You probably MUST update your namelist. The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples (#225 and !211).
  * Add ability to define a local domain and control inclusion of each variable for energy norm (#207 and !204)
  * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 	
 ### Changed
 
+ * The namelist variable `scaleFactor` in NAMBHI must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
  * CalcStats in LAM mode was made MPI compatible (#158 and !202)
  * Replacing the old numerical recipe for generating gaussian random
    values by a much more efficient method (#82 and !192)
@@ -54,7 +56,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * Small change to results for most applications and some increases in time and memory requirements
  * Use constituent BUFR elements from official tableburp file released 30 Sept 2018 (#150 and !137)
  * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
-
 
 ### Fixed
 
