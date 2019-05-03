@@ -37,8 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 	
 ### Changed
 
- * Change the default value of scalefactor (namBHI variable) for B HI matrix from 1.0 to 0.0.
-   3DVar namelist `scaleFactor` variable value is changed. (#224 and !209)
+ * The namelist variable `scaleFactor` in NAMBHI must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
  * CalcStats in LAM mode was made MPI compatible (#158 and !202)
  * Replacing the old numerical recipe for generating gaussian random
    values by a much more efficient method (#82 and !192)
