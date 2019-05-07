@@ -6,8 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
  * Change '!' to '!!' in those places that bothered Sphinx.
- * Function codtypfam added in obsUtil_mod.f90 module, which clarifies the function surfvcord (aesthetical change only).
- * Minor fix in tt2phi_mod.f90, now setting bottom temperature and momentum altitudes to their known height offset for near-sfc levels.
+ * Minor fix in tt2phi_mod.f90 (slightly affects results) : now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
 	
 ### Added
  * The logical namelist variable ltopofilt has been removed. You probably MUST update your namelist. The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples (#225 and !211).
