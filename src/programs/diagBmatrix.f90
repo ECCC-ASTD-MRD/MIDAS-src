@@ -134,8 +134,8 @@ program midas_diagBmatrix
     if (oneobs_levs(index) >= 1) nlevs=nlevs+1
   end do
   nLonLatPos=0
-  do index = 1, size(oneobs_lonlat(:,1))
-    if (oneobs_lonlat(index,1) >= 1 .and. oneobs_lonlat(index,2) >= 1) nLonLatPos=nLonLatPos+1  
+  do index = 1, size(oneobs_lonlat(:,lonPosIndex))
+    if (oneobs_lonlat(index,lonPosIndex) >= 1 .and. oneobs_lonlat(index,latPosIndex) >= 1) nLonLatPos=nLonLatPos+1  
   end do
 
   ! Decompose diagdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
