@@ -417,7 +417,7 @@ contains
     logical, optional       :: beSilent_opt
 
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
-    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjosfctm
+    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjoaladin,zjosfctm
     real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl
     integer :: ierr, get_max_rss
     logical :: lgpdata, beSilent
@@ -490,12 +490,11 @@ contains
     !
     !        PROFILER
     !------------------------------
-    ZJOPROF=0.0D0
     call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'PR')
     !
     !        GEOMETRIC HEIGHT - ALADIN WINDS
     !------------------------------
-    call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'AL')
+    call oop_zzz_nl(columnhr,obsSpaceData,ZJOALADIN,'AL')
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
@@ -540,6 +539,7 @@ contains
       write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
       write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
       write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOALADIN = ',ZJOALADIN
       write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
@@ -548,7 +548,7 @@ contains
     !
     !=======================================================================
     ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
-         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
+         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOALADIN + ZJOGPSRO + ZJOGPSGB + ZJOCHM
     !=======================================================================
 
     if ( .not.beSilent ) then
@@ -564,6 +564,7 @@ contains
       call mpi_allreduce_sumreal8scalar(ZJOTOV,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOSATWIND,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOPROF,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOALADIN,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOGPSRO,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
       call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
@@ -583,6 +584,7 @@ contains
       write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
       write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
       write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOALADIN = ',ZJOALADIN
       write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
