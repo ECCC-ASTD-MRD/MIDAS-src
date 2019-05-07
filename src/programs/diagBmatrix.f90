@@ -71,10 +71,10 @@ program midas_diagBmatrix
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
   integer :: nlons, nlats, nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
   integer :: locIndex, stepIndexInc, nEns
-  integer :: amp3dStepIndex, nxyPos, xyPosIndex
+  integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
 
-  integer, parameter :: xPosIndex = 1
-  integer, parameter :: yPosIndex = 2
+  integer, parameter :: lonPosIndex = 1
+  integer, parameter :: latPosIndex = 2
 
   integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: myLatBeg, myLatEnd
@@ -90,12 +90,12 @@ program midas_diagBmatrix
 
   ! namelist variables
   integer :: numperturbations, nrandseed, diagdate
-  integer :: oneobs_levs(100), oneobs_xy(100,2)
+  integer :: oneobs_levs(100), oneobs_lonlat(100,2)
   logical :: writeEnsAmplitude
   logical :: writeTextStddev
   logical :: writePsiChiStddev
 
-  namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_xy, &
+  namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lonlat, &
                     oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
   write(*,*) " ------------------------------------------------"
@@ -116,7 +116,7 @@ program midas_diagBmatrix
   oneobs_varName    = 'all'
   oneobs_timeStep   = 'middle'
   oneobs_levs(:)    = -1
-  oneobs_xy(:,:)    = -1
+  oneobs_lonlat(:,:)= -1
   writeEnsAmplitude = .false.
   writeTextStddev   = .false.
   writePsiChiStddev = .false.
@@ -133,9 +133,9 @@ program midas_diagBmatrix
   do index = 1, size(oneobs_levs)
     if (oneobs_levs(index) >= 1) nlevs=nlevs+1
   end do
-  nxyPos=0
-  do index = 1, size(oneobs_xy(:,1))
-    if (oneobs_xy(index,1) >= 1 .and. oneobs_xy(index,2) >= 1) nxyPos=nxyPos+1  
+  nLonLatPos=0
+  do index = 1, size(oneobs_lonlat(:,1))
+    if (oneobs_lonlat(index,1) >= 1 .and. oneobs_lonlat(index,2) >= 1) nLonLatPos=nLonLatPos+1  
   end do
 
   ! Decompose diagdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
@@ -195,7 +195,7 @@ program midas_diagBmatrix
   !- Compute columns of B and L matrices
   !==============================================
   !
-  if ( nLevs >= 1 .and. nxyPos >= 1 ) then
+  if ( nLevs >= 1 .and. nLonLatPos >= 1 ) then
 
     !
     !- Compute columns of the B matrix
@@ -225,9 +225,9 @@ program midas_diagBmatrix
     write(*,*) 'midas-diagBmatrix: Compute columns of B matrix'
     write(*,*) '********************************************'
     write(*,*)
-    write(*,*) ' temporal location      = ',trim(oneobs_timeStep), oneobs_timeStepIndex
-    write(*,*) ' number of levels       = ',nLevs
-    write(*,*) ' number of xy positions = ', nxyPos
+    write(*,*) ' temporal location          = ',trim(oneobs_timeStep), oneobs_timeStepIndex
+    write(*,*) ' number of levels            = ',nLevs
+    write(*,*) ' number of lon-lat positions = ', nLonLatPos
 
     do varIndex = 1, vnl_numvarmax
 
@@ -249,19 +249,20 @@ program midas_diagBmatrix
 
       ip3 = 0
       do levIndex = 1, nlevs2
-        do xyPosIndex = 1, nxyPos
+        do lonLatPosIndex = 1, nLonLatPos
+
+          latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
+          lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
 
           call gsv_zero(statevector)                   
           field4d => gsv_getField_r8(statevector,vnl_varNameList(varIndex))
 
-          if ( oneobs_xy(xyPosIndex,yPosIndex) >= statevector%myLatBeg .and. &
-               oneobs_xy(xyPosIndex,yPosIndex) <= statevector%myLatEnd .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) >= statevector%myLonBeg .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) <= statevector%myLonEnd ) then
+          if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
+               lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              field4d(oneobs_xy(xyPosIndex,xPosIndex),oneobs_xy(xyPosIndex,yPosIndex),1                    ,oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0
             else
-              field4d(oneobs_xy(xyPosIndex,xPosIndex),oneobs_xy(xyPosIndex,yPosIndex),oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0
             end if
           end if
 
@@ -280,14 +281,12 @@ program midas_diagBmatrix
 
           ! Normalized the result to get correlation-like pattern
           centralValueLocal = 0.d0
-          if ( oneobs_xy(xyPosIndex,yPosIndex) >= statevector%myLatBeg .and. &
-               oneobs_xy(xyPosIndex,yPosIndex) <= statevector%myLatEnd .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) >= statevector%myLonBeg .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) <= statevector%myLonEnd ) then
+          if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
+               lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)).eq.'SF') then
-              centralValueLocal = field4d(oneobs_xy(xyPosIndex,xPosIndex),oneobs_xy(xyPosIndex,yPosIndex),1                    ,oneobs_timeStepIndex)
+              centralValueLocal = field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex)
             else
-              centralValueLocal = field4d(oneobs_xy(xyPosIndex,xPosIndex),oneobs_xy(xyPosIndex,yPosIndex),oneobs_levs(levIndex),oneobs_timeStepIndex)
+              centralValueLocal = field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex)
             end if
           end if
           call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
@@ -352,9 +351,9 @@ program midas_diagBmatrix
       write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
       write(*,*) '********************************************'
       
-      write(*,*) ' number of levels       = ', nlevs
-      write(*,*) ' number of xy positions = ', nxyPos
- 
+      write(*,*) ' number of levels            = ', nlevs
+      write(*,*) ' number of lon-lat positions = ', nLonLatPos
+
       if (numLoc > 1) then
         write(locIndexString,'(i1)') locIndex
         filename = 'columnL_' // trim(loc%locType) // '_' // locIndexString // '_' // datestr // '.fst'
@@ -364,16 +363,17 @@ program midas_diagBmatrix
 
       ip3 = 0
       do levIndex = 1, nlevs2
-        do xyPosIndex = 1, nxyPos
+        do lonLatPosIndex = 1, nLonLatPos
+
+          latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
+          lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
 
           call ens_zero(ensAmplitude)
           call gsv_zero(statevectorEnsAmplitude)
-          if ( oneobs_xy(xyPosIndex,yPosIndex) >= statevector%myLatBeg .and. &
-               oneobs_xy(xyPosIndex,yPosIndex) <= statevector%myLatEnd .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) >= statevector%myLonBeg .and. &
-               oneobs_xy(xyPosIndex,xPosIndex) <= statevector%myLonEnd ) then
+          if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
+               lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,oneobs_levs(levIndex))
-            ensAmplitude_oneLev(:,oneobs_timeStepIndex,oneobs_xy(xyPosIndex,xPosIndex),oneobs_xy(xyPosIndex,yPosIndex)) = 1.d0
+            ensAmplitude_oneLev(:,oneobs_timeStepIndex,lonIndex,latIndex) = 1.d0
           end if
           controlVector(:)=0.0d0
 
