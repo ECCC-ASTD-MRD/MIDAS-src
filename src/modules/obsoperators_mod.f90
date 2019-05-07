@@ -823,7 +823,7 @@ contains
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     ! locals
     integer :: ivnm, headerIndex, bodyIndex
-    real(8) :: obsValue
+    real(8) :: obsValue, scaling
     character(len=4) :: varName
 
     write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
@@ -843,19 +843,27 @@ contains
 
       ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-      if( ivnm /= BUFR_ICEC ) cycle BODY
+      select case (ivnm)
+      case(BUFR_ICEC, BUFR_ICEP)
+        scaling = 100.0d0
+      case(BUFR_ICEV)
+        scaling = 1.0d0
+      case default
+        cycle BODY
+      end select
 
       obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
       varName = vnl_varNameFromVarNum(ivnm)
       call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
-                          obsValue - 100.0d0*col_getElem( columnhr, 1, headerIndex, varName ) )
+                          obsValue - scaling*col_getElem( columnhr, 1, headerIndex, varName ) )
 
       ! contribution to jobs
       jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
                       obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
                     ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
                       obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
+
     end do BODY
 
     jobs = 0.5d0 * jobs
@@ -2057,27 +2065,34 @@ contains
       implicit none
 
       integer :: headerIndex, bodyIndex, ityp
-      real(8) :: columnVarB
+      real(8) :: columnVarB, scaling
       character(len=4) :: varName
 
       call obs_set_current_body_list( obsSpaceData, 'GL' )
 
       BODY: do
+
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if (bodyIndex < 0) exit BODY
 
         ! Process all data within the domain of the model
         ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-        if ( ityp /= bufr_icec ) cycle BODY
-
+        select case (ityp)
+        case(BUFR_ICEC, BUFR_ICEP)
+          scaling = 100.0d0
+        case(BUFR_ICEV)
+          scaling = 1.0d0
+        case default
+          cycle BODY
+        end select
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated &
              ) then
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           varName = vnl_varNameFromVarNum(ityp)
-          columnVarB = 100.0d0*col_getElem( column, 1, headerIndex, varName_opt = varName )
+          columnVarB = scaling*col_getElem( column, 1, headerIndex, varName_opt = varName )
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
 
@@ -2843,7 +2858,7 @@ contains
       !*** Adjoint of the "vertical" interpolation for ICE data
       !*
       implicit none
-      real(8) :: residual
+      real(8) :: residual, scaling
       integer :: headerIndex, bodyIndex, ityp
       real(8), pointer :: columnGL(:)
       character(len=4) :: varName
@@ -2858,11 +2873,18 @@ contains
         ! Process all data within the domain of the model
         ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-        if ( ityp /= bufr_icec ) cycle BODY
+        select case (ityp)
+        case(BUFR_ICEC, BUFR_ICEP)
+          scaling = 100.0d0
+        case(BUFR_ICEV)
+          scaling = 1.0d0
+        case default
+          cycle BODY
+        end select
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-          residual = 100.0d0*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
+          residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           varName = vnl_varNameFromVarNum(ityp)
           columnGL => col_getColumn( column, headerIndex, varName_opt = varName )
           columnGL(1) = columnGL(1) + residual
