@@ -5,8 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
- * Change '!' to '!!' in those places that bothered Sphinx.
  * Minor fix in tt2phi_mod.f90 (slightly affects results) : now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
+ * Change '!' to '!!' in those places that bothered Sphinx.
 	
 ### Added
  * The logical namelist variable ltopofilt has been removed. You probably MUST update your namelist. The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples (#225 and !211).
