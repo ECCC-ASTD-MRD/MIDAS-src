@@ -101,15 +101,17 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
   if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
   if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
 
-  if (Vcode == 5005 .and. mpi_myid == 0 .and. .not.beSilent ) then
+  if (Vcode == 5005) then
     status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=alt_sfcOffset_M_r4)
     status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=alt_sfcOffset_T_r4)
-    write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', alt_sfcOffset_M_r4, ' metres'
-    write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', alt_sfcOffset_T_r4, ' metres'
-    if ( .not.columnghr%addGZsfcOffset ) then
-      write(*,*) '----------------------------------------------------------------------------------'
-      write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-      write(*,*) '----------------------------------------------------------------------------------'
+    if ( mpi_myid == 0 .and. .not.beSilent ) then
+      write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', alt_sfcOffset_M_r4, ' metres'
+      write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', alt_sfcOffset_T_r4, ' metres'
+      if ( .not.columnghr%addGZsfcOffset ) then
+        write(*,*) '----------------------------------------------------------------------------------'
+        write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+        write(*,*) '----------------------------------------------------------------------------------'
+      end if
     end if
   end if
 
@@ -150,22 +152,26 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
     ! compute altitude on bottom momentum level
     if (Vcode == 5002) then
       alt_M(nlev_M) = rMT
-    elseif (Vcode == 5005) then
-      ratioP  = log(col_getPressure(columnghr,nlev_M,columnIndex,'MM') / &
+    else if (Vcode == 5005) then
+      alt_M(nlev_M) = rMT + alt_sfcOffset_M_r4
+    end if
+
+    if (nlev_M > 1) then
+      ratioP  = log(col_getPressure(columnghr,nlev_M-1,columnIndex,'MM') / &
                 col_getElem(columnghr,1,columnIndex,'P0') )
 
       ! Gravity acceleration 
       h0  = rMT
       Rgh = phf_gravityalt(sLat,h0)
-      dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
+      dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
       Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      alt_M(nlev_M) = rMT + delThick
+      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+      alt_M(nlev_M-1) = rMT + delThick
     end if
 
     ! compute altitude on rest of momentum levels
-    do lev_M = nlev_M-1, 1, -1
+    do lev_M = nlev_M-2, 1, -1
       ratioP = log(col_getPressure(columnghr,lev_M  ,columnIndex,'MM') / &
                    col_getPressure(columnghr,lev_M+1,columnIndex,'MM'))
       
@@ -213,8 +219,8 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
       alt_T(1) = alt_M(1) + delThick
 
     elseif (Vcode == 5005) then
-
-      do lev_T = 1, nlev_T-1
+      alt_T(nlev_T) = rMT + alt_sfcOffset_T_r4
+      do lev_T = 1, nlev_T-2
         lev_M = lev_T + 1  ! momentum level just below thermo level being computed
         ScaleFactorBottom = log( col_getPressure(columnghr,lev_T  ,columnIndex,'TH')   / &
                                  col_getPressure(columnghr,lev_M-1,columnIndex,'MM') ) / &
@@ -224,18 +230,19 @@ subroutine tt2phi(columnghr,obsSpaceData,beSilent_opt)
         alt_T(lev_T) = ScaleFactorBottom * alt_M(lev_M) + ScaleFactorTop * alt_M(lev_M-1)
       end do
 
+      ! compute altitude on next to bottom thermo level
+      if (nlev_T > 1) then
+        ratioP  = log(col_getPressure(columnghr,nlev_T-1,columnIndex,'TH') / &
+                  col_getElem(columnghr,1,columnIndex,'P0') )
 
-      ! compute altitude on bottom thermo level
-      ratioP  = log(col_getPressure(columnghr,nlev_T,columnIndex,'TH') / &
-                col_getElem(columnghr,1,columnIndex,'P0') )
+        h0  = rMT
+        Rgh = phf_gravityalt(sLat,h0)
+        dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      h0  = rMT
-      Rgh = phf_gravityalt(sLat,h0)
-      dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
-
-      delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T) * ratioP
-      alt_T(nlev_T) = rMT + delThick
+        delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        alt_T(nlev_T-1) = rMT + delThick
+      end if
     end if
 
     ! fill the height array

@@ -482,115 +482,84 @@ module obsUtil_mod
 
   end subroutine obsu_windDirectionToUV
 
-  real function surfvcord(ilem, codtyp)
+  real function surfvcord(varno, codtyp)
     implicit none
     ! arguments
-    integer :: ilem,codtyp
+    integer    :: varno, codtyp
     ! locals
-    integer :: type
-    real    :: vcordsf2
+    character(len=9)  :: family
 
-    vcordsf2 = 0.
-    type = -1
-    if ( codtyp == codtyp_get_codtyp('temppilot')      .or. codtyp == codtyp_get_codtyp('tempsynop')       .or. &
-         codtyp == codtyp_get_codtyp('pilotsynop')     .or. codtyp == codtyp_get_codtyp('temppilotsynop')  .or. &
-         codtyp == codtyp_get_codtyp('pilot')          .or. codtyp == codtyp_get_codtyp('pilotmobil')      .or. &
-         codtyp == codtyp_get_codtyp('temp')           .or. codtyp == codtyp_get_codtyp('tempdrop')        .or. &
-         codtyp == codtyp_get_codtyp('tempmobil')      .or. codtyp == codtyp_get_codtyp('temppilotmobil')  .or. &
-         codtyp == codtyp_get_codtyp('tempsynopmobil') .or. codtyp == codtyp_get_codtyp('pilotsynopmobil') .or. &
-         codtyp == codtyp_get_codtyp('temppilotsynopmobil') ) type = 3  ! UPPER AIR LAND
-    
-    if ( codtyp == codtyp_get_codtyp('temppilotship')  .or. codtyp == codtyp_get_codtyp('tempshipship')    .or. &
-         codtyp == codtyp_get_codtyp('tempsshipship')  .or. codtyp == codtyp_get_codtyp('pilotshipship')   .or. &
-         codtyp == codtyp_get_codtyp('pilotship')      .or. codtyp == codtyp_get_codtyp('tempship') ) type = 4 ! UPPER AIR SHIP
- 
-    if ( codtyp == codtyp_get_codtyp('synopnonauto')   .or. codtyp == codtyp_get_codtyp('synopmobil')      .or. &
-         codtyp == codtyp_get_codtyp('asynopauto') ) type = 1 ! SYNOPS
+    family = codtypfam(codtyp)
+    surfvcord = 0.0
 
-    if ( codtyp == codtyp_get_codtyp('shipnonauto')    .or. codtyp == codtyp_get_codtyp('drifter')         .or. &
-         codtyp == codtyp_get_codtyp('synoppatrol')    .or. codtyp == codtyp_get_codtyp('ashipauto') ) type = 2 ! SHIPS
-
-    if ( codtyp == codtyp_get_codtyp('ascat') ) type = 5 ! SCATTEROMETER WINDS
-
-    select case(type)
-      case (1)
-        select case(ilem)
+    select case(family)
+      case ('synop')
+        select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            ! us,vs,ffs,dds,gust
-            vcordsf2 = 10.0
-          case (bufr_nepn)
-            vcordsf2 = 0.0
-          case (bufr_neps)
-            vcordsf2 = 0.0
-          case (bufr_nets)
-            vcordsf2 = 1.5
-          case (bufr_nees, bufr_ness)
-            vcordsf2 = 1.5
-          case (bufr_vis)
-            vcordsf2 = 1.5
+            surfvcord = 10.0
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
+            surfvcord = 1.5
         end select
-      case (2)
-        select case(ilem)
-          ! us,vs,ffs,dds
+      case ('ship')
+        select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-            vcordsf2 = 20.0
-          case (bufr_nepn)
-            vcordsf2 = 0.0
-          case (bufr_neps)
-            vcordsf2 = 0.0
-          case (bufr_nets)
-            vcordsf2 = 11.5
-          case (bufr_nees, bufr_ness)
-            vcordsf2 = 11.5
-          case (bufr_vis)
-            vcordsf2 = 11.5
-       end select
-     case (3)
-       select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-           vcordsf2 = 10.0
-         case (bufr_nepn)
-           vcordsf2 = 0.0
-         case (bufr_neps)
-           vcordsf2 = 0.0
-         case (bufr_nets)
-           vcordsf2 = 1.5
-         case (bufr_nees)
-           vcordsf2 = 0.0
-         case (bufr_ness)
-           vcordsf2 = 1.5
-         case (bufr_vis)
-            vcordsf2 = 1.5
-       end select
-     case (4)
-       select case(ilem)
-         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
-           vcordsf2 = 20.0
-         case (bufr_nepn)
-           vcordsf2 = 0.0
-         case (bufr_neps)
-           vcordsf2 = 0.0
-         case (bufr_nets)
-           vcordsf2 = 1.5
-         case (bufr_nees)
-           vcordsf2 = 0.0
-         case (bufr_ness)
-           vcordsf2 = 1.5
-         case (bufr_vis)
-            vcordsf2 = 1.5
+            surfvcord = 20.0
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
+            surfvcord = 11.5
         end select
-      case (5)
-
-      select case(ilem)
-        case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
-          vcordsf2 = 10.0
-      end select
+      case ('upairland')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
+            surfvcord = 10.0
+          case (bufr_nets, bufr_ness, bufr_vis)
+            surfvcord = 1.5
+        end select
+      case ('upairship')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
+            surfvcord = 20.0
+          case (bufr_nets, bufr_ness, bufr_vis)
+            surfvcord = 1.5
+        end select
+      case ('scatwinds')
+        select case(varno)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+            surfvcord = 10.0
+        end select
     end select
-
-    surfvcord = vcordsf2
 
   end function  surfvcord
 
+  function codtypfam(codtyp) result(family)
+    implicit none
+    integer          :: codtyp
+    character(len=9) :: family
+
+    if (       codtyp == codtyp_get_codtyp('synopnonauto')   .or. codtyp == codtyp_get_codtyp('synopmobil')      &
+       .or.    codtyp == codtyp_get_codtyp('asynopauto') ) then
+       family = 'synop'
+    else if (  codtyp == codtyp_get_codtyp('shipnonauto')    .or. codtyp == codtyp_get_codtyp('drifter')         &
+       .or.    codtyp == codtyp_get_codtyp('synoppatrol')    .or. codtyp == codtyp_get_codtyp('ashipauto') ) then
+       family = 'ship'
+    else if (  codtyp == codtyp_get_codtyp('temppilot')      .or. codtyp == codtyp_get_codtyp('tempsynop')       &
+       .or.    codtyp == codtyp_get_codtyp('pilotsynop')     .or. codtyp == codtyp_get_codtyp('temppilotsynop')  &
+       .or.    codtyp == codtyp_get_codtyp('pilot')          .or. codtyp == codtyp_get_codtyp('pilotmobil')      &
+       .or.    codtyp == codtyp_get_codtyp('temp')           .or. codtyp == codtyp_get_codtyp('tempdrop')        &
+       .or.    codtyp == codtyp_get_codtyp('tempmobil')      .or. codtyp == codtyp_get_codtyp('temppilotmobil')  &
+       .or.    codtyp == codtyp_get_codtyp('tempsynopmobil') .or. codtyp == codtyp_get_codtyp('pilotsynopmobil') &
+       .or.    codtyp == codtyp_get_codtyp('temppilotsynopmobil') ) then
+       family = 'upairland'
+    else if (  codtyp == codtyp_get_codtyp('temppilotship')  .or. codtyp ==codtyp_get_codtyp('tempshipship')     &
+       .or.    codtyp == codtyp_get_codtyp('tempsshipship')  .or. codtyp ==codtyp_get_codtyp('pilotshipship')    &
+       .or.    codtyp == codtyp_get_codtyp('pilotship')      .or. codtyp ==codtyp_get_codtyp('tempship') ) then
+       family = 'upairship'
+    else if (  codtyp == codtyp_get_codtyp('ascat') ) then
+       family = 'scatwinds'
+    else
+       family = 'other'
+    end if
+
+  end function codtypfam
 
   subroutine  obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
     implicit none
