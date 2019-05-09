@@ -1,6 +1,7 @@
 # MIDAS Fortran coding standards:
 
 * [List of standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards)
+* [Automatic documentation standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Documentation_Standards)
 
 # MIDAS Fortran code documentation:
 
