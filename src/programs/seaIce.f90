@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for sea ice assimilation.
-!! *Origin *: ensmanip/midas-ensmanip.ftn90
-!!
-!--------------------------------------------------------------------------
 program midas_seaIce
+!
+! :Purpose: Main program for sea ice assimilation
+! :Origin:  ensmanip/midas-ensmanip.ftn90
+!
 
   use mpi_mod
   use mpivar_mod

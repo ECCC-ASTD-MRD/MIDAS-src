@@ -14,14 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for Observation minus Forecast (O-F) computation
-!!
-!--------------------------------------------------------------------------
 program midas_ominusf
   !
-  ! **Purpose**: Main program for Observation minus Forecast (O-F) computation
+  ! :Purpose: Main program for Observation minus Forecast (O-F) computation
   !
   use oMinusF_mod
   use obsSpaceData_mod

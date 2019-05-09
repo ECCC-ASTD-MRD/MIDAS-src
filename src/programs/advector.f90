@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for the propagation of fields based on 
-!!            Lagrangian advection
-!!
-!--------------------------------------------------------------------------
 program midas_advector
   !
-  ! **Purpose**: Main program for the propagation of fields based on 
-  ! Lagrangian advection
+  ! :Purpose: Main program for the propagation of fields based on 
+  !           Lagrangian advection
   !
   use ramDisk_mod
   use utilities_mod

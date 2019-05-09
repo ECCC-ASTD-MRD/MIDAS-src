@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for applying the observation operator to an ensemble
-!!            of states as the first step for most EnKF algorithms.
-!!
-!--------------------------------------------------------------------------
 program midas_ensembleH
   !
-  ! **Purpose**: Main program for applying the observation operator to an ensemble
-  ! of states as the first step for most EnKF algorithms.
+  ! :Purpose: Main program for applying the observation operator to an ensemble
+  !           of states as the first step for most EnKF algorithms.
   !
   use mpi_mod
   use mpivar_mod

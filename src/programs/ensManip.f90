@@ -14,38 +14,22 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for manipulating ensembles of states. Possible operations
-!!            are (generally, all start with reading supplied ensemble):
-!!            1. output_ensemble_mean
-!!               - compute mean of input ensemble and write it out
-!!            2. output_ensemble_stddev
-!!               - compute the input ensemble stddev and write it out
-!!            3. output_recentered_ensemble
-!!               - compute mean of input ensemble, subtract from 
-!!                 ensemble, add supplied ensemble mean, and write out resulting ensemble
-!!            4. output_ensemble_perturbations
-!!               - compute mean of input ensemble, subtract from
-!!                 ensemble, and write out resulting ensemble perturbations
-!!
-!!
-!--------------------------------------------------------------------------
 program midas_ensManip
   !
-  ! **Purpose**: Main program for manipulating ensembles of states. Possible operations
-  ! are (generally, all start with reading supplied ensemble):
+  ! :Purpose: Main program for manipulating ensembles of states. Possible
+  !           operations are (generally, all start with reading supplied
+  !           ensemble):
   !
-  ! 1. output_ensemble_mean
-  !    - compute mean of input ensemble and write it out
-  ! 2. output_ensemble_stddev
-  !    - compute the input ensemble stddev and write it out
-  ! 3. output_recentered_ensemble
-  !    - compute mean of input ensemble, subtract from 
-  !    ensemble, add supplied ensemble mean, and write out resulting ensemble
-  ! 4. output_ensemble_perturbations
-  !    - compute mean of input ensemble, subtract from
-  !    ensemble, and write out resulting ensemble perturbations
+  !           1. **output_ensemble_mean**
+  !              - compute mean of input ensemble and write it out
+  !           2. **output_ensemble_stddev**
+  !              - compute the input ensemble stddev and write it out
+  !           3. **output_recentered_ensemble**
+  !              - compute mean of input ensemble, subtract from ensemble,
+  !              add supplied ensemble mean, and write out resulting ensemble
+  !           4. **output_ensemble_perturbations**
+  !              - compute mean of input ensemble, subtract from ensemble,
+  !              and write out resulting ensemble perturbations
   !
   use mpi_mod
   use mpivar_mod

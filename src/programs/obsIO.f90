@@ -14,17 +14,18 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: This program is :
-!!      - reading observation files
-!!      - loading the information in 'struct_obs',
-!!      - multiply the observation value by 'obsIOFactor' (specified in 'NAMOBSIO' namelist)
-!!      - update the flag to value specified by 'obsIOFlag' (specified in 'NAMOBSIO' namelist)
-!!      - update the observation files with those new values.
-!!
-!--------------------------------------------------------------------------
 program midas_obsio
+!--------------------------------------------------------------------------
+!
+! :Purpose: This program :
+!
+!              - reads observation files
+!              - loads the information in 'struct_obs'
+!              - multiplies the observation value by 'obsIOFactor' (specified in 'NAMOBSIO' namelist)
+!              - updates the flag to value specified by 'obsIOFlag' (specified in 'NAMOBSIO' namelist)
+!              - updates the observation files with those new values
+!
+!--------------------------------------------------------------------------
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod

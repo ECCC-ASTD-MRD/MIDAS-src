@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for computing background-error covariance file
-!!            based on homogeneous and isotropic correlations.
-!!
-!--------------------------------------------------------------------------
 program midas_calcstats
   !
-  ! **Purpose**: Main program for computing background-error covariance file
-  ! based on homogeneous and isotropic correlations.
+  ! :Purpose: Main program for computing background-error covariance file
+  !           based on homogeneous and isotropic correlations.
   !
   use mpi_mod
   use mpivar_mod

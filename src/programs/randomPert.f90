@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for generating an ensemble of random perturbations
-!!            based on the B matrix (can be homogeneous/isotropic or ensemble-based).
-!!
-!--------------------------------------------------------------------------
 program midas_randomPert
   !
-  ! **Purpose**: Main program for generating an ensemble of random perturbations
-  ! based on the B matrix (can be homogeneous/isotropic or ensemble-based).
+  ! :Purpose: Main program for generating an ensemble of random perturbations
+  !           based on the B matrix (can be homogeneous/isotropic or
+  !           ensemble-based).
   !
   use mpi_mod
   use mpivar_mod

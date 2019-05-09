@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for replacing functionality of Jeff's original 
-!!            AddAnalInc (AAI) program
-!!
-!--------------------------------------------------------------------------
 program midas_addIncrement
   !
-  ! **Purpose**: Main program for replacing functionality of Jeff's original 
-  ! AddAnalInc (AAI) program
+  ! :Purpose: Main program for replacing functionality of Jeff's original 
+  !           AddAnalInc (AAI) program
   !
   use mpi_mod
   use utilities_mod

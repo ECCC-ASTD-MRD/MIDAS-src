@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for adjoint test applications: 
-!!            <x,L(y)> = <L^T(x),y>
-!!
-!--------------------------------------------------------------------------
 program midas_adjointTest
   !
-  ! **Purpose**: Main program for adjoint test applications: 
-  ! <x,L(y)> = <L^T(x),y>
+  ! :Purpose: Main program for adjoint test applications: 
+  !           <x,L(y)> = <L^T(x),y>
   !
   use ramDisk_mod
   use utilities_mod
