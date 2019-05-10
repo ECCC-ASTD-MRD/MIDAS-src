@@ -14,16 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE bMatrixLatBands (prefix="blb" category='5. B and R matrices')
-!!
-!! *Purpose*: Performs transformation from control vector to analysis increment 
-!!            using the background-error covariance matrix based on homogeneous
-!!            and isotropic correlations. This is the Global version. A separate 
-!!            module exists for limited-area applications.
-!!
-!--------------------------------------------------------------------------
 module bMatrixLatBands_mod
+  ! MODULE bMatrixLatBands_mod (prefix='blb' category='5. B and R matrices')
+  !
+  ! :Purpose: Performs transformation from control vector to analysis increment 
+  !           using the background-error covariance matrix based on homogeneous
+  !           and isotropic correlations. This is the Global version. A separate 
+  !           module exists for limited-area applications.
+  !
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod

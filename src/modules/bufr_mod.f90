@@ -13,33 +13,23 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!!
-!! MODULE bufr_mod (prefix='bufr' category='8. Global constants and interfaces')
-!!
-!! This module contains information that is needed from the
-!! Binary Universal Format for the Representation of meteorological data, 
-!! maintained by the World Meteorological Organization
-!!
-!! Public routines:
-!!v
-!!v       - "buf_IsAtmosConstituent" determines if observation is
-!!v         constituent/chemistrry data
-!!v
-!!v       - "buf_IsIntegral" determines if vertical
-!!v         integral measurement.
-!!v
-!
-! Revisions:
-!           Y.J. Rochon, ARQI/AQRD, Feb 2015, March 2017
-!           - Removed BUFR_NEOZ
-!           - Removed BUFR_NECH
-!           - Added BUFR_SCALE_EXPONENT, BUFR_UNITS_*
-!           - Added public bufr_IsAtmosConstituent, bufr_IsIntegral
-!           M. Sitwell, ARQI/AQRD, Feb 2015
-!           - Replaced BUFR_NETR_* by BUFR_NECH_*  
-!       
-!------------------------------------------------------------------------
+
 module bufr_mod
+  ! MODULE bufr_mod (prefix='bufr' category='8. Global constants and interfaces')
+  !
+  ! :Purpose: This module is a holder for information that is needed from *the
+  !           Binary Universal Form for the Representation of meteorological
+  !           data* (BUFR), maintained by the World Meteorological Organization
+  !
+
+  ! Public routines:
+  !
+  !       - "buf_IsAtmosConstituent" determines if observation is
+  !         constituent/chemistry data
+  !
+  !       - "buf_IsIntegral" determines if vertical integral measurement
+  !
+  !
 
  public
 

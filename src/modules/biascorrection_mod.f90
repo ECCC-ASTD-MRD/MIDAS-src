@@ -14,15 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!-----------------------------------------------------------------------------------------
-!! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
-!!
-!! *Purpose*: Performs the variational bias correction for satellite radiance data 
-!! 
-!!
-!!
-!-----------------------------------------------------------------------------------------
 MODULE biasCorrection_mod
+  ! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
+  !
+  ! :Purpose: Performs the variational bias correction for satellite radiance
+  !           data
+  !
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod

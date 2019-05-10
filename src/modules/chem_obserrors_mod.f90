@@ -14,20 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE chem_obserrors_mod (prefix='chm' category='5. B and R matrices')
-!!
-!! *Purpose*: Provides routines regarding observation error standard deviations.
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Public routines:
-!!v       - "chm_read_obs_err_stddev,chm_get_obs_err_stddev,chm_dealloc_obs_err_stddev":
-!!v         Routines and strucure for setting of obs error std. dev. used in
-!!v        'obserrors_mod.ftn90'. 
-!!
-!--------------------------------------------------------------------------
 module chem_obserrors_mod
+  ! MODULE chem_obserrors_mod (prefix='chm' category='5. B and R matrices')
+  !
+  ! :Purpose: Holds observation standard-deviation information for chemical
+  !           species
+  !
 
   use utilities_mod
   use obsSubSpaceData_mod

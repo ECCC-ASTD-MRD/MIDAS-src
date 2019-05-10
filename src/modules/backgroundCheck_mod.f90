@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE backgroundCheck_mod (prefix='bgck' category='1. High-level functionality')
-!!
-!! *Purpose*: Contains subroutines related to the background check 
-!!
-!--------------------------------------------------------------------------
 module backgroundCheck_mod
+  ! MODULE backgroundCheck_mod (prefix='bgck' category='1. High-level functionality')
+  !
+  ! :Purpose: Performs the background check on all conventional observations
+  !
   use mathPhysConstants_mod
   use bufr_mod
   use obsSpaceData_mod

@@ -13,95 +13,63 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!!
-!! MODULE bMatrixChem_mod:  Contains routines involving preparation and application
-!!                      of background-error covariance matrix(ces). Matrix
-!!                      based on horizontally homogeneous/isotropic
-!!                      correlations.  prefix "bchm_" used for routines in 
-!!                      this module ("chm_" in other modules).
-!!
-!! *Purpose*: Holds routines for (1) reading and preparing the static bacground 
-!!            error covariance matrix (if reading of balance operators if any are
-!!            eventually added) and (2) transformations from control 
-!!            vector (spectral space) to analysis increments (and its adjoint) 
-!!            using the background error covariance matrix (and the balance 
-!!            operators when present).
-!!
-!!          Based on bmatrixHI_mod.ftn90. See bmatrix_mod.ftn90 for usage of public routines.
-!!
-!! @author Ping Du (based on bMatrixHI_mod.ftn90 by Mark Buehner), July-Sept 2014
-!!v         - Code changes mainly pertain to the addition of all aspects related to
-!!v           O3 as constituent and the introduction of the variables *_chm
-!!v         - Partial removal of bMatrixHI_mod components related to standard weather
-!!v           incremental variables
-!!
-!! Revisions:
-!!        Ping Du, Jan 2015
-!!         - Change from btr/tr to bchm/chm prefixes/suffixes.
-!!        Yves Rochon, October 2014 - Nov 2016
-!!        - Addition and modification of comments.
-!!        - Generalizations for any constituent or set of constituents.
-!!        - Extended use of nsposit and numvar*d instead of nlev_* beyond
-!!          bchm_setup.
-!!        - Main revised routines: BCHM_setup, BCHM_copyToStatevector,
-!!                 BCHM_copyFromStatevector, BCHM_readcorns2, BCHM_convol,
-!!                 BCHM_rdspstd, BCHM_rdstsrtd_newfmt, BCHM_sucorns2, BCHM_finalize
-!!        - Addition of bchm_corvert and bchm_corverti. 
-!!        - Others
-!!
-!! Comments and  questions:
-!!
-!! (1) Covariances uncoupled from weather variable.
-!!
-!! (2) Currently assumes univariate constituent assimilation (constituent variables 
-!!     currently uncorrelated). See routines BCHM_READCORNS2 and BCHM_SUCORNS2. These 
-!!     routines would need to be modified if cross-correlations were included.
-!!
-!! (3) One could potentially make public the functions/routines which are identical to
-!!     those in bmatrixhi_mod.ftn90 (except possibly in name) so that one copy is 
-!!     present in the code. 
-!!
-!! (4) For multiple univariate variables (or univarite blocks of one to multiple variables), 
-!!     one could alternatively have multiple sets of covariance matrices within this module
-!!     instead of a single covariance matrix setup (similarly to what was done for bchm_corvert*).
-!!
-!! Public Subroutines (which call other internal routines/functions):
-!!    BCHM_setup:      Must be called first. Sets of background covariance matrix
-!!                     (and balance operators if any are eventually added)
-!!                     calls BCHM_rdstats (BCHM_readcorns2, BCHM_rdstddev (BCHM_rdstd3d,
-!!                                         BCHM_rdstd, BCHM_rdspstd_newfmt (BCHM_rdspstd)),
-!!                                         BCHM_scalestd), 
-!!                           BCHM_sucorns2 (gasparicohn, bchm_corvert_setup, dsyev, 
-!!                                          rpn_comm_allreduce)
-!!    BCHM_BSqrt:      Transformations from control vector to analysis increments 
-!!                     in the minimization process.
-!!                     calls BCHM_cain, BCHM_spa2gd (dgemm), BCHM_copytoStatevector 
-!!    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
-!!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemm), BCHM_cainad
-!!    BCHM_Finalize    Deallocate internal module arrays.
-!!    BCHM_expandToMPIglobal
-!!    BCHM_reduceToMPIlocal:  calls rpn_comm_*
-!!    BCHM_getScaleFactor
-!!    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or 'bchm_corverti'
-!!    BCHM_getsigma:   Obtain background error std. dev. profile at obs/specified
-!!                     location. 
-!!    BCHM_getBgSigma: Obtain background error std. dev. at specified grid point for specified field.
-!!    BCHM_is_initialized: checks if B_chm has been intialized.
-!!    BCHM_StatsExistForVarname: Checfs if covariances available for specified variable.
-!!
-!! Other subroutines/functions info:
-!!    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
-!!    BCHM_rdstddev:          calls BCHM_rdstd3d, BCHM_rdstd, BCHM_rdspstd_newfmt.
-!!    BCHM_rdspstd_newfmt:    calls gst_zleginv, BCHM_rdspstd
-!!
-!! Dependencies:
-!!    globalSpectralTransform, ....
-!!
-!--------------------------------------------------------------------------
+
 MODULE BmatrixChem_mod 
-  !
   ! MODULE BmatrixChem_mod (prefix='bchm' category='5. B and R matrices')
   !
+  ! :Purpose: Contains routines involving the preparation and application of
+  !           background-error covariance matrix(ces). Matrix based on
+  !           horizontally homogeneous/isotropic correlations.  Specifically, the
+  !           methods can:
+  !
+  !           1. read and prepare the static background error covariance matrix
+  !              (if reading of balance operators if any are eventually added)
+  !
+  !           2. transform from control vector (spectral space) to analysis
+  !              increments (and its adjoint) using the background error
+  !              covariance matrix (and the balance operators when present).
+  !
+  !          Based on bmatrixHI_mod.ftn90
+  !
+  ! :Comments and questions:
+  !
+  !   1. Covariances uncoupled from weather variable.
+  !
+  !   2. Currently assumes univariate constituent assimilation (constituent
+  !      variables currently uncorrelated). See routines BCHM_READCORNS2 and
+  !      BCHM_SUCORNS2. These  routines would need to be modified if
+  !      cross-correlations were included.
+  !
+  !   3. One could potentially make public the functions/routines which are
+  !      identical to those in bmatrixhi_mod.ftn90 (except possibly in name) so
+  !      that one copy is present in the code.
+  !
+  !   4. For multiple univariate variables (or univarite blocks of one to
+  !      multiple variables), one could alternatively have multiple sets of
+  !      covariance matrices within this moduleinstead of a single covariance
+  !      matrix setup (similarly to what was done for bchm_corvert*).
+  !
+
+  ! Public Subroutines (which call other internal routines/functions):
+  !    BCHM_setup:      Must be called first. Sets of background covariance
+  !                     matrix (and balance operators if any are eventually
+  !                     added)
+  !
+  !    BCHM_BSqrt:      Transformations from control vector to analysis
+  !                     increments in the minimization process.
+  !
+  !    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
+  !    BCHM_Finalize    Deallocate internal module arrays.
+  !    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or
+  !                     'bchm_corverti'
+  !    BCHM_getsigma:   Obtain background error std. dev. profile at
+  !                     obs/specified location. 
+  !    BCHM_getBgSigma: Obtain background error std. dev. at specified grid
+  !                     point for specified field.
+  !    BCHM_is_initialized: checks if B_chm has been intialized.
+  !    BCHM_StatsExistForVarname: Checfs if covariances available for specified
+  !                     variable.
+
   use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod
