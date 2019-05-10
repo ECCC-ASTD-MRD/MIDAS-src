@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE enkf (prefix="enkf" category='1. High-level functionality')
-!!
-!! *Purpose*: Implementation of the EnKF in MIDAS.
-!!
-!--------------------------------------------------------------------------
-MODULE enkf_mod
+module enkf_mod
+  ! MODULE enkf_mod (prefix='enkf' category='1. High-level functionality')
+  !
+  ! :Purpose: Implementation of the EnKF in MIDAS.
+  !
   use mpi_mod
   use gridStateVector_mod
   use mathPhysConstants_mod

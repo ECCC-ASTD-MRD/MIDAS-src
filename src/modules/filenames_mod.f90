@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE fileNames_mod (prefix="fln" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Routines related to file names
-!!
-!--------------------------------------------------------------------------
 module fileNames_mod
+  ! MODULE fileNames_mod (prefix='fln' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Routines related to file names
+  !
   use utilities_mod
   use clib_interfaces_mod
   use ramDisk_mod

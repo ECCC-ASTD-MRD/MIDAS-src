@@ -14,16 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE innovation_mod (prefix="inn" category='1. High-level functionality')
-!!
-!! *Purpose*: Several high-level subroutines used to compute the innovations,
-!!            that is, the observation-minus-background values. This includes
-!!            the subroutine that reads in the gridded high-res background state
-!!            from standard files.
-!!
-!--------------------------------------------------------------------------
 module innovation_mod
+  ! MODULE innovation_mod (prefix='inn' category='1. High-level functionality')
+  !
+  ! :Purpose: Several high-level subroutines used to compute the innovations:
+  !           that is, the observation-minus-background values. This includes the
+  !           subroutine that reads in the gridded high-res background state from
+  !           standard files.
+  !
   use mpi_mod
   use ramDisk_mod
   use obsSpaceData_mod

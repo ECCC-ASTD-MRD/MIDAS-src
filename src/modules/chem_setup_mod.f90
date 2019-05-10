@@ -14,62 +14,56 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!-----------------------------------------------------------------------------
-!! MODULE chem_setup_mod (prefix='chm' category='4. Observation operators')
-!!         
-!! *Purpose*: Provides pre-processing (setup) routines and 
-!!            related tools reqarding observation averaging kernels, 
-!!            and std. (fst) gridded format files.
-!!  
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Revisions:  
-!!   
-!! Public routines:
-!!v
-!!v       - "chm_setup": Routines and structure for setting and assignment 
-!!v         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
-!!v         See 'preproc.ftn90' and 'chm_obsoperators'. 
-!!v
-!!v       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
-!!v
-!!v       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
-!!v
-!!v       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
-!!v
-!!v       - "chm_get_avgkern" to return averaging kernel for an observation.
-!!v
-!!v       - "chm_var_maxnumber" to pass on value of chm_constituents_size
-!!v
-!!v       - "chm_add_efftemp_*" adds effective temperatures in obsfile and or 
-!!v          obsdata subspace
-!!v
-!!v        - "chm_set_reference_obsdata" determines and stores reference 
-!!v          profile at obs location if needed by the observation operators.
-!!v
-!!v       - "chm_get_ref_column" to extract and provide column from chm_ref_field 
-!!v          associated to code.
-!!v
-!!v       - "chm_setup_get_*" allows access to desired private parameters, most
-!!v          of them provided via the NAMCHEM namelist
-!!v
-!!v       - "chm_setup_set_int" allows setting of some integer element(s) 
-!!v         specific to the CH family outside this module. 
-!!v
-!!v       - "chm_diagn_only": Identify if data is to be assimilated or only used
-!!v         for independent verifications.
-!!v
-!!
-!! Comment:
-!!
-!! See !x regarding commented output in *2dfieldr4* to ascii file as sample
-!! usage of message output file. Commented out as the same file cannot be
-!! simultaneoulsly opened for wriring by different processors. Other similar
-!! usage in code has been removed.
-!!
-!----------------------------------------------------------------------------------------
 module chem_setup_mod
+  ! MODULE chem_setup_mod (prefix='chm' category='4. Observation operators')
+  !
+  ! :Purpose: Provides pre-processing (setup) routines and related tools
+  !           regarding observation averaging kernels, and std. (fst) gridded
+  !           format files.
+  !
+
+  ! Public routines:
+  !
+  !       - "chm_setup": Routines and structure for setting and assignment 
+  !         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
+  !         See 'preproc.ftn90' and 'chm_obsoperators'. 
+  !
+  !       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
+  !
+  !       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
+  !
+  !       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
+  !
+  !       - "chm_get_avgkern" to return averaging kernel for an observation.
+  !
+  !       - "chm_var_maxnumber" to pass on value of chm_constituents_size
+  !
+  !       - "chm_add_efftemp_*" adds effective temperatures in obsfile and or 
+  !          obsdata subspace
+  !
+  !        - "chm_set_reference_obsdata" determines and stores reference 
+  !          profile at obs location if needed by the observation operators.
+  !
+  !       - "chm_get_ref_column" to extract and provide column from chm_ref_field
+  !          associated to code.
+  !
+  !       - "chm_setup_get_*" allows access to desired private parameters, most
+  !          of them provided via the NAMCHEM namelist
+  !
+  !       - "chm_setup_set_int" allows setting of some integer element(s) 
+  !         specific to the CH family outside this module. 
+  !
+  !       - "chm_diagn_only": Identify if data is to be assimilated or only used
+  !         for independent verifications.
+  !
+  !
+  ! Comment:
+  !
+  ! See !x regarding commented output in *2dfieldr4* to ascii file as sample
+  ! usage of message output file. Commented out as the same file cannot be
+  ! simultaneoulsly opened for writing by different processors. Other similar
+  ! usage in code has been removed.
+  !
  
   use mpi_mod, only: mpi_myid, mpi_allgather_string
   use utilities_mod

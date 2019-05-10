@@ -15,12 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module mpivar_mod
+  ! MODULE mpivar_mod (prefix='mpivar' category='7. Low-level data objects and utilities')
   !
-  ! MODULE mpivar (prefix="mpivar" category='7. Low-level data objects and utilities')
-  !
-  ! **Purpose**: Subroutine and public variables related to the mpi decomposition
-  ! specific to the MIDAS code. Depends on the more general mpi_mod module.
-  !
+  ! :Purpose: Subroutine and public variables related to the mpi decomposition
+  !           specific to the MIDAS code. Depends on the more general mpi_mod
+  !           module.
   !
   use mpi_mod
   use utilities_mod

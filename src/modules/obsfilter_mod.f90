@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsFilter (prefix="filt" category='1. High-level functionality')
-!!
-!! *Purpose*: Various types of filters that are applied to the observations
-!!            mostly to reject them so they will not be assimilated.
-!!
-!--------------------------------------------------------------------------
 module obsFilter_mod
+  ! MODULE obsFilter_mod (prefix='filt' category='1. High-level functionality')
+  !
+  ! :Purpose: Various types of filters that are applied to the observations
+  !           mostly to reject them so that they will not be assimilated.
+  !
   use mpi_mod
   use mpivar_mod
   use EarthConstants_mod

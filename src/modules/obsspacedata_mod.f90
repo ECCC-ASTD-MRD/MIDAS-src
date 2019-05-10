@@ -1,3 +1,20 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
 
 ! NOTE:  Throughout this file:
@@ -9,76 +26,72 @@
 !             HeaderIndex,etc.-necessarily a row index
 
 module IndexListDepot_mod
-   !!
-   !! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects
-   !!                            and utilities')
-   !!
-   !! PURPOSE:
-   !!    The raison d'etre of this module is to support ObsSpaceData_mod in
-   !!    facilitating the traversal of a selection of the rows in its table.  The
-   !!    selection of rows could be from either the header table or the body
-   !!    table. ObsSpaceData_mod currently populates the list with one of:
-   !!                 all header members of a given family
-   !!                 all   body members of a given family
-   !!                 all   body members of a given header row index
-   !!
-   !! USAGE:
-   !!    An ObsSpaceData_mod client must first call either
-   !!    obs_set_current_body_list or obs_set_current_header_list, specifying
-   !!    either the family of interest or the header row index of interest. 
-   !!    This does not return the list directly to the caller, but rather writes
-   !!    the list, as a struct_index_list, to the private contents of the obs
-   !!    oject that is returned to the caller but which cannot be examined by the
-   !!    caller.  Two lists can be active simultaneously:  one header list and
-   !!    one body list.
-   !!
-   !!    In order to access the indices that are in the list, the
-   !!    ObsSpaceData_mod client must call either obs_getHeaderIndex or
-   !!    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
-   !!    On each call, one index is returned.  On calls after the last index in
-   !!    the list, a value of -1 is returned.
-   !!
-   !!    This is not a fully fledged module.  It is better described as a
-   !!    structure definition with a couple of helpful methods.  It is intended
-   !!    that the client, ObsSpaceData_mod, read/write directly from/to instances
-   !!    of these structures.
-   !!
-   !! STRUCT_INDEX_LIST:
-   !!    A struct_index_list contains the identity of the family or header that
-   !!    was used to create the list, the actual list of indices, and the number
-   !!    of the list element that was last returned to the user.
-   !!
-   !! STRUCT_INDEX_LIST_DEPOT:
-   !!    Because it is typical for a client to traverse a small group of lists
-   !!    several times each, performance is improved by retaining recent lists,
-   !!    thus avoiding having to regenerate them on each request.  Recent lists
-   !!    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
-   !!    struct_index_list_depot for header lists and another for body lists.
-   !!    The struct_index_list_depot structure contains current_list, a pointer
-   !!    to the list in the depot that was last requested by the ObsSpaceData_mod
-   !!    client.
-   !!
-   !! OMP:
-   !!    ObsSpaceData_mod has been designed so that it may be called from within
-   !!    an OMP section of code.  If there are n OMP threads, it is possible that
-   !!    there be as many as n lists in use simultaneously.  The parameter, 
-   !!    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
-   !!    this case, because the current_list of the depot is not OMP-private, it
-   !!    cannot be asked to remember the current list for each of the OMP
-   !!    threads.  Therefore, obs_set_current_header/body_list returns to the
-   !!    client an additional pointer to the list itself.  This pointer must then
-   !!    be passed as an optional parameter to obs_getHeader/BodyIndex.  When a
-   !!    new list is requested by an OMP thread, the same physical memory is
-   !!    re-used for the new list.
-   !!
-   !!    In order to ensure that the same physical memory is not initially
-   !!    distributed to more than one OMP thread, the two small sections of
-   !!    IndexListDepot_mod that accomplish this are marked omp-critical.
-   !!
-   !! author  : J.W. Blezius - 2012
-   !!
-   !! Revisions:
-   !!
+  ! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: The raison d'etre of this module is to support ObsSpaceData_mod in
+  !           facilitating the traversal of a selection of the rows in its table.
+  !           The selection of rows could be from either the header table or the
+  !           body table. ObsSpaceData_mod currently populates the list with one
+  !           of:
+  !                 all header members of a given family
+  !                 all   body members of a given family
+  !                 all   body members of a given header row index
+  !
+  ! :Usage:
+  !    An ObsSpaceData_mod client must first call either
+  !    obs_set_current_body_list or obs_set_current_header_list, specifying
+  !    either the family of interest or the header row index of interest. 
+  !    This does not return the list directly to the caller, but rather writes
+  !    the list, as a struct_index_list, to the private contents of the obs
+  !    oject that is returned to the caller but which cannot be examined by the
+  !    caller.  Two lists can be active simultaneously:  one header list and
+  !    one body list.
+  !
+  !    In order to access the indices that are in the list, the
+  !    ObsSpaceData_mod client must call either obs_getHeaderIndex or
+  !    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
+  !    On each call, one index is returned.  On calls after the last index in
+  !    the list, a value of -1 is returned.
+  !
+  !    This is not a fully fledged module.  It is better described as a
+  !    structure definition with a couple of helpful methods.  It is intended
+  !    that the client, ObsSpaceData_mod, read/write directly from/to instances
+  !    of these structures.
+
+
+
+  ! STRUCT_INDEX_LIST:
+  !    A struct_index_list contains the identity of the family or header that
+  !    was used to create the list, the actual list of indices, and the number
+  !    of the list element that was last returned to the user.
+  !
+  ! STRUCT_INDEX_LIST_DEPOT:
+  !    Because it is typical for a client to traverse a small group of lists
+  !    several times each, performance is improved by retaining recent lists,
+  !    thus avoiding having to regenerate them on each request.  Recent lists
+  !    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
+  !    struct_index_list_depot for header lists and another for body lists.
+  !    The struct_index_list_depot structure contains current_list, a pointer
+  !    to the list in the depot that was last requested by the ObsSpaceData_mod
+  !    client.
+  !
+  ! OMP:
+  !    ObsSpaceData_mod has been designed so that it may be called from within
+  !    an OMP section of code.  If there are n OMP threads, it is possible that
+  !    there be as many as n lists in use simultaneously.  The parameter, 
+  !    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
+  !    this case, because the current_list of the depot is not OMP-private, it
+  !    cannot be asked to remember the current list for each of the OMP
+  !    threads.  Therefore, obs_set_current_header/body_list returns to the
+  !    client an additional pointer to the list itself.  This pointer must then
+  !    be passed as an optional parameter to obs_getHeader/BodyIndex.  When a
+  !    new list is requested by an OMP thread, the same physical memory is
+  !    re-used for the new list.
+  !
+  !    In order to ensure that the same physical memory is not initially
+  !    distributed to more than one OMP thread, the two small sections of
+  !    IndexListDepot_mod that accomplish this are marked omp-critical.
+  !
 
    implicit none
    save
@@ -309,24 +322,19 @@ end module IndexListDepot_mod
 
 
 module ObsColumnNames_mod
-   !!
-   !! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects
-   !!                            and utilities')
-   !!
-   !! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
-   !!        In fact, if fortran allowed it, ObsColumnNames_mod would be
-   !!        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
-   !!        more importantly because these parameters constitute a part of the
-   !!        visible (from outside ObsSpaceData_mod) interface to
-   !!        ObsSpaceData_mod, the parameters defined in this module carry the
-   !!        prefix, OBS, and not CN.
-   !!
-   !! Revisions:
-   !!           Y.J. Rochon (ARQI), Dec 2014
-   !!           -- Addition of OBS_CHM integer header element
-   !!              for identifying the constituent type according
-   !!              to BUFR code table 08046 (plus local additions).
-   !!
+  ! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: This module simply groups together many fortran paramters that
+  !           serve as column names for ObsSpaceData_mod.
+  !
+  ! :NOTE: This module is logistically a part of the ObsSpaceData_mod module.
+  !        In fact, if fortran allowed it, ObsColumnNames_mod would be
+  !        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
+  !        more importantly because these parameters constitute a part of the
+  !        visible (from outside ObsSpaceData_mod) interface to
+  !        ObsSpaceData_mod, the parameters defined in this module carry the
+  !        prefix, OBS, and not CN.
+  !
 
    public
 
@@ -615,17 +623,16 @@ end module ObsColumnNames_mod
 
 
 module ObsDataColumn_mod
-   !
-   ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
-   !
-   ! This module is used exclusively by the obsSpaceData module which follows
-   ! in this file. The derived type is used to represent a "column" of
-   ! observation data in an instance of the struct_obs defined in obsSpaceData.
-   ! It contains a pointer for each possible type of data stored in a column,
-   ! but only one should be allocated at any time.
-   !
-   ! author  : Mark Buehner - 2012
-   !
+  !
+  ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose:
+  !    This module is used exclusively by the obsSpaceData module which follows
+  !    in this file. The derived type is used to represent a "column" of
+  !    observation data in an instance of the struct_obs defined in obsSpaceData.
+  !    It contains a pointer for each possible type of data stored in a column,
+  !    but only one should be allocated at any time.
+  !
    use codePrecision_mod
    use ObsColumnNames_mod
    implicit none
@@ -1314,9 +1321,14 @@ end module ObsDataColumn_mod
 
 
 module ObsSpaceData_mod
-   !
-   ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
-   !
+  ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
+  !
+  ! :Purpose: This module contains a structure definition, struct_obs, and
+  !           methods for accessing its data.  An instance of struct_obs contains
+  !           all information pertaining to a set of observation-space data.
+  !           (This had evolved from the CMA structure, originated in work by
+  !           D. Vasiljevic at ECMWF.)
+  !
    use codePrecision_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod
@@ -1325,13 +1337,6 @@ module ObsSpaceData_mod
    save
    private
 
-   ! This module deals with operations involving the data structure that
-   ! stores observational information.
-   !   (this had evolved from the CMA structure, originated in work by
-   !    D. Vasiljevic at ECMWF)
-   !
-   ! First creation of the module: February 2011 by Peter Houtekamer
-   !
 
 
    ! CLASS-CONSTANT:

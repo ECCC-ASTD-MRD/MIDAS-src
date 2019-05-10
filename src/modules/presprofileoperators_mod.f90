@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE presProfileOperators (prefix="ppo" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Vertical interpolation subroutines, including the special routines
-!!            designed to interpolate to the (widely spaced) RTTOV pressure levels.
-!!
-!--------------------------------------------------------------------------
 module presProfileOperators_mod
+  ! MODULE presProfileOperators_mod (prefix='ppo' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Vertical interpolation subroutines, including the special routines
+  !           designed to interpolate to the (widely spaced) RTTOV pressure
+  !           levels.
+  !
   implicit none
   save
   private

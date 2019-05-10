@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE physicsFunctions (prefix='phf' category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: A collection of basic functions for various purposes 
-!!            (e.g. computing saturation vapour pressure)
-!!
-!--------------------------------------------------------------------------
 module physicsFunctions_mod
+  ! MODULE physicsFunctions_mod (prefix='phf' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: A collection of basic functions for various purposes 
+  !           (e.g. computing saturation vapour pressure)
+  !
   use MathPhysConstants_mod
   use earthconstants_mod
   use utilities_mod

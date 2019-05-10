@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE HorizontalCoord (prefix="hco" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Derived type and procedures related to the horizontal grid 
-!!            coordinate for various grids (global and limited area).
-!!
-!--------------------------------------------------------------------------
 module HorizontalCoord_mod
+  ! MODULE HorizontalCoord_mod (prefix='hco' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Derived type and procedures related to the horizontal grid
+  !           coordinate for various grids (global and limited area).
+  !
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod

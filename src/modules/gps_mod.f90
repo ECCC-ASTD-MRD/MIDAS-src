@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE gps (prefix='gps' category='4. Observation operators')
-!!
-!! Note: prefix not used for all public variables
-!!
-!! *Purpose*: Code related to GPS-RO and ground-based GPS observation operators. 
-!!
-!--------------------------------------------------------------------------
 module gps_mod
+  ! MODULE gps_mod (prefix='gps' category='4. Observation operators')
+  !
+  ! :Purpose: Code related to GPS-RO and ground-based GPS observation operators.
+  !
+  ! :Note: prefix not used for all public variables
+  !
   use mpi_mod
   use utilities_mod
   use mathPhysConstants_mod

@@ -14,27 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsSpaceDiag (prefix="osd" category='1. High-level functionality')
-!!
-!! *Purpose*: Some experimental procedures for computing various diagnostics 
-!!            in observation space.
-!!
-!--------------------------------------------------------------------------
 module obsSpaceDiag_mod
-!!
-!! Author: Mark Buehner, ARMA.
-!!
-!! Revisions: M. Sitwell, ARQI (July 2015)
-!!            - Addition of lrandom logical (see osd_setup)
-!!            Y. Rochon, ARQI (Oct 2015)
-!!            - Addition of public procedure 'osd_ObsSpaceDiag'
-!!            Y. Rochon and M. Sitwell (Feb 2017)
-!!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
-!!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
-!!
-!!
-!!------------------------------------------------------------------------------------------
+  ! MODULE obsSpaceDiag_mod (prefix="osd" category='1. High-level functionality')
+  !
+  ! :Purpose: Some experimental procedures for computing various diagnostics in
+  !           observation space.
+  !
   use mpi_mod
   use mpivar_mod
   use bufr_mod

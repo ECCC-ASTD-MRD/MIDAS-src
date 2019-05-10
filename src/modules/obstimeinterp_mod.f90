@@ -14,13 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsTimeInterp (prefix="oti" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: To store public variables and procedures related to the time coordinate.
-!!
-!--------------------------------------------------------------------------
 module obsTimeInterp_mod
+  ! MODULE obsTimeInterp_mod (prefix='oti' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: To store public variables and procedures related to the time
+  !           coordinate.
+  !
   use mpi_mod
   use mpivar_mod
   use utilities_mod

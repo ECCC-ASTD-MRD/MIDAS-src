@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE increment (prefix="inc" category='1. High-level functionality')
-!!
-!! *Purpose*: To add a 4D increment to a given 4D background/reference state
-!!            and to output the results
-!!
-!--------------------------------------------------------------------------
-MODULE increment_mod
+module increment_mod
+  ! MODULE increment_mod (prefix='inc' category='1. High-level functionality')
+  !
+  ! :Purpose: To add a 4D increment to a given 4D background/reference state and
+  !           to output the results
+  !
   use mpi_mod
   use mpivar_mod
   use timeCoord_mod

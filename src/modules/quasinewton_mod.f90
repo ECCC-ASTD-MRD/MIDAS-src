@@ -11,21 +11,15 @@
 !     See the above mentioned License/Disclaimer for more details.
 !     You should have received a copy of the License/Disclaimer along with this software;
 !     if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!     CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+  ! CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !--------------------------------------LICENCE END --------------------------------------
 
 
-!--------------------------------------------------------------------------
-!     MODULE quasinewton_mod,(prefix="qna" category='1. High-level functionality')
-!     
-!     Purpose: the module version of the modulopt/n1qn3 library
-!     
-!     Subroutines:
-!     
-!     Dependencies:
-!     none
-!--------------------------------------------------------------------------
-      module quasinewton_mod
+module quasinewton_mod
+  ! MODULE quasinewton_mod (prefix='qna' category='1. High-level functionality')
+  !
+  ! Purpose: The n1qn3 routine, and its supporting subroutines
+  !
       use mpi_mod
       implicit none
       save 

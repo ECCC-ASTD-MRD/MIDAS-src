@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE ensembleStateVector (prefix="ens" category='2. High-level data objects')
-!!
-!! *Purpose*: Store and manipulate ensemble of state vectors and 
-!!            the ensemble mean.
-!!
-!--------------------------------------------------------------------------
-MODULE ensembleStateVector_mod
+module ensembleStateVector_mod
+  ! MODULE ensembleStateVector_mod (prefix='ens' category='2. High-level data objects')
+  !
+  ! :Purpose: Store and manipulate ensemble of state vectors and the ensemble
+  !           mean.
+  !
   use ramDisk_mod
   use mpi_mod
   use mpivar_mod

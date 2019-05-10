@@ -14,16 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE rMatrix (prefix="rmat" category='5. B and R matrices')
-!!
-!! *Purpose*: Module to handle non diagonal observation error covariance
-!!            matrices for assimilation of radiances
-!!
-!! @author S. Heilliette ARMA August 2013
-!!
-!--------------------------------------------------------------------------
 module rMatrix_mod
+  ! MODULE rMatrix_mod (prefix='rmat' category='5. B and R matrices')
+  !
+  ! :Purpose: Module to handle non-diagonal observation-error covariance
+  !           matrices for assimilation of radiances
+  !
   use rttov_interfaces_mod
   use mpi_mod
   use mpivar_mod

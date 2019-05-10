@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE computeHBHT_mod (prefix='hbht' category='1. High-level functionality')
-!!
-!! *Purpose*: Contains subroutines for computing the background error 
-!!            variance in observation space
-!!
-!--------------------------------------------------------------------------
 module computeHBHT_mod
+  ! MODULE computeHBHT_mod (prefix='hbht' category='1. High-level functionality')
+  !
+  ! :Purpose: Contains subroutines for computing the background error variance
+  !           in observation space
+  !
   use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod

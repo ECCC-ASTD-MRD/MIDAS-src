@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsOperators (prefix="oop" category='4. Observation operators')
-!!
-!! *Purpose*: All observation operators, including nonlinear, tangent-linear
-!!            and adjoint versions.
-!!
-!--------------------------------------------------------------------------
 module obsOperators_mod
+  ! MODULE obsOperators_mod (prefix='oop' category='4. Observation operators')
+  !
+  ! :Purpose: All observation operators, including nonlinear, tangent-linear
+  !           and adjoint versions.
+  !
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod

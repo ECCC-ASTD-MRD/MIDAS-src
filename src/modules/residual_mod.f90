@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE residual_mod,(prefix="res" category='1. High-level functionality')
-!!
-!! *Purpose*: To compute OMA (= OMP - H dx) and its adjoint
-!!
-!--------------------------------------------------------------------------
 module residual_mod
+  ! MODULE residual_mod,(prefix='res' category='1. High-level functionality')
+  !
+  ! :Purpose: To compute OMA (= OMP - H dx) and its adjoint
+  !
   use obsSpaceData_mod
   implicit none
   save

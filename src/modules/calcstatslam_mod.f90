@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE calcStatsLam (prefix="csl" category='1. High-level functionality')
-!!
-!! *Purpose*: Compute homogeneous and isotropic background error covariances 
-!!            from forecast error estimate in model variable space (limited-area version).
-!!
-!--------------------------------------------------------------------------
-module calcstatslam_mod
+module calcStatsLam_mod
+  ! MODULE calcStatsLam_mod (prefix='csl' category='1. High-level functionality')
+  !
+  ! :Purpose: To compute homogeneous and isotropic background error covariances 
+  !           from forecast error estimate in model variable space (limited-area
+  !           version).
+  !
   use gridStateVector_mod
   use lamSpectralTransform_mod
   use analysisGrid_mod
@@ -2255,4 +2254,4 @@ contains
 
   end subroutine calcLocalCorrelations
 
-end module calcstatslam_mod
+end module calcStatsLam_mod

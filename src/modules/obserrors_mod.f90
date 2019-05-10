@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsErrors (prefix="oer" category='5. B and R matrices')
-!!
-!! *Purpose*: Subroutines to set up the observation error standard deviations.
-!!
-!--------------------------------------------------------------------------
 module obsErrors_mod
+  ! MODULE obsErrors_mod (prefix='oer' category='5. B and R matrices')
+  !
+  ! :Purpose: Subroutines to set up the observation-error standard deviations.
+  !
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod

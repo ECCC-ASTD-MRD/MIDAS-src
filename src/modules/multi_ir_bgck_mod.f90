@@ -14,18 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE multi_ir_bgcheck (prefix='irbg' category='1. High-level functionality')
-!!
-!! *Purpose*: VARIABLES FOR MULTISPECTRAL INFRARED BACKGROUND CHECK
-!!            AND QUALITY CONTROL.
-!!
-!! @author A. BEAULNE (CMDA/SMC) February 2006
-!!
-!! REVISION: adapted to IASI and CrIS by S. Heilliette
-!!
-!--------------------------------------------------------------------------
 module multi_ir_bgck_mod
+  ! MODULE multi_ir_bgck_mod (prefix='irbg' category='1. High-level functionality')
+  !
+  ! :Purpose: Variables for multispectral infrared background check and quality
+  !           control.
+  !
   use rttov_interfaces_mod
   use tovs_nl_mod
   use rttov_const, only : inst_id_iasi
@@ -4076,4 +4070,4 @@ contains
   end function DRM
       
 
-end module MULTI_IR_BGCK_MOD
+end module multi_ir_bgck_mod

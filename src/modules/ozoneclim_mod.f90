@@ -14,15 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!************************************************************************
-!! MODULE ozoneClim (prefix="ozo" category='4. Observation operators')
-!!
-!! *PURPOSE*: Climatological ozone (1998)
-!!
-!! @author A. BEAULNE (CMDA/SMC) May 2006
-!!
-!************************************************************************
 module ozoneClim_mod
+  ! MODULE ozoneClim_mod (prefix='ozo' category='4. Observation operators')
+  !
+  ! :Purpose: Climatological ozone (1998)
+  !
   use obsSpaceData_mod
   use presProfileOperators_mod
   use utilities_mod

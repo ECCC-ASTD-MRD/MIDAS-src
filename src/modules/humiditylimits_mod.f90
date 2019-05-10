@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE humidityLimits_mod (prefix="qlim" category='1. High-level functionality')
-!!
-!! *Purpose*: Various manipulations of humidity-related quantities.
-!!
-!--------------------------------------------------------------------------
 module humidityLimits_mod
+  ! MODULE humidityLimits_mod (prefix='qlim' category='1. High-level functionality')
+  !
+  ! :Purpose: Various manipulations of humidity-related quantities.
+  !
   use mpi_mod
   use utilities_mod
   use mathPhysConstants_mod

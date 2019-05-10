@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE utilities_mod,(prefix="cfn" category='1. High-level functionality')
-!!
-!! *Purpose*: To compute Jo term
-!!
-!--------------------------------------------------------------------------
 module costfunction_mod
+  ! MODULE costfunction_mod, (prefix="cfn" category='1. High-level functionality')
+  !
+  ! :Purpose: To compute Jo term
+  !
   use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod

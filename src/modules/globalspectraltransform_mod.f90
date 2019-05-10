@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE globalSpectralTransform_mod (prefix='gst' category='3. High-level transformations')
-!!
-!! *Purpose*: Perform global spectral transform (spherical harmonic transform
-!!            with grid-point field on a standard global Gaussian grid). 
-!!
-!--------------------------------------------------------------------------
-MODULE globalSpectralTransform_mod
+module globalSpectralTransform_mod
+  ! MODULE globalSpectralTransform_mod (prefix='gst' category='3. High-level transformations')
+  !
+  ! :Purpose: To perform global spectral transform (spherical harmonic transform
+  !           with grid-point field on a standard global Gaussian grid). 
+  !
   use mpi
   use mpi_mod
   use mpivar_mod

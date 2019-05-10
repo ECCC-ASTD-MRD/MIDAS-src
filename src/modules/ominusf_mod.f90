@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE oMinusF (prefix="omf" category='1. High-level functionality')
-!!
-!! *Purpose*: Module for Observation minus Forecast (O-F) computation
-!!
-!--------------------------------------------------------------------------
 module oMinusF_mod
+  ! MODULE oMinusF_mod (prefix='omf' category='1. High-level functionality')
+  !
+  ! :Purpose: Module for Observation minus Forecast (O-F) computation
+  !
   use ramDisk_mod
   use utilities_mod
   use mpi_mod

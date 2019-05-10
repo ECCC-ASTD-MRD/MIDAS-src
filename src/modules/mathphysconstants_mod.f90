@@ -7,16 +7,13 @@
 !          ./thermoconsts_to_MathPhysConstants.py
 
 MODULE MathPhysConstants_mod
-  ! Mathematical and Physical Constants
-  implicit none
-  public
-  !-----------------------------------------------------------------------------
   ! MODULE MathPhysConstants_mod (prefix='mpc' category='8. Global constants and interfaces')  
   !
-  ! Purpose: To supply mathematical and physical constants in a universal,
-  !          reliable fashion.
-  !-----------------------------------------------------------------------------
-  ! Feb  9, 2012 Jeff Blezius
+  ! :Purpose: To supply mathematical and physical constants in a universal,
+  !           reliable fashion.
+  !
+  implicit none
+  public
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
    real(8), parameter ::MPC_PI_R8                         =  3.141592653589793D+00 ! (unitless)

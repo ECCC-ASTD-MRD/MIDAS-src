@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE randomNumber_mod (prefix="rng" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: A Gaussian random number generator (RNG) module
-!!
-!--------------------------------------------------------------------------
-module randomnumber_mod
+module randomNumber_mod
+  ! MODULE randomNumber_mod (prefix='rng' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: A Gaussian random number generator (RNG) module
+  !
   use ISO_C_BINDING
   implicit none
 
@@ -95,4 +93,4 @@ contains
     
   end function rng_uniform
   
-end module randomnumber_mod
+end module randomNumber_mod

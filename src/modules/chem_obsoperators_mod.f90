@@ -14,17 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE chem_obsoperators_mod (prefix='chm' category='4. Observation operators')
-!!
-!! *Purpose*: Provides observation operator routines.
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Public routines:
-!!v       - "chm_obsoperators": Applies observation operators.
-!--------------------------------------------------------------------------
 module chem_obsoperators_mod
+  ! MODULE chem_obsoperators_mod (prefix='chm' category='4. Observation operators')
+  !
+  ! :Purpose: Provides observation operator routines.
+  !
 
   use utilities_mod
   use chem_setup_mod

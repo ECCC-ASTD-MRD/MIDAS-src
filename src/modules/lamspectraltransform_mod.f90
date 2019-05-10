@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE LamSpectralTransform (prefix="lst" category='3. High-level transformations')
-!! 
-!! *Purpose*: Bi-Fourier spectral transform for limited area applications.
-!!            Depends on ffft8 and setfft8 routines in ARMNLIB.
-!!
-!--------------------------------------------------------------------------
 module lamSpectralTransform_mod
+  ! MODULE lamSpectralTransform_mod (prefix='lst' category='3. High-level transformations')
+  ! 
+  ! :Purpose: Bi-Fourier spectral transform for limited-area applications.
+  !           Depends on ffft8 and setfft8 routines in ARMNLIB.
+  !
   use mpi
   use mpi_mod
   use mpivar_mod

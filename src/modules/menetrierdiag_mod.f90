@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE menetrierDiag_mod (prefix="bmd" category='1. High-level functionality')
-!!
-!! *Purpose*: Compute optimal localization radii according to the theory 
-!!            developped by Benjamin Menetrier (Meteo-France) and reported
-!!            in Menetrier, Michel, Montmerle and Berre, 2015, Part 1 and 2
-!!
-!--------------------------------------------------------------------------
 module menetrierDiag_mod
+  ! MODULE menetrierDiag_mod (prefix='bmd' category='1. High-level functionality')
+  !
+  ! :Purpose: To compute optimal localization radii according to the theory 
+  !           developed by Benjamin Menetrier (Meteo-France) and reported
+  !           in Menetrier, Michel, Montmerle and Berre, 2015, Parts 1 and 2.
+  !
   use earthConstants_mod, only: RA
   use utilities_mod
   use localizationFunction_mod

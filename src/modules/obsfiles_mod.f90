@@ -14,19 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsFiles_mod (prefix="obsf" category='6. Observation input/output')
-!!
-!! *Purpose*: High-level module to handle reading/writing of observations that
-!!            can be stored in one of several different formats. Currently, the
-!!            only supported formats are:
-!!
-!!            1. BURP
-!!            2. CMA (binary format of obsSpaceData contents)
-!!            3. SQLITE
-!!
-!--------------------------------------------------------------------------
 module obsFiles_mod
+  ! MODULE obsFiles_mod (prefix='obsf' category='6. Observation input/output')
+  !
+  ! :Purpose: High-level module to handle reading/writing of observations that
+  !           can be stored in one of several different formats. Currently, the
+  !           only supported formats are:
+  !
+  !              1. BURP
+  !              2. CMA (binary format of obsSpaceData contents)
+  !              3. SQLITE
+  !
   use mpi_mod
   use ramdisk_mod
   use mathPhysConstants_mod

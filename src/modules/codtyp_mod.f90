@@ -14,20 +14,16 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE codtyp (prefix="codtyp" category='8. Global constants and interfaces')
-!!
-!! *Purpose*: Reads a list of codtype definitions (codes that define various
-!!            types of observations) from the namelist and makes them avaiable
-!!            through functions.
-!!
-!! *Revisions*:
-!!      - M. Buehner Feb 2017: Included standard list in the code itself and 
-!!        allow namelist to be used only for new additions to the list
-!!
-!! Definitions taken from: https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP
-!--------------------------------------------------------------------------
 module codtyp_mod
+  ! MODULE codtyp_mod (prefix='codtyp' category='8. Global constants and interfaces')
+  !
+  !:Purpose: Reads a list of codtype definitions (codes that define various
+  !          types of observations) from the namelist and makes them available
+  !          through functions.
+  !
+  !          Definitions are taken from: 
+  !          https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP
+  !
   use utilities_mod
   use mpi_mod
   private

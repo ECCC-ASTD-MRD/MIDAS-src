@@ -14,28 +14,21 @@
 !CANADA, H9P 1J3; or send e-mail to ec.service.rpn.ec@canada.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE diffusion (prefix="diff" category='3. High-level transformations')
-!!
-!! *Purpose*: 
-!! Storage for data required by the diffusion operator used to model
-!! background-error horizontal correlations.
-!!
-!! Reference:
-!! Weaver, A. T., and P. Courtier, 2001: Correlation modelling on the
-!! sphere using a generalized diffusion equation.
-!! Q. J. R. Meteorol. Soc., 127, 1815-1846.
-!!
-!! Basic equations:
-!! Lcorr^2 = 2*k*dt*numt   (1)
-!! stab    = k*dt/dx^2     (2)
-!!
-!! Author: Alain Caya (alain.caya@canada.ca)
-!!
-!! *Origin*: diffus_mod.f from the envar experiments by Anna Shlyaeva
-!!
-!--------------------------------------------------------------------------
 module diffusion_mod
+  ! MODULE diffusion_mod (prefix='diff' category='3. High-level transformations')
+  !
+  ! :Purpose: Storage for data required by the diffusion operator used to model
+  !           background-error horizontal correlations.
+  !
+  ! :Reference: Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
+  !             the sphere using a generalized diffusion equation.
+  !             Q. J. R. Meteorol. Soc., 127, 1815-1846.
+  !
+  ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
+  !                   stab    = k*dt/dx^2     (2)
+  !
+  ! :Origin: diffus_mod.f from the envar experiments by Anna Shlyaeva
+  !
 
   implicit none
   private

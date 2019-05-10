@@ -14,19 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE controlVector (prefix='cvm' category='2. High-level data objects')
-!!
-!! *Purpose*: The control vector and related information.  
-!!
-!! Revisions:
-!!       Ping Du, June-Sept 2014
-!!       - Introduced optional consideration of arrays/variables for
-!!         constituents. See variables *Bchm*.
-!!       M. Sitwell Aug 2015
-!!       - Added cvm_numSubvector
-!--------------------------------------------------------------------------
 module controlVector_mod
+  ! MODULE controlVector_mod (prefix='cvm' category='2. High-level data objects')
+  !
+  ! :Purpose: The control vector and related information.  
+  !
   use utilities_mod
   implicit none
   save

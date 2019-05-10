@@ -14,22 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE chem_postproc_mod (prefix='chm' category='3. High-level transformations')
-!!
-!! *Purpose*: Provides post-analysis routines.
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Public routines:
-!!v       - "chm_transform_final_increments" for any transformations or boundary
-!!v          values to apply to final increments.
-!!
-!!
-!! Comment:
-!!
-!--------------------------------------------------------------------------
 module chem_postproc_mod
+  ! MODULE chem_postproc_mod (prefix='chm' category='3. High-level transformations')
+  !
+  ! :Purpose: Provides post-analysis routines.
+  !
 
   use utilities_mod
   use chem_setup_mod, only: chm_var_maxnumber, chm_setup_get_str, &

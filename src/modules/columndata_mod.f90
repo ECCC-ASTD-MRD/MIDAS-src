@@ -14,16 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE columnData (prefix="col" category='2. High-level data objects')
-!!
-!! *Purpose*: A derived type and related procedures for storing and manipulating
-!!            vertical columns of analysis variables on model or analysis grid levels.
-!!            These columns are general produced by horizontally interpolating
-!!            a gridStateVector object to the observation locations.
-!!
-!--------------------------------------------------------------------------
 module columnData_mod
+  ! MODULE columnData_mod (prefix='col' category='2. High-level data objects')
+  !
+  ! :Purpose: A derived type and related procedures for storing and manipulating
+  !           vertical columns of analysis variables on model or analysis grid
+  !           levels. These columns are general produced by horizontally
+  !           interpolating a gridStateVector object to the observation
+  !           locations.
+  !
   use mpi_mod
   use earthConstants_mod
   use varNameList_mod

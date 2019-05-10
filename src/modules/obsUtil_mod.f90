@@ -14,15 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsUtil_mod (prefix="obsu" category='6. Observation input/output')
-!!
-!! *Purpose*: Common routines used by burpfiles_mod and sqlitefiles_mod
-!!            
-!!
-!--------------------------------------------------------------------------
-
 module obsUtil_mod
+  ! MODULE obsUtil_mod (prefix='obsu' category='6. Observation input/output')
+  !
+  ! :Purpose: Common routines used by burpfiles_mod and sqlitefiles_mod
+  !  
   
   use obsSpaceData_mod
   use bufr_mod

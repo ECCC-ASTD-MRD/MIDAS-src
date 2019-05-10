@@ -14,15 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE slantprofilelatlon (prefix="slp" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: calculation of latitudes/longitudes on slant-path based on ColumnData.
-!!
-!! @Author M. Bani Shahabadi, June 2018 
-!
-!--------------------------------------------------------------------------
 module slantprofilelatlon_mod
+  ! MODULE slantprofilelatlon_mod (prefix='slp' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: To calculate latitudes/longitudes on slant-path based on
+  !           ColumnData.
+  !
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod

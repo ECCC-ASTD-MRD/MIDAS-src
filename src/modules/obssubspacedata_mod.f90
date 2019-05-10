@@ -15,39 +15,35 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsSubSpaceData_mod
-!!
-!! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
-!!
-!! PURPOSE: Repository of obs space structures, arrays, and routines specific to obs 
-!!          data pertinent to subspaces of the overall ObsSpaceData. Most tools are
-!!          independent of ObsSpaceData and can be used by themselves for the users's
-!!          application(s).
-!!
-!! Author: Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Revisions:
-!!
-!! Public routines:
-!!
-!!       - "oss_obsdata_get_*" to get arrays or elements from input 
-!!         'struc_oss_obsdata' structure.
-!!         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"           
-!! 
-!!       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d 
-!!         with associated identifier code.
-!!
-!!       - "oss_obsdata_MPIallgather" gathers previously saved obsdata 
-!!         from all processors.
-!!
-!!       - "oss_obsdata_code_len" to pass on oss_code_len value
-!!
-!!       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
-!!          or (stnid,varno,multi/uni-level) combinations to be used in searches.
-!!
-!!       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
-!!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
-!!
-!!---------------------------------------------------------------------------------
+  ! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Repository of obs space structures, arrays, and routines specific
+  !          to obs data pertinent to subspaces of the overall ObsSpaceData.
+  !          Most tools are independent of ObsSpaceData and can be used by
+  !          themselves for the users' application(s).
+  !
+
+
+  ! Public routines:
+  !
+  !       - "oss_obsdata_get_*" to get arrays or elements from input 
+  !         'struc_oss_obsdata' structure.
+  !         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"           
+  ! 
+  !       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d 
+  !         with associated identifier code.
+  !
+  !       - "oss_obsdata_MPIallgather" gathers previously saved obsdata 
+  !         from all processors.
+  !
+  !       - "oss_obsdata_code_len" to pass on oss_code_len value
+  !
+  !       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
+  !          or (stnid,varno,multi/uni-level) combinations to be used in searches.
+  !
+  !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
+  !          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
+  !
 
   use codePrecision_mod
   use utilities_mod    
