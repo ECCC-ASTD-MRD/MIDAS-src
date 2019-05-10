@@ -12,7 +12,7 @@
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="obsIO"/>
   <SUBMITS sub_name="calcStats"/>
-  <!-- <SUBMITS sub_name="diagBmatrix"/> -->
+  <SUBMITS sub_name="diagBmatrix"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -243,6 +243,14 @@
   <FAMILY  name="calcStats">
     <SUBMITS sub_name="lam"/>
     <FAMILY  name="lam">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+
+  <FAMILY  name="diagBmatrix">
+    <SUBMITS sub_name="Bcolumns"/>
+    <FAMILY  name="Bcolumns">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
