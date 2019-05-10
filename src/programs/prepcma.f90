@@ -14,22 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: read observation files that are in bgckalt format
-!!         (i.e. output from the background check) and
-!!        transform them to the ObsSpaceData format. All observations will
-!!        collected in a single ObSSpaceData structure. The structure is
-!!        output in binary format.
-!!
-!--------------------------------------------------------------------------
 program midas_prepcma
   !
-  ! *Purpose*: read observation files that are in bgckalt format
-  !         (i.e. output from the background check) and
-  !        transform them to the ObsSpaceData format. All observations will
-  !        collected in a single ObSSpaceData structure. The structure is
-  !        output in binary format.
+  ! :Purpose: Read observation files that are in bgckalt format (i.e. output from
+  !           the background check) and transform them to the ObsSpaceData
+  !           format. All observations will collected in a single ObsSpaceData
+  !           structure. The structure is output in binary format.
   !
   use obsSpaceData_mod
   use mathPhysConstants_mod

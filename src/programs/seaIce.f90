@@ -15,10 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program midas_seaIce
-!
-! :Purpose: Main program for sea ice assimilation
-! :Origin:  ensmanip/midas-ensmanip.ftn90
-!
+  !
+  ! :Purpose: Main program for sea ice assimilation
+  ! :Origin:  ensmanip/midas-ensmanip.ftn90
+  !
 
   use mpi_mod
   use mpivar_mod

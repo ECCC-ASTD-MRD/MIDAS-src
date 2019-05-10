@@ -14,29 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Thinning1 program to reduce the number of observation data.
-!!
-!! *Method*:  Set bit 11 of ;flag' according to an observation-type specific
-!!            algorithm.  Then delete all SQL records where bit 11 is set.
-!!            So far, only aladin wind data are treated.
-!!
-!! *Note*:    In order for the SQL file size to be reduced, a script must
-!!            subsequently execute the SQL command, 'vacuum'.
-!!
-!--------------------------------------------------------------------------
 program midas_thinning
-!
-! :Purpose: Thinning1 program to reduce the number of observation data
-!
-! :Method:  Set bit 11 of *flag* according to an observation-type-specific
-!           algorithm.  Then delete all SQL records where bit 11 is set.
-!           So far, only aladin wind data are treated.
-!
-! :Note:    In order for the SQL file size to be reduced, a script must
-!           subsequently execute the SQL command, *vacuum*.
-!
+  !
+  ! :Purpose: Thinning1 program to reduce the number of observation data
+  !
+  ! :Method:  Set bit 11 of *flag* according to an observation-type-specific
+  !           algorithm.  Then delete all SQL records where bit 11 is set.
+  !           So far, only aladin wind data are treated.
+  !
+  ! :Note:    In order for the SQL file size to be reduced, a script must
+  !           subsequently execute the SQL command, *vacuum*.
+  !
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
