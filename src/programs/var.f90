@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for variational minimization and background check 
-!!            (depending on the mode selected in the namelist).
-!!
-!--------------------------------------------------------------------------
 program midas_var
   !
-  ! **Purpose**: Main program for variational minimization and background check 
-  ! (depending on the mode selected in the namelist).
+  ! :Purpose: Main program for variational minimization or background check 
+  !           (depending on the mode selected in the namelist).
   !
   use ramDisk_mod
   use utilities_mod

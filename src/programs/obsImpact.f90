@@ -14,14 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for Observation Impact computation
-!!
-!--------------------------------------------------------------------------
 program midas_obsimpact
   !
-  ! **Purpose**: Main program for Observation Impact computation (FSOI)
+  ! :Purpose: Main program for Observation Impact computation (FSOI)
   !
   use ramDisk_mod
   use utilities_mod

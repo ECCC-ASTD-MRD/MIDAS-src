@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE burpFiles (prefix="brpf" category='6. Observation input/output')
-!!
-!! *Purpose*: To store the filenames of the burp observation files and call
-!!            subroutines in readBurp to read and update burp files.
-!!
-!--------------------------------------------------------------------------
 module burpFiles_mod
+  ! MODULE burpFiles_mod (prefix='brpf' category='6. Observation input/output')
+  !
+  ! :Purpose: To store the filenames of the burp observation files and call
+  !           subroutines in readBurp to read and update burp files.
+  !
   use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod

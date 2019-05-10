@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE bMatrixDiff (prefix="bdiff" category='5. B and R matrices')
-!!
-!! *Purpose*: Performs transformation from control vector to analysis increment 
-!!            using the background-error covariance matrix based on correlations
-!!            modelled using a diffusion operator.
-!!
-!--------------------------------------------------------------------------
 MODULE BmatrixDiff_mod
+  ! MODULE BmatrixDiff_mod (prefix='bdiff' category='5. B and R matrices')
+  !
+  ! :Purpose: Performs transformation from control vector to analysis increment 
+  !           using the background-error covariance matrix based on correlations
+  !           modelled using a diffusion operator.
+  !
   use mpi_mod
   use mpivar_mod
   use MathPhysConstants_mod

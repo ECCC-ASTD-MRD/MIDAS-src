@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for O-F computations, background check, and thinning
-!!            (O-F => Observation minus Forecast)
-!!
-!--------------------------------------------------------------------------
 program midas_obsSelection
   !
-  ! *Purpose*: Main program for O-F computations, background check, and thinning
-  !            (O-F => Observation minus Forecast)
+  ! :Purpose: Main program for O-F computations, background check, and thinning
+  !
+  !           (O-F => Observation minus Forecast)
   !
   use oMinusF_mod
   use backgroundCheck_mod

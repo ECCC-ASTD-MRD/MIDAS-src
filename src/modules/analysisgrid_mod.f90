@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE analysisGrid (prefix="agd" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Performs horizontal grid-point variable transforms 
-!!            for the limited-area computational analysis grids (extended and non-extended).
-!!
-!--------------------------------------------------------------------------
 module analysisGrid_mod
+  ! MODULE analysisGrid_mod (prefix='agd' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Performs horizontal grid-point variable transforms 
+  !           for the limited-area computational analysis grids (extended and
+  !           non-extended).
+  !
   use earthconstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod

@@ -14,16 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for variational minimization and background check 
-!!            (depending on the mode selected in the namelist).
-!!
-!--------------------------------------------------------------------------
 program midas_diagHBHt
   !
-  ! **Purpose**: Main program for computing background error variance in observation
-  ! space.
+  ! :Purpose: Main program for computing background error variance in observation
+  !           space.
   !
   use ramDisk_mod
   use utilities_mod

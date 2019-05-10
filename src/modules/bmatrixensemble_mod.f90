@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE BmatrixEnsemble (prefix="ben" category='5. B and R matrices')
-!!
-!! *Purpose*: Performs transformation from control vector to analysis increment 
-!!            using the spatially localized ensemble covariance matrix. This 
-!!            module works for both global and limited-area applications.
-!!
-!--------------------------------------------------------------------------
 MODULE BmatrixEnsemble_mod
+  ! MODULE BmatrixEnsemble_mod (prefix='ben' category='5. B and R matrices')
+  !
+  ! :Purpose: Performs transformation from control vector to analysis increment 
+  !           using the spatially localized ensemble covariance matrix. This 
+  !           module works for both global and limited-area applications.
+  !
   use ramDisk_mod
   use mpi_mod
   use mpivar_mod

@@ -14,22 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE bMatrix (prefix="bmat" category='5. B and R matrices')
-!!
-!! *Purpose*: A higher-level module that takes care of calling subroutines 
-!!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.
-!!
-!! Revisions: Pind Du, CMDA, 2014
-!!v            - Added 'use bMatrixChem_mod'
-!!v            Y. Rochon, ARQI. July 2015
-!!v            - Added 'public bchm_getScaleFactor' for constituents. 
-!!
-!! Comments:
-!!v            - Considerations for ensemble-based and regional static covariances
-!!v              for constituents not yet included.
-!--------------------------------------------------------------------------
 module BMatrix_mod
+  ! MODULE BMatrix_mod (prefix='bmat' category='5. B and R matrices')
+  !
+  ! :Purpose: A higher-level module that takes care of calling subroutines 
+  !           in the lower-level modules bmatrixHI/lambmatrixHI and
+  !           bmatrixEnsemble
+  !
+  ! :Comments:
+  !           - Considerations for ensemble-based and regional static covariances
+  !             for constituents are not yet included.
+  !
   use mpi_mod
   use mpivar_mod
   use bMatrixHI_mod

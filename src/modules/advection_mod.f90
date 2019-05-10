@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE advection (prefix="adv" category='3. High-level transformations')
-!!
-!! *Purpose*: To perform forward and/or backward advection (based on 
-!!            semi-lagrangian trajectories) for both gridStateVector and
-!!            ensemble of gridStateVectors
-!!
-!--------------------------------------------------------------------------
 MODULE advection_mod
+  ! MODULE advection_mod (prefix="adv" category='3. High-level transformations')
+  !
+  ! :Purpose: To perform forward and/or backward advection (based on 
+  !           semi-lagrangian trajectories) for both gridStateVector and
+  !           ensemble of gridStateVectors
+  !
   use ramDisk_mod
   use mpi_mod
   use mpivar_mod

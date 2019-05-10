@@ -14,14 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for computing diagnostics of the B and L matrices
-!!
-!--------------------------------------------------------------------------
 program midas_diagBmatrix
   !
-  ! **Purpose**: Main program for computing diagnostics of the B and L matrices
+  ! :Purpose: Main program for computing diagnostics of the B and L matrices
   !
   use mpi_mod
   use mpivar_mod

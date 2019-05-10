@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE burpRead (prefix='brpr' category='6. Observation input/output')
-!!
-!! *Purpose*: To read and update BURP observation files. Data is stored in 
-!!            obsSpaceData object.
-!!
-!--------------------------------------------------------------------------
 module  burpread_mod
+  ! MODULE burpread_mod (prefix='brpr' category='6. Observation input/output')
+  !
+  ! :Purpose: To read and update BURP observation files. Data is stored in 
+  !           obsSpaceData object.
+  !
 
 use codePrecision_mod
 use bufr_mod

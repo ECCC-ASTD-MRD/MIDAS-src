@@ -1,13 +1,13 @@
 # MIDAS Fortran coding standards:
 
 * [List of standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards)
+* [Automatic documentation standards](https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Documentation_Standards)
 
 # MIDAS Fortran code documentation:
 
 The documentation for officially supported branches is available:
-* [`master` branch](http://hpfx.science.gc.ca/~sanl000/midas-doc/latest)
-* [`master` branch (new sphinx prototype)](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-master)
-* [`v_3.3` branch (new sphinx prototype)](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.3)
+* [`master` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-master)
+* [`v_3.3` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.3)
 
 # Contributing
 
