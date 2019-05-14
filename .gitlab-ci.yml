@@ -26,7 +26,6 @@ runtests:
    stage: test
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"
-     MAKE_LINKS_MACHINE_LIST: "eccc-ppp1 eccc-ppp2 hare brooks brooks-test:brooks"
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
      - cd maestro/suites/midas_system_tests
