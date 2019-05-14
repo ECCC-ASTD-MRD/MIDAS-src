@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
+    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"
 
 stages:
    - build
@@ -24,8 +25,6 @@ build:
 
 runtests:
    stage: test
-   variables:
-     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
      - cd maestro/suites/midas_system_tests
