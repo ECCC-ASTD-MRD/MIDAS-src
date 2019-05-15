@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE windRotation (prefix='uvr' category='3. High-level transformations')
-!!
-!! *Purpose*: To transform winds FROM the rotated spherical 
-!!            coordinate system TO the non-rotated spherical coordinate system.
-!!
-!--------------------------------------------------------------------------
 module windRotation_mod
+  ! MODULE windRotation (prefix='uvr' category='3. High-level transformations')
+  !
+  ! :Purpose: To transform winds FROM the rotated spherical coordinate system
+  !           TO the non-rotated spherical coordinate system.
+  !
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use utilities_mod

@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE sqliteFiles (prefix="sqlite" category='6. Observation input/output')
-!!
-!! *Purpose*: To store the filenames of the sqlite observation files and call
-!!            subroutines in readSqlite to read and update sqlite files.
-!!
-!--------------------------------------------------------------------------
 module sqliteFiles_mod
+  ! MODULE sqliteFiles (prefix='sqlite' category='6. Observation input/output')
+  !
+  ! :Purpose: To store the filenames of the sqlite observation files and call
+  !           subroutines in readSqlite to read and update sqlite files.
+  !
   
   use mathPhysConstants_mod
   use mpiVar_mod

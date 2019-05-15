@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tovs_lin (prefix='tvslin' category='4. Observation operators')
-!!
-!! *Purpose*: Derived types, public variables and procedures related to the 
-!!            tangent-linear and adjoint versions of RTTOV
-!!
-!--------------------------------------------------------------------------
 module tovs_lin_mod
+  ! MODULE tovs_lin (prefix='tvslin' category='4. Observation operators')
+  !
+  ! :Purpose: Derived types, public variables and procedures related to the 
+  !           tangent-linear and adjoint versions of RTTOV
+  !
   use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance

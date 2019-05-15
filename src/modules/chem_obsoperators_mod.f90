@@ -17,7 +17,7 @@
 module chem_obsoperators_mod
   ! MODULE chem_obsoperators_mod (prefix='chm' category='4. Observation operators')
   !
-  ! :Purpose: Provides observation operator routines.
+  ! :Purpose: Provides observation operator routines for chemical constituents.
   !
 
   use utilities_mod

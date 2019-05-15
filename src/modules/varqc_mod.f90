@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE varqc (prefix='vqc' category='1. High-level functionality')
-!!
-!! *Purpose*: Procedures related to variational quality control including
-!!            hard-coded values that determine how quickly the observation
-!!            weight begins to be reduced
-!!
-!--------------------------------------------------------------------------
 module varqc_mod
+  ! MODULE varqc (prefix='vqc' category='1. High-level functionality')
+  !
+  ! :Purpose: Procedures related to variational quality control including
+  !           hard-coded values that determine how quickly the observation
+  !           weight begins to be reduced
+  !
   use MathPhysConstants_mod
   use EarthConstants_mod
   use codtyp_mod

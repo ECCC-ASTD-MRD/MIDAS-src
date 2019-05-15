@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE verticalcoord (prefix="vco" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Derived type and procedures related to the vertical levels including
-!!            a pointer to the associated VGRID descriptor
-!!
-!--------------------------------------------------------------------------
 module verticalCoord_mod
+  ! MODULE verticalcoord (prefix='vco' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Derived type and procedures related to the vertical levels.
+  !           The derived type includes a pointer to the associated VGRID
+  !           descriptor.
+  !
   use mpi_mod
   use MathPhysConstants_mod
   use Vgrid_Descriptors
@@ -860,4 +859,4 @@ contains
 
   end subroutine set_2m_10m_levels
 
-end module VerticalCoord_mod
+end module verticalCoord_mod

@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tovs_extrap (prefix='' category='4. Observation operators')
-!!
-!! *Purpose*: Old code for extrapolation of temperature, when model top was
-!!            still at 10hPa, to extend up to 0.1hPa for calls to RTTOV.
-!!
-!--------------------------------------------------------------------------
 module tovs_extrap_mod
+  ! MODULE tovs_extrap (prefix='' category='4. Observation operators')
+  !
+  ! :Purpose: Old code for extrapolation of temperature, when model top was
+  !           still at 10hPa, to extend up to 0.1hPa for calls to RTTOV.
+  !
       implicit none
       save
       private

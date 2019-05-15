@@ -17,7 +17,7 @@
 module chem_postproc_mod
   ! MODULE chem_postproc_mod (prefix='chm' category='3. High-level transformations')
   !
-  ! :Purpose: Provides post-analysis routines.
+  ! :Purpose: Provides post-analysis routines for chemical constituents.
   !
 
   use utilities_mod

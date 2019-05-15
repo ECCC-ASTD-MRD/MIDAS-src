@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE variableTransforms (prefix='vtr' category='3. High-level transformations')
-!!
-!! *Purpose*: To store various functions for variable transforms using inputs from
-!!            gridStateVector(s). Outputs are also placed in a GridStateVector.
-!!
-!--------------------------------------------------------------------------
 module variableTransforms_mod
+  ! MODULE variableTransforms (prefix='vtr' category='3. High-level transformations')
+  !
+  ! :Purpose: To store various functions for variable transforms using inputs
+  !           from gridStateVector(s). Outputs are also placed in a
+  !           GridStateVector.
+  !
   use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod

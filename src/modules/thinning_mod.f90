@@ -14,19 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE thinning (prefix="thn" category='1. High-level functionality')
-!!
-!! *Purpose*: Using observation-type specific algorithms, set bit 11 of 'flag'
-!!            on data that are not to be assimilated.
-!!
-!! *Note*:    This module is intended to group all of the thinning methods in a
-!!            single fortran module.
-!!
-!!            So far, only aladin wind data are treated.
-!!
-!--------------------------------------------------------------------------
 module thinning_mod
+  ! MODULE thinning (prefix='thn' category='1. High-level functionality')
+  !
+  ! :Purpose: Using observation-type-specific algorithms, set bit 11 of 'flag'
+  !           on data that are not to be assimilated.
+  !
+  ! :Note:    This module is intended to group all of the thinning methods in a
+  !           single fortran module.
+  !
+  !           So far, only aladin wind data are treated.
+  !
   use codePrecision_mod
   use bufr_mod
   use obsSpaceData_mod
@@ -164,4 +162,4 @@ contains
     end function new_column
   end subroutine keepNthObs
 
-END module thinning_mod
+end module thinning_mod

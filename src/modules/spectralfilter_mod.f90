@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE spectralFilter_mod (prefix="spf" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: This module contains a subroutine for computing spectral filter functions
-!!
-!--------------------------------------------------------------------------
-MODULE spectralFilter_mod
+module spectralFilter_mod
+  ! MODULE spectralFilter_mod (prefix='spf' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: For computing spectral filter functions
+  !
   implicit none
   save
   private

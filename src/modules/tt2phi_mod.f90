@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tt2phi (prefix="tt2phi" category='3. High-level transformations')
-!!
-!! *Purpose*: Subroutines for computing height from TT, HU and P0. Nonlinear, tangent-
-!!            linear and adjoint versions of this transformation are included in separate
-!!            subroutines.
-!!
-!--------------------------------------------------------------------------
 module tt2phi_mod
+  ! MODULE tt2phi (prefix='tt2phi' category='3. High-level transformations')
+  !
+  ! :Purpose: Subroutines for computing height from TT, HU and P0. Nonlinear,
+  !           tangent-linear and adjoint versions of this transformation are
+  !           included in separate subroutines.
+  !
   use mpi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod

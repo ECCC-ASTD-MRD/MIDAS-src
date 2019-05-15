@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tovs_nl (prefix='tvs' category='4. Observation operators')
-!!
-!! *Purpose*: Derived types, public variables and procedures related to the nonlinear
-!!            version of RTTOV
-!!
-!--------------------------------------------------------------------------
 module tovs_nl_mod
+  ! MODULE tovs_nl (prefix='tvs' category='4. Observation operators')
+  !
+  ! :Purpose: Derived types, public variables and procedures related to the
+  !           nonlinear version of RTTOV
+  !
 
   use rttov_interfaces_mod
   use rttov_types, only :   &

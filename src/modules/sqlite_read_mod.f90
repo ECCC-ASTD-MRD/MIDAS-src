@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
-!!
-!! *Purpose*: To read and update SQLITE observation files. Data is stored in 
-!!            obsSpaceData object.
-!!
-!--------------------------------------------------------------------------
 module sqliteRead_mod
+  ! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
+  !
+  ! :Purpose: To read and update SQLITE observation files. Data is stored in 
+  !           obsSpaceData object.
+  !
 
 use codePrecision_mod
 use obsSpaceData_mod
