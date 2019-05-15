@@ -106,10 +106,11 @@ compiled.
 ## Hosts used to run the test suite
 
 When running `install_suite.sh`, links are created under `hub` and
-`listings` just like any `maestro` suite.  The links are created only
-for the hosts used by the test suite.  If you change the hosts after
-installing the suite, we suggest that you rerun `install_suite.sh` to
-create links on the host the suite will run.
+`listings` just like any `maestro` suite.  If you want to control the
+hosts used, you can put the list of hosts in the environment variable
+```bash
+MIDAS_MAKE_LINKS_MACHINE_LIST
+```
 
 ## Updating the results
 
