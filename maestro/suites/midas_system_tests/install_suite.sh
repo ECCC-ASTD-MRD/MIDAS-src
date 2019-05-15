@@ -35,10 +35,19 @@ else
 	        read REPONSE_YES_OR_NO
 	        if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
 		    "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
-		    echo "Then do:"
-		    echo "   cd ~/.suites/${REPONSE}"
-		    echo "   xflow"
-		    exit
+
+                    echo "Do you want to erase everything and reinstall the suite? (Y,y,yes,YES,...)"
+	            read REPONSE_YES_OR_NO
+	            if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
+		        "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
+                        echo "The suite will be reinstalled"
+                        break
+                    else
+		        echo "Then do:"
+		        echo "   cd ~/.suites/${REPONSE}"
+		        echo "   xflow"
+		        exit
+                    fi
 	        else
 		    echo "Then use another name..."
 		    echo
