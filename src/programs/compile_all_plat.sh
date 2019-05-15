@@ -16,8 +16,16 @@ else
     exit 1
 fi
 
-COMPILING_MACHINE_PPP=${COMPILING_MACHINE_PPP:-eccc-ppp1}
-COMPILING_MACHINE_SUPER=${COMPILING_MACHINE_SUPER:-brooks}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"}
+which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+
+suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+if [ -z "${COMPILING_MACHINE_PPP}" ]; then
+    COMPILING_MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+fi
+if [ -z "${COMPILING_MACHINE_SUPER}" ]; then
+    COMPILING_MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+fi
 
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile

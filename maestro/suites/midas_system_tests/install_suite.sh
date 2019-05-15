@@ -3,7 +3,7 @@
 set -e
 
 MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"}
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
@@ -35,10 +35,19 @@ else
 	        read REPONSE_YES_OR_NO
 	        if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
 		    "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
-		    echo "Then do:"
-		    echo "   cd ~/.suites/${REPONSE}"
-		    echo "   xflow"
-		    exit
+
+                    echo "Do you want to erase everything and reinstall the suite? (Y,y,yes,YES,...)"
+	            read REPONSE_YES_OR_NO
+	            if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
+		        "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
+                        echo "The suite will be reinstalled"
+                        break
+                    else
+		        echo "Then do:"
+		        echo "   cd ~/.suites/${REPONSE}"
+		        echo "   xflow"
+		        exit
+                    fi
 	        else
 		    echo "Then use another name..."
 		    echo
@@ -106,6 +115,24 @@ fi
 
 [ -L ~/.suites/${MIDAS_TESTS_SUITE} ] && rm ~/.suites/${MIDAS_TESTS_SUITE}
 ln -s $PWD ~/.suites/${MIDAS_TESTS_SUITE}
+
+## Initialize the hosts list for the test suite
+## if 'MIDAS_MAKE_LINKS_MACHINE_LIST' exists then use that list
+if [ -n "${MIDAS_MAKE_LINKS_MACHINE_LIST}" ]; then
+    export MAKE_LINKS_MACHINE_LIST=${MIDAS_MAKE_LINKS_MACHINE_LIST}
+elif [ -n "${GITLAB_CI}" ]; then
+    ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
+    frontend=$(getdef -e ${PWD} resources/resources.def FRONTEND)
+    backend=$(getdef -e ${PWD} resources/resources.def BACKEND)
+    MAKE_LINKS_MACHINE_LIST="${frontend} ${backend}"
+    ## if the user runs that script, 'install_suite.sh', on another host than 'FRONTEND' or 'BACKEND'
+    ## then, we add this host to the hosts list.  This will be often the case with 'eccc-gpsc1'.
+    if [ "${TRUE_HOST}" != "${frontend}" -a "${TRUE_HOST}" != "${backend}" ]; then
+        MAKE_LINKS_MACHINE_LIST="${MAKE_LINKS_MACHINE_LIST} ${TRUE_HOST}"
+    fi
+    export MAKE_LINKS_MACHINE_LIST
+fi
+
 export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 

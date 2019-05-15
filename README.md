@@ -103,6 +103,15 @@ Once the `xflow` appears, just launch the node `/Tests`.
 The suite is configured to use by default the programs you just
 compiled.
 
+## Hosts used to run the test suite
+
+When running `install_suite.sh`, links are created under `hub` and
+`listings` just like any `maestro` suite.  If you want to control the
+hosts used, you can put the list of hosts in the environment variable
+```bash
+MIDAS_MAKE_LINKS_MACHINE_LIST
+```
+
 ## Updating the results
 
 The results can be updated by running the task `UnitTest/update` for
