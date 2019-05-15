@@ -119,8 +119,8 @@ ln -s $PWD ~/.suites/${MIDAS_TESTS_SUITE}
 ## Initialize the hosts list for the test suite
 ## if 'MIDAS_MAKE_LINKS_MACHINE_LIST' exists then use that list
 if [ -n "${MIDAS_MAKE_LINKS_MACHINE_LIST}" ]; then
-    MAKE_LINKS_MACHINE_LIST=${MIDAS_MAKE_LINKS_MACHINE_LIST}
-else
+    export MAKE_LINKS_MACHINE_LIST=${MIDAS_MAKE_LINKS_MACHINE_LIST}
+elif [ -n "${GITLAB_CI}" ]; then
     ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
     frontend=$(getdef -e ${PWD} resources/resources.def FRONTEND)
     backend=$(getdef -e ${PWD} resources/resources.def BACKEND)
@@ -130,9 +130,9 @@ else
     if [ "${TRUE_HOST}" != "${frontend}" -a "${TRUE_HOST}" != "${backend}" ]; then
         MAKE_LINKS_MACHINE_LIST="${MAKE_LINKS_MACHINE_LIST} ${TRUE_HOST}"
     fi
+    export MAKE_LINKS_MACHINE_LIST
 fi
 
-export MAKE_LINKS_MACHINE_LIST
 export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 
