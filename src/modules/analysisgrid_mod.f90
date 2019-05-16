@@ -373,11 +373,10 @@ contains
   ! symmetrize_coef
   !--------------------------------------------------------------------------
   subroutine symmetrize_coef(coef_inout)
+    !
+    !:Purpose: Extend symmetrically Metric coefficients.
+    !
     implicit none
-    !
-    !**s/r symmetrize_coef  - Extend symmetrically Metric coefficients.
-    !
-    !Author  : Luc Fillion - MSC/CAN - 23 Apr 05.
 
     real(8), intent(inout) :: coef_inout(jstart:jend)
 
@@ -657,11 +656,11 @@ contains
   ! Symmetrize
   !--------------------------------------------------------------------------
   subroutine symmetrize(field_out, field_in, iBeg, iEnd, jBeg, jEnd, nk)
+    !
+    !:Purpose: Extend symmetrically outside 1 grid point all around LAM-boundary
+    !          ready for finite differences
+    !
     implicit none
-    !
-    ! Extend symmetrically outside 1 grid point all around 
-    ! LAM-boundary ready for finite differences
-    !
     integer, intent(in) :: iBeg, iEnd, jBeg, jEnd, nk
     real(8), intent(out):: field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
     real(8), intent(in) :: field_in(iBeg:iEnd,jBeg:jEnd,nk)
@@ -691,10 +690,10 @@ contains
   ! SymmetrizeAdj
   !--------------------------------------------------------------------------
   subroutine symmetrizeAdj(field_in, field_out, iBeg, iEnd, jBeg, jEnd, nk)
+    !
+    !:Purpose: Adjoint of sub. symmetrize.
+    !
     implicit none
-    !
-    ! Adjoint of sub. symmetrize.
-    !
     integer, intent(in)  :: iBeg, iEnd, jBeg, jEnd, nk
     real(8), intent(in)  :: field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
     real(8), intent(out) :: field_out(iBeg:iEnd,jBeg:jEnd,nk)
@@ -731,14 +730,20 @@ contains
   ! agd_Mach
   !--------------------------------------------------------------------------
   subroutine agd_mach(gd,ni,nj,nk)
+    !
+    !:Purpose:  [to be completed]
+    !
+    !:Arguments:
+    !       :ni: Maximum I-dimension where the input array is assumed to carry
+    !            information.  Will be used as I-limit where backward
+    !            derivatives will be evaluated
+    !
+    !       :nj: Maximum J-dimension where the input array is assumed to carry
+    !            information. Will be used as J-limit where backward derivatives
+    !            will be evaluated
+    !
     implicit none
 
-    ! Arguments:
-    !      ni    ! Maximum I-dimension where the input array is assumed to carry information.
-    !               Will be used as I-limit where backward derivatives will be evaluated
-    !      nj    ! Maximum J-dimension where the input array is assumed to carry information.
-    !               Will be used as J-limit where backward derivatives will be evaluated
-    !
     integer,          intent(in)    :: ni, nj, nk
     real(8),          intent(inout) :: gd(ni,nj,nk)
 
@@ -815,14 +820,18 @@ contains
   ! agd_Mach_r4
   !--------------------------------------------------------------------------
   subroutine agd_mach_r4(gd,ni,nj,nk)
+    !:Purpose:  [to be completed]
+    !
+    !:Arguments:
+    !       :ni:  Maximum I-dimension where the input array is assumed to carry
+    !             information. Will be used as I-limit where backward
+    !             derivatives will be evaluated
+    !       :nj:  Maximum J-dimension where the input array is assumed to carry
+    !             information. Will be used as J-limit where backward
+    !             derivatives will be evaluated
+    !
     implicit none
 
-    ! Arguments:
-    !      ni    ! Maximum I-dimension where the input array is assumed to carry information.
-    !               Will be used as I-limit where backward derivatives will be evaluated
-    !      nj    ! Maximum J-dimension where the input array is assumed to carry information.
-    !               Will be used as J-limit where backward derivatives will be evaluated
-    !
     integer,          intent(in)    :: ni, nj, nk
     real(4),          intent(inout) :: gd(ni,nj,nk)
 
