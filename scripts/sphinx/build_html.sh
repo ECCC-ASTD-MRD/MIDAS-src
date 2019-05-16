@@ -24,8 +24,8 @@ cd $ORIG_PWD
 
 # GENERATE LIST OF ALL PROGRAMS
 
-program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
-#program_filelist=""
+#program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
+program_filelist=""
 numPrograms=0
 for file in $program_filelist ; do  
   numPrograms=$((numPrograms + 1))
@@ -38,8 +38,8 @@ for file in $program_filelist ; do
 done
 echo "Number of programs = $numPrograms"
 
-module_filelist=`ls -dR -1 $codedir/modules/*f*90`
-#module_filelist="../../src/modules/windrotation_mod.f90"
+#module_filelist=`ls -dR -1 $codedir/modules/*f*90`
+module_filelist="../../src/modules/bmatrixchem_mod.f90"
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
