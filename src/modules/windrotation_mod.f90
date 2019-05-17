@@ -27,8 +27,7 @@ module windRotation_mod
   save
   private
 
-  ! Public derived type definition
-  public :: struct_uvr
+  public :: struct_uvr ! Public derived type definition
 
   ! Public Subroutines
   public :: uvr_setup, uvr_rotateWind_nl, uvr_rotateWind_tl, uvr_rotateWind_ad, uvr_rotateLatLon
@@ -44,15 +43,17 @@ module windRotation_mod
 
   contains
 
-  !--------------------------------------------------------------------------
-  ! uvr_setup
-  !--------------------------------------------------------------------------
   subroutine uvr_setup( uvr, hco_in )
+    !
+    ! :Purpose:    Setup the information for wind rotation
+    ! :Arguments:
+    !       :uvr:  Wind rotation object
+    !    :hco_in:  Horizontal grid object
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer    :: uvr
-    type(struct_hco), intent(in) :: hco_in
+    ! Arguments:
+    type(struct_uvr), pointer    :: uvr    ! Wind rotation object
+    type(struct_hco), intent(in) :: hco_in ! Horizontal grid object
 
     if ( associated(uvr) ) then
       if ( uvr%initialized ) then
@@ -97,19 +98,26 @@ module windRotation_mod
 
   end subroutine uvr_setup
 
-  !--------------------------------------------------------------------------
-  ! SUGRDPAR
-  !--------------------------------------------------------------------------
   subroutine sugrdpar( uvr, subGridIndex, grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 )
     !
-    ! Compute the rotation matrix (r_8) that allows transformation
-    ! from the non-rotated to the rotated spherical coordinate system.
+    ! :Purpose: Compute the rotation matrix (r_8) that allows transformation
+    !           from the non-rotated to the rotated spherical coordinate system.
+    ! :Arguments:
+    !                :uvr: Wind rotation object
+    !       :subGridIndex: Horizontal subGrid index = 2
+    !          :grd_xlon1: Horizontal grid xlon1_yan
+    !          :grd_xlat1: Horizontal grid xlat1_yan
+    !          :grd_xlon2: Horizontal grid xlon2_yan
+    !          :grd_xlat2: Horizontal grid xlat2_yan
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer :: uvr
-    integer                   :: subGridIndex
-    real(8), intent(in)       :: grd_xlon1, grd_xlat1, grd_xlon2, grd_xlat2 
+    ! Arguments:
+    type(struct_uvr), pointer :: uvr          ! Wind rotation object
+    integer                   :: subGridIndex ! Horizontal subGrid index = 2
+    real(8), intent(in)       :: grd_xlon1    ! Horizontal grid xlon1_yan
+    real(8), intent(in)       :: grd_xlat1    ! Horizontal grid xlat1_yan
+    real(8), intent(in)       :: grd_xlon2    ! Horizontal grid xlon2_yan
+    real(8), intent(in)       :: grd_xlat2    ! Horizontal grid xlat2_yan
 
     ! locals
     integer :: ierr, ji, jj, j1, j2
@@ -199,14 +207,19 @@ module windRotation_mod
 
   end subroutine sugrdpar
 
-  !--------------------------------------------------------------------------
-  ! vllacar
-  !--------------------------------------------------------------------------
   subroutine vllacar( F_xyz_8, F_lon, F_lat )
+    !
+    ! :Purpose:    Compute parameters of rotated grid
+    ! :Arguments:
+    !       :F_xyz_8: output 
+    !         :F_lon: input in degrees
+    !         :F_lat: input in degrees
+
     implicit none
 
-    real(8), intent(out) :: F_xyz_8(msize)
-    real(8), intent(in)  :: F_lon, F_lat ! In degrees
+    real(8), intent(out) :: F_xyz_8(msize) ! output
+    real(8), intent(in)  :: F_lon          ! Input in degrees  
+    real(8), intent(in)  :: F_lat          ! Input in degrees
 
     F_xyz_8(1) = cos(MPC_RADIANS_PER_DEGREE_R8*F_lat) * cos(MPC_RADIANS_PER_DEGREE_R8*F_lon)
     F_xyz_8(2) = cos(MPC_RADIANS_PER_DEGREE_R8*F_lat) * sin(MPC_RADIANS_PER_DEGREE_R8*F_lon)
@@ -214,20 +227,26 @@ module windRotation_mod
 
   end subroutine vllacar
 
-  !--------------------------------------------------------------------------
-  ! mxma8x
-  !--------------------------------------------------------------------------
   subroutine mxma8x( pmat3, pmat1, pmat2, kdimi1, kdimj1, kdimj2 )
     !
-    ! Matrix times matrix.
+    ! :Purpose:    Compute a product of two matrices.
     !
+    ! :Arguments:
+    !     :pmat3:  output
+    !     :pmat1:  input matrix one
+    !     :pmat2:  input matrix two
+    !     :kdimi1: first  dimension of the first  matrix
+    !     :kdimj1: second dimension of the first  matrix
+    !     :kdimj2: second dimension of the second matrix
     implicit none
 
-    ! arguments
-    integer :: kdimi1,kdimj1,kdimj2
-    real(8) :: pmat3(kdimi1,kdimj2)
-    real(8) :: pmat1(kdimi1,kdimj1)
-    real(8) :: pmat2(kdimj1,kdimj2)
+    ! Arguments:
+    real(8) :: pmat3(kdimi1,kdimj2)  ! output
+    real(8) :: pmat1(kdimi1,kdimj1)  ! input matrix one
+    real(8) :: pmat2(kdimj1,kdimj2)  ! input matrix two
+    integer :: kdimi1                ! first  dimension of the first  matrix
+    integer :: kdimj1                ! second dimension of the first  matrix 
+    integer :: kdimj2                ! second dimension of the second matrix
 
     ! locals
     integer :: ji1,jj2,jj
@@ -244,23 +263,33 @@ module windRotation_mod
  
   end subroutine mxma8x
 
-  !--------------------------------------------------------------------------
-  ! uvr_rotateWind_nl
-  !--------------------------------------------------------------------------
   subroutine uvr_rotateWind_nl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
-    ! Go from tangential wind components from one sphere to another
-    ! (same origin!). Original ezsint version used for computing innovation.
-    !
+    ! :Purpose: Go from tangential wind components from one sphere to another
+    !           (same origin!). Original ezsint version used for computing innovation.
+    ! 
+    ! :Arguments:
+    !                    :uvr: Wind rotation object
+    !           :subGridIndex: Current subgrid index
+    !                  :uwind: interpUU
+    !                  :vwind: interpVV
+    !                    :Lat: Latitude in radians
+    !                    :Lon: Longitude in radians
+    !                 :LatRot: Rotated latitude in radians
+    !                 :LonRot: Rotated longitude in radians
+    !                   :mode: only one mode 'ToMetWind' available
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer :: uvr
-    integer, intent(in)       :: subGridIndex
-    real(8), intent(in)       :: Lat, Lon       ! In radians
-    real(8), intent(in)       :: LatRot, LonRot ! In radians
-    real(8), intent(inout)    :: uwind, vwind
-    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
+    ! Arguments:
+    type(struct_uvr), pointer :: uvr          ! Wind rotation object
+    integer, intent(in)       :: subGridIndex ! Current subgrid index
+    real(8), intent(inout)    :: uwind        ! interpUU
+    real(8), intent(inout)    :: vwind        ! interpVV
+    real(8), intent(in)       :: Lat          ! Latitude in radians
+    real(8), intent(in)       :: Lon          ! Longitude in radians
+    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
+    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
+    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
     ! locals
     integer :: index1, index2
@@ -312,23 +341,34 @@ module windRotation_mod
 
   end subroutine uvr_rotateWind_nl
 
-  !--------------------------------------------------------------------------
-  ! uvr_rotateWind_tl
-  !--------------------------------------------------------------------------
   subroutine uvr_rotateWind_tl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
-    ! Go from tangential wind components from one sphere to another
-    ! (same origin!). Fast version used by Variational analysis. 
+    ! :Purpose: Go from tangential wind components from one sphere to another
+    !           (same origin!). Fast version used by Variational analysis. 
     !
+    ! :Arguments:
+    !                    :uvr: Wind rotation object
+    !           :subGridIndex: Current subgrid index
+    !                  :uwind: interpUU
+    !                  :vwind: interpVV
+    !                    :Lat: Latitude in radians
+    !                    :Lon: Longitude in radians
+    !                 :LatRot: Rotated latitude in radians
+    !                 :LonRot: Rotated longitude in radians
+    !                   :mode: only one mode 'ToMetWind' available
+
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer :: uvr
-    integer, intent(in)       :: subGridIndex
-    real(8), intent(in)       :: Lat, Lon       ! In radians
-    real(8), intent(in)       :: LatRot, LonRot ! In radians
-    real(8), intent(inout)    :: uwind, vwind
-    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
+    ! Arguments:
+    type(struct_uvr), pointer :: uvr          ! Wind rotation object
+    integer, intent(in)       :: subGridIndex ! Current subgrid index
+    real(8), intent(inout)    :: uwind        ! interpUU
+    real(8), intent(inout)    :: vwind        ! interpVV
+    real(8), intent(in)       :: Lat          ! Latitude in radians
+    real(8), intent(in)       :: Lon          ! Longitude in radians
+    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
+    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
+    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
     ! locals
     integer :: index1, index2
@@ -381,23 +421,34 @@ module windRotation_mod
 
   end subroutine uvr_rotateWind_tl
 
-!--------------------------------------------------------------------------
-! uvr_rotateWind_ad
-!--------------------------------------------------------------------------
   subroutine uvr_rotateWind_ad( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
     !
-    ! Adjoint of : Go from tangential wind components from one sphere to another
-    ! (same origin!). Fast version used by Variational analysis. 
+    ! :Purpose: Adjoint of : Go from tangential wind components from one sphere to another
+    !           (same origin!). Fast version used by Variational analysis. 
     !
+    ! :Arguments:
+    !                    :uvr: Wind rotation object
+    !           :subGridIndex: Current subgrid index
+    !                  :uwind: interpUU
+    !                  :vwind: interpVV
+    !                    :Lat: Latitude in radians
+    !                    :Lon: Longitude in radians
+    !                 :LatRot: Rotated latitude in radians
+    !                 :LonRot: Rotated longitude in radians
+    !                   :mode: only one mode 'ToMetWind' available
+
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer :: uvr
-    integer, intent(in)       :: subGridIndex
-    real(8), intent(in)       :: Lat, Lon       ! In radians
-    real(8), intent(in)       :: LatRot, LonRot ! In radians
-    real(8), intent(inout)    :: uwind, vwind
-    character(*), intent(in)  :: mode ! ToMetWind or ToRotWind
+    ! Arguments:
+    type(struct_uvr), pointer :: uvr          ! Wind rotation object
+    integer, intent(in)       :: subGridIndex ! Current subgrid index
+    real(8), intent(inout)    :: uwind        ! interpUU
+    real(8), intent(inout)    :: vwind        ! interpVV
+    real(8), intent(in)       :: Lat          ! Latitude in radians
+    real(8), intent(in)       :: Lon          ! Longitude in radians
+    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
+    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
+    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
     ! locals
     integer :: index1, index2
@@ -449,22 +500,30 @@ module windRotation_mod
 
   end subroutine uvr_rotateWind_ad
 
-  !--------------------------------------------------------------------------
-  ! uvr_rotateLatLon
-  !--------------------------------------------------------------------------
   subroutine uvr_rotateLatLon( uvr, subGridIndex, LatOut, LonOut, LatIn, LonIn, mode )
     !
-    ! Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
-    ! Cartesian frame given the rotation matrix.
+    ! :Purpose: Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
+    !           Cartesian frame given the rotation matrix.
     !
+    ! :Arguments:
+    !                    :uvr: Wind rotation object
+    !           :subGridIndex: Current subgrid index
+    !                  :LatIn: Input latitude in radians
+    !                  :LonIn: Input longitude in radians
+    !                 :LatOut: Output latitude in radians
+    !                 :LonOut: Output longitude in radians
+    !                   :mode: ToLatLonRot or ToLatLon
+
     implicit none
 
-    ! arguments
-    type(struct_uvr), pointer :: uvr
-    integer, intent(in)       :: subGridIndex
-    real(8), intent(in)       :: LatIn , LonIn   ! In radians
-    real(8), intent(out)      :: LatOut, LonOut  ! In radians
-    character(len=*), intent(in) :: mode
+    ! Arguments:
+    type(struct_uvr), pointer :: uvr          ! Wind rotation object
+    integer, intent(in)       :: subGridIndex ! Current subgrid index
+    real(8), intent(in)       :: LatIn        ! Input latitude in radians
+    real(8), intent(in)       :: LonIn        ! Input longitude in radians
+    real(8), intent(in)       :: LatOut       ! Output latitude in radians
+    real(8), intent(in)       :: LonOut       ! Output longitude in radians 
+    character(*), intent(in)  :: mode         ! ToLatLonRot or ToLatLon
 
     ! locals
     real(8) :: CartIn(msize),CartOut(msize)
@@ -504,19 +563,23 @@ module windRotation_mod
 
   end subroutine uvr_rotateLatLon
 
-  !--------------------------------------------------------------------------
-  ! carall
-  !--------------------------------------------------------------------------
+
   subroutine carall( plon, plat, pcart )
     !
-    ! Returns (lat,lon) (degrees) of an input Cartesian position vector 
-    ! on the unit sphere.
+    ! :Purpose: Returns (lat,lon) (degrees) of an input Cartesian position vector 
+    !           on the unit sphere.
+    !
+    ! :Arguments:
+    !           :plon:  output latitude
+    !           :plat:  output longitude
+    !           :pcart: input Cartesian vector
     !
     implicit none
 
-    ! arguments
-    real(8), intent(out) :: plat, plon
-    real(8), intent(in)  :: pcart(msize)
+    ! Arguments:
+    real(8), intent(out) :: plat         ! output latitude 
+    real(8), intent(out) :: plon         ! output longitude
+    real(8), intent(in)  :: pcart(msize) ! input Cartesian vector
 
     plat = asin(pcart(3))
     plat = plat * MPC_DEGREES_PER_RADIAN_R8
@@ -537,18 +600,26 @@ module windRotation_mod
 
   end subroutine carall
 
-  !--------------------------------------------------------------------------
-  ! mxv
-  !--------------------------------------------------------------------------
   subroutine mxv( pvec2, pmat, pvec1, kdimi, kdimj )
     !
-    ! Matrix times vector.
+    ! :Purpose: Compute a product : matrix times vector.
+    !
+    ! :Arguments:
+    !           :pvec2: output vector
+    !           :pmat:  input matrix
+    !           :pvec1: input vector
+    !           :kdimi: first dimension
+    !           :kdimj: second dimension
     !
     implicit none
 
-    ! arguments
-    integer :: kdimi, kdimj
-    real(8) :: pvec2(kdimi), pmat(kdimi,kdimj), pvec1(kdimj)
+    ! Arguments:
+    real(8) :: pvec2(kdimi)      ! output vector
+    real(8) :: pmat(kdimi,kdimj) ! input matrix
+    real(8) :: pvec1(kdimj)      ! input vector
+    integer :: kdimi             ! first dimension
+    integer :: kdimj             ! second dimension
+    
 
     ! locals
     integer :: ji,jj
