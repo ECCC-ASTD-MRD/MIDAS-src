@@ -303,9 +303,9 @@ CONTAINS
     !
     !- 3.  Compute VERTICAL localization correlation matrix
     !
+    if (vertLengthScale > 0.0d0 .and. lsp%nLev > 1) then
 
-    !  3.1 Calculate 5'th order function
-    if (vertLengthScale > 0.0d0) then
+      !-  3.1 Calculate 5'th order function
       do levIndex1 = 1, lsp%nLev
         do levIndex2 = 1, lsp%nLev
           ZR = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
@@ -313,13 +313,14 @@ CONTAINS
           lsp%LvertSqrt(levIndex1,levIndex2) = zcorr
         end do
       end do
+
+      !- 3.2 Compute sqrt of the matrix
+      if (vertLengthScale > 0.0d0) then
+        call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
+      end if
+
     else
       lsp%LvertSqrt(:,:) = 1.d0 ! no vertical localization
-    end if
-
-    !- 3.2 Compute sqrt of the matrix if vertical localization requested
-    if (vertLengthScale > 0.0d0) then
-      call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
     end if
 
   END SUBROUTINE setupLocalizationMatrices

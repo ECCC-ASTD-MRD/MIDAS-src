@@ -85,7 +85,7 @@ CONTAINS
     character(len=15) :: bdiff_mode
 
     integer :: nulnam, ierr, fnom, fclos
-    integer :: status, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, Vcode_anl
+    integer :: status, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
     integer :: jvar
 
     type(struct_vco), pointer :: vco_anl
@@ -124,10 +124,8 @@ CONTAINS
     end if
 
     vco_anl => vco_in
-
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if(Vcode_anl  /=  5002 .and. Vcode_anl  /=  5005) then
-      write(*,*) 'Vcode_anl = ',Vcode_anl
+    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= -1) then
+      write(*,*) 'vco_anl%Vcode = ', vco_anl%Vcode
       call utl_abort('bmatrixDiff: unknown vertical coordinate type!')
     end if
 

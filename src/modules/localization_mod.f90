@@ -62,7 +62,7 @@ CONTAINS
   subroutine loc_setup(loc, cvDim_out, hco_loc, vco_loc, nEns, pressureProfile, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale)
     implicit none
-  
+
     type(struct_loc) :: loc
     integer, intent(out) :: cvDim_out
 
@@ -79,7 +79,7 @@ CONTAINS
 
     character(len=*), intent(in) :: locType, locMode
 
-    integer :: nEnsOverDimension
+    integer :: nEnsOverDimension, nLev
 
     call tmg_start(130,'LOC_SETUP')
 
@@ -92,13 +92,19 @@ CONTAINS
     loc%hco => hco_loc
     loc%vco => vco_loc
 
+    if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 ) then
+      nLev = loc%vco%nLev_M
+    else !  vco_anl%Vcode == -1
+      nLev = 1
+    end if
+
     select case (trim(loc%locType))
     case('spectral')
        if (mpi_myid == 0) write(*,*)
        if (mpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
-       call lsp_setup(hco_loc, nEns, vco_loc%nLev_M, pressureProfile, ntrunc, locType,& ! IN
+       call lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType,          & ! IN
                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, & ! IN
-                      cvDim_out, loc%lsp, nEnsOverDimension)                                 ! OUT
+                      cvDim_out, loc%lsp, nEnsOverDimension)                            ! OUT
     case default
        write(*,*)
        write(*,*) 'locType = ', trim(locType)
