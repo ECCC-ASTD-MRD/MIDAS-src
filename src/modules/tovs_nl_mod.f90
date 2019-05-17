@@ -174,47 +174,11 @@ module tovs_nl_mod
  
 contains
 
-!--------------------------------------------------------------------------
-!!
-!!  s/r tvs_setupAlloc : Memory allocation for the non linear radiative transfer model
-!!                 variables.
-!!          (original name of routine: sutovalo)
-!!
-!!Author  : J. Halle *CMDA/AES Oct 1999
-!!
-!!     Purpose: to allocate memory for the radiative transfer model variables.
-!!
-!! Revision:
-!!           S. Pellerin *ARMA/SMC May 2000
-!!            - Fix for F90 conversion
-!!           C. Chouinard *ARMA/SMC Aug 2000
-!!            - remove reference to nincrem in memory allocation
-!!           JM Belanger *CMDA/SMC!  aug 2000
-!!            - 32 bits conversion
-!!           J. Halle *CMDA/AES  dec 2000
-!!            - adapt to TOVS level 1b.
-!!           J. Halle CMDA/SMC May 2002
-!!            - adapt to RTTOV-7 code
-!!           J. Halle CMDA/SMC Feb 2003
-!!            - add codtyp for AMSUB (=181).
-!!           J. Halle CMDA/SMC Nov 2004
-!!            - adapt to RTTOV-8;
-!!            - convert to Fortran 90.
-!!           A. Beaulne CMDA/SMC June 2006
-!!            - modifications for AIRS
-!!            - allocation of ozone profiles
-!!           R. Sarrazin  CMDA   April 2008
-!!            - adapt to CSR
-!!           S. Heilliette
-!!            - adapt to IASI
-!!            - adapt to rttov 10.0 (october 2010)
-!!           S. Macpherson
-!!            - adapt to ATMS (codtyp 192)
-!!           S.  Heilliette
-!!            - adapt to CrIS (codtyp 193)
-!--------------------------------------------------------------------------
 
   subroutine tvs_setupAlloc(lobsSpaceData)
+    !
+    ! :Purpose: Memory allocation for the non linear radiative transfer model variables.
+    !
     implicit none
 
     type(struct_obs) :: lobsSpaceData
@@ -453,15 +417,12 @@ contains
 
   end subroutine tvs_setupAlloc
 
-!--------------------------------------------------------------------------
-!!  s/r tvs_setup : Initialisation of the TOVS processing and radiative
-!!     .        transfer model.
-!!    -------------------
-!!     Purpose: to read namelist NAMTOV, initialize the observation error covariance
-!!              and setup RTTOV-12.
-!--------------------------------------------------------------------------
 
   subroutine tvs_setup
+    !
+    ! :Purpose: to read namelist NAMTOV, initialize the observation error covariance and setup RTTOV-12.
+    !
+
     implicit none
     integer  JK, IERR, nulnam
     integer ,external :: fclos, fnom
@@ -557,26 +518,24 @@ contains
   end subroutine tvs_setup
 
 
-!--------------------------------------------------------------------------
-!!**s/r SENSORS : Initialisation of the RTTOV-10 platform, satellite
-!!                and instrument ID's. Also set burp to RTTOV channel
-!!                mapping offset.
-!!
-!!*    Purpose: to verify and transfom the sensor information contained in the
-!!              NAMTOV namelist into the variables required by RTTTOV-7:
-!!              platform, satellite and instrument ID's.
-!!
-!!Variables:
-!!     i : tvs_nsensors      : number of sensors
-!!     i : tvs_satelliteName        : satellite ID (e.g. 'NOAA15')
-!!     i : tvs_instrumentName : instrument ID (e.g. 'AMSUA')
-!!     o : tvs_platforms      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
-!!     o : SATELLITE     : RTTOV satellite ID numbers (e.g. 15)
-!!     o : INSTRUMENT    : RTTOV instrument ID numbers (e.g. 3 for AMSUA)
-!!     o : tvs_channelOffset    : BURP to RTTOV channel mapping offset
-!--------------------------------------------------------------------------
-
   subroutine SENSORS
+    !
+    ! :Purpose: Initialisation of the RTTOV-10 platform, satellite
+    !           and instrument ID's. Also set burp to RTTOV channel
+    !           mapping offset.
+    !           To verify and transfom the sensor information contained in the
+    !           NAMTOV namelist into the variables required by RTTTOV-7:
+    !           platform, satellite and instrument ID's.
+    !
+    ! :Variables:
+    !     i : tvs_nsensors      : number of sensors
+    !     i : tvs_satelliteName        : satellite ID (e.g. 'NOAA15')
+    !     i : tvs_instrumentName : instrument ID (e.g. 'AMSUA')
+    !     o : tvs_platforms      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
+    !     o : SATELLITE     : RTTOV satellite ID numbers (e.g. 15)
+    !     o : INSTRUMENT    : RTTOV instrument ID numbers (e.g. 3 for AMSUA)
+    !     o : tvs_channelOffset    : BURP to RTTOV channel mapping offset
+    !
     implicit none
 
     integer J, K, IPOS1, IPOS2
@@ -717,15 +676,13 @@ contains
   end subroutine sensors
 
 
-!--------------------------------------------------------------------------
-!! Function to check if the given idatyp (a.k.a. codtyp) corresponds
-!!  to a radiance
-!--------------------------------------------------------------------------
-
   logical function tvs_isIdBurpTovs(idatyp)
+    !
+    ! :Purpose: Function to check if the given idatyp (a.k.a. codtyp) corresponds to a radiance
+    !
     implicit none
     integer ,intent(in) :: idatyp
-!*********************************************
+
     logical ,save :: lfirst=.true.
     integer,save :: ninst_tovs
     integer :: nulnam, ierr, i 
@@ -783,6 +740,9 @@ contains
 !--------------------------------------------------------------------------
 
   logical function tvs_isIdBurpInst(idburp,cinst)
+    !
+    ! :Purpose: function to check if the provided idburp (a.k.a. codtyp) corresponds to instrument cinst
+    !
     implicit none
     integer ,intent(in) :: idburp
     character (len=*) ,intent(in) :: cinst
@@ -797,20 +757,16 @@ contains
 
   end function tvs_isIdBurpInst
 
-!--------------------------------------------------------------------------
-!! S. Heilliette November 2015
-!! return RTTOV platform id (>0) from
-!! platform name.
-!! -1 if not found
-!--------------------------------------------------------------------------
 
   integer function tvs_getPlatformId(name)
+    !
+    ! :Purpose: return RTTOV platform id (>0) from platform name.
+    !           -1 if not found
     implicit none
     character(len=*),intent(in) :: name
-!************************************
+
     integer :: i, ipos1, ipos2
     character(len=64) :: tempo_name
-!*************************************
 
     tvs_getPlatformId = -1
     ipos1 = LEN_TRIM(name)
@@ -832,20 +788,18 @@ contains
 
   end function tvs_getPlatformId
 
-!--------------------------------------------------------------------------
-!! S. Heilliette November 2015
-!! return RTTOV instrument id from
-!! intrument name. 0 is a valid answer.
-!! -1 if not found
-!--------------------------------------------------------------------------
 
   integer function tvs_getInstrumentId(name)
+    !
+    ! :Purpose: return RTTOV instrument id from intrument name. 0 is a valid answer.
+    !           -1 if not found
+    !
     implicit none
     character(len=*),intent(in) :: name
-!************************************
+
     integer :: i, length
     character(len=64) :: tempo_name
-!***********************************
+
     tvs_getInstrumentId = -1
     length = LEN_TRIM(name)
     call up2low(name(1:length),tempo_name(1:length))
@@ -866,17 +820,14 @@ contains
   end function tvs_getInstrumentId
 
 
-!--------------------------------------------------------------------------
-!! S. Heilliette November 2015
-!! given an RTTOV instrument code
-!! return if it is an hyperspectral one
-!! information from namelist NAMHYPER
-!--------------------------------------------------------------------------
-
   logical function tvs_isInstrumHyperSpectral(instrum)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is an hyperspectral one
+    !           information from namelist NAMHYPER
+    !
     implicit none
     integer,intent(in) :: instrum
-!******************************************
+
     integer ,parameter :: maxsize = 100
     integer :: nulnam, ierr, i 
     integer ,save :: list_inst(maxsize), ninst_hir
@@ -923,17 +874,14 @@ contains
   end function tvs_isInstrumHyperSpectral
 
 
-!--------------------------------------------------------------------------
-!! S. Heilliette November 2015
-!! given an RTTOV instrument code
-!! return if it is a Geostationnary Imager
-!! information from namelist NAMGEO
-!--------------------------------------------------------------------------
-
   logical function tvs_isInstrumGeostationary(instrum)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is a Geostationnary Imager
+    !           information from namelist NAMGEO
+    !
     implicit none
     integer,intent(in) :: instrum
-!******************************************
+
     integer ,parameter :: maxsize = 100
     integer :: nulnam, ierr, i 
     integer ,save :: list_inst(maxsize), ninst_geo
@@ -979,66 +927,46 @@ contains
     
   end function tvs_isInstrumGeostationary
 
-!--------------------------------------------------------------------------
-!!**s/r tvs_mapInstrum : Map burp satellite instrument (element #2019)
-!!                    to RTTOV-10 instrument.
-!!
-!!Author  : J. Halle *CMDA/SMC May 2002
-!!
-!!Revision 001: J. Halle *CMDA/SMC Sept. 2005
-!!              - add MHS.
-!!         002: R Sarrazin CMDA, April 2008
-!!              - comment on MTSAT imager instrument number
-!!         003: R. McTaggart-Cowan *RPN  Mar 2012
-!!              - Use assumed-length declarations for string dummy args
-!!         003: S. Macpherson ARMA, August 2011
-!!              - add NPP/ATMS codtyp=192
-!!         004: C. Cote Juillet 2015
-!!              - Ajout Himawari-8/AHI codtyp=185
-!!         005: S. Heilliette Novembre 2015
-!!              - suppression des tables hardcodees
-!!                lecture depuis une namelist
-!!
-!!
-!!*    Purpose:  Map burp satellite instrument (element #2019)
-!!               to RTTOV-7 instrument.
-!!*              A negative value is returned, if no match in found.
-!!
-!!               Table of  RTTOV-7 instrument identifier
-!                ---------------------------------------
-!!               Instrument        Instrument identifier  Sensor type
-!                ---------         ---------------------  -----------
-!!               HIRS               0                     ir
-!!               MSU                1                     mw
-!!               SSU                2                     ir
-!!               AMSUA              3                     mw
-!!               AMSUB              4                     mw
-!!               AVHRR              5                     ir
-!!               SSMI               6                     mw
-!!               VTPR1              7                     ir
-!!               VTPR2              8                     ir
-!!               TMI                9                     mw
-!!               SSMIS             10                     mw
-!!               AIRS              11                     ir
-!!               MODIS             13                     ir
-!!               ATSR              14                     ir
-!!               MHS               15                     mw
-!!               ATMS              19                     mw
-!!               MVIRI             20                     ir
-!!               SEVIRI            21                     ir
-!!               GOESIMAGER        22                     ir
-!!               GOESSOUNDER       23                     ir
-!!               GMS/MTSAT IMAGER  24                     ir
-!!               FY2-VISSR         25                     ir
-!!               FY1-MVISR         26                     ir
-!!               AHI               56                     ir
-!!
-!!Arguments:
-!!     i : INSTRUMBURP : burp satellite instrument (element #2019)
-!!     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
-!--------------------------------------------------------------------------
 
   subroutine tvs_mapInstrum(INSTRUMBURP,INSTRUM)
+    !
+    ! :Purpose:  Map burp satellite instrument (element #2019) to RTTOV-7 instrument.
+    !            A negative value is returned, if no match in found.
+    ! Table of  RTTOV-7 instrument identifier
+    ! =============================================================
+    !
+    ! Instrument          Instrument identifier  Sensor type
+    ! ==================  =====================  ==================
+    !               HIRS               0                     ir
+    !                MSU               1                     mw
+    !                SSU               2                     ir
+    !              AMSUA               3                     mw
+    !              AMSUB               4                     mw
+    !              AVHRR               5                     ir
+    !               SSMI               6                     mw
+    !              VTPR1               7                     ir
+    !              VTPR2               8                     ir
+    !                TMI               9                     mw
+    !              SSMIS              10                     mw
+    !               AIRS              11                     ir
+    !              MODIS              13                     ir
+    !               ATSR              14                     ir
+    !                MHS              15                     mw
+    !               ATMS              19                     mw
+    !              MVIRI              20                     ir
+    !             SEVIRI              21                     ir
+    !         GOESIMAGER              22                     ir
+    !        GOESSOUNDER              23                     ir
+    !   GMS/MTSAT IMAGER              24                     ir
+    !          FY2-VISSR              25                     ir
+    !          FY1-MVISR              26                     ir
+    !                AHI              56                     ir
+    ! =============================================================
+    ! :Arguments:
+    !     i : INSTRUMBURP : burp satellite instrument (element #2019)
+    !     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+    !
+
     implicit none
     integer J,INSTRUMBURP,INSTRUM,numinstburp
     integer,parameter :: MXINSTRUMBURP   = 100
@@ -1105,81 +1033,47 @@ contains
 
   end subroutine tvs_mapInstrum
 
-!--------------------------------------------------------------------------
-!!**s/r tvs_mapSat : Map burp satellite identifier (element #1007)
-!!                to RTTOV-10 platform and satellite.
-!!
-!!Author  :       J. Halle *CMDA/SMC May 2002
-!!
-!!Revision 001  : J. Halle *CMDA/AES Jul 2005
-!!                . add NOAA-18.
-!!
-!!Revision 002  : J. Halle *CMDA/AES May 2007
-!!                . add METOP 1,2,3.
-!!
-!!Revision 003  : R. Sarrazin CMDA   Apr 2008
-!!                  add MTSAT1, GOES13 and MSG2, modif to MSG1
-!!
-!!Revision 004  : C. Cote  mars 2009
-!!                . add NOAA-19.
-!!
-!!Revision 005  : S. Macpherson *ARMA  Jul 2010
-!!                . add SSMIS satellites DMSP17-18
-!!
-!!Revision 006  : S. Macpherson *ARMA  Feb 2013
-!!                . add NPP/ATMS codtyp=192
-!!
-!!Revision 007  : J. Morneau CMDA    FEb 2014
-!!                . add GOES15 and MTSAT-2
-!!                . add GOES14
-!!                . add MSG3 and MSG4
-!!Revision 008 :  S. Heilliette    March 2014
-!!                . Major Modification:
-!!                . information is now read from namelist
-!!                . instead of being hardcoded
-!!
-!!    Purpose:  Map burp satellite identifier (element #1007)
-!!               to RTTOV-7 platform and satellite.
-!!               Negative values are returned, if no match in found.
-!!
-!                ---------------------------------------------
-!!               Table of  RTTOV-7 platform identifier
-!                ---------------------------------------------
-!!               Platform          RTTOV-7 platform identifier
-!                ---------         ---------------------------
-!!               NOAA               1
-!!               DMSP               2
-!!               METEOSAT           3
-!!               GOES               4
-!!               GMS                5
-!!               FY2                6
-!!               TRMM               7
-!!               ERS                8
-!!               EOS                9
-!!               METOP             10
-!!               ENVISAT           11
-!!               MSG               12
-!!               FY1               13
-!!               ADEOS             14
-!!               MTSAT             15
-!!               CORIOLIS          16
-!!               NPP               17
-!!               ---------------------------------------------
-!!
-!!               Example: NOAA15, which has a burp satellite identifier value of 206,
-!!                        is mapped into the following:
-!!                                RTTOV-7 platform  =  1,
-!!                                RTTOV-7 satellite = 15.
-!!
-!!
-!!
-!!Arguments:
-!!     i : ISATBURP      : BURP satellite identifier
-!!     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
-!!     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
-!--------------------------------------------------------------------------
 
   subroutine tvs_mapSat(ISATBURP,IPLATFORM,ISAT)
+    !
+    ! :Purpose:  Map burp satellite identifier (element #1007)
+    !            to RTTOV-7 platform and satellite.
+    !            Negative values are returned, if no match in found.
+    !
+    ! Table of  RTTOV-7 platform identifier
+    ! =============================================
+    ! Platform          RTTOV-7 platform identifier
+    ! ========          ===========================
+    !     NOAA               1
+    !     DMSP               2
+    ! METEOSAT               3
+    !     GOES               4
+    !      GMS               5
+    !      FY2               6
+    !     TRMM               7
+    !      ERS               8
+    !      EOS               9
+    !    METOP              10
+    !  ENVISAT              11
+    !      MSG              12
+    !      FY1              13
+    !    ADEOS              14
+    !    MTSAT              15
+    ! CORIOLIS              16
+    !      NPP              17
+    ! =============================================
+    !
+    ! Example: NOAA15, which has a burp satellite identifier value of 206,
+    !          is mapped into the following:
+    !          RTTOV-7 platform  =  1,
+    !          RTTOV-7 satellite = 15.
+    !
+    ! :Arguments:
+    !     i : ISATBURP      : BURP satellite identifier
+    !     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+    !     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
+    !
+
     implicit none
     
     integer J,ISATBURP,IPLATFORM,ISAT
@@ -1254,11 +1148,11 @@ contains
 
   end subroutine tvs_mapSat
 
-!--------------------------------------------------------------------------
-!! subroutine to initialize the chanprof structure used by RTTOV
-!--------------------------------------------------------------------------
 
   subroutine TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma_opt)
+    ! 
+    ! :Purpose: subroutine to initialize the chanprof structure used by RTTOV
+    !
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
     integer ,intent(out),optional :: iptobs_cma_opt(:)
@@ -1298,16 +1192,15 @@ contains
   end subroutine TVS_getChanprof
 
 
-!--------------------------------------------------------------------------
-!! subroutine to count radiances selected for assimilation
-!--------------------------------------------------------------------------
-
   integer function tvs_countRadiances(iptobs, nprofiles, ObsSpaceData,assim_flag_val_opt)
+    !
+    ! :Purpose: to count radiances selected for assimilation
+    !
     implicit none
     integer ,intent(in) :: nprofiles, iptobs(:)
     integer ,intent(in),optional :: assim_flag_val_opt
     type(struct_obs) :: ObsSpaceData
-!******************************************************************************
+
     integer :: profile_index, header_index, istart, iend, body_index, iobs, assim_flag_val
 
     if (present(assim_flag_val_opt)) then
@@ -1329,11 +1222,11 @@ contains
 
   end function tvs_countRadiances
 
-!--------------------------------------------------------------------------
-!! subroutine to get emissivity for Hyperspectral Infrared Sounders (AIRS, IASI, CrIS, ...)
-!--------------------------------------------------------------------------
-  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
 
+  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
+    !
+    ! :Purpose: to get emissivity for Hyperspectral Infrared Sounders (AIRS, IASI, CrIS, ...)
+    !
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
     type(struct_obs) :: ObsSpaceData
@@ -1359,19 +1252,18 @@ contains
   end subroutine tvs_getHIREmissivities
 
 
-!--------------------------------------------------------------------------
-!! subroutine to get emissivity for microwave souders ans infrared geostationary imagers 
-!--------------------------------------------------------------------------
-
   subroutine tvs_getOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, instrument, surfem, calcemis)
+    !
+    ! :Purpose: to get emissivity for microwave souders ans infrared geostationary imagers
+    !
     implicit none
     integer ,intent(in) :: nradiances, iptobs(:),sensor_type, instrument
     real(8), intent(out) :: surfem(:)
     logical, intent(out) :: calcemis(:)
     type(rttov_chanprof),intent(in) :: chanprof(:)
-!*******************************************************************************************************
+
     integer :: radiance_index, profile_index, iobs, surface_type
-!*******************************************************************************************************
+
     do radiance_index = 1, nradiances
       profile_index = chanprof(radiance_index)%prof
       iobs = iptobs(profile_index)
@@ -1398,12 +1290,12 @@ contains
    
   end subroutine tvs_getOtherEmissivities
 
-!--------------------------------------------------------------------------
-!! Subroutine to fill in tvs_profiles structure before call to non-linear, tangent-linear or
-!! adjoint of RTTOV
-!--------------------------------------------------------------------------
 
   subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode,beSilent)
+    !
+    ! :Purpose:  to fill in tvs_profiles structure before call to non-linear, 
+    !            tangent-linear or adjoint of RTTOV
+    !
     implicit none
     type(struct_obs),intent(in) :: lobsSpaceData
     type(struct_columnData),intent(in) :: columnghr
@@ -1762,40 +1654,38 @@ contains
 
   end subroutine tvs_fillProfiles
 
-!--------------------------------------------------------------------------
-!!**** *exthum4* - extrapolate upper level humidity profile.
-!!                 (adapted from exthum by J. Eyre)
-!!
-!!     purpose.
-!      --------
-!!          to extend mixing ratio profile into stratosphere in
-!!          a reasonable way.
-!!
-!!**   interface.
-!      ----------
-!!          *call* *exthum4(knpf,klapf,ppres,pav)*
-!!               *knpf*:  no. of profiles to be processed.
-!!               *klapf*: length of atm. profiles.
-!!               *ppres*: pressure levels of atm. profiles.
-!!               *pav*:   humidity profiles.
-!!
-!!     method.
-!      -------
-!!          take top tropospheric mixing ratio (e.g. near 300 mb) and
-!!          extrapolate with given fall off into lower stratosphere
-!!          (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
-!!          (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
-!!
-!!     externals.
-!      ----------
-!!          none.
-!!
-!!     reference.
-!      ----------
-!!          ecmwf tech mem 176.
-!--------------------------------------------------------------------------
 
   subroutine EXTHUM4(KNPF,KLAPF,PPRES,PAV,LIMLVHU)
+    !**** *exthum4* - extrapolate upper level humidity profile.
+    !                 (adapted from exthum by J. Eyre)
+    !
+    ! :Purpose: to extend mixing ratio profile into stratosphere in
+    !           a reasonable way.
+    !
+    !**   interface.
+    !     ----------
+    !         *call*  *exthum4(knpf,klapf,ppres,pav)*
+    !         *knpf*: no. of profiles to be processed.
+    !        *klapf*: length of atm. profiles.
+    !        *ppres*: pressure levels of atm. profiles.
+    !          *pav*: humidity profiles.
+    !
+    !     method.
+    !     -------
+    !     take top tropospheric mixing ratio (e.g. near 300 mb) and
+    !     extrapolate with given fall off into lower stratosphere
+    !     (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
+    !     (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
+    !
+    !     externals.
+    !     ----------
+    !          none.
+    !
+    !     reference.
+    !     ----------
+    !     ecmwf tech mem 176.
+    !--------------------------------------------------------------------------
+
     implicit none
    
     integer klapf, knpf
@@ -1841,36 +1731,32 @@ contains
 
   end subroutine EXTHUM4
 
-!--------------------------------------------------------------------------
-!!**ID HTEXTRAP -- EXTRAPOLATION OF HEIGHT PROFILES
-!!
-!!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
-!!
-!!       REVISION:
-!!
-!!       OBJECT:  EXTRAPOLATE HEIGHT PROFILES ABOVE 10MB MODEL TOP
-!!                ON RTTOV LEVELS UP TO 0.1MB (RTTOV LEVELS 1 TO 7)
-!!                USING 10 RTTOV HEIGHT LEVELS FROM 100MB TO 10MB
-!!                (RTTOV LEVELS 8 TO 17) FOR LINEAR FIT.
-!!
-!!                -- LINEAR EXTRAPOLATION FOLLOWING
-!!                --    PROFOUT(m) = A * ln(XPRES(mb)) + B
-!!                -- AND SOLVE A AND B BY LEAST SQUARE METHOD 
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -PROFIN(JPMOLEV,NPRF) :: HEIGHT PROFILES  -TO BE EXTRAPOLATED- (M)
-!!            -XPRES(JPLEV)         :: PRESSURE LEVELS OF RTTOV MODEL (HPA)
-!!            -JPLEV                :: NUMBER OF PRESSURE LEVELS OF RTTOV MODEL
-!!            -JPMOLEV              :: NUMBER OF RTTOV MODEL LEVELS BELOW NWP MODEL TOP
-!!            -JPMOTOP              :: FIRST RTTOV MODEL LEVEL UNDER NWP MODEL TOP
-!!            -NPRF                 :: NUMBER OF PROFILES
-!!
-!!          OUTPUT:
-!!            -PROFOUT(JPLEV,NPRF)  :: HEIGHT PROFILES  -EXTRAPOLATED- (M)
-!--------------------------------------------------------------------------
 
   subroutine HTEXTRAP ( PROFOUT, profin,xpres,jplev,jpmolev,jpmotop,nprf )
+    !
+    !**ID HTEXTRAP -- EXTRAPOLATION OF HEIGHT PROFILES
+    !
+    ! :Purpose: EXTRAPOLATE HEIGHT PROFILES ABOVE 10MB MODEL TOP
+    !           ON RTTOV LEVELS UP TO 0.1MB (RTTOV LEVELS 1 TO 7)
+    !           USING 10 RTTOV HEIGHT LEVELS FROM 100MB TO 10MB
+    !           (RTTOV LEVELS 8 TO 17) FOR LINEAR FIT.
+    !
+    !                -- LINEAR EXTRAPOLATION FOLLOWING
+    !                --    PROFOUT(m) = A * ln(XPRES(mb)) + B
+    !                -- AND SOLVE A AND B BY LEAST SQUARE METHOD 
+    !
+    ! :Arguments:
+    !      INPUT:
+    !     -PROFIN(JPMOLEV,NPRF) :: HEIGHT PROFILES  -TO BE EXTRAPOLATED- (M)
+    !     -XPRES(JPLEV)         :: PRESSURE LEVELS OF RTTOV MODEL (HPA)
+    !     -JPLEV                :: NUMBER OF PRESSURE LEVELS OF RTTOV MODEL
+    !     -JPMOLEV              :: NUMBER OF RTTOV MODEL LEVELS BELOW NWP MODEL TOP
+    !     -JPMOTOP              :: FIRST RTTOV MODEL LEVEL UNDER NWP MODEL TOP
+    !     -NPRF                 :: NUMBER OF PROFILES
+    !
+    !     OUTPUT:
+    !     -PROFOUT(JPLEV,NPRF)  :: HEIGHT PROFILES  -EXTRAPOLATED- (M)
+    !
     implicit none
 
 
@@ -1928,12 +1814,12 @@ contains
 
   end subroutine HTEXTRAP
 
-!--------------------------------------------------------------------------
-!! Interface for RTTOV non linear operator
-!! tvs_fillProfiles should be called before
-!--------------------------------------------------------------------------
 
   subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode,beSilent)
+    !
+    ! :Purpose: Interface for RTTOV non linear operator
+    !           tvs_fillProfiles should be called before
+    !
     implicit none
 
     type(struct_obs) :: lobsSpaceData
@@ -2292,50 +2178,31 @@ contains
 
   end subroutine tvs_rttov
 
-!--------------------------------------------------------------------------
-!!**ID COMP_IR_EMISS -- INFRARED EMISSIVITY COMPUTATION
-!!
-!!       AUTHOR:   Thomas J. Kleespies               8 February 1998
-!!                 Physics Branch
-!!                 Satellite Research Laboratory
-!!                 Office of Research and Applications
-!!                 NOAA/NESDIS
-!!                 301-763-8136 x126
-!!                 301-763-8108 FAX
-!!                 Mailing Address: 810 NSC E/RA-14
-!!                                  NOAA/NESDIS
-!!                                  Washington, D.C. 20233
-!!                 Email: TKleespies@nesdis.noaa.gov
-!!
-!!                 L. GARAND     modified for NP points
-!!                 A. BEAULNE (CMDA/SMC)       April 2006  (ADAPT TO 3DVAR)
-!!
-!!       REVISION:
-!!
-!!       OBJECT:   COMPUTES WATER INFRARED EMISSIVITY FOR A SPECIFIC SET OF
-!!          CHANNEL INDICES, WIND SPEED AND ZENITH ANGLE.
-!!
-!!          Restrictions:  Must be compiled with /EXTend_SOURCE or it's equivalent
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -WIND(NP)         : SURFACE WIND SPEED (M/S)
-!!            -ANGLE(NP)        : VIEWING ANGLE (DEG)
-!!            -NCHN             : NUMBER OF CHANNELS TO PROCESS
-!!            -NP               : NUMBER OF LOCATIONS
-!!            -MCHANNEL(NCHN)   : VECTOR OF CHANNEL INDICES TO PROCESS
-!!
-!!          OUTPUT:
-!!            -EMISS(NCHN,NP)   : EMISSIVITIES (0.-1.)
-!--------------------------------------------------------------------------
 
   subroutine COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
+    !
+    ! :Purpose: COMPUTES WATER INFRARED EMISSIVITY FOR A SPECIFIC SET OF
+    !           CHANNEL INDICES, WIND SPEED AND ZENITH ANGLE.
+    !
+    !           Restrictions:  Must be compiled with /EXTend_SOURCE or it's equivalent
+    !
+    ! :Arguments:
+    !          INPUT:
+    !          -WIND(NP)         : SURFACE WIND SPEED (M/S)
+    !          -ANGLE(NP)        : VIEWING ANGLE (DEG)
+    !          -NCHN             : NUMBER OF CHANNELS TO PROCESS
+    !          -NP               : NUMBER OF LOCATIONS
+    !          -MCHANNEL(NCHN)   : VECTOR OF CHANNEL INDICES TO PROCESS
+    !
+    !          OUTPUT:
+    !          -EMISS(NCHN,NP)   : EMISSIVITIES (0.-1.)
+
     implicit None
     integer ,intent(in) :: nchn,np
     real (8)    ,intent(out):: Emiss(Nchn,NP)
     real (8)    ,intent(in) :: Wind(NP),Angle(NP)
     integer ,intent(in) :: Mchannel(Nchn)
-!***********************************************
+
     integer ,parameter :: MaxWn = 19
     integer ,parameter :: Nparm=3
     integer ,parameter :: MaxChan=19
@@ -2430,39 +2297,32 @@ contains
 
   end subroutine COMP_IR_EMISS
 
-!--------------------------------------------------------------------------
-!!**ID PCNT_BOX -- COMPUTES A LOW_RESOLUTION FEATURE FROM HIGH RESOLUTION
-!!
-!!       AUTHOR:   L. GARAND (ARMA) AND A. BEAULNE (CMDA/SMC) June 2006
-!!
-!!       REVISION:
-!!
-!!       OBJECT:   COMPUTES A LOW RESOLUTION FEATURE FORM A HIGH
-!!                 RESOLUTION ONE BY AVERAGING.
-!!                 EXAMPLE: USE FOR PERCENTAGE OF WATER
-!!
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -F_HIGH(KLON,KLAT)   : HIGH RESOLUTION FIELD 
-!!            -NPRF                : NUMBER OF PROFILES
-!!            -ILAT(NPRF)          : Y-COORDINATE OF PROFILE
-!!            -ILON(NPRF)          : X-COORDINATE OF PROFILE
-!!            -KLAT                : MAX VALUE OF LATITUDE INDICES
-!!            -KLON                : MAX VALUE OF LONGITUDE INDICES
-!!            -IREDUC              : MEANS A 2xIREDUC+1 BY 2xIREDUC+1 AVERAGING
-!!
-!!          OUTPUT:
-!!            -FLOW(NPRF)          : LOW RESOLUTION FIELD
-!--------------------------------------------------------------------------
 
   subroutine PCNT_BOX(F_LOW, f_high,nprf,ilat,ilon,klat,klon,ireduc)
+    !
+    ! :Purpose: COMPUTES A LOW RESOLUTION FEATURE FORM A HIGH
+    !           RESOLUTION ONE BY AVERAGING.
+    !           EXAMPLE: USE FOR PERCENTAGE OF WATER
+    !
+    ! :Arguments:
+    !          INPUT:
+    !            -F_HIGH(KLON,KLAT)   : HIGH RESOLUTION FIELD 
+    !            -NPRF                : NUMBER OF PROFILES
+    !            -ILAT(NPRF)          : Y-COORDINATE OF PROFILE
+    !            -ILON(NPRF)          : X-COORDINATE OF PROFILE
+    !            -KLAT                : MAX VALUE OF LATITUDE INDICES
+    !            -KLON                : MAX VALUE OF LONGITUDE INDICES
+    !            -IREDUC              : MEANS A 2xIREDUC+1 BY 2xIREDUC+1 AVERAGING
+    !
+    !          OUTPUT:
+    !            -FLOW(NPRF)          : LOW RESOLUTION FIELD
+    !
     implicit none
     integer ,intent(in) :: NPRF,KLON,KLAT,ireduc
     integer ,intent(in) :: ILAT(NPRF), ILON(NPRF)
     real (8),intent(in)    :: F_HIGH(KLON,KLAT)
     real (8),intent(out)   :: F_LOW(NPRF)
-!*************************************************************
+
     integer :: NPLON, JDLO1, JDLO2, JLON1, JLON2
     integer :: NX, ILAT1, ILAT2, ILON1, ILON2, JN, ii, jj
    
@@ -2519,22 +2379,14 @@ contains
 
   end subroutine PCNT_BOX
 
-!--------------------------------------------------------------------------
-!!**ID emis_read_climatology -- READ INFORMATION FOR IR SURFACE EMISSIVITIES COMPUTATION
-!!
-!!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
-!!
-!!       OBJECT:   READ INFORMATION ABOUT CERES SURFACE TYPE AND WATER FRACTION.
-!!
-!!       REVISION: A. Beaulne (CMDA/SMC) July 2013
-!!                 Use only for reading Ceres information,
-!!                 so albedo, ice and snow now done in interp_sfc.ftn90.
-!!       ARGUMENTS:
-!!          INPUT:  NONE
-!!          OUTPUT: NONE
-!--------------------------------------------------------------------------
 
   subroutine emis_read_climatology
+    !
+    ! :Purpose: READ INFORMATION ABOUT CERES SURFACE TYPE AND WATER FRACTION.
+    !
+    ! :Arguments:
+    !        none
+    !
     implicit none
     
     integer            :: NISF,NJSF,NKSF
@@ -2564,42 +2416,35 @@ contains
    
   end subroutine emis_read_climatology
 
-!--------------------------------------------------------------------------
-!!* This is a subroutine that can apply to any instrument.
-!!* However, due to the necessity of specifying the instrument
-!!* bands wavenumbers, the use of this subroutine for a new instrument
-!!* would require the minor following changes.
-!!*
-!!*     - Continue the "find the bands (central) wavenumber" if loop
-!!*         for your specific instrument
-!!
-!!**ID EMIS_GET_IR_EMISSIVITY -- ASSIGN NEW IR SURFACE EMISSIVITIES 
-!!
-!!       SCIENCE:  L. GARAND
-!!       AUTHOR:   A. BEAULNE (CMDA/SMC) June 2006
-!!
-!!       OBJECT:   ASSIGN NEW IR SURFACE EMISSIVITIES BASED ON
-!!                 CMC ANALYSIS SURFACE ALBEDO, SEA ICE FRACTION AND SNOW MASK
-!!                 IN ADDITION TO CERES SURFACE TYPE AND WATER FRACTION
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -NCHN           : NUMBER OF CHANNELS
-!!            -KRTID          : SENSOR NUMBER
-!!            -NPRF           : NUMBER OF PROFILES
-!!            -NCHANNELS_MAX  : TOTAL NUMBER OF OBSERVATIONS TREATED
-!!            -IPTOBS(NPRF)   : PROFILE POSITION NUMBER
-!!
-!!          OUTPUT:
-!!            -SURFEM1(NCHANNELS_MAX)  : IR SURFACE EMISSIVITY ESTIMATE (0-1)
-!--------------------------------------------------------------------------
 
   subroutine EMIS_GET_IR_EMISSIVITY ( SURFEM1, nchn,krtid,nprf,nchannels_max,iptobs)
+    !
+    ! :Purpose: ASSIGN NEW IR SURFACE EMISSIVITIES BASED ON
+    !           CMC ANALYSIS SURFACE ALBEDO, SEA ICE FRACTION AND SNOW MASK
+    !           IN ADDITION TO CERES SURFACE TYPE AND WATER FRACTION. 
+    !           This is a subroutine that can apply to any instrument.
+    !           However, due to the necessity of specifying the instrument
+    !           bands wavenumbers, the use of this subroutine for a new instrument
+    !           would require the minor following changes.
+    !
+    !           - Continue the "find the bands (central) wavenumber" if loop
+    !           for your specific instrument
+    !
+    ! :Arguments:
+    !      INPUT:
+    !       -NCHN           : NUMBER OF CHANNELS
+    !       -KRTID          : SENSOR NUMBER
+    !       -NPRF           : NUMBER OF PROFILES
+    !       -NCHANNELS_MAX  : TOTAL NUMBER OF OBSERVATIONS TREATED
+    !       -IPTOBS(NPRF)   : PROFILE POSITION NUMBER
+    !
+    !    OUTPUT:
+    ! -SURFEM1(NCHANNELS_MAX)  : IR SURFACE EMISSIVITY ESTIMATE (0-1)
+
     implicit none
     integer,intent(in) :: NPRF,NCHANNELS_MAX
     integer,intent(in) :: NCHN,IPTOBS(NPRF),KRTID
     real(8),intent(out) :: SURFEM1(NCHANNELS_MAX)
-!****************************************************
 
     integer :: JC,JN,ICHN
     integer :: ILAT(NPRF), ILON(NPRF)
@@ -2697,37 +2542,27 @@ contains
 
   end subroutine EMIS_GET_IR_EMISSIVITY
 
-!--------------------------------------------------------------------------
-!!**ID INTERP_SFC -- ASSOCIATE SURFACE FIELDS TO OBSERVATION PROFILES
-!!
-!!       AUTHOR:   L. GARAND
-!!                 A. BEAULNE (CMDA/SMC) March 2006  (ADAPT TO 3DVAR)
-!!
-!!       OBJECT:   ASSOCIATE SURFACE ALBEDO, ICE FRACTION, SNOW DEPTH 
-!!          AND CERES SURFACE TYPE AND WATER FRACTION TO OBSERVATIONS PROFILES.
-!!
-!!       REVISION: A. BEAULNE (CMDA/SMC) July 2013
-!!                 - GRID COMPUTATION PREVIOUSLY DONE IN SFC_EMISS FOR
-!!                   ICE,SNOW AND ALBEDO NOW DONE HERE FOR
-!!                   GENERALIZATION IN ACCEPTING ANY KIND OF GRID
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -NPRF           : NUMBER OF PROFILES
-!!            -ZLAT(NPRF)     : LATITUDE (-90S TO 90N)
-!!            -ZLON(NPRF)     : LONGITUDE (0 TO 360)
-!!
-!!          OUTPUT:
-!!            -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
-!!            -ILON(NPRF)     : X-COORDINATE OF PROFILE 
-!--------------------------------------------------------------------------
 
   subroutine INTERP_SFC (ILAT,ILON, nprf,zlat,zlon,iptobs)
+    !
+    ! :Purpose: ASSOCIATE SURFACE ALBEDO, ICE FRACTION, SNOW DEPTH 
+    !           AND CERES SURFACE TYPE AND WATER FRACTION TO OBSERVATIONS PROFILES.
+    !
+    ! :Arguments:
+    !      INPUT:
+    !         -NPRF           : NUMBER OF PROFILES
+    !         -ZLAT(NPRF)     : LATITUDE (-90S TO 90N)
+    !         -ZLON(NPRF)     : LONGITUDE (0 TO 360)
+    !
+    !     OUTPUT:
+    !         -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
+    !         -ILON(NPRF)     : X-COORDINATE OF PROFILE 
+
     implicit none
     integer,intent(in) :: NPRF, IPTOBS(NPRF)
     real(8),intent(in) :: ZLAT(NPRF), ZLON(NPRF)
     integer,intent(out):: ILAT(NPRF), ILON(NPRF)
-!**********************************************************
+
     character(len=20)  :: CFILE3,CFILE5
     integer            :: iun3,iun5
     integer            ::                     IV6,IV7
@@ -2989,62 +2824,61 @@ contains
 
   end subroutine INTERP_SFC
 
-!--------------------------------------------------------------------------
-!!**ID CERES_EMATRIX -- SET UP EMISSIVITIES
-!!
-!!       AUTHOR:   L. GARAND              Sept 2004
-!!                 A. BEAULNE (CMDA/SMC) March 2006  (ADAPT TO 3DVAR)
-!!
-!!       REVISION:
-!!
-!!       OBJECT:   SET UP EMISSIVITY VERSUS FIXED WAVENUMBERS AND SURFACE TYPES
-!!
-!!         CERES
-!!         -----
-!!         Emissivity data available at low spectral resolution: only 14 values 
-!!         to cover the entire spectrum. Thus, this can be used as a nominal value.
-!!         The error associated with this emissivity can roughly be estimated to
-!!         increase with lower emissivity as : (1-EMI)*0.5 
-!!         (i.e. as large as 0.10 for EMI=0.80 but better than 0.01 for EMI > 0.98)
-!!         -No dependence on viewing angle is assumed.
-!!         -Not to be used for oceans uncovered by ice.
-!!
-!!         Longwave Emmissivities in 12 original Fu bands + 2 extra to cover the range
-!!         ---------------------------------------------------------------------------
-!!         Longwave spectral intervals [cm-1] for the Fu & Liou code:
-!!
-!!         Band  1          2          3          4          5          6
-!!           2200-1900, 1900-1700, 1700-1400, 1400-1250, 1250-1100, 1100-980,
-!!         Band  7          8          9         10         11         12
-!!            980-800,   800-670,   670-540,  540-400,    400-280,   280-0 
-!!
-!!         Two additional LW spectral intervals have been added in beyond 2200cm-1.
-!!         Band        13              14
-!!                  2500-2200       2850-2500
-!!
-!!         Emissivity    ems(band(1))   from April data, Table2 of Chen et al
-!!         11th Conf Sat Met, Madison, WI, p 514
-!!          here regoganized as 14 13 1 2 ... 12 above
-!!
-!!         20 surface types
-!!         ----------------
-!!          1= evergreen nleaf  2= evergreen bleaf 3= deciduous nleaf  4= deciduous bleaf
-!!          5= mixed forests    6= closed shrubs   7= open shrubs      8= woody savanna
-!!          9= savanna         10= grasslands     11= perma wet       12= croplands
-!!         13= urban           14= mosaic         15= snow            16= barren (deserts)
-!!         17= water           18= toundra        19= fresh snow      20= sea ice
-!!
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -WAVEN(NCHN)   : WAVENUMBERS (CM-1)
-!!            -NCHN          : NUMBER OF BANDS FOR WHICH EMISSIVITY IS NEEDED
-!!
-!!          OUTPUT:
-!!            -EMI_MAT(NCHN,NTYPE) : EMISSIVITY (0.0-1.0)
-!--------------------------------------------------------------------------
 
   subroutine CERES_EMATRIX(EMI_MAT, waven,nchn)
+    ! **ID CERES_EMATRIX -- SET UP EMISSIVITIES
+    !
+    ! :Purpose: SET UP EMISSIVITY VERSUS FIXED WAVENUMBERS AND SURFACE TYPES
+    !
+    ! CERES
+    ! =====
+    ! Emissivity data available at low spectral resolution: only 14 values 
+    ! to cover the entire spectrum. Thus, this can be used as a nominal value.
+    ! The error associated with this emissivity can roughly be estimated to
+    ! increase with lower emissivity as : (1-EMI)*0.5 
+    ! (i.e. as large as 0.10 for EMI=0.80 but better than 0.01 for EMI > 0.98)
+    ! -No dependence on viewing angle is assumed.
+    ! -Not to be used for oceans uncovered by ice.
+    !
+    ! Longwave Emmissivities in 12 original Fu bands + 2 extra to cover the range
+    ! ===========================================================================
+    ! Longwave spectral intervals [cm-1] for the Fu & Liou code:
+    ! ===========================================================================
+    ! Band       1         2          3          4          5          6
+    ! ====  ========== ========== ========== =========== ========== =============
+    !       2200-1900  1900-1700  1700-1400  1400-1250   1250-1100  1100-980
+    ! ===========================================================================
+    ! Band       7         8          9         10         11         12
+    ! ====  ========== ========== ========== =========== ========== =============
+    !          980-800   800-670   670-540   540-400     400-280     280-0 
+    ! ===========================================================================
+    ! Two additional LW spectral intervals have been added in beyond 2200cm-1.
+    ! ========================================================================
+    ! Band        13              14
+    ! ========  ============== ===============
+    !               2500-2200    2850-2500
+    ! ========================================================================
+    ! Emissivity    ems(band(1))   from April data, Table2 of Chen et al
+    ! 11th Conf Sat Met, Madison, WI, p 514
+    ! here regoganized as 14 13 1 2 ... 12 above
+    !
+    ! 20 surface types
+    ! ==================
+    !  1= evergreen nleaf  2= evergreen bleaf 3= deciduous nleaf  4= deciduous bleaf
+    !  5= mixed forests    6= closed shrubs   7= open shrubs      8= woody savanna
+    !  9= savanna         10= grasslands     11= perma wet       12= croplands
+    ! 13= urban           14= mosaic         15= snow            16= barren (deserts)
+    ! 17= water           18= toundra        19= fresh snow      20= sea ice
+    !
+    !
+    ! :Arguments:
+    !      INPUT: 
+    !         -WAVEN(NCHN)   : WAVENUMBERS (CM-1)
+    !         -NCHN          : NUMBER OF BANDS FOR WHICH EMISSIVITY IS NEEDED
+    !
+    !     OUTPUT:
+    !   -EMI_MAT(NCHN,NTYPE) : EMISSIVITY (0.0-1.0)
+
     implicit none
     integer ,intent(in) ::  NCHN
     real (8),intent(in) :: WAVEN(NCHN)
@@ -3130,44 +2964,37 @@ contains
 
   end subroutine CERES_EMATRIX
 
-!--------------------------------------------------------------------------
-!!**ID EMI_SEA -- GET OCEAN SURFACE EMISSIVITY
-!!
-!!       AUTHOR:   L. GARAND                March 1999
-!!                       improved with IMEM       2004
-!!                 A. BEAULNE (CMDA/SMC)    April 2006  (ADAPT TO 3DVAR)
-!!
-!!       REVISION:
-!!
-!!       OBJECT:    GET OCEAN SURFACE EMISSIVITY
-!!
-!!         Note: 
-!!         IMEM(NC), set to zero initially, on next call IMEM will have the
-!!         right boundary channel to save search time in interpolation.
-!!         IOPT=1 means activate IMEM option (all calls ask for same channels)
-!!
-!!         To get surface ocean emissivity for a group of channels with
-!!         wavenumbers WNUM (cm-1) looking at one point with surface
-!!         wind speed WIND from angle ANGLE.
-!!         Based on Masuda,1988, Remote Sens. of Envir, 313-329.
-!!         Coded emissivity routine based on Masuda's data by Tom Kleespies
-!!         Covers 650-2857 cm-1 or 3.1-15.4 microns
-!!
-!!         CAUTION: extrapolated values from 769-650 cm-1
-!!         and interpolated values between 2439-1250 cm-1
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -WNUM(NC)       : CHANNEL WAVENUMBERS (CM-1)
-!!            -ANGLE          : VIEWING ANGLE (DEG)
-!!            -WIND           : SURFACE WIND SPEED (M/S)
-!!            -NP             : NUMBER OF PROFILES
-!!            -NC             : NUMBER OF CHANNELS
-!!
-!!          OUTPUT:
-!!            -EM_OC(NC,NP)   : OCEAN EMISSIVITIES (0.-1.)
-!--------------------------------------------------------------------------
+
   subroutine EMI_SEA(EM_OC, wnum,angle,wind,np,nc)
+    !**ID EMI_SEA -- GET OCEAN SURFACE EMISSIVITY
+    !
+    ! :Purpose: GET OCEAN SURFACE EMISSIVITY
+    !           Note: 
+    !           IMEM(NC), set to zero initially, on next call IMEM will have the
+    !           right boundary channel to save search time in interpolation.
+    !           IOPT=1 means activate IMEM option (all calls ask for same channels)
+    !
+    !           To get surface ocean emissivity for a group of channels with
+    !           wavenumbers WNUM (cm-1) looking at one point with surface
+    !           wind speed WIND from angle ANGLE.
+    !           Based on Masuda,1988, Remote Sens. of Envir, 313-329.
+    !           Coded emissivity routine based on Masuda's data by Tom Kleespies
+    !           Covers 650-2857 cm-1 or 3.1-15.4 microns
+    !
+    !           CAUTION: extrapolated values from 769-650 cm-1
+    !           and interpolated values between 2439-1250 cm-1
+    !
+    ! :Arguments:
+    !      INPUT:
+    !         -WNUM(NC)       : CHANNEL WAVENUMBERS (CM-1)
+    !         -ANGLE          : VIEWING ANGLE (DEG)
+    !         -WIND           : SURFACE WIND SPEED (M/S)
+    !         -NP             : NUMBER OF PROFILES
+    !         -NC             : NUMBER OF CHANNELS
+    !
+    !    OUTPUT:
+    !         -EM_OC(NC,NP)   : OCEAN EMISSIVITIES (0.-1.)
+    !
     implicit none
     integer,intent(in) :: NC,NP
     real (8),intent(in)   :: WNUM(NC),ANGLE(NP),WIND(NP)
@@ -3244,38 +3071,35 @@ contains
 
   end subroutine EMI_SEA
 
-!--------------------------------------------------------------------------
-!! SUBROUTINE  tvs_rttov_read_coefs
-!!
-!! *Purpose*: MPI wrapper for rttov_read_coefs
-!!            the coefficient files are read by MPI task 0
-!!            and then broadcasted to the other tasks according to the selected
-!!            channels. Argument channels is mandatory (it is optional in rttov_setup)
-!!            optional argument channels_rec was removed (it is useful only in principal component mode)
-!!            other optionnal arguments were removed :
-!!                            form_coef,         & !to specify format
-!!                            form_scaer,        &
-!!                            form_sccld,        &
-!!                            form_pccoef,       &
-!!                            file_coef,         & !to specify filename
-!!                            file_scaer,        &
-!!                            file_sccld,        &
-!!                            file_pccoef,       &
-!!                            file_id_coef,      & !to specify fortran unit number
-!!                            file_id_scaer,     &
-!!                            file_id_sccld,     &
-!!                            file_id_pccoef,    &
-!!                            path                 ! to specify the path to look for coefficient files
-!!            if necessary these arguments could be  added (ask S. Heilliette)
-!!            also this subroutine will work only for clear sky radiance computations
-!!            if somebody wants to do realistic cloud or aerosol affected radiance simulations
-!!            some changes are needed. Ask me in that case. (S. Heilliette) 
-!! It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
-!! No check will be done (options for task 0 will be used for all tasks). Only differences in channel lists are accounted for.
-!! S. Heilliette May 2017
-!--------------------------------------------------------------------------
 
   subroutine tvs_rttov_read_coefs(err, coefs, opts, channels, instrument)
+    !
+    !  :Purpose: MPI wrapper for rttov_read_coefs
+    !            the coefficient files are read by MPI task 0
+    !            and then broadcasted to the other tasks according to the selected
+    !            channels. Argument channels is mandatory (it is optional in rttov_setup)
+    !            optional argument channels_rec was removed (it is useful only in principal component mode)
+    !            other optionnal arguments were removed :
+    !                            form_coef,         & !to specify format
+    !                            form_scaer,        &
+    !                            form_sccld,        &
+    !                            form_pccoef,       &
+    !                            file_coef,         & !to specify filename
+    !                            file_scaer,        &
+    !                            file_sccld,        &
+    !                            file_pccoef,       &
+    !                            file_id_coef,      & !to specify fortran unit number
+    !                            file_id_scaer,     &
+    !                            file_id_sccld,     &
+    !                            file_id_pccoef,    &
+    !                            path                 ! to specify the path to look for coefficient files
+    !            if necessary these arguments could be  added (ask S. Heilliette)
+    !            also this subroutine will work only for clear sky radiance computations
+    !            if somebody wants to do realistic cloud or aerosol affected radiance simulations
+    !            some changes are needed. Ask me in that case. (S. Heilliette) 
+    ! It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
+    ! No check will be done (options for task 0 will be used for all tasks). Only differences in channel lists are accounted for.
+
     implicit none
 
     integer(kind=jpim), intent(out) :: err
@@ -4075,31 +3899,11 @@ contains
 
   end subroutine broadcastI41dArray
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Computation of Jo and the residuals to the tovs observations
-!!
-!! @author j. halle *cmda/aes  december 14, 2004
-!!
-!!revision 001  : a. beaulne *cmda/smc  june 2006
-!!                  -modifications for AIRS (codtyp 183)
-!!
-!!revision 002  : r. sarrazin cmda  april 2008
-!!                  -modifications for CSR (codtyp 185)
-!!
-!!revision 003  : s. heilliette
-!!                  -modifications for IASI (codtyp 186)
-!!
-!!revision 004  : s. heilliette
-!!                  -modifications for RTTOV-10 (December 2010)
-!!
-!!revision 005  : s. macpherson
-!!                  -modifications for ATMS (codtyp 192)
-!!                  -modifications for CrIS (codtyp 193)
-!!revision 006  : s. macpherson  nov 2012
-!!                  - remove #include "comtovst.cdk"
-!!
-!--------------------------------------------------------------------------
+
   subroutine tvs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
+    !
+    ! *Purpose*: Computation of Jo and the residuals to the tovs observations
+    !
     implicit none
 
     real(8),intent(out) :: pjo

@@ -57,10 +57,14 @@ module variableTransforms_mod
 
 CONTAINS
 
-  !--------------------------------------------------------------------------
-  ! vtr_setup
-  !--------------------------------------------------------------------------
   subroutine vtr_setup(hco_in,vco_in)
+    ! 
+    ! :Purpose: To set up a variable transformation object
+    !
+    ! :Arguments:
+    !           :hco_in: horizontal coordinate object input 
+    !           :vco_in: vertical   coordinate object input
+    !
     implicit none
 
     type(struct_hco), pointer :: hco_in
@@ -78,10 +82,9 @@ CONTAINS
 
   end subroutine vtr_setup
 
-  !--------------------------------------------------------------------------
-  ! vtr_setupTrials
-  !--------------------------------------------------------------------------
+
   subroutine vtr_setupTrials(varName)
+
     implicit none
 
     type(struct_gsv) :: statevector_noZnoP
@@ -132,9 +135,7 @@ CONTAINS
 
   end subroutine vtr_setupTrials
 
-  !--------------------------------------------------------------------------
-  ! vtr_transform_gsv
-  !--------------------------------------------------------------------------
+
   subroutine vtr_transform_gsv(statevector,transform, statevectorOut_opt)
     implicit none
    
@@ -330,9 +331,7 @@ CONTAINS
 
   end subroutine vtr_transform_gsv
 
-  !--------------------------------------------------------------------------
-  ! vtr_transform_ens
-  !--------------------------------------------------------------------------
+
   subroutine vtr_transform_ens(ens,transform)
     implicit none
    
@@ -353,9 +352,7 @@ CONTAINS
 
   end subroutine vtr_transform_ens
 
-  !--------------------------------------------------------------------------
-  ! LQtoHU
-  !--------------------------------------------------------------------------
+
   subroutine LQtoHU(statevector)
     implicit none
 
@@ -381,9 +378,7 @@ CONTAINS
 
   end subroutine LQtoHU
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_gsv
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_gsv(statevector)
     implicit none
 
@@ -431,9 +426,7 @@ CONTAINS
 
   end subroutine HUtoLQ_gsv
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_ens
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_ens(ens)
     implicit none
 
@@ -469,9 +462,7 @@ CONTAINS
 
   end subroutine HUtoLQ_ens
 
-  !--------------------------------------------------------------------------
-  ! LQtoHU_tlm
-  !--------------------------------------------------------------------------
+
   subroutine LQtoHU_tlm(statevector)
     implicit none
 
@@ -500,9 +491,7 @@ CONTAINS
 
   end subroutine LQtoHU_tlm
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_tlm
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_tlm(statevector)
     implicit none
 
@@ -531,9 +520,7 @@ CONTAINS
 
   end subroutine HUtoLQ_tlm
 
-  !--------------------------------------------------------------------------
-  ! LVIStoVIS
-  !--------------------------------------------------------------------------
+
   subroutine LVIStoVIS(statevector_in, statevectorOut_opt)
     implicit none
 
@@ -712,9 +699,7 @@ CONTAINS
 
   end subroutine UVtoVortDiv_gsv
 
-  !--------------------------------------------------------------------------
-  ! vortDivToPsiChi_gsv
-  !--------------------------------------------------------------------------
+
   subroutine vortDivToPsiChi_gsv(statevector)
     implicit none
    
@@ -784,9 +769,7 @@ CONTAINS
 
   end subroutine VortDivToPsiChi_gsv
 
-  !--------------------------------------------------------------------------
-  ! UVtoPsiChi_gsv
-  !--------------------------------------------------------------------------
+
   subroutine UVtoPsiChi_gsv(statevector)
     implicit none
    
@@ -872,9 +855,7 @@ CONTAINS
 
   end subroutine UVtoPsiChi_gsv
   
-  !--------------------------------------------------------------------------
-  ! UVtoPsiChi_ens
-  !--------------------------------------------------------------------------
+
   subroutine UVtoPsiChi_ens(ens)
     implicit none
    
@@ -925,9 +906,7 @@ CONTAINS
 
   end subroutine UVtoPsiChi_ens
 
-  !--------------------------------------------------------------------------
-  ! UVtoVortDiv_ens
-  !--------------------------------------------------------------------------
+
   subroutine UVtoVortDiv_ens(ens)
     implicit none
    

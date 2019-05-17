@@ -107,24 +107,17 @@ module tovs_extrap_mod
 
 
     SUBROUTINE EXTRAP ( PROFIN, PROFOUT, JPMOLEV, JPLEV, KNPF )
-!
-!**s/r EXTRAP  - Extrapolate temperature profile above 20mb
-!                on RTTOV levels (up to 0.1 mbs).
-!
-!
-!Author        : J. Halle *CMDA/AES  April 28, 1994
-!
-!
-!Arguments
-!     i   PROFIN (JPMOLEV,KNPF) : Temperature profile (to be extrapolated)
-!     o   PROFOUT(JPLEV,KNPF)   : Temperature profile (      extrapolated)
-!     i   JPMOLEV               : number of levels (RT model) from NWP
-!     i   JPLEV                 : number of pressure levels
-!     i   KNPF                  : Number of profiles
-!
-!!   -------------------
-!*    Purpose: extrapolate temperature profile above top level
-
+      !
+      ! :Purpose: Extrapolate temperature profile above 20mb
+      !           on RTTOV levels (up to 0.1 mbs).
+      !
+      ! :Arguments:
+      !     i   PROFIN (JPMOLEV,KNPF) : Temperature profile (to be extrapolated)
+      !     o   PROFOUT(JPLEV,KNPF)   : Temperature profile (      extrapolated)
+      !     i   JPMOLEV               : number of levels (RT model) from NWP
+      !     i   JPLEV                 : number of pressure levels
+      !     i   KNPF                  : Number of profiles
+      !
       IMPLICIT NONE
       INTEGER JI, JJ, JK, KNPF, ILEV, JPMOLEV, JPLEV, NLVLS_XTRAP, JPMOTOP
       REAL*8 PROFIN(JPMOLEV,KNPF), PROFOUT(JPLEV,KNPF)
@@ -164,24 +157,17 @@ module tovs_extrap_mod
 
 
     SUBROUTINE LEXTRAP ( PROFIN, PROFOUT, JPMOLEV, JPLEV, KNPF )
-!
-!**s/r LEXTRAP  - Tangent linear of extrapolation of temperature profile
-!                 above 20mb on RTTOV levels (up to 0.1 mbs).
-!
-!
-!Author        : J. Halle *CMDA/AES  April 28, 1994
-!
-!
-!Arguments
-!     i   PROFIN (JPMOLEV,KNPF) : Temperature profile (to be extrapolated)
-!     o   PROFOUT(JPLEV,KNPF)   : Temperature profile (      extrapolated)
-!     i   JPMOLEV               : number of levels (RT model) from NWP
-!     i   JPLEV                 : number of pressure levels
-!     i   KNPF                  : Number of profiles
-!
-!!   -------------------
-!*    Purpose: tangent linear of extrapolation of temperature profile above top level
-
+      !
+      ! :Purpose: Tangent linear of extrapolation of temperature profile
+      !           above 20mb on RTTOV levels (up to 0.1 mbs).
+      !
+      ! :Arguments:
+      !     i   PROFIN (JPMOLEV,KNPF) : Temperature profile (to be extrapolated)
+      !     o   PROFOUT(JPLEV,KNPF)   : Temperature profile (      extrapolated)
+      !     i   JPMOLEV               : number of levels (RT model) from NWP
+      !     i   JPLEV                 : number of pressure levels
+      !     i   KNPF                  : Number of profiles
+      !
       IMPLICIT NONE
       INTEGER JI, JJ, JK, KNPF, ILEV, JPMOLEV, JPLEV, NLVLS_XTRAP, JPMOTOP
       REAL*8 PROFIN(JPMOLEV,KNPF), PROFOUT(JPLEV,KNPF)
@@ -220,23 +206,17 @@ module tovs_extrap_mod
 
 
     SUBROUTINE AEXTRAP( PROFIN, PROFOUT, JPMOLEV, JPLEV, KNPF )
-!
-!**s/r AEXTRAP  - Adjoint of extrapolation of temperature profile above 20mb
-!
-!                 on RTTOV levels (up to 0.1 mbs).
-!
-!Author        : J. Halle *CMDA/AES  November 01, 1994
-!
-!Arguments
-!     o   PROFIN (JPMOLEV,KNPF) : output adjoint of temperature profile
-!     i   PROFOUT(JPLEV,KNPF)   : input adjoint of temperature profile
-!     i   JPMOLEV               : number of levels (RT model) from NWP
-!     i   JPLEV                 : number of pressure levels
-!     i   KNPF                  : Number of profiles
-!
-!!   -------------------
-!*    Purpose: adjoint of extrapolation of  temperature profile above the top level
-
+      !
+      ! :Purpose: Adjoint of extrapolation of temperature profile above 20mb
+      !           on RTTOV levels (up to 0.1 mbs).
+      !
+      ! :Arguments:
+      !     o   PROFIN (JPMOLEV,KNPF) : output adjoint of temperature profile
+      !     i   PROFOUT(JPLEV,KNPF)   : input adjoint of temperature profile
+      !     i   JPMOLEV               : number of levels (RT model) from NWP
+      !     i   JPLEV                 : number of pressure levels
+      !     i   KNPF                  : Number of profiles
+      !
       IMPLICIT NONE
       INTEGER JI, JJ, JK, KNPF, ILEV, JPMOLEV, JPLEV, NLVLS_XTRAP, JPMOTOP
       REAL*8 PROFIN(JPMOLEV,KNPF), PROFOUT(JPLEV,KNPF)

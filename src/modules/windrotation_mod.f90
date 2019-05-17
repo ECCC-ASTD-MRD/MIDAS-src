@@ -46,9 +46,7 @@ module windRotation_mod
   subroutine uvr_setup( uvr, hco_in )
     !
     ! :Purpose:    Setup the information for wind rotation
-    ! :Arguments:
-    !       :uvr:  Wind rotation object
-    !    :hco_in:  Horizontal grid object
+    !
     implicit none
 
     ! Arguments:
@@ -102,13 +100,7 @@ module windRotation_mod
     !
     ! :Purpose: Compute the rotation matrix (r_8) that allows transformation
     !           from the non-rotated to the rotated spherical coordinate system.
-    ! :Arguments:
-    !                :uvr: Wind rotation object
-    !       :subGridIndex: Horizontal subGrid index = 2
-    !          :grd_xlon1: Horizontal grid xlon1_yan
-    !          :grd_xlat1: Horizontal grid xlat1_yan
-    !          :grd_xlon2: Horizontal grid xlon2_yan
-    !          :grd_xlat2: Horizontal grid xlat2_yan
+    !
     implicit none
 
     ! Arguments:
@@ -210,11 +202,7 @@ module windRotation_mod
   subroutine vllacar( F_xyz_8, F_lon, F_lat )
     !
     ! :Purpose:    Compute parameters of rotated grid
-    ! :Arguments:
-    !       :F_xyz_8: output 
-    !         :F_lon: input in degrees
-    !         :F_lat: input in degrees
-
+    ! 
     implicit none
 
     real(8), intent(out) :: F_xyz_8(msize) ! output
@@ -231,13 +219,6 @@ module windRotation_mod
     !
     ! :Purpose:    Compute a product of two matrices.
     !
-    ! :Arguments:
-    !     :pmat3:  output
-    !     :pmat1:  input matrix one
-    !     :pmat2:  input matrix two
-    !     :kdimi1: first  dimension of the first  matrix
-    !     :kdimj1: second dimension of the first  matrix
-    !     :kdimj2: second dimension of the second matrix
     implicit none
 
     ! Arguments:
@@ -267,17 +248,7 @@ module windRotation_mod
     !
     ! :Purpose: Go from tangential wind components from one sphere to another
     !           (same origin!). Original ezsint version used for computing innovation.
-    ! 
-    ! :Arguments:
-    !                    :uvr: Wind rotation object
-    !           :subGridIndex: Current subgrid index
-    !                  :uwind: interpUU
-    !                  :vwind: interpVV
-    !                    :Lat: Latitude in radians
-    !                    :Lon: Longitude in radians
-    !                 :LatRot: Rotated latitude in radians
-    !                 :LonRot: Rotated longitude in radians
-    !                   :mode: only one mode 'ToMetWind' available
+    !
     implicit none
 
     ! Arguments:
@@ -346,17 +317,6 @@ module windRotation_mod
     ! :Purpose: Go from tangential wind components from one sphere to another
     !           (same origin!). Fast version used by Variational analysis. 
     !
-    ! :Arguments:
-    !                    :uvr: Wind rotation object
-    !           :subGridIndex: Current subgrid index
-    !                  :uwind: interpUU
-    !                  :vwind: interpVV
-    !                    :Lat: Latitude in radians
-    !                    :Lon: Longitude in radians
-    !                 :LatRot: Rotated latitude in radians
-    !                 :LonRot: Rotated longitude in radians
-    !                   :mode: only one mode 'ToMetWind' available
-
     implicit none
 
     ! Arguments:
@@ -426,17 +386,6 @@ module windRotation_mod
     ! :Purpose: Adjoint of : Go from tangential wind components from one sphere to another
     !           (same origin!). Fast version used by Variational analysis. 
     !
-    ! :Arguments:
-    !                    :uvr: Wind rotation object
-    !           :subGridIndex: Current subgrid index
-    !                  :uwind: interpUU
-    !                  :vwind: interpVV
-    !                    :Lat: Latitude in radians
-    !                    :Lon: Longitude in radians
-    !                 :LatRot: Rotated latitude in radians
-    !                 :LonRot: Rotated longitude in radians
-    !                   :mode: only one mode 'ToMetWind' available
-
     implicit none
 
     ! Arguments:
@@ -505,15 +454,6 @@ module windRotation_mod
     ! :Purpose: Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
     !           Cartesian frame given the rotation matrix.
     !
-    ! :Arguments:
-    !                    :uvr: Wind rotation object
-    !           :subGridIndex: Current subgrid index
-    !                  :LatIn: Input latitude in radians
-    !                  :LonIn: Input longitude in radians
-    !                 :LatOut: Output latitude in radians
-    !                 :LonOut: Output longitude in radians
-    !                   :mode: ToLatLonRot or ToLatLon
-
     implicit none
 
     ! Arguments:
@@ -569,11 +509,6 @@ module windRotation_mod
     ! :Purpose: Returns (lat,lon) (degrees) of an input Cartesian position vector 
     !           on the unit sphere.
     !
-    ! :Arguments:
-    !           :plon:  output latitude
-    !           :plat:  output longitude
-    !           :pcart: input Cartesian vector
-    !
     implicit none
 
     ! Arguments:
@@ -603,13 +538,6 @@ module windRotation_mod
   subroutine mxv( pvec2, pmat, pvec1, kdimi, kdimj )
     !
     ! :Purpose: Compute a product : matrix times vector.
-    !
-    ! :Arguments:
-    !           :pvec2: output vector
-    !           :pmat:  input matrix
-    !           :pvec1: input vector
-    !           :kdimi: first dimension
-    !           :kdimj: second dimension
     !
     implicit none
 

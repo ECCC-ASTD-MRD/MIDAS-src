@@ -78,9 +78,7 @@ module utilities_mod
 
 contains
 
-  !--------------------------------------------------------------------------
-  ! utl_setezopt (private subroutine)
-  !--------------------------------------------------------------------------
+
   subroutine utl_setezopt(interpDegree, extrapDegree_opt)
     implicit none
 
@@ -110,9 +108,7 @@ contains
 
   end subroutine utl_setezopt
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r4_3d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r4_3d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -128,9 +124,7 @@ contains
 
   end function utl_ezsint_r4_3d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r4_2d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r4_2d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -148,9 +142,7 @@ contains
 
   end function utl_ezsint_r4_2d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r4_2dTo1d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r4_2dTo1d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -168,9 +160,7 @@ contains
 
   end function utl_ezsint_r4_2dTo1d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r8_3d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r8_3d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -221,9 +211,7 @@ contains
 
   end function utl_ezsint_r8_3d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r8_2d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r8_2d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -268,9 +256,7 @@ contains
 
   end function utl_ezsint_r8_2d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezsint_r8_2dTo1d
-  !--------------------------------------------------------------------------
+
   function utl_ezsint_r8_2dTo1d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -312,9 +298,7 @@ contains
 
   end function utl_ezsint_r8_2dTo1d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezuvint_r4_2d
-  !--------------------------------------------------------------------------
+
   function utl_ezuvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -333,9 +317,7 @@ contains
 
   end function utl_ezuvint_r4_2d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezuvint_r4_2dTo1d
-  !--------------------------------------------------------------------------
+
   function utl_ezuvint_r4_2dTo1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -354,9 +336,7 @@ contains
 
   end function utl_ezuvint_r4_2dTo1d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezuvint_r8_1d
-  !--------------------------------------------------------------------------
+
   function utl_ezuvint_r8_1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -402,9 +382,7 @@ contains
 
   end function utl_ezuvint_r8_1d
 
-  !--------------------------------------------------------------------------
-  ! utl_ezuvint_r8_2d
-  !--------------------------------------------------------------------------
+
   function utl_ezuvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
@@ -457,9 +435,7 @@ contains
 
   end function utl_ezuvint_r8_2d
 
-  !--------------------------------------------------------------------------
-  ! utl_EZGDEF
-  !--------------------------------------------------------------------------
+
   function utl_ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
     implicit none
 
@@ -504,9 +480,7 @@ contains
 
   end function utl_ezgdef
 
-  !--------------------------------------------------------------------------
-  ! utl_cxgaig
-  !--------------------------------------------------------------------------
+
   subroutine utl_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
     implicit none
 
@@ -525,9 +499,7 @@ contains
 
   end subroutine utl_cxgaig
 
-  !--------------------------------------------------------------------------
-  ! utl_fstlir
-  !--------------------------------------------------------------------------
+
   function utl_fstlir(fld8, iun, ni, nj, nk, datev, etiket, &
        ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
     implicit none
@@ -571,9 +543,7 @@ contains
 
   end function utl_fstlir
 
-  !--------------------------------------------------------------------------
-  ! utl_fstecr
-  !--------------------------------------------------------------------------
+
   function utl_fstecr(fld8, npak, iun, dateo, deet, &
        npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
        nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
@@ -617,23 +587,28 @@ contains
 
   end function utl_fstecr
 
-  !--------------------------------------------------------------------------
-  ! utl_findArrayIndex
-  !--------------------------------------------------------------------------
+
   function utl_findArrayIndex(KLIST, KLEN, KENTRY) result(isrcheq)
+    !
+    ! :Purpose: Find entry in list.
+    !
+    ! :Arguments:
+    !           :KLIST: Input: list.
+    !            :KLEN: Input: Dimension of list.
+    !          :KENTRY: Input: Entry.
+    !         :ISRCHEQ: Output: Index of entry: (0, not found, >0, found)
+    !
     implicit none
-    !
-    ! Find entry in list.
-    !
-    ! Arguments
-    !     i   KLIST   : List.
-    !     i   KLEN    : Dimension of list.
-    !     i   KENTRY  : Entry.
-    !     O   ISRCHEQ : Index of entry: (0, not found, >0, found)
-    !
+
+    ! Arguments:
     INTEGER :: ISRCHEQ
-    INTEGER :: KENTRY, KLEN, JI
+    INTEGER :: KENTRY
+    integer :: KLEN
     INTEGER :: KLIST(KLEN)
+
+    ! locals:
+    integer :: JI
+    
 
     ISRCHEQ = 0
     DO JI=1,KLEN
@@ -645,16 +620,16 @@ contains
 
   end function utl_findArrayIndex
 
-  !--------------------------------------------------------------------------
-  ! utl_matSqrt
-  !--------------------------------------------------------------------------
+
   subroutine utl_matsqrt(matrix,rank,exponentSign,printInformation_opt)
-    ! Calculate square root of an error covariance matrix
+    ! 
+    ! :Purpose: Calculate square root of an error covariance matrix
+    !
     implicit none
 
-    integer, intent(in)    :: rank
-    real(8), intent(inout) :: matrix(rank,rank)
-    real(8), intent(in)    :: exponentSign
+    integer, intent(in)           :: rank
+    real(8), intent(inout)        :: matrix(rank,rank)
+    real(8), intent(in)           :: exponentSign
     logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
 
     real(8), allocatable :: eigenValues(:)
@@ -733,9 +708,7 @@ contains
 
   end subroutine utl_matsqrt
 
-  !--------------------------------------------------------------------------
-  ! utl_writeStatus
-  !--------------------------------------------------------------------------
+
   subroutine utl_writeStatus(cmsg)
     implicit none
     INTEGER :: iulstatus,fnom,fclos, ierr
@@ -751,36 +724,25 @@ contains
     
   end subroutine utl_writeStatus
 
-  !--------------------------------------------------------------------------
-  ! utl_getfldprm
-  !--------------------------------------------------------------------------
+
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
                            cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind, &
                            ktrials,koutmpg)
-    implicit none
-
-    integer :: kstampv,knmaxlev,knlev,kgid
-    integer :: kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
-    integer :: ktrials, koutmpg  
-    integer :: kinmpg(ktrials)
-    character(len=*) :: cdtypvar
-    character(len=*) :: cdvar
-    character(len=*) :: cdetiket
     !
-    ! **Purpose:** Get 3D grid parameters for a specific trial field
-    !              and check for consitancies between grid parameters
-    !              of the levels.
+    ! :Purpose:  Get 3D grid parameters for a specific trial field
+    !            and check for consitancies between grid parameters
+    !            of the levels.
     !
-    !Arguments
+    ! :Arguments:
     !
-    ! Input:
+    !  :Input:
     !    * cdvar   : variable name to get the vertical levels from
     !    * kstampv : valid date time stamp of the variable
     !    * knmaxlev: maximum number of levels
     !    * kinmpg  : file unit of trial field
     !    * ktrials :  number of trial files.  
     !
-    ! Output:
+    !  :Output:
     !    * kip1s(knmaxlev) : list of ip1s of variable cdvar
     !    * kip2            : ip2 for variable cdvar
     !    * kip3            : ip3 for variable cdvar
@@ -792,6 +754,16 @@ contains
     !    * kip1kind        : kind of vertical coord encoded in ip1
     !    * koutmpg         : the unit which contains the selected records.  
     !
+    implicit none
+
+    integer :: kstampv,knmaxlev,knlev,kgid
+    integer :: kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
+    integer :: ktrials, koutmpg  
+    integer :: kinmpg(ktrials)
+    character(len=*) :: cdtypvar
+    character(len=*) :: cdvar
+    character(len=*) :: cdetiket
+
     integer :: fstinl,fstprm,ezqkdef,newdate
     integer :: ini,inj,ink,jlev,ier
     integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf, &
@@ -923,9 +895,7 @@ contains
     !
   end subroutine utl_getfldprm
 
-  !--------------------------------------------------------------------------
-  ! utl_abort
-  !--------------------------------------------------------------------------
+
   subroutine utl_abort(message)
     
     implicit none
@@ -947,8 +917,6 @@ contains
   subroutine utl_open_asciifile(filename,unit)
     ! 
     ! **Purpose:** Opens an ascii file for output 
-    !
-    ! Author: M. Sitwell, April 2016
     !
     ! Input
     !  
@@ -984,15 +952,11 @@ contains
 
   end subroutine utl_open_asciifile
 
-  !--------------------------------------------------------------------------
-  ! utl_open_file
-  !--------------------------------------------------------------------------
+
   function utl_open_file(unit,filename,mode) result(ier)
     ! 
     ! **Purpose:** This is a temporary subroutine to open a file with fnom that is needed due to
-    ! a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
-    !
-    !  Author: M. Sitwell, Aug 2016
+    !              a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
     !
     implicit none
 
@@ -1021,15 +985,12 @@ contains
 
   end function utl_open_file
     
-  !--------------------------------------------------------------------------
-  ! utl_stnid_equal
-  !--------------------------------------------------------------------------
+
   function utl_stnid_equal(id1,id2) result(same)
     !
-    ! Author  : Y. Rochon  Nov 2014
+    ! :Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
     !
-    ! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
-    !
+    ! :Arguments:
     ! Input:
     !  * id1         reference stnid
     !  * id2         stnid being verified
@@ -1072,14 +1033,10 @@ contains
         
   end function utl_stnid_equal
  
-  !--------------------------------------------------------------------------
-  ! utl_int2str
-  !--------------------------------------------------------------------------
+
   character(len=20) function utl_int2str(i)
     !
-    ! Author  : M. Sitwell Oct 2015
-    !
-    ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
+    ! :Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
     !
     implicit none
 
@@ -1090,14 +1047,10 @@ contains
     
   end function utl_int2str
             
-  !--------------------------------------------------------------------------
-  ! utl_float2str
-  !--------------------------------------------------------------------------
+
   character(len=20) function utl_float2str(x)
     !
-    ! Author:  M. Sitwell April 2016 
-    !
-    ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    ! :Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
     !
     implicit none
 
@@ -1108,14 +1061,10 @@ contains
 
   end function utl_float2str
 
-  !--------------------------------------------------------------------------
-  ! utl_resise_1d_real
-  !--------------------------------------------------------------------------
+
   subroutine utl_resize_1d_real(arr,dim1)
     !
-    ! Author  : M. Sitwell  April 2015
-    !
-    ! Purpose: Resize 1D array
+    ! :Purpose: Resize 1D array
     !
     implicit none
 
@@ -1140,14 +1089,10 @@ contains
 
   end subroutine utl_resize_1d_real
 
-  !--------------------------------------------------------------------------
-  ! utl_resise_1d_int
-  !--------------------------------------------------------------------------
+
   subroutine utl_resize_1d_int(arr,dim1)
     !
-    ! Author  : M. Sitwell  April 2015
-    !
-    ! Purpose: Resize 1D array 
+    ! :Purpose: Resize 1D array 
     !
     implicit none
 
@@ -1172,14 +1117,10 @@ contains
 
   end subroutine utl_resize_1d_int
 
-  !--------------------------------------------------------------------------
-  ! utl_resise_1d_str
-  !--------------------------------------------------------------------------  
+ 
   subroutine utl_resize_1d_str(arr,dim1)
     !
-    ! Author  : M. Sitwell  April 2016
-    !
-    ! Purpose: Resize 1D array
+    ! :Purpose: Resize 1D array
     !
     implicit none
 
@@ -1202,14 +1143,10 @@ contains
 
   end subroutine utl_resize_1d_str
 
-  !--------------------------------------------------------------------------
-  ! utl_resise_2d_real
-  !--------------------------------------------------------------------------
+
   subroutine utl_resize_2d_real(arr,dim1,dim2)
     !
-    ! Author  : M. Sitwell  April 2015
-    !
-    ! Purpose: Resize 2D array
+    ! :Purpose: Resize 2D array
     !
     implicit none
 
@@ -1237,14 +1174,10 @@ contains
 
   end subroutine utl_resize_2d_real
 
-  !--------------------------------------------------------------------------
-  ! utl_resise_3d_real
-  !--------------------------------------------------------------------------
+
   subroutine utl_resize_3d_real(arr,dim1,dim2,dim3)
     !
-    ! Author  : M. Sitwell  May 2015
-    !
-    ! Purpose: Resize 3D array
+    ! :Purpose: Resize 3D array
     !
     implicit none
 
@@ -1275,17 +1208,13 @@ contains
 
   end subroutine utl_resize_3d_real
 
-  !--------------------------------------------------------------------------
-  ! utl_get_stringId
-  !--------------------------------------------------------------------------
+
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
     ! 
     !   **Purpose:** Get element ID from a list of accumulating character strings (e.g. stnids). 
+    !                Called by filt_topoChm in filterobs_mod.ftn90
     !
-    !   Called by filt_topoChm in filterobs_mod.ftn90
-    !
-    !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
-    !    
+    ! :Arguments:
     !   Input:
     !
     !   * Nmax            Max allowed dimension.
@@ -1355,15 +1284,12 @@ contains
     
   end subroutine utl_get_stringId
 
-  !--------------------------------------------------------------------------
-  ! utl_get_Id
-  !--------------------------------------------------------------------------
+
   subroutine utl_get_Id(id,IdList,NListSize,Nmax,elemId)
     ! 
-    !   Purpose: Get element ID from list of accumulating integer IDs.
+    ! :Purpose: Get element ID from list of accumulating integer IDs.
     !
-    !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
-    !
+    ! :Arguments:
     !   Input:
     !
     !      * Nmax         Max allowed dimension.
@@ -1406,15 +1332,9 @@ contains
     
   end subroutine utl_get_Id
   
-  !--------------------------------------------------------------------------
-  ! utl_readFstField
-  !--------------------------------------------------------------------------
+
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
                                ni,nj,nkeys,array,xlat_opt,xlong_opt,lvls_opt,kind_opt)
-    !
-    ! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
-    !
-    ! Revision: 
     !
     ! **Purpose:**  Read specified field from standard RPN/fst file. Could be one
     !           to all levels depending on the input iip1,iip2,iip3 values
@@ -1423,6 +1343,7 @@ contains
     !           See hco_SetupFromFile for example toward future generalizations.
     !           Generalization would require having xlat and xlong being 2D.
     !
+    ! :Arguments:
     ! IN
     !
     !    * fname    input filename
@@ -1587,9 +1508,7 @@ contains
 
   end subroutine utl_readFstField
 
-  !--------------------------------------------------------------------------
-  ! utl_checkAllocationStatus(status, message, alloc_opt)
-  !--------------------------------------------------------------------------
+
   subroutine utl_checkAllocationStatus(status, message, alloc_opt)
     
     implicit none
@@ -1617,9 +1536,7 @@ contains
 
   end subroutine utl_checkAllocationStatus
 
-  !--------------------------------------------------------------------------
-  ! utl_varNamePresentInFile
-  !--------------------------------------------------------------------------
+
   function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt) result(found)
     implicit none
 
@@ -1669,9 +1586,7 @@ contains
 
   end function utl_varNamePresentInFile
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r4_3d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r4_3d(array,dim1,dim2,dim3)
     implicit none
     real(4), allocatable :: array(:,:,:)
@@ -1691,9 +1606,7 @@ contains
 
   end subroutine utl_reAllocate_r4_3d
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r8_3d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r8_3d(array,dim1,dim2,dim3)
     implicit none
     real(8), allocatable :: array(:,:,:)
@@ -1713,9 +1626,7 @@ contains
 
   end subroutine utl_reAllocate_r8_3d
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r4_4d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r4_4d(array,dim1,dim2,dim3,dim4)
     implicit none
     real(4), allocatable :: array(:,:,:,:)
@@ -1735,9 +1646,7 @@ contains
 
   end subroutine utl_reAllocate_r4_4d
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r8_4d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r8_4d(array,dim1,dim2,dim3,dim4)
     implicit none
     real(8), allocatable :: array(:,:,:,:)
@@ -1757,9 +1666,7 @@ contains
 
   end subroutine utl_reAllocate_r8_4d
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r4_5d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r4_5d(array,dim1,dim2,dim3,dim4,dim5)
     implicit none
     real(4), allocatable :: array(:,:,:,:,:)
@@ -1779,9 +1686,7 @@ contains
 
   end subroutine utl_reAllocate_r4_5d
 
-  !--------------------------------------------------------------------------
-  ! utl_reAllocate_r8_5d
-  !--------------------------------------------------------------------------
+
   subroutine utl_reAllocate_r8_5d(array,dim1,dim2,dim3,dim4,dim5)
     implicit none
     real(8), allocatable :: array(:,:,:,:,:)
