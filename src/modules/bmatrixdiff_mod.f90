@@ -124,7 +124,7 @@ CONTAINS
     end if
 
     vco_anl => vco_in
-    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= -1) then
+    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0) then
       write(*,*) 'vco_anl%Vcode = ', vco_anl%Vcode
       call utl_abort('bmatrixDiff: unknown vertical coordinate type!')
     end if

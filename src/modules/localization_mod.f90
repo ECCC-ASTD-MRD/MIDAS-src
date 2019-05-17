@@ -94,7 +94,7 @@ CONTAINS
 
     if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 ) then
       nLev = loc%vco%nLev_M
-    else !  vco_anl%Vcode == -1
+    else !  vco_anl%Vcode == 0
       nLev = 1
     end if
 

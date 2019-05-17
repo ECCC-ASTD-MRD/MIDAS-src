@@ -388,10 +388,10 @@ CONTAINS
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call utl_abort('ben_setup: Vcode=5005, nLevEns_T must equal nLevEns_M!')
       end if
-    else if (vco_anl%Vcode == -1) then
+    else if (vco_anl%Vcode == 0) then
       if ( nLevEns_T /= 0 .and. nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T, nLevEns_M
-        call utl_abort('ben_setup: surface-only case (Vcode=-1), nLevEns_T and nLevEns_M must equal 0!')
+        call utl_abort('ben_setup: surface-only case (Vcode=0), nLevEns_T and nLevEns_M must equal 0!')
       end if
     else
       write(*,*) 'vco_anl%Vcode = ',vco_anl%Vcode
@@ -436,7 +436,7 @@ CONTAINS
       
       scaleFactor_SF = scaleFactor_T(nLevEns_T)
 
-    else ! vco_anl%Vcode == -1
+    else ! vco_anl%Vcode == 0
       varNameALFA(:) = varNameALFAsfc(:)
       scaleFactor_SF = scaleFactor(1)
     end if
@@ -516,7 +516,7 @@ CONTAINS
 
         allocate(pressureProfileEns_M(nLevEns_M))
         pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
-      else ! vco_anl%Vcode == -1
+      else ! vco_anl%Vcode == 0
         allocate(pressureProfileEns_M(1))
         pressureProfileEns_M(:) = pSurfRef
       end if
@@ -1875,7 +1875,7 @@ CONTAINS
         ! surface variable
         if (vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005) then
           ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
-        else ! vco_anl%Vcode == -1
+        else ! vco_anl%Vcode == 0
           ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
         end if
         ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
