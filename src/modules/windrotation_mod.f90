@@ -461,8 +461,8 @@ module windRotation_mod
     integer, intent(in)       :: subGridIndex ! Current subgrid index
     real(8), intent(in)       :: LatIn        ! Input latitude in radians
     real(8), intent(in)       :: LonIn        ! Input longitude in radians
-    real(8), intent(in)       :: LatOut       ! Output latitude in radians
-    real(8), intent(in)       :: LonOut       ! Output longitude in radians 
+    real(8), intent(out)      :: LatOut       ! Output latitude in radians
+    real(8), intent(out)      :: LonOut       ! Output longitude in radians 
     character(*), intent(in)  :: mode         ! ToLatLonRot or ToLatLon
 
     ! locals

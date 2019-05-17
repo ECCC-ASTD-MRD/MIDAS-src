@@ -824,10 +824,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
-    integer, intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
     type(struct_vco), pointer, intent(in) :: vco1       ! vertical coordinate object one
     type(struct_vco), pointer, intent(in) :: vco2       ! vertical coordinate object two
+    integer, intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
+    integer, intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
 
     ! locals
     integer :: levIndex1, levIndex2
