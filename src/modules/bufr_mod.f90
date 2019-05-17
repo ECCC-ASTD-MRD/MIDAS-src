@@ -164,28 +164,14 @@ module bufr_mod
   
 contains
 
-!---------------------------------------------------------------
-! 
-! FUNCTION bufr_IsAtmosConstituent(varNumber) result(var_chm)
-!!
-!! *Purpose*: Determine if 'varNumber' refers to constituent data
-!!            from the CH family with recognized data units. 
-!!
-!! @author Y.J. Rochon (ARQI/AQRD) Jan 2015, March 2017
-!!v           Following recommendation by M. Buehner.
-!!
-!! Revisions:
-!!
-!! In
-!!
-!!v       varNumber     BUFR element number
-!!
-! ------------------------------------------------------------
   function bufr_IsAtmosConstituent(varNumber) result(var_chm)
-  
+    !
+    !:Purpose: To determine whether 'varNumber' refers to constituent data from
+    !          the CH family with recognized data units.
+    !
       implicit none
 
-      integer, intent(in)           :: varNumber
+      integer, intent(in)           :: varNumber ! BUFR element number
       logical                       :: var_chm
       
       if (any(varNumber.eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2, &
@@ -205,26 +191,13 @@ contains
       
   end function bufr_IsAtmosConstituent
 
-!------------------------------------------------------------------------------------------
-!
-! LOGICAL FUNCTION bufr_IsIntegral(varNumber)
-!!
-!! *Purpose*: Identify if obs is a vertically integrated constituent measurement.
-!!            Excludes optical depths and photodissociation rates.
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2015, March 2017
-!!
-!! Revision: 
-!!
-!! In
-!!
-!!v       varNumber     BUFR element number
-!!
-! ---------------------------------------------------------------------------------------
   logical function bufr_IsIntegral(varNumber)
-  
+    !
+    !:Purpose: To identify whether obs is a vertically integrated constituent
+    !          measurement.
+    !
   implicit none
-  integer, intent(in) :: varNumber
+  integer, intent(in) :: varNumber ! BUFR element number
  
   if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                             BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &

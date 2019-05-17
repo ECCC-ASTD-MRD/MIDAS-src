@@ -1786,8 +1786,9 @@ contains
 
 
   subroutine blb_truncateCV(controlVector_inout,ntruncCut)
+    !
+    !:Purpose: To set to zero all coefficients with total wavenumber > ntruncCut
     implicit none
-    ! set to zero all coefficients with total wavenumber > ntruncCut
 
     real(8), pointer :: controlVector_inout(:)
     integer          :: ntruncCut

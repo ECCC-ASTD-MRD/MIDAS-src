@@ -61,75 +61,30 @@ CONTAINS
     brpr_getTypeResume=TYPE_RESUME
   end function brpr_getTypeResume
 
-  SUBROUTINE brpr_updateBurp(obsdat,familytype,brp_file,FILENUMB)
+  subroutine brpr_updateBurp(obsdat,familytype,brp_file,filenumb)
+    !
+    !:Purpose: To update variables relative to assimilation in burp files
 
-    !******************************************************************************** 
-    !
-    !**ID brpr_updateBurp -- UPDATE VARIABLES RELATIVE TO ASSIMILATION IN BURP FILES
-    !
-    !       AUTHOR:   P. KOCLAS (CMDA/SMC) Feb 2013
-    !
-    !       REVISION:
-    !                 S. MACPHERSON (ARMA) Oct 2013
-    !                  -- add 'GP' family (ground-based GPS) as type "SFC"
-    !                 P. KOCLAS (CMDA/SMC)) Aug 2014
-    !                  -- Fix for the Burp 24 bit header markers of the UA4D
-    !                 P. KOCLAS (CMDA/SMC)) Oct 2014
-    !                  -- CHANGE ADDSIZE FOR SW ( GROUPED SATWINDS)
-    !                 Ping Du (CMDA), Nov/Dec 2014
-    !                  -- Added CASE('CH') option with intitial settings.
-    !                  -- Added use of FAMILYTYPE2 and the 'namburp_chm_sfc' and 
-    !                     'namburp_chm' namelists for the CH family 
-    !                 Y.J. Rochon (ARQI), Dec 2014
-    !                  -- Added 08046 (constituent code table) in LISTE_INFO.
-    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
-    !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
-    !                     and 15230 under LISTE_ELE for CASE('CH'). This
-    !                     denotes the/a possible set of elements.
-    !                  -- Modified 'vcord_type' to an array of dimension 10.
-    !                  -- Extended vcord_type from 1 to 8 elements for CH
-    !                  -- Setting of ELEVFACT to 1.0 for 7006 coordinate.
-    !                 Y.J. Rochon (ARQI), May 2015
-    !                  -- Made use of the existing WINDS logical to determine 
-    !                     when the wind-related fields are to be included in
-    !                     the reports with uni-level data blocks.
-    !                 P. KOCLAS (CMDA/SMC)) May 2015
-    !                  -- CHANGES  for GROUPED scatterometres or surface obs
-    !                 P. KOCLAS (CMDA/SMC)) Jan 2016
-    !                  -- bug fix for GROUPED scatterometres or surface obs(element doubling)
-    !                 Y.J. Rochon (ARQI), March 2016
-    !                  -- Account for pre-existing FGE and OER blocks. See LBLOCK_OER_CP
-    !                     ,NBLOCK_OER_CP, LBLOCK_FGE_CP and BLOKC_FGE_CP. The OER block
-    !                     may contain additional data such as averaging kernel matrices 
-    !                     and obs error correlation matrices at least for the CH family.
-    !                     As well, the FGE values are not calculated at the analysis phase
-    !                     so would not be available if requested as output.
-    !                 M. Sitwell (ARQI), Aug 2016
-    !                  -- Modified update of resume record so that it is written once instead
-    !                     of twice.
-    !
-    !       OBJECT: UPDATE CMC BURP FILE 
+    !***************************************************************************
     !
     !          WHEN SEARCHING FOR A SPECIFIC BLOCK BY ITS BTYP, VALUES OF
     !          BIT 0 TO 3 ARE IRRELEVANT WHILE BIT 4 IS 0 FOR GLOBAL AND 1
     !          FOR REGIONAL MODEL. HERE, WE SEARCH BLOCK BY THEIR FIRST
     !          10 BITS (BIT 5 TO 14).
     !
-    !       ARGUMENTS:
-    !               INPUT:
-    !                  -OBSDAT    : instance of obsspace_data module object
-    !                  -FAMILYTYPE: TYPE of family ('UA' ,'SF','AI,''SW','TO')...
-    !                  -BRP_FILE  : FILENAME OF BURP FILE 
-    !
-    !
-    !****************************************************************************
+    !***************************************************************************
 
     IMPLICIT NONE
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsdat ! obsSpaceData object
+    CHARACTER *2           :: FAMILYTYPE ! type of family('UA','SF','AI','SW','TO', ...)
+    CHARACTER(LEN=128)     :: BRP_FILE   ! name of burp file 
+    INTEGER                :: FILENUMB
+
+    ! Locals:
     INTEGER,  PARAMETER    :: NBLOC_LIST=6
-    CHARACTER(LEN=128)     :: BRP_FILE
-    CHARACTER *2           :: FAMILYTYPE
-    INTEGER                :: FILENUMB,LNMX
-    type (struct_obs), intent(inout) :: obsdat
+    INTEGER                :: LNMX
 
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
@@ -1443,20 +1398,10 @@ CONTAINS
 
     write(*,*) ' BURPFILE  UPDATED SUM = ',trim(brp_file),SUM
 
-  END SUBROUTINE brpr_updateBurp
+  end subroutine brpr_updateBurp
 
 
   SUBROUTINE BRPACMA_NML(NML_SECTION)
-
-    !******************************************************************************** 
-    !
-    !       REVISION:
-    !                 Ping Du (CMDA), Nov 2014 
-    !                  -- Added NAMBURP_FILTER_CHM and NAMBURP_FILTER_CHM_SFC namelists
-    !                  -- Added CASE('namburp_chm') and CASE('namburp_chm_sfc')
-    !
-    !
-    !****************************************************************************
 
     IMPLICIT NONE
 
@@ -1502,63 +1447,29 @@ CONTAINS
   END SUBROUTINE BRPACMA_NML
 
 
-  SUBROUTINE brpr_readBurp(obsdat,familytype,brp_file,FILENUMB)
+  subroutine brpr_readBurp(obsdat,familytype,brp_file,filenumb)
+    !
+    !:Purpose: Select variables relative to airs in burp file. Read burp file.
 
     !***********************************************************************
-    !
-    !**ID brpr_readBurp -- SELECT VARIABLES RELATIVE TO AIRS IN BURP FILE
-    !
-    !       AUTHOR:   P. KOCLAS (CMDA/SMC) May 2011
-    !
-    !       REVISION:
-    !                 S. MACPHERSON (ARMA) Oct 2013
-    !                  -- add 'GP' family (ground-based GPS)
-    !                 P. KOCLAS (CMDA) Oct 2014
-    !                  -- Changed VCOORD Dimensions 
-    !                  -- add VCORD array  to allow grouped SW or AI
-    !                 Ping Du (CMDA) Nov/Dec 2014 
-    !                  -- Added initial CASE('CH') section with addition of 'namburp_chm_sfc'
-    !                     and 'namburp_chm' namelists
-    !                  -- Added UNI_FAMILYTYPE.
-    !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
-    !                  -- Added use of FAMILYTYPE2 for the CH family.
-    !                 Y.J. Rochon (ARQI) Dec 2014 - May 2016
-    !                  -- Added 08046 (constituent code table) in LISTE_INFO.
-    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
-    !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
-    !                     and 15230 under LISTE_ELE for CASE('CH') - even if not used.
-    !                  -- Modified 'vcord_type' to an array of dimension 10.
-    !                  -- Extended 'vcord_type' from 1 to 7 elements for TR
-    !                  -- Addition/use of 'vcoord_type'. Added 'vcoord_type' 
-    !                     argument to WRITE_BODY.
-    !                  -- Added flag_passage*=1 for btyp10*_uni cases.
-    !                     Needed when only *_uni data being read to avoid
-    !                     incorrect output error message.
-    !                  -- Added consideration of NDATA_SF for calling WRITE_INFO
-    !                     accompanied by initialization of NDATA_SF and NDATA to zero.
-    !
-    !       OBJECT: READ CMC BURP FILE 
     !
     !          WHEN SEARCHING FOR A SPECIFIC BLOCK BY ITS BTYP, VALUES OF
     !          BIT 0 TO 3 ARE IRRELEVANT WHILE BIT 4 IS 0 FOR GLOBAL AND 1
     !          FOR REGIONAL MODEL. HERE, WE SEARCH BLOCK BY THEIR FIRST
     !          10 BITS (BIT 5 TO 14).
     !
-    !       ARGUMENTS:
-    !               INPUT:
-    !                      -BRP_FILE  : NAME OF BURP FILE
-    !
-    !
     !***********************************************************************
-
     IMPLICIT NONE
-    CHARACTER(LEN=128)     :: BRP_FILE
-    INTEGER                :: FILENUMB
-    CHARACTER *2           :: FAMILYTYPE
-    CHARACTER *2           :: UNI_FAMILYTYPE
-    
+
+    ! Arguments
     type (struct_obs), intent(inout) :: obsdat
-    
+    CHARACTER *2           :: FAMILYTYPE
+    CHARACTER(LEN=128)     :: BRP_FILE ! name of burp file
+    INTEGER                :: FILENUMB
+
+    ! Locals:
+    CHARACTER *2           :: UNI_FAMILYTYPE
+
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN
     TYPE(BURP_BLOCK)       :: BLOCK_IN
@@ -2712,26 +2623,13 @@ CONTAINS
     Call BURP_Free(Block_in,     IOSTAT=error)
 
     write(*,*)' file   Nobs SUM = ',trim(brp_file),obs_numHeader(obsdat),SUM
-  END SUBROUTINE brpr_readBurp
+  end subroutine brpr_readBurp
 
 
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
                       obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS_opt)
-
-    !******************************************************************************** 
-    !
-    !       REVISION:
-    !                 Ping Du (CMDA), Nov 2014
-    !                  -- Added  CASE ('CH') with VCO=4 
-    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015, June 2015
-    !                  -- Added VCOORD_TYPE as input argument and applied in function.
-    !                  -- Added new VCO cases for the CH family.
-    !                  -- Added abort statement if constituent vertical coordinate not recognized.
-    !
-    !****************************************************************************
-
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 
@@ -3029,17 +2927,7 @@ CONTAINS
 !!------------------------------------------------------------------------------------
 !!------------------------------------------------------------------------------------
 
-  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
-
-    !******************************************************************************** 
-    !
-    !       REVISION:
-    !                 Y.J. Rochon (ARQI), Dec 2014
-    !                  -- Added consideraton of 08046 for the CH family.
-    !                     (see *CONSTITUENT*)
-    !
-    !****************************************************************************
-
+  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )v
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 

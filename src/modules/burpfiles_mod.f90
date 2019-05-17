@@ -385,68 +385,52 @@ contains
   end subroutine set_scale_chm
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Retrieve information from observation BURP file. Returns the
-!!            data in a struct_oss_obsdata object. Can retrieve either 1D
-!!            or 2D data from a report.
-!!
-!! @author M. Sitwell, ARQI/AQRD, March 2015
-!!
-!! Revision:
-!!v    M. Sitwell, ARQI/AQRD, May 2015
-!!v      - Modified to read both 1D and 2D data from a report
-!!v    Y. Rochon, ARQI/AQRD, May 2016
-!!v      - Updated to increment 'icount' only if varno is also found in addition
-!!v        stnid, nlev, block_type and bkstp
-!!v    M. Sitwell, ARQI/AQRD, June 2016
-!!v      - Added match_nlev input argument
-!!v    Y. Rochon, ARQI/AQRD, Oct 2016
-!!v      - Added optional codtyplist argument and option of input varno<=0.
-!!
-!! Input:
-!!v           filename        BURP file name
-!!v           stnid           station ID of observation
-!!v           varno           BUFR code (if <=0, search through all codes to obtain first
-!!v                           between 10000 and 16000)
-!!v           nlev            number of levels in the observation
-!!v           ndim            number of dimensions for the retrieved data in
-!!v                           each report (e.g. ndim=1 for std, ndim=2 for
-!!v                           averagine kernels) 
-!!v           block_type      block type indicated by the two rightmost bits
-!!v                           of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!!v                           and 'MRQR'.
-!!v           bkstp_opt       bkstp number of requested block (optional)
-!!v           match_nlev_opt  determines if the report matching criteria includes checking
-!!v                           if the report number of levels is the same as the input
-!!v                           argument nlev (optional)
-!!v           codtyp_opt      optional CODTYP list for search (optional)
-!!
-!! Output: 
-!!v           burp_out        struct_oss_obsdata object
-!!
-!! Comments:
-!!
-!!v   - BUFR power 10 exponent element (i.e. data with BUFR number BUFR_SCALE_EXPONENT) 
-!!v     will only be applied to 1D data if present.
-!!v   - As burp_out is for a specific input stnid, burp_out%code only contains the (lat/long and
-!!v     time coord.) with 22 characters.
-!!v   - Exponent BUFR data (i.e. data with BUFR number BUFR_SCALE_EXPONENT) will only 
-!!v     be applied to 1D data.
-!!
-!--------------------------------------------------------------------------
-  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt,match_nlev_opt,  &
-                          codtyp_opt) result(burp_out)
-    
+  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type, &
+                            bkstp_opt,match_nlev_opt,codtyp_opt)result(burp_out)
+    !
+    !:Purpose: To retrieve information from observation BURP file. Returns the
+    !          data in a struct_oss_obsdata object. Can retrieve either 1D or 2D
+    !          data from a report.
+    !
+    !:Comments:
+    !
+    !    - BUFR power 10 exponent element (i.e. data with BUFR number
+    !      BUFR_SCALE_EXPONENT) will be applied only to 1D data if present.
+    !    - As burp_out is for a specific input stnid, burp_out%code contains
+    !      only the (lat/long and time coord.) with 22 characters.
+    !    - Exponent BUFR data (i.e. data with BUFR number BUFR_SCALE_EXPONENT)
+    !      will be applied only to 1D data.
+    !
+    !:Arguments:
+    !   :varno:  BUFR code (if <=0, search through all codes to obtain first
+    !            between 10000 and 16000)
+    !
+    !   :ndim:   number of dimensions for the retrieved data in each report
+    !            (e.g. ndim=1 for std, ndim=2 for averaging kernels)
+    !
+    !   :block_type: block type indicated by the two rightmost bits of bknat.
+    !                Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
+    !
+    !   :match_nlev_opt: =.true. (default) causes filtering out of report if
+    !                    the report number of levels is different from the input
+    !                    argument nlev
+    !
     implicit none
 
-    character(len=*), intent(in)  :: filename
-    character(len=9), intent(in)  :: stnid
+    ! Arguments:
+    character(len=*), intent(in)  :: filename ! BURP file name
+    character(len=9), intent(in)  :: stnid ! station ID of observation
+    integer, intent(in)           :: varno
+    integer, intent(in)           :: nlev  ! number of levels in the observation
+    integer, intent(in)           :: ndim
     character(len=4), intent(in)  :: block_type
-    integer, intent(in)           :: ndim,varno,nlev
+    integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
     logical, intent(in), optional :: match_nlev_opt
-    integer, intent(in), optional :: bkstp_opt,codtyp_opt(:)
-    type(struct_oss_obsdata) :: burp_out
+    integer, intent(in), optional :: codtyp_opt(:) ! optional CODTYP list for search
+    type(struct_oss_obsdata) :: burp_out   ! struct_oss_obsdata object
+    
 
+    ! Locals:
     character(len=9)  :: rep_stnid
     type(burp_file)   :: brp
     type(burp_rpt)    :: rep
@@ -604,55 +588,40 @@ contains
   end function brpf_obsSub_read
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Add or modify data in BURP files from data stored in a
-!!            struct_oss_obsdata object. Provided data can be either
-!!            1D or 2D data.
-!!
-!! @author Y. Rochon, ARQI/AQRD, June 2016 (partly based on brpf_obsSub_read by M. Sitwell)
-!!
-!! Revisions:
-!!v        M. Sitwell, ARQI/AQRD, Aug 2016
-!!v          - Modified to preserve order of reports.
-!!v        Y. Rochon, ARQI/AQRD, Jan 2017
-!!v          - Added optional check for multi using 'DATA' when block_type='INFO'.
-!!
-!! Input:
-!!v           obsdata       Input struct_oss_obsdata object for varno.
-!!v           filename      BURP file name
-!!v           varno         BUFR descriptors. Number of elements must be 
-!!v                         max(1,obsdata%dim2)
-!!v           block_type    block type indicated by the two rightmost bits
-!!v                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!!v                         and 'MRQR'.
-!!v           bkstp_opt     bkstp number of requested block (optional)
-!!v           multi_opt     Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
-!!
-!! Output:
-!!v           nrep_modified Number of modified reports
-!!
-!! Comments:
-!!v  - Currently assumes that all elements of varno(:) are distinct from each other.
-!!v  - In blocks with new data to be added/modified, if the varno already exists in the block, the
-!!v    new data will overwrite the existing varno data, otherwise will append the new data
-!!v    to the block.
-!!v  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
-!!v    .true. in all cases, including when the block has not been modified, due to problems
-!!v    that can occur when writing blocks containing negative integers with datyp=4.
-!!
-!--------------------------------------------------------------------------
-  function brpf_obsSub_update(obsdata,filename,varno,block_type,bkstp_opt,multi_opt) result(nrep_modified)
-
+  function brpf_obsSub_update(obsdata,filename,varno,block_type,bkstp_opt, &
+                              multi_opt) result(nrep_modified)
+    !
+    !:Purpose: To add or modify data in BURP files from data stored in a
+    !          struct_oss_obsdata object. Provided data can be either 1D or 2D.
+    !
+    !:Comments:
+    !   - Currently assumes that all elements of varno(:) are distinct from
+    !     each other.
+    !   - Blocks with new data will overwrite any existing data of the same
+    !     varno. Otherwise the new data will be appended to the block.
+    !
+    !:Arguments:
+    !   :varno:        BUFR descriptors. Number of elements must be 
+    !                  max(1,obsdata%dim2)
+    !   :block_type:   block type indicated by the two rightmost bits of bknat.
+    !                  Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
+    !   :multi_opt:    Indicates if intended report are for 'UNI' or 'MULTI'
+    !                  level data (description is not accurate)
+    !     
     implicit none
 
-    type(struct_oss_obsdata), intent(inout) :: obsdata
-    character(len=*), intent(in) :: filename
+    ! Arguments:
+    type(struct_oss_obsdata), intent(inout) :: obsdata ! Input struct_oss_obsdata object for varno
+    character(len=*), intent(in) :: filename ! BURP file name
     character(len=4), intent(in) :: block_type
     integer, intent(in) :: varno(:)
-    integer, intent(in), optional :: bkstp_opt
+    integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
     character(len=*), intent(in), optional :: multi_opt
+    !Output:
+    integer :: nrep_modified ! Number of modified reports
 
-    integer :: nrep_modified,ncount
+    ! Locals:
+    integer :: ncount
     logical :: blk_found
     integer, parameter :: LNMX=100000, code_len=90
 
@@ -804,7 +773,11 @@ contains
         
              end if
           end if
-             
+          
+          ! The call to BURP_Write_Block has ENCODE_BLOCK and CONVERT_BLOCK set
+          ! to .true. in all cases, including when the block has not been
+          ! modified, due to problems that can occur when writing blocks
+          ! containing negative integers with datyp=4.
           call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=.true., CONVERT_BLOCK=.true., IOSTAT=error)
          
        end do BLOCKS

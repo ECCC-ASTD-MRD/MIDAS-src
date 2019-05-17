@@ -24,19 +24,6 @@ nil
 MODULES REMAINING - clean up existing subroutine descriptions
 =================            ================================
 >>> JEFF IS WORKING DOWN THIS LIST FROM HERE <<<
-bmatrixchem_mod.f90
-bmatrixdiff_mod.f90
-bmatrixensemble_mod.f90
-bmatrixhi_mod.f90
-bmatrixlatbands_mod.f90
-bufr_mod.f90
-build.out
-burpfiles_mod.f90
-burpread_mod.f90
-calcstatsglb_mod.f90
-calcstatslam_mod.f90
-chem_obserrors_mod.f90
-chem_obsoperators_mod.f90
 chem_postproc_mod.f90
 chem_setup_mod.f90
 clib_interfaces_mod.ftn90
@@ -44,6 +31,7 @@ cmafiles_mod.f90
 codeprecision_mod.ftn90
 codtyp_mod.f90
 columndata_mod.f90
+
 computeHBHT_mod.f90
 controlvector_mod.f90
 costfunction_mod.f90
@@ -98,6 +86,8 @@ sqlitefiles_mod.f90
 statetocolumn_mod.f90
 thinning_mod.f90
 timecoord_mod.f90
+
+>>> SERGEY <<<
 tovs_extrap_mod.f90
 tovs_lin_mod.f90
 tovs_nl_mod.f90
