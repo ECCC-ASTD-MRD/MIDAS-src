@@ -83,6 +83,10 @@ program midas_diagBmatrix
   character(len=4)   :: varName, oneobs_varName
   character(len=1)   :: locIndexString
 
+  character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
+  character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
+  character(len=4)             :: varNameALFA(1)
+
   ! namelist variables
   integer :: numperturbations, nrandseed, diagdate
   integer :: oneobs_levs(100), oneobs_lonlat(100,2)
@@ -330,14 +334,20 @@ program midas_diagBmatrix
     do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
       loc => ben_getLoc(locIndex)
 
+      if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
+        varNameALFA(:) = varNameALFAatm(:)
+      else ! vco_anl%Vcode == -1
+        varNameALFA(:) = varNameALFAsfc(:)
+      end if
+
       call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
       call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
       call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8)
+                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
       call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, loc%hco, loc%vco, &
-                        dateStampList_opt=dateStampList, varNames_opt=(/'ALFA'/), dataKind_opt=8, &
+                        dateStampList_opt=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8, &
                         mpi_local_opt=.true.)
 
       allocate(controlVector(loc%cvDim))

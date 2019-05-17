@@ -41,7 +41,7 @@ module verticalCoord_mod
 
   type struct_vco
      logical :: initialized=.false.
-     integer :: Vcode
+     integer :: Vcode = -1
      integer :: nlev_T = 0
      integer :: nlev_M = 0
      integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
@@ -196,7 +196,7 @@ contains
       vco%vgridPresent = .false.
       vco%nlev_T = 0
       vco%nlev_M = 0
-      vco%Vcode = -1
+      vco%Vcode  = 0
       vco%initialized=.true.
 
       ierr =  fstfrm(nultemplate)

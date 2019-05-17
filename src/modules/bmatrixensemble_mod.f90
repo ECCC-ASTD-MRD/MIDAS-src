@@ -57,6 +57,7 @@ MODULE BmatrixEnsemble_mod
   integer,parameter   :: maxNumLevels=200
 
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
+  real(8)             :: scaleFactor_SF
 
   integer             :: nj,ni,lonPerPE,lonPerPEmax,myLonBeg,myLonEnd,latPerPE,latPerPEmax,myLatBeg,myLatEnd
   integer,allocatable :: allLonBeg(:), allLatBeg(:)
@@ -88,7 +89,9 @@ MODULE BmatrixEnsemble_mod
 
   ! Ensemble amplitude (only used in diagnostic mode)
   type(struct_ens)    :: ensAmplitudeStorage
-  character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
+  character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
+  character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
+  character(len=4)             :: varNameALFA(1)
 
   ! Localization
   type(struct_loc), pointer :: locStorage(:)
@@ -385,6 +388,11 @@ CONTAINS
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call utl_abort('ben_setup: Vcode=5005, nLevEns_T must equal nLevEns_M!')
       end if
+    else if (vco_anl%Vcode == 0) then
+      if ( nLevEns_T /= 0 .and. nLevEns_M /= 0 ) then
+        write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T, nLevEns_M
+        call utl_abort('ben_setup: surface-only case (Vcode=0), nLevEns_T and nLevEns_M must equal 0!')
+      end if
     else
       write(*,*) 'vco_anl%Vcode = ',vco_anl%Vcode
       call utl_abort('ben_setup: unknown vertical coordinate type!')
@@ -400,29 +408,38 @@ CONTAINS
     end if
 
     !- 2.5 Bmatrix Weight
-    allocate(scaleFactor_M(nLevEns_M))
-    allocate(scaleFactor_T(nLevEns_T))
-    do levIndex = 1, nLevEns_T
-      if (scaleFactor(levIndex).gt.0.0d0) then 
-        scaleFactor(levIndex) = sqrt(scaleFactor(levIndex))
+    if (vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005) then
+      varNameALFA(:) = varNameALFAatm(:)
+      allocate(scaleFactor_M(nLevEns_M))
+      allocate(scaleFactor_T(nLevEns_T))
+      do levIndex = 1, nLevEns_T
+        if (scaleFactor(levIndex).gt.0.0d0) then 
+          scaleFactor(levIndex) = sqrt(scaleFactor(levIndex))
+        else
+          scaleFactor(levIndex) = 0.0d0
+        end if
+      end do
+      scaleFactor_T(1:nLevEns_T) = scaleFactor(1:nLevEns_T)
+      if (vco_anl%Vcode == 5002) then
+        scaleFactor_M(1:nLevEns_M) = scaleFactor(2:(nLevEns_M+1))
       else
-        scaleFactor(levIndex) = 0.0d0
+        scaleFactor_M(1:nLevEns_M) = scaleFactor(1:nLevEns_M)
       end if
-    end do
-    scaleFactor_T(1:nLevEns_T) = scaleFactor(1:nLevEns_T)
-    if (vco_anl%Vcode == 5002) then
-      scaleFactor_M(1:nLevEns_M) = scaleFactor(2:(nLevEns_M+1))
-    else
-      scaleFactor_M(1:nLevEns_M) = scaleFactor(1:nLevEns_M)
-    end if
 
-    do levIndex = 1, nLevEns_T
-      if (scaleFactorHumidity(levIndex).gt.0.0d0) then 
-        scaleFactorHumidity(levIndex) = sqrt(scaleFactorHumidity(levIndex))
-      else
-        scaleFactorHumidity(levIndex) = 0.0d0
-      end if
-    end do
+      do levIndex = 1, nLevEns_T
+        if (scaleFactorHumidity(levIndex).gt.0.0d0) then 
+          scaleFactorHumidity(levIndex) = sqrt(scaleFactorHumidity(levIndex))
+        else
+          scaleFactorHumidity(levIndex) = 0.0d0
+        end if
+      end do
+      
+      scaleFactor_SF = scaleFactor_T(nLevEns_T)
+
+    else ! vco_anl%Vcode == 0
+      varNameALFA(:) = varNameALFAsfc(:)
+      scaleFactor_SF = scaleFactor(1)
+    end if
 
     !- 2.5 Domain Partionning
     call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
@@ -488,16 +505,21 @@ CONTAINS
         call utl_abort('ben_setup: Invalid mode for LocalizationType')
       end if
 
-      pSurfRef = 101000.D0
-      nullify(pressureProfileInc_M)
-      status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
-           sfc_field=pSurfRef, in_log=.false.)
-      if (status /= VGD_OK)then
-        call utl_abort('ben_setup: ERROR from vgd_levels')
-      end if
+      if ( vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005 ) then
+        pSurfRef = 101000.D0
+        nullify(pressureProfileInc_M)
+        status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
+                             sfc_field=pSurfRef, in_log=.false.)
+        if (status /= VGD_OK)then
+          call utl_abort('ben_setup: ERROR from vgd_levels')
+        end if
 
-      allocate(pressureProfileEns_M(nLevEns_M))
-      pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
+        allocate(pressureProfileEns_M(nLevEns_M))
+        pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
+      else ! vco_anl%Vcode == 0
+        allocate(pressureProfileEns_M(1))
+        pressureProfileEns_M(:) = pSurfRef
+      end if
 
       allocate(locStorage(nWaveBand))
       do waveBandIndex = 1, nWaveBand
@@ -948,7 +970,7 @@ CONTAINS
           else if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
             multFactor = scaleFactor_T(lev)
           else ! SF
-            multFactor = scaleFactor_T(nLevEns_T)
+            multFactor = scaleFactor_SF
           end if
 
           multFactor = multFactor/sqrt(1.0d0*dble(nEns-numSubEns))
@@ -1851,7 +1873,11 @@ CONTAINS
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
 
         ! surface variable
-        ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+        if (vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005) then
+          ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+        else ! vco_anl%Vcode == 0
+          ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
+        end if
         ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
       end if
       call tmg_stop(66)
@@ -2085,7 +2111,11 @@ CONTAINS
           else if (vnl_varLevelFromVarname(varName) == 'SF') then
 
             ! surface variable
-            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+            if (vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005) then
+              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+            else
+              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
+            end if
             ensAmplitude_M_oneLev (1:nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
