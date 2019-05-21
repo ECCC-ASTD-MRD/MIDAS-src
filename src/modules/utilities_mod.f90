@@ -588,15 +588,15 @@ contains
   end function utl_fstecr
 
 
-  function utl_findArrayIndex(KLIST, KLEN, KENTRY) result(isrcheq)
+  function utl_findArrayIndex( klist, klen, kentry ) result(isrcheq)
     !
     ! :Purpose: Find entry in list.
     !
     ! :Arguments:
-    !           :KLIST: Input: list.
-    !            :KLEN: Input: Dimension of list.
-    !          :KENTRY: Input: Entry.
-    !         :ISRCHEQ: Output: Index of entry: (0, not found, >0, found)
+    !           :klist: Input list.
+    !           :klen: Dimension of input list.
+    !           :kentry: Entry.
+    !           :isrcheq: Index of entry: (0, not found, >0, found)
     !
     implicit none
 
@@ -621,7 +621,7 @@ contains
   end function utl_findArrayIndex
 
 
-  subroutine utl_matsqrt(matrix,rank,exponentSign,printInformation_opt)
+  subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
     ! :Purpose: Calculate square root of an error covariance matrix
     !
@@ -736,23 +736,23 @@ contains
     ! :Arguments:
     !
     !  :Input:
-    !    * cdvar   : variable name to get the vertical levels from
-    !    * kstampv : valid date time stamp of the variable
-    !    * knmaxlev: maximum number of levels
-    !    * kinmpg  : file unit of trial field
-    !    * ktrials :  number of trial files.  
+    !     :cdvar: variable name to get the vertical levels from
+    !     :kstampv: valid date time stamp of the variable
+    !     :knmaxlev: maximum number of levels
+    !     :kinmpg: file unit of trial field
+    !     :ktrials:  number of trial files.  
     !
     !  :Output:
-    !    * kip1s(knmaxlev) : list of ip1s of variable cdvar
-    !    * kip2            : ip2 for variable cdvar
-    !    * kip3            : ip3 for variable cdvar
-    !    * knlev           : number of levels of variable cdvar
-    !    * cdetiket        : etiket of field cdvar
-    !    * cdtypvar        : typvar of field cdvar
-    !    * kgid            : handle of the field descriptor
-    !    * kip1style       : style in which ip1 is encoded (15 or 31 bits)
-    !    * kip1kind        : kind of vertical coord encoded in ip1
-    !    * koutmpg         : the unit which contains the selected records.  
+    !     :kip1s: list of ip1s of variable cdvar
+    !     :kip2: ip2 for variable cdvar
+    !     :kip3: ip3 for variable cdvar
+    !     :knlev: number of levels of variable cdvar
+    !     :cdetiket: etiket of field cdvar
+    !     :cdtypvar: typvar of field cdvar
+    !     :kgid: handle of the field descriptor
+    !     :kip1style: style in which ip1 is encoded (15 or 31 bits)
+    !     :kip1kind: kind of vertical coord encoded in ip1
+    !     :koutmpg: the unit which contains the selected records.  
     !
     implicit none
 
@@ -911,20 +911,17 @@ contains
 
   end subroutine utl_abort
 
-  !--------------------------------------------------------------------------
-  ! utl_open_asciifile
-  !--------------------------------------------------------------------------
+
   subroutine utl_open_asciifile(filename,unit)
     ! 
-    ! **Purpose:** Opens an ascii file for output 
+    ! :Purpose: Opens an ascii file for output 
     !
-    ! Input
-    !  
-    !     * filename      filename
-    !     * unit          unit number to use or 0 to let fnom set value
-    !
-    ! Output
-    !     * unit          unit number associated with file
+    ! :Arguments:
+    ! :Input:
+    !       :filename: filename
+    !       :unit: unit number to use or 0 to let fnom set value
+    ! :Output:
+    !       :unit: unit number associated with file
     !
     implicit none
 
@@ -955,8 +952,8 @@ contains
 
   function utl_open_file(unit,filename,mode) result(ier)
     ! 
-    ! **Purpose:** This is a temporary subroutine to open a file with fnom that is needed due to
-    !              a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
+    ! :Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
+    !           a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
     !
     implicit none
 
@@ -991,17 +988,16 @@ contains
     ! :Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
     !
     ! :Arguments:
-    ! Input:
-    !  * id1         reference stnid
-    !  * id2         stnid being verified
-    !
-    ! Output:
-    !  * same        logical indicating if id1 and id2 match
+    !           :id1: reference stnid
+    !           :id2: stnid being verified
+    !           :same: logical indicating if id1 and id2 match
     !     
     implicit none
 
     logical :: same
-    CHARACTER(len=*), intent(in) :: id1,id2
+    character(len=*), intent(in) :: id1
+    character(len=*), intent(in) :: id2
+
     integer :: ilen1,ilen2,ji
 
     same=.true.
@@ -1211,23 +1207,18 @@ contains
 
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
     ! 
-    !   **Purpose:** Get element ID from a list of accumulating character strings (e.g. stnids). 
-    !                Called by filt_topoChm in filterobs_mod.ftn90
+    ! :Purpose: Get element ID from a list of accumulating character strings (e.g. stnids). 
+    !           Called by filt_topoChm in filterobs_mod.ftn90
     !
     ! :Arguments:
-    !   Input:
-    !
-    !   * Nmax            Max allowed dimension.
-    !   * NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
-    !   * CList           Input list of accumulated character strings for uni and multi-level data.
-    !   * cstringin       Input character string
-    !   * nobslev         Number of elements in profile associated to cstringin.
-    !
-    !   Output:
-    !
-    !   * NListSize       Updated number of identified IDs
-    !   * CList           Updated list of accumulated character strings
-    !   * elemId          Index of cstringin within CList_chm
+    !           :Nmax: Max allowed dimension.
+    !           :NListSize: Input number of identified IDs (must be >=0 and <=Nmax)
+    !           :CList: Input list of accumulated character strings for uni and multi-level data.
+    !           :cstringin: Input character string
+    !           :nobslev: Number of elements in profile associated to cstringin.
+    !           :NListSize: Updated number of identified IDs
+    !           :CList: Updated list of accumulated character strings
+    !           :elemId: Index of cstringin within CList_chm
     !        
     implicit none
 
@@ -1290,18 +1281,15 @@ contains
     ! :Purpose: Get element ID from list of accumulating integer IDs.
     !
     ! :Arguments:
-    !   Input:
-    !
-    !      * Nmax         Max allowed dimension.
-    !      * NListSize    Input number of IDs (must be >=0 and <=Nmax)
-    !      * IdList       Input list of accumulated IDs.
-    !      * id           Input id for individual obs 
-    !
-    !   Output:
-    !
-    !      * NListSize    Updated number of IDs 
-    !      * IdList       Updated list of accumulated IDs.
-    !      * elemId       Index of id within List
+    !      :Input:
+    !            :Nmax: Max allowed dimension.
+    !            :NListSize: Input number of IDs (must be >=0 and <=Nmax)
+    !            :IdList: Input list of accumulated IDs.
+    !            :id: Input id for individual obs 
+    !      :Output:
+    !            :NListSize: Updated number of IDs 
+    !            :IdList: Updated list of accumulated IDs.
+    !            :elemId: Index of id within List
     !     
     implicit none
 
@@ -1333,35 +1321,33 @@ contains
   end subroutine utl_get_Id
   
 
-  subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
-                               ni,nj,nkeys,array,xlat_opt,xlong_opt,lvls_opt,kind_opt)
+  subroutine utl_readFstField( fname, varName, iip1, iip2, iip3, etiketi, &
+                               ni, nj, nkeys, array, xlat_opt, xlong_opt, lvls_opt, kind_opt )
     !
-    ! **Purpose:**  Read specified field from standard RPN/fst file. Could be one
-    !           to all levels depending on the input iip1,iip2,iip3 values
+    ! :Purpose:  Read specified field from standard RPN/fst file. Could be one
+    !           to all levels depending on the input iip1,iip2,iip3 values.
     !
     !           Currently assumes lat/long (or Gaussian) type grids.
     !           See hco_SetupFromFile for example toward future generalizations.
     !           Generalization would require having xlat and xlong being 2D.
     !
     ! :Arguments:
-    ! IN
-    !
-    !    * fname    input filename
-    !    * varName  search nomvar
-    !    * iip1     search ip1
-    !    * iip2     search ip2
-    !    * iip3     search ip3
-    !    * etiketi  search etiket
-    !
-    ! OUT
-    !
-    !    * ni,nj     ni,nj values
-    !    * nkeys     number of records satisfying search criteria
-    !    * array     (ni,nj,nkeys) data arrray
-    !    * xlat_opt  1D latitude array (optional)
-    !    * xlong_opt 1D longitude array (optional)
-    !    * lvls_opt  1D vertical coordinate array (optional)
-    !    * kind_opt  vertical coordinate type according to convip (optional)
+    !           :Input:
+    !                 :fname: input filename
+    !                 :varName:  search nomvar
+    !                 :iip1: search ip1
+    !                 :iip2: search ip2
+    !                 :iip3: search ip3
+    !                 :etiketi: search etiket
+    !           :Output:
+    !                 :ni: ni values
+    !                 :nj: nj values
+    !                 :nkeys: number of records satisfying search criteria
+    !                 :array: data arrray
+    !                 :xlat_opt: 1D latitude array (optional)
+    !                 :xlong_opt: 1D longitude array (optional)
+    !                 :lvls_opt: 1D vertical coordinate array (optional)
+    !                 :kind_opt: vertical coordinate type according to convip (optional)
     !
     implicit none
 
