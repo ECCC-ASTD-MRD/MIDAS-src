@@ -1058,6 +1058,8 @@ CONTAINS
 
     deallocate(Psfc)
 
+    if ( .not. beSilent ) write(*,*) 'exiting calcPressure_nl_r8'
+
     call tmg_stop(196)
 
   end subroutine calcPressure_nl_r8

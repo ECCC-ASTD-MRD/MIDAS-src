@@ -56,7 +56,6 @@ module gridStateVector_mod
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
-  public :: gsv_calcPressure
 
   type struct_gdUV
     real(8), pointer :: r8(:,:,:) => null()
@@ -432,7 +431,7 @@ module gridStateVector_mod
   subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp_opt, dateStampList_opt,  &
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
                           varNames_opt, dataKind_opt, allocGZsfc_opt, hInterpolateDegree_opt,        &
-                          allocGZ_opt, allocPressure_opt)
+                          allocGZ_opt, allocPressure_opt, beSilent_opt)
     implicit none
 
     ! arguments
@@ -447,16 +446,23 @@ module gridStateVector_mod
     integer, optional          :: horizSubSample_opt
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional          :: dataKind_opt
-    logical, optional          :: allocGZsfc_opt,allocGZ_opt,allocPressure_opt
+    logical, optional          :: allocGZsfc_opt,allocGZ_opt,allocPressure_opt,beSilent_opt
     character(len=*), optional :: hInterpolateDegree_opt
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
+    logical :: beSilent 
 
     if (.not. initialized) then
       write(*,*)
       write(*,*) 'gsv_allocate: gsv_setup must be called first to be able to use this module. Call it now'
       call gsv_setup
+    end if
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
     end if
 
     ! set the horizontal and vertical coordinates
@@ -585,6 +591,46 @@ module gridStateVector_mod
         iloc = iloc + statevector%varNumLev(varIndex)
       end do
 
+      do varIndex2 = 1, size(varNames_opt)
+
+        if ( present(allocGZ_opt) ) then
+          if ( (trim(varNames_opt(varIndex2)) == 'GZ_T' .or. trim(varNames_opt(varIndex2)) == 'GZ_M' ) .and. allocGZ_opt ) call utl_abort('gsv_allocate: GZ_T/GZ_M is in varNames_opt and allocGZ_opt should be false!')
+        end if
+
+        if ( present(allocPressure_opt) ) then
+          if ( (trim(varNames_opt(varIndex2)) == 'P_T' .or. trim(varNames_opt(varIndex2)) == 'P_M' ) .and. allocPressure_opt ) call utl_abort('gsv_allocate: P_T/P_M is in varNames_opt and allocPressure_opt should be false!')
+        end if
+
+      end do
+
+      if ( present(allocGZ_opt) ) then
+        if ( allocGZ_opt ) then
+          varIndex = vnl_varListIndex('GZ_T')
+          statevector%varOffset(varIndex)=iloc
+          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+          iloc = iloc + statevector%varNumLev(varIndex)
+
+          varIndex = vnl_varListIndex('GZ_M')
+          statevector%varOffset(varIndex)=iloc
+          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+          iloc = iloc + statevector%varNumLev(varIndex)
+        end if
+      end if
+
+      if ( present(allocPressure_opt) ) then
+        if ( allocPressure_opt) then
+          varIndex = vnl_varListIndex('P_T')
+          statevector%varOffset(varIndex)=iloc
+          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+          iloc = iloc + statevector%varNumLev(varIndex)
+
+          varIndex = vnl_varListIndex('P_M')
+          statevector%varOffset(varIndex)=iloc
+          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+          iloc = iloc + statevector%varNumLev(varIndex)
+        end if
+      end if
+
     else
 
       do varIndex = 1, vnl_numvarmax3d
@@ -605,6 +651,10 @@ module gridStateVector_mod
 
     end if
     statevector%nk=iloc
+
+    if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: statevector%nk = ',statevector%nk
+    if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: varOffset=',statevector%varOffset
+    if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev
 
     ! determine range of values for the 'k' index (vars+levels)
     if ( statevector%mpi_distribution == 'VarsLevs' ) then
@@ -992,7 +1042,7 @@ module gridStateVector_mod
     end if
 
     nullify(varNamesToInterpolate)
-    call vnl_varNamesFromExistList(varNamesToInterpolate, statevector_in%varExistlist(:))
+    call gsv_varNamesList(varNamesToInterpolate, statevector_in)
 
     !
     !- Do the interpolation of statevector_in onto the grid of statevector_inout
@@ -1003,9 +1053,7 @@ module gridStateVector_mod
                       dataKind_opt=statevector_inout%dataKind,                                  &
                       allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
                       varNames_opt=varNamesToInterpolate,                                       &
-                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
-                      allocGZ_opt=gsv_varExist(statevector_inout,'GZ_M'),                       &
-                      allocPressure_opt=gsv_varExist(statevector_inout,'P_M') )
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree )
 
     call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
 
@@ -1049,7 +1097,7 @@ module gridStateVector_mod
     !- Do the interpolation of statevector_in onto the grid of statevector_out
     !
     nullify(varNamesToInterpolate)
-    call vnl_varNamesFromExistList(varNamesToInterpolate, statevector_in%varExistlist(:))
+    call gsv_varNamesList(varNamesToInterpolate, statevector_in)
 
     !- Horizontal interpolation
     call gsv_allocate(statevector_in_VarsLevs, statevector_in%numstep, &
@@ -1058,9 +1106,7 @@ module gridStateVector_mod
                       dataKind_opt=statevector_in%dataKind,                                     &
                       allocGZsfc_opt=statevector_in%gzSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
-                      allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
     call gsv_transposeTilesToVarsLevs( statevector_in, statevector_in_VarsLevs )
 
@@ -1070,9 +1116,7 @@ module gridStateVector_mod
                       dataKind_opt=statevector_out%dataKind,                                    &
                       allocGZsfc_opt=statevector_out%gzSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
     if (statevector_in_VarsLevs%dataKind == 4) then
       call gsv_hInterpolate_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
@@ -1086,9 +1130,7 @@ module gridStateVector_mod
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=statevector_out%dataKind,                                 &
                       allocGZsfc_opt=statevector_out%gzSfcPresent, &
-                      varNames_opt=varNamesToInterpolate, &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      varNames_opt=varNamesToInterpolate )
 
     call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
     call gsv_deallocate(statevector_in_varsLevs_hInterp)
@@ -1274,6 +1316,7 @@ module gridStateVector_mod
     character(len=4), allocatable :: varNameListCommon(:)
     character(len=4) :: varName
     character(len=10) :: gsvCopyType 
+    character(len=4), pointer :: varNamesList_in(:), varNamesList_out(:)
 
     if ( present(allowMismatch_opt) ) then
       allowMismatch = allowMismatch_opt
@@ -1291,35 +1334,50 @@ module gridStateVector_mod
 
     if ( statevector_in%mpi_distribution == 'VarsLevs' ) allowMismatch = .false.
 
-    allocate(varNameListCommon(vnl_numvarmax))
+    nullify(varNamesList_in)
+    nullify(varNamesList_out)
+    call gsv_varNamesList(varNamesList_in,statevector_in)
+    call gsv_varNamesList(varNamesList_out,statevector_out)
 
-    ! loop to build list of common variables and see if there is a mismatch
-    varNameListCommon(:) = '    '
-    numCommonVar = 0
-    do varIndex = 1, vnl_numvarmax
-
-      varName = vnl_varNameList(varIndex)
-
-      if ( gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName) ) then
-        numCommonVar = numCommonVar + 1
-        varNameListCommon(numCommonVar) = varName 
+    if ( len(varNamesList_in(:)) /= len(varNamesList_out(:)) ) then
+      mismatch = .true.
+    else 
+      if ( all(varNamesList_in(:) == varNamesList_out(:)) ) then
+        mismatch = .false.
+      else
+        mismatch = .true.
       end if 
-
-      if ( (.not. gsv_varExist(statevector_in,varName) .and.       gsv_varExist(statevector_out,varName)) .or. &
-           (      gsv_varExist(statevector_in,varName) .and. .not. gsv_varExist(statevector_out,varName)) ) mismatch = .true.
-
-    end do
-
-    if ( (       mismatch .and. .not. allowMismatch ) .or. &
-         ( .not. mismatch .and.       allowMismatch ) ) call utl_abort('gsv_copy: mismatch and allowMismatch do not agree! Aborting.')
+    end if
+    deallocate(varNamesList_out)
+    deallocate(varNamesList_in)
 
     ! if mismatch and allowmismatch -> copy by varName, else copy by kIndex
-    if (       mismatch .and.       allowMismatch ) gsvCopyType = 'VarName'
-    if ( .not. mismatch .and. .not. allowMismatch ) gsvCopyType = 'kIndex'
+    if ( mismatch .and. allowMismatch ) then 
+      gsvCopyType = 'VarName'
+    else if ( .not. mismatch  ) then
+      gsvCopyType = 'kIndex'
+    else 
+      call utl_abort('gsv_copy: mismatch and allowMismatch do not agree! Aborting.')
+    end if
 
-    write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType 
-    write(*,*) 'gsv_copy: mismatch=', mismatch
-    write(*,*) 'gsv_copy: allowMismatch=', allowMismatch
+    write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', mismatch=', mismatch,', allowMismatch=', allowMismatch
+
+    ! build list of common variables and see if there is a mismatch
+    allocate(varNameListCommon(vnl_numvarmax))
+    varNameListCommon(:) = '    '
+    if ( mismatch ) then
+      numCommonVar = 0
+      do varIndex = 1, vnl_numvarmax
+
+        varName = vnl_varNameList(varIndex)
+
+        if ( gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName) ) then
+          numCommonVar = numCommonVar + 1
+          varNameListCommon(numCommonVar) = varName 
+        end if 
+
+      end do
+    end if
 
     lon1 = statevector_in%myLonBeg
     lon2 = statevector_in%myLonEnd
@@ -1529,7 +1587,7 @@ module gridStateVector_mod
 
     deallocate(varNameListCommon)
 
-    write(*,*) 'gsv_copy: END'
+    write(*,*) 'exiting gsv_copy'
 
   end subroutine gsv_copy
 
@@ -2510,7 +2568,7 @@ module gridStateVector_mod
     write(*,*) 'gsv_readFromFileAndInterpToTiles: START'
 
     nullify(varNamesToRead)
-    call vnl_varNamesFromExistList(varNamesToRead, statevector_out%varExistlist(:))
+    call gsv_varNamesList(varNamesToRead, statevector_out)
 
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
@@ -2520,9 +2578,7 @@ module gridStateVector_mod
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,               &
                       varNames_opt=varNamesToRead,                            &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2535,9 +2591,7 @@ module gridStateVector_mod
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',    &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,                 &
                       varNames_opt=varNamesToRead,                              &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree,&
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'), &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -2556,9 +2610,7 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
                       dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead,                            &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      varNames_opt=varNamesToRead )
 
     call gsv_transposeVarsLevsToTiles(statevector_hinterp_r4, statevector_tiles)
 
@@ -2570,9 +2622,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8, &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,  &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead )
 
     if (present(PsfcReference_opt) ) then
       allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
@@ -2634,7 +2684,7 @@ module gridStateVector_mod
     write(*,*) 'gsv_readFromFileAndTransposeToTiles: START'
 
     nullify(varNamesToRead)
-    call vnl_varNamesFromExistList(varNamesToRead, statevector_out%varExistlist(:))
+    call gsv_varNamesList(varNamesToRead, statevector_out)
 
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
@@ -2643,9 +2693,7 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex),           &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',            &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,                         &
-                      varNames_opt=varNamesToRead,                                      &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),                 &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      varNames_opt=varNamesToRead )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2660,9 +2708,7 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
                       dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead,                            &
-                      allocGZ_opt=gsv_varExist(statevector_out,'GZ_M'),       &
-                      allocPressure_opt=gsv_varExist(statevector_out,'P_M') )
+                      varNames_opt=varNamesToRead)
 
     call gsv_transposeVarsLevsToTiles(statevector_file_r4, statevector_tiles)
 
@@ -2713,7 +2759,7 @@ module gridStateVector_mod
     write(*,*) 'gsv_readFromFileAndInterp1Proc: START'
 
     nullify(varNamesToRead)
-    call vnl_varNamesFromExistList(varNamesToRead, statevector_out_r4%varExistlist(:))
+    call gsv_varNamesList(varNamesToRead, statevector_out_r4)
 
     !-- 1.0 Read the file
 
@@ -2722,9 +2768,7 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex), &
                       mpi_local_opt=.false., dataKind_opt=4,                     &
                       allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,     &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree, &
-                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),       &
-                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readGZsfc_opt=readGZsfc)
@@ -2736,9 +2780,7 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),   &
                       mpi_local_opt=.false., dataKind_opt=4,                       &
                       allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,       &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,&
-                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),         &
-                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -2756,9 +2798,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp_r4, 1, statevector_out_r4%hco, statevector_out_r4%vco, &
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),                 &
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,                     &
-                      allocGZ_opt=gsv_varExist(statevector_out_r4,'GZ_M'),                       &
-                      allocPressure_opt=gsv_varExist(statevector_out_r4,'P_M') )
+                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead)
 
     call gsv_vInterpolate_r4(statevector_hinterp_r4,statevector_vinterp_r4)
 
@@ -2853,6 +2893,7 @@ module gridStateVector_mod
 
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
+    logical :: foundVarNameInFile 
 
     vco_file => gsv_getVco(statevector)
 
@@ -2936,16 +2977,26 @@ module gridStateVector_mod
     nullify(gd2d_file_r4)
     if ( statevector%mykCount > 0 ) then
       if (statevector%hco%global) then
+
+        foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
 
           if (.not. gsv_varExist(statevector,varName)) cycle
 
-          ! do not try to read diagnostic variables
-          if ( .not. trim(vnl_varTypeFromVarname(varName)) == 'MODEL') cycle
+          ! make sure variable is in the file
+          if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
+
+          ! adopt a variable on the full/dynamic LAM grid
+          if ( (trim(varName) == 'TM'   .or. trim(varName) == 'MG' ) ) cycle
+
+          foundVarNameInFile = .true.
 
           exit
         end do
+
+        if ( .not. foundVarNameInFile) call utl_abort('gsv_readFile: variable does not exist to read from file')
+
         call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
@@ -2971,6 +3022,8 @@ module gridStateVector_mod
           select case (trim(varName))
           case ('LVIS')
             varNameToRead = 'VIS'
+          case ('GZ_T','GZ_M','P_T','P_M')
+            cycle k_loop
           case default
             call utl_abort('gsv_readFile: variable '//trim(varName)//' was not found in '//trim(fileName))
           end select
@@ -3415,11 +3468,10 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
     real(8), allocatable :: gd_send_GZ(:,:),gd_recv_GZ(:,:,:)
-    real(8), allocatable :: gdUV_r8(:,:,:,:), gd_r8(:,:,:,:)
-    real(4), allocatable :: gdUV_r4(:,:,:,:), gd_r4(:,:,:,:)
+    real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
+    real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
 
     write(*,*) 'entering gsv_transposeTilesToVarsLevs'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( statevector_in%mpi_distribution /= 'Tiles' ) then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
@@ -3435,9 +3487,6 @@ module gridStateVector_mod
       sendrecvKind = 4
     else
       sendrecvKind = 8
-    end if
-    if ( mpi_myid  == 0 ) then
-      write(*,*) 'gsv_transposeTilesToVarsLevs, inKind=', inKind, 'outKind=', outKind
     end if
 
     if ( sendrecvKind == 4 ) then
@@ -3457,36 +3506,6 @@ module gridStateVector_mod
                            maxkCount, mpi_nprocs )
       call utl_reAllocate( gd_recv_varsLevs_r8, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
                            maxkCount, mpi_nprocs )
-    end if
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    if ( sendrecvKind == 8 .and. inKind == 8 ) then
-      field_in_r8_ptr => gsv_getField_r8(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        gd_send_varsLevs_r8(1:statevector_in%lonPerPE, &
-                            1:statevector_in%latPerPE, &
-                            1:statevector_out%allkCount(yourid+1), :, yourid+1) =  &
-            field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                            statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), :)
-      end do
-      !$OMP END PARALLEL DO
-    else if ( outKind == 4 .and. inKind == 4 ) then
-      field_in_r4_ptr => gsv_getField_r4(statevector_in)
-      !$OMP PARALLEL DO PRIVATE(yourid)
-      do yourid = 0, (mpi_nprocs-1)
-        gd_send_varsLevs_r4(1:statevector_in%lonPerPE, &
-                            1:statevector_in%latPerPE, &
-                            1:statevector_out%allkCount(yourid+1), :, yourid+1) =  &
-            field_in_r4_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                            statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), :)
-      end do
-      !$OMP END PARALLEL DO
-    else
-      call utl_abort('transposeTilesToLevsVars: not compatible yet with these data types')
     end if
 
     do stepIndex = 1, statevector_in%numStep
@@ -3564,8 +3583,6 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
-    else
-      call utl_abort('transposeTilesToLevsVars: not compatible yet with these data types')
       end if
 
       ! send copy of wind component to task that has other component
@@ -3705,8 +3722,6 @@ module gridStateVector_mod
       end if ! UU and VV exist
 
     end do ! stepIndex
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! gather up surface GZ onto task 0
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
@@ -5235,7 +5250,7 @@ module gridStateVector_mod
     end if
 
     nullify(varNamesToRead)
-    call vnl_varNamesFromExistList(varNamesToRead, stateVector_trial%varExistlist(:))
+    call gsv_varNamesList(varNamesToRead, stateVector_trial)
 
     ! warn if not enough mpi tasks
     if ( mpi_nprocs < stateVector_trial%numStep ) then
@@ -5297,9 +5312,7 @@ module gridStateVector_mod
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                              allocGZsfc_opt=allocGZsfc, varNames_opt=varNamesToRead,                &
-                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree ,          &
-                             allocGZ_opt=gsv_varExist(statevector_trial,'GZ_M'),                    &
-                             allocPressure_opt=gsv_varExist(statevector_trial,'P_M') )
+                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
         end if

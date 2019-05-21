@@ -107,7 +107,7 @@ contains
     call tmg_start(157,'findHeightMpiId')
 
     if ( stepIndex == 1 ) then
-      write(*,*) 'findHeightMpiId: START'
+      write(*,*) 'entering findHeightMpiId'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
@@ -247,7 +247,7 @@ contains
     deallocate(heightSend)
 
     if ( stepIndex == 1 ) then
-      write(*,*) 'findHeightMpiId: END'
+      write(*,*) 'exiting findHeightMpiId'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
@@ -592,7 +592,6 @@ contains
     step_loop3: do stepIndex = 1, numStep
 
       height(:,:,:) = 0.0d0
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call findHeightMpiId(stateVector, height, stepIndex)
 
       do procIndex = 1, mpi_nprocs
@@ -858,7 +857,6 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
-    real(8), pointer     :: onecolumn(:)
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -1011,16 +1009,6 @@ contains
     end do k_loop
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    ! output the interpolated GZ_T/GZ_M for the first header
-    write(*,*) 's2c_tl, statevector->Column 1:'
-    write(*,*) 'GZ_T:'
-    onecolumn => col_getColumn(column,1,'GZ_T')
-    write(*,*) onecolumn(:)
-    write(*,*) 'GZ_M:'
-    onecolumn => col_getColumn(column,1,'GZ_M')
-    write(*,*) onecolumn(:)
-    nullify(onecolumn)
 
     deallocate(cols_hint)
     deallocate(cols_send)

@@ -55,13 +55,6 @@ module varNameList_mod
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH'/)
 
-  character(len=5), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                                  &
-                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',                    &
-                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ',                             &
-                                 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'OTHER', 'MODEL', 'DIAG'/)
-
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
                                  'MT',  'MT',  'MT',  'MT',  'MT',                               &

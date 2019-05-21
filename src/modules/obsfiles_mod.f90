@@ -307,7 +307,7 @@ contains
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
-      write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
+      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
       write(cmyidx,'(I4.4)') (mpi_myidx + 1)
       cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
       fileNameAsciDump = 'obsout_asci_' // trim(cmyid)
@@ -339,7 +339,7 @@ contains
     logical :: fileExists
     integer :: fileIndex
 
-    write(cmyidy,'(I4.4)') (mpi_npey - mpi_myidy)
+    write(cmyidy,'(I4.4)') (mpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mpi_myidx + 1)
     cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
 

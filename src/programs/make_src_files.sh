@@ -80,10 +80,18 @@ for use1 in $uses1; do
                             index14=${modulename_index[$use14]}
                             for use15 in ${useslist[$index14]}; do
                               level=15; levels[$level]="${levels[$level]} $use15"
-                              echo " ERROR: More than 15 levels of dependencies found in program ${program}"
-                              echo " ERROR: to generate src_files for this program, increase the"
-                              echo " ERROR: number of levels in the scripts."
-                              exit
+                              index15=${modulename_index[$use15]}
+                              for use16 in ${useslist[$index15]}; do
+                                level=16; levels[$level]="${levels[$level]} $use16"
+                                index16=${modulename_index[$use16]}
+                                for use17 in ${useslist[$index16]}; do
+                                  level=17; levels[$level]="${levels[$level]} $use17"
+                                  echo " ERROR: More than 17 levels of dependencies found in program ${program}"
+                                  echo " ERROR: to generate src_files for this program, increase the"
+                                  echo " ERROR: number of levels in the scripts."
+                                  exit
+                                done
+                              done
                             done
                           done
                         done

@@ -248,7 +248,7 @@ contains
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                        allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR', &
-                       allocGZ_opt=.true., allocPressure_opt=.true.)
+                       allocGZ_opt=.true., allocPressure_opt=.true.,beSilent_opt=.false.)
     call gsv_zero( stateVector_trial )
     call gsv_readTrials( stateVector_trial )
     call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &

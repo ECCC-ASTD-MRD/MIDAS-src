@@ -1333,7 +1333,7 @@ contains
        zdz = zlev - zmt
 
        ! Fill GPS ZTD profile structure (PRF):
-       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,ztt,zhu,zalt,lbevis,irefopt,prf)
+       call gps_structztd_v2(nlev_T,lat,lon,zmt,zp0,zpp,ztt,zhu,zALT,lbevis,irefopt,prf)
 
        ! Apply the GPS ZTD observation operator
        ! --> output is model ZTD (type gps_diff) and P at obs height ZLEV
@@ -2611,7 +2611,6 @@ contains
       REAL*8 columngVarT,columngVarB
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),p_column(:)
       REAL*8 :: delPT,delPB
-      logical :: llassim
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !
@@ -2862,7 +2861,7 @@ contains
 
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
-          columnTG => col_getColumn( column, headerIndex, varName_opt = varName, varLevel_opt = 'TH' ) 
+          columnTG => col_getColumn( column, headerIndex, varName_opt = varName ) 
           columnTG(1) = columnTG(1) + residual
 
         end if
@@ -2962,7 +2961,7 @@ contains
 
       REAL*8 ZINC
 
-      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:),p_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),p_column(:)
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
@@ -3227,7 +3226,7 @@ contains
       integer :: headerIndex, bodyIndex, icount
       LOGICAL ASSIM
 
-      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),ps_column(:),p_column(:)
+      real*8, pointer :: tt_column(:),hu_column(:),ALT_column(:),p_column(:)
 
       !      WRITE(*,*)'ENTER oop_HTgp'
 
@@ -3464,7 +3463,7 @@ contains
     real(8) :: zazm, azm
     integer :: isat
     real(8) :: rad, geo, wfgps, zp0
-    REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zalt(:), zuu(:), zvv(:)
+    REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zALT(:), zuu(:), zvv(:)
     real(8) :: zmt,radw
     integer :: IDATYP
     integer :: jl, jv, ngpslev, nwndlev, jj
@@ -3576,7 +3575,7 @@ contains
           zvv(ngpslev) = zuu(nwndlev)
 
           ! GPS profile structure:
-          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zalt,zuu,zvv,prf)
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zALT,zuu,zvv,prf)
 
           ! Prepare the vector of all the observations:
           nh1 = 0
@@ -3727,8 +3726,6 @@ contains
           ZHUB(JL) = col_getElem(columng,JL,headerIndex,'HU')
           ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
           zALT(JL) = col_getHeight(columng,JL,headerIndex,'TH')
-          !ZDP(JL)  = col_getPressureDeriv(columng,JL,headerIndex,'TH')
-          ZDP(JL)  = 0.0d0
         END DO
         if ( ZPPB(NFLEV) /= ZP0B ) then
           write(*,*) ' oop_calcGPSGBJacobian: ERROR: ZPPB(NFLEV) /= ZP0B'
@@ -3736,7 +3733,7 @@ contains
         end if
         ZMT = col_getHeight(columng,0,headerIndex,'SF')
 
-        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF)
+        CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF)
         CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
 
         ! Observation Jacobian H'(xb)            
@@ -3752,7 +3749,7 @@ contains
           CALL gps_pw(PRF,ZPWMOD)
 
           sfcfield = ZP0B + 50.0d0
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -3766,7 +3763,7 @@ contains
           ZHUB(64) = ZHUB(64) - dxq1
           ZHUB(65) = ZHUB(65) - dxq2
           ZHUB(66) = ZHUB(66) - dxq3
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           CALL gps_pw(PRF2,ZPWMOD2)
           write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
@@ -3784,7 +3781,7 @@ contains
           ZTTB(64) = ZTTB(64) + 2.0d0
           ZTTB(65) = ZTTB(65) + 2.0d0
           ZTTB(66) = ZTTB(66) + 2.0d0
-          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,ZALT,LBEVIS,IREFOPT,PRF2)
+          CALL gps_structztd_v2(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZTTB,ZHUB,zALT,LBEVIS,IREFOPT,PRF2)
           CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
           write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
           write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
