@@ -369,7 +369,7 @@ module gridStateVector_mod
     rhumin = MPC_MINIMUM_HU_R8
     AddGZSfcOffset = .false.
     unitConversion_varKindCH = .false.
-    
+
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
@@ -1586,8 +1586,6 @@ module gridStateVector_mod
     end if
 
     deallocate(varNameListCommon)
-
-    write(*,*) 'exiting gsv_copy'
 
   end subroutine gsv_copy
 
@@ -3184,7 +3182,7 @@ module gridStateVector_mod
           else
             multFactor = 1.0d0 ! no conversion
           end if
-        else         
+        else
           multFactor = 1.0d0 ! no conversion
         end if
 
@@ -3471,7 +3469,7 @@ module gridStateVector_mod
     real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
     real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
 
-    write(*,*) 'entering gsv_transposeTilesToVarsLevs'
+    write(*,*) 'gsv_transposeTilesToVarsLevs: START'
 
     if ( statevector_in%mpi_distribution /= 'Tiles' ) then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
@@ -3507,6 +3505,8 @@ module gridStateVector_mod
       call utl_reAllocate( gd_recv_varsLevs_r8, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
                            maxkCount, mpi_nprocs )
     end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     do stepIndex = 1, statevector_in%numStep
 
@@ -3723,6 +3723,8 @@ module gridStateVector_mod
 
     end do ! stepIndex
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     ! gather up surface GZ onto task 0
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
       allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
@@ -3761,7 +3763,7 @@ module gridStateVector_mod
     !end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'exiting gsv_transposeTilesToVarsLevs'
+    write(*,*) 'gsv_transposeTilesToVarsLevs: END'
 
     if ( sendrecvKind == 4 ) then
       call tmg_stop(152)
@@ -6068,7 +6070,7 @@ module gridStateVector_mod
     field_VV => gsv_getField_r8(statevector_inout,'VV')
     sumeu = 0.0D0
     sumev = 0.0D0
-    sumScale = 0.0D0 
+    sumScale = 0.0D0
     if (uvNorm) then
       do levIndex = 1, nLev_M
         do stepIndex = 1, statevector_inout%numStep
@@ -6129,7 +6131,7 @@ module gridStateVector_mod
 
     if (mpi_myid == 0)  write(*,*) 'energy for UU=', sumeu
     if (mpi_myid == 0)  write(*,*) 'energy for VV=', sumev
-      
+
     ! for Temperature
     field_T => gsv_getField_r8(statevector_inout,'TT')
     sumScale = 0.0D0

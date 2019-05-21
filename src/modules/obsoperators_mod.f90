@@ -3727,8 +3727,8 @@ contains
           ZPPB(JL) = col_getPressure(columng,JL,headerIndex,'TH')
           zALT(JL) = col_getHeight(columng,JL,headerIndex,'TH')
         END DO
-        if ( ZPPB(NFLEV) /= ZP0B ) then
-          write(*,*) ' oop_calcGPSGBJacobian: ERROR: ZPPB(NFLEV) /= ZP0B'
+        if ( abs(ZPPB(NFLEV)-ZP0B) > 0.1 ) then
+          write(*,*) ' oop_calcGPSGBJacobian: ERROR: |ZPPB(NFLEV)-ZP0B| > 0.1'
           write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
         end if
         ZMT = col_getHeight(columng,0,headerIndex,'SF')

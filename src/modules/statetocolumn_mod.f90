@@ -107,7 +107,7 @@ contains
     call tmg_start(157,'findHeightMpiId')
 
     if ( stepIndex == 1 ) then
-      write(*,*) 'entering findHeightMpiId'
+      write(*,*) 'findHeightMpiId: START'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
@@ -247,7 +247,7 @@ contains
     deallocate(heightSend)
 
     if ( stepIndex == 1 ) then
-      write(*,*) 'exiting findHeightMpiId'
+      write(*,*) 'findHeightMpiId: END'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
@@ -866,7 +866,7 @@ contains
     call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
-      call utl_abort('s2c_tl_new: stateVector must be allocated')
+      call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
     ! calculate delP_T/delP_M on the grid
@@ -1008,7 +1008,7 @@ contains
 
     end do k_loop
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    !write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     deallocate(cols_hint)
     deallocate(cols_send)

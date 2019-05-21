@@ -336,7 +336,7 @@ subroutine tt2phi_gsv(statevector_trial,beSilent_opt)
 
   call tmg_start(192,'tt2phi_gsv')
 
-  write(*,*) 'entering tt2phi_gsv'
+  write(*,*) 'tt2phi_gsv: START'
 
   vco_ghr => gsv_getVco(statevector_trial)
   status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
@@ -614,7 +614,7 @@ subroutine tt2phi_gsv(statevector_trial,beSilent_opt)
   end if
 
   write(*,*) 'tt2phi_gsv: statevector_trial%addGZsfcOffset=', statevector_trial%addGZsfcOffset 
-  write(*,*) 'exiting tt2phi_gsv'
+  write(*,*) 'tt2phi_gsv: END'
 
   call tmg_stop(192)
 
@@ -767,7 +767,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   call tmg_start(193,'tt2phi_tl_gsv')
 
-  write(*,*) 'entering tt2phi_tl_gsv'
+  write(*,*) 'tt2phi_tl_gsv: START'
 
   vco_anl => gsv_getVco(statevector_trial)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -925,7 +925,7 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   deallocate(delThick)
 
-  write(*,*) 'exiting tt2phi_tl_gsv'
+  write(*,*) 'tt2phi_tl_gsv: END'
 
   call tmg_stop(193)
 
@@ -1085,7 +1085,7 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
 
   call tmg_start(194,'tt2phi_ad_gsv')
 
-  write(*,*) 'entering tt2phi_ad_gsv'
+  write(*,*) 'tt2phi_ad_gsv: START'
 
   vco_anl => gsv_getVco(statevector_trial)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -1289,7 +1289,7 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   deallocate(delAlt_M)
   deallocate(delAlt_T)
 
-  write(*,*) 'exiting tt2phi_ad_gsv'
+  write(*,*) 'tt2phi_ad_gsv: END'
 
   call tmg_stop(194)
 
@@ -1321,7 +1321,7 @@ subroutine calcAltitudeCoeff(columng,obsSpaceData)
 
   if ( .not. firstTimeAltCoeff ) return
 
-  Write(*,*) "Entering subroutine calcAltitudeCoeff"
+  Write(*,*) "calcAltitudeCoeff: START"
 
   ! initialize and save coefficients for increased efficiency (assumes no relinearization)
   firstTimeAltCoeff = .false.
@@ -1476,9 +1476,7 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
 
   if ( .not. firstTimeAltCoeff_gsv ) return
 
-  call tmg_start(195,'calcAltitudeCoeff_gsv')
-
-  Write(*,*) "Entering subroutine calcAltitudeCoeff_gsv"
+  Write(*,*) "calcAltitudeCoeff_gsv: START"
 
   ! initialize and save coefficients for increased efficiency (assumes no relinearization)
   firstTimeAltCoeff_gsv = .false.
@@ -1657,8 +1655,6 @@ subroutine calcAltitudeCoeff_gsv(statevector_trial)
 !!$OMP END PARALLEL DO
 
   Write(*,*) "Exit subroutine calcAltitudeCoeff_gsv"
-
-  call tmg_stop(195)
 
 end subroutine calcAltitudeCoeff_gsv
 

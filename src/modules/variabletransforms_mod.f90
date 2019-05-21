@@ -999,8 +999,6 @@ CONTAINS
     real(8), pointer            :: P_T(:,:,:,:) => null()
     real(8), pointer            :: P_M(:,:,:,:) => null()
 
-    call tmg_start(196,'calcPressure_nl_r8')
-
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -1058,9 +1056,7 @@ CONTAINS
 
     deallocate(Psfc)
 
-    if ( .not. beSilent ) write(*,*) 'exiting calcPressure_nl_r8'
-
-    call tmg_stop(196)
+    if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r8: END'
 
   end subroutine calcPressure_nl_r8
 
@@ -1081,8 +1077,6 @@ CONTAINS
     logical                     :: beSilent
     real(4), pointer            :: P_T(:,:,:,:) => null()
     real(4), pointer            :: P_M(:,:,:,:) => null()
-
-    call tmg_start(197,'calcPressure_nl_r4')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1141,8 +1135,6 @@ CONTAINS
 
     deallocate(Psfc)
 
-    call tmg_stop(197)
-
   end subroutine calcPressure_nl_r4
 
   !--------------------------------------------------------------------------
@@ -1164,8 +1156,6 @@ CONTAINS
     integer               :: jobs, status, stepIndex,lonIndex,latIndex
     integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical               :: beSilent
-
-    call tmg_start(198,'calcPressure_tl')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1229,8 +1219,6 @@ CONTAINS
 
     deallocate(Psfc)
 
-    call tmg_stop(198)
-
   end subroutine calcPressure_tl
 
   !--------------------------------------------------------------------------
@@ -1252,8 +1240,6 @@ CONTAINS
     integer                     :: jobs, status, stepIndex,lonIndex,latIndex
     integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical                     :: beSilent
-
-    call tmg_start(199,'calcPressure_ad')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1316,8 +1302,6 @@ CONTAINS
     end do
 
     deallocate(Psfc)
-
-    call tmg_stop(199)
 
   end subroutine calcPressure_ad
 
