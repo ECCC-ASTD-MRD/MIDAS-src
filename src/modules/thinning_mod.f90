@@ -80,15 +80,13 @@ contains
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Of the observations in a column that have not already been
-!!            rejected, keep every nth observation and throw out the rest.
-!!
-!!            Set bit 11 of OBS_FLG on observations that are to be rejected.
-!!
-!--------------------------------------------------------------------------
   subroutine keepNthObs(obsdat, familyType, keepNthVertical)
+    !
+    ! :Purpose: Of the observations in a column that have not already been
+    !           rejected, keep every nth observation and throw out the rest.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in) :: familyType
     integer,          intent(in) :: keepNthVertical

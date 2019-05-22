@@ -34,8 +34,10 @@ CONTAINS
   function spf_FilterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, nWaveBand ) result(ResponseFunction) 
     implicit none
 
-    real(8) :: totalWaveNumber, ResponseFunction 
-    integer :: waveBandIndex, nWaveBand
+    real(8) :: totalWaveNumber
+    real(8) :: ResponseFunction 
+    integer :: waveBandIndex
+    integer :: nWaveBand
     integer :: waveBandPeaks(:)
 
     real(8) :: linearResponse, lowerLimit, center, upperLimit

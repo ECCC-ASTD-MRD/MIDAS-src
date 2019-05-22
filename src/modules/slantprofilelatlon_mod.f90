@@ -47,12 +47,13 @@ contains
     !**s/r slp_calcLatLon - Computation of lat/lon on the slant path
     !                 for radiance observations
     !
-    !*    Purpose:  -To replace the vertical fields in column
-    !                with line-of-sight fields.
+    ! :Purpose:  To replace the vertical fields in column
+    !            with line-of-sight fields.
     !
     implicit none
+
     type(struct_columnData) :: column
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
 
     integer :: indexHeader, varLevelIndex, levelIndex
     integer :: numLevels

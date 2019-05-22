@@ -51,8 +51,12 @@ module rMatrix_mod
   subroutine rmat_init(nsensors,nobtovs)
    
     implicit none
-    integer ,intent (in) :: nsensors,nobtovs
 
+    ! Arguments:
+    integer, intent (in) :: nsensors
+    integer, intent (in) :: nobtovs
+
+    ! locals
     integer :: nulnam,ierr
     integer ,external:: fnom,fclos
     namelist /NAMRMAT/rmat_lnonDiagR
@@ -87,8 +91,13 @@ module rMatrix_mod
   subroutine rmat_readCMatrix(instrument, sensor_id, ichan )
    
     implicit none
-    integer ,intent (in) :: instrument(3), sensor_id, ichan(:)
+    
+    ! Arguments
+    integer ,intent (in) :: instrument(3)
+    integer ,intent (in) :: sensor_id
+    integer ,intent (in) :: ichan(:)
 
+    ! locals
     character (len=64) :: filename
     integer :: err
 
@@ -107,9 +116,12 @@ module rMatrix_mod
   subroutine rmat_setFullRMatrix(sigma,sensor_id,offset)
     implicit none
    
-    integer ,intent (in) :: sensor_id,offset
-    real (8) ,intent (in) :: sigma(:)
+    ! Arguments:
+    integer, intent (in) :: sensor_id
+    integer, intent (in) :: offset
+    real(8), intent (in) :: sigma(:)
 
+    ! locals
     integer :: i,nchn,j,ii,jj,nsigma
     real (8) :: product
 
@@ -150,10 +162,13 @@ module rMatrix_mod
 
   subroutine rmat_readCMatrixByFileName(infile,C,chanList_opt)
     implicit none
+
+    ! Arguments:
     character (len=*),intent(in) :: infile ! name of input file
     type(rmat_matrix),intent(inout) :: C    ! correlation matrix structure
     integer ,intent(in),optional :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
 
+    ! locals
     integer :: i,j,iu,ierr,count,ich,nchn,nch
     integer ,external :: fnom,fclos
     real(8) :: x
@@ -235,16 +250,22 @@ module rMatrix_mod
 
 
   subroutine rmat_sqrtRm1(sensor_id,nsubset,x,y,list_sub,indexTovs)
-    ! Apply the operator R**-1/2 to x
-    ! result in y for the subset of channels specified
-    ! in list_sub
+    !
+    ! :Purpose: Apply the operator R**-1/2 to x
+    !           result in y for the subset of channels specified
+    !           in list_sub
+    !
     implicit none
-    integer ,intent (in) :: sensor_id,nsubset
-    integer ,intent(in)   :: list_sub(nsubset)
-    real(8) ,intent(in)   :: x(nsubset)
-    real(8) ,intent(out)  :: y(nsubset)
-    integer  ,intent(in)  :: indexTovs
 
+    ! Arguments:
+    integer , intent (in) :: sensor_id
+    integer , intent (in) :: nsubset
+    integer , intent(in)  :: list_sub(nsubset)
+    real(8) , intent(in)  :: x(nsubset)
+    real(8) , intent(out) :: y(nsubset)
+    integer , intent(in)  :: indexTovs
+
+    ! locals
     real (8) :: Rsub(nsubset,nsubset),alpha,beta
     integer :: index(nsubset)
     integer :: i,j
