@@ -3727,15 +3727,15 @@ module gridStateVector_mod
 
     ! gather up surface GZ onto task 0
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
-      allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
+      allocate(gd_send_GZ(statevector_in%lonPerPEmax,statevector_in%latPerPEmax))
+      allocate(gd_recv_GZ(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,mpi_nprocs))
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
       gd_send_GZ(:,:) = 0.0D0
       gd_send_GZ(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_GZ_in_ptr(:,:)
 
-      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
+      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
       call rpn_comm_gather(gd_send_GZ, nsize, 'mpi_double_precision',  &
                            gd_recv_GZ, nsize, 'mpi_double_precision', 0, 'grid', ierr )
 
@@ -3756,11 +3756,6 @@ module gridStateVector_mod
       deallocate(gd_send_GZ)
       deallocate(gd_recv_GZ)
     end if ! gzSfcPresent
-
-    !if ( sendrecvKind == 4 ) then
-    !  deallocate(gd_recv_varsLevs_r4)
-    !  deallocate(gd_send_varsLevs_r4)
-    !end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_transposeTilesToVarsLevs: END'
