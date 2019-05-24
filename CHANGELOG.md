@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * A quality control test specific to CrIS was forgottten for CrIS FSR (#232 and !219)
 
 ## [3.3.2]:
 
