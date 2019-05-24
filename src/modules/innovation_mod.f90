@@ -218,7 +218,7 @@ contains
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: varIndex, ierr, nulnam, fnom, fclos
     character(len=4)          :: varNamesToRead(1), lastVarNameToRead
-    logical                   :: deallocInterpInfo, allocGZsfc
+    logical                   :: deallocInterpInfo, allocHeightSfc
     real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
@@ -241,14 +241,14 @@ contains
     call col_setVco(columnhr,vco_trl)
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
-    allocGZsfc = .true.
+    allocHeightSfc = .true.
     deallocInterpInfo = .true.
 
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                        mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR', &
-                       allocGZ_opt=.true., allocPressure_opt=.true.,beSilent_opt=.false.)
+                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                       allocHeight_opt=.true., allocPressure_opt=.true.,beSilent_opt=.false.)
     call gsv_zero( stateVector_trial )
     call gsv_readTrials( stateVector_trial )
     call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
@@ -256,11 +256,11 @@ contains
     call gsv_deallocate(stateVector_trial)
 
     write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
-    write(*,*) 'GZ_T:'
-    onecolumn => col_getColumn(columnhr,1,'GZ_T')
+    write(*,*) 'Z_T:'
+    onecolumn => col_getColumn(columnhr,1,'Z_T')
     write(*,*) onecolumn(:)
-    write(*,*) 'GZ_M:'
-    onecolumn => col_getColumn(columnhr,1,'GZ_M')
+    write(*,*) 'Z_M:'
+    onecolumn => col_getColumn(columnhr,1,'Z_M')
     write(*,*) onecolumn(:)
     write(*,*) 'P_T:'
     onecolumn => col_getColumn(columnhr,1,'P_T')
@@ -286,7 +286,6 @@ contains
     ! locals
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
-    real(8) :: gz_tmp 
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
@@ -330,7 +329,7 @@ contains
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
-      !if ( vnl_varNameList3D(jvar) == 'GZ_T' .or. vnl_varNameList3D(jvar) == 'GZ_M' ) cycle
+      !if ( vnl_varNameList3D(jvar) == 'Z_T' .or. vnl_varNameList3D(jvar) == 'Z_M' ) cycle
       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
 
       ! Imposing a minimum value for HU
@@ -360,44 +359,44 @@ contains
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
       !
-      !- Using T, q and PS to compute GZ for columng
+      !- Using T, q and PS to compute height for columng
       !
       do columnIndex = 1, col_getNumCol(columng)
-        columng%gz_sfc(1,columnIndex) = columnhr%gz_sfc(1,columnIndex)
+        columng%HeightSfc(1,columnIndex) = columnhr%HeightSfc(1,columnIndex)
       end do
       !if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng,obsSpaceData)
 
       ! remove the height offset for the diagnostic levels for backward compatibility only
-      if ( .not.columng%addGZsfcOffset ) then
+      if ( .not.columng%addHeightSfcOffset ) then
         do columnIndex = 1, col_getNumCol(columng)
-          columng_ptr => col_getColumn(columng,columnIndex,'GZ_T')
-          columng_ptr(col_getNumLev(columng,'TH')) = columng%gz_sfc(1,columnIndex)
+          columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
+          columng_ptr(col_getNumLev(columng,'TH')) = columng%HeightSfc(1,columnIndex)
 
-          columng_ptr => col_getColumn(columng,columnIndex,'GZ_M')
-          columng_ptr(col_getNumLev(columng,'MM')) = columng%gz_sfc(1,columnIndex)
+          columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
+          columng_ptr(col_getNumLev(columng,'MM')) = columng%HeightSfc(1,columnIndex)
         end do
       end if
 
     else
-      write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+      write(*,*) 'inn_setupBackgroundColumnsAnl:  height TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
     write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
-    write(*,*) 'GZ_T (columnhr):'
-    columng_ptr => col_getColumn(columnhr,1,'GZ_T')
+    write(*,*) 'Z_T (columnhr):'
+    columng_ptr => col_getColumn(columnhr,1,'Z_T')
     write(*,*) columng_ptr(:)
-    write(*,*) 'GZ_T (columng):'
-    columng_ptr => col_getColumn(columng,1,'GZ_T')
-    write(*,*) columng_ptr(:)
-
-    write(*,*) 'GZ_M(columnhr):'
-    columng_ptr => col_getColumn(columnhr,1,'GZ_M')
-    write(*,*) columng_ptr(:)
-    write(*,*) 'GZ_M(columng):'
-    columng_ptr => col_getColumn(columng,1,'GZ_M')
+    write(*,*) 'Z_T (columng):'
+    columng_ptr => col_getColumn(columng,1,'Z_T')
     write(*,*) columng_ptr(:)
 
-    write(*,*) 'gz_sfc:', columng%gz_sfc(1,1)
+    write(*,*) 'Z_M(columnhr):'
+    columng_ptr => col_getColumn(columnhr,1,'Z_M')
+    write(*,*) columng_ptr(:)
+    write(*,*) 'Z_M(columng):'
+    columng_ptr => col_getColumn(columng,1,'Z_M')
+    write(*,*) columng_ptr(:)
+
+    write(*,*) 'HeightSfc:', columng%HeightSfc(1,1)
 
     call tmg_stop(10)
 

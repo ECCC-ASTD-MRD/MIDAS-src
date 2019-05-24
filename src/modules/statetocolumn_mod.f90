@@ -97,11 +97,11 @@ contains
     ! locals
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
     integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
-    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numGZsfcRecv, numGZsfcSend
+    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
-    integer :: requestIdGZsfcSend(10), requestIdGZsfcRecv(10)
+    integer :: requestIdHeightSfcSend(10), requestIdHeightSfcRecv(10)
     integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
-    real(8), allocatable :: heightSend(:,:,:), heightRecv(:,:,:), GZsfcSend(:,:)
+    real(8), allocatable :: heightSend(:,:,:), heightRecv(:,:,:), HeightSfcSend(:,:)
     character(len=4)    :: varName
 
     call tmg_start(157,'findHeightMpiId')
@@ -119,24 +119,24 @@ contains
                          statevector_in%mykBeg:statevector_in%mykEnd))
     allocate(heightRecv(statevector_in%ni,statevector_in%nj, &
                          statevector_in%mykBeg:statevector_in%mykEnd))
-    allocate(GZsfcSend(statevector_in%ni,statevector_in%nj))
+    allocate(HeightSfcSend(statevector_in%ni,statevector_in%nj))
 
     numSend = 0
     numRecv = 0
-    numGZsfcRecv  = 0
-    numGZsfcSend  = 0
+    numHeightSfcRecv  = 0
+    numHeightSfcSend  = 0
     LOOP_KINDEX: do kIndexRecv = 1, stateVector_in%nk
       varName = gsv_getVarNameFromK(stateVector_in, kIndexRecv) 
 
-      ! get k index for corresponding GZ component
+      ! get k index for corresponding height component
       levVar = gsv_getLevFromK(stateVector_in, kIndexRecv)
       if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
-        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'GZ_T')
+        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'Z_T')
       else if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
-        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'GZ_M')
+        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'Z_M')
       end if
 
-      ! get Mpi task id for both Var and corresponding GZ
+      ! get Mpi task id for both Var and corresponding height
       MpiIdRecv = gsv_getMpiIdFromK(statevector_in,kIndexRecv)
       if ( vnl_varLevelFromVarname(varName) == 'SF' ) then
         kIndexSend = 0
@@ -158,7 +158,7 @@ contains
           end if
 
         else
-          heightRecv(:, :, kIndexRecv) = statevector_in%GZsfc(:, :)
+          heightRecv(:, :, kIndexRecv) = statevector_in%HeightSfc(:, :)
         end if
 
         cycle LOOP_KINDEX
@@ -169,7 +169,7 @@ contains
       nsize = statevector_in%ni * statevector_in%nj
       mpiTagRecv = kIndexRecv
       mpiTagSend = kIndexSend
-      ! RECEIVE, I only have non-GZ fields
+      ! RECEIVE, I only have non-height fields
       if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdRecv ) then 
 
         if ( stepIndex == 1 ) & 
@@ -182,17 +182,17 @@ contains
                           mpi_comm_grid, requestIdRecv(numRecv), ierr )
 
         else 
-          if ( statevector_in%gzSfcPresent ) then
-            numGZsfcRecv = numGZsfcRecv + 1
+          if ( statevector_in%HeightSfcPresent ) then
+            numHeightSfcRecv = numHeightSfcRecv + 1
             call mpi_irecv( heightRecv(:, :, kIndexRecv),  &
                             nsize, mpi_datyp_real8,         0,          0,  &
-                            mpi_comm_grid, requestIdGZsfcRecv(numGZsfcRecv), ierr )
+                            mpi_comm_grid, requestIdHeightSfcRecv(numHeightSfcRecv), ierr )
           else
             heightRecv(:, :, kIndexRecv) = 0.0d0
           end if
         end if
 
-      ! SEND, I have GZ
+      ! SEND, I have height
       else if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdSend ) then 
 
         if ( stepIndex == 1 ) & 
@@ -209,13 +209,13 @@ contains
                           nsize, mpi_datyp_real8, MpiIdRecv, mpiTagSend,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
 
-        else if ( statevector_in%gzSfcPresent .and. mpi_myid == 0 .and. &
+        else if ( statevector_in%HeightSfcPresent .and. mpi_myid == 0 .and. &
             vnl_varLevelFromVarname(varName) == 'SF' ) then
-          numGZsfcSend = numGZsfcsend + 1
-          GZsfcSend(:, :) = statevector_in%GZsfc(:, :)
-          call mpi_isend( GZsfcSend(:, :),  &
+          numHeightSfcSend = numHeightSfcsend + 1
+          HeightSfcSend(:, :) = statevector_in%HeightSfc(:, :)
+          call mpi_isend( HeightSfcSend(:, :),  &
                           nsize, mpi_datyp_real8, MpiIdRecv,            0,  &
-                          mpi_comm_grid, requestIdGZsfcSend(numGZsfcSend), ierr )
+                          mpi_comm_grid, requestIdHeightSfcSend(numHeightSfcSend), ierr )
         end if
 
       end if
@@ -226,23 +226,23 @@ contains
       call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
     end if
 
-    if ( numGZsfcRecv > 0 ) then
-      call mpi_waitAll(numGZsfcRecv, requestIdGZsfcRecv(1:numGZsfcRecv), mpiStatuses(:,1:numGZsfcRecv), ierr)
+    if ( numHeightSfcRecv > 0 ) then
+      call mpi_waitAll(numHeightSfcRecv, requestIdHeightSfcRecv(1:numHeightSfcRecv), mpiStatuses(:,1:numHeightSfcRecv), ierr)
     end if
 
     if ( numSend > 0 ) then
       call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
     end if
 
-    if ( numGZsfcSend > 0 ) then
-      call mpi_waitAll(numGZsfcSend, requestIdGZsfcSend(1:numGZsfcSend), mpiStatuses(:,1:numGZsfcSend), ierr)
+    if ( numHeightSfcSend > 0 ) then
+      call mpi_waitAll(numHeightSfcSend, requestIdHeightSfcSend(1:numHeightSfcSend), mpiStatuses(:,1:numHeightSfcSend), ierr)
     end if
 
     do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
       height(:, :, kIndex) =  heightRecv(:, :, kIndex)
     end do
 
-    deallocate(GZsfcSend)
+    deallocate(HeightSfcSend)
     deallocate(heightRecv)
     deallocate(heightSend)
 
@@ -873,14 +873,14 @@ contains
     call vtr_transform( statevector, & ! INOUT
                         'PsfcToP_tl')  ! IN
 
-    ! calculate delGZ_T/delGZ_M on the grid
+    ! calculate del Z_T/Z_M on the grid
     call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoGZ_tl') ! IN
+                        'TTHUtoHeight_tl') ! IN
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       allocGZ_opt=gsv_varExist(statevector,'GZ_M'), &
+                       allocHeight_opt=gsv_varExist(statevector,'Z_M'), &
                        allocPressure_opt=gsv_varExist(statevector,'P_M') )
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
@@ -1064,7 +1064,7 @@ contains
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       allocGZ_opt=gsv_varExist(statevector,'GZ_M'), &
+                       allocHeight_opt=gsv_varExist(statevector,'Z_M'), &
                        allocPressure_opt=gsv_varExist(statevector,'P_M') )
     call gsv_zero( statevector_VarsLevs )
 
@@ -1195,7 +1195,7 @@ contains
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
     call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoGZ_ad') ! IN
+                        'TTHUtoHeight_ad') ! IN
 
     ! Adjoint of calculate delP_T/delP_M on the grid
     call vtr_transform( statevector, & ! INOUT
@@ -1235,7 +1235,7 @@ contains
     integer :: procIndex, nsize, ierr, iset, headerUsedIndex, varIndex
     integer :: ezdefset, ezqkdef
     integer :: s1, s2, s3, s4, index1, index2, index3, index4
-    real(8) :: gzSfc_col
+    real(8) :: HeightSfc_col
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1276,15 +1276,15 @@ contains
     call vtr_transform( stateVector, & ! INOUT
                         'PsfcToP_nl')  ! IN
 
-    ! calculate GZ_T/GZ_M on the grid
+    ! calculate Z_T/Z_M on the grid
     call vtr_transform( stateVector, & ! INOUT
-                        'TTHUtoGZ_nl') ! IN
+                        'TTHUtoHeight_nl') ! IN
 
     call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
                        stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
                        mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                       allocGZsfc_opt=.true., &
-                       allocGZ_opt=gsv_varExist(stateVector,'GZ_M'), &
+                       allocHeightSfc_opt=.true., &
+                       allocHeight_opt=gsv_varExist(stateVector,'Z_M'), &
                        allocPressure_opt=gsv_varExist(stateVector,'P_M') )
     call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
 
@@ -1433,21 +1433,21 @@ contains
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! Interpolate surface GZ separately, only exists on mpi task 0
-    GZsfcPresent: if ( stateVector_VarsLevs%GZsfcPresent ) then
+    ! Interpolate surface height separately, only exists on mpi task 0
+    HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
       if ( mpi_myid == 0 ) then
         varName = 'GZ'
-        step_loop_gz: do stepIndex = 1, numStep
+        step_loop_height: do stepIndex = 1, numStep
 
-          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_gz
+          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_height
 
           ! interpolate to the columns destined for all procs for all steps and one lev/var
           !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
           do procIndex = 1, mpi_nprocs
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
-              ptr2d_r8 => gsv_getGZsfc(stateVector_VarsLevs)
+              ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
 
@@ -1455,7 +1455,7 @@ contains
           end do
           !$OMP END PARALLEL DO
 
-        end do step_loop_gz
+        end do step_loop_height
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mpi_nprocs
@@ -1464,7 +1464,7 @@ contains
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
             do headerIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
               headerUsedIndex = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
-              ! just copy, since surface GZ same for all time steps
+              ! just copy, since surface height same for all time steps
               cols_send(headerUsedIndex,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
             end do
             !$OMP END PARALLEL DO
@@ -1493,10 +1493,10 @@ contains
       end if
 
       do headerIndex = 1, numHeader
-        call col_setGZsfc(column, headerIndex, cols_recv(headerIndex,1))
+        call col_setHeightSfc(column, headerIndex, cols_recv(headerIndex,1))
       end do
 
-    end if GZsfcPresent
+    end if HeightSfcPresent
 
     deallocate(field2d_UV)
     deallocate(field2d)

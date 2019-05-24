@@ -189,7 +189,7 @@ CONTAINS
     real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
 
     real(4), pointer :: bin2d(:,:,:)
-    real(8), pointer :: GZsfc(:,:)
+    real(8), pointer :: HeightSfc(:,:)
 
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
@@ -634,11 +634,10 @@ CONTAINS
         call gbi_setup(gbi_landSeaTopo, 'landSeaTopo', statevector_ensStdDev, &
                        mpi_distribution_opt='None', writeBinsToFile_opt=ensDiagnostic)
         bin2d => gsv_getField3D_r4(gbi_landSeaTopo%statevector_bin2d)
-        GZsfc => gsv_getGZsfc(gbi_landSeaTopo%statevector_bin2d)
-        GZsfc(:,:) = GZsfc(:,:)/RG ! convert to m
-        call gsv_smoothHorizontal(statevector_ensStdDev,                                   & ! INOUT
-                                  footprintRadius, binInteger_opt=bin2d, binReal_opt=GZsfc,& ! IN
-                                  binRealThreshold_opt=footprintTopoThreshold)               ! IN
+        HeightSfc => gsv_getHeightSfc(gbi_landSeaTopo%statevector_bin2d)
+        call gsv_smoothHorizontal(statevector_ensStdDev,                                       & ! INOUT
+                                  footprintRadius, binInteger_opt=bin2d, binReal_opt=HeightSfc,& ! IN
+                                  binRealThreshold_opt=footprintTopoThreshold)                   ! IN
         call gbi_deallocate(gbi_landSeaTopo)
       else
         call utl_abort('ben_setup: Invalid variance smoothing type = '//trim(varianceSmoothing))

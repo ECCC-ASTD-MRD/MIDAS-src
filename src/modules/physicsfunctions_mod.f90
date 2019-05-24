@@ -38,7 +38,7 @@ module physicsFunctions_mod
   public :: FOEFQPSA, fottva, folnqva
   public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
   public :: phf_get_tropopause, phf_get_pbl, phf_calcDistance, phf_calcDistanceFast
-  public :: phf_alt2geopotential, phf_gravityalt, phf_gravitysrf
+  public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf
 
   LOGICAL :: initialized = .false.
   LOGICAL :: NEW_TETENS_COEFS
@@ -1054,8 +1054,8 @@ module physicsFunctions_mod
   end function phf_gravityalt
 
 
-  subroutine phf_alt2geopotential(altitude, latitude, geopotential, printGZ)
-    !**s/r phf_alt2geopotential - Geopotential energy at a given point.
+  subroutine phf_height2geopotential(altitude, latitude, geopotential, printHeight)
+    !**s/r phf_height2geopotential - Geopotential energy at a given point.
     ! Result is based on the WGS84 approximate expression for the
     ! gravity acceleration as a function of latitude and altitude,
     ! integrated with the trapezoidal rule.
@@ -1073,7 +1073,7 @@ module physicsFunctions_mod
     real(8), allocatable :: alt500m(:), gravity500m(:)
     real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
     integer           :: i, ilev 
-    logical, optional :: printGZ
+    logical, optional :: printHeight
     
 
     nlev = size(altitude)
@@ -1108,14 +1108,14 @@ module physicsFunctions_mod
       deallocate(gravity500m)
 
     else
-      ! At surface, use local gravity to get GZ
+      ! At surface, use local gravity to get height
       gravity = phf_gravityalt(sLat,altitude(nlev))
       geopotential(nlev) = altitude(nlev) * gravity
       gravityM1 = gravity
 
     endif
 
-    ! At upper-levels, integrate on model levels to get GZ 
+    ! At upper-levels, integrate on model levels to get height 
     do ilev = nlev-1, 1, -1
       gravity = phf_gravityalt(sLat,altitude(ilev))
       aveGravity = 0.5D0 * (gravity + gravityM1)
@@ -1124,16 +1124,16 @@ module physicsFunctions_mod
       gravityM1 = gravity
     enddo
 
-    if ( present(printGZ) ) then
-      if ( printGZ ) then
-        write(*,*) 'phf_alt2geopotential, GZ_T:'
+    if ( present(printHeight) ) then
+      if ( printHeight ) then
+        write(*,*) 'phf_height2geopotential, Z_T:'
         write(*,*) geopotential(:)
 
-        printGZ = .false.
+        printHeight = .false.
       endif
     endif
 
-  end subroutine phf_alt2geopotential
+  end subroutine phf_height2geopotential
 
   
 end module physicsFunctions_mod

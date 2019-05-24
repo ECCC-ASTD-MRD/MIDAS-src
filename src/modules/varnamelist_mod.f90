@@ -42,7 +42,7 @@ module varNameList_mod
   integer, parameter          :: vnl_numvarmax3D = 34, vnl_numvarmax2D = 18
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
-                                 'UU  ','VV  ','GZ_T','GZ_M','P_T ','P_M ',                      &
+                                 'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
                                  'TT  ','HU  ','LQ  ','ES  ','VT  ',                             &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2',        &
@@ -167,7 +167,7 @@ module varNameList_mod
       case( BUFR_NETT, BUFR_NETS )
         varName='TT'
       case( BUFR_NEDZ, BUFR_NEGZ )
-        varName='GZ_T'
+        varName='Z_T'
       case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
         varName='HU'
       case( BUFR_NEPS, BUFR_NEPN )

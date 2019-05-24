@@ -189,7 +189,7 @@ program midas_ensembleH
 
   ! Allocate statevector to store an ensemble member (keep distribution as members on native grid)
   call gsv_allocate( stateVector, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', dataKind_opt=4, allocGZsfc_opt=.true. )
+                     mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', dataKind_opt=4, allocHeightSfc_opt=.true. )
 
   do memberIndex = 1, nEns
     write(*,*) ''
@@ -197,7 +197,7 @@ program midas_ensembleH
     call fln_ensFileName( ensFileName, ensPathName, memberIndex, copyToRamDisk_opt=.false.  )
     call tmg_start(3,'READ_ENSEMBLE')
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
-                       readGZsfc_opt=.true. )
+                       readHeightSfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
     call tmg_stop(3)
 
@@ -210,7 +210,7 @@ program midas_ensembleH
       dealloc = .false.
     end if
     call s2c_nl( stateVector, obsSpaceData, columns(memberIndex), timeInterpType='LINEAR', dealloc_opt=dealloc )
-    ! Do final preparations of columnData objects (compute GZ and pressure)
+    ! Do final preparations of columnData objects (compute height and pressure)
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
     if (col_varExist('P0')) then

@@ -197,7 +197,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       INTEGER IKEY,ILEN,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
-      real*8, pointer     :: gz_column(:), tt_column(:), field_ptr(:,:,:)
+      real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
@@ -357,7 +357,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      ! GZ is put into TT slot in gridStateVector
+      ! height is put into TT slot in gridStateVector
       clnomvar = 'GZ'
       write(*,*) clnomvar
       field_ptr => gsv_getField3D_r8(statevector,'TT')
@@ -382,12 +382,12 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 
-      ! copy GZ data from TT to GZ slot in columnData
+      ! copy height data from TT to height slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
-         gz_column => col_getColumn(lcolumn,jobs,'GZ_T')
+         height_column => col_getColumn(lcolumn,jobs,'Z_T')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
          do jlev = 1,col_getNumLev(lcolumn,'TH')
-            gz_column(jlev)=tt_column(jlev)
+            height_column(jlev)=tt_column(jlev)
          enddo
       enddo
 
@@ -1506,15 +1506,15 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: ZDP(:)
       REAL*8, allocatable :: ZTT(:)
       REAL*8, allocatable :: ZHU(:)
-      REAL*8, allocatable :: ZGZ(:)
-      REAL*8, allocatable :: ZGZ2(:)
+      REAL*8, allocatable :: zHeight(:)
+      REAL*8, allocatable :: zHeight2(:)
       REAL*8, allocatable :: ZTTB(:)
       REAL*8, allocatable :: ZHUB(:)
       REAL*8, allocatable :: ZQQB(:)
       REAL*8, allocatable :: ZQQ(:)
       REAL*8, allocatable :: ZTTB_P(:)
       REAL*8, allocatable :: ZQQB_P(:)
-      REAL*8, allocatable :: ZGZ_P(:)
+      REAL*8, allocatable :: zHeight_P(:)
       REAL*8, allocatable :: RZHUB_P(:)
       REAL*8, allocatable :: ZPP_P(:)
       
@@ -1559,7 +1559,7 @@ end subroutine hbht_compute_ensemble
       allocate(ZDP(NFLEV_T))
       allocate(ZTT(NFLEV_T))
       allocate(ZHU(NFLEV_T))
-      allocate(ZGZ(NFLEV_T))
+      allocate(zHeight(NFLEV_T))
       allocate(ZTTB(NFLEV_T))
       allocate(ZHUB(NFLEV_T))
       allocate(ZQQB(NFLEV_T))
@@ -1644,13 +1644,13 @@ end subroutine hbht_compute_ensemble
                        ZQQB(JL) = ZHUB(JL)
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
                        DX(NFLEV_T+JL) = ZHU(JL)
-                       ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+                       zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
                        DX(2*NFLEV_T+JL) = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH')
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(3*NFLEV_T+1) = ZP0
-                     ZMT  = ZGZ(NFLEV_T)
-                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,ZGZ,LBEVIS,IREFOPT,PRF)
+                     ZMT  = zHeight(NFLEV_T)
+                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,LBEVIS,IREFOPT,PRF)
                      CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -1700,8 +1700,8 @@ end subroutine hbht_compute_ensemble
       
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
-      allocate(ZGZ2(NFLEV_T))
-      allocate(ZGZ_P(NFLEV_T))
+      allocate(zHeight2(NFLEV_T))
+      allocate(zHeight_P(NFLEV_T))
       allocate(ZPP_P(NFLEV_T))
 
       icount = 0
@@ -1741,16 +1741,16 @@ end subroutine hbht_compute_ensemble
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
             ZQQ(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU') * PERTFAC
-            ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
-            ZGZ2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
+            zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+            zHeight2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
-         ZMT  = ZGZ(NFLEV_T)
+         ZMT  = zHeight(NFLEV_T)
 
          DO JL = 1, NFLEV_T
              DX (      JL) = ZTT(JL)
              DX (NFLEV_T+JL) = ZQQ(JL)
-             DX (2*NFLEV_T+JL) = ZGZ2(JL)
+             DX (2*NFLEV_T+JL) = zHeight2(JL)
          ENDDO
          DX (3*NFLEV_T+1) = ZP0
 
@@ -1779,14 +1779,14 @@ end subroutine hbht_compute_ensemble
              ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
              ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
              ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
-             ZGZ_P(JL) = ZGZ(JL) + ZGZ2(JL)
+             zHeight_P(JL) = zHeight(JL) + zHeight2(JL)
            ENDDO
            ZP0B_P = ZP0B + ZP0
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,ZGZ,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,ZGZ_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,LBEVIS,IREFOPT,PRFP)
            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
@@ -1825,8 +1825,8 @@ end subroutine hbht_compute_ensemble
 
       deallocate(ZTTB_P)
       deallocate(ZQQB_P)
-      deallocate(ZGZ2)
-      deallocate(ZGZ_P)
+      deallocate(zHeight2)
+      deallocate(zHeight_P)
       deallocate(ZPP_P)
 
       ENDIF
@@ -1836,7 +1836,7 @@ end subroutine hbht_compute_ensemble
       deallocate(ZDP)
       deallocate(ZTT)
       deallocate(ZHU)
-      deallocate(ZGZ)
+      deallocate(zHeight)
       deallocate(ZTTB)
       deallocate(ZHUB)
       deallocate(ZQQB)

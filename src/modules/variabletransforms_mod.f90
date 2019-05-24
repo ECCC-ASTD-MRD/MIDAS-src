@@ -44,11 +44,11 @@ module variableTransforms_mod
   public :: vtr_setup, vtr_transform
 
   logical                   :: huTrialsInitialized  = .false.
-  logical                   :: gzTrialsInitialized  = .false.
+  logical                   :: heightTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv) :: statevector_trial_hu, statevector_trial_gz
+  type(struct_gsv) :: statevector_trial_hu, statevector_trial_height
 
   ! module interfaces
   interface vtr_transform
@@ -68,7 +68,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_in
     
     if (huTrialsInitialized) return
-    if (gzTrialsInitialized) return
+    if (heightTrialsInitialized) return
 
     write(*,*) 'vtr_setup: starting'
 
@@ -85,7 +85,7 @@ CONTAINS
   subroutine vtr_setupTrials(varName)
     implicit none
 
-    type(struct_gsv) :: statevector_noGZnoP
+    type(struct_gsv) :: statevector_noZnoP
     character(len=*), intent(in) :: varName
 
     select case ( trim(varName) )
@@ -93,42 +93,42 @@ CONTAINS
       ! initialize statevector_trial_hu on analysis grid
       call gsv_allocate(statevector_trial_hu, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
       call gsv_readTrials( statevector_trial_hu )  ! IN/OUT
 
       huTrialsInitialized = .true.
-    case ('GZ')
-      ! initialize statevector_trial_gz on analysis grid
-      call gsv_allocate(statevector_trial_gz, tim_nstepobsinc, hco_anl, vco_anl,   &
+    case ('height')
+      ! initialize statevector_trial_height on analysis grid
+      call gsv_allocate(statevector_trial_height, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/), allocGZ_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/), allocHeight_opt=.true., &
                         allocPressure_opt=.true.)
 
-      ! initialize statevector_noGZnoP on analysis grid
-      call gsv_allocate(statevector_noGZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
+      ! initialize statevector_noZnoP on analysis grid
+      call gsv_allocate(statevector_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/), allocGZ_opt=.false.,  &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/'TT','HU','P0'/), allocHeight_opt=.false.,  &
                         allocPressure_opt=.false.)
-      write(*,*) 'vtr_setupTrials: statevector_noGZnoP allocated'
+      write(*,*) 'vtr_setupTrials: statevector_noZnoP allocated'
 
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( statevector_noGZnoP )  ! IN/OUT
+      call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noGZnoP, statevector_trial_gz, allowMismatch_opt=.true. )
+      call gsv_copy( statevector_noZnoP, statevector_trial_height, allowMismatch_opt=.true. )
 
-      call gsv_deallocate(statevector_noGZnoP)
+      call gsv_deallocate(statevector_noZnoP)
 
-      ! do GZ/P calculation of the grid
-      call PsfcToP_nl( statevector_trial_gz )
-      call tt2phi( statevector_trial_gz )
+      ! do height/P calculation of the grid
+      call PsfcToP_nl( statevector_trial_height )
+      call tt2phi( statevector_trial_height )
 
-      gzTrialsInitialized = .true.
+      heightTrialsInitialized = .true.
     case default
       call utl_abort('vtr_setupTrials: unknown variable ='//trim(varName))
     end select
@@ -235,59 +235,59 @@ CONTAINS
         end if
         call LVIStoVIS(statevector)
       end if
-    case ('TTHUtoGZ_nl')
+    case ('TTHUtoHeight_nl')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable TT must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_nl, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable HU must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_nl, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable P0 must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_nl, variable P0 must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable GZ_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_nl, variable Z_T must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_nl, variable GZ_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_nl, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoGZ_nl(statevector)
+      call TTHUtoHeight_nl(statevector)
 
-    case ('TTHUtoGZ_tl')
+    case ('TTHUtoHeight_tl')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable TT must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_tl, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable HU must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_tl, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable P0 must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_tl, variable P0 must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_tl, variable Z_T must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_tl, variable GZ_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_tl, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoGZ_tl(statevector)
+      call TTHUtoHeight_tl(statevector)
 
-    case ('TTHUtoGZ_ad')
+    case ('TTHUtoHeight_ad')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable TT must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_ad, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable HU must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_ad, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable P0 must be allocated in gridstatevector')
+        call utl_abort('vtr_transform: for TTHUtoHeight_ad, variable P0 must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_T')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_T must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_T')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_ad, variable Z_T must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'GZ_M')  ) then
-        call utl_abort('vtr_transform: for TTHUtoGZ_ad, variable GZ_M must be allocated in gridstatevector')
+      if ( .not. gsv_varExist(statevector,'Z_M')  ) then
+        call utl_abort('vtr_transform: for TTHUtoHeight_ad, variable Z_M must be allocated in gridstatevector')
       end if
-      call TTHUtoGZ_ad(statevector)
+      call TTHUtoHeight_ad(statevector)
 
     case ('PsfcToP_nl')
       if ( .not. gsv_varExist(statevector,'P_T')  ) then
@@ -593,44 +593,44 @@ CONTAINS
 
   end subroutine LVIStoVIS
 
-  ! TTHUtoGZ_nl
+  ! TTHUtoHeight_nl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoGZ_nl(statevector)
+  subroutine TTHUtoHeight_nl(statevector)
     implicit none
 
     type(struct_gsv)    :: statevector
 
     call tt2phi(statevector)
 
-  end subroutine TTHUtoGZ_nl
+  end subroutine TTHUtoHeight_nl
 
   !--------------------------------------------------------------------------
-  ! TTHUtoGZ_tl
+  ! TTHUtoHeight_tl
   !--------------------------------------------------------------------------
-  subroutine TTHUtoGZ_tl(statevector)
+  subroutine TTHUtoHeight_tl(statevector)
     implicit none
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
+    if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call tt2phi_tl(statevector, statevector_trial_gz)
+    call tt2phi_tl(statevector, statevector_trial_height)
 
-  end subroutine TTHUtoGZ_tl
+  end subroutine TTHUtoHeight_tl
 
   !--------------------------------------------------------------------------
-  ! TTHUtoGZ_ad
+  ! TTHUtoHeight_ad
   !--------------------------------------------------------------------------
-  subroutine TTHUtoGZ_ad(statevector)
+  subroutine TTHUtoHeight_ad(statevector)
     implicit none
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
+    if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call tt2phi_ad(statevector,statevector_trial_gz)
+    call tt2phi_ad(statevector,statevector_trial_height)
 
-  end subroutine TTHUtoGZ_ad
+  end subroutine TTHUtoHeight_ad
 
   !--------------------------------------------------------------------------
   ! PsfcToP_nl
@@ -656,9 +656,9 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
+    if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call calcpressure_tl(statevector,statevector_trial_gz)
+    call calcpressure_tl(statevector,statevector_trial_height)
 
   end subroutine PsfcToP_tl
 
@@ -670,9 +670,9 @@ CONTAINS
 
     type(struct_gsv)    :: statevector
 
-    if ( .not. gztrialsInitialized ) call vtr_setupTrials('GZ')
+    if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call calcpressure_ad(statevector,statevector_trial_gz)
+    call calcpressure_ad(statevector,statevector_trial_height)
 
   end subroutine PsfcToP_ad
 

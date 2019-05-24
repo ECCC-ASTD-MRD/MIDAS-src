@@ -977,7 +977,7 @@ contains
     real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)
     integer, allocatable :: status(:)
-    real(8), pointer :: gz_mod(:)
+    real(8), pointer :: height_mod(:)
     
     ! Get combination lists to group diagnostics by
     call oss_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
@@ -1114,7 +1114,7 @@ contains
              ! Height coordinate
              
              nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
-             gz_mod => col_getColumn(columng,headerIndex,'GZ_T') ! geopotential
+             height_mod => col_getColumn(columng,headerIndex,'Z_T') ! geopotential
                 
              allocate(pres_mod(nlev_mod))
                
@@ -1122,9 +1122,9 @@ contains
                 pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
              end do
                
-             ! Convert altidudes to pressure, note that gz_mod/RG converts geopotential to geopotential height
+             ! Convert altidudes to pressure
              success = status.gt.0
-             lev = phf_convert_z_to_pressure(lev,gz_mod/RG,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
+             lev = phf_convert_z_to_pressure(lev,height_mod,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
 
              deallocate(pres_mod)
                 

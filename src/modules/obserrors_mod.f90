@@ -1520,7 +1520,7 @@ contains
     REAL*8, allocatable :: ZPP(:)
     REAL*8, allocatable :: ZTT(:)
     REAL*8, allocatable :: ZHU(:)
-    REAL*8, allocatable :: zALT(:)
+    REAL*8, allocatable :: zHeight(:)
     REAL*8, allocatable :: ZUU(:)
     REAL*8, allocatable :: ZVV(:)
     !
@@ -1547,7 +1547,7 @@ contains
     allocate(ZPP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
-    allocate(zALT (NGPSLEV))
+    allocate(zHeight (NGPSLEV))
     allocate(ZUU (NGPSLEV))
     allocate(ZVV (NGPSLEV))
     !
@@ -1617,7 +1617,7 @@ contains
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
-            zALT(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
+            zHeight(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
           end do
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
@@ -1641,7 +1641,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zALT,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,zUU,zVV,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -1781,7 +1781,7 @@ contains
     deallocate(zVV)
     deallocate(zUU)
     deallocate(zHU)
-    deallocate(zALT)
+    deallocate(zHeight)
     deallocate(zTT)
     deallocate(zPP)
 

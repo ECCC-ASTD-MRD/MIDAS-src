@@ -51,11 +51,21 @@ contains
 
     ! locals
     logical :: verbose = .true.
-    integer :: memberIndex, nEns, levIndex
+    integer :: memberIndex, nEns, levIndex, columnIndex, nlev_T, nlev_M  
     real(8) :: multFactor
     real(8), pointer :: column_ptr(:)
+    real(8), pointer :: height_T_ptr(:), height_M_ptr(:), P_T_ptr(:), P_M_ptr(:)
+    real(8), pointer :: height_T_mean_ptr(:), height_M_mean_ptr(:), P_T_mean_ptr(:), P_M_mean_ptr(:)
+    real(8), allocatable :: height_T_mean(:), height_M_mean(:), P_T_mean(:), P_M_mean(:)
 
     call tmg_start(146,'ENKF_COLSMEAN')
+
+    nlev_T = col_getNumLev(column_mean,'TH')
+    nlev_M = col_getNumLev(column_mean,'MM')
+    allocate(height_T_mean(nlev_T))
+    allocate(height_M_mean(nlev_M))
+    allocate(P_T_mean(nlev_T))
+    allocate(P_M_mean(nlev_M))
 
     nEns = size(columns)
     multFactor = 1.0d0 / real(nEns,8)
@@ -63,29 +73,50 @@ contains
 
     call col_zero(column_mean)
 
-    do memberIndex = 1, nEns
+    do columnIndex = 1, col_getNumCol(column_mean)
 
-        column_mean%all(:,:) = column_mean%all(:,:) +  &
-                               multFactor * columns(memberIndex)%all(:,:)
+      height_T_mean(:) = 0.0d0
+      height_M_mean(:) = 0.0d0
+      P_T_mean(:) = 0.0d0
+      P_M_mean(:) = 0.0d0
 
-        column_mean%GZ_T(:,:) = column_mean%GZ_T(:,:) +  &
-                                multFactor * columns(memberIndex)%GZ_T(:,:)
-        column_mean%GZ_M(:,:) = column_mean%GZ_M(:,:) +  &
-                                multFactor * columns(memberIndex)%GZ_M(:,:)
-        column_mean%gz_sfc(:,:) = column_mean%gz_sfc(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_sfc(:,:)
+      do memberIndex = 1, nEns
 
-        column_mean%P_T(:,:) = column_mean%P_T(:,:) +  &
-                                      multFactor * columns(memberIndex)%P_T(:,:)
-        column_mean%P_M(:,:) = column_mean%P_M(:,:) +  &
-                                      multFactor * columns(memberIndex)%P_M(:,:)
+        if ( columnIndex == 1 ) column_mean%all(:,:) = column_mean%all(:,:) +  multFactor * columns(memberIndex)%all(:,:)
 
-        column_mean%dP_dPsfc_T(:,:) = column_mean%dP_dPsfc_T(:,:) +  &
-                                      multFactor * columns(memberIndex)%dP_dPsfc_T(:,:)
-        column_mean%dP_dPsfc_M(:,:) = column_mean%dP_dPsfc_M(:,:) +  &
-                                      multFactor * columns(memberIndex)%dP_dPsfc_M(:,:)
+        height_T_ptr => col_getColumn(columns(memberIndex),columnIndex,'Z_T')
+        height_T_mean(:) = height_T_mean(:) + multFactor * height_T_ptr(:)
+
+        height_M_ptr => col_getColumn(columns(memberIndex),columnIndex,'Z_M')
+        height_M_mean(:) = height_M_mean(:) + multFactor * height_M_ptr(:)
+
+        P_T_ptr => col_getColumn(columns(memberIndex),columnIndex,'P_T')
+        P_T_mean(:) = P_T_mean(:) + multFactor * P_T_ptr(:)
+
+        P_M_ptr => col_getColumn(columns(memberIndex),columnIndex,'P_M')
+        P_M_mean(:) = P_M_mean(:) + multFactor * P_M_ptr(:)
+
+      end do
+
+      height_T_mean_ptr => col_getColumn(column_mean,columnIndex,'Z_T')
+      height_T_mean_ptr(:) = height_T_mean(:)
+
+      height_M_mean_ptr => col_getColumn(column_mean,columnIndex,'Z_M')
+      height_M_mean_ptr(:) = height_M_mean(:)
+
+      P_T_mean_ptr => col_getColumn(column_mean,columnIndex,'P_T')
+      P_T_mean_ptr(:) = P_T_mean(:)
+
+      P_M_mean_ptr => col_getColumn(column_mean,columnIndex,'P_M')
+      P_M_mean_ptr(:) = P_M_mean(:)
 
     end do
+
+! CORRECT THIS
+!column_mean%dP_dPsfc_T(:,:) = column_mean%dP_dPsfc_T(:,:) +  &
+!                              multFactor * columns(memberIndex)%dP_dPsfc_T(:,:)
+!column_mean%dP_dPsfc_M(:,:) = column_mean%dP_dPsfc_M(:,:) +  &
+!                              multFactor * columns(memberIndex)%dP_dPsfc_M(:,:)
 
     !if (col_varExist('P0')) then
     !  call col_calcPressure(column_mean)
@@ -118,6 +149,11 @@ contains
       end do
     end if
 
+    deallocate(P_M_mean)
+    deallocate(P_T_mean)
+    deallocate(height_M_mean)
+    deallocate(height_T_mean)
+
     call tmg_stop(146)
 
   end subroutine enkf_computeColumnsMean
@@ -131,8 +167,10 @@ contains
 
     ! locals
     logical :: verbose = .true.
-    integer :: memberIndex, nEns, levIndex
+    integer :: memberIndex, nEns, levIndex, columnIndex, nlev_T, nlev_M
     real(8), pointer :: column_ptr(:)
+    real(8), pointer :: height_T_ptr(:), height_M_ptr(:), P_T_ptr(:), P_M_ptr(:)
+    real(8), pointer :: height_T_mean_ptr(:), height_M_mean_ptr(:), P_T_mean_ptr(:), P_M_mean_ptr(:)
 
     call tmg_start(147,'ENKF_COLSPERTS')
 
@@ -142,20 +180,30 @@ contains
     !
     ! Remove ensemble mean from all variables, except: gz_sfc, dP_dPsfc_T/M, oltv
     !
-    do memberIndex = 1, nEns
+    do columnIndex = 1, col_getNumCol(column_mean)
 
-        columns(memberIndex)%all(:,:) = columns(memberIndex)%all(:,:) -  &
-                                        column_mean%all(:,:)
+      height_T_mean_ptr => col_getColumn(column_mean,columnIndex,'Z_T')
+      height_M_mean_ptr => col_getColumn(column_mean,columnIndex,'Z_M')
+      P_T_mean_ptr => col_getColumn(column_mean,columnIndex,'P_T')
+      P_M_mean_ptr => col_getColumn(column_mean,columnIndex,'P_M')
 
-        columns(memberIndex)%GZ_T(:,:) = columns(memberIndex)%GZ_T(:,:) -  &
-                                         column_mean%GZ_T(:,:)
-        columns(memberIndex)%GZ_M(:,:) = columns(memberIndex)%GZ_M(:,:) -  &
-                                         column_mean%GZ_M(:,:)
+      do memberIndex = 1, nEns
 
-        columns(memberIndex)%P_T(:,:) = columns(memberIndex)%P_T(:,:) -  &
-                                        column_mean%P_T(:,:)
-        columns(memberIndex)%P_M(:,:) = columns(memberIndex)%P_M(:,:) -  &
-                                      column_mean%P_M(:,:)
+        if ( columnIndex == 1 ) columns(memberIndex)%all(:,:) = columns(memberIndex)%all(:,:) - column_mean%all(:,:)
+
+        height_T_ptr => col_getColumn(columns(memberIndex),columnIndex,'Z_T')
+        height_T_ptr(:) = height_T_ptr(:) - height_T_mean_ptr(:)
+
+        height_M_ptr => col_getColumn(columns(memberIndex),columnIndex,'Z_M')
+        height_M_ptr(:) = height_M_ptr(:) - height_M_mean_ptr(:)
+
+        P_T_ptr => col_getColumn(columns(memberIndex),columnIndex,'P_T')
+        P_T_ptr(:) = P_T_ptr(:) - P_T_mean_ptr(:)
+
+        P_M_ptr => col_getColumn(columns(memberIndex),columnIndex,'P_M')
+        P_M_ptr(:) = P_M_ptr(:) - P_M_mean_ptr(:)
+
+      end do
 
     end do
 

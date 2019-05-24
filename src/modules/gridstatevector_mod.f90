@@ -48,9 +48,9 @@ module gridStateVector_mod
   public :: gsv_transposeTilesToStep
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd, gsv_transposeVarsLevsToTiles
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
-  public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getGZsfc
+  public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyGZsfc
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyHeightSfc
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -70,8 +70,8 @@ module gridStateVector_mod
     real(8), pointer    :: gd3d_r8(:,:,:) => null()
     real(4), pointer    :: gd_r4(:,:,:,:) => null()
     real(4), pointer    :: gd3d_r4(:,:,:) => null()
-    logical             :: gzSfcPresent = .false.
-    real(8), pointer    :: gzSfc(:,:) => null()  ! surface GZ, if VarsLevs then only on proc 0
+    logical             :: heightSfcPresent = .false.
+    real(8), pointer    :: HeightSfc(:,:) => null()  ! surface height, if VarsLevs then only on proc 0
     ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.  ! a wind component is present on this mpi task
@@ -99,14 +99,14 @@ module gridStateVector_mod
     integer             :: horizSubSample
     logical             :: varExistList(vnl_numVarMax)
     character(len=12)   :: hInterpolateDegree='UNSPECIFIED' ! or 'LINEAR' or 'CUBIC' or 'NEAREST'
-    logical             :: addGZsfcOffset = .false.
+    logical             :: addHeightSfcOffset = .false.
   end type struct_gsv  
 
   logical :: varExistList(vnl_numVarMax)
   character(len=8) :: ANLTIME_BIN
   integer, external :: get_max_rss
   real(8) :: rhumin, gsv_rhumin
-  logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
+  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
   ! Logical to turn on unit conversion for variables of CH kind when unitConversion=.true.
   logical :: unitConversion_varKindCH
@@ -355,8 +355,8 @@ module gridStateVector_mod
     implicit none
     integer :: varIndex, fnom, fclos, nulnam, ierr
     CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
-    logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
-    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset,unitConversion_varKindCH
+    logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
+    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,unitConversion_varKindCH
 
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -367,7 +367,7 @@ module gridStateVector_mod
     ANLVAR(1:vnl_numvarmax) = '    '
     ANLTIME_BIN = 'MIDDLE'
     rhumin = MPC_MINIMUM_HU_R8
-    AddGZSfcOffset = .false.
+    addHeightSfcOffset = .false.
     unitConversion_varKindCH = .false.
 
     nulnam=0
@@ -379,7 +379,7 @@ module gridStateVector_mod
 
     gsv_rhumin = rhumin
 
-    if (varneed('GZ_T') .or. varneed('GZ_M')) call utl_abort('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
+    if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can no longer be included as a variable in gridStateVector!')
 
     do varIndex = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(varIndex))) then
@@ -430,8 +430,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp_opt, dateStampList_opt,  &
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
-                          varNames_opt, dataKind_opt, allocGZsfc_opt, hInterpolateDegree_opt,        &
-                          allocGZ_opt, allocPressure_opt, beSilent_opt)
+                          varNames_opt, dataKind_opt, allocHeightSfc_opt, hInterpolateDegree_opt,        &
+                          allocHeight_opt, allocPressure_opt, beSilent_opt)
     implicit none
 
     ! arguments
@@ -446,7 +446,7 @@ module gridStateVector_mod
     integer, optional          :: horizSubSample_opt
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional          :: dataKind_opt
-    logical, optional          :: allocGZsfc_opt,allocGZ_opt,allocPressure_opt,beSilent_opt
+    logical, optional          :: allocHeightSfc_opt,allocHeight_opt,allocPressure_opt,beSilent_opt
     character(len=*), optional :: hInterpolateDegree_opt
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
@@ -491,11 +491,11 @@ module gridStateVector_mod
       statevector%varExistList(:) = varExistList(:)
     end if
 
-    ! add GZ_T/GZ_M and P_T/P_M to the varExistList
-    if ( present(allocGZ_opt) ) then
-      if ( allocGZ_opt ) then
-        statevector%varExistList(vnl_varListIndex('GZ_T')) = .true.
-        statevector%varExistList(vnl_varListIndex('GZ_M')) = .true.
+    ! add Z_T/Z_M and P_T/P_M to the varExistList
+    if ( present(allocHeight_opt) ) then
+      if ( allocHeight_opt ) then
+        statevector%varExistList(vnl_varListIndex('Z_T')) = .true.
+        statevector%varExistList(vnl_varListIndex('Z_M')) = .true.
       end if
     end if
     if ( present(allocPressure_opt) ) then
@@ -593,8 +593,8 @@ module gridStateVector_mod
 
       do varIndex2 = 1, size(varNames_opt)
 
-        if ( present(allocGZ_opt) ) then
-          if ( (trim(varNames_opt(varIndex2)) == 'GZ_T' .or. trim(varNames_opt(varIndex2)) == 'GZ_M' ) .and. allocGZ_opt ) call utl_abort('gsv_allocate: GZ_T/GZ_M is in varNames_opt and allocGZ_opt should be false!')
+        if ( present(allocHeight_opt) ) then
+          if ( (trim(varNames_opt(varIndex2)) == 'Z_T' .or. trim(varNames_opt(varIndex2)) == 'Z_M' ) .and. allocHeight_opt ) call utl_abort('gsv_allocate: Z_T/Z_M is in varNames_opt and allocHeight_opt should be false!')
         end if
 
         if ( present(allocPressure_opt) ) then
@@ -603,14 +603,14 @@ module gridStateVector_mod
 
       end do
 
-      if ( present(allocGZ_opt) ) then
-        if ( allocGZ_opt ) then
-          varIndex = vnl_varListIndex('GZ_T')
+      if ( present(allocHeight_opt) ) then
+        if ( allocHeight_opt ) then
+          varIndex = vnl_varListIndex('Z_T')
           statevector%varOffset(varIndex)=iloc
           statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
           iloc = iloc + statevector%varNumLev(varIndex)
 
-          varIndex = vnl_varListIndex('GZ_M')
+          varIndex = vnl_varListIndex('Z_M')
           statevector%varOffset(varIndex)=iloc
           statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
           iloc = iloc + statevector%varNumLev(varIndex)
@@ -823,16 +823,16 @@ module gridStateVector_mod
       call utl_abort('gsv_allocate')
     end if
 
-    if ( present(allocGZsfc_opt) ) then
-      if ( allocGZsfc_opt ) then
-        ! if VarsLevs, then only proc 0 allocates surface GZ, otherwise all procs do
-        statevector%gzSfcPresent = .true.
+    if ( present(allocHeightSfc_opt) ) then
+      if ( allocHeightSfc_opt ) then
+        ! if VarsLevs, then only proc 0 allocates surface height, otherwise all procs do
+        statevector%heightSfcPresent = .true.
         if ( ( statevector%mpi_distribution == 'VarsLevs' .and. mpi_myid == 0 ) .or. &
              statevector%mpi_distribution /= 'VarsLevs' ) then
-          write(*,*) 'gsv_allocate: allocating gzSfc on this mpi task'
-          allocate(statevector%gzSfc(statevector%myLonBeg:statevector%myLonEnd,  &
+          write(*,*) 'gsv_allocate: allocating HeightSfc on this mpi task'
+          allocate(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd))
-          statevector%gzSfc(:,:) = 0.0d0
+          statevector%HeightSfc(:,:) = 0.0d0
         end if
       end if
     end if
@@ -846,7 +846,7 @@ module gridStateVector_mod
       statevector%gd3d_r4(lon1:,lat1:,k1:) => statevector%gd_r4(:,:,:,statevector%anltime)
     end if
 
-    statevector%addGZsfcOffset = addGZsfcOffset
+    statevector%addHeightSfcOffset = addHeightSfcOffset
 
     statevector%allocated=.true.
 
@@ -952,7 +952,7 @@ module gridStateVector_mod
     k1UV = statevector%myUVkBeg
     k2UV = statevector%myUVkEnd
 
-    if ( associated(statevector%gzSfc) ) statevector%gzSfc(:,:) = 0.0d0
+    if ( associated(statevector%HeightSfc) ) statevector%HeightSfc(:,:) = 0.0d0
 
     if ( statevector%dataKind == 8 ) then
 
@@ -1051,7 +1051,7 @@ module gridStateVector_mod
                       statevector_inout%hco, statevector_inout%vco,                             &
                       mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                       dataKind_opt=statevector_inout%dataKind,                                  &
-                      allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
+                      allocHeightSfc_opt=statevector_inout%heightSfcPresent,                            &
                       varNames_opt=varNamesToInterpolate,                                       &
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree )
 
@@ -1104,7 +1104,7 @@ module gridStateVector_mod
                       statevector_in%hco, statevector_in%vco,          &
                       mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=statevector_in%dataKind,                                     &
-                      allocGZsfc_opt=statevector_in%gzSfcPresent, &
+                      allocHeightSfc_opt=statevector_in%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
@@ -1114,7 +1114,7 @@ module gridStateVector_mod
                       statevector_out%hco, statevector_in%vco,  &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
                       dataKind_opt=statevector_out%dataKind,                                    &
-                      allocGZsfc_opt=statevector_out%gzSfcPresent, &
+                      allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
@@ -1129,7 +1129,7 @@ module gridStateVector_mod
                       statevector_out%hco, statevector_in%vco,      &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=statevector_out%dataKind,                                 &
-                      allocGZsfc_opt=statevector_out%gzSfcPresent, &
+                      allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate )
 
     call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
@@ -1394,8 +1394,8 @@ module gridStateVector_mod
       step2 = statevector_out%numStep
     end if
 
-    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
@@ -1590,30 +1590,30 @@ module gridStateVector_mod
   end subroutine gsv_copy
 
   !--------------------------------------------------------------------------
-  ! gsv_copyGZsfc
+  ! gsv_copyHeightSfc
   !--------------------------------------------------------------------------
-  subroutine gsv_copyGZsfc(statevector_in,statevector_out)
+  subroutine gsv_copyHeightSfc(statevector_in,statevector_out)
     implicit none
     ! arguments
     type(struct_gsv)  :: statevector_in, statevector_out
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copyGZsfc: gridStateVector_in not yet allocated')
+      call utl_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copyGZsfc: gridStateVector_out not yet allocated')
+      call utl_abort('gsv_copyHeightSfc: gridStateVector_out not yet allocated')
     end if
 
-    if ( .not. associated(statevector_in%gzSfc)) then
-      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_in not allocated')
+    if ( .not. associated(statevector_in%HeightSfc)) then
+      call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_in not allocated')
     end if
-    if ( .not. associated(statevector_out%gzSfc)) then
-      call utl_abort('gsv_copyGZsfc: GZsfc in gridStateVector_out not allocated')
+    if ( .not. associated(statevector_out%HeightSfc)) then
+      call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_out not allocated')
     end if
 
-    statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
 
-  end subroutine gsv_copyGZsfc
+  end subroutine gsv_copyHeightSfc
 
   !--------------------------------------------------------------------------
   ! gsv_hPad
@@ -1657,9 +1657,9 @@ module gridStateVector_mod
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
-      if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-        statevector_out%gzSfc(:,:) = 0.d0
-        statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
+      if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+        statevector_out%HeightSfc(:,:) = 0.d0
+        statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%HeightSfc(:,:)
       end if
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,paddingValue_r8)    
@@ -1682,9 +1682,9 @@ module gridStateVector_mod
 
     else if ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
-      if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-        statevector_out%gzSfc(:,:) = 0.0
-        statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
+      if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+        statevector_out%HeightSfc(:,:) = 0.0
+        statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%HeightSfc(:,:)
       end if
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,paddingValue_r4)    
@@ -2091,10 +2091,10 @@ module gridStateVector_mod
       write(*,*) 'gsv_deallocate: Problem detected. IERR =',ierr
     end if
 
-    statevector%gzSfcPresent = .false.
-    if ( associated(statevector%gzSfc) ) then
-      deallocate(statevector%gzSfc)
-      nullify(statevector%gzSfc)
+    statevector%heightSfcPresent = .false.
+    if ( associated(statevector%HeightSfc) ) then
+      deallocate(statevector%HeightSfc)
+      nullify(statevector%HeightSfc)
     end if
 
     if ( associated(statevector%dateStampList) ) then
@@ -2297,9 +2297,9 @@ module gridStateVector_mod
   end function gsv_getFieldUV_r4
 
   !--------------------------------------------------------------------------
-  ! gsv_getGZsfc
+  ! gsv_getHeightSfc
   !--------------------------------------------------------------------------
-  function gsv_getGZsfc(statevector) result(field)
+  function gsv_getHeightSfc(statevector) result(field)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     real(8),pointer                        :: field(:,:)
@@ -2308,15 +2308,15 @@ module gridStateVector_mod
     lon1 = statevector%myLonBeg
     lat1 = statevector%myLatBeg
 
-    if ( .not. statevector%gzSfcPresent ) call utl_abort('gsv_getGZsfc: data not allocated')
+    if ( .not. statevector%heightSfcPresent ) call utl_abort('gsv_getHeightSfc: data not allocated')
 
-    if ( associated(statevector%gzSfc) ) then
-      field(lon1:,lat1:) => statevector%gzSfc(:,:)
+    if ( associated(statevector%HeightSfc) ) then
+      field(lon1:,lat1:) => statevector%HeightSfc(:,:)
     else
       nullify(field)
     end if
 
-  end function gsv_getGZsfc
+  end function gsv_getHeightSfc
 
   !--------------------------------------------------------------------------
   ! gsv_getDateStamp
@@ -2396,7 +2396,7 @@ module gridStateVector_mod
   ! gsv_readFromFile
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
-                              unitConversion_opt, PsfcReference_opt, readGZsfc_opt,   &
+                              unitConversion_opt, PsfcReference_opt, readHeightSfc_opt,   &
                               containsFullField_opt)
     implicit none
 
@@ -2407,7 +2407,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: typvar_in
     integer, optional             :: stepIndex_opt
     logical, optional             :: unitConversion_opt
-    logical, optional             :: readGZsfc_opt
+    logical, optional             :: readHeightSfc_opt
     logical, optional,intent(in)  :: containsFullField_opt
     real(8), optional             :: PsfcReference_opt(:,:)
 
@@ -2415,7 +2415,7 @@ module gridStateVector_mod
     integer :: stepIndex, varIndex
     character(len=4) :: varName
     logical :: doHorizInterp, doVertInterp, unitConversion
-    logical :: readGZsfc, readSubsetOfLevels, containsFullField
+    logical :: readHeightSfc, readSubsetOfLevels, containsFullField
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile 
@@ -2449,10 +2449,10 @@ module gridStateVector_mod
     end if
     write(*,*) 'gsv_readFromFile: containsFullField = ', containsFullField
 
-    if ( present(readGZsfc_opt) ) then
-      readGZsfc = readGZsfc_opt
+    if ( present(readHeightSfc_opt) ) then
+      readHeightSfc = readHeightSfc_opt
     else
-      readGZsfc = .false.
+      readHeightSfc = .false.
     end if
 
     ! set up vertical and horizontal coordinate for input file
@@ -2503,19 +2503,19 @@ module gridStateVector_mod
     if ( (doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles' ) then
       call gsv_readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField, PsfcReference_opt)
+             readHeightSfc, containsFullField, PsfcReference_opt)
     else if ( (doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local ) then
       call gsv_readFromFileAndInterp1proc(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField)
+             readHeightSfc, containsFullField)
     else if ( .not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local ) then
       call gsv_readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField)
+             readHeightSfc, containsFullField)
     else
       call gsv_readFromFileOnly(statevector_out, fileName,  &
                                 etiket_in, typvar_in, stepIndex, unitConversion,  &
-                                readGZsfc, containsFullField)
+                                readHeightSfc, containsFullField)
     end if
 
     call tmg_stop(7)
@@ -2529,7 +2529,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField, PsfcReference_opt)
+             readHeightSfc, containsFullField, PsfcReference_opt)
     implicit none
     ! Note this routine currently only works correctly for reading FULL FIELDS,
     ! not increments or perturbations... because of the HU -> LQ conversion
@@ -2543,7 +2543,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: typvar_in
     integer                       :: stepIndex
     logical                       :: unitConversion
-    logical                       :: readGZsfc
+    logical                       :: readHeightSfc
     logical                       :: containsFullField
     real(8), optional             :: PsfcReference_opt(:,:)
 
@@ -2574,12 +2574,12 @@ module gridStateVector_mod
     call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,             &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
-                      dataKind_opt=4, allocGZsfc_opt=readGZsfc,               &
+                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,               &
                       varNames_opt=varNamesToRead,                            &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readGZsfc_opt=readGZsfc)
+                      containsFullField, readHeightSfc_opt=readHeightSfc)
 
     !-- 2.0 Horizontal Interpolation
 
@@ -2587,7 +2587,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex),   &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',    &
-                      dataKind_opt=4, allocGZsfc_opt=readGZsfc,                 &
+                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,                 &
                       varNames_opt=varNamesToRead,                              &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
 
@@ -2607,7 +2607,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file,    &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
-                      dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
+                      dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
                       varNames_opt=varNamesToRead )
 
     call gsv_transposeVarsLevsToTiles(statevector_hinterp_r4, statevector_tiles)
@@ -2620,7 +2620,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8, &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead )
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead )
 
     if (present(PsfcReference_opt) ) then
       allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
@@ -2649,7 +2649,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField)
+             readHeightSfc, containsFullField)
     implicit none
     ! Note this routine currently only works correctly for reading FULL FIELDS,
     ! not increments or perturbations... because of the HU -> LQ conversion
@@ -2661,7 +2661,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: typvar_in
     integer                       :: stepIndex
     logical                       :: unitConversion
-    logical                       :: readGZsfc
+    logical                       :: readHeightSfc
     logical                       :: containsFullField
 
     ! locals
@@ -2690,11 +2690,11 @@ module gridStateVector_mod
     call gsv_allocate(statevector_file_r4, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex),           &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',            &
-                      dataKind_opt=4, allocGZsfc_opt=readGZsfc,                         &
+                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,                         &
                       varNames_opt=varNamesToRead )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readGZsfc_opt=readGZsfc)
+                      containsFullField, readHeightSfc_opt=readHeightSfc)
 
     !-- 2.0 Unit conversion
     if ( unitConversion ) then
@@ -2705,7 +2705,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
-                      dataKind_opt=8, allocGZsfc_opt=readGZsfc,               &
+                      dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
                       varNames_opt=varNamesToRead)
 
     call gsv_transposeVarsLevsToTiles(statevector_file_r4, statevector_tiles)
@@ -2725,7 +2725,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFileAndInterp1Proc(statevector_out_r4, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField)
+             readHeightSfc, containsFullField)
     implicit none
 
     ! arguments
@@ -2737,7 +2737,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: typvar_in
     integer                       :: stepIndex
     logical                       :: unitConversion
-    logical                       :: readGZsfc
+    logical                       :: readHeightSfc
     logical                       :: containsFullField
 
     ! locals
@@ -2765,11 +2765,11 @@ module gridStateVector_mod
     call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                &
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex), &
                       mpi_local_opt=.false., dataKind_opt=4,                     &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,     &
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead,     &
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readGZsfc_opt=readGZsfc)
+                      containsFullField, readHeightSfc_opt=readHeightSfc)
 
     !-- 2.0 Horizontal Interpolation
 
@@ -2777,7 +2777,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file, &
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),   &
                       mpi_local_opt=.false., dataKind_opt=4,                       &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead,       &
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead,       &
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
@@ -2796,7 +2796,7 @@ module gridStateVector_mod
     call gsv_allocate(statevector_vinterp_r4, 1, statevector_out_r4%hco, statevector_out_r4%vco, &
                       dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),                 &
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
-                      allocGZsfc_opt=readGZsfc, varNames_opt=varNamesToRead)
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead)
 
     call gsv_vInterpolate_r4(statevector_hinterp_r4,statevector_vinterp_r4)
 
@@ -2817,7 +2817,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFileOnly(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readGZsfc, containsFullField)
+             readHeightSfc, containsFullField)
     implicit none
 
     ! arguments
@@ -2827,7 +2827,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: typvar_in
     integer                       :: stepIndex
     logical                       :: unitConversion
-    logical                       :: readGZsfc
+    logical                       :: readHeightSfc
     logical                       :: containsFullField
 
     write(*,*) ''
@@ -2838,7 +2838,7 @@ module gridStateVector_mod
     end if
 
     call gsv_readFile( statevector_out, filename, etiket_in, typvar_in,  &
-                       containsFullField, readGZsfc_opt=readGZsfc, stepIndex_opt=stepIndex )
+                       containsFullField, readHeightSfc_opt=readHeightSfc, stepIndex_opt=stepIndex )
 
     if ( unitConversion ) then
       call gsv_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
@@ -2852,7 +2852,7 @@ module gridStateVector_mod
   ! gsv_readFile
   !--------------------------------------------------------------------------
   subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, &
-                          containsFullField, readGZsfc_opt, stepIndex_opt)
+                          containsFullField, readHeightSfc_opt, stepIndex_opt)
     implicit none
 
     ! arguments
@@ -2860,7 +2860,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: fileName
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
-    logical, optional, intent(in) :: readGZsfc_opt
+    logical, optional, intent(in) :: readHeightSfc_opt
     integer, optional, intent(in) :: stepIndex_opt
     logical, intent(in)           :: containsFullField
 
@@ -2924,10 +2924,10 @@ module gridStateVector_mod
       call utl_abort('gsv_readFile: unit number for input file not valid')
     end if
 
-    ! Read surface GZ if requested
-    if ( present(readGZsfc_opt) ) then
-      if ( readGZsfc_opt .and. associated( statevector%GZsfc ) ) then
-        write(*,*) 'gsv_readFile: reading the surface GZ'
+    ! Read surface height if requested
+    if ( present(readHeightSfc_opt) ) then
+      if ( readHeightSfc_opt .and. associated( statevector%HeightSfc ) ) then
+        write(*,*) 'gsv_readFile: reading the surface height'
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
         typvar_var = typvar_in
@@ -2945,14 +2945,14 @@ module gridStateVector_mod
           if ( ikey < 0 ) then
             write(*,*) 'gsv_readFile: etiket_in = ',etiket_in
             write(*,*) 'gsv_readFile: typvar_in = ',typvar_in
-            call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
+            call utl_abort('gsv_readFile: Problem with reading surface height from file')
           end if
         end if
 
         if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
           write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
-          call utl_abort('gsv_readFile: Dimensions of surface GZ not consistent')
+          call utl_abort('gsv_readFile: Dimensions of surface height not consistent')
         end if
 
         allocate(gd2d_file_r4(ni_file,nj_file))
@@ -2964,9 +2964,9 @@ module gridStateVector_mod
           write(*,*) 'ip1 = ',ip1
           write(*,*) 'etiket_in = ',etiket_in
           write(*,*) 'typvar_var = ',typvar_var
-          call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
+          call utl_abort('gsv_readFile: Problem with reading surface height from file')
         end if
-        statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0
+        statevector%HeightSfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -3020,7 +3020,7 @@ module gridStateVector_mod
           select case (trim(varName))
           case ('LVIS')
             varNameToRead = 'VIS'
-          case ('GZ_T','GZ_M','P_T','P_M')
+          case ('Z_T','Z_M','P_T','P_M')
             cycle k_loop
           case default
             call utl_abort('gsv_readFile: variable '//trim(varName)//' was not found in '//trim(fileName))
@@ -3234,8 +3234,8 @@ module gridStateVector_mod
     integer, allocatable :: displs(:), nsizes(:)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), allocatable :: gd_send_GZ(:,:,:), gd_recv_GZ(:,:)
-    real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
+    real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
+    real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
 
     if ( statevector_in%mpi_distribution /= 'VarsLevs' ) then
       call utl_abort('gsv_transposeVarsLevsToTiles: input statevector must have VarsLevs mpi distribution') 
@@ -3399,22 +3399,22 @@ module gridStateVector_mod
 
     end do ! stepIndex
 
-    if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
-      allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
-      gd_send_GZ(:,:,:) = 0.0d0
-      gd_recv_GZ(:,:) = 0.0d0
-      field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
-      field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
+    if ( statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent ) then
+      allocate(gd_send_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
+      allocate(gd_recv_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
+      gd_send_height(:,:,:) = 0.0d0
+      gd_recv_height(:,:) = 0.0d0
+      field_height_in_ptr => gsv_getHeightSfc(statevector_in)
+      field_height_out_ptr => gsv_getHeightSfc(statevector_out)
 
       if ( mpi_myid == 0 ) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
-            gd_send_GZ(1:statevector_out%allLonPerPE(youridx+1),  &
+            gd_send_height(1:statevector_out%allLonPerPE(youridx+1),  &
                        1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
-              field_GZ_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+              field_height_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
           end do
         end do
@@ -3428,19 +3428,19 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_GZ, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_GZ, nsize, 'mpi_double_precision', &
+      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
+                             gd_recv_height, nsize, 'mpi_double_precision', &
                              0, 'grid', ierr)
 
-      field_GZ_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+      field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
-        gd_recv_GZ(1:statevector_out%lonPerPE,  &
+        gd_recv_height(1:statevector_out%lonPerPE,  &
                    1:statevector_out%latPerPE)
 
       deallocate(displs)
       deallocate(nsizes)
-      deallocate(gd_recv_GZ)
-      deallocate(gd_send_GZ)
+      deallocate(gd_recv_height)
+      deallocate(gd_send_height)
     end if
 
   end subroutine gsv_transposeVarsLevsToTiles
@@ -3464,8 +3464,8 @@ module gridStateVector_mod
     integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_out%nk)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
-    real(8), allocatable :: gd_send_GZ(:,:),gd_recv_GZ(:,:,:)
+    real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
+    real(8), allocatable :: gd_send_height(:,:),gd_recv_height(:,:,:)
     real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
     real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
 
@@ -3725,37 +3725,37 @@ module gridStateVector_mod
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! gather up surface GZ onto task 0
-    if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_send_GZ(statevector_in%lonPerPEmax,statevector_in%latPerPEmax))
-      allocate(gd_recv_GZ(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,mpi_nprocs))
-      field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
-      field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
+    ! gather up surface height onto task 0
+    if ( statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent ) then
+      allocate(gd_send_height(statevector_in%lonPerPEmax,statevector_in%latPerPEmax))
+      allocate(gd_recv_height(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,mpi_nprocs))
+      field_height_in_ptr => gsv_getHeightSfc(statevector_in)
+      field_height_out_ptr => gsv_getHeightSfc(statevector_out)
 
-      gd_send_GZ(:,:) = 0.0D0
-      gd_send_GZ(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_GZ_in_ptr(:,:)
+      gd_send_height(:,:) = 0.0D0
+      gd_send_height(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_height_in_ptr(:,:)
 
       nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
-      call rpn_comm_gather(gd_send_GZ, nsize, 'mpi_double_precision',  &
-                           gd_recv_GZ, nsize, 'mpi_double_precision', 0, 'grid', ierr )
+      call rpn_comm_gather(gd_send_height, nsize, 'mpi_double_precision',  &
+                           gd_recv_height, nsize, 'mpi_double_precision', 0, 'grid', ierr )
 
       if ( mpi_myid == 0 ) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
-            field_GZ_out_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
+            field_height_out_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                              statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1)) = &
-                gd_recv_GZ(1:statevector_in%allLonPerPE(youridx+1),  &
+                gd_recv_height(1:statevector_in%allLonPerPE(youridx+1),  &
                            1:statevector_in%allLatPerPE(youridy+1), yourid+1)
           end do
         end do
         !$OMP END PARALLEL DO
       end if
 
-      deallocate(gd_send_GZ)
-      deallocate(gd_recv_GZ)
-    end if ! gzSfcPresent
+      deallocate(gd_send_height)
+      deallocate(gd_recv_height)
+    end if ! heightSfcPresent
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_transposeTilesToVarsLevs: END'
@@ -3788,8 +3788,8 @@ module gridStateVector_mod
     integer, allocatable :: displs(:), nsizes(:)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), allocatable :: gd_send_GZ(:,:,:), gd_recv_GZ(:,:)
-    real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
+    real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
+    real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
 
     call tmg_start(154,'gsv_tilesToVarsLevsAD')
@@ -4045,23 +4045,23 @@ module gridStateVector_mod
 
     end do ! stepIndex
 
-    ! scatter surface GZ from task 0 to all others, 1 tile per task
-    if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
-      allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
-      gd_send_GZ(:,:,:) = 0.0d0
-      gd_recv_GZ(:,:) = 0.0d0
-      field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
-      field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
+    ! scatter surface height from task 0 to all others, 1 tile per task
+    if ( statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent ) then
+      allocate(gd_send_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
+      allocate(gd_recv_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
+      gd_send_height(:,:,:) = 0.0d0
+      gd_recv_height(:,:) = 0.0d0
+      field_height_in_ptr => gsv_getHeightSfc(statevector_in)
+      field_height_out_ptr => gsv_getHeightSfc(statevector_out)
 
       if ( mpi_myid == 0 ) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
-            gd_send_GZ(1:statevector_out%allLonPerPE(youridx+1),  &
+            gd_send_height(1:statevector_out%allLonPerPE(youridx+1),  &
                        1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
-              field_GZ_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+              field_height_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
           end do
         end do
@@ -4075,19 +4075,19 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_GZ, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_GZ, nsize, 'mpi_double_precision', &
+      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
+                             gd_recv_height, nsize, 'mpi_double_precision', &
                              0, 'grid', ierr)
 
-      field_GZ_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+      field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
-        gd_recv_GZ(1:statevector_out%lonPerPE,  &
+        gd_recv_height(1:statevector_out%lonPerPE,  &
                    1:statevector_out%latPerPE)
 
       deallocate(displs)
       deallocate(nsizes)
-      deallocate(gd_recv_GZ)
-      deallocate(gd_send_GZ)
+      deallocate(gd_recv_height)
+      deallocate(gd_send_height)
     end if
 
     call tmg_stop(154)
@@ -4223,10 +4223,10 @@ module gridStateVector_mod
 
     end if
 
-    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-      write(*,*) 'gsv_hInterpolate: interpolating surface GZ'
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      write(*,*) 'gsv_hInterpolate: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:), &
+      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:), &
                          interpDegree=trim(interpolationDegree) )
     end if
 
@@ -4360,10 +4360,10 @@ module gridStateVector_mod
 
     end if
 
-    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-      write(*,*) 'gsv_hInterpolate_r4: interpolating surface GZ'
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      write(*,*) 'gsv_hInterpolate_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:),  &
+      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:),  &
                          interpDegree=trim(InterpolationDegree) )
     end if
 
@@ -4408,8 +4408,8 @@ module gridStateVector_mod
       call utl_abort('gsv_vInterpolate: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
-    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
 
     vco_in => gsv_getVco(statevector_in)
@@ -4555,8 +4555,8 @@ module gridStateVector_mod
       call utl_abort('gsv_vInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
-    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
-      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
 
     vco_in => gsv_getVco(statevector_in)
@@ -4667,7 +4667,7 @@ module gridStateVector_mod
   ! gsv_writeToFile
   !--------------------------------------------------------------------------
   subroutine gsv_writeToFile(statevector_in, fileName, etiket_in, scaleFactor_opt, ip3_opt, &
-       stepIndex_opt, typvar_opt, HUcontainsLQ_opt, unitConversion_opt, writeGZsfc_opt,  &
+       stepIndex_opt, typvar_opt, HUcontainsLQ_opt, unitConversion_opt, writeHeightSfc_opt,  &
        numBits_opt, containsFullField_opt)
     implicit none
 
@@ -4680,7 +4680,7 @@ module gridStateVector_mod
     character(len=*), optional, intent(in) :: typvar_opt
     logical, optional,intent(in) :: HUcontainsLQ_opt
     logical, optional,intent(in) :: unitConversion_opt
-    logical, optional,intent(in) :: writeGZsfc_opt
+    logical, optional,intent(in) :: writeHeightSfc_opt
     integer, optional,intent(in) :: numBits_opt
     logical, optional,intent(in) :: containsFullField_opt
 
@@ -4833,15 +4833,15 @@ module gridStateVector_mod
       allocate(work2d_r4(1,1))
     end if
 
-    ! Write surface GZ, if requested
-    if ( present(writeGZsfc_opt) ) then
-      if ( writeGZsfc_opt .and. associated(statevector%GZsfc) ) then
-        write(*,*) 'gsv_writeToFile: writing surface GZ'
+    ! Write surface height, if requested
+    if ( present(writeHeightSfc_opt) ) then
+      if ( writeHeightSfc_opt .and. associated(statevector%HeightSfc) ) then
+        write(*,*) 'gsv_writeToFile: writing surface height'
 
         ! MPI communication
         gd_send_r4(1:statevector%lonPerPE, &
                    1:statevector%latPerPE) =  &
-             real(statevector%GZsfc(statevector%myLonBeg:statevector%myLonEnd, &
+             real(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd, &
                                     statevector%myLatBeg:statevector%myLatEnd),4)
         if ( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
@@ -5118,7 +5118,7 @@ module gridStateVector_mod
                         datestamp_opt = statevector_in%dateStampList(middleStep),  &
                         mpi_local_opt = statevector_in%mpi_local,  &
                         horizSubSample_opt = horizSubSample, &
-                        allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
+                        allocHeight_opt=gsv_varExist(statevector_in,'Z_M'), &
                         allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
 
     else
@@ -5126,7 +5126,7 @@ module gridStateVector_mod
                         statevector_in%numStep, statevector_in%hco, statevector_in%vco, &
                         mpi_local_opt = statevector_in%mpi_local, &
                         horizSubSample_opt = horizSubSample, &
-                        allocGZ_opt=gsv_varExist(statevector_in,'GZ_M'), &
+                        allocHeight_opt=gsv_varExist(statevector_in,'Z_M'), &
                         allocPressure_opt=gsv_varExist(statevector_in,'P_M') )
     end if
 
@@ -5235,7 +5235,7 @@ module gridStateVector_mod
     integer              :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
     character(len=2)     :: fileNumber
     character(len=512)   :: fileName
-    logical              :: fileExists, allocGZsfc
+    logical              :: fileExists, allocHeightSfc
     character(len=4), pointer :: varNamesToRead(:)
 
     call tmg_start(150,'gsv_readTrials')
@@ -5255,7 +5255,7 @@ module gridStateVector_mod
       write(*,*) 'gsv_readTrials: for better efficiency, the number of mpi tasks should be at least as large as number of trial time steps'
     end if
 
-    allocGZsfc = stateVector_trial%gzSfcPresent
+    allocHeightSfc = stateVector_trial%heightSfcPresent
 
     ! figure out number of batches of time steps for reading
     numBatch = ceiling(real(stateVector_trial%numStep) / real(mpi_nprocs))
@@ -5308,7 +5308,7 @@ module gridStateVector_mod
         if ( batchIndex == 1 ) then
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                             allocGZsfc_opt=allocGZsfc, varNames_opt=varNamesToRead,                &
+                             allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,                &
                              hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
@@ -5317,7 +5317,7 @@ module gridStateVector_mod
         ! read the trial file for this timestep
         fileName = ram_fullWorkingPath(fileName)
         call gsv_readFromFile(stateVector_1step_r4, fileName, ' ', 'P',  &
-                              readGZsfc_opt=allocGZsfc)
+                              readHeightSfc_opt=allocHeightSfc)
 
         ! remove from ram disk to save some space
         ierr = ram_remove(fileName)
@@ -5382,12 +5382,12 @@ module gridStateVector_mod
     write(*,*) 'gsv_transposeStepToVarsLevs: Starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! first do surface GZ, just need to copy over on task 0, assuming task 0 read a file
-    if ( mpi_myid == 0 .and. stateVector_VarsLevs%gzSfcPresent ) then
+    ! first do surface height, just need to copy over on task 0, assuming task 0 read a file
+    if ( mpi_myid == 0 .and. stateVector_VarsLevs%heightSfcPresent ) then
       if ( .not.stateVector_1step_r4%allocated ) then
-        call utl_abort('gsv_transposeStepToVarsLevs: Problem with GZsfc')
+        call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
       end if
-      stateVector_VarsLevs%gzSfc(:,:) = stateVector_1step_r4%gzSfc(:,:)
+      stateVector_VarsLevs%HeightSfc(:,:) = stateVector_1step_r4%HeightSfc(:,:)
     end if
 
     ! determine which tasks have something to send and let everyone know
@@ -5707,8 +5707,8 @@ module gridStateVector_mod
     deallocate(gd_recv_3d)
     deallocate(gd_send)
 
-    ! now send GZsfc from task 0 to all others
-    if ( stateVector_tiles%gzSfcPresent ) then
+    ! now send HeightSfc from task 0 to all others
+    if ( stateVector_tiles%heightSfcPresent ) then
 
       allocate(gd_recv(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
       gd_recv(:,:) = 0.0d0
@@ -5716,7 +5716,7 @@ module gridStateVector_mod
       ! prepare data to send from task 0
       if ( mpi_myid == 0 ) then
         if ( .not.stateVector_1step_r4%allocated ) then
-          call utl_abort('gsv_transposeStepToVarsLevs: Problem with GZsfc')
+          call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
         end if
 
         allocate(gd_send(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
@@ -5728,7 +5728,7 @@ module gridStateVector_mod
             yourid = youridx + youridy*mpi_npex
             gd_send(1:stateVector_tiles%allLonPerPE(youridx+1),  &
                     1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
-                real(stateVector_1step_r4%gzSfc(  &
+                real(stateVector_1step_r4%HeightSfc(  &
                      stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                      stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1) ), 8)
           end do
@@ -5749,7 +5749,7 @@ module gridStateVector_mod
                              gd_recv, nsize, 'mpi_real8', &
                              0, 'grid', ierr)
 
-      stateVector_tiles%gzSfc(  &
+      stateVector_tiles%HeightSfc(  &
                 stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                 stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd) =  &
           gd_recv(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE)
@@ -5757,7 +5757,7 @@ module gridStateVector_mod
       deallocate(gd_recv)
       deallocate(gd_send)
 
-    end if ! gzSfcPresent
+    end if ! heightSfcPresent
     write(*,*) 'gsv_transposeStepToTiles: finished'
 
     call tmg_stop(156)
@@ -5911,8 +5911,8 @@ module gridStateVector_mod
     deallocate(gd_recv_r4)
     deallocate(gd_send_r4)
 
-    ! now gather the same GZsfc onto each task that is a receiver
-    if ( stateVector_tiles%gzSfcPresent ) then
+    ! now gather the same HeightSfc onto each task that is a receiver
+    if ( stateVector_tiles%heightSfcPresent ) then
 
       allocate(gd_send_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
       gd_send_r8(:,:) = 0.0d0
@@ -5925,7 +5925,7 @@ module gridStateVector_mod
 
       ! prepare tile to send on each task
       gd_send_r8(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
-          stateVector_tiles%gzSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
+          stateVector_tiles%HeightSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                                   stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
 
       ! gather from all tasks onto each task with a receiving statevector
@@ -5945,7 +5945,7 @@ module gridStateVector_mod
           do youridy = 0, (mpi_npey-1)
             do youridx = 0, (mpi_npex-1)
               yourid = youridx + youridy*mpi_npex
-              stateVector_1step_r4%gzSfc(  &
+              stateVector_1step_r4%HeightSfc(  &
                    stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                    stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1) ) = &
                    gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
@@ -5960,7 +5960,7 @@ module gridStateVector_mod
       deallocate(gd_recv_r8)
       deallocate(gd_send_r8)
 
-    end if ! gzSfcPresent
+    end if ! heightSfcPresent
 
     write(*,*) 'gsv_transposeTilesToStep: finished'
 

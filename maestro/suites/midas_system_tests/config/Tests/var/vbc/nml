@@ -74,7 +74,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
-   AddGZSfcOffset = .false.
+   addHeightSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
@@ -342,7 +342,6 @@
   HSFMIN   = 1000.D0,
   HTPMAX   = 40000.D0,
   BGCKBAND = 0.05D0,
-  GPSRODYNERROR = .FALSE.
 /
  &NAMGPSGB
    DZMIN       = 2.0D0,

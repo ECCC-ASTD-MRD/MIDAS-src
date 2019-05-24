@@ -815,7 +815,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printGZ)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printHeight)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -845,7 +845,7 @@ contains
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
 
-    logical, optional :: printGZ
+    logical, optional :: printHeight
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -952,12 +952,12 @@ contains
        prf%gst(i) = prf%gst(i+1) + z
     enddo
 
-    if ( present(printGZ) ) then
-      if ( printGZ ) then
-        write(*,*) 'MAZIAR: gps_struct1sw, altitude='
+    if ( present(printHeight) ) then
+      if ( printHeight ) then
+        write(*,*) 'gps_struct1sw, height='
         write(*,*) prf%gst(1:ngpslev)%Var
 
-        printGZ = .false.
+        printHeight = .false.
       end if
     end if
 

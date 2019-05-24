@@ -99,7 +99,7 @@ contains
 
     call gsv_allocate( statevector_trial, tim_nstepobsinc, hco_anl, vco_anl,     &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
+                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
     call gsv_readTrials( statevector_trial )
 
     do jvar = 1, vnl_numvarmax

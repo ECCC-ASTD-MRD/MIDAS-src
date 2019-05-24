@@ -42,7 +42,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setGZsfc
+  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
@@ -50,18 +50,18 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
-    real(8), pointer  :: gz_sfc(:,:)
+    real(8), pointer  :: HeightSfc(:,:)
     real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer, pointer  :: varOffset(:),varNumLev(:)
     type(struct_vco), pointer :: vco => null()
-    logical           :: addGZsfcOffset = .false.
+    logical           :: addHeightSfcOffset = .false.
   end type struct_columnData
 
   real(8) :: rhumin, col_rhumin
   logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
-  logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
+  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
 contains
 
@@ -73,7 +73,7 @@ contains
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
     logical :: unitConversion_varKindCH
-    namelist /namstate/anlvar,rhumin,anltime_bin,AddGZSfcOffset,unitConversion_varKindCH
+    namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,unitConversion_varKindCH
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -85,7 +85,7 @@ contains
     anlvar(:) = '    '
     rhumin = MPC_MINIMUM_HU_R8
     anltime_bin = 'MIDDLE'
-    AddGZSfcOffset = .false.
+    addHeightSfcOffset = .false.
     unitConversion_varKindCH = .false.
 
     nulnam=0
@@ -97,7 +97,7 @@ contains
 
     col_rhumin = rhumin
 
-    if( varneed('GZ_T') .or. varneed('GZ_M') ) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
+    if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can no longer be included as a variable in columnData!')
 
     nvo3d  = 0
     nvo2d  = 0
@@ -112,8 +112,8 @@ contains
     enddo
 
     if ( varneed('TT') .and. varneed('HU') .and. varneed('P0') ) then
-      nmvoexist(vnl_varListIndex('GZ_T')) = .true.
-      nmvoexist(vnl_varListIndex('GZ_M')) = .true.
+      nmvoexist(vnl_varListIndex('Z_T')) = .true.
+      nmvoexist(vnl_varListIndex('Z_M')) = .true.
       nvo3d = nvo3d + 2
     end if
 
@@ -165,7 +165,7 @@ contains
       column%all(:,:) = 0.0d0
       column%dP_dPsfc_T(:,:) = 0.0d0
       column%dP_dPsfc_M(:,:) = 0.0d0
-      column%gz_sfc(:,:) = 0.0d0
+      column%HeightSfc(:,:) = 0.0d0
     endif
 
   end subroutine col_zero
@@ -238,8 +238,8 @@ contains
       allocate(column%all(nkgdimo,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
-      allocate(column%gz_sfc(1,column%numCol))
-      column%gz_sfc(:,:)=0.0d0
+      allocate(column%HeightSfc(1,column%numCol))
+      column%HeightSfc(:,:)=0.0d0
 
       allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
       allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
@@ -255,7 +255,7 @@ contains
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
-    column%addGZsfcOffset = addGZsfcOffset
+    column%addHeightSfcOffset = addHeightSfcOffset
 
     column%allocated=.true.
 
@@ -272,7 +272,7 @@ contains
 
     if(column%numCol.gt.0) then
       deallocate(column%all)
-      deallocate(column%gz_sfc)
+      deallocate(column%HeightSfc)
       deallocate(column%dP_dPsfc_T)
       deallocate(column%dP_dPsfc_M)
       deallocate(column%oltv)
@@ -630,13 +630,13 @@ contains
     integer                             :: ilev1
 
     if (varLevel == 'TH') then
-      ilev1 = 1 + column%varOffset(vnl_varListIndex('GZ_T'))
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
       height = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'MM' ) then
-      ilev1 = 1 + column%varOffset(vnl_varListIndex('GZ_M'))
+      ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'SF' ) then
-      height = column%gz_sfc(1,headerIndex)
+      height = column%HeightSfc(1,headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
     endif
@@ -644,15 +644,15 @@ contains
   end function col_getHeight
 
 
-  subroutine col_setGZsfc(column,headerIndex,height)
+  subroutine col_setHeightSfc(column,headerIndex,height)
     implicit none
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
     real(8), intent(in)                 :: height
 
-    column%gz_sfc(1,headerIndex) = height
+    column%HeightSfc(1,headerIndex) = height
 
-  end subroutine col_setGZsfc
+  end subroutine col_setHeightSfc
 
 
   function col_getAllColumns(column,varName_opt) result(allColumns)
