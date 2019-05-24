@@ -1075,7 +1075,7 @@ contains
 
     liasi= ( trim(cinst) == "IASI" .or.  trim(cinst) == "iasi")
     lairs= ( trim(cinst) == "AIRS" .or.  trim(cinst) == "airs")
-    lcris= ( trim(cinst) == "CRIS" .or.  trim(cinst) == "cris")
+    lcris= ( trim(cinst) == "CRIS" .or.  trim(cinst) == "cris" .or. trim(cinst) == "CRISFSR" .or.  trim(cinst) == "crisfsr")
 
     call BGCK_GET_QCID(cinst,QCID)
     
