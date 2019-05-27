@@ -482,7 +482,7 @@ contains
 
     ! Locals:
     integer :: bodyIndex ! Measurement element index in obsSpaceDate (see chm_obsoper_proceed)
-    integer :: ,jl,nmodlev_uv
+    integer :: jl,nmodlev_uv
     real(8), pointer :: col_height_ptr(:)
     real(8), allocatable :: uu(:),vv(:)
     character(len=2), parameter :: varLevel = 'TH'

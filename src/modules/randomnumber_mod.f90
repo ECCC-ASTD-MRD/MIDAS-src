@@ -40,6 +40,9 @@ contains
   ! rng_Setup
   !--------------------------------------------------------------------------
   subroutine rng_setup(seed)
+    !
+    !:Purpose: Initialize the random number generator with a supplied seed.
+    !
     implicit none
 
     integer, intent(in)   :: seed
@@ -69,10 +72,11 @@ contains
   ! rng_Gaussian
   !--------------------------------------------------------------------------
   function rng_gaussian() result(randomNumberGaussian)
+    !
+    !:Purpose: Returns a normally distributed deviate
+    !          with zero mean and unit variance
+    !
     implicit none
-
-    ! OBJECT      Returns a normally distributed deviate
-    !             with zero mean and unit variance
     
     real(8) :: randomNumberGaussian
 
@@ -83,10 +87,11 @@ contains
   ! random
   !--------------------------------------------------------------------------
   function rng_uniform() result(randomNumberUniform)
+    !
+    !:Purpose: Returns a random deviate between 0.0 and 1.0.
+    !
     implicit none
-    
-    ! OBJECT      Returns a random deviate between 0.0 and 1.0.
-    
+        
     real(8) :: randomNumberUniform
     
     randomNumberUniform = DRan_generic_stream(randomStream)

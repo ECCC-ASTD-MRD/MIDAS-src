@@ -2927,7 +2927,7 @@ CONTAINS
 !!------------------------------------------------------------------------------------
 !!------------------------------------------------------------------------------------
 
-  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )v
+  subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
     implicit none
     type (struct_obs), intent(inout) :: obsdat
 

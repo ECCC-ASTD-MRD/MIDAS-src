@@ -870,7 +870,7 @@ CONTAINS
     enddo
 
     !write(*,*) 'Done in BCHM_READCORNS2'
-  end subroutine bchm
+  end subroutine bchm_readCorns2
 
 !-----------------------------------------------------------------------------------------------
 
