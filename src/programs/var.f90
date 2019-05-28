@@ -247,7 +247,8 @@ program midas_var
     call bias_writebias(controlVector_incr,cvm_nvadim)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
-         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+         allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment
     call inc_getIncrement(controlVector_incr,statevector_incr,cvm_nvadim)

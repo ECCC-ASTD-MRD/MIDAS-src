@@ -524,6 +524,7 @@ CONTAINS
     meanPredictors(:) = 0.0d0
     minPredictors(:) = 999999.0d0
     maxPredictors(:) = -999999.0d0
+    iSensor = -1
 
     ! loop over all observations
     iobs = 0
@@ -549,15 +550,17 @@ CONTAINS
 
     end do HEADER
 
-    !  do iPredictor=1,bias(iSensor)%NumActivePredictors
-    do iPredictor = 2,bias(iSensor)%NumActivePredictors
-      if ( countObs(iPredictor) > 0 ) then
-        meanPredictors(iPredictor) = meanPredictors(iPredictor)/real(countObs(iPredictor),8)
-        meanAbsPredictors(iPredictor) = meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
-        write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
-          meanAbsPredictors(iPredictor),meanPredictors(iPredictor),minPredictors(iPredictor),maxPredictors(iPredictor)
-      end if
-    end do
+    if ( iSensor /= -1 ) then
+      !  do iPredictor=1,bias(iSensor)%NumActivePredictors
+      do iPredictor = 2,bias(iSensor)%NumActivePredictors
+        if ( countObs(iPredictor) > 0 ) then
+          meanPredictors(iPredictor) = meanPredictors(iPredictor)/real(countObs(iPredictor),8)
+          meanAbsPredictors(iPredictor) = meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
+          write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
+            meanAbsPredictors(iPredictor),meanPredictors(iPredictor),minPredictors(iPredictor),maxPredictors(iPredictor)
+        end if
+      end do
+    end if
 
   END SUBROUTINE bias_calcMeanPredictors
 

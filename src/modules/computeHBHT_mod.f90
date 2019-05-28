@@ -251,7 +251,8 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
-      call gsv_allocate(statevector, 1, hco_anl, vco_anl)
+      call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_zero(statevector)
 
       call col_setVco(lcolumn,col_getVco(lcolumng))
@@ -760,7 +761,7 @@ subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
 
   !- 1.3 Create a gridstatevector to store the ensemble perturbations
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-       mpi_local_opt=.true.)
+       mpi_local_opt=.true., allocHeight_opt=.false., allocPressure_opt=.false.)
 
   !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
   call col_setVco(column,vco_anl)

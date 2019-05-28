@@ -176,7 +176,8 @@ program midas_diagBmatrix
 
   ! Allocate the statevector
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                    datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+                    datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
   call gsv_zero(statevector)
   nkgdim = statevector%nk
 

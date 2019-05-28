@@ -42,7 +42,7 @@ program midas_ensembleH
   implicit none
 
   type(struct_obs), target             :: obsSpaceData
-  type(struct_gsv)                     :: stateVector
+  type(struct_gsv)                     :: stateVector, statevector_tiles
   type(struct_columnData), allocatable :: columns(:)
   type(struct_columnData)              :: column_mean
 
@@ -189,9 +189,8 @@ program midas_ensembleH
 
   ! Allocate statevector to store an ensemble member (keep distribution as members on native grid)
   call gsv_allocate( stateVector, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.true., allocPressure_opt=.true. )
+                     mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                     dataKind_opt=4, allocHeightSfc_opt=.true. )
 
   do memberIndex = 1, nEns
     write(*,*) ''
@@ -201,6 +200,12 @@ program midas_ensembleH
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
+
+    call gsv_allocate( statevector_tiles, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(), &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true. )
+
+    call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)
     call tmg_stop(3)
 
     write(*,*) ''
@@ -211,9 +216,10 @@ program midas_ensembleH
     else
       dealloc = .false.
     end if
-    call s2c_nl( stateVector, obsSpaceData, columns(memberIndex), timeInterpType='LINEAR', dealloc_opt=dealloc )
+    call s2c_nl( stateVector_tiles, obsSpaceData, columns(memberIndex), timeInterpType='LINEAR', dealloc_opt=dealloc )
     call tmg_stop(6)
   end do
+  call gsv_deallocate( stateVector_tiles )
   call gsv_deallocate( stateVector )
 
   ! Initialize the observation error covariances

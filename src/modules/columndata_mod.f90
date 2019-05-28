@@ -41,12 +41,12 @@ module columnData_mod
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
-  public :: col_getNumLev, col_getNumCol
+  public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
-    integer           :: numCol
+    integer           :: nk, numCol
     logical           :: allocated=.false.
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
@@ -54,13 +54,13 @@ module columnData_mod
     real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer, pointer  :: varOffset(:),varNumLev(:)
+    logical           :: varExistList(vnl_numVarMax)
     type(struct_vco), pointer :: vco => null()
     logical           :: addHeightSfcOffset = .false.
   end type struct_columnData
 
   real(8) :: rhumin, col_rhumin
-  logical nmvoexist(vnl_numvarmax)
-  integer :: nvo3d,nvo2d
+  logical varExistList(vnl_numvarmax)
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
 contains
@@ -70,6 +70,7 @@ contains
     implicit none
     integer :: jvar, ipos
     integer :: fnom,fclos,nulnam,ierr
+    integer :: numVar3D, numVar2D
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
     logical :: unitConversion_varKindCH
@@ -97,47 +98,36 @@ contains
 
     col_rhumin = rhumin
 
-    if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can no longer be included as a variable in columnData!')
+    if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
+    if( varneed('P_T') .or. varneed('P_M') ) call utl_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
 
-    nvo3d  = 0
-    nvo2d  = 0
+    numVar3D = 0
+    numVar2D = 0
 
     do jvar = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(jvar))) then
-        nmvoexist(jvar) = .true.
-        nvo3d = nvo3d + 1
+        varExistList(jvar) = .true.
+        numVar3D = numVar3D + 1
       else
-        nmvoexist(jvar) = .false.
+        varExistList(jvar) = .false.
       endif
     enddo
-
-    if ( varneed('TT') .and. varneed('HU') .and. varneed('P0') ) then
-      nmvoexist(vnl_varListIndex('Z_T')) = .true.
-      nmvoexist(vnl_varListIndex('Z_M')) = .true.
-      nvo3d = nvo3d + 2
-    end if
-
-    if ( varneed('P0') ) then
-      nmvoexist(vnl_varListIndex('P_T')) = .true.
-      nmvoexist(vnl_varListIndex('P_M')) = .true.
-      nvo3d = nvo3d + 2
-    end if
 
     do jvar = 1, vnl_numvarmax2D
       if (varneed(vnl_varNameList2D(jvar))) then
-        nmvoexist(jvar+vnl_numvarmax3D) = .true.
-        nvo2d = nvo2d + 1
+        varExistList(jvar+vnl_numvarmax3D) = .true.
+        numVar2D = numVar2D + 1
       else
-        nmvoexist(jvar+vnl_numvarmax3D) = .false.
+        varExistList(jvar+vnl_numvarmax3D) = .false.
       endif
     enddo
 
-    if(mpi_myid == 0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
-    if(mpi_myid == 0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
+    if(mpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D = ', numVar3D, numVar2D
+    if(mpi_myid == 0) write(*,*) 'col_setup: varExistList (no Z_T/Z_M/P_T/P_M included) = ',varExistList
 
     if(mpi_myid == 0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-    if(mpi_myid == 0) WRITE(*,FMT=9120) NVO3D,NVO2D
- 9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
+    if(mpi_myid == 0) WRITE(*,FMT=9120) numVar3D, numVar2D
+ 9120 FORMAT(4X,'  numVar3D =',I6,', numVar2D    =',I6)
 
     contains
 
@@ -182,7 +172,7 @@ contains
     logical, optional       :: setToZero_opt
 
     ! locals
-    integer :: nkgdimo, iloc, jvar, jvar2
+    integer :: iloc, jvar, jvar2
     logical :: beSilent, setToZero
 
     if ( present(beSilent_opt) ) then
@@ -195,6 +185,21 @@ contains
       setToZero = setToZero_opt
     else
       setToZero = .true.
+    end if
+
+    ! set the variable list using the global ExistList
+    column%varExistList(:) = varExistList(:)
+
+    if ( column%varExistList(vnl_varListIndex('TT')) .and. &
+         column%varExistList(vnl_varListIndex('HU')) .and. &
+         column%varExistList(vnl_varListIndex('P0')) ) then
+      if (col_getNumLev(column,'TH') > 1) column%varExistList(vnl_varListIndex('Z_T')) = .true.
+      if (col_getNumLev(column,'MM') > 1) column%varExistList(vnl_varListIndex('Z_M')) = .true.
+    end if
+
+    if ( column%varExistList(vnl_varListIndex('P0')) ) then
+      if (col_getNumLev(column,'TH') > 1) column%varExistList(vnl_varListIndex('P_T')) = .true.
+      if (col_getNumLev(column,'MM') > 1) column%varExistList(vnl_varListIndex('P_M')) = .true.
     end if
 
     column%numCol = numCol
@@ -216,7 +221,7 @@ contains
 
     iloc=0
     do jvar = 1, vnl_numvarmax3d
-      if(nmvoexist(jvar)) then
+      if(column%varExistList(jvar)) then
         column%varOffset(jvar)=iloc
         column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
         iloc = iloc + column%varNumLev(jvar)
@@ -224,18 +229,18 @@ contains
     enddo
     do jvar2 = 1, vnl_numvarmax2d
       jvar=jvar2+vnl_numvarmax3d
-      if(nmvoexist(jvar)) then
+      if(column%varExistList(jvar)) then
         column%varOffset(jvar)=iloc
         column%varNumLev(jvar)=1
         iloc = iloc + 1
       endif
     enddo
-    nkgdimo=iloc
+    column%nk = iloc
 
     if(column%numCol.le.0) then
       if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
     else         
-      allocate(column%all(nkgdimo,column%numCol))
+      allocate(column%all(column%nk,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
       allocate(column%HeightSfc(1,column%numCol))
@@ -251,7 +256,7 @@ contains
 
     endif
  
-    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
@@ -283,16 +288,25 @@ contains
   end subroutine col_deallocate
 
 
-  function col_varExist(varName) result(varExist)
+  function col_varExist(column_opt,varName) result(varExist)
     implicit none
-    character(len=*), intent(in) :: varName
-    logical                      :: varExist 
+    type(struct_columnData), optional :: column_opt
+    character(len=*), intent(in)      :: varName
+    logical                           :: varExist 
 
-    if(nmvoexist(vnl_varListIndex(varName))) then
-      varExist = .true.
+    if ( present(column_opt) ) then
+      if ( column_opt%varExistList(vnl_varListIndex(varName)) ) then
+        varExist = .true.
+      else
+        varExist = .false.
+      end if
     else
-      varExist = .false.
-    endif
+      if ( varExistList(vnl_varListIndex(varName)) ) then
+        varExist = .true.
+      else
+        varExist = .false.
+      end if
+    end if
 
   end function col_varExist
 
@@ -313,6 +327,27 @@ contains
 
   end function col_getOffsetFromVarno
 
+  function col_getVarNameFromK(column,kIndex) result(varName)
+    implicit none
+    type(struct_columnData) :: column
+    integer, intent(in) :: kIndex
+    character(len=4)    :: varName
+    integer             :: varIndex
+
+    do varIndex = 1, vnl_numvarmax
+      if ( column%varExistList(varIndex) ) then
+        if ( (kIndex >= (column%varOffset(varIndex) + 1)) .and.  &
+            (kIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
+          varName = vnl_varNameList(varIndex)
+          return
+        end if
+      end if
+    end do
+
+    write(*,*) 'col_getVarNameFromK: kIndex out of range: ', kIndex
+    call utl_abort('col_getVarNameFromK')
+
+  end function col_getVarNameFromK
 
   subroutine col_calcPressure(column, beSilent_opt)
     implicit none
@@ -327,7 +362,7 @@ contains
 
     if ( col_getNumCol(column) <= 0 ) return
 
-    if (.not.col_varExist('P0')) then
+    if (.not.col_varExist(column,'P0')) then
       call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
     endif
 
@@ -420,7 +455,7 @@ contains
     nullify(pres3Dptr_out)
 
     vInterp = .true.
-    if ( .not. col_varExist('P0' ) ) then
+    if ( .not. col_varExist(column_in,'P0' ) ) then
       write(*,*)
       write(*,*) 'col_vintprof: P0 is missing. Vertical interpolation WILL NOT BE PERFORMED'
       vInterp = .false.
@@ -664,7 +699,7 @@ contains
 
     if ( column%numCol > 0 ) then
       if(present(varName_opt)) then
-        if ( col_varExist(varName_opt) ) then
+        if ( col_varExist(column,varName_opt) ) then
           ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
           allColumns => column%all(ilev1:ilev2,:)
@@ -690,7 +725,7 @@ contains
     integer                                :: ilev1,ilev2
 
     if(present(varName_opt)) then
-      if(col_varExist(varName_opt)) then
+      if(col_varExist(column,varName_opt)) then
         ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
         ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
         onecolumn => column%all(ilev1:ilev2,headerIndex)
@@ -713,7 +748,7 @@ contains
     real(8)                                :: value
 
     if(present(varName_opt)) then
-      if(.not.col_varExist(varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
+      if(.not.col_varExist(column,varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)

@@ -549,7 +549,7 @@ contains
     obsoper%imodlev_bot(:)=nmodlev
     obsoper%dtransform(:)=1.0D0
 
-    if (.not.col_varExist('TT')) then
+    if (.not.col_varExist(column_bkgrnd,'TT')) then
        if (chm_required_field('TT',obsoper%varno)) then
           write(*,*) "chm_observation_operators: TT required for BUFR code ",obsoper%varno 
           call utl_abort("chm_observation_operators")
@@ -563,7 +563,7 @@ contains
        obsoper%tt(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
     enddo
 
-    if (col_varExist('TT').and.col_varExist('HU').and.col_varExist('P0')) then     
+    if (col_varExist(column_bkgrnd,'TT').and.col_varExist(column_bkgrnd,'HU').and.col_varExist(column_bkgrnd,'P0')) then     
        ! GZ would have been generated in the call to sugomobs. 
        ! Convert from geopotential to geopotential height.
        col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'Z_T')
@@ -573,7 +573,7 @@ contains
     end if
 
     ! Get specific humidity if available
-    if (col_varExist('HU')) then
+    if (col_varExist(column_bkgrnd,'HU')) then
        do jl=1,nmodlev
          obsoper%hu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'HU')       ! lnq was replaced by q
        enddo
@@ -587,8 +587,8 @@ contains
     if (obsoper%vco.eq.4.and.nobslev.eq.1.and.kmode.ne.1) then
        if (kmode.eq.0) then
           
-          if (col_varExist('HU')) then
-             if (col_varExist('UU').and.col_varExist('VV')) then
+          if (col_varExist(column_bkgrnd,'HU')) then
+             if (col_varExist(column_bkgrnd,'UU').and.col_varExist(column_bkgrnd,'VV')) then
                 nmodlev_uv=col_getNumLev(column_bkgrnd,'MM')
                 allocate(uu(nmodlev_uv),vv(nmodlev_uv))
                 do jl=1,nmodlev_uv

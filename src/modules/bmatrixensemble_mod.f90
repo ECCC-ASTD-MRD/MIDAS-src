@@ -701,7 +701,8 @@ CONTAINS
       dateStampListAdvectedFields(:) = dateStampList(:)
       call gsv_allocate(statevector_ensMean4D, numStep, hco_ens, vco_ens, &
                         datestampList_opt=dateStampListAdvectedFields,     &
-                        mpi_local_opt=.true.)
+                        mpi_local_opt=.true., &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call ens_copyEnsMean(ensPerts(1), & ! IN
                            statevector_ensMean4D  )   ! OUT
 
@@ -2173,7 +2174,8 @@ CONTAINS
     do waveBandIndex = 1, nWaveBandToDiagnose
       if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
       call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call ben_getPerturbation( statevector,    & ! OUT
                                 memberIndex,    & ! IN
                                 'ConstantValue', waveBandIndex ) ! IN
@@ -2193,13 +2195,15 @@ CONTAINS
     !
     if ( mpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
     call gsv_allocate(statevector_temp, tim_nstepobsinc, hco_ens, vco_anl, &
-                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(ensPerts(1)))
+                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(ensPerts(1)), &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do waveBandIndex = 1, nWaveBandToDiagnose
        if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
        call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                         dataKind_opt=ens_getDataKind(ensPerts(1)))
+                         dataKind_opt=ens_getDataKind(ensPerts(1)), &
+                         allocHeight_opt=.false., allocPressure_opt=.false.)
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
           !- Get normalized perturbations

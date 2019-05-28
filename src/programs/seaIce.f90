@@ -152,7 +152,8 @@ program midas_seaIce
 
   ! Allocate the statevector
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                    datestamp_opt=tim_getDatestamp(),mpi_local_opt=.true.)
+                    datestamp_opt=tim_getDatestamp(),mpi_local_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
 
   ! Setup the B matrix (which also setup the control vector module and cvm_nvadim)
   call bmat_setup(hco_anl,vco_anl)

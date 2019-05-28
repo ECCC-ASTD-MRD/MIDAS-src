@@ -379,7 +379,8 @@ module gridStateVector_mod
 
     gsv_rhumin = rhumin
 
-    if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can no longer be included as a variable in gridStateVector!')
+    if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
+    if (varneed('P_T') .or. varneed('P_M')) call utl_abort('gsv_setup: pressure can not be specified as analysis variable in namelist!')
 
     do varIndex = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(varIndex))) then
@@ -451,7 +452,7 @@ module gridStateVector_mod
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
-    logical :: beSilent 
+    logical :: beSilent, allocPressure, allocHeight
 
     if (.not. initialized) then
       write(*,*)
@@ -480,6 +481,11 @@ module gridStateVector_mod
 
     if ( present(dataKind_opt) ) statevector%dataKind = dataKind_opt
 
+    if ( present(varNames_opt) ) then
+      if ( present(allocHeight_opt) ) call utl_abort('gsv_allocate: to allocate Z_T/Z_M, set them in varNames_opt')
+      if ( present(allocPressure_opt) ) call utl_abort('gsv_allocate: to allocate P_T/P_M, set them in varNames_opt')
+    end if
+
     if ( present(varNames_opt) ) then      
       statevector%varExistList(:) = .false.
       do varIndex2 = 1, size(varNames_opt)
@@ -487,21 +493,39 @@ module gridStateVector_mod
         statevector%varExistList(varIndex) = .true.
       end do
     else
-      ! use the global variable list
+      ! use the global variable list and set allocHeight/allocPressure if needed
       statevector%varExistList(:) = varExistList(:)
-    end if
 
-    ! add Z_T/Z_M and P_T/P_M to the varExistList
-    if ( present(allocHeight_opt) ) then
-      if ( allocHeight_opt ) then
-        statevector%varExistList(vnl_varListIndex('Z_T')) = .true.
-        statevector%varExistList(vnl_varListIndex('Z_M')) = .true.
+      if ( present(allocHeight_opt) ) then
+        allocHeight = allocHeight_opt
+      else
+        if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
+             statevector%varExistList(vnl_varListIndex('HU ')) .and. &
+             statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+          allocHeight = .true.
+        else
+          allocHeight = .false.
+        end if
       end if
-    end if
-    if ( present(allocPressure_opt) ) then
-      if ( allocPressure_opt) then
-        statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
-        statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
+
+      if ( present(allocPressure_opt) ) then
+        allocPressure = allocPressure_opt
+      else
+        if ( statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+          allocPressure = .true.
+        else
+          allocPressure = .false.
+        end if
+      end if
+
+      ! add Z_T/Z_M and P_T/P_M to the varExistList
+      if ( allocHeight ) then
+        if (gsv_getNumLev(statevector,'TH') > 1) statevector%varExistList(vnl_varListIndex('Z_T ')) = .true.
+        if (gsv_getNumLev(statevector,'MM') > 1) statevector%varExistList(vnl_varListIndex('Z_M ')) = .true.
+      end if
+      if ( allocPressure ) then
+        if (gsv_getNumLev(statevector,'TH') > 1) statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
+        if (gsv_getNumLev(statevector,'MM') > 1) statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
       end if
     end if
 
@@ -590,46 +614,6 @@ module gridStateVector_mod
         statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
         iloc = iloc + statevector%varNumLev(varIndex)
       end do
-
-      do varIndex2 = 1, size(varNames_opt)
-
-        if ( present(allocHeight_opt) ) then
-          if ( (trim(varNames_opt(varIndex2)) == 'Z_T' .or. trim(varNames_opt(varIndex2)) == 'Z_M' ) .and. allocHeight_opt ) call utl_abort('gsv_allocate: Z_T/Z_M is in varNames_opt and allocHeight_opt should be false!')
-        end if
-
-        if ( present(allocPressure_opt) ) then
-          if ( (trim(varNames_opt(varIndex2)) == 'P_T' .or. trim(varNames_opt(varIndex2)) == 'P_M' ) .and. allocPressure_opt ) call utl_abort('gsv_allocate: P_T/P_M is in varNames_opt and allocPressure_opt should be false!')
-        end if
-
-      end do
-
-      if ( present(allocHeight_opt) ) then
-        if ( allocHeight_opt ) then
-          varIndex = vnl_varListIndex('Z_T')
-          statevector%varOffset(varIndex)=iloc
-          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
-          iloc = iloc + statevector%varNumLev(varIndex)
-
-          varIndex = vnl_varListIndex('Z_M')
-          statevector%varOffset(varIndex)=iloc
-          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
-          iloc = iloc + statevector%varNumLev(varIndex)
-        end if
-      end if
-
-      if ( present(allocPressure_opt) ) then
-        if ( allocPressure_opt) then
-          varIndex = vnl_varListIndex('P_T')
-          statevector%varOffset(varIndex)=iloc
-          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
-          iloc = iloc + statevector%varNumLev(varIndex)
-
-          varIndex = vnl_varListIndex('P_M')
-          statevector%varOffset(varIndex)=iloc
-          statevector%varNumLev(varIndex)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
-          iloc = iloc + statevector%varNumLev(varIndex)
-        end if
-      end if
 
     else
 
@@ -2486,7 +2470,11 @@ module gridStateVector_mod
       exit
     end do
 
-    if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: variable does not exist to read from file')
+    if ( .not. foundVarNameInFile) then
+      varName = 'P0'
+      if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) call utl_abort('gsv_readFromFile: variable does not exist to read from file')
+    end if
+    write(*,*) 'gsv_readFromFile: defining hco by varname= ', varName
 
     call hco_setupFromFile(hco_file,trim(fileName), ' ',gridName_opt='FILEGRID',varName_opt=varName)
 
@@ -6581,7 +6569,8 @@ module gridStateVector_mod
          stateVector_inout%mpi_local ) then
       call gsv_allocate(statevector_varsLevs, statevector_inout%numStep, statevector_inout%hco, &
                         statevector_inout%vco, dataKind_opt=statevector_inout%dataKind,         &
-                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs')
+                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_transposeTilesToVarsLevs(statevector_inout, statevector_varsLevs)
       statevector => stateVector_varsLevs
     else

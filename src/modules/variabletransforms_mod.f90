@@ -105,15 +105,13 @@ CONTAINS
       call gsv_allocate(statevector_trial_height, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/), allocHeight_opt=.true., &
-                        allocPressure_opt=.true.)
+                        varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
 
       ! initialize statevector_noZnoP on analysis grid
       call gsv_allocate(statevector_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/), allocHeight_opt=.false.,  &
-                        allocPressure_opt=.false.)
+                        varNames_opt=(/'TT','HU','P0'/))
       write(*,*) 'vtr_setupTrials: statevector_noZnoP allocated'
 
       ! read trial files using default horizontal interpolation degree

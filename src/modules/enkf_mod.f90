@@ -70,10 +70,6 @@ contains
 
     end do
 
-    !if (col_varExist('P0')) then
-    !  call col_calcPressure(column_mean)
-    !end if
-
     if ( verbose ) then
       write(*,*) '======================='
       write(*,*) 'Contents of column_mean:'

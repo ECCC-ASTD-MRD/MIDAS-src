@@ -158,7 +158,7 @@ contains
           end if
 
         else
-          heightRecv(:, :, kIndexRecv) = statevector_in%HeightSfc(:, :)
+          if ( statevector_in%HeightSfcPresent ) heightRecv(:, :, kIndexRecv) = statevector_in%HeightSfc(:, :)
         end if
 
         cycle LOOP_KINDEX
@@ -869,13 +869,24 @@ contains
       call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
+    ! check the column and statevector have same nk/varNameList
+    call checkColumnStatevectorMatch(column,statevector)
+
     ! calculate delP_T/delP_M on the grid
-    call vtr_transform( statevector, & ! INOUT
-                        'PsfcToP_tl')  ! IN
+    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'PsfcToP_tl')  ! IN
+    end if
 
     ! calculate del Z_T/Z_M on the grid
-    call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoHeight_tl') ! IN
+    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
+         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoHeight_tl') ! IN
+    end if
 
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
@@ -1194,12 +1205,20 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    call vtr_transform( statevector, & ! INOUT
-                        'TTHUtoHeight_ad') ! IN
+    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
+         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoHeight_ad') ! IN
+    end if
 
     ! Adjoint of calculate delP_T/delP_M on the grid
-    call vtr_transform( statevector, & ! INOUT
-                        'PsfcToP_ad')  ! IN
+    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'PsfcToP_ad')  ! IN
+    end if
 
     call gsv_deallocate( statevector_VarsLevs )
 
@@ -1272,13 +1291,24 @@ contains
       moveObsAtPole = .false.
     end if
 
+    ! check the column and statevector have same nk/varNameList
+    call checkColumnStatevectorMatch(column,statevector)
+
     ! calculate P_T/P_M on the grid
-    call vtr_transform( stateVector, & ! INOUT
-                        'PsfcToP_nl')  ! IN
+    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( stateVector, & ! INOUT
+                          'PsfcToP_nl')  ! IN
+    end if
 
     ! calculate Z_T/Z_M on the grid
-    call vtr_transform( stateVector, & ! INOUT
-                        'TTHUtoHeight_nl') ! IN
+    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
+         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
+         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+      call vtr_transform( stateVector, & ! INOUT
+                          'TTHUtoHeight_nl') ! IN
+    end if
 
     call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
                        stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
@@ -1525,7 +1555,7 @@ contains
     end if
 
     ! impose a lower limit on HU
-    if(col_varExist('HU')) then
+    if(col_varExist(column,'HU')) then
       do headerIndex = 1, numHeader
         column_ptr => col_getColumn(column,headerIndex,'HU')
         column_ptr(:) = max(column_ptr(:),col_rhumin)
@@ -2141,14 +2171,14 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-      if(col_varExist('UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
-      if(col_varExist('VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
-      if(col_varExist('HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
-      if(col_varExist('TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
-      if(col_varExist('P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
-      if(col_varExist('TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
-      if(col_varExist('LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
-      if(col_varExist('WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
+      if(col_varExist(column,'UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
+      if(col_varExist(column,'VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
+      if(col_varExist(column,'HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
+      if(col_varExist(column,'TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
+      if(col_varExist(column,'P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
+      if(col_varExist(column,'TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
+      if(col_varExist(column,'LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
+      if(col_varExist(column,'WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
      
       do jk = 1, gsv_getNumLev(statevector,'MM')
         if(gsv_varExist(statevector,'UU')) then
@@ -2312,5 +2342,23 @@ contains
     end do
 
   end subroutine s2c_column_hbilin   
+
+  subroutine checkColumnStatevectorMatch(column,statevector)
+    implicit none
+    type(struct_gsv) :: statevector
+    type(struct_columnData) :: column
+    integer :: kIndex
+
+    ! check column/statevector have same nk
+    if ( column%nk /= gsv_getNumK(statevector) ) call utl_abort('checkColumnStatevectorMatch: column%nk /= gsv_getNumK(statevector)')
+
+    ! loop through k and check varNames are same between column/statevector
+    do kIndex = 1, column%nk
+      if ( gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex) ) call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
+    end do
+
+    write(*,*) 'checkColumnStatevectorMatch: column and statevector match.'
+
+  end subroutine checkColumnStatevectorMatch
 
 end module stateToColumn_mod

@@ -788,7 +788,7 @@ contains
 
         if( ivnm /= bufr_sst ) cycle BODY
         
-        if ( col_varExist( 'TM' )) then
+        if ( col_varExist(columnhr,'TM') ) then
           varName = 'TM'
         else
           varName = 'TG'
@@ -1781,7 +1781,7 @@ contains
       integer :: jlev,columnIndex,nlev_T,vcode_anl,status
       real(8) :: zhu,one
 
-      if ( .not.col_varExist('TT') .or. .not.col_varExist('HU') ) return
+      if ( .not.col_varExist(columng,'TT') .or. .not.col_varExist(columng,'HU') ) return
 
       write(*,*) 'subasic_obs: setting up linearized Tv operator'
 
@@ -2044,7 +2044,7 @@ contains
 
         if ( ityp /= bufr_sst ) cycle BODY
 
-        if ( col_varExist( 'TM' )) then
+        if ( col_varExist(column,'TM') ) then
           varName = 'TM'
         else
           varName = 'TG'
@@ -2850,7 +2850,7 @@ contains
 
         if ( ityp /= bufr_sst ) cycle BODY
 
-        if ( col_varExist( 'TM' )) then
+        if ( col_varExist(column,'TM') ) then
           varName = 'TM'
         else
           varName = 'TG'

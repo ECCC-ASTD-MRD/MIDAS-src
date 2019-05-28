@@ -156,9 +156,12 @@ contains
                   cvdim )             ! OUT
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+
     call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     allocate ( controlVector1(cvDim) )
 
@@ -218,9 +221,11 @@ contains
                     cvdim )             ! OUT
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     allocate ( controlVector1(cvDim) )
 
@@ -337,13 +342,17 @@ contains
                       varNames_opt=varNameALFA, dataKind_opt=8)
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_y  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_LTx , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! x
     seed=1
@@ -472,13 +481,17 @@ contains
                     'allLevs', steeringFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_y  , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_LTx , tim_nstepobsinc, hco_anl, vco_anl, &
-                      mpi_local_opt=.true.)
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! x
     seed=1

@@ -180,7 +180,9 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+
     call tmg_start(180,'INC_READTRIALS')
     call gsv_readTrials(statevector_trial)
     call tmg_stop(180)
@@ -262,10 +264,12 @@ CONTAINS
 
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_copy(statevector_trial, statevector_analysis)
 
     if (present(statevector_incLowRes_opt)) then
@@ -379,7 +383,8 @@ CONTAINS
 
         call gsv_allocate( stateVector_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           allocHeightSfc_opt=allocHeightSfc )
+                           allocHeightSfc_opt=allocHeightSfc, &
+                           allocHeight_opt=.false., allocPressure_opt=.false. )
         call gsv_allocate( stateVector_Psfc_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                            varNames_opt=(/'P0'/), allocHeightSfc_opt=.true. )

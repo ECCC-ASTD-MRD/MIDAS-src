@@ -357,8 +357,8 @@ module varqc_mod
         zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,index_body)
         ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
         LLUV = ((ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
-               col_varExist('UU')) .or. ((ityp == BUFR_NEVV .or.  &
-               ityp == BUFR_NEVS).and.col_varExist('VV'))
+               col_varExist(varName='UU')) .or. ((ityp == BUFR_NEVV .or.  &
+               ityp == BUFR_NEVS).and.col_varExist(varName='VV'))
         if (LLUV) then
           if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS)then
             !
@@ -596,9 +596,9 @@ module varqc_mod
              !              BUFR_NEVS       = 011216 (V COMPONENT AT 10 M)   (m/s)
              !
              if (((ityp==BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
-                  col_varExist('UU')).or.  &
+                  col_varExist(varName='UU')).or.  &
                  ((ityp==BUFR_NEVV .or. ityp == BUFR_NEVS) .and.  &
-                  col_varExist('VV'))) then
+                  col_varExist(varName='VV'))) then
                IOTHER = -1
                if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
                  ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
