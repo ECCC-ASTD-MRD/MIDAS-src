@@ -297,6 +297,10 @@ contains
       write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
     endif
 
+    if ( (vco%nlev_M == 0 .and. vco%nlev_T /= 0) .or. &
+         (vco%nlev_M /= 0 .and. vco%nlev_T == 0) ) & 
+       call utl_abort('vco_setupfromfile: one of the nlev_M/nlev_T is zero and the other is not!')
+
     if (vco%nlev_M == 0 .and. vco%nlev_T == 0) then
       call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if

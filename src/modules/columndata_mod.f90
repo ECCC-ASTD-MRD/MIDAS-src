@@ -190,13 +190,13 @@ contains
     if ( column%varExistList(vnl_varListIndex('TT')) .and. &
          column%varExistList(vnl_varListIndex('HU')) .and. &
          column%varExistList(vnl_varListIndex('P0')) ) then
-      if (col_getNumLev(column,'TH') > 1) column%varExistList(vnl_varListIndex('Z_T')) = .true.
-      if (col_getNumLev(column,'MM') > 1) column%varExistList(vnl_varListIndex('Z_M')) = .true.
+      if ( col_getNumLev(column,'TH') > 0 ) column%varExistList(vnl_varListIndex('Z_T')) = .true.
+      if ( col_getNumLev(column,'MM') > 0 ) column%varExistList(vnl_varListIndex('Z_M')) = .true.
     end if
 
     if ( column%varExistList(vnl_varListIndex('P0')) ) then
-      if (col_getNumLev(column,'TH') > 1) column%varExistList(vnl_varListIndex('P_T')) = .true.
-      if (col_getNumLev(column,'MM') > 1) column%varExistList(vnl_varListIndex('P_M')) = .true.
+      if ( col_getNumLev(column,'TH') > 0 ) column%varExistList(vnl_varListIndex('P_T')) = .true.
+      if ( col_getNumLev(column,'MM') > 0 ) column%varExistList(vnl_varListIndex('P_M')) = .true.
     end if
 
     column%numCol = numCol
@@ -598,10 +598,10 @@ contains
     real(8)                             :: pressure
     integer                             :: ilev1
 
-    if (varLevel == 'TH') then
+    if (varLevel == 'TH' .and. col_varExist(column,'P_T')) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
-    elseif (varLevel == 'MM' ) then
+    elseif (varLevel == 'MM' .and. col_varExist(column,'P_M') ) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
     else
@@ -645,10 +645,10 @@ contains
     real(8)                             :: height
     integer                             :: ilev1
 
-    if (varLevel == 'TH') then
+    if ( varLevel == 'TH' .and. col_varExist(column,'Z_T') ) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
       height = column%all(ilev1+ilev-1,headerIndex)
-    elseif (varLevel == 'MM' ) then
+    elseif (varLevel == 'MM' .and. col_varExist(column,'Z_M') ) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
     elseif (varLevel == 'SF' ) then

@@ -315,7 +315,7 @@ contains
     end do
 
     ! calculate pressure profiles on analysis levels
-    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0') .and. col_varExist(columng,'P_T') ) then
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
       call col_calcPressure(columng)
       if ( mpi_myid == 0 ) then
         write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNHR(1):'
@@ -356,7 +356,7 @@ contains
       end if
     end do
 
-    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0') .and. col_varExist(columng,'P_T')) then
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
       if ( mpi_myid == 0 ) then
         write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, COLUMNG(1):'
         write(*,*) 'P_T:'
@@ -370,7 +370,7 @@ contains
       end if
     endif
 
-    if (col_varExist(columng,'TT') .and. col_varExist(columng,'HU') .and. col_varExist(columng,'P0')) then
+    if ( col_varExist(columng,'TT') .and. col_varExist(columng,'HU') .and. col_varExist(columng,'P0') ) then
       !
       !- Using T, q and PS to compute height for columng
       !
@@ -393,7 +393,7 @@ contains
       write(*,*) 'inn_setupBackgroundColumnsAnl:  height TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
-    if ( col_getNumCol(columng) > 0 .and. (col_varExist(columng,'Z_T') .or. col_varExist(columng,'P_T')) ) then
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'Z_T') ) then
       write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
       write(*,*) 'Z_T (columnhr):'
       columng_ptr => col_getColumn(columnhr,1,'Z_T')

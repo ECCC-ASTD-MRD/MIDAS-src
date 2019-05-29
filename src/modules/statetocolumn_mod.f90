@@ -873,18 +873,15 @@ contains
     call checkColumnStatevectorMatch(column,statevector)
 
     ! calculate delP_T/delP_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'PsfcToP_tl')  ! IN
     end if
 
     ! calculate del Z_T/Z_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
-         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_T')) ) then
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoHeight_tl') ! IN
     end if
@@ -1206,17 +1203,14 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
-         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
-         statevector%varExistList(vnl_varListIndex('Z_T')) ) then
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoHeight_ad') ! IN
     end if
 
     ! Adjoint of calculate delP_T/delP_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'PsfcToP_ad')  ! IN
@@ -1297,17 +1291,15 @@ contains
     call checkColumnStatevectorMatch(column,statevector)
 
     ! calculate P_T/P_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
       call vtr_transform( stateVector, & ! INOUT
                           'PsfcToP_nl')  ! IN
     end if
 
     ! calculate Z_T/Z_M on the grid
-    if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
-         statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
       call vtr_transform( stateVector, & ! INOUT
                           'TTHUtoHeight_nl') ! IN
     end if

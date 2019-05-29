@@ -520,12 +520,12 @@ module gridStateVector_mod
 
       ! add Z_T/Z_M and P_T/P_M to the varExistList
       if ( allocHeight ) then
-        if (gsv_getNumLev(statevector,'TH') > 1) statevector%varExistList(vnl_varListIndex('Z_T ')) = .true.
-        if (gsv_getNumLev(statevector,'MM') > 1) statevector%varExistList(vnl_varListIndex('Z_M ')) = .true.
+        if ( gsv_getNumLev(statevector,'TH') > 0 ) statevector%varExistList(vnl_varListIndex('Z_T ')) = .true.
+        if ( gsv_getNumLev(statevector,'MM') > 0 ) statevector%varExistList(vnl_varListIndex('Z_M ')) = .true.
       end if
       if ( allocPressure ) then
-        if (gsv_getNumLev(statevector,'TH') > 1) statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
-        if (gsv_getNumLev(statevector,'MM') > 1) statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
+        if ( gsv_getNumLev(statevector,'TH') > 0 ) statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
+        if ( gsv_getNumLev(statevector,'MM') > 0 ) statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
       end if
     end if
 
