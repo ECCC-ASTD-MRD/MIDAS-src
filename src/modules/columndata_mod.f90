@@ -51,7 +51,6 @@ module columnData_mod
     logical           :: mpi_local
     real(8), pointer  :: all(:,:)
     real(8), pointer  :: HeightSfc(:,:)
-    real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer, pointer  :: varOffset(:),varNumLev(:)
     logical           :: varExistList(vnl_numVarMax)
@@ -153,8 +152,6 @@ contains
 
     if(column%numCol.gt.0) then
       column%all(:,:) = 0.0d0
-      column%dP_dPsfc_T(:,:) = 0.0d0
-      column%dP_dPsfc_M(:,:) = 0.0d0
       column%HeightSfc(:,:) = 0.0d0
     endif
 
@@ -246,11 +243,6 @@ contains
       allocate(column%HeightSfc(1,column%numCol))
       column%HeightSfc(:,:)=0.0d0
 
-      allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
-      if ( setToZero ) column%dP_dPsfc_T(:,:)=0.0d0
-      if ( setToZero ) column%dP_dPsfc_M(:,:)=0.0d0
-
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
@@ -278,8 +270,6 @@ contains
     if(column%numCol.gt.0) then
       deallocate(column%all)
       deallocate(column%HeightSfc)
-      deallocate(column%dP_dPsfc_T)
-      deallocate(column%dP_dPsfc_M)
       deallocate(column%oltv)
     endif
 
@@ -356,7 +346,6 @@ contains
 
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
-    real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
     integer :: headerIndex, status, ilev1, ilev2
     logical                   :: beSilent
 
@@ -399,22 +388,6 @@ contains
     ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_T'))
     column%all(ilev1:ilev2,:) = zppobs2(:,:)
     if (associated(zppobs1)) deallocate(zppobs1)
-    deallocate(zppobs2)
-
-    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
-
-    status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc,Psfc)
-    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-    zppobs2 = transpose(dP_dPsfc(1,:,:))
-    column%dP_dPsfc_M(:,:) = zppobs2(:,:)
-    deallocate(dP_dPsfc)
-    deallocate(zppobs2)
-
-    status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_T,dP_dPsfc,Psfc)
-    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-    zppobs2 = transpose(dP_dPsfc(1,:,:))
-    column%dP_dPsfc_T(:,:) = zppobs2(:,:)
-    deallocate(dP_dPsfc)
     deallocate(zppobs2)
 
     deallocate(Psfc)
@@ -643,15 +616,23 @@ contains
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
     character(len=*), intent(in)        :: varLevel
-    real(8)                             :: dP_dPsfc
+    real(8)                             :: dP_dPsfc, Psfc
+    real(8), pointer                    :: dP_dPsfc_col(:) => null()
+    integer :: status
+
+    Psfc = col_getElem(column,1,headerIndex,'P0')
 
     if (varLevel == 'TH') then
-      dP_dPsfc = column%dP_dPsfc_t(ilev,headerIndex)
+      status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_T,dP_dPsfc_col,Psfc)
     elseif (varLevel == 'MM' ) then
-      dP_dPsfc = column%dP_dPsfc_m(ilev,headerIndex)
+      status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc_col,Psfc)
     else
       call utl_abort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
     endif
+
+    dP_dPsfc = dP_dPsfc_col(ilev)
+
+    deallocate(dP_dPsfc_col)
 
   end function col_getPressureDeriv
 

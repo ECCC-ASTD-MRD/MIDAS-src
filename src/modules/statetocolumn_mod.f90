@@ -883,7 +883,8 @@ contains
     ! calculate del Z_T/Z_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
          statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+         statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_T')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoHeight_tl') ! IN
     end if
@@ -1207,7 +1208,8 @@ contains
 
     if ( statevector%varExistList(vnl_varListIndex('TT ')) .and. &
          statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-         statevector%varExistList(vnl_varListIndex('P0 ')) ) then
+         statevector%varExistList(vnl_varListIndex('P0 ')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_T')) ) then
       call vtr_transform( statevector, & ! INOUT
                           'TTHUtoHeight_ad') ! IN
     end if

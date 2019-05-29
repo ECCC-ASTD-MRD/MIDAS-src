@@ -224,6 +224,8 @@ contains
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
 
+    write(*,*) 'inn_setupBackgroundColumns: START'
+
     timeInterpType_nl='NEAREST'
 
     nulnam = 0
@@ -280,6 +282,8 @@ contains
 
     call tmg_stop(10)
 
+    write(*,*) 'inn_setupBackgroundColumns: END'
+
   end subroutine inn_setupBackgroundColumns
 
 
@@ -293,6 +297,8 @@ contains
     ! locals
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
+
+    write(*,*) 'inn_setupBackgroundColumnsAnl: START'
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
@@ -309,7 +315,7 @@ contains
     end do
 
     ! calculate pressure profiles on analysis levels
-    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0')) then
+    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0') .and. col_varExist(columng,'P_T') ) then
       call col_calcPressure(columng)
       if ( mpi_myid == 0 ) then
         write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNHR(1):'
@@ -350,7 +356,7 @@ contains
       end if
     end do
 
-    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0')) then
+    if (col_getNumCol(columng) > 0 .and. col_varExist(columng,'P0') .and. col_varExist(columng,'P_T')) then
       if ( mpi_myid == 0 ) then
         write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, COLUMNG(1):'
         write(*,*) 'P_T:'
@@ -371,10 +377,9 @@ contains
       do columnIndex = 1, col_getNumCol(columng)
         columng%HeightSfc(1,columnIndex) = columnhr%HeightSfc(1,columnIndex)
       end do
-      !if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng,obsSpaceData)
 
       ! remove the height offset for the diagnostic levels for backward compatibility only
-      if ( .not.columng%addHeightSfcOffset ) then
+      if ( col_varExist(columng,'Z_T') .and. .not.columng%addHeightSfcOffset ) then
         do columnIndex = 1, col_getNumCol(columng)
           columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
           columng_ptr(col_getNumLev(columng,'TH')) = columng%HeightSfc(1,columnIndex)
@@ -408,6 +413,8 @@ contains
     end if
 
     call tmg_stop(10)
+
+    write(*,*) 'inn_setupBackgroundColumnsAnl: END'
 
   end subroutine inn_setupBackgroundColumnsAnl
 
