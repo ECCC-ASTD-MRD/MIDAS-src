@@ -119,7 +119,7 @@ contains
     write(*,*) 'enkf_computeColumnsPerturbations: nEns =', nEns
 
     !
-    ! Remove ensemble mean from all variables, except: gz_sfc, dP_dPsfc_T/M, oltv
+    ! Remove ensemble mean from all variables, except: HeightSfc, oltv
     !
     do memberIndex = 1, nEns
 

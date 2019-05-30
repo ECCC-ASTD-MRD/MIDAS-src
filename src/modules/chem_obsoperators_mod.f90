@@ -204,8 +204,8 @@ contains
     ! Allocations outside chm_obsoper_init since this can be done outside the HEADER loop.
     ! See chm_obsoper_init for assignment of array content.
     
-    ! Model obs background, GZ, TT, and HU profiles.
-    allocate(obsoper%trial(nlev_bkgrnd),obsoper%gz(nlev_bkgrnd),obsoper%tt(nlev_bkgrnd),obsoper%hu(nlev_bkgrnd))
+    ! Model obs background, height, TT, and HU profiles.
+    allocate(obsoper%trial(nlev_bkgrnd),obsoper%height(nlev_bkgrnd),obsoper%tt(nlev_bkgrnd),obsoper%hu(nlev_bkgrnd))
     ! Model PP and pressure model layer boundaries taken as the middle between model levels.
     allocate(obsoper%pp(nlev_bkgrnd),obsoper%vmodpress(nlev_bkgrnd+1))
     ! Work array: derivative for any variable transform to be applied to a profile
@@ -442,7 +442,7 @@ contains
     enddo HEADER
 
     deallocate(obsoper%trial,obsoper%pp,obsoper%tt,obsoper%dtransform)
-    deallocate(obsoper%gz,obsoper%vmodpress,obsoper%vweights,obsoper%hu)
+    deallocate(obsoper%height,obsoper%vmodpress,obsoper%vweights,obsoper%hu)
     if (kmode.ne.0) deallocate(model_col)
   
     if (present(jobs_opt)) jobs_opt = 0.5d0*jobs_opt
@@ -498,7 +498,7 @@ contains
     type(struct_columnData), intent(inout) :: column_bkgrnd
 
     integer :: bodyIndex,jl,nmodlev_uv
-    real(8), pointer :: col_ptr_gzb(:)
+    real(8), pointer :: col_height_ptr(:)
     real(8), allocatable :: uu(:),vv(:)
     character(len=2), parameter :: varLevel = 'TH'
 
@@ -564,12 +564,12 @@ contains
     enddo
 
     if (col_varExist(column_bkgrnd,'TT').and.col_varExist(column_bkgrnd,'HU').and.col_varExist(column_bkgrnd,'P0')) then     
-       ! GZ would have been generated in the call to sugomobs. 
+       ! Height would have been generated in the call to sugomobs. 
        ! Convert from geopotential to geopotential height.
-       col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'Z_T')
-       obsoper%gz(1:nmodlev) = col_ptr_gzb(1:nmodlev)
+       col_height_ptr => col_getColumn(column_bkgrnd,headerIndex,'Z_T')
+       obsoper%height(1:nmodlev) = col_height_ptr(1:nmodlev)
     else
-       obsoper%gz(:) = -1.
+       obsoper%height(:) = -1.
     end if
 
     ! Get specific humidity if available
@@ -595,14 +595,14 @@ contains
                    uu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'UU')
                    vv(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'VV')
                 enddo
-                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%height,hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
                 deallocate(uu,vv)
              else 
-                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu)   
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%height,hu_opt=obsoper%hu)   
              end if
 
           else
-              obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz)
+              obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%height)
           end if
 
           call chm_add_col_boundary(headerIndex,obsoper%column_bound)  ! save boundary for kmode>0 calls using headerIndex
@@ -840,10 +840,10 @@ contains
      ! Convert altitude to pressure
      select case(obsoper%modelIndex)
      case(1)
-        press_obs = phf_convert_z_to_pressure(obsoper%obslev,obsoper%gz,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
+        press_obs = phf_convert_z_to_pressure(obsoper%obslev,obsoper%height,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
      case(2,3)
-        obsoper%vlayertop = phf_convert_z_to_pressure(obsoper%vlayertop,obsoper%gz,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
-        obsoper%vlayerbottom = phf_convert_z_to_pressure(obsoper%vlayerbottom,obsoper%gz,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
+        obsoper%vlayertop = phf_convert_z_to_pressure(obsoper%vlayertop,obsoper%height,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
+        obsoper%vlayerbottom = phf_convert_z_to_pressure(obsoper%vlayerbottom,obsoper%height,obsoper%pp,obsoper%nobslev,obsoper%nmodlev,obsoper%lat,success)
      end select
   case(2)
      ! Pressure, no conversion needed
@@ -2451,7 +2451,7 @@ contains
 !!v      nmodlev           number of model levels for variables other than uu and vv
 !!v      pressmod          model pressure array
 !!v      tt                model temperature (Kelvin)
-!!v      gz                model geopotential height (meters)
+!!v      height            height (meters)
 !!v      hu                specific humidity 
 !!v      uu                model zonal wind component (m/s)
 !!v      vv                model meridional wind component (m/s)
@@ -2460,12 +2460,12 @@ contains
 !!
 !!v      bound_press       pressure level of boundary to be imposed
 !--------------------------------------------------------------------------
-  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,gz,hu_opt,uu_opt,vv_opt) result(bound_press)
+  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(bound_press)
 
     implicit none
 
     integer, intent(in) :: nmodlev,iconstituent_id
-    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),height(nmodlev)
     real(8), optional, intent(in) :: uu_opt(:),vv_opt(:),hu_opt(nmodlev)
    
     real(8) :: bound_press
@@ -2478,20 +2478,20 @@ contains
     tropo_bound=chm_setup_get_int('tropo_bound',iconstituent_id)
     
     if (tropo_bound.gt.0) then
-       if (.not.all(tt.lt.0.) .and. .not.all(gz.lt.0.) ) then
+       if (.not.all(tt.lt.0.) .and. .not.all(height.lt.0.) ) then
     
           select case(tropo_bound)
           case(1)
     
              ! Get tropopause pressure level
       
-             bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
+             bound_press = phf_get_tropopause(nmodlev,pressmod,tt,height,hu_opt=hu_opt)
     
           case(2)
  
              ! Get PBL pressure level
       
-             bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt,uu_opt=uu_opt,vv_opt=vv_opt) 
+             bound_press = phf_get_pbl(nmodlev,pressmod,tt,height,hu_opt=hu_opt,uu_opt=uu_opt,vv_opt=vv_opt) 
       
           case default
              call utl_abort("chm_get_col_boundary: Unrecognized value for tropo_bound of " &

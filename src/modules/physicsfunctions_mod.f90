@@ -595,7 +595,7 @@ module physicsFunctions_mod
  
   !----------------------------------------------------------------------------------------
 
-  function phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt) result(tropo_press)
+  function phf_get_tropopause(nmodlev,pressmod,tt,height,hu_opt) result(tropo_press)
   !
   ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
   !            - Following consultation with Irena Paunova for water vapour based approach
@@ -615,7 +615,7 @@ module physicsFunctions_mod
   !      pressmod     Model pressure array (Pa)
   !      hu           Model specific humidity 
   !      tt           Model temperature (Kelvin)
-  !      gz           Model geopotential height (m)
+  !      height       Model height (m)
   !
   !   Output
   !
@@ -626,7 +626,7 @@ module physicsFunctions_mod
     implicit none
 
     integer, intent(in) :: nmodlev
-    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),height(nmodlev)
     real(8), intent(in), optional :: hu_opt(nmodlev)
    
     real(8) :: tropo_press
@@ -634,16 +634,16 @@ module physicsFunctions_mod
     integer :: itop,i,k,ilaps
     real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
     real(8), parameter :: press_min=6000.         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
-    real(8), parameter :: gz_min=6000.0           ! Min tropopause level in meters.
+    real(8), parameter :: height_min=6000.0           ! Min tropopause level in meters.
     real(8), parameter :: ppmv_threshold=10.0     
     real(8), parameter :: tgrad_threshold=0.002   ! degrees/m (2 degrees/km)
     real(8), parameter :: consth=0.160754938e+07  ! conversion from mass mixing ratio to ppmv;  1.0e+06 / (18.015/28.96)
 
     tropo_press=-1.0
-    if (all(gz.lt.0.0))  call utl_abort('phf_get_tropopause: Missing GZ for determining tropopause pressure')
+    if (all(height.lt.0.0))  call utl_abort('phf_get_tropopause: Missing height for determining tropopause pressure')
 
     ! Initialize tropopause pressure level using temperature gradient.
-    ! Thermal tropopause is defined as the lowest level (above gz_min) at which (1) the lapse rate decreases
+    ! Thermal tropopause is defined as the lowest level (above height_min) at which (1) the lapse rate decreases
     ! to <= 2 C/km and (2) the average lapse rate between this level and all higher levels within 2 km are <= 2 C/km. 
     ! Ref: International Meteorological Vocabulary (2nd ed.). Geneva: Secretariat of the World Meteorological
     !      Organization. 1992. p. 636. ISBN 92-63-02182-1.
@@ -655,13 +655,13 @@ module physicsFunctions_mod
     itop=itop-1
        
     do i=nmodlev,itop+1,-1
-       if (gz(i)-gz(nmodlev).lt.gz_min) cycle
-       xlaps=-(tt(i)-tt(i-1))/(gz(i)-gz(i-1))
+       if (height(i)-height(nmodlev).lt.height_min) cycle
+       xlaps=-(tt(i)-tt(i-1))/(height(i)-height(i-1))
        if (xlaps.le.tgrad_threshold) then
           ilaps=1
           do k=i-1,itop,-1
-             if (gz(k)-gz(i).gt.2000.0) exit
-             xlaps=xlaps-(tt(k)-tt(k-1))/(gz(k)-gz(k-1))
+             if (height(k)-height(i).gt.2000.0) exit
+             xlaps=xlaps-(tt(k)-tt(k-1))/(height(k)-height(k-1))
              ilaps=ilaps+1
           end do
           if (xlaps/ilaps.le.tgrad_threshold) exit
@@ -695,7 +695,7 @@ module physicsFunctions_mod
           if (hu_ppmv2.ge.ppmv_threshold) then
              ilaps=1
              do k=i+1,nmodlev
-                if (gz(i)-gz(k).gt.5000.0) exit
+                if (height(i)-height(k).gt.5000.0) exit
                 if (hu_opt(k).le.0.8.and.hu_opt(k).ge.0) then
                    hu_ppmv3 = consth*hu_opt(k)/(1.0-hu_opt(k))
                 else if (hu_opt(k).gt.0.8) then
@@ -733,7 +733,7 @@ module physicsFunctions_mod
 
   !----------------------------------------------------------------------------------------
 
-  function phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt,uu_opt,vv_opt) result(pbl_press)
+  function phf_get_pbl(nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(pbl_press)
   !
   ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
   !            - Following consultation with Amir Aliabadi, Shuzhan Ren and Saroja Polavarapu.
@@ -770,7 +770,7 @@ module physicsFunctions_mod
   !      nmodlev      Number of model levels for variables other than uu and vv
   !      pressmod     Model pressure array (Pa)
   !      tt           Model temperature (Kelvin)
-  !      gz           Model geopotential height (meters)
+  !      height       Model height (meters)
   !      hu           Specific humidity
   !      uu           Model zonal wind component (m/s)
   !      vv           Model meridional wind component (m/s)
@@ -781,7 +781,7 @@ module physicsFunctions_mod
   ! 
   !   Comments
   !
-  !   A) Currently assumes (uu,vv) midlayer levels approximately at tt, gz, and hu levels
+  !   A) Currently assumes (uu,vv) midlayer levels approximately at tt, height, and hu levels
   !      when size(uu).ne.nmodlev.
   !
   !!---------------------------------------------------------------------------------------
@@ -789,7 +789,7 @@ module physicsFunctions_mod
     implicit none
 
     integer, intent(in) :: nmodlev
-    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),height(nmodlev)
     real(8), optional :: uu_opt(:),vv_opt(:),hu_opt(nmodlev)
    
     real(8) :: pbl_press
@@ -810,7 +810,7 @@ module physicsFunctions_mod
 
     i = nmodlev   
     
-    if (all(gz.lt.0.0))  call utl_abort('phf_get_pbl: Missing GZ for determining PBL pressure')
+    if (all(height.lt.0.0))  call utl_abort('phf_get_pbl: Missing height for determining PBL pressure')
 
     ! Convert hu to mass mixing ratio
 
@@ -827,7 +827,7 @@ module physicsFunctions_mod
     else if (huw(i).lt.0.0) then
         hus = 0.0
     end if
-    zs = gz(i)*0.001
+    zs = height(i)*0.001
     
     ! Potential virtual temperature at lowest prognostic level
 
@@ -875,7 +875,7 @@ module physicsFunctions_mod
               uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0-vs)**2, 1.D-8 ) 
            end if
          
-           RiB2 = grav * (thetavh(i)-thetavs) * (gz(i)*0.001-zs) / (thetavs*uv)
+           RiB2 = grav * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
            if (RiBmax.lt.RiB2.and.RiB2.ge.reduced*RiB_threshold) then
               RiBmax=RiB2
               iRiBmax=i
@@ -922,12 +922,12 @@ module physicsFunctions_mod
        i=nmodlev-1
        do while (i.gt.itop) 
           !if (thetavh(i)-thetavh(i+1).gt.0.0) then
-          if ((thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1)).ge.0.005) then
+          if ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)).ge.0.005) then
              ! Near bottom of inversion layer found
              inv=i+1
              i=i-1
              !do while (thetavh(i)-thetavh(i+1).gt.0.0.and.i.gt.itop) 
-             do while ((thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1)).ge.0.005.and.i.gt.itop) 
+             do while ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)).ge.0.005.and.i.gt.itop) 
                  i=i-1
              end do
              if ((thetavh(i+1)-thetavh(inv)).gt.2.0)  then
@@ -943,12 +943,12 @@ module physicsFunctions_mod
           gradmax=-1.D30
           igradmax=nmodlev-1
           do i=nmodlev-1,itop,-1
-             grad=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
+             grad=(thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
              if (gradmax.lt.grad) then
-                gradmax=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
+                gradmax=(thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
                 igradmax=i
                 if (grad.ge.0.005) then ! Check next layer as well
-                   if ((thetavh(i-1)-thetavh(i))/(gz(i-1)-gz(i)).ge.0.005) exit
+                   if ((thetavh(i-1)-thetavh(i))/(height(i-1)-height(i)).ge.0.005) exit
                 end if
             end if
           end do          
