@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Reject unknown satellites instead of aborting (#221 et !221)
 
 ### Removed
 
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * The analysis increment can now be masked in the blending zone like in the former program addAnalInc (#213 and !200)	 
+ * The analysis increment can now be masked in the blending zone like in the former program `addAnalInc` (#213 and !200)
  * Adding support for CrIS FSR radiances (#205 and !193)
    * It needs a modified version of RTTOV-12.
    * New input files were added to work around the file size limit of
