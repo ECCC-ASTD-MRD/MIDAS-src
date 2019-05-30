@@ -251,8 +251,12 @@ contains
   
     tvs_nchan(:) = 0 
     tvs_ichan(:,:) = 0
-    tvs_ltovsno(:) = 0
     tvs_isReallyPresent(:) = .true.
+
+    tvs_lsensor(:) = -1
+    tvs_lobsno (:) = -1
+    tvs_ltovsno (:) = -1
+
 
     tvs_nobtov = 0
 
@@ -300,12 +304,8 @@ contains
         tvs_lobsno (tvs_nobtov) = index_header
         tvs_ltovsno (index_header) = tvs_nobtov
       else
-        write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
-        write(*,'(A)') ' tvs_setupAlloc: Invalid Sensor'
-        do KRTID = 1, tvs_nsensors
-          print *,krtid,tvs_platforms  (KRTID),tvs_satellites (KRTID),tvs_instruments(KRTID)
-        end do
-        call utl_Abort('tvs_setupAlloc')
+        write(*,*) " tvs_setupAlloc: Warning Invalid Sensor ",IPLATFORM,ISAT,INSTRUM," skipping ..."
+        cycle HEADER
       endif
 
       ! loop over all body indices (still in the 'TO' family)
@@ -426,11 +426,13 @@ contains
 
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
-        nl = tvs_coefs(isens) % coef % nlevels
+        if (isens > -1) then
+          nl = tvs_coefs(isens) % coef % nlevels
         ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(isens),asw=1,coefs=tvs_coefs(isens),init=.false. ) ! asw =1 allocation
-        call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+          call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &    ! 1 = nprofiles un profil a la fois
+               tvs_opts(isens),asw=1,coefs=tvs_coefs(isens),init=.false. ) ! asw =1 allocation
+          call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+        end if
       end do
 
 !___ radiance by profile
@@ -441,11 +443,13 @@ contains
   
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
-        nc = tvs_nchan(isens)
-      ! allocate BT equivalent to total direct, tl and ad radiance output
-        allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
-        tvs_radiance(jo)  % bt  ( : ) = 0.d0
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 2")
+        if (isens > -1) then
+          nc = tvs_nchan(isens)
+          ! allocate BT equivalent to total direct, tl and ad radiance output
+          allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
+          tvs_radiance(jo)  % bt  ( : ) = 0.d0
+          call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 2")
+        end if
       end do
 
     end if
@@ -1282,26 +1286,28 @@ contains
     do profile_index = 1,  nprofiles
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
-      do body_index = istart, iend
-        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) then
-          ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
-          ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
-          ICHN = ICHN - tvs_channelOffset(sensor_id)
-          do nrank = 1, tvs_nchan(sensor_id)
-            if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
-          end do
-          if (nrank /= tvs_nchan(sensor_id)+1) then
-            count =  count + 1
-            chanprof(count)%prof = profile_index
-            chanprof(count)%chan = nrank
-            if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = body_index
-          else
-            write(*,*) "strange channel number",ichn
+      if (header_index > 0) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+        iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
+        do body_index = istart, iend
+          if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) then
+            ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
+            ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
+            ICHN = ICHN - tvs_channelOffset(sensor_id)
+            do nrank = 1, tvs_nchan(sensor_id)
+              if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
+            end do
+            if (nrank /= tvs_nchan(sensor_id)+1) then
+              count =  count + 1
+              chanprof(count)%prof = profile_index
+              chanprof(count)%chan = nrank
+              if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = body_index
+            else
+              write(*,*) "strange channel number",ichn
+            end if
           end if
-        end if
-      end do
+        end do
+      end if
     end do
   
   end subroutine TVS_getChanprof
@@ -1329,11 +1335,13 @@ contains
     do profile_index = 1, nprofiles
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
-      do body_index = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) tvs_countRadiances  = tvs_countRadiances + 1
-      end do
+      if (header_index > 0) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+        iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
+        do body_index = istart, iend
+          if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) tvs_countRadiances  = tvs_countRadiances + 1
+        end do
+      end if
     end do
 
   end function tvs_countRadiances
@@ -1363,14 +1371,16 @@ contains
     do profile_index = 1, nprofiles
       iobs = iptobs(profile_index)
       index_header = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
-      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
-      do index_body = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == assim_flag_val) then
-          count = count + 1
-          surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
-        end if
-      end do
+      if (index_header > 0 ) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
+        iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
+        do index_body = istart, iend
+          if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == assim_flag_val) then
+            count = count + 1
+            surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
+          end if
+        end do
+      end if
     end do
 
   end subroutine tvs_getHIREmissivities
@@ -1576,61 +1586,63 @@ contains
         iptobs(count_profile) = iobs
         header_index = tvs_lobsno(iobs)
         iptobscma(count_profile) = header_index
+!        if ( header_index > 0) then
 
-        !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        ksurf = obs_headElem_i(lobsSpaceData,OBS_OFL,header_index)
-        tvs_profiles(iobs) % skin % surftype = ksurf
+          !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
+          ksurf = obs_headElem_i(lobsSpaceData,OBS_OFL,header_index)
+          tvs_profiles(iobs) % skin % surftype = ksurf
 
-        !    extract satellite zenith and azimuth angle, 
-        !    sun zenith angle, cloud fraction, latitude and longitude
-        isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
-        tvs_profiles(iobs) % zenangle   = (isatzen - 9000) / 100.0
+          !    extract satellite zenith and azimuth angle, 
+          !    sun zenith angle, cloud fraction, latitude and longitude
+          isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
+          tvs_profiles(iobs) % zenangle   = (isatzen - 9000) / 100.0
 
-        !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
-        if (tvs_profiles(iobs) % zenangle < 0.0d0 .or. &
-             tvs_profiles(iobs) % zenangle > zenmax ) then
-          write(*,*) "!!! WARNING !!!"
-          write(*,*) "INVALID ZENITH ANGLE"
-          write(*,*) "angle, profile number, sensor", tvs_profiles(iobs) % zenangle, iobs, sensor_id
-          write(*,*) "replaced by 0.0 !!!"
-          tvs_profiles(iobs) % zenangle = 0.d0
-        end if
+          !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
+          if (tvs_profiles(iobs) % zenangle < 0.0d0 .or. &
+               tvs_profiles(iobs) % zenangle > zenmax ) then
+            write(*,*) "!!! WARNING !!!"
+            write(*,*) "INVALID ZENITH ANGLE"
+            write(*,*) "angle, profile number, sensor", tvs_profiles(iobs) % zenangle, iobs, sensor_id
+            write(*,*) "replaced by 0.0 !!!"
+            tvs_profiles(iobs) % zenangle = 0.d0
+          end if
  
-        isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
-        isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
-        tvs_profiles(iobs) % azangle   = ( isatazim / 100.0d0 )
-        tvs_profiles(iobs) % sunazangle  =  ( isunazim / 100.0d0 )! necessaire pour radiation solaire
-        iplatform = tvs_coefs(sensor_id) % coef % id_platform
-        instrum = tvs_coefs(sensor_id) % coef % id_inst
-        if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
+          isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
+          isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
+          tvs_profiles(iobs) % azangle   = ( isatazim / 100.0d0 )
+          tvs_profiles(iobs) % sunazangle  =  ( isunazim / 100.0d0 )! necessaire pour radiation solaire
+          iplatform = tvs_coefs(sensor_id) % coef % id_platform
+          instrum = tvs_coefs(sensor_id) % coef % id_inst
+          if ( (instrum == inst_id_amsua .or. instrum == inst_id_mhs) .and. iplatform /= platform_id_eos ) then
           !Correction sur la definition de l'angle. A ammeliorer. Ok pour l'instant.
-          tvs_profiles(iobs) % azangle   = (isatazim + isunazim) / 100.d0
-          if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle = tvs_profiles(iobs) % azangle - 360.d0
-        end if
-        isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
-        tvs_profiles(iobs) % sunzenangle = (isunza - 9000) / 100.0d0
-        zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
-        zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
-        tvs_profiles(iobs) % longitude = zlon
-        do jl = 1, nlv_T
-          zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
-          zhu  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
-          zvlev(jl,count_profile) = col_getPressure(columnghr,jl,header_index,'TH') * MPC_MBAR_PER_PA_R8
-          zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH') / rg
-        end do
+            tvs_profiles(iobs) % azangle   = (isatazim + isunazim) / 100.d0
+            if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle = tvs_profiles(iobs) % azangle - 360.d0
+          end if
+          isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
+          tvs_profiles(iobs) % sunzenangle = (isunza - 9000) / 100.0d0
+          zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
+          zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
+          tvs_profiles(iobs) % longitude = zlon
+          do jl = 1, nlv_T
+            zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
+            zhu  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
+            zvlev(jl,count_profile) = col_getPressure(columnghr,jl,header_index,'TH') * MPC_MBAR_PER_PA_R8
+            zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH') / rg
+          end do
 
-        if (diagTtop) then
+          if (diagTtop) then
           ! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
           ! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
           ! (grosse varibilite de la temperature au dernier niveau thermo due a l'extrapolation utilisee)
-          zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
-               log( col_getPressure(columnghr,1,header_index,'TH') /  &
-               col_getPressure(columnghr,2,header_index,'TH') )
-          zhu  (1,count_profile) =  zhu  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
+            zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
+                 log( col_getPressure(columnghr,1,header_index,'TH') /  &
+                 col_getPressure(columnghr,2,header_index,'TH') )
+            zhu  (1,count_profile) =  zhu  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 !!!!
-        end if
+          end if
+!        end if
         
-      end do bobs2
+        end do bobs2
  
       !     .  2.1  Vertical interpolation of model temperature, logarithm of
       !             specific humidity and height levels to pressure levels
@@ -4181,12 +4193,11 @@ contains
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
 
       indxtovs = tvs_ltovsno(index_header)
-      if ( indxtovs == 0 ) then
-        write(*,'(A)') ' tvs_calc_jo: error with indxtovs'
-        call utl_abort('tvs_calc_jo')
-      endif
-
+      if ( indxtovs == -1 ) cycle HEADER
+     
       isens = tvs_lsensor(indxtovs)
+
+!      if (isens < 0)  cycle HEADER
 
       ! Set the body list
       ! (& start at the beginning of the list)

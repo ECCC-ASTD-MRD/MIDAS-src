@@ -200,15 +200,17 @@ contains
 !___ radiance by profile
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      nl = tvs_coefs(isens) % coef % nlevels
+      if (isens > 0) then
+        nc = tvs_nchan(isens)
+        nl = tvs_coefs(isens) % coef % nlevels
  ! allocate clear sky radiance output
-      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
-      tvs_radiance(jo)  % clear  ( : ) = 0.d0
+        allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
+        tvs_radiance(jo)  % clear  ( : ) = 0.d0
  !  allocate overcast black cloud sky radiance output
-      allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
-      call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
-      tvs_radiance(jo)  % overcast  (:,:) = 0.d0
+        allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
+        call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
+        tvs_radiance(jo)  % overcast  (:,:) = 0.d0
+      end if
     end do
 
 
@@ -220,12 +222,14 @@ contains
 
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      nl = tvs_coefs(isens) % coef % nlevels
+      if (isens > 0) then
+        nc = tvs_nchan(isens)
+        nl = tvs_coefs(isens) % coef % nlevels
       ! allocate transmittance from surface and from pressure levels
-      allocate( tvs_transmission(jo) % tau_total ( nc ), stat= alloc_status(1))
-      allocate( tvs_transmission(jo) % tau_levels(nl,nc), stat= alloc_status(2))
-      call utl_checkAllocationStatus(alloc_status, " irbg_setup")
+        allocate( tvs_transmission(jo) % tau_total ( nc ), stat= alloc_status(1))
+        allocate( tvs_transmission(jo) % tau_levels(nl,nc), stat= alloc_status(2))
+        call utl_checkAllocationStatus(alloc_status, " irbg_setup")
+      end if
     end do
 
 !___ emissivity by profile
@@ -233,8 +237,10 @@ contains
     ncmax = 1
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      if (nc > ncmax) ncmax=nc
+      if ( isens > 0) then
+        nc = tvs_nchan(isens)
+        if (nc > ncmax) ncmax=nc
+      end if
     end do
 
     allocate( tvs_emissivity (ncmax,tvs_nobtov), stat=alloc_status(1))
@@ -1095,7 +1101,7 @@ contains
     HEADER: do
       index_header = obs_getHeaderIndex(lobsSpaceData)
       if (index_header < 0) exit HEADER
-       
+      if (tvs_ltovsno (index_header) < 0) cycle HEADER
       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id ) then
         count = count + 1
@@ -1230,7 +1236,7 @@ contains
       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
       if ( tvs_isIdBurpTovs(idatyp) ) tvs_nobtov = tvs_nobtov + 1
-
+      if ( tvs_ltovsno (index_header) < 0) cycle HEADER_2
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id) then
         BTOBS(:)    = -1.d0
         BTCALC(:)   = -1.d0

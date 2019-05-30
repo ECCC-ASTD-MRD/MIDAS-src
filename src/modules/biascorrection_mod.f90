@@ -247,6 +247,7 @@ CONTAINS
       end if
 
       iobs = iobs + 1
+      if  ( tvs_ltovsno(index_header) < 0) cycle HEADER
       iSensor = tvs_lsensor(tvs_ltovsno(index_header))
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
 
@@ -701,6 +702,7 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
 
       iobs = iobs + 1
+      if ( tvs_ltovsno(index_header) < 0) cycle HEADER
       iSensor = tvs_lsensor(tvs_ltovsno(index_header))
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
 
@@ -772,6 +774,7 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
 
       iobs = iobs + 1
+      if ( tvs_ltovsno(index_header) < 0) cycle HEADER
       iSensor = tvs_lsensor(tvs_ltovsno(index_header))
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
       call obs_set_current_body_list(obsSpaceData, index_header)
