@@ -301,11 +301,6 @@ contains
 
 
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
-    !
-    !   Revisions:
-    !             Y.J. Rochon (ARQI), Jan. 2015
-    !             - Added optional varCHnumber
-    !          
     implicit none
     type(struct_columnData) :: column
     integer, intent(in)     :: varnum
@@ -393,9 +388,6 @@ contains
 
   end subroutine col_calcPressure
 
-  !--------------------------------------------------------------------------
-  ! col_vintprof
-  !--------------------------------------------------------------------------
   subroutine col_vintprof(column_in,column_out,varName,useColumnPressure_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
@@ -586,9 +578,7 @@ contains
 
   end subroutine col_vintprof
 
-  !--------------------------------------------------------------------------
-  ! col_getPressure
-  !--------------------------------------------------------------------------
+
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column

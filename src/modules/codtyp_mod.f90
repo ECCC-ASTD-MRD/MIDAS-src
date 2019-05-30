@@ -17,8 +17,8 @@
 module codtyp_mod
   ! MODULE codtyp_mod (prefix='codtyp' category='8. Global constants and interfaces')
   !
-  !:Purpose: Reads a list of codtype definitions (codes that define various
-  !          types of observations) from the namelist and makes them available
+  !:Purpose: To read a list of codtype definitions (codes that define various
+  !          types of observations) from the namelist and to make them available
   !          through functions.
   !
   !          Definitions are taken from: 
@@ -39,17 +39,10 @@ module codtyp_mod
 
 contains
 
-!--------------------------------------------------
-!! *Purpose*: Initialize the NAMCODTYP namelist variables
-!!
-!! @author S. Heilliette November 2015
-!!
-!! Revisions:
-!!v     M. Sitwell March 2017
-!!v       - Made into a separate subroutine.
-!--------------------------------------------------
   subroutine codtyp_initialize()
-
+    !
+    !:Purpose: To initialize the NAMCODTYP namelist variables
+    !
     implicit none
 
     integer :: nulnam,ierr,i,ilen
@@ -316,13 +309,12 @@ contains
 
   end subroutine codtyp_initialize
 
-!--------------------------------------------------
-!! *Purpose*: Given a family name return the codtyp
-!!            NEW information from namelist NAMCODTYP
-!!
-!! @author S. Heilliette November 2015
-!--------------------------------------------------
   integer function codtyp_get_codtyp(name)
+    !
+    !:Purpose: Given a family name, return the codtyp
+    !
+    !          NEW information from namelist NAMCODTYP
+    !
     implicit none
     character (len=*),intent(in) :: name
 
@@ -345,13 +337,12 @@ contains
     
   end function codtyp_get_codtyp
 
-!----------------------------------------------------
-!! *Purpose*: Given a family name return the codtyp
-!!            NEW information from namelist NAMCODTYP
-!!
-! @author S. Heilliette November 2015
-!----------------------------------------------------
   character (len=codtyp_name_length) function codtyp_get_name(codtyp)
+    !
+    !:Purpose: Given a codtyp, return the family name
+    !
+    !          NEW information from namelist NAMCODTYP
+    !
     use mpi_mod
     implicit none
     Integer,intent(in) :: codtyp

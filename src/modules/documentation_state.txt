@@ -24,14 +24,6 @@ nil
 MODULES REMAINING - clean up existing subroutine descriptions
 =================            ================================
 >>> JEFF IS WORKING DOWN THIS LIST FROM HERE <<<
-chem_postproc_mod.f90
-chem_setup_mod.f90
-clib_interfaces_mod.ftn90
-cmafiles_mod.f90
-codeprecision_mod.ftn90
-codtyp_mod.f90
-columndata_mod.f90
-
 computeHBHT_mod.f90
 controlvector_mod.f90
 costfunction_mod.f90

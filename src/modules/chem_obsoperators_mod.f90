@@ -1114,7 +1114,7 @@ contains
     !
     !:Comments:
     !
-    !      A. chm_setup_get_float('amu',*): Molecular mass of constituent (g/mol)
+    !      A. chm_setup_get_float('amu',*): Molecular mass of constituent(g/mol)
     !
     !      B. Standard model/analysis species field provided as mass mixing 
     !         ratio in ug/kg (ppb). Conversion to ppb is applied when this is 
@@ -1132,8 +1132,7 @@ contains
     !
     !      D. The baseline integral observation operator can be interpreted as
     !         being integrals of the gas partial pressure, giving products in
-    !         kg/m^2, e.g. with sample discretized layer integrals
-    !         ::
+    !         kg/m^2, e.g. with sample discretized layer integrals::
     !                (mass density) * dz = - d(gas partial pressure)/g 
     !                                    = - [rho(gas)/rho(air)]*dP/g
     !                                    = - 1E-9 * [mass mixing ratio in parts per billion (ppb)]*dP/g 
@@ -2263,7 +2262,7 @@ contains
     !    :ndim3:         output dimension expected by the calling routine
     !
     !                        - for itype=+/-3  ndim3=ndim1
-    !                        - otherwise        ndim3=ndim2 
+    !                        - otherwise       ndim3=ndim2 
     !
     !    :itype:         type of multiplication, for an input matrix A the
     !                    output matrix is

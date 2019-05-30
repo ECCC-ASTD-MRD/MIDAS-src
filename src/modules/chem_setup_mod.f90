@@ -22,39 +22,6 @@ module chem_setup_mod
   !           format files.
   !
 
-  ! Public routines:
-  !
-  !       - "chm_setup": Routines and structure for setting and assignment 
-  !         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
-  !         See 'preproc.ftn90' and 'chm_obsoperators'. 
-  !
-  !       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
-  !
-  !       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
-  !
-  !       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
-  !
-  !       - "chm_get_avgkern" to return averaging kernel for an observation.
-  !
-  !       - "chm_var_maxnumber" to pass on value of chm_constituents_size
-  !
-  !       - "chm_add_efftemp_*" adds effective temperatures in obsfile and or 
-  !          obsdata subspace
-  !
-  !        - "chm_set_reference_obsdata" determines and stores reference 
-  !          profile at obs location if needed by the observation operators.
-  !
-  !       - "chm_get_ref_column" to extract and provide column from chm_ref_field
-  !          associated to code.
-  !
-  !       - "chm_setup_get_*" allows access to desired private parameters, most
-  !          of them provided via the NAMCHEM namelist
-  !
-  !       - "chm_setup_set_int" allows setting of some integer element(s) 
-  !         specific to the CH family outside this module. 
-  !
-  !       - "chm_diagn_only": Identify if data is to be assimilated or only used
-  !         for independent verifications.
   !
   !
   ! Comment:
@@ -284,29 +251,17 @@ module chem_setup_mod
 
 contains
 
-!----------------------------------- Setup -----------------------------------
-!---------------------------------------------------------------------------
-!
-! SUBROUTINE chm_setup
-!!
-!! *Purpose*: Setup additional information required by constituent obs and 
-!!            not provided in obsSpaceData.
-!!
-!! @author Y. Rochon, Dec 2014 
-!! 
-!! Revisions: 
-!!v            M. Sitwell, Feb 2015
-!!v            - Removed references to earlier structure
-!!v            Y. Rochon, Dec 2015
-!!v            - Added call to chm_read_ref_fields and related optional input
-!!v              'datestamp'
-!!v          
-!----------------------------------------------------------------------------------------
   subroutine chm_setup(datestamp_opt)
-  
-  implicit none
+    !
+    !:Purpose: To set up additional information required by constituent obs and
+    !          not provided in obsSpaceData.  Also to assign observation layer
+    !          top and bottom levels (and averaging kernel matrices - tbc).
+    !          See 'preproc.ftn90' and 'chm_obsoperators'. 
+    !
+    implicit none
 
-  integer, intent(in), optional :: datestamp_opt
+    ! Arguments:
+    integer, intent(in), optional :: datestamp_opt
 
   write(*,*) 'Begin chm_setup'
 
@@ -345,118 +300,148 @@ contains
   
   end subroutine chm_setup
 
-!-----------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_read_namchem
-!!
-!! *Purpose*: Read and store miscellaneous flags and constants.
-!!
-!! @author Y. Rochon, ARQI/AQRD, Apr 2015 
-!!
-!! Revisions: 
-!!            Y. Rochon, ARQI/AQRD, Sept 2015
-!!            - Added reading of variables related to options for attributing only 
-!!              tropospheric portion of the increment to total column observations
-!!            M. Sitwell, ARQI/AQRD, Oct 2015
-!!            - Moved amu from auxiliary file to namelist namchem    
-!!
-!! Output:
-!!
-!!v   Read from NAMCHEM namelist
-!!v
-!!v        genoper             If generalized observation operator should be used and selection of approach
-!!v                            <=0: not applied
-!!v                            1: use trial field xb for mass weighted increment distribution
-!!v                            2: use a combination of the difference of an external reference xc 
-!!v                               and the trial field xb, i.e. mass weighted increment distribution 
-!!v                               as a(xc-xb) + b*xc where a and b depend on the size of 
-!!v                               sum[(xc-xb)/sig(xb)]^2 over the profile.
-!!v
-!!v        assim_fam           List of families to which filt_diagn_only is to apply.
-!!v
-!!v        assim_exclude_flag  Array specifying bits for identifying diagnostic-only observations for
-!!v                            observations that would otherwise be assimilated according to the other
-!!v                            assim_* arrays
-!!v
-!!v        assim_exclude_nflag Number of bit flags to specify in assim_exclude_flag array
-!!v
-!!v        assim_all           Logical indicating if all assimilatable obs of the specified family
-!!v                            will be assimilated (default is .true.)
-!!v
-!!v        assim_num           Number combinations (stnid, bufr element, multi/uni-level) 
-!!v                            identified for assimilation. All others will not
-!!v                            be assimilated. OmP and OmA diagnostics and output
-!!v                            will still be produced for non-assimilated datasets.
-!!v                         
-!!v                             0:  none are to be assimilated
-!!v                            >0:  sets of (stnid, bufr varno, multi/uni-levels) to be assimilated
-!!v
-!!v        assim_varno         Bufr elements of obs sets for assimilation. A value of
-!!v                            0 implies that all are to be used.
-!/v
-!!v        assim_stnid         Stnids of obs sets for assimilation. '*' denote wild cards
-!!v
-!!v        assim_nlev           0:  multi-level and uni-level
-!!v                             1:  uni_level
-!!v                            >1: multi-level 
-!!v
-!!v        tropo_mode          Integer indicating if special treatment is to be given to the troposphere
-!!v                            when assimilating total column measurements. Values indicate
-!!v                             0:  No special treatment given (default)
-!!v                             1:  Values of the adjoint model above obsoper%column_bound set to zero.
-!!v                                 If specified, generalized innovation operator only applied below
-!!v                                 obsoper%column_bound in the tangent linear model.
-!!v                             2:  Values of tangent linear model and adjoint model above
-!!v                                 obsoper%column_bound set to zero.
-!!v                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-!!v                            identifying the constituent. Relevant for total column measurements only.
-!!v
-!!v        tropo_bound         Integer indicating which column top value to use if tropo_mode is non-zero.
-!!v                              0: Use fixed value of tropo_column_top
-!!v                              1: Use model determination of tropopause
-!!v                              2: Use model determination of PBL
-!!v                            Options 1 and 2 will default to the value set in tropo_column_top if the model
-!!v                            derived column top could not be determined. Relevant for total column measurements only.
-!!v                         
-!!v        tropo_column_top    Default value to use for the column boundary (in Pa). Array index refers to BUFR code
-!!v                            element of Table 08046 (iconstituent_id) identifying the constituent.
-!!v                            Relevant for total column measurements only.
-!!v
-!!v        amu                 Molecular mass  of constituents in g/moles (needed for unit conversions)
-!!v                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-!!v                            identifying the constituent.
-!!v
-!!v       obsdata_maxsize      Max allowed size of work arrays (in terms of number of obs) associated to
-!!v                            ordered observation indices
-!!v
-!!v       sigma_cutoff         fractional value of background error std. dev. to apply to increment
-!!v                            sizes for setting them to zero prior to storage. Not applied if 
-!!v                            cutoff value is <= 0.0 or >0.1
-!!v
-!!v       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
-!!v                            of the background field (generally < 1)
-!!v
-!!v       high_cutoff          max value allowed for increments prior to storage in rebm expressed as a multiple
-!!v                            of the background field (generally > 1)
-!!v
-!!v       transform            Index specifying form of analysis increment (and related adjoint operation)
-!!v                               -1: no transformation (dx given input trial field denoted as x)
-!!v                              >=0: Ensure positive values. Provide warning if
-!!v                                   non-positive values encountered.
-!!v                                1: dlnx
-!!v
-!!v       message_filename     File name for file containing various messages and warnings related to chemical
-!!v                            constituents that are not included in the listing file.
-!!v
-!!v                            Not currently used in code.
-!!v                            Writing in MPI would need to use different files for each processor 
-!!v                            or output via a single processor.
-!!v
-!---------------------------------------------------------------------------------------- 
   subroutine chm_read_namchem
+    !:Purpose: Read and store miscellaneous flags and constants.
+    !
+    !:Output:
+    !
+    !  :Read from NAMCHEM namelist:
+    ! 
+    !     :genoper:
+    !                           Whether generalized observation operator should
+    !                           be used and selection of approach
+    !                             ===  =======================================
+    !                             <=0  not applied
+    !                              1   use trial field xb for mass weighted
+    !                                  increment distribution
+    !                              2   use a combination of the difference of
+    !                                  an external reference xc and the trial
+    !                                  field xb, i.e. mass weighted increment
+    !                                  distribution as a(xc-xb) + b*xc where a
+    !                                  and b depend on the size of
+    !                                  sum[(xc-xb)/sig(xb)]^2 over the profile
+    !                             ===  =======================================
+    !
+    !     :assim_fam:           List of families to which filt_diagn_only is to
+    !                           apply.
+    ! 
+    !     :assim_exclude_flag:  Array specifying bits for identifying
+    !                           diagnostic-only observations for observations
+    !                           that would otherwise be assimilated according to
+    !                           the other assim_* arrays
+    ! 
+    !     :assim_exclude_nflag: Number of bit flags to specify in
+    !                           assim_exclude_flag array
+    ! 
+    !     :assim_all:           Logical indicating if all assimilatable obs of
+    !                           the specified family will be assimilated
+    !                           (default is .true.)
+    ! 
+    !     :assim_num:           Number combinations (stnid, bufr element,
+    !                           multi/uni-level) identified for assimilation.
+    !                           All others will not be assimilated. OmP and OmA
+    !                           diagnostics and output will still be produced
+    !                           for non-assimilated datasets.
+    !                             ===  =======================================
+    !                              0   none are to be assimilated
+    !                             >0   sets of (stnid, bufr varno,
+    !                                  multi/uni-levels) to be assimilated
+    !                             ===  =======================================
+    ! 
+    !     :assim_varno:         Bufr elements of obs sets for assimilation. A
+    !                           value of 0 implies that all are to be used.
+    !
+    !     :assim_stnid:         Stnids of obs sets for assimilation. '*' denote
+    !                           wild cards
+    ! 
+    !     :assim_nlev:            ===  =========================
+    !                              0   multi-level and uni-level
+    !                              1   uni_level
+    !                             >1   multi-level 
+    !                             ===  =========================
+    ! 
+    !     :tropo_mode:          Integer indicating if special treatment is to be
+    !                           given to the troposphere when assimilating total
+    !                           column measurements. Values indicate
+    !                             ===  =======================================
+    !                              0   No special treatment given (default)
+    !                              1   Values of the adjoint model above
+    !                                  obsoper%column_bound set to zero. If
+    !                                  specified, generalized innovation
+    !                                  operator only applied below
+    !                                  obsoper%column_bound in the tangent
+    !                                  linear model.
+    !                              2   Values of tangent linear model and
+    !                                  adjoint model above obsoper%column_bound
+    !                                  set to zero.
+    !                             ===  =======================================
+    !                           Array index refers to BUFR code element of Table
+    !                           08046 (iconstituent_id) identifying the
+    !                           constituent. Relevant for total column
+    !                           measurements only.
+    ! 
+    !     :tropo_bound:         Integer indicating which column top value to use
+    !                           if tropo_mode is non-zero.
+    !                             ===  =======================================
+    !                              0   Use fixed value of tropo_column_top
+    !                              1   Use model determination of tropopause
+    !                              2   Use model determination of PBL
+    !                             ===  =======================================
+    !                           Options 1 and 2 will default to the value set
+    !                           in tropo_column_top if the model derived column
+    !                           top could not be determined. Relevant for total
+    !                           column measurements only.
+    !                          
+    !     :tropo_column_top:    Default value to use for the column boundary
+    !                           (in Pa). Array index refers to BUFR code element
+    !                           of Table 08046 (iconstituent_id) identifying
+    !                           the constituent. Relevant for total column
+    !                           measurements only.
+    ! 
+    !     :amu:                 Molecular mass of constituents in g/mole (needed
+    !                           for unit conversions) Array index refers to BUFR
+    !                           code element of Table 08046 (iconstituent_id)
+    !                           identifying the constituent.
+    ! 
+    !     :obsdata_maxsize:     Max allowed size of work arrays (in terms of
+    !                           number of obs) associated to ordered observation
+    !                           indices
+    ! 
+    !     :sigma_cutoff:        fractional value of background error std. dev.
+    !                           to apply to increment sizes for setting them to
+    !                           zero prior to storage. Not applied if cutoff
+    !                           value is <= 0.0 or >0.1
+    ! 
+    !     :low_cutoff:          min value allowed for increments prior to
+    !                           storage in rebm expressed as a fraction of the
+    !                           background field (generally < 1)
+    ! 
+    !     :high_cutoff:         max value allowed for increments prior to
+    !                           storage in rebm expressed as a multiple of the
+    !                           background field (generally > 1)
+    ! 
+    !     :transform:           Index specifying form of analysis increment (and
+    !                           related adjoint operation)
+    !                             ===  =======================================
+    !                              -1  no transformation (dx given input trial
+    !                                  field denoted as x)
+    !                             >=0  Ensure positive values. Provide warning
+    !                                  if non-positive values encountered.
+    !                               1  dlnx
+    !                             ===  =======================================
+    ! 
+    !     :message_filename:    File name for file containing various messages
+    !                           and warnings related to chemical constituents
+    !                           that are not included in the listing file.
+    ! 
+    !                           Not currently used in code.
+    !                           Writing in MPI would need to use different files
+    !                           for each processor or output via a single
+    !                           processor.
+    !
+    implicit none
 
-  implicit none
-
+    ! Locals:
   integer :: FNOM, FCLOS
   integer :: IERR, JELM, nulstat, ios, isize, nulnam, i
   integer :: genoper(0:chm_constituents_size)
@@ -466,8 +451,8 @@ contains
 
   EXTERNAL FNOM,FCLOS
 
-  namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
-                     assim_exclude_nflag,assim_exclude_flag,                   &
+  namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,    &
+                    assim_nlev, assim_exclude_nflag,assim_exclude_flag,        &
                      tropo_mode,tropo_bound,tropo_column_top,amu,sigma_cutoff, &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize,         &
                      message_filename,genoper
@@ -539,32 +524,24 @@ contains
   
   end subroutine chm_read_namchem
 
-!-----------------------------------------------------------------------------------------
-! -------------------- Routines related to layer top & bottom levels----------------------
-!
-! SUBROUTINE chm_read_layers
-!!
-!! *Purpose*: Read and store top and bottom layer boundaries for CH sub-families
-!!
-!!
-!! @author  Y. Rochon, ARQI/AQRD, Dec 2014 
-!!v         - Partially based on oer_read_obs_erreurs_conv.
-!!
-!! Revisions: 
-!!v            M. Sitwell, ARQI/AQRD, Feb 2015
-!!v            - Renaming of routine and removal of lines no longer required.
-!!          
-!! Comments:
-!!
-!!v A) The option of reading from observation files is TBD. This will change the approach in allocating
-!!v    the arrays size as the sizes will become dependent on the number of related obs for
-!!v    which the observation files will need to be read.
-!!
-!----------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+! -------------------- Routines related to layer top & bottom levels------------
+
   subroutine chm_read_layers
+    !
+    !:Purpose: To read and to store top- and bottom-layer boundaries for CH
+    !          sub-families
+    !
+    !:Comments:
+    !
+    !  A) The option of reading from observation files is TBD. This will change
+    !     the approach in allocating the arrays size as the sizes will become
+    !     dependent on the number of related obs for which the observation files
+    !     will need to be read.
+    !
+    implicit none
 
-  implicit none
-
+    ! Locals:
   integer :: FNOM, FCLOS
   integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
   logical :: LnewExists
@@ -681,44 +658,33 @@ contains
 
   end subroutine chm_read_layers
 
-!----------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_get_layer_boundaries
-!!
-!! *Purpose*: Return layer boundaries for an observation. Combination of STNID, element
-!!            variable number and number of vertical levels to determine association to the
-!!            observations. Default values for top and bottom layers for total column measurements
-!!            are to be provided.
-!!
-!! @author M. Sitwell, Y. Rochon, Feb 2015
-!!
-!! Revision: 
-!!
-!! Inputs:
-!!v   - cstnid          station id
-!!v   - varno           BUFR element
-!!v   - ivco            type of vertical coordinate (see burpread_mod.ftn90 or
-!!v                     routine chm_obsoperators for definitions)
-!!v   - nlev            number of levels in the observation
-!!v   - default_top     default value for top layer for total column measurement
-!!v   - default_bottom  default value for bottom layer for total column measurement
-!!
-!! Outputs:
-!!v   - lfound          Logical being .true. if layer boundaries found.
-!!v   - layertop        top layer values
-!!v   - layerbottom     bottom layer values
-!!
-! ---------------------------------------------------------------------------------------
-  subroutine chm_get_layer_boundaries(cstnid,varno,ivco,nlev,default_top,default_bottom, &
-                                      lfound,layertop,layerbottom)
-
+  subroutine chm_get_layer_boundaries(cstnid,varno,ivco,nlev,default_top, &
+                                      default_bottom,lfound,layertop, &
+                                      layerbottom)
+    !
+    !:Purpose: To return layer boundaries for an observation. Combination of
+    !          STNID, element variable number and number of vertical levels to
+    !          determine association to the observations. Default values for top
+    !          and bottom layers for total column measurements are to be
+    !          provided.
+    !
+    !:Arguments:        
+    !    - ivco            type of vertical coordinate (see burpread_mod.ftn90
+    !                      or routine chm_obsoperators for definitions)
     implicit none
 
-    character(len=12), intent(in) :: cstnid
-    integer, intent(in)           :: varno,ivco,nlev
-    real(8), intent(in)           :: default_top,default_bottom
-    real(8), intent(out)          :: layertop(nlev),layerbottom(nlev)
-    logical, intent(inout)        :: lfound
+    ! Arguments:
+    character(len=12), intent(in) :: cstnid ! station id
+    integer, intent(in)           :: varno  ! BUFR element
+    integer, intent(in)           :: ivco
+    integer, intent(in)           :: nlev   ! number of levels in the observation
+    real(8), intent(in)           :: default_top ! default value for top layer for total column measurement
+    real(8), intent(in)           :: default_bottom ! default value for bottom layer for total column measurement
+    logical, intent(inout)        :: lfound ! .true. if layer boundaries found
+    real(8), intent(out)          :: layertop(nlev) ! top layer values
+    real(8), intent(out)          :: layerbottom(nlev) ! bottom layer values
+
+    ! Locals:
     integer                       :: ISTNID,JN,start_index
     logical                       :: iset
 
@@ -766,18 +732,10 @@ contains
 
   end subroutine chm_get_layer_boundaries
 
-!----------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_dealloc_layers
-!!
-!! *Purpose*: Deallocate temporary storage space used for layer info
-!!
-!! @author Y. Rochon, Dec 2014
-!!
-!! Revision: 
-!!
-! ---------------------------------------------------------------------------------------
   subroutine chm_dealloc_layers
+    !
+    !:Purpose: To deallocate temporary storage space used for layer info
+    !
 
     implicit none
 
@@ -787,22 +745,17 @@ contains
  
   end subroutine chm_dealloc_layers
 
-!-----------------------------------------------------------------------------------------
-!------------------- Routines related to averaging kernel matrices ----------------------
-!  
-! SUBROUTINE chm_read_avgkern
-!!
-!! *Purpose*:  Read averaging kernels from auxiliary file or observation file.
-!!
-!! @author M. Sitwell, ARQI/AQRD, March 2015
-!!
-!! Revision: 
-!!
-!-----------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!------------------- Routines related to averaging kernel matrices -------------
+
   subroutine chm_read_avgkern
+    !
+    !:Purpose: To read averaging kernels from auxiliary file or observation file
+    !
 
     implicit none
 
+    ! Locals:
     integer, parameter :: ndim=2
 
     integer :: istnid
@@ -827,22 +780,17 @@ contains
 
   end subroutine chm_read_avgkern
 
-!---------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_read_avgkern_auxfile
-!!
-!! *Purpose*: Read and store averaging kernel matricesfor CH sub-families
-!!
-!! @author Y. Rochon, M. Sitwell, ARQI/AQRD, Feb 2015 
-!!v            - Currently implemented for only one latitude band
-!!
-!! Revisions: 
-!!          
-!----------------------------------------------------------------------------------------
   subroutine chm_read_avgkern_auxfile
+    !
+    !:Purpose: To read and to store averaging kernel matricesfor CH sub-families
+    !
+    !:Comments:
+    !      - Currently implemented for only one latitude band
+    !
 
-  implicit none
+    implicit none
 
+    !Locals:
   integer :: FNOM, FCLOS
   integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount, iend
   logical :: LnewExists
@@ -953,21 +901,13 @@ contains
 
   end subroutine chm_read_avgkern_auxfile
 
-!----------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_dealloc_avgkern
-!!
-!! *Purpose*: Deallocate temporary storage space used for averaging kernels
-!!
-!! @author Y. Rochon, Dec 2014
-!!
-!! Revision: 
-!!
-!---------------------------------------------------------------------------------------
   subroutine chm_dealloc_avgkern
-
+    !
+    !:Purpose: To deallocate temporary storage space used for averaging kernels
+    !
     implicit none
 
+    ! Locals:
     integer :: istnid
 
     if (chm_avgkern%n_stnid.eq.0) return
@@ -983,35 +923,23 @@ contains
   
   end subroutine chm_dealloc_avgkern
 
-!----------------------------------------------------------------------------------------
-!
-! FUNCTION chm_find_avgkern(cstnid,varno,nlev) result(ISTNID)
-!!
-!! *Purpose*: Finds the averaging kernel for an observation if one is specified. Returns 0 if
-!!            either not found or not specified. Combination of STNID, BUFR element and number
-!!            of vertical levels to determine association to the observations.
-!!
-!! @author M. Sitwell, March 2015
-!!
-!! Revision: 
-!!          
-!! Input:
-!!v   - cstnid          station id
-!!v   - varno           BUFR descriptor element
-!!v   - nlev            number of levels in the observation
-!!
-!! Output:
-!!v   - ISTNID          Index of averaging kernel in chm_avgkern if found. Zero indicates
-!!v                     averaging kernel not found.
-!!v
-! ---------------------------------------------------------------------------------------
   function chm_find_avgkern(cstnid,varno,nlev) result(ISTNID)
-    
+    !
+    !:Purpose: To find the averaging kernel for an observation if one is
+    !          specified. Returns 0 if either not found or not specified.
+    !          Combination of STNID, BUFR element and number of vertical levels
+    !          to determine association to the observations.
+    !
     implicit none
+    integer :: ISTNID ! Index of averaging kernel in chm_avgkern if found. Zero indicates  averaging kernel not found.
 
-    character(len=12), intent(in) :: cstnid
-    integer, intent(in) :: varno,nlev
-    integer :: ISTNID,JN
+    ! Arguments:
+    character(len=12), intent(in) :: cstnid ! station id
+    integer, intent(in) :: varno ! BUFR descriptor element
+    integer, intent(in) :: nlev  ! number of levels in the observation
+
+    ! Locals:
+    integer :: JN
     logical :: iset
 
     ! Find stnid with same number of vertical levels, and same BUFR element
@@ -1036,34 +964,22 @@ contains
 
   end function chm_find_avgkern
 
-!----------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_get_avgkern(istnid,stnid,nlev,zlat,zlon,idate,itime,avg_kern)
-!!
-!! *Purpose*: Return averaging kernel for an observation.
-!!
-!! @author M. Sitwell, March 2015
-!!
-!! Revisions: 
-!!
-!! Input:
-!!v   istnid          index of averaging kernel in chm_avgkern
-!!v   nlev            number of observation levels
-!!v   idate           YYYYMMDD
-!!v   itime           HHMM
-!!
-!! Output:
-!!v   avg_kern        the averaging kernel
-!!v
-!---------------------------------------------------------------------------------------
   subroutine chm_get_avgkern(istnid,stnid,nlev,zlat,zlon,idate,itime,avg_kern)
-
+    !
+    !:Purpose: To return averaging kernel for an observation.
+    !
     implicit none
 
-    integer, intent(in)  :: istnid,nlev,idate,itime
-    real(8), intent(in)  :: zlat,zlon
+    ! Arguments:
+    integer, intent(in)  :: istnid ! index of averaging kernel in chm_avgkern
     character(len=*), intent(in) :: stnid
-    real(8), intent(out) :: avg_kern(nlev,nlev)
+    integer, intent(in)  :: nlev   ! number of observation levels
+    real(8), intent(in)  :: zlat,zlon
+    integer, intent(in)  :: idate  ! YYYYMMDD
+    integer, intent(in)  :: itime  ! HHMM
+    real(8), intent(out) :: avg_kern(nlev,nlev) ! the averaging kernel
+
+    ! Locals:
     integer :: start_index,end_index
 
     if (istnid.gt.0 .and. istnid.le.chm_avgkern%n_stnid) then
@@ -1084,35 +1000,30 @@ contains
 
   end subroutine chm_get_avgkern
 
-!-----------------------------------------------------------------------------------------
-!------------------------- Routines related to gridded reference fields  ----------------
-!  
-! SUBROUTINE chm_read_ref_fields(datestamp)
-!!
-!! *Purpose*:  Read reference fields as directed by the content of the auxiliary file.
-!!             Fields are provided in RPN/fst files specified in the auxiliary file (with path
-!!             and filename)
-!!
-!!             Reference fields can be in a separate RPN file with name provided by the auxiliary
-!!             or in monthly static background stats file (glbchemcov or bgcov; see 'isrc' below).
-!!
-!! ****** NOT TESTED *********
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2015
-!!
-!! Revision: 
-!!
-!! Comments:
-!!
-!!v     - Fields assumed to be of the same units as those of the corresponding input trial fields
-!!
-!-----------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!------------------------- Routines related to gridded reference fields  -------
+
   subroutine chm_read_ref_fields(datestamp_opt)
-    
+    !
+    !:Purpose:  To read reference fields as directed by the content of the
+    !           auxiliary file.
+    !
+    ! Comments:
+    !      - ****** NOT TESTED *********
+    !      - Fields are provided in RPN/fst files specified in the auxiliary
+    !        file (with path and filename)
+    !      - Reference fields can be in a separate RPN file with name provided
+    !        by the auxiliary or in monthly static background stats file
+    !        (glbchemcov or bgcov; see 'isrc' below).
+    !      - Fields assumed to be of the same units as those of the
+    !        corresponding input trial fields
+    !
     implicit none
 
+    ! Arguments:
     integer, intent(in), optional :: datestamp_opt
-    
+
+    ! Locals:
     character(len=128) :: fname
     character(len=4) :: varName
     character(len=12) :: etiket
@@ -1307,44 +1218,36 @@ contains
     IERR=FCLOS(NULSTAT)    
     
   end subroutine chm_read_ref_fields
-   
-!---------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_set_reference_obsdata(obsoper)
-!!
-!! *Purpose*: Determine and store reference profile at obs location if needed by
-!!          the observation operators.
-!!
-!! ***** NOT TESTED *****
-!!
-!! @author Y. Rochon, ARQI/AQRD May 2016
-!!
-!! Revisions:
-!!
-!! Input:
-!!v
-!!v      obsoper%constituent_id  Constituent id
-!!v      obsoper%nmodlev         Number of model levels for variables other than uu and vv
-!!v      obsoper%pressmod        Model pressure array
-!!v      obsoper%tt              Model temperature (Kelvin)
-!!v      obsoper%height          Model height (m)
-!!v      obsoper%hu              Specific humidity 
-!!v      obsoper%lat             Latitude (rad)
-!!v      obsoper%lon             Longitude (rad)
-!!v
-!! Output:
-!!v
-!!v      chm_ref_trial           Reference profile object
-!!v
-!!v Comments
-!! 
-!----------------------------------------------------------------------------------------
+
   subroutine chm_set_reference_obsdata(obsoper)
-    
+    !
+    !:Purpose: To determine and to store reference profile at obs location if
+    !          needed by the observation operators.
+    !
+    !:Input:
+    !
+    !    :obsoper%constituent_id: Constituent id
+    !    :obsoper%nmodlev:        Number of model levels for variables other
+    !                             than uu and vv
+    !    :obsoper%pressmod:       Model pressure array
+    !    :obsoper%tt:             Model temperature (Kelvin)
+    !    :obsoper%height:         Model height (m)
+    !    :obsoper%hu:             Specific humidity 
+    !    :obsoper%lat:            Latitude (rad)
+    !    :obsoper%lon:            Longitude (rad)
+    !
+    !:Output:
+    ! 
+    !    :chm_ref_trial:          Reference profile object
+    !
+    !:Comments:
+    !      - ***** NOT TESTED *****
     implicit none
 
+    ! Arguments
     type(struct_chm_obsoperators), intent(inout) :: obsoper
-       
+
+    ! Locals
     integer :: i,istart,id
     real(8) :: tropo_press, refprof(obsoper%nmodlev),refprof2(obsoper%nmodlev),dt
     real(8), allocatable :: pressrefin(:)
@@ -1487,34 +1390,19 @@ contains
 
   end subroutine chm_set_reference_obsdata
  
-!---------------------------------------------------------------------------------------
-!
-! FUNCTION chm_get_ref_column(code) result(array)
-!!
-!! *Purpose*: Extract and provide column from chm_ref_field associated to code.
-!!
-!! @author Y. Rochon, ARQI/AQRD Feb 2017
-!!
-!! Revisions:
-!!
-!! Input:
-!!v
-!!v      code         unique identifying code
-!!v
-!! Output:
-!!v
-!!v      array        retrieved array from obsdata%data1d of dimension obsdata%dim1
-!!v      stat         search success (0 - found; 1 = no data; 2 = not found)
-!!v 
-!----------------------------------------------------------------------------------------    
   function chm_get_ref_column(code) result(array)
-
+    !
+    !:Purpose: To extract and to provide column from chm_ref_field associated to
+    !          code.     
+    !  
     implicit none
-        
-    character(len=*), intent(in) :: code
-    real(8) :: array(chm_ref_trial%dim1)
+    real(8) :: array(chm_ref_trial%dim1) ! retrieved array from obsdata%data1d of dimension obsdata%dim1
 
-    integer :: stat
+    ! Arguments
+    character(len=*), intent(in) :: code ! unique identifying code
+
+    ! Locals:
+    integer :: stat ! search success (0 - found; 1 = no data; 2 = not found)
 
     array = oss_obsdata_get_array1d(chm_ref_trial,code,stat)
     if (stat.gt.0) call utl_abort("chm_get_ref_column: Code not found - " // &
@@ -1522,17 +1410,13 @@ contains
     
   end function chm_get_ref_column
 
-!-----------------------------------------Misc ----------------------------------------
-!--------------------------------------------------------------------------------------
-!  
-! SUBROUTINE chm_dealloc_info(info)
-!!
-!! *Purpose*: Deallocates struct_chm_info instance
-!!
-!! @author M. Sitwell  May 2015
-!!
-!---------------------------------------------------------------------------------------
+!-----------------------------------------Misc ---------------------------------
+!-------------------------------------------------------------------------------
+
   subroutine chm_dealloc_info(info)
+    !
+    !:Purpose: To deallocate struct_chm_info instance
+    !
     
     implicit none
 
@@ -1552,40 +1436,23 @@ contains
 
   end subroutine chm_dealloc_info
 
-! ------------------------------------------------------------------------------------------
-!
-! LOGICAL FUNCTION chm_diagn_only(cfamName,cstnid,varno,nobslev,flag)
-!! 
-!! *Purpose*: Identify whether or not the obs set identified by 
-!!            the combination of (cstnidin, bufrin,nlevs) will
-!!            be assimilated or used for independent verifications.
-!!
-!! @author Y.J. Rochon, ARQI/AQRD, July 2015
-!!    
-!! Revisions:
-!!
-!! Input:
-!!v
-!!v       cfamName         Family name
-!!v       cstnid           Input station id
-!!v       varno            Obs BUFR number
-!!v       nobslev          Number of levels
-!!v       flag             observation integer flag
-!!v
-!! Output:
-!!v
-!!v       chm_diagn_only    Indicating if assimilation to be skipped but data
-!!v                         is to be used for independent verifications after 
-!!v                         assimilation/minimization.
-!!v
-!-------------------------------------------------------------------------------------------
  logical function chm_diagn_only(cfamName,cstnid,varno,nobslev,flag)
- 
+    ! 
+    !:Purpose: To identify whether or not the obs set identified by the
+    !          combination of (cstnidin,bufrin,nlevs) will be assimilated or
+    !          else used for independent verifications after
+    !          assimilation/minimization
+    ! 
     implicit none
 
-    integer, intent(in) :: varno,nobslev,flag
-    character(len=*), intent(in) :: cstnid,cfamName
-  
+    ! Arguments
+    character(len=*), intent(in) :: cfamName ! Family name
+    character(len=*), intent(in) :: cstnid   ! Input station id
+    integer, intent(in) :: varno   ! Obs BUFR number
+    integer, intent(in) :: nobslev ! Number of levels
+    integer, intent(in) :: flag    ! observation integer flag
+
+    ! Locals:
     integer :: i,elemId,ifam
     
     ifam=0
@@ -1641,45 +1508,28 @@ contains
 
   end function chm_diagn_only
 
-!------------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse)
-!!
-!! *Purpose*: Apply transform (or its inverse) of 2D field.
-!!            Called by routine readTrialField in file innovation_mod.ftn90. 
-!!
-!! @author Y. Rochon, Feb 2016
-!!
-!! Revisions:
-!!
-!! Input
-!!
-!!v     iconstituent_id BUFR code element of Table 08046 identifying the constituent.
-!!v     varName         Field name (nomvar)
-!!v     l_reverse       Reverse/inverse transformation if present (default value .false.).
-!!v     jlev            vertical level index
-!!v     jstep           Time step index
-!!v
-!! InOut
-!!v
-!!v     field           2D field
-!!v
-!! Comments:
-!!v
-!!v 1. The EnVar assumes that the input background error covariances are provided
-!!v    for the transformed field if a variable transformation is requested!
-!!v
-!-----------------------------------------------------------------------------------
-  subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse_opt)
-
+  subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep, &
+                                           field,l_reverse_opt)
+    !
+    !:Purpose: To apply transform (or its inverse) to 2D field.         
+    ! 
+    !:Comments:
+    ! 
+    !  1. The EnVar assumes that the input background error covariances are
+    !     provided for the transformed field if a variable transformation is
+    !     requested!
+    !
     implicit none
-    
-    integer, intent(in) :: iconstituent_id,jlev,jstep
-    character(len=*), intent(in) :: varName
-    logical, intent(in), optional :: l_reverse_opt
 
-    real(4), intent(inout) :: field(:,:)            
+    ! Arguments:
+    integer, intent(in) :: iconstituent_id ! BUFR code element of Table 08046 identifying the constituent
+    character(len=*), intent(in) :: varName! Field name (nomvar)
+    integer, intent(in) :: jlev  ! vertical level index
+    integer, intent(in) :: jstep ! Time step index
+    real(4), intent(inout) :: field(:,:)   ! 2D field
+    logical, intent(in), optional :: l_reverse_opt ! Reverse/inverse transformation if .true. (default value .false.)
 
+    ! Locals:
     integer :: i,j,ier,unit,icount
     real(4) :: valmin
     real(4), parameter :: valmin_ref=1.0E-20
@@ -1763,46 +1613,26 @@ contains
       
   end subroutine chm_apply_2dfieldr4_transform
 
-!---------------------------------------------------------------------------------------
-!
-! INTEGER FUNCTION chm_var_maxnumber()  
-!!
-!! *Purpose*: Pass on chm_constituents_size
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2017
-!!
-!! Revisions:
-!!
-!----------------------------------------------------------------------------------------
-  integer function chm_var_maxnumber()  
-
+  integer function chm_var_maxnumber()
+    !
+    !:Purpose: To pass on chm_constituents_size
+    !
     implicit none
     
     chm_var_maxnumber=chm_constituents_size
     
    end function chm_var_maxnumber
 
-!---------------------------------------------------------------------------------------
-!
-! FUNCTION chm_setup_get_str(stype) result(val) 
-!!
-!! *Purpose*: Pass on associated 'stype'_filename
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2017
-!!
-!! Revisions:
-!!
-!! In
-!!
-!!v   stype     reference string for filename identifier
-!!
-!----------------------------------------------------------------------------------------
-  function chm_setup_get_str(stype) result(val) 
-
+  function chm_setup_get_str(stype) result(val)
+    !
+    !:Purpose: To pass on associated 'stype' string
+    !
     implicit none
-    character(len=*), intent(in) :: stype
     character(len=chm_filename_size) :: val
-    
+
+    ! Arguments:
+    character(len=*), intent(in) :: stype ! reference string for filename identifier
+
     select case(trim(stype))    
     case('message')
        val=message_filename
@@ -1813,30 +1643,18 @@ contains
     end select
     
   end function chm_setup_get_str
-  
-!---------------------------------------------------------------------------------------
-!   
-! FUNCTION chm_setup_get_int(stype,index)  result(val)
-!!
-!! *Purpose*: Pass on associated *'stype'*
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2017
-!!
-!! Revisions:
-!!
-!! In
-!!
-!!v   stype     reference string for integer-based identifier/value
-!!v   index     array index (optional)
-!!v
-!----------------------------------------------------------------------------------------
-  function chm_setup_get_int(stype,index_opt)  result(val)
 
+  function chm_setup_get_int(stype,index_opt)  result(val)
+    !
+    !:Purpose: To pass on associated 'stype' integer
+    !
     implicit none
-    character(len=*), intent(in) :: stype
-    integer, intent(in), optional :: index_opt
     integer :: val
-    
+
+    ! Arguments:
+    character(len=*), intent(in) :: stype ! reference string for integer-based identifier/value
+    integer, intent(in), optional :: index_opt ! array index
+
     select case(trim(stype))    
     case('message_unit')
        val=message_fileunit
@@ -1872,29 +1690,18 @@ contains
     
   end function chm_setup_get_int
 
-!---------------------------------------------------------------------------------------
-!   
-! FUNCTION chm_setup_set_int(stype,val)  result(ier)
-!!
-!! *Purpose*: Assign value to *'stype'*
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2017
-!!
-!! Revisions:
-!!
-!! In
-!!
-!!v   stype     reference string for integer-based identifier/value
-!!v   val       integer value to assign
-!!
-!----------------------------------------------------------------------------------------
   function chm_setup_set_int(stype,val)  result(ier)
-
+    !
+    !:Purpose: To set some integer element(s) specific to the CH family outside
+    !          this module
+    !
     implicit none
-    character(len=*), intent(in) :: stype
-    integer, intent(in) :: val
     integer :: ier
-    
+
+    ! Arguments
+    character(len=*), intent(in) :: stype ! reference string for integer-based identifier/value
+    integer, intent(in) :: val ! integer value to assign
+
     ier=0
     select case(trim(stype))    
     case('message_unit')
@@ -1906,28 +1713,16 @@ contains
     
   end function chm_setup_set_int
 
-!---------------------------------------------------------------------------------------
-!    
-! FUNCTION chm_setup_get_float(stype,index)  result(val)
-!!
-!! *Purpose*: Pass on associated *'stype'*
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2017
-!!
-!! Revisions:
-!!
-!! In
-!!
-!!v   stype     reference string for float-based identifier/value
-!!v   index     array index (optional)
-!!
-!----------------------------------------------------------------------------------------
   function chm_setup_get_float(stype,index_opt)  result(val)
-
+    !
+    !:Purpose: To pass on associated 'stype' float value
+    !
     implicit none
-    character(len=*), intent(in) :: stype
-    integer, intent(in), optional :: index_opt
     real(8) :: val
+
+    ! Arguments:
+    character(len=*), intent(in) :: stype ! reference string for float-based identifier/value
+    integer, intent(in), optional :: index_opt ! array index
     
     select case(trim(stype))    
     case('amu')
@@ -1966,49 +1761,30 @@ contains
     
   end function chm_setup_get_float
 
-!-----------------------------------------------------------------------------------
-!------------------ Routines associated to chm_efftemp -----------------------------
-!
-! SUBROUTINE chm_add_efftemp_obsdata(code,temp_eff)
-!!
-!! *Purpose*: Add effective temperature value to its obsdata object
-!!
-!! @author Y. Rochon, ARQI/AQRD Feb 2017
-!!
-!! Revisions:
-!!
-!! Input
-!!
-!!v      code         unique identifying code
-!!v      temp_eff     effective temperature
-!! 
-!----------------------------------------------------------------------------------------    
-  subroutine chm_add_efftemp_obsdata(code,temp_eff)
+!-------------------------------------------------------------------------------
+!------------------ Routines associated to chm_efftemp -------------------------
 
+  subroutine chm_add_efftemp_obsdata(code,temp_eff)
+    !
+    !:Purpose: To add effective temperature value to its obsdata object
+    !
     implicit none
-        
-    character(len=*), intent(in) :: code
-    real(8), intent(in) :: temp_eff(:)
+
+    ! Arguments:
+    character(len=*), intent(in) :: code ! unique identifying code
+    real(8), intent(in) :: temp_eff(:)   ! effective temperature
 
     call oss_obsdata_add_data1d(chm_efftemp,temp_eff,code,obsdata_maxsize)
     
   end subroutine chm_add_efftemp_obsdata
-   
-!---------------------------------------------------------------------------------------
-!
-! SUBROUTINE chm_add_efftemp_obsfile()
-!!          
-!! *Purpose*: Add effective temperatures in obs file.
-!!
-!! @author Y. Rochon, Feb 2017 
-!! 
-!! Revisions:
-!!
-!----------------------------------------------------------------------------------------
-  subroutine chm_add_efftemp_obsfile()
 
+  subroutine chm_add_efftemp_obsfile()
+    !          
+    !:Purpose: To add effective temperatures in obs file.
+    !
     implicit none
-    
+
+    ! Locals:
     integer :: ierr,nrep_modified,varno(1)
 
 !   If needed, add effective temperature values in obs file for total column measurements
@@ -2025,7 +1801,5 @@ contains
     end if 
 
   end subroutine chm_add_efftemp_obsfile
-
-!-----------------------------------------------------------------------------------
 
 end module chem_setup_mod
