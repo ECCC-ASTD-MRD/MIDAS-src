@@ -101,41 +101,46 @@ module globalSpectralTransform_mod
 
   integer :: nlatbd = 8
 
-CONTAINS
+contains
 
-  SUBROUTINE GST_setID(gstID_in)
+  subroutine GST_setID(gstID_in)
     implicit none
 
+    ! Arguments:
     integer :: gstID_in
   
     gstID = gstID_in
 
-  END SUBROUTINE GST_setID
+  end subroutine GST_setID
 
 
-  SUBROUTINE GST_setDefaultID(gstID_in)
+  subroutine GST_setDefaultID(gstID_in)
     implicit none
 
+    ! Arguments:
     integer :: gstID_in
   
     gstIDDefault = gstID_in
 
-  END SUBROUTINE GST_setDefaultID
+  end subroutine GST_setDefaultID
 
 
-  SUBROUTINE GST_setToDefaultID
+  subroutine GST_setToDefaultID
     implicit none
 
     gstID = gstIdDefault
 
-  END SUBROUTINE GST_setToDefaultID
+  end subroutine GST_setToDefaultID
 
 
-  integer FUNCTION GST_getNla(gstID_opt)
+  integer function GST_getNla(gstID_opt)
     implicit none
 
-    integer :: gstID_l
+    ! Arguments:
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
 
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
@@ -145,14 +150,18 @@ CONTAINS
 
     gst_getNla = gst(gstID_l)%myNla
 
-  END FUNCTION GST_getNla
+  end function GST_getNla
 
 
-  real(8) FUNCTION GST_getRmu(latIndex,gstID_opt)
+  real(8) function GST_getRmu(latIndex,gstID_opt)
     implicit none
 
-    integer :: latIndex,gstID_l
+    ! Arguments:
+    integer :: latIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
     integer :: latIndex2
 
     if(present(gstID_opt)) then
@@ -165,14 +174,18 @@ CONTAINS
     latIndex2 = gst(gstID_l)%nj - latIndex + 1
     gst_getRmu = gst(gstID_l)%rmu(latIndex2)
 
-  END FUNCTION GST_getRmu
+  end function GST_getRmu
 
 
-  real(8) FUNCTION GST_getRnnp1(ilaIndex,gstID_opt)
+  real(8) function GST_getRnnp1(ilaIndex,gstID_opt)
     implicit none
 
-    integer :: ilaIndex,gstID_l
+    ! Arguments:
+    integer :: ilaIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
 
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
@@ -182,14 +195,18 @@ CONTAINS
 
     gst_getRnnp1 = gst(gstID_l)%rnnp1(ilaIndex)
 
-  END FUNCTION GST_getRnnp1
+  end function GST_getRnnp1
 
 
-  real(8) FUNCTION GST_getR1snp1(ilaIndex,gstID_opt)
+  real(8) function GST_getR1snp1(ilaIndex,gstID_opt)
     implicit none
 
-    integer :: ilaIndex,gstID_l
+    ! Arguments:
+    integer :: ilaIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
 
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
@@ -199,14 +216,18 @@ CONTAINS
 
     gst_getR1snp1 = gst(gstID_l)%r1snp1(ilaIndex)
 
-  END FUNCTION GST_getR1snp1
+  end function GST_getR1snp1
 
 
-  real(8) FUNCTION GST_getRwt(latIndex,gstID_opt)
+  real(8) function GST_getRwt(latIndex,gstID_opt)
     implicit none
 
-    integer :: latIndex,gstID_l
+    ! Arguments:
+    integer :: latIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
     integer :: latIndex2
   
     if(present(gstID_opt)) then
@@ -219,14 +240,18 @@ CONTAINS
     latIndex2 = gst(gstID_l)%nj - latIndex + 1
     gst_getRwt = gst(gstID_l)%rwt(latIndex2)
 
-  END FUNCTION GST_getRwt
+  end function GST_getRwt
 
 
-  integer FUNCTION GST_getNind(mIndex,gstID_opt)
+  integer function GST_getNind(mIndex,gstID_opt)
     implicit none
 
-    integer :: mIndex,gstID_l
+    ! Arguments:
+    integer :: mIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
   
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
@@ -236,15 +261,19 @@ CONTAINS
 
     gst_getNind = gst(gstID_l)%nind(mIndex)
 
-  END FUNCTION GST_getNind
+  end function GST_getNind
 
 
-  real(8) FUNCTION GST_getRlati(latIndex,gstID_opt)
+  real(8) function GST_getRlati(latIndex,gstID_opt)
     implicit none
 
-    integer :: latIndex,gstID_l
+    ! Arguments:
+    integer :: latIndex
     integer,optional :: gstID_opt
     integer :: latIndex2
+
+    ! Locals:
+    integer :: gstID_l
  
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
@@ -256,14 +285,18 @@ CONTAINS
     latIndex2 = gst(gstID_l)%nj - latIndex + 1
     gst_getRlati = gst(gstID_l)%rlati(latIndex2)
 
-  END FUNCTION GST_getRlati
+  end function GST_getRlati
 
 
-  real(8) FUNCTION GST_getR1qm2(latIndex,gstID_opt)
+  real(8) function GST_getR1qm2(latIndex,gstID_opt)
     implicit none
 
-    integer :: latIndex,gstID_l
+    ! Arguments:
+    integer :: latIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
     integer :: latIndex2
   
     if(present(gstID_opt)) then
@@ -276,14 +309,18 @@ CONTAINS
     latIndex2 = gst(gstID_l)%nj - latIndex + 1
     gst_getR1qm2 = gst(gstID_l)%r1qm2(latIndex2)
 
-  END FUNCTION GST_getR1qm2
+  end function GST_getR1qm2
 
 
-  real(8) FUNCTION GST_getRsqm2(latIndex,gstID_opt)
+  real(8) function GST_getRsqm2(latIndex,gstID_opt)
     implicit none
 
-    integer :: latIndex,gstID_l
+    ! Arguments:
+    integer :: latIndex
     integer,optional :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
     integer :: latIndex2
 
     if(present(gstID_opt)) then
@@ -296,33 +333,37 @@ CONTAINS
     latIndex2 = gst(gstID_l)%nj - latIndex + 1
     gst_getRsqm2 = gst(gstID_l)%rsqm2(latIndex2)
 
-  END FUNCTION GST_getRsqm2
+  end function GST_getRsqm2
 
 
-  real(8) FUNCTION GST_getzleg(legendreIndex,latIndex,gstID_in)
+  real(8) function GST_getzleg(legendreIndex,latIndex,gstID_in)
     ! 
-    ! Purpose: Pass on Legendre polynomial element 
+    !:Purpose: To pass on Legendre polynomial element 
     !
-    ! Author: Y. Rochon, ARQI/AQRD, Aug 2016.
-    !
-    ! Revisions:
-    !
-    !!----------------------------------------------------------------- 
     implicit none
- 
+
+    ! Arguments:
     integer :: legendreIndex,latIndex,gstID_in
-       
+
     gst_getzleg=gst(gstID_in)%zleg(legendreIndex,latIndex)
 
-  END FUNCTION GST_getzleg
+  end function GST_getzleg
 
 
-  subroutine GST_ilaList_mpiglobal(ilaList,myNla,maxMyNla,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-    ! produce an array to convert an mpilocal "ila" into an mpiglobal "ila"
+  subroutine GST_ilaList_mpiglobal(ilaList,myNla,maxMyNla,gstID_in,mymBeg,&
+                                   mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+    !
+    !:Purpose: To produce an array to convert an mpilocal "ila" into an
+    !          mpiglobal "ila"
     implicit none
+
+    ! Arguments:
     integer, pointer :: ilaList(:)
     integer          :: myNla, maxMyNla
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip
+    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
+    integer          :: mynBeg, mynEnd, mynSkip
+
+    ! Locals:
     integer          :: jm, jn, ierr
 
     ! compute mpilocal value of nla
@@ -351,14 +392,22 @@ CONTAINS
       enddo
     enddo
 
-  end SUBROUTINE GST_ilaList_mpiglobal
+  end subroutine GST_ilaList_mpiglobal
 
 
-  subroutine GST_ilaList_mpilocal(ilaList,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-    ! produce an array to convert an mpiglobal "ila" into an mpilocal "ila"
+  subroutine GST_ilaList_mpilocal(ilaList,gstID_in,mymBeg,mymEnd,mymSkip,&
+                                  mynBeg,mynEnd,mynSkip)
+    !
+    !:Purpose: To produce an array to convert an mpiglobal "ila" into an
+    !          mpilocal "ila"
     implicit none
+
+    ! Arguments:
     integer, pointer :: ilaList(:)
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip
+    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
+    integer          :: mynBeg, mynEnd, mynSkip
+
+    ! Locals:
     integer          :: jm, jn, ierr, myNla
 
     ! assume mpiglobal value of nla already set in gst structure
@@ -375,14 +424,22 @@ CONTAINS
       enddo
     enddo
 
-  end SUBROUTINE GST_ilaList_mpilocal
+  end subroutine GST_ilaList_mpilocal
 
 
-  subroutine GST_nList_mpilocal(nList,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-    ! produce an array to get value of n corresponding with mpilocal "ila"
+  subroutine GST_nList_mpilocal(nList,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,&
+                                mynEnd,mynSkip)
+    !
+    !:Purpose: To produce an array to get value of n corresponding with mpilocal
+    !          "ila"
     implicit none
+
+    ! Arguments:
     integer, pointer :: nList(:)
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip
+    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
+    integer          :: mynBeg, mynEnd, mynSkip
+
+    ! Locals:
     integer          :: jm, jn, ierr, myNla
 
     ! compute mpilocal value of nla
@@ -408,13 +465,17 @@ CONTAINS
       enddo
     enddo
 
-  end SUBROUTINE GST_nList_mpilocal
+  end subroutine GST_nList_mpilocal
 
 
-  integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MAXLEVELS_IN)
+  integer function gst_setup(ni_in,nj_in,ntrunc_in,maxlevels_in)
     implicit none
+
+    ! Arguments:
     integer  :: ni_in, nj_in, ntrunc_in
     integer  :: maxlevels_in
+
+    ! Locals:
     integer  :: jn, jm, ila, ierr
     integer  :: latPerPE, latPerPEmax, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd
     integer  :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
@@ -639,19 +700,25 @@ CONTAINS
 
     gst_setup = gstID
   
-  END FUNCTION GST_SETUP
+  end function GST_SETUP
 
-!------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 ! Data transposes with respect to 1 of 2 dimensions (i.e. NS or EW)
-!------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-  SUBROUTINE transpose2d_NtoLev(psp_in,psp_out)
+  subroutine transpose2d_NtoLev(psp_in,psp_out)
     implicit none
-    real(8) :: psp_in (gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: psp_out(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, gst(gstID)%maxMyLevCount, mpi_npex)
+    ! Arguments:
+    real(8) :: psp_in (gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8) :: psp_out(gst(gstID)%nla, 2, &
+                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+
+    ! Locals:
+    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(113,'GST_NTOLEV_BARR')
@@ -697,16 +764,22 @@ CONTAINS
 
     call tmg_stop(26)
 
-  END SUBROUTINE transpose2d_NtoLev
+  end subroutine transpose2d_NtoLev
 
 
-  SUBROUTINE transpose2d_LevtoN(psp_in,psp_out)
+  subroutine transpose2d_LevtoN(psp_in,psp_out)
     implicit none
-    real(8) :: psp_in (gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+
+    ! Arguments:
+    real(8) :: psp_in (gst(gstID)%nla, 2, &
+                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: psp_out(gst(gstID)%myNla, 2, gst(gstID)%nk)
 
-    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, gst(gstID)%maxMyLevCount, mpi_npex)
+    ! Locals:
+    real(gst_real) :: sp_send(gst(gstID)%maxMyNla, 2, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(gst_real) :: sp_recv(gst(gstID)%maxMyNla, 2, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
     call tmg_start(114,'GST_LEVTON_BARR')
@@ -753,16 +826,23 @@ CONTAINS
 
     call tmg_stop(26)
 
-  END SUBROUTINE transpose2d_LevtoN
+  end subroutine transpose2d_LevtoN
 
 
-  SUBROUTINE transpose2d_MtoLat(pgd_in,pgd_out)
+  subroutine transpose2d_MtoLat(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(2*gst(gstID)%maxmCount, gst(gstID)%nj,  gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npey)
+    ! Arguments:
+    real(8) :: pgd_in(2*gst(gstID)%maxmCount, gst(gstID)%nj, &
+                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npey)
+    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -820,14 +900,19 @@ CONTAINS
 
     call tmg_stop(27)
 
-  END SUBROUTINE transpose2d_MtoLat
+  end subroutine transpose2d_MtoLat
 
 
-  SUBROUTINE transpose2d_MtoLat_kij(pgd_in,pgd_out)
+  subroutine transpose2d_MtoLat_kij(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, gst(gstID)%nj)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
+                      gst(gstID)%nj)
+    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
     real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
     real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
@@ -888,16 +973,23 @@ CONTAINS
 
     call tmg_stop(27)
 
-  END SUBROUTINE transpose2d_MtoLat_kij
+  end subroutine transpose2d_MtoLat_kij
 
 
-  SUBROUTINE transpose2d_LattoM(pgd_in,pgd_out)
+  subroutine transpose2d_LattoM(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(2*gst(gstID)%maxmCount, gst(gstID)%nj,  gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npey)
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd_out(2*gst(gstID)%maxmCount, gst(gstID)%nj,  &
+                         gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npey)
+    real(gst_real) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -955,14 +1047,19 @@ CONTAINS
 
     call tmg_stop(27)
 
-  END SUBROUTINE transpose2d_LattoM
+  end subroutine transpose2d_LattoM
 
 
-  SUBROUTINE transpose2d_LattoM_kij(pgd_in,pgd_out)
+  subroutine transpose2d_LattoM_kij(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, gst(gstID)%nj)
 
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
+                       gst(gstID)%nj)
+
+    ! Locals:
     real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
     real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
@@ -1023,16 +1120,23 @@ CONTAINS
 
     call tmg_stop(27)
 
-  END SUBROUTINE transpose2d_LattoM_kij
+  end subroutine transpose2d_LattoM_kij
 
 
-  SUBROUTINE transpose2d_LevtoLon(pgd_in,pgd_out)
+  subroutine transpose2d_LevtoLon(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
-    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npex)
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd_out(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1073,14 +1177,19 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LevtoLon
+  end subroutine transpose2d_LevtoLon
 
 
-  SUBROUTINE transpose2d_LevtoLon_kij_mpitypes(pgd_in,pgd_out)
+  subroutine transpose2d_LevtoLon_kij_mpitypes(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
     integer :: youridP1,nsize,ierr,yourNumLev
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
@@ -1101,16 +1210,23 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LevtoLon_kij_mpitypes
+  end subroutine transpose2d_LevtoLon_kij_mpitypes
 
 
-  SUBROUTINE transpose2d_LevtoLon_kij(pgd_in,pgd_out)
+  subroutine transpose2d_LevtoLon_kij(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, mpi_npex)
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                              gst(gstID)%latPerPEmax, mpi_npex)
+    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                              gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1, nsize, ierr, myNumLev, yourNumLev
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
@@ -1149,16 +1265,23 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LevtoLon_kij
+  end subroutine transpose2d_LevtoLon_kij
 
 
-  SUBROUTINE transpose2d_LontoLev(pgd_in,pgd_out)
+  subroutine transpose2d_LontoLev(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
-    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, gst(gstID)%maxMyLevCount, mpi_npex)
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
+    real(gst_real) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
+                              gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
     call tmg_start(20,'GST_TRANSPOSE_BARR')
@@ -1200,14 +1323,19 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LontoLev
+  end subroutine transpose2d_LontoLev
 
 
-  SUBROUTINE transpose2d_LontoLev_kij_mpitypes(pgd_in,pgd_out)
+  subroutine transpose2d_LontoLev_kij_mpitypes(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
     integer :: nsize, ierr
 
     call tmg_start(118,'GST_LONTOLEV_BARR')
@@ -1231,16 +1359,23 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LontoLev_kij_mpitypes
+  end subroutine transpose2d_LontoLev_kij_mpitypes
 
 
-  SUBROUTINE transpose2d_LontoLev_kij(pgd_in,pgd_out)
+  subroutine transpose2d_LontoLev_kij(pgd_in,pgd_out)
     implicit none
-    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, mpi_npex)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, mpi_npex)
+    ! Arguments:
+    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
+    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                              gst(gstID)%latPerPEmax, mpi_npex)
+    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
+                              gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2,myNumLev,yourNumLev
 
     call tmg_start(118,'GST_LONTOLEV_BARR')
@@ -1279,17 +1414,21 @@ CONTAINS
 
     call tmg_stop(28)
 
-  END SUBROUTINE transpose2d_LontoLev_kij
+  end subroutine transpose2d_LontoLev_kij
 
-!--------------------------------------------------------------------------------------
-! Subroutines to re-order the u and v wind components for mpi version of spgd and spgda
-!--------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+! Subroutines to re-order the u and v wind components for mpi version of spgd
+! and spgda
+!-------------------------------------------------------------------------------
 
-  SUBROUTINE interleaveWinds_sp(psp,nflev)
+  subroutine interleaveWinds_sp(psp,nflev)
     implicit none
+
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
 
+    ! Locals:
     real(8) :: tempvalues(2,nflev*2)
     integer :: jk, ila
 
@@ -1306,14 +1445,17 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE interleaveWinds_sp
+  end subroutine interleaveWinds_sp
 
 
-  SUBROUTINE unInterleaveWinds_sp(psp,nflev)
+  subroutine unInterleaveWinds_sp(psp,nflev)
     implicit none
+
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
 
+    ! Locals:
     real(8) :: tempvalues(2,nflev*2)
     integer :: jk, ila
 
@@ -1330,14 +1472,18 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE unInterleaveWinds_sp
+  end subroutine unInterleaveWinds_sp
 
 
-  SUBROUTINE interleaveWinds_gd(pgd,nflev)
+  subroutine interleaveWinds_gd(pgd,nflev)
     implicit none
-    integer :: nflev
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Arguments:
+    integer :: nflev
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    ! Locals:
     real(8) :: tempvalues(nflev*2)
     integer :: jlat, jk, jlon
 
@@ -1356,14 +1502,18 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE interleaveWinds_gd
+  end subroutine interleaveWinds_gd
 
 
-  SUBROUTINE unInterleaveWinds_gd(pgd,nflev)
+  subroutine unInterleaveWinds_gd(pgd,nflev)
     implicit none
-    integer :: nflev
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Arguments:
+    integer :: nflev
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    ! Locals:
     real(8) :: tempvalues(nflev*2)
     integer :: jlat, jk, jlon
 
@@ -1382,19 +1532,22 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE unInterleaveWinds_gd
+  end subroutine unInterleaveWinds_gd
 
-!--------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 ! Main spectral transform subroutines
-!--------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-  SUBROUTINE GST_SPGD(PSP,PGD,NFLEV)
+  subroutine gst_spgd(psp,pgd,nflev)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
 
@@ -1455,17 +1608,20 @@ CONTAINS
     call unInterleaveWinds_gd(pgd,nflev)
     call tmg_stop(29)
 
-  END SUBROUTINE GST_SPGD
+  end subroutine gst_spgd
 
 
   ! FIRST ATTEMPT AT MODIFICATIONS FOR MPI
-  SUBROUTINE GST_GDSP(PSP,PGD,NFLEV)
+  subroutine gst_gdsp(psp,pgd,nflev)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd,gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd,gst(gstID)%nk)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
 
@@ -1515,18 +1671,21 @@ CONTAINS
     call unInterleaveWinds_sp(psp,nflev)
     call tmg_stop(29)
 
-  END SUBROUTINE GST_GDSP
+  end subroutine gst_gdsp
 
 
-  SUBROUTINE SPGDPAR(PSP,PGD2,NFLEV)
-!**s/r SPGDPAR  - Inverse spectral transform(PARALLEL LOOP)
+  subroutine spgdpar(psp,pgd2,nflev)
+    !
+    !:Purpose: Inverse spectral transform(PARALLEL LOOP)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,&
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    ! local variables
+    ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, jk2, ila, inm
 
     real(8) :: zjm, factor
@@ -1653,24 +1812,31 @@ CONTAINS
     enddo  ! end loop on m
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE SPGDPAR
+  end subroutine spgdpar
 
 
-  SUBROUTINE GDSPPAR(PSP,PGD2,NFLEV)
+  subroutine gdsppar(psp,pgd2,nflev)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
+    ! Locals:
     integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
     real(8) :: zjm, dlrwt(gst(gstID)%nj), dlrwocs(gst(gstID)%nj)
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
-    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2, &
+                     gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfms(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfma(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! 1. Adjustment needed when an odd number of latitudes is considered
     dlrwt(:)   = gst(gstID)%rwt(:)
@@ -1789,16 +1955,19 @@ CONTAINS
 
     enddo ! jm
 !$OMP END PARALLEL DO
-  END SUBROUTINE GDSPPAR
+  end subroutine gdsppar
 
 
-  SUBROUTINE GST_SPGDA(PSP,PGD,NFLEV)
+  subroutine gst_spgda(psp,pgd,nflev)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Locals:
     integer :: jk, jlon, jlat
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
@@ -1850,24 +2019,31 @@ CONTAINS
     call unInterleaveWinds_sp(psp,nflev)
     call tmg_stop(29)
 
-  END SUBROUTINE GST_SPGDA
+  end subroutine gst_spgda
 
 
-  SUBROUTINE SPGDAPAR(PSP,PGD2,NFLEV)
+  subroutine spgdapar(psp,pgd2,nflev)
     implicit none
 
+    ! Arguments:
     integer :: nflev
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,gst(gstID)%nj, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
+    ! Locals:
     integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
     real(8) :: zjm,factor,dlrwt(gst(gstID)%nj)
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
-    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2, &
+                     gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfms(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfma(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     !    1. Set up according to the desired grid
     !       ---------------------
@@ -2066,15 +2242,18 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE SPGDAPAR
+  end subroutine spgdapar
 
 
-  SUBROUTINE GST_SPEREE(PSP,PGD)
+  subroutine gst_speree(psp,pgd)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
 
@@ -2115,15 +2294,18 @@ CONTAINS
     call transpose2d_LevtoLon(pgd3,pgd)
     deallocate(pgd3)
 
-  END SUBROUTINE GST_SPEREE
+  end subroutine gst_speree
 
 
-  SUBROUTINE GST_SPEREE_KIJ(PSP,PGD)
+  subroutine gst_speree_kij(psp,pgd)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon, ierr
 
@@ -2180,27 +2362,32 @@ CONTAINS
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(106)
 
-  END SUBROUTINE GST_SPEREE_KIJ
+  end subroutine gst_speree_kij
 
-  SUBROUTINE GST_SPEREE_AD(PSP,PGD)
+  subroutine gst_speree_ad(psp,pgd)
     implicit none
- 
+
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     call adjnorm(pgd)
 
     call gst_reespe(psp,pgd)
 
-  END SUBROUTINE GST_SPEREE_AD
+  end subroutine gst_speree_ad
 
 
-  SUBROUTINE GST_REESPE(PSP,PGD)
+  subroutine gst_reespe(psp,pgd)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
 
@@ -2230,15 +2417,18 @@ CONTAINS
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-  END SUBROUTINE GST_REESPE
+  end subroutine gst_reespe
 
 
-  SUBROUTINE GST_REESPE_KIJ(PSP,PGD)
+  subroutine gst_reespe_kij(psp,pgd)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
+    ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon, ierr
 
@@ -2282,25 +2472,30 @@ CONTAINS
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(108)
 
-  END SUBROUTINE GST_REESPE_KIJ
+  end subroutine gst_reespe_kij
 
-  SUBROUTINE GST_SPEREE_KIJ_AD(PSP,PGD)
+  subroutine gst_speree_kij_ad(psp,pgd)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call adjnorm_kij(pgd)
 
     call gst_reespe_kij(psp,pgd)
 
-  END SUBROUTINE GST_SPEREE_KIJ_AD
+  end subroutine gst_speree_kij_ad
 
-  SUBROUTINE adjnorm(pgd)
+  subroutine adjnorm(pgd)
     implicit none
-  
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
+    ! Arguments:
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    ! Locals:
     integer :: jk, jlon, jlat
     integer :: lat1, lat2, lon1, lon2
     real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
@@ -2324,12 +2519,16 @@ CONTAINS
     end do
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE adjnorm
+  end subroutine adjnorm
 
-  SUBROUTINE adjnorm_kij(pgd)
+  subroutine adjnorm_kij(pgd)
     implicit none
-  
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Arguments:
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    ! Locals:
     integer :: jk, jlon, jlat
     integer :: lat1, lat2, lon1, lon2
     real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
@@ -2353,23 +2552,29 @@ CONTAINS
     end do
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE adjnorm_kij
+  end subroutine adjnorm_kij
 
-  SUBROUTINE SPEREEPAR(PSP,PGD2)
-    !**s/r SPEREEPAR  - Inverse spectral transform(MPI PARALLEL LOOP)
+  subroutine spereepar(psp,pgd2)
+    !
+    !:Purpose: Inverse spectral transform(MPI PARALLEL LOOP)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    ! local variables
+    ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
 
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
-    real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfms(gst(gstID)%njlath+1,2, &
+                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfma(gst(gstID)%njlath+1,2, &
+                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Inverse Legendre transform
 
@@ -2414,17 +2619,20 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE SPEREEPAR
+  end subroutine spereepar
 
 
-  SUBROUTINE SPEREEPAR_KIJ(PSP,PGD2)
-    !**s/r SPEREEPAR  - Inverse spectral transform(MPI PARALLEL LOOP)
+  subroutine spereepar_kij(psp,pgd2)
+    !
+    !:Purpose:  Inverse spectral transform(MPI PARALLEL LOOP)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
-    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount,gst(gstID)%nj)
+    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
+                    gst(gstID)%nj)
 
-    ! local variables
+    ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
 
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
@@ -2479,23 +2687,29 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE SPEREEPAR_KIJ
+  end subroutine spereepar_kij
 
 
-  SUBROUTINE REESPEPAR(PGD2,PSP)
+  subroutine reespepar(pgd2,psp)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
+    ! Locals:
     integer :: ilen,jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
 
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc, gst(gstID)%njlath)
-    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: zfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfms(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfma(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: dlrwt(gst(gstID)%nj)
 
     ! 1. Adjustment needed when an odd number of latitudes is considered
@@ -2568,15 +2782,18 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE REESPEPAR
+  end subroutine reespepar
 
 
-  SUBROUTINE REESPEPAR_KIJ(PGD2,PSP)
+  subroutine reespepar_kij(pgd2,psp)
     implicit none
 
+    ! Arguments:
     real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
-    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount,gst(gstID)%nj)
+    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
+                    gst(gstID)%nj)
 
+    ! Locals:
     integer :: ilen,jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
 
@@ -2663,18 +2880,22 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE REESPEPAR_KIJ
+  end subroutine reespepar_kij
 
 
-  SUBROUTINE LEGDIR2D(KM,PFMS,PFMA,DDSP,DDALP,KLATH,KTRUNC,KTRUNCDIM)
+  subroutine legdir2d(km,pfms,pfma,ddsp,ddalp,klath,ktrunc,ktruncdim)
     implicit none
 
+    ! Arguments:
     integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pfms(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pfma(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
+    ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
 
     itrunc = ktrunc
@@ -2708,18 +2929,20 @@ CONTAINS
        enddo
     end if
 
-  END SUBROUTINE LEGDIR2D
+  end subroutine legdir2d
 
 
-  SUBROUTINE LEGDIR2D_KIJ(KM,PFMS,PFMA,DDSP,DDALP,KLATH,KTRUNC,KTRUNCDIM)
+  subroutine legdir2d_kij(km,pfms,pfma,ddsp,ddalp,klath,ktrunc,ktruncdim)
     implicit none
 
+    ! Arguments:
     integer :: km, ktrunc, ktruncdim, klath
     real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
+    ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
 
     itrunc = ktrunc
@@ -2753,18 +2976,22 @@ CONTAINS
        enddo
     end if
 
-  END SUBROUTINE LEGDIR2D_KIJ
+  end subroutine legdir2d_kij
 
 
-  SUBROUTINE LEGINV2D(KM,PFMS,PFMA,DDSP,DDALP,KLATH,KTRUNC,KTRUNCDIM)
+  subroutine leginv2d(km,pfms,pfma,ddsp,ddalp,klath,ktrunc,ktruncdim)
     implicit none
 
+    ! Arguments:
     integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pfms(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pfma(gst(gstID)%njlath+1,2, &
+                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
+    ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
 
     itrunc = ktrunc
@@ -2810,18 +3037,20 @@ CONTAINS
        end if
     end if
 
-  END SUBROUTINE LEGINV2D
+  end subroutine leginv2d
 
 
-  SUBROUTINE LEGINV2D_KIJ(KM,PFMS,PFMA,DDSP,DDALP,KLATH,KTRUNC,KTRUNCDIM)
+  subroutine leginv2d_kij(km,pfms,pfma,ddsp,ddalp,klath,ktrunc,ktruncdim)
     implicit none
 
+    ! Arguments:
     integer :: km, ktrunc, ktruncdim, klath
     real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
+    ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
 
     itrunc = ktrunc
@@ -2867,13 +3096,12 @@ CONTAINS
        end if
     end if
 
-  END SUBROUTINE LEGINV2D_KIJ
+  end subroutine leginv2d_kij
 
-!------------------------------------------------------
-! Subroutine for initializing the Legendre transform
-!------------------------------------------------------
 
-  SUBROUTINE ALLOCATE_COMLEG
+  subroutine allocate_comleg
+    !
+    !:Purpose: Subroutine for initializing the Legendre transform
     implicit none
 
     allocate(gst(gstID)%rmu(gst(gstID)%nj))  
@@ -2890,16 +3118,19 @@ CONTAINS
     allocate(gst(gstID)%nindrh(0:gst(gstID)%ntrunc))
     allocate(gst(gstID)%nclm(0:gst(gstID)%ntrunc))
 
-  END SUBROUTINE ALLOCATE_COMLEG
+  end subroutine allocate_comleg
 
 
-  SUBROUTINE SULEG(lverbose_opt)
+  subroutine suleg(lverbose_opt)
     !
-    !**s/r SULEG  - Initialisation of Gaussian latitudes, weights and related
-    !     .         quantities
+    !:Purpose: To initializethe Gaussian latitudes, weights and related
+    !          quantities
     implicit none
+
+    ! Arguments:
     logical, optional :: lverbose_opt
 
+    ! Locals:
     logical :: lverbose
     integer :: jlat, jm
     real(8) :: zpisu2
@@ -2993,14 +3224,24 @@ CONTAINS
     if(lverbose.and.mpi_myid.eq.0) write(*,fmt='("   NCLM(0:NTRUNC):",/,10(2X,I8))')  &
          (gst(gstID)%nclm(jm),jm=0,gst(gstID)%ntrunc)
 
-  END SUBROUTINE SULEG
+  end subroutine suleg
 
 
-  SUBROUTINE GAUSS8(NRACP,RACP,PG,SIA,RAD,PGSSIN2,SINM1,SINM2,SIN2)
+  subroutine gauss8(nracp,racp,pg,sia,rad,pgssin2,sinm1,sinm2,sin2)
     implicit none
 
+    ! Arguments:
     integer :: nracp
-    real(8) :: racp(*),pg(*),rad(*),pgssin2(*),sinm2(*),sin2(*),sia(*),sinm1(*)
+    real(8) :: racp(*)
+    real(8) :: pg(*)
+    real(8) :: sia(*)
+    real(8) :: rad(*)
+    real(8) :: pgssin2(*)
+    real(8) :: sinm1(*)
+    real(8) :: sinm2(*)
+    real(8) :: sin2(*)
+
+    ! Locals:
     real(8) :: xlim,pi,fi,fi1,fn,dot,dn,dn1,a,b,c,g,gm,gp,gt,ractemp,gtemp
     integer :: i,ir,irm,irp
 
@@ -3049,14 +3290,18 @@ CONTAINS
        sin2(i) = c
     enddo
 
-  END SUBROUTINE GAUSS8
+  end subroutine gauss8
 
 
-  SUBROUTINE ORDLEG8(SX,COA,IR)
+  subroutine ordleg8(sx,coa,ir)
     implicit none
 
-    real(8) :: sx,coa
+    ! Arguments:
+    real(8) :: sx
+    real(8) :: coa
     integer :: ir
+
+    ! Locals:
     integer :: n,kk,k,n1,irpp,irppm
     real(8) :: pi,sqr2,delta,sia,theta,c1,c4,s1,ang,fk,fn,fn2,fn2sq,a,b
 
@@ -3098,12 +3343,13 @@ CONTAINS
 
     sx = s1*c1
 
-  END SUBROUTINE ORDLEG8
+  end subroutine ordleg8
 
 
-  SUBROUTINE SUALP
+  subroutine sualp
     implicit none
 
+    ! Locals:
     integer :: jj,jlat,jm,jn,ilat
     integer :: ilarh,ila,ilatbd,ierr
     real(8) :: dlalp(gst(gstID)%nlarh,nlatbd)
@@ -3138,17 +3384,23 @@ CONTAINS
        enddo
     enddo latitudes
 
-  END SUBROUTINE SUALP
+  end subroutine sualp
 
 
-  SUBROUTINE GETALP(DDALP,DDDALP,KLATH,KTRUNC,KTRUNCDIM ,KM)
+  subroutine getalp(ddalp,dddalp,klath,ktrunc,ktruncdim ,km)
     implicit none
 
-    integer :: km, klath, ktrunc, ktruncdim
-    integer :: ila,ind
-    integer :: jlat,jn, jlen
+    ! Arguments:
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: dddalp(0:ktruncdim,klath)
+    integer :: klath
+    integer :: ktrunc
+    integer :: ktruncdim
+    integer :: km
+
+    ! Locals: 
+    integer :: ila,ind
+    integer :: jlat,jn, jlen
 
     do jlat = 1,klath
        do jlen = 0, ktrunc
@@ -3166,16 +3418,19 @@ CONTAINS
        end do
     end do
 
-  END SUBROUTINE GETALP
+  end subroutine getalp
 
 
-  SUBROUTINE ALLP( P , G , X , LR , HEM , R , NLATP) 
+  subroutine allp( p , g , x , lr , hem , r , nlatp) 
 
-    implicit none 
+    implicit none
+
+    ! Arguments:
     integer :: r, nlatp, lr(0:r), hem 
     real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp) 
 
+    ! Locals:
     real(8) :: onehalf   
     real(8) :: xp , xp2,  p0, enm, fnm
     integer :: ilat , m , l , n
@@ -3232,19 +3487,22 @@ CONTAINS
        enddo
     enddo
 
-  END SUBROUTINE ALLP
+  end subroutine allp
 
 
-  SUBROUTINE ALLP2( P , G , X , LR , HEM , R , NLATP)
+  subroutine allp2( p , g , x , lr , hem , r , nlatp)
 
     implicit none
-    integer :: r, nlatp, lr(0:r), hem, jlat
+
+    ! Arguments:
+    integer :: r, nlatp, lr(0:r), hem
     real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp)
 
+    ! Locals:
     real(8) :: onehalf   
     real(8) :: xp , xp2,  p0, enm, fnm
-    integer :: ilat , m , l , n
+    integer :: ilat , m , l , n, jlat
 
     data onehalf /0.5d0/
 
@@ -3279,15 +3537,19 @@ CONTAINS
        enddo
     enddo
 
-  END SUBROUTINE ALLP2
+  end subroutine allp2
 
 
-  SUBROUTINE GST_ZLEGPOL(gstID_in)
-    ! s/r ZLEGPOL  - Evaluation of Legendre polynomials restricted to
-    !    .           (n,m) = (n,0)
+  subroutine gst_zlegpol(gstID_in)
+    !
+    !:Purpose: To evaluate Legendre polynomials restricted to (n,m) = (n,0)
     implicit none
 
-    integer :: gstID_in, jn, jlat, ierr
+    ! Arguments:
+    integer :: gstID_in
+
+    ! Loclas:
+    integer :: jn, jlat, ierr
     real(8) :: dlfact1, dlfact2, dln
     real(8) :: dlnorm(0:gst(gstID)%ntrunc)
 
@@ -3314,20 +3576,22 @@ CONTAINS
        enddo
     enddo
 
-  END SUBROUTINE GST_ZLEGPOL
+  end subroutine gst_zlegpol
 
 
-  SUBROUTINE GST_ZLEGDIR(gstID_in,pf,pn,klev)
-    ! s/r ZLEGDIR  - Direct Legendre transform restricted to
+  subroutine gst_zlegdir(gstID_in,pf,pn,klev)
     !
-    !Arguments
-    !     i   PF(NJ,KLEV)   : field in physical space
-    !     o   PN(0:ntrunc, KLEV): spectral coefficients
-    !     i   KLEV                 : number of fields to transform
+    !:Purpose: Direct Legendre transform restricted to
+    !
     implicit none
 
-    integer :: gstID_in, klev
-    real(8) :: pf(gst(gstID_in)%nj,klev), pn(0:gst(gstID_in)%ntrunc,klev)
+    ! Arguments:
+    integer :: gstID_in
+    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(NJ,KLEV): field in physical space
+    real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:ntrunc, KLEV): spectral coefficients
+    integer :: klev ! number of fields to transform
+
+    ! Locals:
     integer :: jlat, jn
     real(8), allocatable :: zwork(:,:)
 
@@ -3345,20 +3609,23 @@ CONTAINS
 
     deallocate(zwork)
 
-  END SUBROUTINE GST_ZLEGDIR
+  end subroutine gst_zlegdir
 
 
-  SUBROUTINE GST_ZLEGINV(gstID_in,pf,pn,klev)
-    ! s/r ZLEGINV  - Direct Legendre transform restricted to
-    !     .           fields that vary with latitude only
-    !Arguments
-    !     o   PF(KNJDIM,KLEVDIM)  : field in physical space
-    !     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
-    !     i   KLEV                : number of fields to transform
+  subroutine gst_zleginv(gstID_in,pf,pn,klev)
+    !
+    !:Purpose: Direct Legendre transform restricted to fields that vary with
+    !          latitude only
+    !
     implicit none
 
-    integer :: gstID_in, klev
-    real(8) :: pf(gst(gstID_in)%nj,klev), pn(0:gst(gstID_in)%ntrunc,klev)
+    ! Arguments:
+    integer :: gstID_in
+    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(KNJDIM,KLEVDIM)  : field in physical space
+    real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:KNDIM, KLEVDIM): spectral coefficients
+    integer :: klev ! number of fields to transform
+
+    ! Locals:
     integer :: jlat, jn
     real(8), allocatable :: zwork(:,:)
 
@@ -3376,18 +3643,22 @@ CONTAINS
 
     deallocate(zwork)
 
-  END SUBROUTINE GST_ZLEGINV
+  end subroutine gst_zleginv
 
 
 ! ---------------------------------------------
 ! FFT subroutines
 ! ---------------------------------------------
 
-  SUBROUTINE fft3dvar(pgd,kdir)
+  subroutine fft3dvar(pgd,kdir)
     implicit none
 
-    integer :: kfield,kdir,ni,nj
+    ! Arguments:
     real(8) :: pgd(:,:,:)
+    integer :: kdir
+
+    ! Locals:
+    integer :: kfield,ni,nj
     real(8), allocatable :: pgd2(:,:)
     integer :: ji,jj,jk,ijump,i
 
@@ -3438,13 +3709,17 @@ CONTAINS
 
     deallocate(pgd2)
 
-  END SUBROUTINE fft3dvar
+  end subroutine fft3dvar
 
-  SUBROUTINE fft3dvar_kij(pgd,kdir)
+  subroutine fft3dvar_kij(pgd,kdir)
     implicit none
 
-    integer :: kfield,kdir,ni,nj
+    ! Arguments:
     real(8) :: pgd(:,:,:)
+    integer :: kdir
+
+    ! Locals:
+    integer :: kfield,ni,nj
     real(8), allocatable :: pgd2(:,:)
     integer :: ji,jj,jk,inc,ijump,i
 
@@ -3498,12 +3773,15 @@ CONTAINS
 
     deallocate(pgd2)
 
-  END SUBROUTINE fft3dvar_kij
+  end subroutine fft3dvar_kij
 
-  SUBROUTINE ngfft( n )
+  subroutine ngfft( n )
     implicit none
+
+    ! Arguments:
     integer n
 
+    ! Locals:
     integer l
     parameter ( l = 3 )
     integer k( l ) , m
@@ -3522,7 +3800,7 @@ CONTAINS
 4   i = i/k(j)
     if( i .ne. 1 ) go to 2
 
-  END SUBROUTINE ngfft
+  end subroutine ngfft
 
 
-END MODULE globalSpectralTransform_mod
+end module globalSpectralTransform_mod

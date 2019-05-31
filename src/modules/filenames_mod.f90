@@ -34,12 +34,13 @@ contains
  !--------------------------------------------------------------------------
  ! fln_ensFileName
  !--------------------------------------------------------------------------
-  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt,  &
-                             ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
-                             copyToRamDisk_opt )
+  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, &
+                             ensFileNamePrefix_opt, ensFileBaseName_opt, &
+                             shouldExist_opt, ensembleFileExtLength_opt, &
+                             copyToRamDisk_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
     integer           :: memberIndex
@@ -48,7 +49,7 @@ contains
     integer, optional :: ensembleFileExtLength_opt
     logical, optional :: copyToRamDisk_opt
 
-    ! locals
+    ! Locals:
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
     character(len=10):: ensNumber  !! this is sufficient until we reach 10^10 members
     logical          :: shouldExist

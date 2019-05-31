@@ -89,7 +89,7 @@ CONTAINS
                           hInterpolateDegree_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     integer :: numMembers, numStep
     type(struct_hco), pointer :: hco_ens
@@ -98,7 +98,8 @@ CONTAINS
     character(len=*), optional :: varNames_opt(:)  ! allow specification of assigned variables
     integer, optional          :: dataKind_opt
     character(len=*), optional :: hInterpolateDegree_opt
-    ! locals
+
+    ! Locals:
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
     character(len=4), pointer :: varNames(:)
@@ -165,10 +166,10 @@ CONTAINS
   subroutine ens_allocateMean(ens)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
 
-    ! locals
+    ! Locals:
     integer :: subEnsIndex, ierr, lon1, lon2, lat1, lat2, k1, k2, jk, numStep
 
     lon1 = ens%statevector_work%myLonBeg
@@ -195,10 +196,10 @@ CONTAINS
   subroutine ens_allocateStdDev(ens)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
 
-    ! locals
+    ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, jk, numStep
 
     lon1 = ens%statevector_work%myLonBeg
@@ -225,10 +226,10 @@ CONTAINS
   subroutine ens_deallocate( ens )
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
 
-    ! locals
+    ! Locals:
     integer :: memberIndex, subEnsIndex, k1, k2, jk
 
     if ( .not. ens%allocated ) return
@@ -274,7 +275,7 @@ CONTAINS
   subroutine ens_modifyVarName(ens, oldVarName, newVarName) 
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     character(len=*) :: oldVarName
     character(len=*) :: newVarName
@@ -288,8 +289,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_copy(ens_in,ens_out)
     implicit none
+
+    ! Arguments:
     type(struct_ens)  :: ens_in, ens_out
 
+    ! Locals:
     integer           :: lon1, lon2, lat1, lat2, k1, k2
     integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
 
@@ -352,8 +356,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_zero(ens)
     implicit none
+
+    ! Arguments:
     type(struct_ens)  :: ens
 
+    ! Locals:
     integer           :: lon1, lon2, lat1, lat2, k1, k2
     integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
 
@@ -407,16 +414,17 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_copyToStateWork
   !--------------------------------------------------------------------------
-  subroutine ens_copyToStateWork(ens, dataType, memberIndex_opt, subEnsIndex_opt)
+  subroutine ens_copyToStateWork(ens, dataType, memberIndex_opt, &
+                                 subEnsIndex_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     character(len=*) :: dataType
     integer, optional:: memberIndex_opt
     integer, optional:: subEnsIndex_opt
 
-    ! locals
+    ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, numStep, stepIndex
@@ -479,16 +487,17 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_copyFromStateWork
   !--------------------------------------------------------------------------
-  subroutine ens_copyFromStateWork(ens, dataType, memberIndex_opt, subEnsIndex_opt)
+  subroutine ens_copyFromStateWork(ens, dataType, memberIndex_opt, &
+                                   subEnsIndex_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     character(len=*) :: dataType
     integer, optional:: memberIndex_opt
     integer, optional:: subEnsIndex_opt
 
-    ! locals
+    ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, numStep, stepIndex
@@ -553,13 +562,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getOneLev_r4(ens,kIndex) result(oneLevLevel)
     implicit none
-
-    ! arguments
-    type(struct_ens) :: ens
-    integer          :: kIndex
     real(4),pointer  :: oneLevLevel(:,:,:,:)
 
-    ! locals
+    ! Arguments:
+    type(struct_ens) :: ens
+    integer          :: kIndex
+
+    ! Locals:
     integer          :: lon1, lat1
 
     lon1 = ens%statevector_work%myLonBeg
@@ -574,13 +583,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getOneLev_r8(ens,kIndex) result(oneLevLevel)
     implicit none
-
-    ! arguments
-    type(struct_ens) :: ens
-    integer          :: kIndex
     real(8),pointer  :: oneLevLevel(:,:,:,:)
 
-    ! locals
+    ! Arguments:
+    type(struct_ens) :: ens
+    integer          :: kIndex
+
+    ! Locals:
     integer          :: lon1, lat1
 
     lon1 = ens%statevector_work%myLonBeg
@@ -595,13 +604,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
     implicit none
-
-    ! arguments
-    type(struct_ens)  :: ens
-    integer           :: subEnsIndex, kIndex
     real(8),pointer   :: field(:,:,:)
 
-    ! locals
+    ! Arguments:
+    type(struct_ens)  :: ens
+    integer           :: subEnsIndex, kIndex
+
+    ! Locals:
     integer           :: lon1,lat1
 
     lon1 = ens%statevector_work%myLonBeg
@@ -617,12 +626,12 @@ CONTAINS
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     type(struct_gsv)  :: statevector
     integer, optional :: subEnsIndex_opt
 
-    ! locals
+    ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
     character(len=4), pointer :: varNamesInEns(:)
@@ -662,11 +671,11 @@ CONTAINS
   subroutine ens_copyEnsStdDev(ens, statevector)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     type(struct_gsv)  :: statevector
 
-    ! locals
+    ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
     character(len=4), pointer :: varNamesInEns(:)
@@ -700,12 +709,12 @@ CONTAINS
   subroutine ens_copyMember(ens, statevector, memberIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     type(struct_gsv)  :: statevector
     integer           :: memberIndex
 
-    ! locals
+    ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, varIndex
@@ -815,12 +824,12 @@ CONTAINS
   subroutine ens_insertMember(ens, statevector, memberIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     type(struct_gsv)  :: statevector
     integer           :: memberIndex
 
-    ! locals
+    ! Locals:
     !real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, varIndex
@@ -905,11 +914,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
     implicit none
+    logical                      :: varExist 
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)             :: ens
     character(len=*), intent(in) :: varName
-    logical                      :: varExist 
 
     varExist = gsv_varExist(ens%statevector_work, varName)
 
@@ -921,7 +930,7 @@ CONTAINS
   subroutine ens_varNamesList(varNames,ens)
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_ens), optional :: ens
     character(len=4), pointer  :: varNames(:)
 
@@ -942,11 +951,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getNumLev(ens,varLevel) result(nlev)
     implicit none
+    integer                       :: nlev
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(in)  :: ens
     character(len=*), intent(in)  :: varLevel
-    integer                       :: nlev
 
     nlev = vco_getNumLev(ens%statevector_work%vco,varLevel)
 
@@ -957,10 +966,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getNumMembers(ens) result(numMembers)
     implicit none
-
-    ! arguments
-    type(struct_ens), intent(in)  :: ens
     integer                       :: numMembers
+
+    ! Arguments:
+    type(struct_ens), intent(in)  :: ens
 
     numMembers = ens%numMembers
 
@@ -971,10 +980,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getNumK(ens) result(numK)
     implicit none
-
-    ! arguments
-    type(struct_ens), intent(in)  :: ens
     integer                       :: numK
+
+    ! Arguments:
+    type(struct_ens), intent(in)  :: ens
 
     numK = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
 
@@ -985,10 +994,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getDataKind(ens) result(dataKind)
     implicit none
-
-    ! arguments
-    type(struct_ens), intent(in)  :: ens
     integer                       :: dataKind
+
+    ! Arguments:
+    type(struct_ens), intent(in)  :: ens
 
     dataKind = ens%dataKind
 
@@ -999,9 +1008,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getOffsetFromVarName(ens,varName) result(offset)
     implicit none
+    integer                      :: offset
+
+    ! Arguments:
     type(struct_ens)             :: ens
     character(len=*), intent(in) :: varName
-    integer                      :: offset
 
     if (.not. ens_varExist(ens,varName)) then
       call utl_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
@@ -1016,11 +1027,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getLevFromK(ens,kIndex) result(levIndex)
     implicit none
+    integer                      :: levIndex
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer, intent(in)          :: kIndex
-    integer                      :: levIndex
 
     levIndex = gsv_getLevFromK(ens%statevector_work,kIndex)
 
@@ -1031,12 +1042,12 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getKFromLevVarName(ens, levIndex, varName) result(kIndex)
     implicit none
+    integer                      :: kIndex
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer                      :: levIndex
     character(len=*)             :: varName
-    integer                      :: kIndex
 
     kIndex = levIndex + gsv_getOffsetFromVarName(ens%statevector_work,trim(varName))
 
@@ -1047,11 +1058,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getVarNameFromK(ens,kIndex) result(varName)
     implicit none
+    character(len=4)             :: varName
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer, intent(in)          :: kIndex
-    character(len=4)             :: varName
 
     varName = gsv_getVarNameFromK(ens%statevector_work,kIndex)
 
@@ -1062,8 +1073,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getVco(ens) result(vco_ptr)
     implicit none
-    type(struct_ens)          :: ens
     type(struct_vco), pointer :: vco_ptr
+
+    ! Arguments:
+    type(struct_ens)          :: ens
 
     vco_ptr => ens%statevector_work%vco
 
@@ -1074,8 +1087,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getHco(ens) result(hco_ptr)
     implicit none
-    type(struct_ens)          :: ens
     type(struct_hco), pointer :: hco_ptr
+
+    ! Arguments:
+    type(struct_ens)          :: ens
 
     hco_ptr => ens%statevector_work%hco
 
@@ -1086,6 +1101,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     implicit none
+
+    ! Arguments:
     type(struct_ens)       :: ens
     integer, intent(out)   :: myLonBeg
     integer, intent(out)   :: myLonEnd
@@ -1104,9 +1121,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getNumStep(ens) result(numStep)
     implicit none
-    type(struct_ens) :: ens
-
     integer :: numStep
+
+    ! Arguments:
+    type(struct_ens) :: ens
 
     numStep = ens%statevector_work%numStep
 
@@ -1119,13 +1137,13 @@ CONTAINS
                              imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     logical, optional :: computeSubEnsMeans_opt
     integer, optional :: numSubEns_opt
     logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
 
-    ! locals
+    ! Locals:
     logical           :: computeSubEnsMeans, lExists
     logical           :: imposeRttovHuLimits, imposeSaturationLimit
 
@@ -1233,11 +1251,11 @@ CONTAINS
   subroutine ens_computeStdDev(ens, containsScaledPerts_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     logical, intent(in), optional :: containsScaledPerts_opt
 
-    ! locals
+    ! Locals:
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     real(8), allocatable :: subEnsStdDev(:)
@@ -1361,10 +1379,10 @@ CONTAINS
   subroutine ens_normalize(ens)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
 
-    ! locals
+    ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
 
@@ -1413,10 +1431,10 @@ CONTAINS
   subroutine ens_removeMean(ens)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
 
-    ! locals
+    ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
 
@@ -1451,14 +1469,22 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt,&
-                          imposeRttovHuLimits_opt, imposeSaturationLimit_opt, scaleFactor_opt)
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff, &
+                          alternativeEnsembleMean_opt, &
+                          ensembleControlMember_opt, imposeRttovHuLimits_opt, &
+                          imposeSaturationLimit_opt, scaleFactor_opt)
+    !
+    !:Purpose:
+    !          To compute:
+    !          ..math::
+    !              x_recentered =
+    !                      scaleFactor*x_original
+    !                    + recenteringCoeff*(  x_recenteringMean
+    !                                        - scaleFactor*x_ensembleMean
+    !                                       )
     implicit none
 
-    !! We want to compute:
-    !!    x_recentered = scaleFactor*x_original + recenteringCoeff*(x_recenteringMean - scaleFactor*x_ensembleMean)
-
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     type(struct_gsv) :: recenteringMean
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
@@ -1466,7 +1492,7 @@ CONTAINS
     logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
     real(8), optional :: scaleFactor_opt(:)
 
-    ! locals
+    ! Locals:
     integer,parameter    :: maxNumLevels=200
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
@@ -1573,17 +1599,27 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_recenterState
   !--------------------------------------------------------------------------
-  subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean,recenteringCoeff, &
-                               etiket,typvar,hInterpolationDegree,alternativeEnsembleMean_opt,numBits_opt,&
-                               imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt, &
-                               imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt, &
+  subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean, &
+                               recenteringCoeff, etiket,typvar, &
+                               hInterpolationDegree, &
+                               alternativeEnsembleMean_opt, &
+                               numBits_opt, &
+                               imposeRttovHuLimitsOnInputs_opt, &
+                               imposeSaturationLimitOnInputs_opt, &
+                               imposeRttovHuLimitsOnOutputs_opt, &
+                               imposeSaturationLimitOnOutputs_opt, &
                                scaleFactor_opt)
+    !
+    !:Purpose: To compute:
+    !          ..math::
+    !             x_recentered =
+    !                     scaleFactor*x_original 
+    !                   + recenteringCoeff*(  x_recenteringMean
+    !                                       - scaleFactor*x_ensembleMean
+    !                                      )
     implicit none
 
-    !! We want to compute:
-    !!    x_recentered = scaleFactor*x_original + recenteringCoeff*(x_recenteringMean - scaleFactor*x_ensembleMean)
-
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     character(len=*) :: fileNameIn, fileNameOut
     type(struct_gsv) :: recenteringMean
@@ -1597,7 +1633,7 @@ CONTAINS
     logical, optional :: imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt
     real(8), optional :: scaleFactor_opt(:)
 
-    ! locals
+    ! Locals:
     integer,parameter:: maxNumLevels=200
     type(struct_gsv) :: statevector_ensembleControlMember
     integer          :: stepIndex, numStep, ensFileExtLength
@@ -1675,11 +1711,11 @@ CONTAINS
   subroutine ens_clipHumidity(ens,imposeSaturationLimit,imposeRttovHuLimits)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     logical          :: imposeRttovHuLimits, imposeSaturationLimit
 
-    ! locals
+    ! Locals:
     integer :: memberIndex
 
     if (mpi_myid == 0) write(*,*) ''
@@ -1704,7 +1740,7 @@ CONTAINS
                               containsFullField_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens) :: ens
     character(len=*) :: ensPathName
     logical          :: biPeriodic
@@ -1713,7 +1749,7 @@ CONTAINS
     logical, optional                   :: checkModelTop_opt
     logical, optional, intent(in)       :: containsFullField_opt
 
-    ! locals
+    ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
     type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid
     type(struct_vco), pointer :: vco_file, vco_ens
@@ -2033,12 +2069,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
-                               typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, &
-                               containsFullField_opt, numBits_opt)
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
+                               ctrlVarHumidity, etiket, typvar, &
+                               etiketAppendMemberNumber_opt, varNames_opt, &
+                               ip3_opt, containsFullField_opt, numBits_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
     character(len=*)  :: ensFileNamePrefix
@@ -2050,7 +2087,7 @@ CONTAINS
     logical, optional :: etiketAppendMemberNumber_opt
     logical, optional :: containsFullField_opt
 
-    ! locals
+    ! Locals:
     type(struct_gsv) :: statevector_member_r4
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
