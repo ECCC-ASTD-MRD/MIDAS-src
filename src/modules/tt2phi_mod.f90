@@ -27,7 +27,6 @@ module tt2phi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use earthConstants_mod
-  use columnData_mod
   use verticalCoord_mod
   use gridstatevector_mod
   use utilities_mod
@@ -50,39 +49,17 @@ module tt2phi_mod
   real(8), parameter :: WGS_OmegaPrime = 7292115.1467D-11
 
   ! private module variables
-  real(8), allocatable, save :: coeff_M_TT(:,:), coeff_M_HU(:,:)
-  real(8), allocatable, save :: coeff_T_TT(:), coeff_T_HU(:)
-  real(8), allocatable, save :: coeff_M_P0(:,:), coeff_M_P0_dP(:,:)
-  real(8), allocatable, save :: coeff_T_P0(:), coeff_T_P0_dP(:)
-
   real(8), allocatable, save :: coeff_M_TT_gsv(:,:,:,:), coeff_M_HU_gsv(:,:,:,:)
   real(8), allocatable, save :: coeff_T_TT_gsv(:,:,:),   coeff_T_HU_gsv(:,:,:)
   real(8), allocatable, save :: coeff_M_P0_delPM(:,:,:,:), coeff_M_P0_dP_delPT(:,:,:,:), coeff_M_P0_dP_delP0(:,:,:,:)
   real(8), allocatable, save :: coeff_T_P0_delP1(:,:,:),   coeff_T_P0_dP_delPT(:,:,:),   coeff_T_P0_dP_delP0(:,:,:)
 
-  logical, save :: useWind = .false.
-
-  ! interface for computing height in column/gridstatevector_trial
-  interface tt2phi
-    module procedure tt2phi_gsv
-  end interface tt2phi
-
-  ! interface for computing height increment in column/gridstatevector
-  interface tt2phi_tl
-    module procedure tt2phi_tl_gsv
-  end interface tt2phi_tl
-
-  ! interface for adjoint of computing height increment in column/gridstatevector
-  interface tt2phi_ad
-    module procedure tt2phi_ad_gsv
-  end interface tt2phi_ad
-
 contains
 
 
-subroutine tt2phi_gsv(statevector_trial,beSilent_opt)
+subroutine tt2phi(statevector_trial,beSilent_opt)
   !
-  !**s/r tt2phi_gsv - Temperature to geopotential transformation on GEM4 staggered levels
+  !**s/r tt2phi - Temperature to geopotential transformation on GEM4 staggered levels
   !                   NOTE: we assume 
   !                     1) nlev_T = nlev_M+1 
   !                     2) height_T(nlev_T) = height_M(nlev_M), both at the surface
@@ -124,19 +101,19 @@ subroutine tt2phi_gsv(statevector_trial,beSilent_opt)
     beSilent = .false.
   end if
 
-  call tmg_start(192,'tt2phi_gsv')
+  call tmg_start(192,'tt2phi')
 
-  write(*,*) 'tt2phi_gsv: START'
+  write(*,*) 'tt2phi: START'
 
   vco_ghr => gsv_getVco(statevector_trial)
-  status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+  Vcode = vco_ghr%vcode
 
   nlev_T = gsv_getNumLev(statevector_trial,'TH')
   nlev_M = gsv_getNumLev(statevector_trial,'MM')
   numStep = statevector_trial%numstep
 
-  if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi_gsv: nlev_T is not equal to nlev_M+1!')
-  if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi_gsv: nlev_T is not equal to nlev_M!')
+  if (Vcode == 5002 .and. nlev_T /= nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
+  if (Vcode == 5005 .and. nlev_T /= nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
 
   if (Vcode == 5005) then
     status = vgd_get(statevector_trial%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=heightSfcOffset_M_r4)
@@ -392,28 +369,28 @@ subroutine tt2phi_gsv(statevector_trial,beSilent_opt)
   deallocate(tv)
 
   if ( statevector_trial%dataKind == 4 ) then
-    write(*,*) 'tt2phi_gsv, Z_T='
+    write(*,*) 'tt2phi, Z_T='
     write(*,*) height_T_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-    write(*,*) 'tt2phi_gsv, Z_M='
+    write(*,*) 'tt2phi, Z_M='
     write(*,*) height_M_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
   else
-    write(*,*) 'tt2phi_gsv, Z_T='
+    write(*,*) 'tt2phi, Z_T='
     write(*,*) height_T_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-    write(*,*) 'tt2phi_gsv, Z_M='
+    write(*,*) 'tt2phi, Z_M='
     write(*,*) height_M_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
   end if
 
-  write(*,*) 'tt2phi_gsv: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
-  write(*,*) 'tt2phi_gsv: END'
+  write(*,*) 'tt2phi: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
+  write(*,*) 'tt2phi: END'
 
   call tmg_stop(192)
 
-end subroutine tt2phi_gsv
+end subroutine tt2phi
 
 
-subroutine tt2phi_tl_gsv(statevector,statevector_trial)
+subroutine tt2phi_tl(statevector,statevector_trial)
   !
-  !**s/r tt2phi_tl_gsv- temperature to geopotential transformation on gridstatevector
+  !**s/r tt2phi_tl- temperature to geopotential transformation on gridstatevector
   !
   !Author  : M. Bani Shahabadi, September 2018
   !
@@ -430,12 +407,12 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
   real(8), pointer     :: delP_T(:,:,:,:), delP_M(:,:,:,:)
   type(struct_vco), pointer :: vco_anl
 
-  call tmg_start(193,'tt2phi_tl_gsv')
+  call tmg_start(193,'tt2phi_tl')
 
-  write(*,*) 'tt2phi_tl_gsv: START'
+  write(*,*) 'tt2phi_tl: START'
 
   vco_anl => gsv_getVco(statevector_trial)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  Vcode_anl = vco_anl%vcode
 
   nlev_T = gsv_getNumLev(statevector_trial,'TH')
   nlev_M = gsv_getNumLev(statevector_trial,'MM')
@@ -590,16 +567,16 @@ subroutine tt2phi_tl_gsv(statevector,statevector_trial)
 
   deallocate(delThick)
 
-  write(*,*) 'tt2phi_tl_gsv: END'
+  write(*,*) 'tt2phi_tl: END'
 
   call tmg_stop(193)
 
-end subroutine tt2phi_tl_gsv
+end subroutine tt2phi_tl
 
 
-subroutine tt2phi_ad_gsv(statevector,statevector_trial)
+subroutine tt2phi_ad(statevector,statevector_trial)
   !
-  !**s/r tt2phi_ad_gsv- Adjoint of temperature to geopotential transformation on gridstatevector
+  !**s/r tt2phi_ad- Adjoint of temperature to geopotential transformation on gridstatevector
   !
   !Author  : M. Bani Shahabadi, September 2018
   !
@@ -618,12 +595,12 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   type(struct_vco), pointer :: vco_anl
 
 
-  call tmg_start(194,'tt2phi_ad_gsv')
+  call tmg_start(194,'tt2phi_ad')
 
-  write(*,*) 'tt2phi_ad_gsv: START'
+  write(*,*) 'tt2phi_ad: START'
 
   vco_anl => gsv_getVco(statevector_trial)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  Vcode_anl = vco_anl%vcode
 
   nlev_T = gsv_getNumLev(statevector_trial,'TH')
   nlev_M = gsv_getNumLev(statevector_trial,'MM')
@@ -819,16 +796,16 @@ subroutine tt2phi_ad_gsv(statevector,statevector_trial)
   deallocate(delHeight_M)
   deallocate(delHeight_T)
 
-  write(*,*) 'tt2phi_ad_gsv: END'
+  write(*,*) 'tt2phi_ad: END'
 
   call tmg_stop(194)
 
-end subroutine tt2phi_ad_gsv
+end subroutine tt2phi_ad
 
 
 subroutine calcHeightCoeff_gsv(statevector_trial)
   !
-  !**s/r calcHeightCoeff_gsv - Calculating the coefficients of height for tt2phi_tl_gsv/tt2phi_ad_gsv
+  !**s/r calcHeightCoeff_gsv - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
   !
   !Author  : M. Bani Shahabadi, Jan 2019
   !          - based on the original calcHeightCoeff by M. Bani Shahabadi
@@ -837,7 +814,7 @@ subroutine calcHeightCoeff_gsv(statevector_trial)
 
   type(struct_gsv) :: statevector_trial
 
-  integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode_an,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
+  integer :: lev_M,lev_T,nlev_M,nlev_T,status,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
   real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
   real(4) :: lat_4
   real(8) :: Rgh, sLat, lat_8
@@ -856,7 +833,7 @@ subroutine calcHeightCoeff_gsv(statevector_trial)
   firstTimeHeightCoeff_gsv = .false.
 
   vco_anl => gsv_getVco(statevector_trial)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  Vcode_anl = vco_anl%vcode 
 
   nlev_T = gsv_getNumLev(statevector_trial,'TH')
   nlev_M = gsv_getNumLev(statevector_trial,'MM')

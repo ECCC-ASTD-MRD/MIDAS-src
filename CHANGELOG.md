@@ -42,6 +42,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * The height/pressure are computed on the grid, before horizontal interpolation to observation locations, to prepare for using slanted columns and footprint operators. (#124 and !220)
+    * The height/pressure are part of statevector main data storage arrays (gd_r4/gd_r8) are calculated for the trial fields and the increments.
+    * Default for height/pressure allocation is set to true and it is done if numLev>0 for column/statevector. If the NumLev of one of TH/MM levels is zero, the other needs to be zero too.
+    * Height/pressure allocation are done only if the necessary variables for their calculation are available in the statevector.
+    * Z_M/Z_T and P_M/P_T are the height and pressure on grid on the TH and MM levels in varNameList.
+    * Function phf_height2geopotential is used if geopotential is needed to be calculated from the height, e.g. in observation operators.
+    * A new gsv_copy subroutine can perform the statevector copy either using kIndex or varName.
+    * Multiple optimization/bugfixes in subroutines handling the transpose between different MPI distributions for a more effecient memory management (e.g. avoid reallocating large 4D arrays when reading the trial fields)
+    * Function checkColumnStateVectorMatch is added to check the consistency of column and statevector before performing horizontal interpolation.
+    * Function findHeightMpiId is added to obtain the MpiId of the height in statevector for each kIndex level, needed to calculate the lat/lon along the slant-path.
+    * columndata_mod.f90 has similar structure to gridstatevector_mod.f90.
+    * Linear vertical interpolation to approximate columng pressure from columnhr since derivative of pressure w.r.t surface pressure (dPdPsfc) is no longer available in columng.
+    * dPdPsfc is no longer used in any observation operators since the increment of pressure is calculated on the grid and is interpolated to the observation location.
+    * Change namelist variable addGZsfcOffset to addHeightSfcOffset.
+    * Variable/function/subroutine names that include `gz` are changed to `height`.
  * The namelist variable `scaleFactor` in NAMBHI must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
  * CalcStats in LAM mode was made MPI compatible (#158 and !202)
  * Replacing the old numerical recipe for generating gaussian random

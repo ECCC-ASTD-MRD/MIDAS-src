@@ -323,18 +323,10 @@ contains
         columnhr_ptr => col_getColumn(columnhr,1,'P_T')
         write(*,*) columnhr_ptr (:)
 
-        !write(*,*) 'P_M:'
-        !columnhr_ptr => col_getColumn(columnhr,1,'P_M')
-        !write(*,*) columnhr_ptr (:)
-
         write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNG(1):'
         write(*,*) 'P_T:'
         columng_ptr => col_getColumn(columng,1,'P_T')
         write(*,*) columng_ptr (:)
-
-        !write(*,*) 'P_M:'
-        !columng_ptr => col_getColumn(columng,1,'P_M')
-        !write(*,*) columng_ptr (:)
         write(*,*)
       end if
     endif
@@ -342,7 +334,6 @@ contains
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
       if ( .not. col_varExist(columng,vnl_varNameList3D(jvar)) ) cycle
-      !if ( vnl_varNameList3D(jvar) == 'Z_T' .or. vnl_varNameList3D(jvar) == 'Z_M' ) cycle
       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
 
       ! Imposing a minimum value for HU
@@ -362,10 +353,6 @@ contains
         write(*,*) 'P_T:'
         columng_ptr => col_getColumn(columng,1,'P_T')
         write(*,*) columng_ptr (:)
-
-        !write(*,*) 'P_M:'
-        !columng_ptr => col_getColumn(columng,1,'P_M')
-        !write(*,*) columng_ptr (:)
         write(*,*)
       end if
     endif

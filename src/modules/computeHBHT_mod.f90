@@ -1222,7 +1222,7 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER stat, vcode, status
+      INTEGER stat, status
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
       REAL*8 HNH1, ZFGE, ZERR
@@ -1237,13 +1237,15 @@ end subroutine hbht_compute_ensemble
       REAL*8       , allocatable :: H   (:),AZMV(:)
       TYPE(GPS_DIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_anl
-      real*8, dimension(:), pointer :: dPdPs => null()
+      real*8, dimension(:), pointer :: dPdPs
 
       WRITE(*,*)'ENTER SETFGEDIFF'
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
+      nullify(dPdPs)
+
       NGPSLEV=col_getNumLev(lcolumng,'TH')
       NWNDLEV=col_getNumLev(lcolumng,'MM')
       LFIRST=.FALSE.
@@ -1270,7 +1272,6 @@ end subroutine hbht_compute_ensemble
       endif
 
       vco_anl => col_getVco(lcolumng)
-      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
 
 !C
 !C    Loop over all header indices of the 'RO' family:
@@ -1546,7 +1547,7 @@ end subroutine hbht_compute_ensemble
       TYPE(GPS_PROFILEZD)    :: PRF, PRFP
       TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
 
-      real*8, dimension(:), pointer :: dPdPs => null()
+      real*8, dimension(:), pointer :: dPdPs
 
 
       IF (numGPSZTD .EQ. 0) RETURN
@@ -1555,6 +1556,8 @@ end subroutine hbht_compute_ensemble
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
+      nullify(dPdPs)
+
       NFLEV_T = col_getNumLev(lcolumng,'TH')
       allocate(ZPP(NFLEV_T))
       allocate(ZDP(NFLEV_T))

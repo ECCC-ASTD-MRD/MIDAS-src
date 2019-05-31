@@ -875,9 +875,6 @@ contains
     !           - gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
     !             in gps_diff object w.r.t TT/HU/height/P0. The indirect dependency refractivity 
     !             to TT/HU/P0 through height is now attributed to direct dependency of refractivity on height.
-    !revision 02: M. Bani shahabadi Feb 2019
-    !           - gps_struct1sw_v2 calculates of partial derivatives of refractivity 
-    !             in gps_diff object w.r.t TT/HU/height/P. The dependency on P0 (and dPdPs) is removed. 
     !
     !*    Purpose:
     !
@@ -913,12 +910,12 @@ contains
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
-    integer :: status, Vcode
+    integer :: Vcode
 
     write(*,*)'ENTER oop_gpsro_nl'
 
     vco_hr => col_getVco(columnhr)
-    status = vgd_get(vco_hr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    vcode = vco_hr%vcode
 
     !
     ! Initializations
@@ -1144,45 +1141,42 @@ contains
 
 
   subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs,analysisMode_opt)
-    !
-    !**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
-    !
-    !
-    !Author  : S. Macpherson  ARMA/MRD
-    !Revisions:
-    !          S. Macpherson Oct 2012
-    !           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
-    !           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
-    !           -- option to use old NL operator removed
-    !           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
-    !           -- Uses columnData_mod.
-    !
-    !          S. Macpherson Dec 2012 - Jan 2013
-    !           -- update from Rev189 to Rev213
-    !           -- new namelist parameters in modgpsztd_mod
-    !           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
-    !           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
-    !           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
-    !           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
-    !
-    !          S. Macpherson Jun 2013
-    !           -- Use true implementation of ZDP (dP/dP0), although not needed here
-    !
-    !          S. Macpherson Nov 2014
-    !           -- modifications for case where P(nlev) is not equal to P0
-    !
-    !          S. Macpherson Jan 2015
-    !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
-    !
-    !          M. Bani Shahabadi Dec 2018
-    !           -- use the calculated height in tt2phi in the gps_structztd_v2
-    !
-    !          M. Bani Shahabadi Feb 2019
-    !           -- removed the dPdPs dependency in gps_structztd_v2 (ZDP).
-    !
-    !Arguments (out)
-    !     jobs: total value of Jo for all GB-GPS (ZTD) observations
-    !
+    !!
+    !!**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
+    !!
+    !!
+    !!Author  : S. Macpherson  ARMA/MRD
+    !!Revisions:
+    !!          S. Macpherson Oct 2012
+    !!           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
+    !!           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
+    !!           -- option to use old NL operator removed
+    !!           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
+    !!           -- Uses columnData_mod.
+    !!
+    !!          S. Macpherson Dec 2012 - Jan 2013
+    !!           -- update from Rev189 to Rev213
+    !!           -- new namelist parameters in modgpsztd_mod
+    !!           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
+    !!           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
+    !!           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
+    !!           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
+    !!
+    !!          S. Macpherson Jun 2013
+    !!           -- Use true implementation of ZDP (dP/dP0), although not needed here
+    !!
+    !!          S. Macpherson Nov 2014
+    !!           -- modifications for case where P(nlev) is not equal to P0
+    !!
+    !!          S. Macpherson Jan 2015
+    !!           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
+    !!
+    !!          M. Bani Shahabadi Dec 2018
+    !!           -- use the calculated height in tt2phi in the gps_structztd_v2
+    !!
+    !!Arguments (out)
+    !!     jobs: total value of Jo for all GB-GPS (ZTD) observations
+    !!
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -1819,10 +1813,6 @@ contains
       !*          the pressure levels of the observations.
       !*          A linear interpolation in ln(p) is performed.
       !*
-      !* Revision 01: M. Bani Shahabadi Feb 2019
-      !*            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !*              dP is part of column now.  
-      !*
       !*implicits
 
       implicit none
@@ -1912,10 +1902,6 @@ contains
       !* Purpose: Compute simulated surface observations from profiled model
       !*          increments.
       !*          It returns Hdx in OBS_WORK
-      !*
-      !* Revision 01: M. Bani Shahabadi Feb 2019
-      !*            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !*              dP is part of column now.  
       !*
       IMPLICIT NONE
 
@@ -2156,11 +2142,6 @@ contains
       !            - Calculation of the Jacobians is done separately in 
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
-      !
-      ! revision 03: M. Bani Shahabadi Feb 2019
-      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !              dP is part of column now.  
-      !
       !*    -------------------
 
       implicit none
@@ -2386,11 +2367,6 @@ contains
       ! revision 02 : M. Bani Shahabadi Dec 2018
       !             - Calculation of the Jacobians in done separately in 
       !               'oop_calcGPSGBJacobian' subroutine
-      !
-      ! revision 03: M. Bani Shahabadi Feb 2019
-      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !              dP is part of column now.  
-      !
       !*    -------------------
       !**    Purpose: Compute H'dx for all GPS ZTD observations
       !*
@@ -2596,10 +2572,6 @@ contains
       !     Purpose: based on vint3d to build the adjoint of the
       !              vertical interpolation for UPPER-AIR data files.
       !
-      !Revision 01: M. Bani Shahabadi Feb 2019
-      !           - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !             dP is part of column now.  
-      !
       implicit none
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
@@ -2702,10 +2674,6 @@ contains
       !*
       !*Author  : P. Koclas *CMC/AES  April 1996
       !*    -------------------
-      !*
-      !*Revision 01: M. Bani Shahabadi Feb 2019
-      !*           - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !*             dP is part of column now.  
       !*
       !*     Purpose: based on surfc1dz to build the adjoint of the
       !*              vertical interpolation for SURFACE data files.
@@ -2946,11 +2914,6 @@ contains
       !            - Calculation of the Jacobians is done separately in 
       !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
       !              placed here in the observation operator.
-      !
-      ! revision 03: M. Bani Shahabadi Feb 2019
-      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !              dP is part of column now.  
-      !
       !*    -------------------
 
       implicit none
@@ -3205,10 +3168,6 @@ contains
       !             - Calculation of the Jacobians in done separately in 
       !               'oop_calcGPSGBJacobian' subroutine
       !
-      ! revision 03: M. Bani Shahabadi Feb 2019
-      !            - Replacing the dPdPsfc dependency by dP, as the interpolated 
-      !              dP is part of column now.  
-      !
       !*    -------------------
       !**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
       !
@@ -3375,9 +3334,6 @@ contains
     !          humidity, temperature and pressure.  No ice phase
     !          is permitted and the pressure vector is given.
     !
-    ! Revision 01: M. Bani Shahabadi Feb 2019
-    !            Provision of dP, instead of dPdPsfc
-    !
     implicit none
     REAL(8), intent(in) :: HU_inc, TT_inc, P_inc, HU_trial, PRES_trial
     REAL(8) :: ZE, ZTD, dTDdE, ZQBRANCH, ES_inc
@@ -3410,9 +3366,6 @@ contains
     !          to calculate the dew point depression from specific
     !          humidity, temperature and pressure.  No ice phase
     !          is permitted and the pressure vector is given.
-
-    ! Revision 01: M. Bani Shahabadi Feb 2019
-    !            P_inc is generated, instead of P0_inc
     !
     implicit none
     REAL(8), intent(inout) :: HU_inc,TT_inc,P_inc

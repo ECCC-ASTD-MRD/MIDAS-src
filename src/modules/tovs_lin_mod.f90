@@ -179,7 +179,7 @@ contains
     real(8), allocatable :: toext_tl (:,:)
     real(8), allocatable :: qoext_tl (:,:)
     real(8), allocatable :: zvlev    (:,:)
-    real(8), allocatable :: dPdPs_v2 (:,:)
+    real(8), allocatable :: dPdPs    (:,:)
     real(8), allocatable :: zt_tl    (:,:)
     real(8), allocatable :: zhu_tl   (:,:)
     real(8), allocatable :: logzhu_tl(:,:)
@@ -307,7 +307,7 @@ contains
       allocate (toext_tl  (nlevels  ,count_profile),stat= alloc_status(5) )
       allocate (qoext_tl  (nlevels  ,count_profile),stat= alloc_status(6) )
       allocate (zvlev     (nlv_T,count_profile)    ,stat= alloc_status(7) )
-      allocate (dPdPs_v2  (nlv_T,count_profile)    ,stat= alloc_status(8) )
+      allocate (dPdPs     (nlv_T,count_profile)    ,stat= alloc_status(8) )
       allocate (zt_tl     (nlv_T,count_profile)    ,stat= alloc_status(9) )
       allocate (zhu_tl    (nlv_T,count_profile)    ,stat= alloc_status(10))
       allocate (logzhu_tl (nlv_T,count_profile)    ,stat= alloc_status(11))
@@ -323,7 +323,7 @@ contains
       iptobs_header(:) = 0 
       toext_tl (:,:) = 0.0d0
       zvlev    (:,:) = 0.0d0
-      dPdPs_v2 (:,:) = 0.0d0
+      dPdPs    (:,:) = 0.0d0
       zt_tl    (:,:) = 0.0d0
       zhu_tl   (:,:) = 0.0d0
       zt       (:,:) = 0.0d0
@@ -378,7 +378,7 @@ contains
           zt   (jl,count_profile)  = TTb(jl)
           zhu  (jl,count_profile)  = HUb(jl)
           zvlev(jl,count_profile)  = Pres(jl) *MPC_MBAR_PER_PA_R8
-          dPdPs_v2(jl,count_profile)  = 1.0d0
+          dPdPs(jl,count_profile)  = 1.0d0
         end do
         
         ! Fix pour eviter probleme au toit avec GEM 4
@@ -411,13 +411,13 @@ contains
 !$omp parallel do private(jn)
       do jn=1, count_profile
 
-        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs_v2(:,jn:jn),zt_tl(:,jn:jn), &
+        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs(:,jn:jn),zt_tl(:,jn:jn), &
              zt(:,jn:jn),zp_tl(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn))
 
         logzhu(:,jn) = log( zhu(:,jn) )
         logzhu_tl(:,jn) = zhu_tl(:,jn) / zhu(:,jn)
-        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs_v2(:,jn:jn),logzhu_tl(:,jn:jn), &
+        call ppo_IntAvgTl_v2(zvlev(:,jn:jn),dPdPs(:,jn:jn),logzhu_tl(:,jn:jn), &
              logzhu(:,jn:jn),zp_tl(:,jn:jn),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),loghuo_tl(:,jn:jn))
 
@@ -505,7 +505,7 @@ contains
       deallocate (toext_tl  ,stat= alloc_status(5) )
       deallocate (qoext_tl  ,stat= alloc_status(6) )
       deallocate (zvlev     ,stat= alloc_status(7) )
-      deallocate (dPdPs_v2  ,stat= alloc_status(8) )
+      deallocate (dPdPs     ,stat= alloc_status(8) )
       deallocate (zt_tl     ,stat= alloc_status(9) )
       deallocate (zhu_tl    ,stat= alloc_status(10))
       deallocate (logzhu_tl ,stat= alloc_status(11))
@@ -664,7 +664,7 @@ contains
     real(8), allocatable :: toext_ad (:,:)
     real(8), allocatable :: qoext_ad (:,:)
     real(8), allocatable :: zvlev    (:,:)
-    real(8), allocatable :: dPdPs_v2 (:,:)
+    real(8), allocatable :: dPdPs    (:,:)
     real(8), allocatable :: zt_ad    (:,:)
     real(8), allocatable :: zhu_ad   (:,:)
     real(8), allocatable :: logzhu_ad(:,:)
@@ -793,7 +793,7 @@ contains
       allocate (toext_ad (nlevels,count_profile),stat= alloc_status(5) )
       allocate (qoext_ad (nlevels,count_profile),stat= alloc_status(6) )
       allocate (zvlev    (nlv_T,count_profile)  ,stat= alloc_status(7) )
-      allocate (dPdPs_v2 (nlv_T,count_profile)  ,stat= alloc_status(8) )
+      allocate (dPdPs    (nlv_T,count_profile)  ,stat= alloc_status(8) )
       allocate (zt_ad    (nlv_T,count_profile)  ,stat= alloc_status(9) )
       allocate (zhu_ad   (nlv_T,count_profile)  ,stat= alloc_status(10))
       allocate (logzhu_ad(nlv_T,count_profile)  ,stat= alloc_status(11))
@@ -820,7 +820,7 @@ contains
           zt   (level_index,count_profile) = TTb(level_index)
           zhu  (level_index,count_profile) = HUb(level_index)
           zvlev(level_index,count_profile) = Pres(level_index) * MPC_MBAR_PER_PA_R8
-          dPdPs_v2(level_index,count_profile)  = 1.0d0
+          dPdPs(level_index,count_profile)  = 1.0d0
         end do
         
         ! Fix pour eviter probleme au toit avec GEM 4
@@ -1008,7 +1008,7 @@ contains
       do profile_index = 1, count_profile
 
         zt_ad(:,profile_index) = 0.0d0
-        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index), dPdPs_v2(:,profile_index:profile_index), &
+        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
              zt_ad(:,profile_index:profile_index), zt(:,profile_index:profile_index), &
              zp_ad(:,profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
@@ -1018,7 +1018,7 @@ contains
         logzhu_ad(:,profile_index) = 0.d0
         loghuo_ad(:,profile_index) = 0.d0
         loghuo_ad(:,profile_index) = loghuo_ad(:,profile_index) + huo_ad(:,profile_index) * qoext(jpmotop:nlevels,profile_index)
-        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index),dPdPs_v2(:,profile_index:profile_index), &
+        call ppo_IntAvgAd_v2(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
              logzhu_ad(:,profile_index:profile_index), logzhu(:,profile_index:profile_index), &
              zp_ad(:,profile_index:profile_index),nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels), loghuo_ad(:,profile_index:profile_index))
@@ -1062,7 +1062,7 @@ contains
       deallocate (toext_ad ,stat= alloc_status(5) )
       deallocate (qoext_ad ,stat= alloc_status(6) )
       deallocate (zvlev    ,stat= alloc_status(7) )
-      deallocate (dPdPs_v2 ,stat= alloc_status(8) )
+      deallocate (dPdPs    ,stat= alloc_status(8) )
       deallocate (zt_ad    ,stat= alloc_status(9) )
       deallocate (zhu_ad   ,stat= alloc_status(10))
       deallocate (logzhu_ad,stat= alloc_status(11))

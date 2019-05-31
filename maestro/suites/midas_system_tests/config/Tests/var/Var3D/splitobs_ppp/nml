@@ -9,7 +9,7 @@
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 70,
+   NITERMAX = 10,
    NSIMMAX  = 100,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,

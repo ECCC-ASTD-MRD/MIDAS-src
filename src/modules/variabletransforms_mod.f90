@@ -983,10 +983,12 @@ CONTAINS
   ! calcpressure_nl_r8
   !--------------------------------------------------------------------------
   subroutine calcPressure_nl_r8(statevector, beSilent_opt)
-
+    !
+    !:Purpose: double-precision calculation of the pressure on the grid.
+    !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector
-    logical, optional :: beSilent_opt
+    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+    logical, optional               :: beSilent_opt
 
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
@@ -994,8 +996,8 @@ CONTAINS
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: jobs, status, stepIndex, numStep
     logical                     :: beSilent
-    real(8), pointer            :: P_T(:,:,:,:) => null()
-    real(8), pointer            :: P_M(:,:,:,:) => null()
+    real(8), pointer            :: P_T(:,:,:,:)
+    real(8), pointer            :: P_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1009,6 +1011,9 @@ CONTAINS
       call utl_abort('calcPressure_nl_r8: P_T/P_M/P0 do not exist in statevector!')
     end if
 
+    nullify(P_T)
+    nullify(P_M)
+
     P_T => gsv_getField_r8(statevector,'P_T')
     P_M => gsv_getField_r8(statevector,'P_M')
 
@@ -1021,7 +1026,7 @@ CONTAINS
 
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
-      ! P_T
+      ! P_M
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
                         ip1_list=statevector%vco%ip1_M, &
@@ -1032,7 +1037,7 @@ CONTAINS
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
-      ! P_M
+      ! P_T
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
                         ip1_list=statevector%vco%ip1_T, &
@@ -1062,10 +1067,12 @@ CONTAINS
   ! calcpressure_nl_r4
   !--------------------------------------------------------------------------
   subroutine calcPressure_nl_r4(statevector, beSilent_opt)
-
+    !
+    !:Purpose: single-precision calculation of the pressure on the grid.
+    !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector
-    logical, optional :: beSilent_opt
+    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+    logical, optional               :: beSilent_opt
 
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:) 
@@ -1073,8 +1080,8 @@ CONTAINS
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: jobs, status, stepIndex, numStep
     logical                     :: beSilent
-    real(4), pointer            :: P_T(:,:,:,:) => null()
-    real(4), pointer            :: P_M(:,:,:,:) => null()
+    real(4), pointer            :: P_T(:,:,:,:)
+    real(4), pointer            :: P_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -1087,6 +1094,9 @@ CONTAINS
     if ( .not. gsv_varExist(statevector,'P_T') .or. .not. gsv_varExist(statevector,'P_M') .or. .not. gsv_varExist(statevector,'P0')) then
       call utl_abort('calcPressure_nl_r4: P_T/P_M/P0 do not exist in statevector!')
     end if
+
+    nullify(P_T)
+    nullify(P_M)
 
     P_T => gsv_getField_r4(statevector,'P_T')
     P_M => gsv_getField_r4(statevector,'P_M')
@@ -1139,18 +1149,21 @@ CONTAINS
   ! calcpressure_tl
   !--------------------------------------------------------------------------
   subroutine calcPressure_tl(statevector, statevector_trial, beSilent_opt)
-
+    !
+    !:Purpose: calculation of the pressure increment on the grid.
+    !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector, statevector_trial
-    logical, optional :: beSilent_opt
+    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain the P_T/P_M increments
+    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+    logical, optional               :: beSilent_opt
 
     real(8), allocatable  :: Psfc(:,:)
-    real(8), pointer      :: delPsfc(:,:,:,:) => null()
-    real(8), pointer      :: field_Psfc(:,:,:,:) => null()
-    real(8), pointer      :: delP_T(:,:,:,:) => null()
-    real(8), pointer      :: delP_M(:,:,:,:) => null()
-    real(8), pointer      :: dP_dPsfc_T(:,:,:) => null()
-    real(8), pointer      :: dP_dPsfc_M(:,:,:) => null()
+    real(8), pointer      :: delPsfc(:,:,:,:)
+    real(8), pointer      :: field_Psfc(:,:,:,:)
+    real(8), pointer      :: delP_T(:,:,:,:)
+    real(8), pointer      :: delP_M(:,:,:,:)
+    real(8), pointer      :: dP_dPsfc_T(:,:,:)
+    real(8), pointer      :: dP_dPsfc_M(:,:,:)
     integer               :: jobs, status, stepIndex,lonIndex,latIndex
     integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical               :: beSilent
@@ -1162,6 +1175,13 @@ CONTAINS
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_tl: computing delP_T/delP_M on the gridstatevector'
+
+    nullify(delPsfc)
+    nullify(field_Psfc)
+    nullify(delP_T)
+    nullify(delP_M)
+    nullify(dP_dPsfc_T)
+    nullify(dP_dPsfc_M)
 
     delP_T => gsv_getField_r8(statevector,'P_T')
     delP_M => gsv_getField_r8(statevector,'P_M')
@@ -1223,18 +1243,21 @@ CONTAINS
   ! calcpressure_ad
   !--------------------------------------------------------------------------
   subroutine calcPressure_ad(statevector, statevector_trial, beSilent_opt)
-
+    !
+    !:Purpose: adjoint of calculation of the pressure on the grid.
+    !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector, statevector_trial
-    logical, optional :: beSilent_opt
+    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain ncrement of Psfc.
+    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+    logical, optional               :: beSilent_opt
 
     real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: delPsfc(:,:,:,:) => null()
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:) => null()
-    real(8), pointer            :: delP_T(:,:,:,:) => null()
-    real(8), pointer            :: delP_M(:,:,:,:) => null()
-    real(8), pointer            :: dP_dPsfc_T(:,:,:) => null()
-    real(8), pointer            :: dP_dPsfc_M(:,:,:) => null()
+    real(kind=8), pointer       :: delPsfc(:,:,:,:)
+    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
+    real(8), pointer            :: delP_T(:,:,:,:)
+    real(8), pointer            :: delP_M(:,:,:,:)
+    real(8), pointer            :: dP_dPsfc_T(:,:,:)
+    real(8), pointer            :: dP_dPsfc_M(:,:,:)
     integer                     :: jobs, status, stepIndex,lonIndex,latIndex
     integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical                     :: beSilent
@@ -1246,6 +1269,13 @@ CONTAINS
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_ad: computing delP_T/delP_M on the gridstatevector'
+
+    nullify(delPsfc)
+    nullify(field_Psfc)
+    nullify(delP_T)
+    nullify(delP_M)
+    nullify(dP_dPsfc_T)
+    nullify(dP_dPsfc_M)
 
     delP_T => gsv_getField_r8(statevector,'P_T')
     delP_M => gsv_getField_r8(statevector,'P_M')

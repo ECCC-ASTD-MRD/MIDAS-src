@@ -32,49 +32,89 @@ module presProfileOperators_mod
   contains
 
     SUBROUTINE ppo_INTAVG (PVLEV,PVI,KNI,KNPROF,KNO,PPO,PVO)
-!--------------------------------------------------------------------
-!
-!**s/r INTAVG   - Forward interpolator based on piecewise 
-!                 weighted averaging.
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov 2005
-!          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!
-!Revisions: 
-!          Saroja Polavarapu *ARMA/EC Nov 2005
-!          - Completed split into three routines for consistency with
-!            LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!Arguments
-!     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
-!    i/o  PVI(KNI,KNPROF)      : Input vector to be interpolated (source)
-!     i   KNI                  : Number of input levels (source)
-!     i   KNPROF               : Number of profiles
-!     i   KNO                  : Number of output levels (destination)
-!     i   PPO(KNO)             : Vertical levels, pressure (destination)
-!    o/i  PVO(KNO,KNPROF)      : Output interpolated profiles (destination) 
-!
-!    -------------------
-!
-! Purpose: Forward interpolator based on piecewise
-!          weighted averaging in log of pressure   
-!          of one-dimensional vectors.
-!
-! Comments:
-!
-!     1) vlev in eta coordinate associated to pvlev in pressure.
-!                  Y = sum(H*PVI)
-!                    = PVO
-!     
-!               with ZPZ=H on output of LAYERAVG
-!
-!--------------------------------------------------------------------
+!!-------------------------------------------------------------------
+!!
+!!**s/r INTAVG   - Forward interpolator based on piecewise 
+!!                weighted averaging.
+!!
+!!Author  : Y.J. Rochon *ARQX/EC Nov 2005
+!!          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
+!!
+!!Revisions: 
+!!          Saroja Polavarapu *ARMA/EC Nov 2005
+!!          - Completed split into three routines for consistency with
+!!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
+!!Arguments
+!!     i   KFLAG                   : Indicates purpose of calc
+!!                                   0 - Application of TLM as forward model
+!!                                   1 - Application as TLM with increments
+!!                                   2 - Setting of adjoint elements
+!!     i   PVLEV(KNIDIM,KNPROF)    : Vertical levels, pressure (source)
+!!    i/o  PVI(KNIDIM,KNPROF)      : kflag=0, Input vector to be interpolated (source)
+!!                                   kflag=1, Input increments of above 
+!!                                   kflag=2, Output adjoint of above
+!!     i   PVIG(KNIDIM,KNPROF)     : kflag>0, Vector to be interpolated (source)
+!!                                   Not used otherwise 
+!!    i/o  PPS(KNPROF)             : kflag=0, Not needed (source)
+!!                                   kflag=1, Input surface pressure increments
+!!                                   kflag=2, Output adjoint of above
+!!     i   KNIDIM                  : Dimension of input levels (source)
+!!     i   KNI                     : Number of input levels (source)
+!!     i   KNPROF                  : Number of profiles
+!!     i   KNO                     : Number of output levels (destination)
+!!     i   PPO(KNO)                : Vertical levels, pressure (destination)
+!!    o/i  PVO(KNO,KNPROF)         : kflag=0, Output interpolated profiles (destination)
+!!                                   kflag=1, Output increments of above         
+!!                                   kflag=2, Input adjoint of above            
+!!
+!!   -------------------
+!!
+!! Purpose: Forward interpolator based on piecewise
+!!          weighted averaging in log of pressure   
+!!          of one-dimensional vectors.
+!!
+!! Comments:
+!!
+!!     1) vlev in eta coordinate associated to pvlev in pressure.
+!!
+!!     2) Cases:
+!!
+!!               a) KFLAG=0 for application as forward interpolator
+!!
+!!                  Y = sum(H*PVI)
+!!                    = PVO
+!!     
+!!               with ZPZ=H on output of LAYERAVG
+!!
+!!               b) KFLAG=1 for TLM case:
+!!
+!!                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
+!!                     =     ZPVO    +       ZPVOPS
+!!                     = PVO
+!!
+!!               where
+!!
+!!                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
+!!                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
+!!
+!!               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
+!!                    ZPZ(i)=H(i) on output of LAYERAVG
+!!            
+!!               c) KFLAG=2 for adjoint case:
+!!               
+!!                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
+!!                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
+!!                    
+!!                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
+!!                          = PPS(jn) + sum_jo (ZPZPS(jo))
+!!
+!!-------------------------------------------------------------------
       IMPLICIT NONE
       INTEGER,intent(in)  :: KNI, KNO,KNPROF
       REAL(8) ,intent(in)  :: PVLEV(KNI,KNPROF)
       REAL(8) ,intent(in)  :: PVI(KNI,KNPROF)
       REAL(8) ,intent(in)  :: PPO(KNO)
       REAL(8) ,intent(out) ::  PVO(KNO,KNPROF)
-!*********************
       INTEGER  JO, JN
       REAL(8)  ZLNPI (KNI),ZPS(KNI)
       REAL(8)  ZLNPO (KNO)
@@ -96,7 +136,7 @@ module presProfileOperators_mod
     END SUBROUTINE PPO_INTAVG
 
     SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
-!--------------------------------------------------------------------
+!!-------------------------------------------------------------------
 !
 !!!s/r INTAVGTL - Application of tangent Linear of piecewise weighted averaging.
 !
@@ -110,8 +150,6 @@ module presProfileOperators_mod
 !!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
 !          S. Pellerin, ARMA, August 2008
 !          - Optimisation, call to LAYERAVG2
-!          M. Bani Shahabadi, ARMA, Feb 2019
-!          - removing the dependency on dPdPs and receive dP instead      
 !
 !Arguments
 !     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
@@ -136,6 +174,16 @@ module presProfileOperators_mod
 !
 !     1) vlev in eta coordinate associated to pvlev in pressure.
 !
+!     2) Cases:
+!
+!               a) KFLAG=0 for application as forward interpolator
+!
+!                  Y = sum(H*PVI)
+!                    = PVO
+!
+!               with ZPZ=H on output of LAYERAVG
+!
+!               b) KFLAG=1 for TLM case:
 !
 !                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
 !                     =     ZPVO    +       ZPVOPS
@@ -148,6 +196,14 @@ module presProfileOperators_mod
 !
 !               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
 !                    ZPZ(i)=H(i) on output of LAYERAVG
+!
+!               c) KFLAG=2 for adjoint case:
+!
+!                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
+!                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
+!
+!                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
+!                          = PPS(jn) + sum_jo (ZPZPS(jo))
 ! 
 !!------------------------------------------------------------------- 
 !
@@ -160,7 +216,6 @@ module presProfileOperators_mod
       REAL(8),intent(in)   :: PVIG(KNI,KNPROF)
       REAL(8),intent(in)   :: PP(KNI,KNPROF)
       REAL(8),intent(out)  :: PVO(KNO,KNPROF)
-!********************************************
       REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
       REAL(8)  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
 
@@ -181,7 +236,7 @@ module presProfileOperators_mod
 
 
     SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
-!--------------------------------------------------------------------
+!!-------------------------------------------------------------------
 !
 !!!s/r INTAVGAD - Adjoint of piecewise weighted averaging.
 !
@@ -195,8 +250,6 @@ module presProfileOperators_mod
 !!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
 !          S. Pellerin, ARMA, August 2008
 !          - Optimisation, call to LAYERAVG2
-!          M. Bani Shahabadi, ARMA, Feb 2019
-!          - removing the dependency on dPdPs and receive dP instead      
 !
 !Arguments
 !     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
@@ -219,6 +272,31 @@ module presProfileOperators_mod
 ! Comments:
 !
 !     1) vlev in eta coordinate associated to pvlev in pressure.
+!
+!     2) Cases:
+!
+!               a) KFLAG=0 for application as forward interpolator  
+!
+!                  Y = sum(H*PVI)
+!                    = PVO
+!
+!               with ZPZ=H on output of LAYERAVG
+!
+!               b) KFLAG=1 for TLM case:
+!
+!                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
+!                     =     ZPVO    +       ZPVOPS
+!                     = PVO
+!
+!               where
+!
+!                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
+!                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
+!
+!               with ZPZ(k)=dP_dPsfc(k)/PVLEV(k) on input to LAYERAVG and
+!                    ZPZ(i)=H(i) on output of LAYERAVG
+!
+!               c) KFLAG=2 for adjoint case:
 !
 !                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
 !                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
@@ -396,12 +474,9 @@ module presProfileOperators_mod
 !
 !Revisions: 
 !          S. Pellerin, ARMA, August 2008
-!              - Introduction of version 2
-!              - Introduction of profile and kno loops to reduce the
-!                number of calls (optimisation)
-!          M. Bani Shahabadi, ARMA, Feb 2019
-!              - removing the dependency on dPdPs and receive dP
-!                instead as input     
+!!             - Introduction of version 2
+!!             - Introduction of profile and kno loops to reduce the
+!!               number of calls (optimisation)
 !
 !    -------------------
 !
@@ -550,12 +625,9 @@ module presProfileOperators_mod
 !
 !Revisions: 
 !          S. Pellerin, ARMA, August 2008
-!              - Introduction of version 2
-!              - Introduction of profile and kno loops to reduce the
-!                number of calls (optimisation)
-!          M. Bani Shahabadi, ARMA, Feb 2019
-!              - removing the dependency on dPdPs and receive dP
-!                instead as input     
+!!             - Introduction of version 2
+!!             - Introduction of profile and kno loops to reduce the
+!!               number of calls (optimisation)
 !
 !    -------------------
 !
@@ -878,10 +950,6 @@ module presProfileOperators_mod
 !            Saroja Polavarapu *ARMA/EC, Nov 2005
 !            - Setting of y1 and y2 moved from calling routine.           
 !
-!  Revisions:
-!            M. Bani Shahabadi, ARMA, Feb 2019
-!            - Calculate the weights w.r.t P (instead of Ps)
-!
 !  Purpose: Determine weight coefficients to assign to NWP variables
 !           at x1 and x2. Weights are determined from integration over
 !           the range (y1,y2), which is within the ranges of the
@@ -1078,7 +1146,6 @@ module presProfileOperators_mod
       REAL(8) ,intent(in)  :: PVI(KNI,KNPROF)
       REAL(8) ,intent(in)  :: PPO(KNO)
       REAL(8) ,intent(out) ::  PVO(KNO,KNPROF)
-!********************************************
       INTEGER  JI, JK, JO, profileIndex, IK, IORDER
       
       REAL(8)     ZPI (0:KNI+1,KNPROF)

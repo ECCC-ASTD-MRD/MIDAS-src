@@ -171,16 +171,18 @@ contains
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
+    character(len=4), pointer :: varNamesToRead(:)
 
     !
     !- 1.  Set analysis increment to zero and allocate a temporary statevector
     !
+    nullify(varNamesToRead)
     call gsv_zero( statevector )
+    call gsv_varNamesList(varNamesToRead, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true.,                             &
-                       allocHeight_opt=gsv_varExist(statevector,'Z_M'),     &
-                       allocPressure_opt=gsv_varExist(statevector,'P_M ') )
+                       mpi_local_opt=.true., varNames_opt=varNamesToRead )
+    deallocate(varNamesToRead)
 
     !
     !- 2.  Compute the analysis increment
@@ -275,12 +277,14 @@ contains
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
+    character(len=4), pointer :: varNamesToRead(:)
 
+    nullify(varNamesToRead)
+    call gsv_varNamesList(varNamesToRead, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true.,                             &
-                       allocHeight_opt=gsv_varExist(statevector,'Z_M'),     &
-                       allocPressure_opt=gsv_varExist(statevector,'P_M ') )
+                       mpi_local_opt=.true., varNames_opt=varNamesToRead )
+    deallocate(varNamesToRead)
 
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1
