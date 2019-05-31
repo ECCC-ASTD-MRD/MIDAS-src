@@ -857,7 +857,7 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
-    character(len=4), pointer :: varNamesToRead(:)
+    character(len=4), pointer :: varNames(:)
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -887,13 +887,13 @@ contains
                           'TTHUtoHeight_tl') ! IN
     end if
 
-    nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, statevector)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       varNames_opt=varNamesToRead )
-    deallocate(varNamesToRead)
+                       varNames_opt=varNames )
+    deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep
@@ -1061,7 +1061,7 @@ contains
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
     real(8), pointer :: field_out(:,:,:,:)
-    character(len=4), pointer :: varNamesToRead(:)
+    character(len=4), pointer :: varNames(:)
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call tmg_start(168,'S2C_AD')
@@ -1074,13 +1074,13 @@ contains
       call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
-    nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, statevector)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
                        mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       varNames_opt=varNamesToRead )
-    deallocate(varNamesToRead)
+                       varNames_opt=varNames )
+    deallocate(varNames)
     call gsv_zero( statevector_VarsLevs )
 
     if ( .not. interpInfo_tlad%initialized ) then
@@ -1268,7 +1268,7 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: beSilent, dealloc, moveObsAtPole
-    character(len=4), pointer :: varNamesToRead(:)
+    character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
 
@@ -1311,13 +1311,13 @@ contains
                           'TTHUtoHeight_nl') ! IN
     end if
 
-    nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, statevector)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
                        stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
                        mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                       allocHeightSfc_opt=.true., varNames_opt=varNamesToRead )
-    deallocate(varNamesToRead)
+                       allocHeightSfc_opt=.true., varNames_opt=varNames )
+    deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep

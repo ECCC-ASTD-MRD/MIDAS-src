@@ -119,7 +119,7 @@ contains
         heightColInMetres(:) = 0.0
 
         ! unit: m
-        height_column  => col_getColumn(column,indexHeader,varName,varLevel)
+        height_column  => col_getColumn(column,indexHeader,varName)
         heightColInMetres(:) = height_column(:)
 
         do levelIndex = 1, numLevels

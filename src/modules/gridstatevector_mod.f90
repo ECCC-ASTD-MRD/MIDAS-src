@@ -5092,14 +5092,14 @@ module gridStateVector_mod
     real(8)             :: ratio_r8
     integer             :: stepIndex, lonIndex, latIndex, ilon_in, ilon_out, ilat_in, ilat_out
     integer             :: ilon_in1, ilon_in2, lonIndex_in, ilat_in1, ilat_in2, latIndex_in
-    character(len=4), pointer :: varNamesToRead(:)
+    character(len=4), pointer :: varNames(:)
 
     if ( statevector_out%allocated ) then
       call gsv_deallocate(statevector_out)
     end if
 
-    nullify(varNamesToRead)
-    call gsv_varNamesList(varNamesToRead, statevector_in)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector_in)
 
     ! allocate the output statevector
     if ( associated(statevector_in%dateStampList) ) then
@@ -5108,16 +5108,16 @@ module gridStateVector_mod
                         statevector_in%numStep, statevector_in%hco, statevector_in%vco, &
                         datestamp_opt = statevector_in%dateStampList(middleStep),  &
                         mpi_local_opt = statevector_in%mpi_local,  &
-                        horizSubSample_opt = horizSubSample, varNames_opt=varNamesToRead)
+                        horizSubSample_opt = horizSubSample, varNames_opt=varNames)
 
     else
       call gsv_allocate(statevector_out,  &
                         statevector_in%numStep, statevector_in%hco, statevector_in%vco, &
                         mpi_local_opt = statevector_in%mpi_local, &
-                        horizSubSample_opt = horizSubSample, varNames_opt=varNamesToRead)
+                        horizSubSample_opt = horizSubSample, varNames_opt=varNames)
     end if
 
-    deallocate(varNamesToRead)
+    deallocate(varNames)
 
     if ( statevector_out%horizSubSample == statevector_in%horizSubSample ) then
       if ( mpi_myid == 0 ) write(*,*) 'gsv_horizSubSample: already at the selected subsample level: ', &
