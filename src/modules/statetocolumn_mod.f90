@@ -81,14 +81,6 @@ module stateToColumn_mod
 
   integer, external    :: get_max_rss
 
-  type struct_horizontalInterp
-    INTEGER, POINTER :: i(:)   ! Model grid coordinate i of neighbors
-    INTEGER, POINTER :: j(:)   ! Model grid coordinate j of neighbors
-    real(8), POINTER :: wij(:) ! Weight given to neighbors
-  end type struct_horizontalInterp
-
-  type(struct_horizontalInterp), pointer :: hint(:,:,:,:)
-
 contains 
 
   subroutine findHeightMpiId( stateVector_in, height, stepIndex )
@@ -402,19 +394,19 @@ contains
     character(len=*)           :: timeInterpType
 
     ! locals
-    integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex
-    integer :: numStep, stepIndex, ierr, indexBeg, indexEnd
+    integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, depotIndex
+    integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    integer :: ipoint, NHSIZE
-    real(8) :: dldx, dldy
     real(8) :: latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    real(4) :: footprintRadius_r4 ! (km)
     integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
     real(8), allocatable :: height(:,:,:)
+    real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: ezgdef, gdllfxy
     logical :: obsOutsideGrid
 
@@ -461,23 +453,11 @@ contains
     allocate(lonVec_r4(numHeaderUsedMax))
     allocate(latVec_r4(numHeaderUsedMax))
     allocate(headerIndexVec(numHeaderUsedMax,numStep))
+    allocate(footprintRadiusVec_r4(numHeaderUsedMax))
     headerIndexVec(:,:) = 0
 
     ! copy the horizontal grid object
     interpInfo%hco => stateVector%hco
-
-    allocate(hint(interpInfo%hco%numSubGrid,numHeaderUsedMax,numStep,mpi_nprocs))
-    do procIndex = 1, mpi_nprocs
-      do stepIndex = 1, numStep
-        do headerIndex = 1, numHeaderUsedMax
-          do subGridIndex = 1, interpInfo%hco%numSubGrid
-            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
-            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j)
-            nullify(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij)
-          end do
-        end do
-      end do
-    end do
 
     ! setup the information for wind rotation
     if ( (gsv_varExist(varName='UU') .or. gsv_varExist(varName='VV')) .and.  &
@@ -493,9 +473,12 @@ contains
     allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(interpInfo%allLat(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(interpInfo%allLon(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(numGridpt(interpInfo%hco%numSubGrid))
     interpInfo%allHeaderIndex(:,:,:) = 0
     interpInfo%allLat(:,:,:) = 0.0d0
     interpInfo%allLon(:,:,:) = 0.0d0
+    allFootprintRadius_r4(:,:,:) = 0.0
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
@@ -508,12 +491,13 @@ contains
     interpInfo%depotIndexBeg(:,:,:,:) = 0
     interpInfo%depotIndexEnd(:,:,:,:) = -1
 
-    ! get observation lat-lon onto all mpi tasks
+    ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
 
       lonVec_r4(:) = 0.0
       latVec_r4(:) = 0.0
+      footprintRadiusVec_r4(:) = 0.0
 
       header_loop2: do headerIndex = 1, numHeader
 
@@ -539,6 +523,8 @@ contains
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
 
+        footprintRadiusVec_r4(numHeaderUsed) = s2c_getFootprintRadius(obsSpaceData, headerIndex)
+
         obsOutsideGrid = ( xpos_r4 < 1.0 .or. xpos_r4 > real(niP1) .or.  &
                            ypos_r4 < 1.0 .or. ypos_r4 > real(stateVector%nj) )
 
@@ -561,18 +547,27 @@ contains
       end do header_loop2
 
       ! gather geographical lat, lon positions of observations from all processors
-      call rpn_comm_allgather(real(latVec_r4,8),                numHeaderUsedMax, 'MPI_REAL8', &
-                              interpInfo%allLat(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL8', &
+      call rpn_comm_allgather(real(latVec_r4,8),                 numHeaderUsedMax, 'MPI_REAL8', &
+                              interpInfo%allLat(:,stepIndex,:),  numHeaderUsedMax, 'MPI_REAL8', &
                               'GRID', ierr)
-      call rpn_comm_allgather(real(lonVec_r4,8),                numHeaderUsedMax, 'MPI_REAL8', &
-                              interpInfo%allLon(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL8', &
+      call rpn_comm_allgather(real(lonVec_r4,8),                 numHeaderUsedMax, 'MPI_REAL8', &
+                              interpInfo%allLon(:,stepIndex,:),  numHeaderUsedMax, 'MPI_REAL8', &
+                              'GRID', ierr)
+      call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
+                              allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
                               'GRID', ierr)
 
     end do step_loop2
 
+    deallocate(footprintRadiusVec_r4)
+
+    ! gather the headerIndexVec arrays onto all processors
+    call rpn_comm_allgather(headerIndexVec,            numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+                            interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+                            'GRID',ierr)
+
     ! count the total number of grid points for allocation and set up indices
     numGridptTotal = 0
-    allocate(numGridpt(interpInfo%hco%numSubGrid))
     do stepIndex = 1, numStep
       do procIndex = 1, mpi_nprocs
         do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
@@ -585,7 +580,9 @@ contains
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
 
-          call s2c_setupHorizInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+          footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
+
+          call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
 
           if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
             ! indices for only 1 subgrid, other will have zeros
@@ -606,6 +603,8 @@ contains
         end do ! headerIndex
       end do ! procIndex
     end do ! stepIndex
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! now that we know the size, allocate main arrays for storing interpolation information
     write(*,*) 's2c_setupInterpInfo: numGridptTotal = ', numGridptTotal
@@ -679,24 +678,9 @@ contains
               subGridIndex = 2
             end if
 
-            indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
-            indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, stepIndex, procIndex)
+            footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
 
-            NHSIZE = size(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
-
-            do ipoint=1,NHSIZE
-
-              interpInfo%interpWeightDepot(indexBeg) = hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(ipoint)
-              interpInfo%latIndexDepot(indexBeg)     = hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(ipoint)
-              interpInfo%lonIndexDepot(indexBeg)     = hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(ipoint)
-
-              indexBeg = indexBeg + 1
-
-            end do
-
-            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i)
-            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j)
-            deallocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij)
+            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
 
             ! compute the rotated lat, lon
             if ( interpInfo%hco%rotated .and.  &
@@ -721,13 +705,9 @@ contains
 
     end do step_loop3
 
-    ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec,    numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            'GRID',ierr)
+    deallocate(allFootprintRadius_r4)
 
     deallocate(height)
-    deallocate(hint)
     deallocate(headerIndexVec)
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
@@ -2259,15 +2239,16 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupHorizInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupHorizInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
     ! **Purpose:**
     ! Identify the appropriate horizontal interpolation scheme based on
-    ! observation family and station identifier. Then call the corresponding
+    ! footprint radius value. Then call the corresponding
     ! subroutine to determine the grid points and their associated weights.
     !
     implicit none
 
     ! arguments
+    real(4)                , intent(in)    :: footprintRadius_r4 ! (km)
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
@@ -2275,9 +2256,51 @@ contains
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! locals
+
+    if ( footprintRadius_r4 > 0.0 ) then
+
+      call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+    else if ( footprintRadius_r4 == 0.0 ) then
+
+      call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+    else if ( footprintRadius_r4 == -1.0 ) then
+
+      call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+
+    else
+
+      write(*,*) 'footprint radius = ',footprintRadius_r4
+      call utl_abort('s2c_setupHorizInterp: footprint radius not permitted')
+
+    end if
+
+  end subroutine s2c_setupHorizInterp
+
+  !------------------------------------------------------------------
+  ! s2c_getFootprintRadius
+  !------------------------------------------------------------------
+  function s2c_getFootprintRadius( obsSpaceData, headerIndex ) result(fpr)
+    ! **Purpose:**
+    ! Determine the footprint radius (km) of the observation.
+    ! In the case of bilinear horizontal interpolation,
+    ! the returned footprint is zero (default).
+    ! To indicate lake operator,
+    ! the returned footprint is -1.0.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: headerIndex
+    real(4)                       :: fpr
+
+    ! locals
     character(len=2)  :: cfam
     character(len=12) :: cstnid
-    real(4)           :: fpr ! footprint radius (km)
+
+    fpr = 0.0
 
     cfam = obs_getFamily ( obsSpaceData, headerIndex )
     if ( cfam == 'GL' ) then
@@ -2292,57 +2315,52 @@ contains
         case('DMSP16','DMSP17','DMSP18')
           fpr = 29.0
         case DEFAULT
-          call utl_abort('s2c_setupHorizInterp: UNKNOWN station id: '//cstnid)
+          call utl_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
         end select
-
-        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
 
       else if (cstnid == 'GCOM-W1') then
 
         fpr = 11.0
-        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
 
       else if (cstnid(1:6) == 'METOP-') then
 
-         fpr = 25.0
-        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = 25.0
 
       else if (cstnid == 'noaa-19') then
 
-         fpr = 2.75
-        call s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = 2.75
 
       else if (cstnid == 'CIS_DAILY') then
 
-        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = 0.0
 
       else if (cstnid == 'RS1_IMG') then
 
-        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = 0.0
 
       else if (index(cstnid,'Lake')   /= 0 .or.   &
                index(cstnid,'Lac')    /= 0 .or.   &
                index(cstnid,'Reserv') /= 0) then
 
-        call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = -1.0
 
       else if (cstnid == 'CIS_REGIONAL') then
 
-        call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+        fpr = 0.0
 
       else
 
-        call utl_abort('s2c_setupHorizInterp: UNKNOWN station id: '//cstnid)
+        call utl_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
 
       end if
 
     else
 
-      call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, stepIndex, procIndex, numGridpt)
+      fpr = 0.0
 
     end if
 
-  end subroutine s2c_setupHorizInterp
+  end function s2c_getFootprintRadius
 
   !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
@@ -2362,20 +2380,20 @@ contains
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! locals
-    integer :: bodyIndex
+    integer :: localHeaderIndex, bodyIndex, depotIndex
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd, niP1
     integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     integer :: ipoint, NHSIZE
     integer :: latIndexVec(4), lonIndexVec(4)
-    integer :: mask(stateVector%hco%ni,stateVector%hco%nj)
+    integer :: mask(2,2)
     real(8) :: WeightVec(4)
     real(8) :: dldx, dldy
     real(8) :: weightsSum
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    
+
     numGridpt(:) = 0
 
     lat_deg_r4 = real(interpInfo%allLat(headerIndex, stepIndex, procIndex) *  &
@@ -2437,12 +2455,12 @@ contains
     if ( stateVector%hco%grtyp == 'U' ) then
       if ( ypos_r4 > real(stateVector%nj/2) .and.  &
            ypos_r4 < real((stateVector%nj/2)+1) ) then
-        write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
+        write(*,*) 's2c_setupBilinearInterp: WARNING, obs position in between Yin and Yang!!!'
         write(*,*) '   xpos, ypos = ', xpos_r4, ypos_r4
       end if
       if ( ypos2_r4 > real(stateVector%nj/2) .and.  &
            ypos2_r4 < real((stateVector%nj/2)+1) ) then
-        write(*,*) 's2c_setupInterpInfo: WARNING, obs position in between Yin and Yang!!!'
+        write(*,*) 's2c_setupBilinearInterp: WARNING, obs position in between Yin and Yang!!!'
         write(*,*) '   xpos2, ypos2 = ', xpos2_r4, ypos2_r4
       end if
     end if
@@ -2457,7 +2475,10 @@ contains
     end if
 
     if ( allocated(stateVector%hco%mask) ) then
-      mask(:,:) = stateVector%hco%mask
+      mask(1,1) = stateVector%hco%mask(lonIndex  ,latIndex)
+      mask(2,1) = stateVector%hco%mask(lonIndexP1,latIndex)
+      mask(1,2) = stateVector%hco%mask(lonIndex  ,latIndex + 1)
+      mask(2,2) = stateVector%hco%mask(lonIndexP1,latIndex + 1)
     else
       mask(:,:) = 1
     end if
@@ -2481,28 +2502,28 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      if ( mask(lonIndex,latIndex) == 1 ) then
+      if ( mask(1,1) == 1 ) then
         NHSIZE = NHSIZE + 1
         latIndexVec(NHSIZE) = latIndex
         lonIndexVec(NHSIZE) = lonIndex
         WeightVec(NHSIZE) = (1.d0-dldx) * (1.d0-dldy)
       end if
 
-      if ( mask(lonIndexP1,latIndex) == 1 ) then
+      if ( mask(2,1) == 1 ) then
         NHSIZE = NHSIZE + 1
         latIndexVec(NHSIZE) = latIndex
         lonIndexVec(NHSIZE) = lonIndexP1
         WeightVec(NHSIZE) =       dldx  * (1.d0-dldy)
       end if
 
-      if ( mask(lonIndex,latIndex + 1) == 1 ) then
+      if ( mask(1,2) == 1 ) then
         NHSIZE = NHSIZE + 1
         latIndexVec(NHSIZE) = latIndex + 1
         lonIndexVec(NHSIZE) = lonIndex
         WeightVec(NHSIZE) = (1.d0-dldx) *       dldy
       end if
 
-      if ( mask(lonIndexP1,latIndex + 1) == 1 ) then
+      if ( mask(2,2) == 1 ) then
         NHSIZE = NHSIZE + 1
         latIndexVec(NHSIZE) = latIndex + 1
         lonIndexVec(NHSIZE) = lonIndexP1
@@ -2516,34 +2537,45 @@ contains
 
       else
 
-        write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, ', headerIndex
-        write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
-        end do
-        call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
-             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+        if ( procIndex == mpi_myid + 1 ) then
+
+          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+
+          write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
+          write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+          end do
+          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
+       ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
+
+        end if
 
       end if
 
       ! divide weight by number of subGrids
       WeightVec(1:NHSIZE) = WeightVec(1:NHSIZE) / real(numSubGridsForInterp,8)
 
-      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(NHSIZE))
-      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(NHSIZE))
-      allocate(hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(NHSIZE))
+      if ( allocated(interpInfo%interpWeightDepot) ) then
 
-      do ipoint=1,NHSIZE
-        hint(subGridIndex,headerIndex,stepIndex,procIndex)%i(ipoint)   = lonIndexVec(ipoint)
-        hint(subGridIndex,headerIndex,stepIndex,procIndex)%j(ipoint)   = latIndexVec(ipoint)
-        hint(subGridIndex,headerIndex,stepIndex,procIndex)%wij(ipoint) = WeightVec(ipoint)
-      end do
+        depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+
+        do ipoint=1,NHSIZE
+
+          interpInfo%interpWeightDepot(depotIndex) = WeightVec(ipoint)
+          interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+          interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+          depotIndex = depotIndex + 1
+
+        end do
+
+      end if
 
       numGridpt(subGridIndex) = NHSIZE
 
-    end do
+    end do ! subGrid
 
   end subroutine s2c_setupBilinearInterp
 
@@ -2565,7 +2597,211 @@ contains
     integer                , intent(in)    :: headerIndex, stepIndex, procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    call utl_abort('s2c_setupFootprintInterp: no code yet')
+    ! locals
+    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: ierr
+    integer :: bodyIndexBeg, bodyIndexEnd
+    integer :: latIndex, lonIndex, latIndex2, lonIndex2
+    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
+    real(4) :: lon_deg_r4, lat_deg_r4
+    real(8) :: lon_rad, lat_rad
+    real(8) :: grid_lon_rad, grid_lat_rad
+    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    real(4) :: grid_lon_deg_r4, grid_lat_deg_r4
+    integer :: ipoint, NHSIZE
+    integer :: top, bottom, left, right, np
+    real(8) :: dist
+    integer :: k, l, m, n
+    integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
+    integer :: in(2*(statevector%ni+statevector%nj)-4), jn(4*(statevector%ni+statevector%nj)-4)
+    logical :: inside, reject
+
+    ! external functions
+    integer :: gdllfxy
+
+    reject = .false.
+
+    numGridpt(:) = 0
+
+    ! Determine the grid point nearest the observation.
+
+    lat_rad = interpInfo%allLat(headerIndex, stepIndex, procIndex)
+    lon_rad = interpInfo%allLon(headerIndex, stepIndex, procIndex)
+    lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
+    lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
+    ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                          lat_deg_r4, lon_deg_r4, subGridIndex )
+
+    lonIndex = nint(xpos_r4)
+    latIndex = nint(ypos_r4)
+    lonIndex2 = nint(xpos2_r4)
+    latIndex2 = nint(ypos2_r4)
+
+    if ( subGridIndex == 3 ) then
+      write(*,*) 's2c_setupFootprintInterp: revise code'
+      call utl_abort('s2c_setupFootprintInterp: both subGrids involved in interpolation.')
+      numSubGridsForInterp = 2
+      subGridIndex = 1
+    else
+      ! only 1 subGrid involved in interpolation
+      numSubGridsForInterp = 1
+    end if
+
+    do subGridForInterp = 1, numSubGridsForInterp
+
+      NHSIZE = 0
+
+      ! If observation is not on the grid, don't use it.
+      if ( lonIndex < 1 .or. lonIndex > statevector%ni .or. latIndex < 1 .or. latIndex > statevector%nj ) reject = .true.
+
+      if ( allocated(stateVector%hco%mask) ) then
+        if ( stateVector%hco%mask(lonIndex,latIndex) == 0 ) reject = .true.
+      end if
+
+      if ( .not. reject ) then
+
+        !<<<  These four lines assure to use at least the nearrest neighbor
+        !     in the case where the footprint size is smaller than the grid spacing.
+        NHSIZE = 1
+        lonIndexVec(NHSIZE) = lonIndex
+        latIndexVec(NHSIZE) = latIndex
+        n = 1
+        !>>>
+
+        inside = .true.
+        do while(inside)
+
+          inside = .false.
+
+          ! Set up rectangle. We will look in this rectangle
+          ! for neighbors.
+
+          top    = latIndex + n
+          bottom = latIndex - n
+          left   = lonIndex - n
+          right  = lonIndex + n
+
+          np = 0
+          l = bottom
+          do k = left, right
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          k = right
+          do l = bottom + 1, top
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          l = top
+          do k = right - 1, left, -1
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          k = left
+          do l = top - 1, bottom + 1, -1
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+
+          do m = 1, np
+
+            k = in(m)
+            if (k >= 1 .and. k <= statevector%ni) then
+
+              xpos_r4 = real(k)
+
+              l = jn(m)
+              if (l >= 1 .and. l <= statevector%nj) then
+
+                ypos_r4 = real(l)
+
+                ierr = gdllfxy(stateVector%hco%EZscintID, grid_lat_deg_r4, grid_lon_deg_r4, &
+                       xpos_r4, ypos_r4, 1)
+
+                if(grid_lon_deg_r4 < 0.0) grid_lon_deg_r4 = grid_lon_deg_r4 + 360.0
+
+                grid_lat_rad = real(grid_lat_deg_r4,8)/MPC_DEGREES_PER_RADIAN_R8
+                grid_lon_rad = real(grid_lon_deg_r4,8)/MPC_DEGREES_PER_RADIAN_R8
+
+                ! Compute distance between grid point and observation point.
+                dist = calcDistance(grid_lat_rad, grid_lon_rad, lat_rad, lon_rad) / 1000.0d0
+
+                ! If the point is within the footprint, add it to the neighborhood.
+                if(dist < fpr) then
+
+                  ! Ignore points that are masked out.
+                  if ( allocated(stateVector%hco%mask) ) then
+                    if (stateVector%hco%mask(k, l) == 0) reject = .true.
+                  end if
+
+                  if ( .not. reject ) then
+                    inside = .true.
+
+                    NHSIZE = NHSIZE + 1
+                    lonIndexVec(NHSIZE) = k
+                    latIndexVec(NHSIZE) = l
+
+                  end if
+
+                end if
+
+              end if
+
+            end if
+
+          end do
+
+          n = n + 1
+
+        end do ! while inside
+
+      end if ! not reject
+
+      if ( reject ) then
+
+        if ( procIndex == mpi_myid + 1 ) then
+
+          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+
+          write(*,*) 's2c_setupFootprintInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
+          write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
+          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+          end do
+          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
+       ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
+
+        end if
+
+      else
+
+        if ( allocated(interpInfo%interpWeightDepot) ) then
+
+          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, stepIndex, procIndex)
+
+          do ipoint=1,NHSIZE
+
+            interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(NHSIZE,8)
+            interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+            interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+            depotIndex = depotIndex + 1
+
+          end do
+
+        end if
+
+        numGridpt(subGridIndex) = NHSIZE
+
+      end if
+
+    end do ! subGrid
 
   end subroutine s2c_setupFootprintInterp
 
@@ -2585,6 +2821,8 @@ contains
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, stepIndex, procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    numGridpt(:) = 0
 
     call utl_abort('s2c_setupLakeInterp: no code yet')
 
@@ -2611,5 +2849,30 @@ contains
     write(*,*) 'checkColumnStatevectorMatch: column and statevector match.'
 
   end subroutine checkColumnStatevectorMatch
+
+  !--------------------------------------------------------------------------
+  ! DISTANCE
+  !--------------------------------------------------------------------------
+  function calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
+    ! Compute the distance between two point on earth: (lat1,lon1) and (lat2,lon2)
+    !     Calcul utilisant la Formule d'Haversine
+    !     Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope,
+    !     vol.68, no.2, 1984, p.159)
+    use earthConstants_mod, only: RA
+    implicit none
+
+    real(8) :: lat1, lon1, lat2, lon2
+    real(8) :: dlat, dlon, a, c
+
+    real(8) :: distanceInM
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
+    c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
+    distanceInM = RA * c
+
+  end function calcDistance
 
 end module stateToColumn_mod
