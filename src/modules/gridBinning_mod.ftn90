@@ -84,7 +84,7 @@ contains
 
     real(8) :: binCategory
 
-    logical :: allocGZsfc
+    logical :: allocHeightSfc
     logical :: writeBinsToFile
     logical :: skip
     logical :: mpi_local
@@ -113,16 +113,16 @@ contains
     end if
 
     if (trim(binningStrategy) == 'landSeaTopo') then
-      allocGZsfc = .true.
+      allocHeightSfc = .true.
     else
-      allocGZsfc = .false.
+      allocHeightSfc = .false.
     end if
 
     call gsv_allocate(gbi%statevector_bin2d, 1, statevector_template%hco,    &
                       statevector_template%vco, varNames_opt=(/'BIN'/),      &
                       mpi_distribution_opt=mpi_distribution, dataKind_opt=4, &
                       dateStamp_opt=statevector_template%dateStamp3d,        &
-                      mpi_local_opt=mpi_local, allocGZsfc_opt=allocGZsfc)
+                      mpi_local_opt=mpi_local, allocHeightSfc_opt=allocHeightSfc)
 
     !
     !- 2.  Set the bins
@@ -189,10 +189,10 @@ contains
                         mpi_distribution_opt=mpi_distribution, dataKind_opt=4,    &
                         dateStamp_opt=statevector_template%dateStamp3d,           &
                         mpi_local_opt=mpi_local, hInterpolateDegree_opt='LINEAR', &
-                        allocGZsfc_opt=.true. )
+                        allocHeightSfc_opt=.true. )
 
       call gsv_readFromFile(statevector_landSeaTopo, './dataForGridBinning.fst', ' ', ' ', &
-                            readGZsfc_opt=.true.)
+                            readHeightSfc_opt=.true.)
 
       data2d   => gsv_getField3D_r4(statevector_landSeaTopo)
 
@@ -226,7 +226,7 @@ contains
       end do
 
       ! Store the topography in gbi%statevector_bin2d
-      call gsv_copyGZsfc(statevector_landSeaTopo, & ! IN
+      call gsv_copyHeightSfc(statevector_landSeaTopo, & ! IN
                          gbi%statevector_bin2d )    ! OUT
 
       call gsv_deallocate(statevector_landSeaTopo)

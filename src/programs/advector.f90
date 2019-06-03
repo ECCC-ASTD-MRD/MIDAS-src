@@ -189,7 +189,8 @@ program midas_advector
   !
   call gsv_allocate(statevector,advectedFieldNumStep, hco, vco, &
                     dateStampList_opt=dateStampListAdvectedFields, &
-                    mpi_local_opt=.true.)
+                    mpi_local_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
 
   !- 3.1 Forward advection
   if (trim(direction) == 'forward'          .or. &

@@ -60,13 +60,14 @@ contains
     integer :: indexHeader, varLevelIndex, levelIndex
     integer :: numLevels
     integer :: ioout
-    real(8) :: obsLat, obsLatRad, obsLon, obsLonRad, altGeometric
+    real(8) :: obsLat, obsLatRad, obsLon, obsLonRad, geometricHeight
     real(8) :: satZen, satZenRad, satAzim, satAzimRad, elevAngRad
     real(8) :: latSlantPathRad, lonSlantPathRad, distAlongPath
     real(8) :: obsCordGlb(3), slantPathCordGlb(3), unitx(3), unity(3), unitz(3), unitSatLoc(3), unitSatGlb(3)
-    real(8), allocatable :: latSlantPath(:), lonSlantPath(:), gzColInMetres(:)
-    real(8), pointer :: GZ_column(:)
+    real(8), allocatable :: latSlantPath(:), lonSlantPath(:), heightColInMetres(:)
+    real(8), pointer :: height_column(:)
     character(len=2) :: varLevel
+    character(len=*) :: varName
 
     print *, 'start slp_calcLatLon:'
 
@@ -90,7 +91,7 @@ contains
       elevAngRad = 0.5d0 * MPC_PI_R8 - satZenRad
 
       obsCordGlb  = RA * (/ cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad) , sin(obsLatRad) /)
-      unitz = (/  cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad)	, sin(obsLatRad) /)
+      unitz = (/  cos(obsLatRad)*cos(obsLonRad) , cos(obsLatRad)*sin(obsLonRad)  , sin(obsLatRad) /)
       unitx = (/ -sin(obsLonRad) , cos(obsLonRad) , 0.d0 /)
       unity = (/ -sin(obsLatRad)*cos(obsLonRad) , -sin(obsLatRad)*sin(obsLonRad) , cos(obsLatRad) /)
 
@@ -102,28 +103,30 @@ contains
       do varLevelIndex = 1, 2
         if (varLevelIndex == 1) then
           varLevel = 'TH'
+          varName = 'Z_T'
         else
           varLevel = 'MM'
+          varName = 'Z_M'
         end if
 
         numLevels = col_getNumLev(column,varLevel)
 
         allocate(latSlantPath(numLevels))
         allocate(lonSlantPath(numLevels))
-        allocate(gzColInMetres(numLevels))
+        allocate(heightColInMetres(numLevels))
         latSlantPath(:) = 0.0
         lonSlantPath(:) = 0.0
-        gzColInMetres(:) = 0.0
+        heightColInMetres(:) = 0.0
 
         ! unit: m
-        GZ_column  => col_getColumn(column,indexHeader,'GZ',varLevel)
-        gzColInMetres(:) = GZ_column(:)
+        height_column  => col_getColumn(column,indexHeader,varName)
+        heightColInMetres(:) = height_column(:)
 
         do levelIndex = 1, numLevels
           ! Geometric altitude (m)
-          altGeometric = RA * gzColInMetres(levelIndex) / (RA - gzColInMetres(levelIndex))
+          geometricHeight = RA * heightColInMetres(levelIndex) / (RA - heightColInMetres(levelIndex))
           ! distance along line of sight (m)
-          distAlongPath = altGeometric / cos(satZenRad) 
+          distAlongPath = geometricHeight / cos(satZenRad) 
 
           ! unit: m
           slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
@@ -136,7 +139,7 @@ contains
           lonSlantPath(levelIndex) = lonSlantPathRad * MPC_DEGREES_PER_RADIAN_R8
         end do
 
-        ! print output angles/lat/lon/GZ
+        ! print output angles/lat/lon/height
         if (varLevelIndex == 1) then
           write(ioout,'(4(f9.4,1x))') obsLatRad, obsLonRad, satAzimRad, satZenRad
         end if
@@ -153,13 +156,13 @@ contains
         write(ioout,*)
 
         do levelIndex = 1, numLevels
-          write(ioout,'(f12.4,1x)',advance='no') gzColInMetres(levelIndex)
+          write(ioout,'(f12.4,1x)',advance='no') heightColInMetres(levelIndex)
         end do
         write(ioout,*)
 
         deallocate(latSlantPath)
         deallocate(lonSlantPath)
-        deallocate(gzColInMetres)
+        deallocate(heightColInMetres)
       end do
 
       write(ioout,*)

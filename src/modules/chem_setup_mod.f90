@@ -142,7 +142,7 @@ module chem_setup_mod
      !  trial                  Trial (background) profile at observation location
      !  tt                     Temperature profile on model levels (Kelvin)
      !  hu                     Specific humidity 
-     !  gz                     Geopotential height on model levels (m)
+     !  height                 Height on model levels (m)
      !  pp                     Pressure on model levels (Pa)
      !  lat                    Latitude of observation (radians)
      !  lon                    Longitude of observation (radians)
@@ -177,7 +177,7 @@ module chem_setup_mod
      real(8) :: lat,lon,column_bound
      character(len=12) :: stnid
      character(len=4)  :: varName
-     real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),gz(:),pp(:)
+     real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),height(:),pp(:)
      real(8), allocatable :: zh(:,:),zhp(:,:),vweights(:,:),obslev(:),dtransform(:),hu(:)
      real(8), pointer     :: trial(:)
      integer, allocatable :: imodlev_top(:),imodlev_bot(:)
@@ -1333,7 +1333,7 @@ contains
 !!v      obsoper%nmodlev         Number of model levels for variables other than uu and vv
 !!v      obsoper%pressmod        Model pressure array
 !!v      obsoper%tt              Model temperature (Kelvin)
-!!v      obsoper%gz              Model geopotential height (m)
+!!v      obsoper%height          Model height (m)
 !!v      obsoper%hu              Specific humidity 
 !!v      obsoper%lat             Latitude (rad)
 !!v      obsoper%lon             Longitude (rad)
@@ -1377,12 +1377,12 @@ contains
     if (chm_ref_fields(id,1)%ivkind.eq.2) then
         pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
     else if (chm_ref_fields(id,1)%ivkind.eq.0) then
-        where (pressrefin.lt.obsoper%gz(obsoper%nmodlev)) pressrefin=obsoper%gz(obsoper%nmodlev)
-        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+        where (pressrefin.lt.obsoper%height(obsoper%nmodlev)) pressrefin=obsoper%height(obsoper%nmodlev)
+        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%height,obsoper%pp, &
                         chm_ref_fields(id,1)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
     else if (chm_ref_fields(id,1)%ivkind.eq.4) then
-        pressrefin(:)=pressrefin(:) + obsoper%gz(obsoper%nmodlev)
-        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+        pressrefin(:)=pressrefin(:) + obsoper%height(obsoper%nmodlev)
+        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%height,obsoper%pp, &
                         chm_ref_fields(id,1)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
     else if (chm_ref_fields(id,1)%ivkind.eq.1) then
         pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa   
@@ -1407,9 +1407,9 @@ contains
         tropo_press=-1.0
         
         if (all(obsoper%hu.ge.0.0D0)) then
-           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu)
+           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%height,hu_opt=obsoper%hu)
         else
-           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz)
+           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%height)
          end if
 
         if (tropo_press.gt.0) then
@@ -1428,12 +1428,12 @@ contains
            if (chm_ref_fields(id,2)%ivkind.eq.2) then
                pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
            else if (chm_ref_fields(id,2)%ivkind.eq.0) then
-               where (pressrefin.lt.obsoper%gz(obsoper%nmodlev)) pressrefin=obsoper%gz(obsoper%nmodlev)
-               pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+               where (pressrefin.lt.obsoper%height(obsoper%nmodlev)) pressrefin=obsoper%height(obsoper%nmodlev)
+               pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%height,obsoper%pp, &
                                chm_ref_fields(id,2)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
            else if (chm_ref_fields(id,2)%ivkind.eq.4) then
-               pressrefin(:)=pressrefin(:) + obsoper%gz(obsoper%nmodlev)
-               pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+               pressrefin(:)=pressrefin(:) + obsoper%height(obsoper%nmodlev)
+               pressrefin(:) = phf_convert_z_to_pressure(pressrefin,obsoper%height,obsoper%pp, &
                                chm_ref_fields(id,2)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
            else if (chm_ref_fields(id,2)%ivkind.eq.1) then
                pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa        

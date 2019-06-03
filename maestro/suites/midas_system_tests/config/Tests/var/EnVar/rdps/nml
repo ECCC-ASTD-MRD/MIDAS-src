@@ -70,7 +70,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
-   AddGZSfcOffset = .false.
+   addHeightSfcOffset = .false.
    ANLTIME_BIN = 'MIDDLE'
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'

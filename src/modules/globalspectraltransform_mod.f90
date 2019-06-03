@@ -830,9 +830,12 @@ CONTAINS
     real(8) :: pgd_in(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, gst(gstID)%nj)
     real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
+    real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
+    real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
+
+    call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
+    call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
 
     call tmg_start(115,'GST_MTOLAT_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
@@ -962,9 +965,12 @@ CONTAINS
     real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, gst(gstID)%nj)
 
-    real(gst_real) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
-    real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
+    real(gst_real), allocatable, save :: gd_send(:,:,:,:,:)
+    real(gst_real), allocatable, save :: gd_recv(:,:,:,:,:)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
+
+    call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
+    call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
 
     call tmg_start(116,'GST_LATTOM_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)

@@ -64,7 +64,7 @@ module gps_mod
   integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
-  integer(i4), parameter :: ngpscvmx  = 3*ngpssize+1
+  integer(i4), parameter :: ngpscvmx  = 4*ngpssize
 
   
 !modgps01ctphys
@@ -815,7 +815,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printHeight)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -844,6 +844,8 @@ contains
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+
+    logical, optional :: printHeight
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -950,11 +952,20 @@ contains
        prf%gst(i) = prf%gst(i+1) + z
     enddo
 
+    if ( present(printHeight) ) then
+      if ( printHeight ) then
+        write(*,*) 'gps_struct1sw, height='
+        write(*,*) prf%gst(1:ngpslev)%Var
+
+        printHeight = .false.
+      end if
+    end if
+
     prf%bbst=.false.
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rALT,rUU,rVV,prf)
+       rP0,rPP,rTT,rHU,rALT,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -964,7 +975,6 @@ contains
     real(dp)        , intent(in)  :: geoid
     real(dp)        , intent(in)  :: rP0
     real(dp)        , intent(in)  :: rPP (ngpssize)
-    real(dp)        , intent(in)  :: rDP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
     real(dp)        , intent(in)  :: rALT (ngpssize)
@@ -999,11 +1009,11 @@ contains
     !
     prf%P0%Var               = 0.01_dp*rP0
     prf%P0%DVar              = 0._dp
-    prf%P0%DVar(3*ngpslev+1) = 0.01_dp
+    prf%P0%DVar(4*ngpslev)   = 0.01_dp
     do i=1,ngpslev
        prf%pst(i)%Var               = 0.01_dp*rPP(i)
        prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+1) = 0.01_dp*rDP(i)
+       prf%pst(i)%DVar(3*ngpslev+i) = 0.01_dp
     enddo
 
     !
@@ -1306,7 +1316,7 @@ contains
   end subroutine gps_structztd
 
 
-  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rHU,rALT,lbevis,refopt,prf)
+  subroutine gps_structztd_v2(ngpslev,rLat,rLon,rMT,rP0,rPP,rTT,rHU,rALT,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gps_profilezd (for ZTD operator)
 !
@@ -1319,7 +1329,6 @@ contains
     real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
     real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
     real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
-    real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
     real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
     real(dp)          , intent(in)  :: rALT (ngpssize)   ! altitude at each level
@@ -1381,11 +1390,11 @@ contains
     !
     prf%P0%Var               = rP0
     prf%P0%DVar              = 0._dp
-    prf%P0%DVar(3*ngpslev+1) = 1._dp
+    prf%P0%DVar(4*ngpslev)   = 1._dp
     do i = 1, ngpslev
        prf%pst(i)%Var               = rPP(i)
        prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+1) = rDP(i)
+       prf%pst(i)%DVar(3*ngpslev+i) = 1._dp
     enddo
     ! Pressure at model top (Pa)
     ptop = rPP(1)

@@ -68,28 +68,7 @@ contains
         column_mean%all(:,:) = column_mean%all(:,:) +  &
                                multFactor * columns(memberIndex)%all(:,:)
 
-        column_mean%gz_T(:,:) = column_mean%gz_T(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_T(:,:)
-        column_mean%gz_M(:,:) = column_mean%gz_M(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_M(:,:)
-        column_mean%gz_sfc(:,:) = column_mean%gz_sfc(:,:) +  &
-                                multFactor * columns(memberIndex)%gz_sfc(:,:)
-
-        column_mean%pressure_T(:,:) = column_mean%pressure_T(:,:) +  &
-                                      multFactor * columns(memberIndex)%pressure_T(:,:)
-        column_mean%pressure_M(:,:) = column_mean%pressure_M(:,:) +  &
-                                      multFactor * columns(memberIndex)%pressure_M(:,:)
-
-        column_mean%dP_dPsfc_T(:,:) = column_mean%dP_dPsfc_T(:,:) +  &
-                                      multFactor * columns(memberIndex)%dP_dPsfc_T(:,:)
-        column_mean%dP_dPsfc_M(:,:) = column_mean%dP_dPsfc_M(:,:) +  &
-                                      multFactor * columns(memberIndex)%dP_dPsfc_M(:,:)
-
     end do
-
-    !if (col_varExist('P0')) then
-    !  call col_calcPressure(column_mean)
-    !end if
 
     if ( verbose ) then
       write(*,*) '======================='
@@ -140,23 +119,12 @@ contains
     write(*,*) 'enkf_computeColumnsPerturbations: nEns =', nEns
 
     !
-    ! Remove ensemble mean from all variables, except: gz_sfc, dP_dPsfc_T/M, oltv
+    ! Remove ensemble mean from all variables, except: HeightSfc, oltv
     !
     do memberIndex = 1, nEns
 
         columns(memberIndex)%all(:,:) = columns(memberIndex)%all(:,:) -  &
                                         column_mean%all(:,:)
-
-        columns(memberIndex)%gz_T(:,:) = columns(memberIndex)%gz_T(:,:) -  &
-                                         column_mean%gz_T(:,:)
-        columns(memberIndex)%gz_M(:,:) = columns(memberIndex)%gz_M(:,:) -  &
-                                         column_mean%gz_M(:,:)
-
-        columns(memberIndex)%pressure_T(:,:) = columns(memberIndex)%pressure_T(:,:) -  &
-                                      column_mean%pressure_T(:,:)
-        columns(memberIndex)%pressure_M(:,:) = columns(memberIndex)%pressure_M(:,:) -  &
-                                      column_mean%pressure_M(:,:)
-
     end do
 
     if ( verbose ) then

@@ -189,7 +189,7 @@ CONTAINS
     real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
 
     real(4), pointer :: bin2d(:,:,:)
-    real(8), pointer :: GZsfc(:,:)
+    real(8), pointer :: HeightSfc(:,:)
 
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
@@ -634,11 +634,10 @@ CONTAINS
         call gbi_setup(gbi_landSeaTopo, 'landSeaTopo', statevector_ensStdDev, &
                        mpi_distribution_opt='None', writeBinsToFile_opt=ensDiagnostic)
         bin2d => gsv_getField3D_r4(gbi_landSeaTopo%statevector_bin2d)
-        GZsfc => gsv_getGZsfc(gbi_landSeaTopo%statevector_bin2d)
-        GZsfc(:,:) = GZsfc(:,:)/RG ! convert to m
-        call gsv_smoothHorizontal(statevector_ensStdDev,                                   & ! INOUT
-                                  footprintRadius, binInteger_opt=bin2d, binReal_opt=GZsfc,& ! IN
-                                  binRealThreshold_opt=footprintTopoThreshold)               ! IN
+        HeightSfc => gsv_getHeightSfc(gbi_landSeaTopo%statevector_bin2d)
+        call gsv_smoothHorizontal(statevector_ensStdDev,                                       & ! INOUT
+                                  footprintRadius, binInteger_opt=bin2d, binReal_opt=HeightSfc,& ! IN
+                                  binRealThreshold_opt=footprintTopoThreshold)                   ! IN
         call gbi_deallocate(gbi_landSeaTopo)
       else
         call utl_abort('ben_setup: Invalid variance smoothing type = '//trim(varianceSmoothing))
@@ -702,7 +701,8 @@ CONTAINS
       dateStampListAdvectedFields(:) = dateStampList(:)
       call gsv_allocate(statevector_ensMean4D, numStep, hco_ens, vco_ens, &
                         datestampList_opt=dateStampListAdvectedFields,     &
-                        mpi_local_opt=.true.)
+                        mpi_local_opt=.true., &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call ens_copyEnsMean(ensPerts(1), & ! IN
                            statevector_ensMean4D  )   ! OUT
 
@@ -2174,7 +2174,8 @@ CONTAINS
     do waveBandIndex = 1, nWaveBandToDiagnose
       if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
       call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call ben_getPerturbation( statevector,    & ! OUT
                                 memberIndex,    & ! IN
                                 'ConstantValue', waveBandIndex ) ! IN
@@ -2194,13 +2195,15 @@ CONTAINS
     !
     if ( mpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
     call gsv_allocate(statevector_temp, tim_nstepobsinc, hco_ens, vco_anl, &
-                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(ensPerts(1)))
+                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(ensPerts(1)), &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do waveBandIndex = 1, nWaveBandToDiagnose
        if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
        call gsv_allocate(statevector, tim_nstepobsinc, hco_ens, vco_anl, &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                         dataKind_opt=ens_getDataKind(ensPerts(1)))
+                         dataKind_opt=ens_getDataKind(ensPerts(1)), &
+                         allocHeight_opt=.false., allocPressure_opt=.false.)
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
           !- Get normalized perturbations

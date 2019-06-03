@@ -593,7 +593,7 @@ contains
           ! convert altitude read from column to geopotential
           height(1) = col_getHeight(columnhr,0,headerIndex,'SF')
           lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-          call phf_alt2geopotential(height,lat,geopotential)
+          call phf_height2geopotential(height,lat,geopotential)
 
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)

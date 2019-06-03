@@ -171,14 +171,18 @@ contains
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
+    character(len=4), pointer :: varNames(:)
 
     !
     !- 1.  Set analysis increment to zero and allocate a temporary statevector
     !
+    nullify(varNames)
     call gsv_zero( statevector )
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true. )
+                       mpi_local_opt=.true., varNames_opt=varNames )
+    deallocate(varNames)
 
     !
     !- 2.  Compute the analysis increment
@@ -273,10 +277,14 @@ contains
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
+    character(len=4), pointer :: varNames(:)
 
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
-                       mpi_local_opt=.true. )
+                       mpi_local_opt=.true., varNames_opt=varNames )
+    deallocate(varNames)
 
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1

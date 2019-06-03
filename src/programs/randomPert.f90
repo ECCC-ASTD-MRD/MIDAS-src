@@ -180,7 +180,8 @@ program midas_randomPert
 
   !- 3.1 Allocate the statevector
   call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
-                    dateStamp_opt=nstamp, mpi_local_opt=.true.)
+                    dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
   nkgdim = statevector%nk
   allocate(ensemble_r4(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim, nEns))
 
@@ -374,7 +375,8 @@ program midas_randomPert
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
-                      dateStamp_opt=nstamp, mpi_local_opt=.true.)
+                      dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     field => gsv_getField3d_r8(statevector)
 
 !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    

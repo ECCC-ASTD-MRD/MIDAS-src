@@ -197,7 +197,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       INTEGER IKEY,ILEN,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
-      real*8, pointer     :: gz_column(:), tt_column(:), field_ptr(:,:,:)
+      real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
@@ -251,7 +251,8 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
-      call gsv_allocate(statevector, 1, hco_anl, vco_anl)
+      call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_zero(statevector)
 
       call col_setVco(lcolumn,col_getVco(lcolumng))
@@ -357,7 +358,7 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
          end do
       end do
 
-      ! GZ is put into TT slot in gridStateVector
+      ! height is put into TT slot in gridStateVector
       clnomvar = 'GZ'
       write(*,*) clnomvar
       field_ptr => gsv_getField3D_r8(statevector,'TT')
@@ -382,12 +383,12 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       call s2c_bgcheck_bilin(lcolumn,statevector,lobsSpaceData)
 
-      ! copy GZ data from TT to GZ slot in columnData
+      ! copy height data from TT to height slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
-         gz_column => col_getColumn(lcolumn,jobs,'GZ','TH')
+         height_column => col_getColumn(lcolumn,jobs,'Z_T')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
          do jlev = 1,col_getNumLev(lcolumn,'TH')
-            gz_column(jlev)=tt_column(jlev)
+            height_column(jlev)=tt_column(jlev)
          enddo
       enddo
 
@@ -760,7 +761,7 @@ subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
 
   !- 1.3 Create a gridstatevector to store the ensemble perturbations
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-       mpi_local_opt=.true.)
+       mpi_local_opt=.true., allocHeight_opt=.false., allocPressure_opt=.false.)
 
   !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
   call col_setVco(column,vco_anl)
@@ -1221,7 +1222,7 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER stat
+      INTEGER stat, status
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
       REAL*8 HNH1, ZFGE, ZERR
@@ -1236,12 +1237,15 @@ end subroutine hbht_compute_ensemble
       REAL*8       , allocatable :: H   (:),AZMV(:)
       TYPE(GPS_DIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_anl
+      real*8, dimension(:), pointer :: dPdPs
 
       WRITE(*,*)'ENTER SETFGEDIFF'
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
+      nullify(dPdPs)
+
       NGPSLEV=col_getNumLev(lcolumng,'TH')
       NWNDLEV=col_getNumLev(lcolumng,'MM')
       LFIRST=.FALSE.
@@ -1268,6 +1272,7 @@ end subroutine hbht_compute_ensemble
       endif
 
       vco_anl => col_getVco(lcolumng)
+
 !C
 !C    Loop over all header indices of the 'RO' family:
 !C
@@ -1324,13 +1329,20 @@ end subroutine hbht_compute_ensemble
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+
+                  ! approximation for dPdPs               
+                  if (associated(dPdPs)) then
+                    deallocate(dPdPs,stat=status)
+                    nullify(dPdPs)
+                  end if
+                  status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,zP0)
+                  zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
+
                   DO JL = 1, NGPSLEV
 !C
 !C     *             Profile x
 !C
                      zPP(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C     *             True implementation of zDP (dP/dP0)
-                     zDP(JL) = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
                      zUU(JL) = 0.d0
@@ -1496,15 +1508,15 @@ end subroutine hbht_compute_ensemble
       REAL*8, allocatable :: ZDP(:)
       REAL*8, allocatable :: ZTT(:)
       REAL*8, allocatable :: ZHU(:)
-      REAL*8, allocatable :: ZGZ(:)
-      REAL*8, allocatable :: ZGZ2(:)
+      REAL*8, allocatable :: zHeight(:)
+      REAL*8, allocatable :: zHeight2(:)
       REAL*8, allocatable :: ZTTB(:)
       REAL*8, allocatable :: ZHUB(:)
       REAL*8, allocatable :: ZQQB(:)
       REAL*8, allocatable :: ZQQ(:)
       REAL*8, allocatable :: ZTTB_P(:)
       REAL*8, allocatable :: ZQQB_P(:)
-      REAL*8, allocatable :: ZGZ_P(:)
+      REAL*8, allocatable :: zHeight_P(:)
       REAL*8, allocatable :: RZHUB_P(:)
       REAL*8, allocatable :: ZPP_P(:)
       
@@ -1535,18 +1547,23 @@ end subroutine hbht_compute_ensemble
       TYPE(GPS_PROFILEZD)    :: PRF, PRFP
       TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
 
+      real*8, dimension(:), pointer :: dPdPs
+
+
       IF (numGPSZTD .EQ. 0) RETURN
 
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
+      nullify(dPdPs)
+
       NFLEV_T = col_getNumLev(lcolumng,'TH')
       allocate(ZPP(NFLEV_T))
       allocate(ZDP(NFLEV_T))
       allocate(ZTT(NFLEV_T))
       allocate(ZHU(NFLEV_T))
-      allocate(ZGZ(NFLEV_T))
+      allocate(zHeight(NFLEV_T))
       allocate(ZTTB(NFLEV_T))
       allocate(ZHUB(NFLEV_T))
       allocate(ZQQB(NFLEV_T))
@@ -1624,8 +1641,6 @@ end subroutine hbht_compute_ensemble
                      ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
                      DO JL = 1, NFLEV_T
                        ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C                     Get ZDP = dP/dP0
-                       ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
@@ -1633,13 +1648,13 @@ end subroutine hbht_compute_ensemble
                        ZQQB(JL) = ZHUB(JL)
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
                        DX(NFLEV_T+JL) = ZHU(JL)
-                       ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+                       zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
                        DX(2*NFLEV_T+JL) = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH')
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(3*NFLEV_T+1) = ZP0
-                     ZMT  = ZGZ(NFLEV_T)
-                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,ZGZ,LBEVIS,IREFOPT,PRF)
+                     ZMT  = zHeight(NFLEV_T)
+                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,LBEVIS,IREFOPT,PRF)
                      CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -1689,8 +1704,8 @@ end subroutine hbht_compute_ensemble
       
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
-      allocate(ZGZ2(NFLEV_T))
-      allocate(ZGZ_P(NFLEV_T))
+      allocate(zHeight2(NFLEV_T))
+      allocate(zHeight_P(NFLEV_T))
       allocate(ZPP_P(NFLEV_T))
 
       icount = 0
@@ -1715,24 +1730,31 @@ end subroutine hbht_compute_ensemble
          ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
          ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
          ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+
+         ! approximation for dPdPs               
+         if (associated(dPdPs)) then
+           deallocate(dPdPs,stat=status)
+           nullify(dPdPs)
+         end if
+         status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,ZP0B)
+         zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
+
          DO JL = 1, NFLEV_T
             ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
-!C          Get ZDP = dP/dP0
-            ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
             ZQQ(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU') * PERTFAC
-            ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
-            ZGZ2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
+            zHeight(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
+            zHeight2(JL)  = col_getHeight(lcolumn,JL,INDEX_HEADER,'TH') * PERTFAC
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
-         ZMT  = ZGZ(NFLEV_T)
+         ZMT  = zHeight(NFLEV_T)
 
          DO JL = 1, NFLEV_T
              DX (      JL) = ZTT(JL)
              DX (NFLEV_T+JL) = ZQQ(JL)
-             DX (2*NFLEV_T+JL) = ZGZ2(JL)
+             DX (2*NFLEV_T+JL) = zHeight2(JL)
          ENDDO
          DX (3*NFLEV_T+1) = ZP0
 
@@ -1761,14 +1783,14 @@ end subroutine hbht_compute_ensemble
              ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
              ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
              ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
-             ZGZ_P(JL) = ZGZ(JL) + ZGZ2(JL)
+             zHeight_P(JL) = zHeight(JL) + zHeight2(JL)
            ENDDO
            ZP0B_P = ZP0B + ZP0
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZQQB,ZGZ,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,ZQQB_P,ZGZ_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,LBEVIS,IREFOPT,PRFP)
            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
@@ -1807,8 +1829,8 @@ end subroutine hbht_compute_ensemble
 
       deallocate(ZTTB_P)
       deallocate(ZQQB_P)
-      deallocate(ZGZ2)
-      deallocate(ZGZ_P)
+      deallocate(zHeight2)
+      deallocate(zHeight_P)
       deallocate(ZPP_P)
 
       ENDIF
@@ -1818,7 +1840,7 @@ end subroutine hbht_compute_ensemble
       deallocate(ZDP)
       deallocate(ZTT)
       deallocate(ZHU)
-      deallocate(ZGZ)
+      deallocate(zHeight)
       deallocate(ZTTB)
       deallocate(ZHUB)
       deallocate(ZQQB)

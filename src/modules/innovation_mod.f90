@@ -218,10 +218,13 @@ contains
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: varIndex, ierr, nulnam, fnom, fclos
     character(len=4)          :: varNamesToRead(1), lastVarNameToRead
-    logical                   :: deallocInterpInfo, allocGZsfc
+    logical                   :: deallocInterpInfo, allocHeightSfc
+    real(8), pointer          :: onecolumn(:)
 
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
+
+    write(*,*) 'inn_setupBackgroundColumns: START'
 
     timeInterpType_nl='NEAREST'
 
@@ -240,29 +243,46 @@ contains
     call col_setVco(columnhr,vco_trl)
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
-    allocGZsfc = .true.
+    allocHeightSfc = .true.
     deallocInterpInfo = .true.
 
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
-                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt='LINEAR' )
+                       mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                       beSilent_opt=.false.)
     call gsv_zero( stateVector_trial )
     call gsv_readTrials( stateVector_trial )
     call s2c_nl( stateVector_trial, obsSpaceData, columnhr, timeInterpType=timeInterpType_nl, &
                  moveObsAtPole_opt=.true., dealloc_opt=deallocInterpInfo )
     call gsv_deallocate(stateVector_trial)
 
-    ! Do final preparations of columnData objects (compute GZ and pressure)
-    if (col_varExist('P0')) then
-      call col_calcPressure(columnhr)
+    if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'Z_T ') ) then
+      write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
+      write(*,*) 'Z_T:'
+      onecolumn => col_getColumn(columnhr,1,'Z_T ')
+      write(*,*) onecolumn(:)
+      write(*,*) 'Z_M:'
+      onecolumn => col_getColumn(columnhr,1,'Z_M ')
+      write(*,*) onecolumn(:)
+
+      nullify(onecolumn)
     end if
-    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') ) then
-      call tt2phi(columnhr,obsSpaceData)
+    if ( col_getNumCol(columnhr) > 0 .and. col_varExist(columnhr,'P_T ') ) then
+      write(*,*) 'inn_setupBackgroundColumns, statevector->Column 1:'
+      write(*,*) 'P_T:'
+      onecolumn => col_getColumn(columnhr,1,'P_T ')
+      write(*,*) onecolumn(:)
+      write(*,*) 'P_M:'
+      onecolumn => col_getColumn(columnhr,1,'P_M ')
+      write(*,*) onecolumn(:)
+
+      nullify(onecolumn)
     end if
 
     call tmg_stop(10)
+
+    write(*,*) 'inn_setupBackgroundColumns: END'
 
   end subroutine inn_setupBackgroundColumns
 
@@ -278,11 +298,13 @@ contains
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
 
+    write(*,*) 'inn_setupBackgroundColumnsAnl: START'
+
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
-      if ( .not. col_varExist(vnl_varNameList2D(jvar)) ) cycle
+      if ( .not. col_varExist(columng,vnl_varNameList2D(jvar)) ) cycle
       if ( col_getNumCol(columng) > 0 ) then       
         do columnIndex = 1, col_getNumCol(columng)
           columng_ptr  => col_getColumn( columng , columnIndex, vnl_varNameList2D(jvar) )
@@ -293,31 +315,26 @@ contains
     end do
 
     ! calculate pressure profiles on analysis levels
-    if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
       call col_calcPressure(columng)
-      do jlev = 1, col_getNumLev(columng,'MM')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'MM')
-      end do
-      do jlev = 1, col_getNumLev(columng,'TH')
-        if ( mpi_myid == 0 ) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
-           jlev, col_getPressure(columng, jlev, 1, 'TH')
-      end do
-      do jlev = 1, col_getNumLev(columng,'MM')
-        if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
-           jlev, col_getPressureDeriv(columng, jlev, 1, 'MM')
-      end do
-      do jlev = 1, col_getNumLev(columng,'TH')
-         if ( mpi_myid == 0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
-            jlev,col_getPressureDeriv(columng,jlev,1,'TH')
-      end do
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNHR(1):'
+        write(*,*) 'P_T:'
+        columnhr_ptr => col_getColumn(columnhr,1,'P_T')
+        write(*,*) columnhr_ptr (:)
+
+        write(*,*) 'inn_setupBackgroundColumnsAnl, before vintprof, COLUMNG(1):'
+        write(*,*) 'P_T:'
+        columng_ptr => col_getColumn(columng,1,'P_T')
+        write(*,*) columng_ptr (:)
+        write(*,*)
+      end if
     endif
 
     ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
-      if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
-      if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
-      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
+      if ( .not. col_varExist(columng,vnl_varNameList3D(jvar)) ) cycle
+      call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
 
       ! Imposing a minimum value for HU
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
@@ -330,19 +347,61 @@ contains
       end if
     end do
 
-    if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'P_T') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'inn_setupBackgroundColumnsAnl, after vintprof, COLUMNG(1):'
+        write(*,*) 'P_T:'
+        columng_ptr => col_getColumn(columng,1,'P_T')
+        write(*,*) columng_ptr (:)
+        write(*,*)
+      end if
+    endif
+
+    if ( col_varExist(columng,'TT') .and. col_varExist(columng,'HU') .and. col_varExist(columng,'P0') ) then
       !
-      !- Using T, q and PS to compute GZ for columng
+      !- Using T, q and PS to compute height for columng
       !
       do columnIndex = 1, col_getNumCol(columng)
-        columng%gz_sfc(1,columnIndex) = columnhr%gz_sfc(1,columnIndex)
+        columng%HeightSfc(1,columnIndex) = columnhr%HeightSfc(1,columnIndex)
       end do
-      call tt2phi(columng,obsSpaceData)
+
+      ! remove the height offset for the diagnostic levels for backward compatibility only
+      if ( col_varExist(columng,'Z_T') .and. .not.columng%addHeightSfcOffset ) then
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
+          columng_ptr(col_getNumLev(columng,'TH')) = columng%HeightSfc(1,columnIndex)
+
+          columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
+          columng_ptr(col_getNumLev(columng,'MM')) = columng%HeightSfc(1,columnIndex)
+        end do
+      end if
+
     else
-      write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+      write(*,*) 'inn_setupBackgroundColumnsAnl:  height TLM calcs not generated since TT, HU and P0 not all present'
+    end if
+
+    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'Z_T') ) then
+      write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
+      write(*,*) 'Z_T (columnhr):'
+      columng_ptr => col_getColumn(columnhr,1,'Z_T')
+      write(*,*) columng_ptr(:)
+      write(*,*) 'Z_T (columng):'
+      columng_ptr => col_getColumn(columng,1,'Z_T')
+      write(*,*) columng_ptr(:)
+
+      write(*,*) 'Z_M(columnhr):'
+      columng_ptr => col_getColumn(columnhr,1,'Z_M')
+      write(*,*) columng_ptr(:)
+      write(*,*) 'Z_M(columng):'
+      columng_ptr => col_getColumn(columng,1,'Z_M')
+      write(*,*) columng_ptr(:)
+
+      write(*,*) 'HeightSfc:', columng%HeightSfc(1,1)
     end if
 
     call tmg_stop(10)
+
+    write(*,*) 'inn_setupBackgroundColumnsAnl: END'
 
   end subroutine inn_setupBackgroundColumnsAnl
 

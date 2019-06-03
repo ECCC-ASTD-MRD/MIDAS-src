@@ -40,7 +40,7 @@
  &NAMRMAT
 /
  &NAMSTATE
-   AddGZSfcOffset = .false.
+   addHeightSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

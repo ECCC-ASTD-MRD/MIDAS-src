@@ -1518,10 +1518,9 @@ contains
     REAL*8 zLon, Lon
     REAL*8 zAzm
     REAL*8, allocatable :: ZPP(:)
-    REAL*8, allocatable :: ZDP(:)
     REAL*8, allocatable :: ZTT(:)
     REAL*8, allocatable :: ZHU(:)
-    REAL*8, allocatable :: zALT(:)
+    REAL*8, allocatable :: zHeight(:)
     REAL*8, allocatable :: ZUU(:)
     REAL*8, allocatable :: ZVV(:)
     !
@@ -1546,10 +1545,9 @@ contains
     NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
     NWNDLEV=col_getNumLev(LCOLUMNHR,'MM')
     allocate(ZPP (NGPSLEV))
-    allocate(ZDP (NGPSLEV))
     allocate(ZTT (NGPSLEV))
     allocate(ZHU (NGPSLEV))
-    allocate(zALT (NGPSLEV))
+    allocate(zHeight (NGPSLEV))
     allocate(ZUU (NGPSLEV))
     allocate(ZVV (NGPSLEV))
     !
@@ -1615,13 +1613,11 @@ contains
                 !     *           Profile x
                 !
             ZPP(JL) = col_getPressure(LCOLUMNHR,JL,headerIndex,'TH')
-                !     *           True implementation of ZDP (dP/dP0)
-            ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,headerIndex,'TH')
             ZTT(JL) = col_getElem(lcolumnhr,JL,headerIndex,'TT') - p_TC
             ZHU(JL) = col_getElem(lcolumnhr,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
-            zALT(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
+            zHeight(jl) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
           end do
 
           if((col_getPressure(lcolumnhr,1,headerIndex,'TH') + 1.0d-4)  <  &
@@ -1645,7 +1641,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zALT,zUU,zVV,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,zUU,zVV,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -1785,9 +1781,8 @@ contains
     deallocate(zVV)
     deallocate(zUU)
     deallocate(zHU)
-    deallocate(zALT)
+    deallocate(zHeight)
     deallocate(zTT)
-    deallocate(zDP)
     deallocate(zPP)
 
     write(*,*)'EXIT SETERRGPSRO'

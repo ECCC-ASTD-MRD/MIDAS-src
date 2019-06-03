@@ -7,7 +7,7 @@
    DSTEPOBSINC = 3.0d0
 /
  &NAMSTATE
-   AddGZSfcOffset = .true.
+   addHeightSfcOffset = .true.
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'

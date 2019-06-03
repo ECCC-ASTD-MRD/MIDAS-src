@@ -103,6 +103,7 @@ CONTAINS
     ! locals
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
+    character(len=4), pointer :: varNames(:)
 
     if ( ens%allocated ) then
       write(*,*) 'ens_allocate: this object is already allocated, deallocating first.'
@@ -118,10 +119,18 @@ CONTAINS
       ens%hInterpolateDegree = 'LINEAR' ! default, for legacy purposes
     end if
 
+    nullify(varNames)
+    if (present(varNames_opt)) then
+      allocate(varNames(size(varNames_opt)))
+      varNames(:) = varNames_opt(:)
+    else
+      call gsv_varNamesList(varNames)
+    end if
+
     call gsv_allocate( ens%statevector_work, &
                        numStep, hco_ens, vco_ens,  &
                        datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                       varNames_opt=VarNames_opt, dataKind_opt=ens%dataKind, &
+                       varNames_opt=varNames, dataKind_opt=ens%dataKind, &
                        hInterpolateDegree_opt = hInterpolateDegree_opt)
 
     lon1 = ens%statevector_work%myLonBeg
@@ -1629,7 +1638,8 @@ CONTAINS
 
     call gsv_allocate(statevector_ensembleControlMember, numStep, ens%statevector_work%hco, ens%statevector_work%vco, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-         hInterpolateDegree_opt = hInterpolationDegree)
+         hInterpolateDegree_opt = hInterpolationDegree, &
+         allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
@@ -1729,6 +1739,7 @@ CONTAINS
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
     logical :: containsFullField
+    character(len=4), pointer :: varNames(:)
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1860,6 +1871,14 @@ CONTAINS
     !- 2.  Ensemble forecasts reading loop
     !
 
+    nullify(varNames)
+    if (present(varNames_opt)) then
+      allocate(varNames(size(varNames_opt)))
+      varNames(:) = varNames_opt(:)
+    else
+      call gsv_varNamesList(varNames)
+    end if
+
     !- 2.1 Loop on time, ensemble member, variable, level
     do stepIndex = 1, numStep
       write(*,*) ' '
@@ -1868,18 +1887,18 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                        varNames_opt = varNames_opt, dataKind_opt = 4,  &
+                        varNames_opt = varNames, dataKind_opt = 4,  &
                         hInterpolateDegree_opt = ens%hInterpolateDegree)
       if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames_opt, dataKind_opt = 4,  &
+                          varNames_opt = varNames, dataKind_opt = 4,  &
                           hInterpolateDegree_opt = ens%hInterpolateDegree)
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          varNames_opt = varNames_opt, dataKind_opt = 4, &
+                          varNames_opt = varNames, dataKind_opt = 4, &
                           hInterpolateDegree_opt = ens%hInterpolateDegree)
       end if
       

@@ -1282,7 +1282,7 @@ contains
         end do
         ZLQS = col_getElem(lcolumnhr,nlv_T,INDEX_HEADER,'HU')
 
-        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,nlv_T,1, &
+        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,1, &
              nlevb,zvlev,zhoext(:,1:1))
 
         IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
@@ -2562,7 +2562,7 @@ contains
   end subroutine MIN_PRES_NEW
 
   subroutine CLOUD_HEIGHT (PTOP,NTOP, &
-       btobs,cldflag,tt,gz,ps,plev,nlev, &
+       btobs,cldflag,tt,height,ps,plev,nlev, &
        nchn,ichref,lev_start,iopt)
 !!
 !!*ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
@@ -2583,13 +2583,13 @@ contains
 !!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
 !!           -CLDFLAG    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
 !!           -TT(NLEV)    : TEMPERATURE PROFILES (DEG K)
-!!           -GZ(NLEV)    : HEIGHT PROFILES ABOVE GROUND (M)
+!!           -HEIGHT(NLEV)    : HEIGHT PROFILES ABOVE GROUND (M)
 !!           -PS(NPRF)         : SURFACE PRESSURE (HPA)
 !!           -PLEV(NLEV)  : PRESSURE LEVELS (HPA)
 !!           -NLEV             : NUMBER OF VERTICAL LEVELS
 !!           -NCHN             : NUMBER OF CHANNELS
 !!           -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
-!!           -IOPT             : LEVELS USING PLEV (1) OR GZ (2)
+!!           -IOPT             : LEVELS USING PLEV (1) OR HEIGHT (2)
 !!
 !!
 !!         INPUT/OUTPUT:
@@ -2603,7 +2603,7 @@ contains
 !!
     implicit none
     integer ,intent (in) :: NCHN,NLEV,IOPT,ICHREF,CLDFLAG
-    real(8) ,intent (in) :: BTOBS(NCHN),TT(NLEV),GZ(NLEV),PS,PLEV(NLEV)
+    real(8) ,intent (in) :: BTOBS(NCHN),TT(NLEV),height(NLEV),PS,PLEV(NLEV)
     integer ,intent (inout) :: LEV_START
     real(8) ,intent (out) :: PTOP
     integer ,intent (out) :: NTOP
@@ -2635,7 +2635,7 @@ contains
 
       if ( CLDFLAG == -1 ) return
 
-      call GET_TOP ( HT,NHT, btobs(ichref),tt,gz,nlev,lev_start,iopt )
+      call GET_TOP ( HT,NHT, btobs(ichref),tt,height,nlev,lev_start,iopt )
 
       ITOP = 1
       if ( NHT >= 2 ) ITOP = 2
@@ -2646,7 +2646,7 @@ contains
 
   end subroutine CLOUD_HEIGHT
  
-  subroutine GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
+  subroutine GARAND1998NADON (CLDFLAG, btobs,tg,tt,height,nlev, &
        nchn,ptop_eq,ntop_eq,ichref)
 !!
 !!*ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
@@ -2666,7 +2666,7 @@ contains
 !!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
 !!           -TG         : GUESS SKIN TEMPERATURES (DEG K)
 !!           -TT(NLEV)    : GUESS TEMPERATURE PROFILES (DEG K)
-!!           -GZ(NLEV)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
+!!           -height(NLEV)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
 !!           -NLEV             : NUMBER OF VERTICAL LEVELS
 !!           -NCHN             : NUMBER OF CHANNELS
 !!           -PTOP_EQ    : CHOSEN EQUIVALENT CLOUD TOPS (M)
@@ -2678,7 +2678,7 @@ contains
 !!
     implicit none
     integer ,intent (in) :: NLEV,NCHN
-    real(8) ,intent (in) :: BTOBS(NCHN),TG,GZ(NLEV),TT(NLEV),PTOP_EQ
+    real(8) ,intent (in) :: BTOBS(NCHN),TG,height(NLEV),TT(NLEV),PTOP_EQ
     integer ,intent (in) :: NTOP_EQ,ICHREF
     integer ,intent (inout) :: CLDFLAG
 !*********************************************************************************************
@@ -2722,7 +2722,7 @@ contains
           return
         end if
       else
-        call MONOTONIC_INVERSION (NINV, tg,tt,gz,nlev,lev(1))
+        call MONOTONIC_INVERSION (NINV, tg,tt,height,nlev,lev(1))
         if ( NINV == 1 ) then
           if ( PTOP_EQ > 222.d0 ) then
             CLDFLAG = 1
@@ -2748,7 +2748,7 @@ contains
           return
         end if
       else
-        call MONOTONIC_INVERSION (NINV, tg,tt,gz,nlev,lev(2))
+        call MONOTONIC_INVERSION (NINV, tg,tt,height,nlev,lev(2))
         if ( NINV == 1) then
           if( PTOP_EQ > 428.d0 ) then
             CLDFLAG = 1
@@ -2767,7 +2767,7 @@ contains
     
   end subroutine GARAND1998NADON
 
-  subroutine MONOTONIC_INVERSION (NINVR, ptg,ptt,pgz,npr,lvl)
+  subroutine MONOTONIC_INVERSION (NINVR, ptg,ptt,pheight,npr,lvl)
 
 !***********************************************************************
 !
@@ -2787,7 +2787,7 @@ contains
 !          INPUT:
 !            -PTG       : SKIN TEMPERATURE (DEG K)
 !            -PTT(NPR) : TEMPERATURE PROFILE (DEG K)
-!            -PGZ(NPR) : HEIGHT PROFILE ABOVE GROUND (M)
+!            -Pheight(NPR) : HEIGHT PROFILE ABOVE GROUND (M)
 !            -NPR     : NUMBER OF VERTICAL LVLELS
 !            -LVL      : HEIGHT TO SEARCH FOR TEMPERATURE INVERSION (M)
 !
@@ -2800,7 +2800,7 @@ contains
 
     implicit none
     integer ,intent (in) :: npr
-    real(8),intent (in)  :: PTT(NPR),PGZ(NPR),PTG,LVL
+    real(8),intent (in)  :: PTT(NPR),Pheight(NPR),PTG,LVL
     integer ,intent (out):: ninvr
 !**************************************************
     integer   :: NL
@@ -2809,7 +2809,7 @@ contains
     if ( PTG - PTT(NPR) < 0.d0 ) then
       NINVR = 1
       do NL = NPR - 1, 1, -1
-        if ( PGZ(NL) > LVL ) exit
+        if ( Pheight(NL) > LVL ) exit
         if ( PTT(NL+1) - PTT(NL) > 0.d0 ) then
           NINVR = 0
           exit
@@ -2908,7 +2908,7 @@ contains
 
 
   subroutine CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
-       btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn, &
+       btobs,tt,height,rcal,ps,robs,rcld,plev,nlev,nchn, &
        cldflag,rejflag,lev_start,iopt,ihgt,ichref,nch,ilist)
 !
 !**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
@@ -2928,7 +2928,7 @@ contains
 !          INPUT:
 !            -BTOBS(NCHN)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
 !            -TT(NLEV)        : TEMPERATURE PROFILES (DEG K)
-!            -GZ(NLEV)        : HEIGHT PROFILES ABOVE GROUND (M)
+!            -height(NLEV)        : HEIGHT PROFILES ABOVE GROUND (M)
 !            -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
 !            -PS            : SURFACE PRESSURE (HPA)
 !            -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
@@ -2938,7 +2938,7 @@ contains
 !            -NCHN                 : NUMBER OF CHANNELS
 !            -CLDFLAG        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
 !            -REJFLAG(NCHN,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
-!            -IOPT                 : LEVELS USING PLEV (1) OR GZ (2)
+!            -IOPT                 : LEVELS USING PLEV (1) OR height (2)
 !            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
 !            -ICHREF         : REFERENCE SURFACE CHANNEL (SUBSET VALUE)
 !            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
@@ -2959,7 +2959,7 @@ contains
     integer, intent (in) :: NCHN,NCH,NLEV,IOPT,IHGT
     real(8), intent (in) :: BTOBS(NCHN),RCLD(NCHN,NLEV)
     real(8), intent (in) :: ROBS(NCHN),RCAL(NCHN)
-    real(8), intent (in) :: TT(NLEV),GZ(NLEV),PLEV(NLEV),PS
+    real(8), intent (in) :: TT(NLEV),height(NLEV),PLEV(NLEV),PS
     integer, intent (in) :: REJFLAG(NCHN,0:BITFLAG),ILIST(NCH),CLDFLAG,ICHREF
     integer, intent (inout) :: LEV_START
     real(8), intent (out) ::  PTOP_BT(NCHN),PTOP_RD(NCHN)
@@ -3064,7 +3064,7 @@ contains
         else if ( IOPT == 2 ) then 
           
           if ( IHGT == 0 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, btobs(jc),tt,gz,nlev,lev_start,iopt) 
+            call GET_TOP ( HT,NHT, btobs(jc),tt,height,nlev,lev_start,iopt) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_BT(JC) = max ( HT(ITOP), 0.d0 )
@@ -3072,7 +3072,7 @@ contains
           end if
           
           if ( IHGT == 1 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),gz,nlev,lev_start,iopt)
+            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),height,nlev,lev_start,iopt)
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_RD(JC) = max ( HT(ITOP), 0.d0 )
@@ -3088,7 +3088,7 @@ contains
   end subroutine CLOUD_TOP
 
   subroutine CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
-       btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn, &
+       btobs,tt,height,rcal,ps,robs,rcld,plev,nlev,nchn, &
        cldflag,lev_start,iopt,ihgt,nch,ilist)
 !
 !**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
@@ -3109,7 +3109,7 @@ contains
 !          INPUT:
 !            -BTOBS(NCHN)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
 !            -TT(NLEV)        : TEMPERATURE PROFILES (DEG K)
-!            -GZ(NLEV)        : HEIGHT PROFILES ABOVE GROUND (M)
+!            -height(NLEV)        : HEIGHT PROFILES ABOVE GROUND (M)
 !            -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
 !            -PS             : SURFACE PRESSURE (HPA)
 !            -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
@@ -3118,7 +3118,7 @@ contains
 !            -NLEV                 : NUMBER OF VERTICAL LEVELS
 !            -NCHN                 : NUMBER OF CHANNELS
 !            -CLDFLAG        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!            -IOPT                 : LEVELS USING PLEV (1) OR GZ (2)
+!            -IOPT                 : LEVELS USING PLEV (1) OR height (2)
 !            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
 !            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
 !            -ILIST(NCH)           : LIST OF THE CHANNEL NUMBERS (SUBSET VALUES) 
@@ -3140,7 +3140,7 @@ contains
     real(8) ,intent(in) ::  PLEV(NLEV),PS
     real(8) ,intent(in) ::  ROBS(NCHN),RCAL(NCHN)
     real(8) ,intent(in) ::  BTOBS(NCHN),RCLD(NCHN,NLEV)
-    real(8) ,intent(in) ::  TT(NLEV),GZ(NLEV)
+    real(8) ,intent(in) ::  TT(NLEV),height(NLEV)
     integer ,intent(inout) :: LEV_START
     real(8) ,intent(out) ::  PTOP_BT(NCHN),PTOP_RD(NCHN)
     integer ,intent(out) ::  NTOP_BT(NCHN),NTOP_RD(NCHN)
@@ -3241,7 +3241,7 @@ contains
         else if ( IOPT == 2 ) then 
           
           if ( IHGT == 0 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, btobs(jc),tt,gz,nlev,lev_start,iopt) 
+            call GET_TOP ( HT,NHT, btobs(jc),tt,height,nlev,lev_start,iopt) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_BT(JC) = max ( HT(ITOP), 0.d0 )
@@ -3249,7 +3249,7 @@ contains
           end if
           
           if ( IHGT == 1 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),gz,nlev,lev_start,iopt)
+            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),height,nlev,lev_start,iopt)
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_RD(JC) = max ( HT(ITOP), 0.d0 )

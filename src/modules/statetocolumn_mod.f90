@@ -24,6 +24,7 @@ module stateToColumn_mod
   ! and a columnData object.
   !
   use mathPhysConstants_mod
+  use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod 
   use gridstatevector_mod
@@ -35,6 +36,9 @@ module stateToColumn_mod
   use tt2phi_mod
   use windRotation_mod
   use utilities_mod
+  use variabletransforms_mod
+  use varNameList_mod
+  
   implicit none
   save
   private
@@ -78,6 +82,178 @@ module stateToColumn_mod
   integer, external    :: get_max_rss
 
 contains 
+
+  subroutine findHeightMpiId( stateVector_in, height, stepIndex )
+    ! **Purpose:**
+    ! Obtain the MpiId of the height for each kIndex level, 
+    ! needed to calculate the lat/lon along the slant-path.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector_in
+    real(8), intent(inout) :: height(statevector_in%ni,statevector_in%nj,statevector_in%mykBeg:statevector_in%mykEnd)
+
+    ! locals
+    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
+    integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
+    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
+    integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
+    integer :: requestIdHeightSfcSend(10), requestIdHeightSfcRecv(10)
+    integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
+    real(8), allocatable :: heightSend(:,:,:), heightRecv(:,:,:), HeightSfcSend(:,:)
+    character(len=4)    :: varName
+
+    call tmg_start(157,'findHeightMpiId')
+
+    if ( stepIndex == 1 ) then
+      write(*,*) 'findHeightMpiId: START'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
+    if ( statevector_in%mpi_distribution /= 'VarsLevs' ) then
+      call utl_abort('findHeightMpiId: statevector_in must have VarsLevs mpi distribution')
+    end if
+
+    allocate(heightSend(statevector_in%ni,statevector_in%nj, &
+                         statevector_in%mykBeg:statevector_in%mykEnd))
+    allocate(heightRecv(statevector_in%ni,statevector_in%nj, &
+                         statevector_in%mykBeg:statevector_in%mykEnd))
+    allocate(HeightSfcSend(statevector_in%ni,statevector_in%nj))
+
+    numSend = 0
+    numRecv = 0
+    numHeightSfcRecv  = 0
+    numHeightSfcSend  = 0
+    LOOP_KINDEX: do kIndexRecv = 1, stateVector_in%nk
+      varName = gsv_getVarNameFromK(stateVector_in, kIndexRecv) 
+
+      ! get k index for corresponding height component
+      levVar = gsv_getLevFromK(stateVector_in, kIndexRecv)
+      if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
+        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'Z_T')
+      else if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
+        kIndexSend = levVar + gsv_getOffsetFromVarName(statevector_in,'Z_M')
+      end if
+
+      ! get Mpi task id for both Var and corresponding height
+      MpiIdRecv = gsv_getMpiIdFromK(statevector_in,kIndexRecv)
+      if ( vnl_varLevelFromVarname(varName) == 'SF' ) then
+        kIndexSend = 0
+        MpiIdSend = 0
+      else
+        MpiIdSend = gsv_getMpiIdFromK(statevector_in,kIndexSend)
+      end if
+
+      if ( MpiIdRecv == MpiIdSend .and. mpi_myid == MpiIdRecv ) then
+
+        if ( stepIndex == 1 ) & 
+          write(*,*) 'I am sender and receiver:', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+        if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+          if ( statevector_in%dataKind == 4 ) then
+            heightRecv(:, :, kIndexRecv) = statevector_in%gd_r4(:, :, kIndexSend, stepIndex)
+          else
+            heightRecv(:, :, kIndexRecv) = statevector_in%gd_r8(:, :, kIndexSend, stepIndex)
+          end if
+
+        else
+          if ( statevector_in%HeightSfcPresent ) heightRecv(:, :, kIndexRecv) = statevector_in%HeightSfc(:, :)
+        end if
+
+        cycle LOOP_KINDEX
+
+      end if
+
+      ! do mpi communication 
+      nsize = statevector_in%ni * statevector_in%nj
+      mpiTagRecv = kIndexRecv
+      mpiTagSend = kIndexSend
+      ! RECEIVE, I only have non-height fields
+      if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdRecv ) then 
+
+        if ( stepIndex == 1 ) & 
+          write(*,*) 'I am receiver           :', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+        if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+          numRecv = numRecv + 1
+          call mpi_irecv( heightRecv(:, :, kIndexRecv),  &
+                          nsize, mpi_datyp_real8, MpiIdSend, mpiTagSend,  &
+                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
+
+        else 
+          if ( statevector_in%HeightSfcPresent ) then
+            numHeightSfcRecv = numHeightSfcRecv + 1
+            call mpi_irecv( heightRecv(:, :, kIndexRecv),  &
+                            nsize, mpi_datyp_real8,         0,          0,  &
+                            mpi_comm_grid, requestIdHeightSfcRecv(numHeightSfcRecv), ierr )
+          else
+            heightRecv(:, :, kIndexRecv) = 0.0d0
+          end if
+        end if
+
+      ! SEND, I have height
+      else if ( MpiIdRecv /= MpiIdSend .and. mpi_myid == MpiIdSend ) then 
+
+        if ( stepIndex == 1 ) & 
+          write(*,*) 'I am sender             :', varName, gsv_getLevFromK(statevector_in,kIndexRecv), vnl_varLevelFromVarname(varName), kIndexRecv, MpiIdRecv, kIndexSend, MpiIdSend 
+
+        if ( vnl_varLevelFromVarname(varName) /= 'SF' ) then
+          numSend = numSend + 1
+          if ( statevector_in%dataKind == 4 ) then
+            heightSend(:, :, kIndexSend) = statevector_in%gd_r4(:, :, kIndexSend, stepIndex)
+          else
+            heightSend(:, :, kIndexSend) = statevector_in%gd_r8(:, :, kIndexSend, stepIndex)
+          end if
+          call mpi_isend( heightSend(:, :, kIndexSend),  &
+                          nsize, mpi_datyp_real8, MpiIdRecv, mpiTagSend,  &
+                          mpi_comm_grid, requestIdSend(numSend), ierr )
+
+        else if ( statevector_in%HeightSfcPresent .and. mpi_myid == 0 .and. &
+            vnl_varLevelFromVarname(varName) == 'SF' ) then
+          numHeightSfcSend = numHeightSfcsend + 1
+          HeightSfcSend(:, :) = statevector_in%HeightSfc(:, :)
+          call mpi_isend( HeightSfcSend(:, :),  &
+                          nsize, mpi_datyp_real8, MpiIdRecv,            0,  &
+                          mpi_comm_grid, requestIdHeightSfcSend(numHeightSfcSend), ierr )
+        end if
+
+      end if
+
+    end do LOOP_KINDEX
+
+    if ( numRecv > 0 ) then
+      call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
+    end if
+
+    if ( numHeightSfcRecv > 0 ) then
+      call mpi_waitAll(numHeightSfcRecv, requestIdHeightSfcRecv(1:numHeightSfcRecv), mpiStatuses(:,1:numHeightSfcRecv), ierr)
+    end if
+
+    if ( numSend > 0 ) then
+      call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+    end if
+
+    if ( numHeightSfcSend > 0 ) then
+      call mpi_waitAll(numHeightSfcSend, requestIdHeightSfcSend(1:numHeightSfcSend), mpiStatuses(:,1:numHeightSfcSend), ierr)
+    end if
+
+    do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
+      height(:, :, kIndex) =  heightRecv(:, :, kIndex)
+    end do
+
+    deallocate(HeightSfcSend)
+    deallocate(heightRecv)
+    deallocate(heightSend)
+
+    if ( stepIndex == 1 ) then
+      write(*,*) 'findHeightMpiId: END'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
+    call tmg_stop(157)
+
+  end subroutine findHeightMpiId
 
   !---------------------------------------------------------
   ! s2c_latLonChecks
@@ -229,6 +405,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer, allocatable :: allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
+    real(8), allocatable :: height(:,:,:)
     integer :: ezgdef, gdllfxy
     logical :: obsOutsideGrid
 
@@ -410,8 +587,13 @@ contains
     allocate( interpInfo%latIndexDepot(numGridptTotal) )
     allocate( interpInfo%lonIndexDepot(numGridptTotal) )
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
+    allocate( height(statevector%ni,statevector%nj,statevector%mykBeg:statevector%mykEnd) )
 
     step_loop3: do stepIndex = 1, numStep
+
+      height(:,:,:) = 0.0d0
+      call findHeightMpiId(stateVector, height, stepIndex)
+
       do procIndex = 1, mpi_nprocs
         do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
@@ -634,6 +816,7 @@ contains
                             interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
+    deallocate(height)
     deallocate(headerIndexVec)
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
@@ -674,6 +857,7 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     character(len=4)     :: varName
+    character(len=4), pointer :: varNames(:)
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call tmg_start(167,'S2C_TL')
@@ -683,12 +867,33 @@ contains
     call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
-      call utl_abort('s2c_tl_new: stateVector must be allocated')
+      call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
+    ! check the column and statevector have same nk/varNameList
+    call checkColumnStatevectorMatch(column,statevector)
+
+    ! calculate delP_T/delP_M on the grid
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'PsfcToP_tl')  ! IN
+    end if
+
+    ! calculate del Z_T/Z_M on the grid
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoHeight_tl') ! IN
+    end if
+
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
-                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs' )
+                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                       varNames_opt=varNames )
+    deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep
@@ -815,11 +1020,7 @@ contains
 
     end do k_loop
 
-    ! Do final preparations of columnData objects (compute GZ increment)
-    if ( col_varExist('TT') .and. col_varExist('HU') .and.  &
-         col_varExist('P0') ) then
-      call tt2phi_tl(column,columng,obsSpaceData)
-    end if
+    !write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     deallocate(cols_hint)
     deallocate(cols_send)
@@ -859,6 +1060,8 @@ contains
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
+    real(8), pointer :: field_out(:,:,:,:)
+    character(len=4), pointer :: varNames(:)
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call tmg_start(168,'S2C_AD')
@@ -868,23 +1071,21 @@ contains
     call tmg_stop(160)
 
     if ( .not. stateVector%allocated ) then 
-      call utl_abort('s2c_ad_new: stateVector must be allocated')
+      call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
                        statevector%hco, statevector%vco,          &
-                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs' )
+                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                       varNames_opt=varNames )
+    deallocate(varNames)
     call gsv_zero( statevector_VarsLevs )
 
     if ( .not. interpInfo_tlad%initialized ) then
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType_tlad, rejectOutsideObs=.false. )
-    end if
-
-    ! Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if (gsv_varExist(statevector,'TT') .and.  &
-        gsv_varExist(statevector,'HU') .and. gsv_varExist(statevector,'P0') ) then
-       call tt2phi_ad(column,columng,obsSpaceData)
     end if
 
     numStep = stateVector_VarsLevs%numStep
@@ -1008,6 +1209,19 @@ contains
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'TTHUtoHeight_ad') ! IN
+    end if
+
+    ! Adjoint of calculate delP_T/delP_M on the grid
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'PsfcToP_ad')  ! IN
+    end if
+
     call gsv_deallocate( statevector_VarsLevs )
 
     call tmg_stop(168)
@@ -1036,12 +1250,13 @@ contains
     logical, optional          :: moveObsAtPole_opt
 
     ! locals
+    type(struct_gsv) :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, iset, headerUsedIndex, varIndex
     integer :: ezdefset, ezqkdef
     integer :: s1, s2, s3, s4, index1, index2, index3, index4
-    real(8) :: gzSfc_col
+    real(8) :: HeightSfc_col
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1053,6 +1268,7 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: beSilent, dealloc, moveObsAtPole
+    character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
 
@@ -1062,8 +1278,8 @@ contains
       call utl_abort('s2c_nl: stateVector must be allocated')
     end if
 
-    if ( stateVector%mpi_distribution /= 'VarsLevs' ) then 
-      call utl_abort('s2c_nl: stateVector must by VarsLevs distributed')
+    if ( stateVector%mpi_distribution /= 'Tiles' ) then 
+      call utl_abort('s2c_nl: stateVector must by Tiles distributed')
     end if
 
     if ( present(dealloc_opt) ) then
@@ -1078,7 +1294,33 @@ contains
       moveObsAtPole = .false.
     end if
 
-    numStep = stateVector%numStep
+    ! check the column and statevector have same nk/varNameList
+    call checkColumnStatevectorMatch(column,statevector)
+
+    ! calculate P_T/P_M on the grid
+    if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('P_M')) ) then
+      call vtr_transform( stateVector, & ! INOUT
+                          'PsfcToP_nl')  ! IN
+    end if
+
+    ! calculate Z_T/Z_M on the grid
+    if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+      call vtr_transform( stateVector, & ! INOUT
+                          'TTHUtoHeight_nl') ! IN
+    end if
+
+    nullify(varNames)
+    call gsv_varNamesList(varNames, statevector)
+    call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
+                       stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                       allocHeightSfc_opt=.true., varNames_opt=varNames )
+    deallocate(varNames)
+    call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
+
+    numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
@@ -1090,7 +1332,7 @@ contains
       call s2c_latLonChecks( obsSpaceData, moveObsAtPole )
 
       ! compute and collect all obs grids onto all mpi tasks
-      call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector,  &
+      call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
                                 timeInterpType, rejectOutsideObs=.true. )
       if ( mpi_myid == 0 ) then
         do stepIndex = 1, numStep
@@ -1100,6 +1342,8 @@ contains
       end if
       call tmg_stop(165)
     end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
@@ -1118,22 +1362,22 @@ contains
     allCols_ptr => col_getAllColumns(column,varName_opt)
     if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
 
-    ptr4d_r4    => gsv_getField_r4(stateVector)
+    ptr4d_r4    => gsv_getField_r4(stateVector_VarsLevs)
 
-    allocate(field2d(stateVector%ni,stateVector%nj))
-    allocate(field2d_UV(stateVector%ni,stateVector%nj))
+    allocate(field2d(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
+    allocate(field2d_UV(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj))
 
-    mykEndExtended = stateVector%mykBeg + maxval(stateVector%allkCount(:)) - 1
+    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
     kCount = 0
-    k_loop: do kIndex = stateVector%mykBeg, mykEndExtended
+    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
       kCount = kCount + 1
 
-      if ( kIndex <= stateVector%mykEnd ) then
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
+        varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector,kIndex)
+          ptr3d_UV_r4 => gsv_getFieldUV_r4(stateVector_VarsLevs,kIndex)
         end if
 
         call tmg_start(166,'S2CNL_HINTERP')
@@ -1209,8 +1453,8 @@ contains
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
       proc_loop: do procIndex = 1, mpi_nprocs
-        kIndex2 = statevector%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector%allkEnd(procIndex) ) cycle proc_loop
+        kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
+        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
         do headerIndex = 1, numHeader
           allCols_ptr(kIndex2,headerIndex) = cols_recv(headerIndex,procIndex)
         end do
@@ -1219,21 +1463,23 @@ contains
 
     end do k_loop
 
-    ! Interpolate surface GZ separately, only exists on mpi task 0
-    GZsfcPresent: if ( stateVector%GZsfcPresent ) then
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Interpolate surface height separately, only exists on mpi task 0
+    HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
       if ( mpi_myid == 0 ) then
         varName = 'GZ'
-        step_loop_gz: do stepIndex = 1, numStep
+        step_loop_height: do stepIndex = 1, numStep
 
-          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_gz
+          if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop_height
 
           ! interpolate to the columns destined for all procs for all steps and one lev/var
           !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
           do procIndex = 1, mpi_nprocs
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
-              ptr2d_r8 => gsv_getGZsfc(stateVector)
+              ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, stepIndex, procIndex )
 
@@ -1241,7 +1487,7 @@ contains
           end do
           !$OMP END PARALLEL DO
 
-        end do step_loop_gz
+        end do step_loop_height
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mpi_nprocs
@@ -1250,7 +1496,7 @@ contains
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
             do headerIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
               headerUsedIndex = interpInfo_nl%allHeaderIndex(headerIndex,stepIndex,procIndex)
-              ! just copy, since surface GZ same for all time steps
+              ! just copy, since surface height same for all time steps
               cols_send(headerUsedIndex,procIndex) = cols_hint(headerIndex,stepIndex,procIndex)
             end do
             !$OMP END PARALLEL DO
@@ -1279,10 +1525,10 @@ contains
       end if
 
       do headerIndex = 1, numHeader
-        call col_setGZsfc(column, headerIndex, cols_recv(headerIndex,1))
+        call col_setHeightSfc(column, headerIndex, cols_recv(headerIndex,1))
       end do
 
-    end if GZsfcPresent
+    end if HeightSfcPresent
 
     deallocate(field2d_UV)
     deallocate(field2d)
@@ -1311,13 +1557,16 @@ contains
     end if
 
     ! impose a lower limit on HU
-    if(col_varExist('HU')) then
+    if(col_varExist(column,'HU')) then
       do headerIndex = 1, numHeader
         column_ptr => col_getColumn(column,headerIndex,'HU')
         column_ptr(:) = max(column_ptr(:),col_rhumin)
       end do
     end if
 
+    call gsv_deallocate( statevector_VarsLevs )
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 's2c_nl: FINISHED'
 
     call tmg_stop(169)
@@ -1924,14 +2173,14 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-      if(col_varExist('UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
-      if(col_varExist('VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
-      if(col_varExist('HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
-      if(col_varExist('TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
-      if(col_varExist('P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
-      if(col_varExist('TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
-      if(col_varExist('LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
-      if(col_varExist('WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
+      if(col_varExist(column,'UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
+      if(col_varExist(column,'VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
+      if(col_varExist(column,'HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
+      if(col_varExist(column,'TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
+      if(col_varExist(column,'P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
+      if(col_varExist(column,'TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
+      if(col_varExist(column,'LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
+      if(col_varExist(column,'WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
      
       do jk = 1, gsv_getNumLev(statevector,'MM')
         if(gsv_varExist(statevector,'UU')) then
@@ -2095,5 +2344,27 @@ contains
     end do
 
   end subroutine s2c_column_hbilin   
+
+  subroutine checkColumnStatevectorMatch(column,statevector)
+    !
+    !:Purpose: check column and statevector have identical nk and variables.
+    !
+    implicit none
+    type(struct_gsv)       , intent(in) :: statevector
+    type(struct_columnData), intent(in) :: column
+
+    integer :: kIndex
+
+    ! check column/statevector have same nk
+    if ( column%nk /= gsv_getNumK(statevector) ) call utl_abort('checkColumnStatevectorMatch: column%nk /= gsv_getNumK(statevector)')
+
+    ! loop through k and check varNames are same between column/statevector
+    do kIndex = 1, column%nk
+      if ( gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex) ) call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
+    end do
+
+    write(*,*) 'checkColumnStatevectorMatch: column and statevector match.'
+
+  end subroutine checkColumnStatevectorMatch
 
 end module stateToColumn_mod

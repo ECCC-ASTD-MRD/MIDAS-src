@@ -52,10 +52,10 @@ MODULE biasCorrection_mod
   integer, parameter    :: maxNumChannels = tvs_maxChannelNumber
   integer, parameter    :: NumPredictors = 11
   integer, parameter    :: maxfov = 120
-  real(8), allocatable  :: trialGZ300m1000(:)
-  real(8), allocatable  :: trialGZ50m200(:)
-  real(8), allocatable  :: trialGZ1m10(:)
-  real(8), allocatable  :: trialGZ5m50(:)
+  real(8), allocatable  :: trialHeight300m1000(:)
+  real(8), allocatable  :: trialHeight50m200(:)
+  real(8), allocatable  :: trialHeight1m10(:)
+  real(8), allocatable  :: trialHeight5m50(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
 
@@ -118,11 +118,11 @@ CONTAINS
         ! set predictors, numScan and numChannels
         iPredictor = 1  ! constant predictor for all sensors
         activePredictors(iSensor)=ibset(activePredictors(iSensor),iPredictor-1)
-        iPredictor=2  ! GZ300-GZ1000
+        iPredictor=2  ! height300-height1000
         activePredictors(iSensor)=ibset(activePredictors(iSensor),iPredictor-1)
-        iPredictor=3  ! GZ50-GZ200
+        iPredictor=3  ! height50-height200
         activePredictors(iSensor)=ibset(activePredictors(iSensor),iPredictor-1)
-        iPredictor=7  ! GZ5-GZ50
+        iPredictor=7  ! height5-height50
         activePredictors(iSensor)=ibset(activePredictors(iSensor),iPredictor-1)
 
         do iPredictor=1,NumPredictors
@@ -295,7 +295,7 @@ CONTAINS
     type(struct_columnData) :: columnhr
     type(struct_obs)  :: obsSpaceData
     integer  :: index_header, idatyp, nobs
-    real(8)  :: gz1, gz2
+    real(8)  :: height1, height2
  
     ! count number of tovs locations
     nobs = 0
@@ -309,10 +309,10 @@ CONTAINS
     end do HEADER
     
     if ( nobs > 0 ) then
-      allocate(trialGZ300m1000(nobs))
-      allocate(trialGZ50m200(nobs))
-      allocate(trialGZ5m50(nobs))
-      allocate(trialGZ1m10(nobs))
+      allocate(trialHeight300m1000(nobs))
+      allocate(trialHeight50m200(nobs))
+      allocate(trialHeight5m50(nobs))
+      allocate(trialHeight1m10(nobs))
       allocate(trialTG(nobs))
     else
       write(*,*) 'bias_getTrialPredictors: NO OBS found'
@@ -330,25 +330,25 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER2 
       nobs = nobs + 1
 
-      gz1 = logInterpGZ(columnhr,index_header,1000.d0)
-      gz2 = logInterpGZ(columnhr,index_header,300.d0)
+      height1 = logInterpHeight(columnhr,index_header,1000.d0)
+      height2 = logInterpHeight(columnhr,index_header,300.d0)
       
-      trialGZ300m1000(nobs) = gz2 - gz1
+      trialHeight300m1000(nobs) = height2 - height1
 
-      gz1 = logInterpGZ(columnhr,index_header,200.d0)
-      gz2 = logInterpGZ(columnhr,index_header,50.d0)
+      height1 = logInterpHeight(columnhr,index_header,200.d0)
+      height2 = logInterpHeight(columnhr,index_header,50.d0)
 
-      trialGZ50m200(nobs) = gz2 - gz1
+      trialHeight50m200(nobs) = height2 - height1
 
-      gz1 = gz2
-      gz2 = logInterpGZ(columnhr,index_header,5.d0)
+      height1 = height2
+      height2 = logInterpHeight(columnhr,index_header,5.d0)
 
-      trialGZ5m50(nobs) = gz2 - gz1
+      trialHeight5m50(nobs) = height2 - height1
 
-      gz1 = logInterpGZ(columnhr,index_header,10.d0)
-      gz2 = logInterpGZ(columnhr,index_header,1.d0)
+      height1 = logInterpHeight(columnhr,index_header,10.d0)
+      height2 = logInterpHeight(columnhr,index_header,1.d0)
 
-      trialGZ1m10(nobs) = gz2 - gz1
+      trialHeight1m10(nobs) = height2 - height1
 
       trialTG(nobs) = col_getElem(columnhr,1,index_header,'TG')
 
@@ -359,19 +359,19 @@ CONTAINS
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
-    trialGZ300m1000(:) = 0.1d0 * trialGZ300m1000(:) ! conversion from to
-    trialGZ50m200(:) = 0.1d0 * trialGZ50m200(:)
-    trialGZ5m50(:) = 0.1d0 * trialGZ5m50(:)
-    trialGZ1m10(:) =  0.1d0 *  trialGZ1m10(:)
+    trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion from to
+    trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
+    trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
+    trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
 
     write(*,*) 'bias_getTrialPredictors done'
 
   contains
 
-    function logInterpGZ(columnhr,headerIndex,P) result(gz)
+    function logInterpHeight(columnhr,headerIndex,P) result(height)
       integer,intent(in) :: headerIndex
       Real(8), intent(in) :: P
-      Real(8) :: gz
+      Real(8) :: height
       type(struct_columnData),intent(inout) :: columnhr
 
       integer :: jk, nlev, ik
@@ -389,11 +389,11 @@ CONTAINS
 
       zwb  = log(p/zpt) / log(zpb/zpt)
       zwt  = 1.d0 - zwb
-      col_ptr=>col_getColumn(columnhr,headerIndex,'GZ','TH')
+      col_ptr=>col_getColumn(columnhr,headerIndex,'Z_T')
 
-      gz = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
+      height = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    
-    end function logInterpGZ
+    end function logInterpHeight
 
   END SUBROUTINE bias_getTrialPredictors
 
@@ -473,20 +473,20 @@ CONTAINS
         ! constant
         predictor(iPredictor) = 1.0d0
       else if ( iPredictor == 2 ) then
-        ! GZ300-GZ1000 (dam) /1000
-        predictor(iPredictor) = trialGZ300m1000(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
+        ! height300-height1000 (dam) /1000
+        predictor(iPredictor) = trialHeight300m1000(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
       else if ( iPredictor == 3 ) then
-        ! GZ50-GZ200 (dam) /1000
-        predictor(iPredictor) = trialGZ50m200(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
+        ! height50-height200 (dam) /1000
+        predictor(iPredictor) = trialHeight50m200(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
       else if ( iPredictor == 4 ) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(index_obs)
       else if ( iPredictor == 6 ) then
-        ! GZ1-GZ10 (dam) /1000
-        predictor(iPredictor) = trialGZ1m10(index_obs)/1000.0d0
+        ! height1-height10 (dam) /1000
+        predictor(iPredictor) = trialHeight1m10(index_obs)/1000.0d0
       else if ( iPredictor == 7 ) then
-        ! GZ5-GZ50 (dam) /1000
-        predictor(iPredictor) = trialGZ5m50(index_obs)/1000.0d0  !-0.72d0 tried de-biasing
+        ! height5-height50 (dam) /1000
+        predictor(iPredictor) = trialHeight5m50(index_obs)/1000.0d0  !-0.72d0 tried de-biasing
       else if ( iPredictor == 9 ) then
         ! satellite zenith angle (degrees/100)^1
         predictor(iPredictor) = obs_headElem_r(obsSpaceData,OBS_SZA,index_header)
@@ -524,6 +524,7 @@ CONTAINS
     meanPredictors(:) = 0.0d0
     minPredictors(:) = 999999.0d0
     maxPredictors(:) = -999999.0d0
+    iSensor = -1
 
     ! loop over all observations
     iobs = 0
@@ -549,15 +550,17 @@ CONTAINS
 
     end do HEADER
 
-    !  do iPredictor=1,bias(iSensor)%NumActivePredictors
-    do iPredictor = 2,bias(iSensor)%NumActivePredictors
-      if ( countObs(iPredictor) > 0 ) then
-        meanPredictors(iPredictor) = meanPredictors(iPredictor)/real(countObs(iPredictor),8)
-        meanAbsPredictors(iPredictor) = meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
-        write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
-          meanAbsPredictors(iPredictor),meanPredictors(iPredictor),minPredictors(iPredictor),maxPredictors(iPredictor)
-      end if
-    end do
+    if ( iSensor /= -1 ) then
+      !  do iPredictor=1,bias(iSensor)%NumActivePredictors
+      do iPredictor = 2,bias(iSensor)%NumActivePredictors
+        if ( countObs(iPredictor) > 0 ) then
+          meanPredictors(iPredictor) = meanPredictors(iPredictor)/real(countObs(iPredictor),8)
+          meanAbsPredictors(iPredictor) = meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
+          write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
+            meanAbsPredictors(iPredictor),meanPredictors(iPredictor),minPredictors(iPredictor),maxPredictors(iPredictor)
+        end if
+      end do
+    end if
 
   END SUBROUTINE bias_calcMeanPredictors
 
@@ -1078,10 +1081,10 @@ CONTAINS
 
     if ( .not.lvarbc ) return
 
-    deallocate(trialGZ300m1000)
-    deallocate(trialGZ50m200)
-    deallocate(trialGZ1m10)
-    deallocate(trialGZ5m50)
+    deallocate(trialHeight300m1000)
+    deallocate(trialHeight50m200)
+    deallocate(trialHeight1m10)
+    deallocate(trialHeight5m50)
     deallocate(trialTG)
 
     do iSensor = 1, tvs_nSensors

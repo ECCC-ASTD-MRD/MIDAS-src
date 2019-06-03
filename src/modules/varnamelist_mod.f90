@@ -39,22 +39,25 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 31, vnl_numvarmax2D = 18
+  integer, parameter          :: vnl_numvarmax3D = 34, vnl_numvarmax2D = 18
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
-                                 'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
+                                 'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
+                                 'TT  ','HU  ','LQ  ','ES  ','VT  ',                             &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2',        &
                                  'TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
-                                 'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
+                                 'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
+                                 'TH',  'TH',  'TH',  'TH',  'TH',                               &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
-                                 'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
+                                 'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
+                                 'MT',  'MT',  'MT',  'MT',  'MT',                               &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT'/)
@@ -164,7 +167,7 @@ module varNameList_mod
       case( BUFR_NETT, BUFR_NETS )
         varName='TT'
       case( BUFR_NEDZ, BUFR_NEGZ )
-        varName='GZ'
+        varName='Z_T'
       case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
         varName='HU'
       case( BUFR_NEPS, BUFR_NEPN )

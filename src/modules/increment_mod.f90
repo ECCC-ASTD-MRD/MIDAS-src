@@ -110,10 +110,10 @@ CONTAINS
     real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
     real(8), pointer    :: PsfcIncrement(:,:,:,:)
     real(8), pointer    :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
-    real(8), pointer    :: GZsfc_increment(:,:), GZsfc_trial(:,:)
+    real(8), pointer    :: HeightSfc_increment(:,:), HeightSfc_trial(:,:)
     real(8), pointer    :: GL_ptr(:,:,:,:)
 
-    logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
+    logical  :: allocHeightSfc, writeHeightSfc, useIncLevelsOnly
 
     !
     !- Set/Read values for the namelist NAMINC
@@ -180,7 +180,9 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+
     call tmg_start(180,'INC_READTRIALS')
     call gsv_readTrials(statevector_trial)
     call tmg_stop(180)
@@ -191,7 +193,7 @@ CONTAINS
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0'/), allocGZsfc_opt=.true., &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=.true., &
                         hInterpolateDegree_opt=hInterpolationDegree)
 
       if (present(statevector_incLowRes_opt)) then
@@ -242,16 +244,16 @@ CONTAINS
       PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
 
       !
-      !- Copy the surface GZ from trial into statevector_Psfc
+      !- Copy the surface height from trial into statevector_Psfc
       !
-      GZsfc_increment => gsv_getGZsfc(statevector_Psfc)
-      GZsfc_trial     => gsv_getGZsfc(statevector_trial)
-      GZsfc_increment(:,:) = GZsfc_trial(:,:)
-      allocGZsfc = .true.
+      HeightSfc_increment => gsv_getHeightSfc(statevector_Psfc)
+      HeightSfc_trial     => gsv_getHeightSfc(statevector_trial)
+      HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
+      allocHeightSfc = .true.
     else
-      allocGZsfc = .false.
+      allocHeightSfc = .false.
     end if
-    writeGZsfc = allocGZsfc
+    writeHeightSfc = allocHeightSfc
 
     !
     !- Compute the analysis
@@ -262,10 +264,12 @@ CONTAINS
 
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt=hInterpolationDegree)
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_copy(statevector_trial, statevector_analysis)
 
     if (present(statevector_incLowRes_opt)) then
@@ -335,7 +339,7 @@ CONTAINS
     if ( gsv_varExist(statevector_analysis,'LVIS') ) then
       call gsv_allocate(statevector_vis, numStep, hco_trl, vco_trl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt=hInterpolationDegree, &
+                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                         varNames_opt=(/'VIS'/))
       call vtr_transform( statevector_analysis,               & ! IN
                           'LVIStoVIS', &                        ! IN
@@ -379,14 +383,15 @@ CONTAINS
 
         call gsv_allocate( stateVector_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           allocGZsfc_opt=allocGZsfc )
+                           allocHeightSfc_opt=allocHeightSfc, &
+                           allocHeight_opt=.false., allocPressure_opt=.false. )
         call gsv_allocate( stateVector_Psfc_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           varNames_opt=(/'P0'/), allocGZsfc_opt=.true. )
+                           varNames_opt=(/'P0'/), allocHeightSfc_opt=.true. )
         if ( gsv_varExist(statevector_analysis,'LVIS') ) then
           call gsv_allocate( stateVector_vis_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                             varNames_opt=(/'VIS'/), allocGZsfc_opt=allocGZsfc)
+                             varNames_opt=(/'VIS'/), allocHeightSfc_opt=allocHeightSfc)
         end if
       end if
 
@@ -398,7 +403,7 @@ CONTAINS
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         anlFileName = './anlm_' // trim(coffset) // 'm'
         call gsv_writeToFile( statevector_1step_r4, trim(anlFileName), etiket_anlm,  &
-                              typvar_opt='A', writeGZsfc_opt=writeGZsfc, &
+                              typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                               numBits_opt=writeNumBits, containsFullField_opt=.true. )
       end if
 
@@ -432,15 +437,15 @@ CONTAINS
 
         if (gsv_varExist(varName='P0')) then
 
-          ! transpose ANALYSIS PSFC AND GZ_SFC ONLY data from Tiles to Steps
+          ! transpose ANALYSIS PSFC AND height_SFC ONLY data from Tiles to Steps
           call gsv_transposeTilesToStep(stateVector_Psfc_1step_r4, stateVector_Psfc, stepIndexBeg)
 
-          ! Also write analysis value of Psfc and surface GZ to increment file
+          ! Also write analysis value of Psfc and surface height to increment file
           if ( stepIndexToWrite /= -1 ) then
             write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
             incFileName = './rehm_' // trim(coffset) // 'm'
             call gsv_writeToFile( statevector_Psfc_1step_r4, trim(incFileName), etiket_rehm,  &
-                                  typvar_opt='A', writeGZsfc_opt=.true., &
+                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                   numBits_opt=writeNumBits, containsFullField_opt=.true. )
           end if
 

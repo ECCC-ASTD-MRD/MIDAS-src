@@ -324,7 +324,8 @@ program midas_ensManip
 
     call gsv_allocate(statevector_recenteringMean, numStep, hco, vco,         &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      hInterpolateDegree_opt = hInterpolationDegree)
+                      hInterpolateDegree_opt = hInterpolationDegree, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
@@ -354,7 +355,8 @@ program midas_ensManip
 
       call gsv_allocate(statevector_alternativeEnsembleMean, numStep, hco, vco, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                        hInterpolateDegree_opt = hInterpolationDegree)
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
 
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
