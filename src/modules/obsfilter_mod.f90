@@ -32,6 +32,7 @@ module obsFilter_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
+  use codtyp_mod
   implicit none
   save
   private
@@ -273,12 +274,12 @@ contains
     integer ipres,ivco,ierr,loopIndex
     integer idburp,ivnm,iflg,ibad,iknt,iknt_mpiglobal
     integer ilansea
-    logical llok,llrej,llbogus
-
+    logical llok,llrej,llbogus, filterZeros
+    real*8 obs_sarwinds 
+ 
     if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
     iknt = 0
-
     BODY: do bodyIndex = 1, obs_numbody( obsSpaceData )
       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex   )
       ivnm        = obs_bodyElem_i( obsSpaceData, OBS_VNM , bodyIndex   )
@@ -288,7 +289,7 @@ contains
       !
       llok = .false.
       do loopIndex = 1, filt_nelems
-        llok = ( ivnm == filt_nlist( loopIndex ) ) .or. llok
+        llok = ( ivnm == filt_nlist( loopIndex ) ) .or. llok 
       end do
       if (.not.llok) then
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
@@ -297,7 +298,8 @@ contains
       !
       ! Allow gz for bogus data only in analysis case 
       !
-      llbogus = ( idburp == 150 .or. idburp == 151 .or. idburp == 152 .or. idburp == 153 )
+      !llbogus = ( idburp == 150 .or. idburp == 151 .or. idburp == 152 .or. idburp == 153 )
+      llbogus = ( idburp == codtyp_get_codtyp('pseudosfc') .or. idburp == codtyp_get_codtyp('pseudoalt') .or. idburp == codtyp_get_codtyp('pseudosfcrep') .or. idburp == codtyp_get_codtyp('pseudoaltrep') )
       if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm == BUFR_NEGZ .and. .not.llbogus ) then
         llok=.false.
       end if
@@ -307,7 +309,8 @@ contains
       ! If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
       ! Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
       !
-      if ( idburp == 189 ) then
+      !if ( idburp == 189 ) then
+      if ( idburp == codtyp_get_codtyp('gpssfc') ) then
         if (.not.lassmet .and. ( ivnm == BUFR_NEPS .or.  &
                                  ivnm == BUFR_NETS .or.  &
                                  ivnm == BUFR_NESS )) then
@@ -341,18 +344,22 @@ contains
           if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
         end if
       end if
-
+      if ( ivnm == BUFR_NEFS ) then 
+        if ( idburp .ne. codtyp_get_codtyp('sarwinds') ) then 
+          llok = .false.
+        end if
+      end if
       if ( llok .and. .not. llrej ) then
         call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, obs_assimilated )
         iknt = iknt + 1
-      else
+      else 
         call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated )
       end if
 
     end do body
 
     call rpn_comm_allreduce( iknt, iknt_mpiglobal, 1, "MPI_INTEGER", "MPI_SUM", "GRID", ierr )
-    if(mpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
+    if(mpi_myid == 0) write(*,*) '  NUMBER OF DATA TO BE ASSIMILATED : ', iknt_mpiglobal
 
     if(mpi_myid == 0) write(*,*) 'end of filt_suprep'
 
@@ -360,7 +367,6 @@ contains
     if (iknt_mpiglobal == 0 ) then
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
     end if
-
   end subroutine filt_suprep
 
   !--------------------------------------------------------------------------

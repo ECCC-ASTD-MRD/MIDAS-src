@@ -1063,6 +1063,7 @@ contains
             if ( codeType == 145 ) icodtyp = 6   ! STATION AUTOMATIQUE
             if ( codeType == 146 ) icodtyp = 7   ! ASYNOP
             if ( codeType == 147 ) icodtyp = 8   ! ASHIP
+            if ( codeType == 204 ) icodtyp = 9   ! SAR
             if ( ( ityp == BUFR_NEUU ) .or. ( ityp == BUFR_NEVV ) .or. &
                  ( ityp == BUFR_NEGZ ) .or. ( ityp == BUFR_NETT ) .or. ( ityp == BUFR_NEES ) ) icodtyp = 9  ! Others
 
@@ -1100,6 +1101,8 @@ contains
               else
                 call utl_abort( myName//": observation error missing for wind gust")
               end if
+            else if ( ityp == BUFR_NEFS ) then
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 2.0d0 )
             end if
 
                 !***********************************************************************

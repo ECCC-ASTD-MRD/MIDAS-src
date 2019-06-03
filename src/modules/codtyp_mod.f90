@@ -304,8 +304,10 @@ contains
     icod(113 + ncodtyp) = 202
     cnames(114 + ncodtyp) = 'mwhs2'
     icod(114 + ncodtyp) = 200
- 
-    ncodtyp = ncodtyp + 114
+    cnames(115 + ncodtyp) = 'sarwinds'
+    icod(115 + ncodtyp) = 204 
+
+    ncodtyp = ncodtyp + 115
 
     if (mpi_myid == 0) write(*,nml=namcodtyp)
 

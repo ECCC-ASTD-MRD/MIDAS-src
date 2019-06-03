@@ -622,6 +622,7 @@ contains
     real(8) :: zvar,zcon,zexp,ztvg
     real(8) :: zlev,zhhh,zgamaz,delTdelZ,heighthr
     real(8) :: columnVarB
+    real(8) :: UUb, VVb, squareSum, speedB 
     character(len=2) :: varLevel
 
     ! namelist variables
@@ -673,7 +674,8 @@ contains
               bufrCode /= bufr_vis  .and. bufrCode /= bufr_logVis .and.  &
               bufrCode /= bufr_gust .and.  &
               bufrCode /= bufr_radarPrecip .and.  &
-              bufrCode /= bufr_logRadarPrecip ) cycle BODY
+              bufrCode /= bufr_logRadarPrecip .and. &
+              bufrCode /= BUFR_NEFS ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -742,6 +744,18 @@ contains
                                zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
+
+          else if (bufrCode == BUFR_NEFS) then 
+            UUb=col_getElem(columnhr,col_getNumLev(COLUMNHR,'MM'),headerIndex,'UU')
+            VVb=col_getElem(columnhr,col_getNumLev(COLUMNHR,'MM'),headerIndex,'VV')
+            squareSum=UUb**2+VVb**2
+            if ( squareSum .gt. 1.d-10 ) then
+              speedB=sqrt(squareSum)
+            else
+              speedB=0.0
+            end if
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+                              zvar-speedB)  
 
           end if
 
@@ -1980,6 +1994,7 @@ contains
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB
       REAL*8 delP
+      REAL*8 dUU, dVV, UUb, VVb, squareSum, speedB, deltaSp
       INTEGER, PARAMETER :: numFamily=5
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !C
@@ -2010,7 +2025,7 @@ contains
                  .or. bufrCode == bufr_nepn .or. bufrCode == bufr_ness  &
                  .or. bufrCode == bufr_neus .or. bufrCode == bufr_nevs  &
                  .or. bufrCode == bufr_vis  .or. bufrCode == bufr_logVis  &
-                 .or. bufrCode == bufr_gust  &
+                 .or. bufrCode == bufr_gust .or. bufrCode == bufr_nefs &
                  .or. bufrCode == bufr_radarPrecip .or. bufrCode == bufr_logRadarPrecip  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
@@ -2041,6 +2056,20 @@ contains
                   columnVarB=col_getElem(COLUMN,IPB,headerIndex)
                 end if
                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,columnVarB)
+              else if (bufrCode == BUFR_NEFS) then
+                 dUU=col_getElem(column,col_getNumLev(column,varLevel),headerIndex,'UU') 
+                 dVV=col_getElem(column,col_getNumLev(column,varLevel),headerIndex,'VV') 
+                 UUb=col_getElem(columng,col_getNumLev(columng,varLevel),headerIndex,'UU') 
+                 VVb=col_getElem(columng,col_getNumLev(columng,varLevel),headerIndex,'VV') 
+                 squareSum=UUb**2+VVb**2
+                 if ( squareSum .gt. 1.d-10 ) then 
+                   speedB=sqrt(squareSum)
+                   deltaSp=( UUb * dUU + VVb * dVV ) / speedB
+                 else
+                   speedB=0.0
+                   deltaSp=0.0 
+                 end if
+                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,deltaSp)  
               else if (bufrCode == BUFR_NEPS .OR. bufrCode == BUFR_NEPN) THEN
                 ZLTV  = columng%OLTV(1,nlev_T,headerIndex)*col_getElem(COLUMN,nlev_T,headerIndex,'TT')  & 
                       + columng%OLTV(2,nlev_T,headerIndex)*col_getElem(COLUMN,nlev_T,headerIndex,'HU')
@@ -2732,9 +2761,11 @@ contains
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
+      REAL*8 columngVarB
+      REAL*8 UUb, VVb, sumSquare, spB, deltaSp 
       INTEGER headerIndex,IK,nlev,nlev_T
       INTEGER bodyIndex,bufrCode,INDEX_FAMILY
-      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:),p_column(:)
+      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:),p_column(:), du_column(:), dv_column(:)
       REAL*8 :: dPdPsfc
       INTEGER, PARAMETER :: numFamily=5
       CHARACTER(len=2) :: list_family(numFamily),varLevel
@@ -2767,7 +2798,7 @@ contains
                  .or. bufrCode == bufr_nepn .or. bufrCode == bufr_ness  &
                  .or. bufrCode == bufr_neus .or. bufrCode == bufr_nevs  &
                  .or. bufrCode == bufr_vis  .or. bufrCode == bufr_logVis  &
-                 .or. bufrCode == bufr_gust  &
+                 .or. bufrCode == bufr_gust .or. bufrCode == bufr_nefs &
                  .or. bufrCode == bufr_radarPrecip .or. bufrCode == bufr_logRadarPrecip  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
@@ -2801,7 +2832,23 @@ contains
                    all_column => col_getColumn(column,headerIndex) 
                    all_column(IPB) = all_column(IPB) + ZRES
                  end if
+               else if ( bufrCode == BUFR_NEFS ) then
+                   du_column  => col_getColumn(column,headerIndex,'UU') 
+                   dv_column  => col_getColumn(column,headerIndex,'VV')
+                   deltaSp=obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex) 
+                   sumSquare=col_getElem(columng,nlev,headerIndex,'UU')**2 + col_getElem(columng,nlev,headerIndex,'VV')**2 
+                   if ( sumSquare .gt. 1.0d-10 ) then
+                     spB=sqrt(sumSquare)
+                     du_column(nlev) = du_column(nlev) + deltaSp*col_getElem(columng,nlev,headerIndex,'UU')/spB
+                     dv_column(nlev) = dv_column(nlev) + deltaSp*col_getElem(columng,nlev,headerIndex,'VV')/spB
+
+                     !du_column(nlev-1) = du_column(nlev-1) + deltaSp*col_getElem(columng,nlev-1,headerIndex,'UU')/spB
+                     !dv_column(nlev-1) = dv_column(nlev-1) + deltaSp*col_getElem(columng,nlev-1,headerIndex,'VV')/spB
+                   else
+                     spB=0.
+                   end if
                else if ( bufrCode == BUFR_NEPS .or. bufrCode == BUFR_NEPN ) then
+
                  tt_column  => col_getColumn(column,headerIndex,'TT')
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')

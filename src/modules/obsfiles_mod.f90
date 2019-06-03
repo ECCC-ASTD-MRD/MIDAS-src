@@ -457,7 +457,7 @@ contains
     clvalu(95) = 'obshydro'
     clvalu(96) = 'obsmwhs2'
     clvalu(97) = 'brpmwhs2'
-
+    clvalu(98) = 'obssarwinds'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -557,6 +557,7 @@ contains
     cfami(95)  = 'HY'
     cfami(96)  = 'TO'
     cfami(97)  = 'TO'
+    cfami(98)  = 'SF'
 
     obsDirectory = 'obs'
 
