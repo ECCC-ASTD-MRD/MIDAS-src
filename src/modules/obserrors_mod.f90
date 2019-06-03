@@ -82,15 +82,13 @@ contains
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  SUBROUTINE oer_setInterchanCorr()
-!
-!  s/r oer_setInterchanCorr : Setup of interchannel observation errors correlations
-!           S.  Heilliette
-!            - 04/2017 extracted from tvslin_setupallo
-    Use rmatrix_mod
+  subroutine oer_setInterchanCorr()
+    !
+    !  :Purpose: Setup of interchannel observation errors correlations
+    !    
+    use rmatrix_mod
 
     IMPLICIT NONE
-!implicits
 
     INTEGER ::  ISENS
 
@@ -111,21 +109,12 @@ contains
 
   END SUBROUTINE oer_setInterchanCorr
 
-  subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in)
-    !!
-    !! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
-    !!
-    !! Author  : S. Laroche  February 2014
-    !! Revision: 
-    !!          Y. Rochon, M. Sitwell and P. Du, March 2017
-    !!          - Added calls to chm_read_obs_err_stddev and
-    !!            chm_dealloc_obs_err_stddev
-    !!
-    !! Purpose: read and set observation errors (from former sucovo subroutine).
-    !!
-    !!
+  subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in )
+    !
+    ! :Purpose: read and set observation errors (from former sucovo subroutine).
+    !
 
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs)             :: lobsSpaceData
     character(len=*), intent(in) :: obserrorMode_in
 
     !
@@ -198,45 +187,11 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine oer_readObsErrorsTOVS
-    !!
-    !! s/r oer_readObsErrorsTOVS
-    !! - Read the observation erreur statistics and utilization flag for TOVS processing.
-    !!
-    !!
-    !! Author  : J. Halle !CMDA/AES  May 08, 1996
-    !!
-    !! Revision 01  : J. Halle !CMDA/AES  Oct 1999
-    !!               - change file name to stats_tovs
-    !!
-    !! Revision 002  : J. Halle !CMDA/AES  dec 2000
-    !!                adapt to TOVS level 1b.
-    !!
-    !! Revision 003  : J. Halle !CMDA/SMC  may 2002
-    !!                adapt to RTTOV-7.
-    !!
-    !! Revision 004  : J. Halle !CMDA/SMC  sept 2006
-    !!                adapt to RTTOV-8.
-    !!
-    !! Revision 005  : A. Beaulne !CMDA/SMC  fevr 2007
-    !!                adapt utilization flag for AIRS channels
-    !!
-    !! Revision 006  : S. Heilliette
-    !!                adapt utilization flag for IASI channels
-    !!
-    !! Revision 007: S. Macpherson ARMA, Feb 2013
-    !!              - add NPP/ATMS codtyp=192
-    !!
-    !! Revision 008  : S. Macpherson      apr 2013
-    !!              - adapt for new-format stats_tovs file
-    !!
-    !! Revision 008  : S. Laroche      Mar 2014
-    !!              - upgrade of former f77 subroutine sutovst
-    !!              - f90 conversion and cleanup 
-    !!
-    !!    -------------------
-    !!    Purpose: Read the observation error statistics and
-    !!             utilization flag for TOVS processing. This information
-    !!             resides on an ASCII file and is read using a free format.
+    !
+    ! :Purpose: Read the observation error statistics and
+    !           utilization flag for TOVS processing. This information
+    !           resides on an ASCII file and is read using a free format.
+    !
     implicit none
 
     integer,external  :: FNOM, FCLOS
@@ -465,14 +420,20 @@ contains
 
     end subroutine compact
 
-    subroutine split(str,delims,before)
+    subroutine split( str, delims, before )
+      !
+      ! :Comment:
       ! Code extracted from Benthien's module: http://www.gbenthien.net/strings/index.html
       ! Routine finds the first instance of a character from 'delims' in the
       ! the string 'str'. The characters before the found delimiter are
       ! output in 'before'. The characters after the found delimiter are
       ! output in 'str'. 
+      !
 
-      character(len=*) :: str,delims,before
+      character(len=*) :: str
+      character(len=*) :: delims
+      character(len=*) :: before
+
       character :: ch,cha
       integer lenstr,i,k,ipos,iposa
       str=adjustl(str)
@@ -519,14 +480,9 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine oer_readObsErrorsCONV ( lobsSpaceData )
-    !! s/r oer_readObsErrorsCONV -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
-    !!
-    !! Author  : S. Laroche  February 2014
-    !!
-    !! Revision: S. Laroche Sept. 2017
-    !!           - add height assignment errors
-    !!
-    !! Purpose: read observation errors (modification of former readcovo subroutine).
+    ! 
+    ! :Purpose: read observation errors (modification of former readcovo subroutine) of conventional data 
+    !
 
     implicit none
     ! argument
@@ -685,13 +641,9 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine oer_readObsErrorsICE
-    !! s/r oer_readObsErrorsICE -READ OBSERVATION ERROR FOR SEA ICE
-    !!
-    !! Author  : A. Caya  October 2018
-    !!
-    !! Revision: Not yet.
-    !!
-    !! Purpose: read observation errors for sea ice concentration analysis
+    !
+    ! :Purpose: read observation errors for sea ice concentration analysis
+    !
 
     implicit none
 
@@ -749,6 +701,9 @@ contains
   end subroutine oer_readObsErrorsICE
 
   subroutine oer_readObsErrorsSST
+    !
+    ! :Purpose: read observation errors for SST data
+    !
     implicit none
 
     external fnom, fclos
@@ -807,27 +762,14 @@ contains
   !-----------------------------------------------------------------------------------------
 
   subroutine oer_fillObsErrors(lobsSpaceData)
-    !!
-    !! s/r oer_fillObsErrors -FILL OBSERVATION ERRORS IN lobsSpaceData
-    !!
-    !! Author  : S. Laroche  February 2014
-    !!
-    !! Revision: 
-    !!           Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
-    !!           - Added consideration of 'CH' family
-    !!           - Removal of 'OZ' family
-    !!           - Added availability of CSTNID, obs_err_stddev
-    !!           M. Sitwell, ARQI/AQRD, Apr 2015 
-    !!           - Added IDATE and ITIME
-    !!         
-    !! Purpose: read observation errors (modification of former readcovo subroutine).
-    !!
-    !!-------------------------------------------------------------------------------------
-
+    !
+    ! :Purpose: fill observation errors in lobsSpaceData
+    !
     implicit none
 
     ! arguments
     type(struct_obs) :: lobsSpaceData
+
     !  locals
     integer :: jn, JI, bodyIndex, bodyIndex2, headerIndex, ityp, iass, idata, idatend, codeType
     integer :: isat, ichn, iplatf, instr, iplatform, instrum, ivnm
@@ -1303,15 +1245,12 @@ contains
 
 
   subroutine oer_sw(columnhr,obsSpaceData)
-    !!
-    !!**s/r oer_sw
-    !!
-    !!*    Purpose: Calculate observation errors for AMVs according to the Met-Office 
-    !!              situation dependant approach.
-    !!
-    !!Arguments
-    !!
+    !
+    ! :Purpose: Calculate observation errors for AMVs according to the Met-Office 
+    !           situation dependant approach.
+    !
     implicit none
+
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
 
@@ -1426,12 +1365,16 @@ contains
   end subroutine oer_sw
 
 
-  subroutine get_height_error(stnid,methode,terrain,htasmet,zlat,zlon,zlev,E_HEIGHT,J_SAT)
+  subroutine get_height_error( stnid, methode, terrain, htasmet, zlat, zlon, zlev, E_HEIGHT, J_SAT )
 
     character(len=9), intent(in)     :: stnid
-    integer,          intent(in)     :: methode,terrain,htasmet
+    integer,          intent(in)     :: methode
+    integer,          intent(in)     :: terrain
+    integer,          intent(in)     :: htasmet
     integer,          intent(out)    :: J_SAT 
-    real(8),          intent(in)     :: zlat,zlon,zlev
+    real(8),          intent(in)     :: zlat
+    real(8),          intent(in)     :: zlon
+    real(8),          intent(in)     :: zlev
     real(8),          intent(out)    :: E_HEIGHT
 
     integer, parameter :: NLVLVALUE=9
@@ -1503,9 +1446,10 @@ contains
   end subroutine get_height_error
 
 
-  SUBROUTINE oer_SETERRGPSRO(lcolumnhr,lobsSpaceData)
-
-    !**s/r SETERRGPSRO - Compute estimated errors for GPSRO observations
+  SUBROUTINE oer_SETERRGPSRO( lcolumnhr, lobsSpaceData )
+    !
+    ! :Purpose: Compute estimated errors for GPSRO observations
+    !
     IMPLICIT NONE
     !
     type(struct_columnData) :: lcolumnhr
@@ -1787,17 +1731,16 @@ contains
 
   END SUBROUTINE OER_SETERRGPSRO
 
-  SUBROUTINE oer_SETERRGPSGB(columnhr,lobsSpaceData,ldata,analysisMode)
-    !!
-    !!s/r SETERRGPSGB - SET OBSERVATION ERROR COVARIANCES FOR GB-GPS ZTD DATA
-    !!
-    !!*    Purpose:
-    !!             - Set the observation errors [OBS_OER] and Std(O-P) [OBS_HPHT] for GB-GPS ZTD data.
-    !!               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
-    !!               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
-    !!             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
-    !!               and also sets the modgpsztd_mod variable numGPSZTD = 0.
-    !!
+  SUBROUTINE oer_SETERRGPSGB( columnhr, lobsSpaceData, ldata, analysisMode )
+    !
+    ! :Purpose:
+    !
+    !             - Set the observation errors [OBS_OER] and Std(O-P) [OBS_HPHT] for GB-GPS ZTD data.
+    !               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
+    !               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
+    !             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
+    !               and also sets the modgpsztd_mod variable numGPSZTD = 0.
+    !
     IMPLICIT NONE
     !!
     !! NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING

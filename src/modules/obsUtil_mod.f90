@@ -40,6 +40,7 @@ module obsUtil_mod
     implicit none
     ! argument
     type(struct_obs) :: obsSpaceData
+
     ! locals
     integer          :: iuu, ivv, iff, idd, flagu, flagv, newflag
     integer          :: headerIndex, headerIndexStart, headerIndexEnd, jWindType, bodyIndex, bodyIndex2
@@ -108,7 +109,7 @@ module obsUtil_mod
   end subroutine obsu_updateFlagWindDirectionSpeed
 
 
-  subroutine obsu_computeDirectionSpeedResiduals(elem_i,obsSpaceData)
+  subroutine obsu_computeDirectionSpeedResiduals( elem_i, obsSpaceData )
     implicit none
     ! arguments
     type(struct_obs)    :: obsSpaceData
@@ -208,11 +209,14 @@ module obsUtil_mod
 
 
   subroutine obsu_setassflg(obsSpaceData)
-    ! Purpose:  Set banco quality control bit #12 for all data assimilated
+    !
+    ! :Purpose: Set banco quality control bit #12 for all data assimilated
     !           by current analysis.
+    !
     implicit none
     ! argument
     type(struct_obs) :: obsSpaceData
+
     ! local
     integer :: bodyIndex
 
@@ -227,12 +231,16 @@ module obsUtil_mod
   end subroutine obsu_setassflg
 
 
-  subroutine obsu_windDirectionToUV(obsdat, headerIndexStart, headerIndexEnd, missingValue )
+  subroutine obsu_windDirectionToUV( obsdat, headerIndexStart, headerIndexEnd, missingValue )
+
     implicit none
-    ! arguments
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    integer          , intent(in)    :: headerIndexStart 
+    integer          , intent(in)    :: headerIndexEnd
     real             , intent(in)    :: missingValue
+
     ! locals
     integer        :: varno, varno2, varno4
     real           :: obsuv
@@ -478,10 +486,12 @@ module obsUtil_mod
 
   end subroutine obsu_windDirectionToUV
 
-  real function surfvcord(varno, codtyp)
+  real function surfvcord( varno, codtyp )
+
     implicit none
-    ! arguments
-    integer    :: varno, codtyp
+    ! Arguments
+    integer    :: varno
+    integer    :: codtyp
     ! locals
     character(len=9)  :: family
 
@@ -558,10 +568,14 @@ module obsUtil_mod
   end function codtypfam
 
   subroutine  obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
+    !
     implicit none
-    ! arguments
+
+    ! Arguments
     type (struct_obs), intent(inout) :: obsdat
-    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    integer          , intent(in)    :: headerIndexStart
+    integer          , intent(in)    :: headerIndexEnd
+
     ! locals
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno, codtyp
@@ -601,10 +615,14 @@ module obsUtil_mod
 
 
   subroutine  obsu_adjustHumGZ(obsdat, headerIndexStart, headerIndexEnd )
+    !
     implicit none
+
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
-    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    integer          , intent(in)    :: headerIndexStart
+    integer          , intent(in)    :: headerIndexEnd
+
     ! locals
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno
@@ -641,10 +659,14 @@ module obsUtil_mod
 
 
   subroutine  obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd )
+    !
     implicit none
-    ! arguments
+
+    ! Arguments
     type (struct_obs), intent(inout) :: obsdat
-    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    integer          , intent(in)    :: headerIndexStart
+    integer          , intent(in)    :: headerIndexEnd
+
     ! locals
     real(obs_real)    :: obsv
     integer  :: bodyIndex, headerIndex,bodyIndexStart, bodyIndexEnd
@@ -686,33 +708,27 @@ module obsUtil_mod
   
   integer function obsu_cvt_obs_instrum(sensor)
     !
-    ! func CVT_OBS_INSTRUM : Map burp satellite sensor indicator (element #2048) to
-    !                         the corresponding burp satellite instrument (element
-    !                         #2019).
+    ! :Purpose: Map burp satellite sensor indicator (element #2048) to
+    !           burp satellite instrument (element #2019). This is a more
+    !           complete common element, allowing for future expansion.
     !
-    ! Author  : J. Halle CMDA/SMC May 2002
-    ! Revision:
-    !           J.W. Blezius ARMA Feb 2011 - converted from subroutine to a function
-    !
-    !     Purpose:  Map burp satellite sensor indicator (element #2048) to
-    !               burp satellite instrument (element #2019). This is a more
-    !               complete common element, allowing for future expansion.
-    !
-    !               Table of BURP satellite sensor indicator element #002048
-    !               --------------------------------------------------------
-    !               Satellite sensor     BURP satellite sensor indicator
-    !               ----------------     -------------------------------
+    ! :Table of BURP satellite sensor indicator element #002048:
+    ! ==================  =============================== 
+    ! Satellite sensor    BURP satellite sensor indicator
+    ! ==================  =============================== 
     !               HIRS                 0
-    !               MSU                  1
-    !               SSU                  2
-    !               AMSUA                3
-    !               AMSUB                4
-    !               AVHRR                5
+    !                MSU                 1
+    !                SSU                 2
+    !              AMSUA                 3
+    !              AMSUB                 4
+    !              AVHRR                 5
     !               SSMI                 6
-    !               NSCAT                7
-    !               SEAWINDS             8
-    !               Reserved             9-14
-    !               Missing value        15
+    !              NSCAT                 7
+    !           SEAWINDS                 8
+    !           Reserved                9-14
+    !      Missing value                15
+    ! ==================  =============================== 
+    !
     implicit none
     integer :: sensor      ! BURP satellite sensor indicator (element #2048)
     integer :: instrument  ! BURP satellite instrument       (element #2019)
@@ -736,9 +752,13 @@ module obsUtil_mod
   end function obsu_cvt_obs_instrum
 
   subroutine obsu_scaleFSO(obsdat)
+    !
     implicit none
 
+    ! Arguments:
     type (struct_obs), intent(inout):: obsdat
+
+    ! locals
     integer  :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     real(OBS_REAL)  :: FSOVal
 

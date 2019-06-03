@@ -47,8 +47,7 @@ module obsFiles_mod
 
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
-  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
-  public :: obsf_thinFiles
+  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update, obsf_thinFiles
 
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
@@ -64,11 +63,14 @@ module obsFiles_mod
 contains
 
   subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
+
     implicit none
+
     ! arguments
     integer         , intent(out)           :: dateStamp_out
     character(len=*), intent(in)            :: obsFileMode_in
     character(len=*), intent(out), optional :: obsFileType_opt
+
     ! locals
     character(len=10)                       :: obsFileType
 
@@ -123,9 +125,12 @@ contains
 
 
   subroutine obsf_readFiles( obsSpaceData )
+
     implicit none
+
     ! arguments
     type(struct_obs)  :: obsSpaceData
+
     ! locals
     integer           :: fileIndex
     character(len=10) :: obsFileType
@@ -158,11 +163,14 @@ contains
 
 
   subroutine obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt, asciDumpObs_opt )
+
   implicit none
+
   ! arguments
   type(struct_obs)                       :: obsSpaceData
   real(8),             pointer, optional :: HXensT_mpiglobal_opt(:,:)
   logical,                      optional :: asciDumpObs_opt
+
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType
@@ -230,15 +238,14 @@ contains
   end subroutine obsf_writeFiles
 
 
-  !--------------------------------------------------------------------------
-  !!
-  !! *Purpose*: to reduce the number of observation data
-  !!
-  !! *Note*:    operates only on SQL files. Issues a warning for other file types
-  !!
-  !--------------------------------------------------------------------------
   subroutine obsf_thinFiles(obsSpaceData)
+    !
+    ! :Purpose: to reduce the number of observation data
+    !
+    ! :Note:    operates only on SQL files. Issues a warning for other file types
+    !
     implicit none
+
     ! arguments
     type(struct_obs), intent(inout) :: obsSpaceData
 
@@ -264,11 +271,14 @@ contains
   end subroutine obsf_thinFiles
 
 
-  subroutine obsf_writeHX(obsSpaceData, HXensT_mpiglobal)
+  subroutine obsf_writeHX( obsSpaceData, HXensT_mpiglobal )
+
     implicit none
+
     ! arguments
     type(struct_obs) :: obsSpaceData
     real(8), pointer :: HXensT_mpiglobal(:,:)
+
     ! locals
     integer :: unitHX, ierr, headerIndex, fnom, fclos
     character(len=10) :: fileNameHX
@@ -287,13 +297,16 @@ contains
  
     ierr = fclos(unitHX)
 
-  endsubroutine obsf_writeHX
+  end subroutine obsf_writeHX
 
 
   subroutine obsf_writeAsciDump(obsSpaceData)
+
     implicit none
+
     ! arguments
     type(struct_obs) :: obsSpaceData
+
     ! locals
     character(len=25) :: fileNameAsciDump
     integer :: unitAsciDump, ierr, fnom, fclos
@@ -325,7 +338,9 @@ contains
 
 
   subroutine obsf_setupFileNames()
+
     implicit none
+
     ! locals
     character(len=20)   :: clvalu(jpfiles)
     character(len=2)    :: cfami(jpfiles)
@@ -555,9 +570,12 @@ contains
 
 
   subroutine obsf_determineFileType( obsFileType )
+
     implicit none
+
     ! arguments
     character(len=*)                       :: obsFileType
+
     ! locals
     integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
     integer :: fnom, fclos
@@ -587,10 +605,13 @@ contains
   end subroutine obsf_determineFileType
 
   subroutine obsf_determineSplitFileType( obsFileType, fileName )
+
     implicit none
+
     ! arguments
     character(len=*),intent(out) :: obsFileType
     character(len=*),intent(in)  :: fileName
+
     ! locals
     integer           :: ierr, unitFile
     integer           :: fnom, fclos, wkoffit
@@ -626,27 +647,22 @@ contains
 
   end subroutine obsf_determineSplitFileType
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Returns the observations file name assigned to the calling processor.
-!!            If the input family has more than one file, the first file found will
-!!            be returned.
-!!
-!! @author M. Sitwell  Sept 2016
-!!
-!! Input:
-!!v    obsfam            observation family name
-!!
-!! Output:
-!!v    filename       file name of associated observations file
-!!v    found_opt      logical indicating if a file could be found for the family (optional)
-!--------------------------------------------------------------------------
-  function obsf_get_filename(obsfam,found_opt) result(filename)
 
+  function obsf_get_filename(obsfam,found_opt) result(filename)
+    !
+    ! :Purpose: Returns the observations file name assigned to the calling processor.
+    !           If the input family has more than one file, the first file found will
+    !           be returned.
+    !
+    ! :Arguments:
+    !           :obsfam: observation family name
+    !           :found_opt: logical indicating if a file could be found for the family (optional)
+    !
     implicit none
 
     character(len=2), intent(in) :: obsfam
     logical, intent(out), optional :: found_opt
-    character(len=maxLengthFilename) :: filename
+    character(len=maxLengthFilename) :: filename ! file name of associated observations file
  
     logical :: found
     integer :: ifile
@@ -668,52 +684,45 @@ contains
 
   end function obsf_get_filename
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Retrieves information for observations from observation files and returns the data
-!!            in a struct_oss_obsdata object. Data will be retrieved for all nodes that have valid
-!!            filenames for the specied observational family and combined into one struct_oss_obsdata
-!!            if the observational files are split.
-!!
-!! @author M. Sitwell, ARQI/AQRD, Sept 2016
-!!
-!! Revisions:
-!!v       Y. Rochon, ARQI/AQRD, Nov 2016
-!!v         - Added optional input argument codtyp_opt and option of varno <=0 (in brpf_chem_read)
-!!
-!! Input:
-!!v           obsfam          observation family name
-!!v           stnid           station ID of observation
-!!v           varno           BUFR code (if <=0, to search through all codes to obtain first
-!!v                           between 10000 and 16000)
-!!v           nlev            number of levels in the observation
-!!v           ndim            number of dimensions for the retrieved data in
-!!v                           each report (e.g. ndim=1 for std, ndim=2 for
-!!v                           averagine kernels) 
-!!v           bkstp_opt       bkstp number of requested block if BURP file type (optional)
-!!v           block_opt       block type of requested block if BURP file type (optional)
-!!v                           Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
-!!v                           by the two rightmost bits of bknat.
-!!v           match_nlev_opt  determines if the report matching criteria includes checking
-!!v                           if the report number of levels is the same as the input
-!!v                           argument nlev (optional)
-!!v           codtyp_opt      optional CODTYP list for search (optional)
-!!
-!! Output:
-!!v           obsdata       struct_oss_obsdata object
-!!v
-!--------------------------------------------------------------------------
-  function obsf_obsSub_read(obsfam,stnid,varno,nlev,ndim,bkstp_opt,block_opt,match_nlev_opt, &
-                              codtyp_opt) result(obsdata)
 
+  function obsf_obsSub_read( obsfam, stnid, varno, nlev, ndim, bkstp_opt, block_opt, match_nlev_opt, &
+                              codtyp_opt ) result(obsdata)
+    !
+    ! :Purpose: Retrieves information for observations from observation files and returns the data
+    !           in a struct_oss_obsdata object. Data will be retrieved for all nodes that have valid
+    !           filenames for the specied observational family and combined into one struct_oss_obsdata
+    !           if the observational files are split.
+    !
+    ! :Arguments:
+    !           :obsfam:          observation family name
+    !           :stnid:           station ID of observation
+    !           :varno:           BUFR code (if <=0, to search through all codes to obtain first
+    !                             between 10000 and 16000)
+    !           :nlev:            number of levels in the observation
+    !           :ndim:            number of dimensions for the retrieved data in
+    !                             each report (e.g. ndim=1 for std, ndim=2 for
+    !                             averagine kernels) 
+    !           :bkstp_opt:       bkstp number of requested block if BURP file type (optional)
+    !           :block_opt:       block type of requested block if BURP file type (optional)
+    !                             Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
+    !                             by the two rightmost bits of bknat.
+    !           :match_nlev_opt:  determines if the report matching criteria includes checking
+    !                             if the report number of levels is the same as the input
+    !                             argument nlev (optional)
+    !           :codtyp_opt:      optional CODTYP list for search (optional)
+    !
     implicit none
 
-    character(len=*), intent(in)  :: obsfam
-    character(len=9), intent(in)  :: stnid
-    integer, intent(in)           :: varno,nlev,ndim
-    integer, intent(in), optional :: bkstp_opt,codtyp_opt(:)
-    logical, intent(in), optional :: match_nlev_opt
+    character(len=*), intent(in)           :: obsfam
+    character(len=9), intent(in)           :: stnid
+    integer         , intent(in)           :: varno
+    integer         , intent(in)           :: nlev
+    integer         , intent(in)           :: ndim
+    integer         , intent(in), optional :: bkstp_opt
+    integer         , intent(in), optional :: codtyp_opt(:)
+    logical         , intent(in), optional :: match_nlev_opt
     character(len=4), intent(in), optional :: block_opt
-    type(struct_oss_obsdata) :: obsdata
+    type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
     character(len=maxLengthFilename) :: filename
     logical :: found
@@ -756,31 +765,22 @@ contains
   end function obsf_obsSub_read
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Add or modify data in observational files from data stored
-!!            in a struct_oss_obsdata object.
-!!
-!! @author M. Sitwell, ARQI/AQRD, Sept 2016
-!!
-!! Input:
-!!v           obsdata       Input struct_oss_obsdata object for varno.
-!!v           obsfam        observation family name
-!!v           varno         BUFR descriptors. Number of elements must be 
-!!v                         max(1,obsdata%dim2)
-!!v           bkstp_opt     bkstp number of requested block if BURP file type (optional)
-!!v           block_opt     block type of requested block if BURP file type (optional)
-!!v                         Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
-!!v                         by the two rightmost bits of bknat.
-!!v           multi_opt     Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
-!!v
-!!
-!! Output: 
-!!v           nrep_modified Number of modified reports
-!!
-!--------------------------------------------------------------------------
-  function obsf_obsSub_update(obsdata,obsfam,varno,bkstp_opt,block_opt,multi_opt) &
+  function obsf_obsSub_update( obsdata, obsfam, varno, bkstp_opt, block_opt, multi_opt ) &
                            result(nrep_modified)
-
+    ! :Purpose: Add or modify data in observational files from data stored
+    !           in a struct_oss_obsdata object.
+    !
+    ! :Arguments:
+    !           :obsdata: Input struct_oss_obsdata object for varno.
+    !           :obsfam:  observation family name
+    !           :varno:   BUFR descriptors. Number of elements must be 
+    !                     max(1,obsdata%dim2)
+    !           :bkstp_opt: bkstp number of requested block if BURP file type (optional)
+    !           :block_opt: block type of requested block if BURP file type (optional)
+    !                       Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
+    !                       by the two rightmost bits of bknat.
+    !           :multi_opt: Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
+    !
     implicit none
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
@@ -789,7 +789,7 @@ contains
     integer, intent(in), optional :: bkstp_opt
     character(len=4), intent(in), optional :: block_opt
     character(len=*), intent(in), optional :: multi_opt
-    integer :: nrep_modified
+    integer :: nrep_modified    ! Number of modified reports
 
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename

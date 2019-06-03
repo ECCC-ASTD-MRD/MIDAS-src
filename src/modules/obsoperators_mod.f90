@@ -61,9 +61,9 @@ contains
 
   end subroutine oop_setup
 
-  subroutine oop_vobslyrs(columnghr,obsSpaceData)
-
-    !*    Purpose:
+  subroutine oop_vobslyrs( columnghr, obsSpaceData )
+    !
+    ! :Purpose:
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to CMA data.
     !
@@ -256,24 +256,23 @@ contains
   end subroutine oop_vobslyrs
 
 
-  subroutine oop_ppp_nl(columnhr,obsSpaceData,jobs,cdfam)
+  subroutine oop_ppp_nl( columnhr, obsSpaceData, jobs, cdfam )
     !
-    !**s/r oop_ppp_nl - Computation of Jobs and y - H(x)
-    !                 for pressure-level observations
+    ! :Purpose: Computation of Jobs and y - H(x)
+    !           for pressure-level observations.
+    !           Interpolate vertically columnhr to
+    !           the pressure levels of the observations. Then compute Jobs.
+    !           A linear interpolation in ln(p) is performed.
     !
-    !*    Purpose:  -Interpolate vertically columnhr to
-    !                the pressure levels of the observations. Then compute Jobs.
-    !                A linear interpolation in ln(p) is performed.
-    !
-    !Arguments
-    !     jobs:  contribution to Jobs
-    !     cdfam: family of obsservation
+    ! :Arguments:
+    !           :jobs:  contribution to Jobs
+    !           :cdfam: family of obsservation
     !
     implicit none
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    real(8) :: jobs
-    character(len=*) :: cdfam
+    type(struct_obs)        :: obsSpaceData
+    real(8)                 :: jobs
+    character(len=*)        :: cdfam
 
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,ivnm,nlev_T
@@ -392,16 +391,19 @@ contains
 !!            A linear interpolation in z is performed.
 !!
 !--------------------------------------------------------------------------
-  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobsOut,cdfam)
+  subroutine oop_zzz_nl( columnhr, obsSpaceData, jobsOut, cdfam)
     !
-    !Author  :  J. St-James, CMDA/SMC July 2003
-    !           J.W. Blezius, Jan 2018 - add Aladin HLOS wind observations
+    ! :Purpose: Computation of Jobs and y - H(x) for geometric-height observations
+    !           Interpolate vertically columnhr to the geometric heights (in
+    !           meters) of the observations.
+    !           Then compute Jobs.
+    !           A linear interpolation in z is performed.
     !
-    !Arguments
-    !     jobsOut:  contribution to Jobs
-    !     cdfam: family of observation
+    ! :Arguments:
+    !           :jobsOut: contribution to Jobs
+    !           :cdfam:   family of observation
     !
-    !Notes:
+    ! :Notes:
     !     As a first approximation, use the geopotential height.  Once this is
     !     working, this should be changed for a calculation of the geometric
     !     height.
@@ -599,25 +601,26 @@ contains
   end subroutine oop_zzz_nl
 
 
-  subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs,cdfam)
+  subroutine oop_sfc_nl( columnhr, obsSpaceData, jobs, cdfam )
     !
-    !**s/r oop_sfc_nl - Computation of Jo and the residuals to the observations
-    !                 FOR SURFACE DATA (except ground-based GPS zenith delay)
+    ! :Purpose:  Computation of Jo and the residuals to the observations
+    !            FOR SURFACE DATA (except ground-based GPS zenith delay).
+    !            Interpolate vertically the contents of columnhr to
+    !            the pressure levels of the observations. Then
+    !            compute Jo.
+    !            A linear interpolation in ln(p) is performed.
     !
-    !*    Purpose:  -Interpolate vertically the contents of columnhr to
-    !                the pressure levels of the observations. Then
-    !                compute Jo.
-    !                A linear interpolation in ln(p) is performed.
+    ! :Arguments:
+    !           :jobs:  contribution to Jo
+    !           :cdfam: family of observation
     !
-    !Arguments
-    !     jobs   : contribution to Jo
-    !     cdfam  : family of observation
-    !
+
     implicit none
+
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    real(8)          :: jobs
-    character(len=*) :: cdfam
+    type(struct_obs)        :: obsSpaceData
+    real(8)                 :: jobs
+    character(len=*)        :: cdfam
 
     integer :: ipb,ipt,ivnm,headerIndex,bodyIndex
     real(8) :: zvar,zcon,zexp,zgamma,ztvg
@@ -746,14 +749,18 @@ contains
 
 
   subroutine oop_sst_nl( columnhr, obsSpaceData, jobs, cdfam)
-    !**s/r oop_sst_nl - Computation of Jo and the residuals to the observations
-    !                 FOR SEA SURFACE TEMPERATURE DATA
+    !
+    ! :Purpose: Computation of Jo and the residuals to the observations
+    !           for Sea Surface Temperature (SST) data.
+    !
     implicit none
+
     ! arguments
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
+
     ! locals
     integer          :: ivnm, headerIndex, bodyIndex
     real(8)          :: obsValue
@@ -810,15 +817,19 @@ contains
   end subroutine oop_sst_nl
 
 
-  subroutine oop_ice_nl( columnhr, obsSpaceData, jobs, cdfam)
-    !**s/r oop_ice_nl - Computation of Jo and the residuals to the observations
-    !                 FOR SEA ICE CONCENTRATION DATA
+  subroutine oop_ice_nl( columnhr, obsSpaceData, jobs, cdfam )
+    !
+    ! :Purpose: Computation of Jo and the residuals to the observations
+    !           FOR SEA ICE CONCENTRATION DATA
+
     implicit none
+
     ! arguments
     type(struct_columnData), intent(in)    :: columnhr
     type(struct_obs)       , intent(inout) :: obsSpaceData
     real(8)                , intent(  out) :: jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
+
     ! locals
     integer :: ivnm, headerIndex, bodyIndex
     real(8) :: obsValue, scaling
@@ -871,29 +882,19 @@ contains
 
   subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
     !
-    !**s/r oop_gpsro_nl - Computation of Jo and the residuals to the GPSRO observations
+    ! :Purpose: Computation of Jo and the residuals to the GPSRO observations
     !
-    !
-    !Author  : J. M. Aparicio Jan 2004
-    !          Adapted Nov 2012 for both refractivity and bending angle data
-    !
-    !revision 01: M. Bani shahabadi Nov 2018
-    !           - gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
-    !             in gps_diff object w.r.t TT/HU/height/P0. The indirect dependency refractivity 
-    !             to TT/HU/P0 through height is now attributed to direct dependency of refractivity on height.
-    !
-    !*    Purpose:
-    !
-    !Arguments
-    !     jobs: total value of Jobs for GPSRO
+    ! :Note: gps_struct1sw_v2 allows calculation of partial derivatives of refractivity 
+    !        in gps_diff object w.r.t TT/HU/GZ/P0. The indirect dependency refractivity 
+    !        to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
     !
     implicit none
 
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     type(struct_vco), pointer :: vco_hr
-    logical :: beSilent
-    real(8) :: jobs
+    logical                 :: beSilent
+    real(8)                 :: jobs         ! total value of Jobs for GPSRO
 
     real(8) :: pjob, pjo1
     real(8) :: zlat, lat, slat
@@ -1146,43 +1147,13 @@ contains
   end subroutine oop_gpsro_nl
 
 
-  subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs,analysisMode_opt)
-    !!
-    !!**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
-    !!
-    !!
-    !!Author  : S. Macpherson  ARMA/MRD
-    !!Revisions:
-    !!          S. Macpherson Oct 2012
-    !!           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
-    !!           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
-    !!           -- option to use old NL operator removed
-    !!           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
-    !!           -- Uses columnData_mod.
-    !!
-    !!          S. Macpherson Dec 2012 - Jan 2013
-    !!           -- update from Rev189 to Rev213
-    !!           -- new namelist parameters in modgpsztd_mod
-    !!           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
-    !!           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
-    !!           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
-    !!           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
-    !!
-    !!          S. Macpherson Jun 2013
-    !!           -- Use true implementation of ZDP (dP/dP0), although not needed here
-    !!
-    !!          S. Macpherson Nov 2014
-    !!           -- modifications for case where P(nlev) is not equal to P0
-    !!
-    !!          S. Macpherson Jan 2015
-    !!           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
-    !!
-    !!          M. Bani Shahabadi Dec 2018
-    !!           -- use the calculated height in tt2phi in the gps_structztd_v2
-    !!
-    !!Arguments (out)
-    !!     jobs: total value of Jo for all GB-GPS (ZTD) observations
-    !!
+  subroutine oop_gpsgb_nl( columnhr, obsSpaceData, beSilent, jobs, analysisMode_opt )
+    !
+    ! :Purpose: Computation of Jo and the residuals to the GB-GPS ZTD observations
+    !
+    ! :Arguments:
+    !          :jobs: total value of Jo for all GB-GPS (ZTD) observations
+    !
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -1547,20 +1518,18 @@ contains
   end subroutine oop_gpsgb_nl
 
 
-  subroutine oop_tovs_nl(columnghr,obsSpaceData,datestamp,limlvhu,beSilent,  &
-                         jobs,bgckMode_opt,option_opt,sourceObs_opt,destObs_opt)
+  subroutine oop_tovs_nl( columnghr, obsSpaceData, datestamp, limlvhu, beSilent,  &
+                          jobs, bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
     !
-    !**s/r oop_tovs_nl  - Computation of jobs and the residuals to the tovs observations
+    ! :Purpose: Computation of jobs and the residuals to the tovs observations
     !
+    ! :Arguments:
+    !     :option_opt: defines input state:
     !
-    !author        : j. halle *cmda/aes  april 8, 2005
-    !
-    !arguments
-    !     option_opt: defines input state:
-    !               'HR': High Resolution background state,
-    !               'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
-    !               'MO': Model state. (CURRENTLY NOT SUPPORTED)
-    !     jobs: total value of jobs for tovs
+    !              - 'HR': High Resolution background state,
+    !              - 'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
+    !              - 'MO': Model state. (CURRENTLY NOT SUPPORTED)
+    !     :jobs: total value of jobs for tovs
     !
     implicit none
 
@@ -1571,7 +1540,7 @@ contains
     logical :: beSilent
     real(8) :: jobs
     logical, optional :: bgckMode_opt
-    character(len=*), optional :: option_opt        ! only valid value is HR
+    character(len=*), optional :: option_opt       ! only valid value is HR
     integer, optional, intent(in) :: sourceObs_opt ! usually set to OBS_VAR
     integer, optional, intent(in) :: destObs_opt   ! usually set to OBS_OMP
 
@@ -1645,46 +1614,23 @@ contains
   end subroutine oop_tovs_nl
 
 
-  subroutine oop_chm_nl(columnhr,obsSpaceData,jobs)
+  subroutine oop_chm_nl( columnhr, obsSpaceData, jobs )
     !
-    !**s/r oop_chm_nl - Computation of Jo and the residuals to the observations
-    !                 for all observations of the CH (chemical constituents) family.
-    !                 Stores OmP in OBS_OMP in obsSpaceData.
-    !
-    ! Author: M. Sitwell, ARQI/AQRD, Aug 2015
-    !         - Reduced to a call of chm_observation_operators
-    !           which contains much of the original version by Ping Du (CMDA/MSC) and
-    !           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding 
-    !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
-    !           with further original changes by Y. Rochon and M. Sitwell, 2015.
-    !
-    ! Revision:
-    ! 
-    ! Purpose:  Computation of Jo and the residuals to the observations
+    ! :Purpose: Computation of Jo and the residuals to the observations
     !           for all observations of the CH (chemical constituents) family.
     !           The array columnhr contains the input model array.
+    !           Stores OmP in OBS_OMP in obsSpaceData.
     !
+    ! :Arguments:
+    !     :columnhr:     Columnar arrays from model fields
+    !     :obsSpaceData: Obs space data structure
+    !     :jobs:         contribution to Jo
     !
-    ! Arguments
-    !
-    !   Input
-    !
-    !     columnhr      : Columnar arrays from model fields
-    !     obsSpaceData  : Obs space data structure
-    !
-    !   Output
-    !
-    !     jobs  : contribution to Jo
-    !
-    ! Comments:
-    !
-    !!----------------------------------------------------------------------------------
-
     implicit none
     
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    real(8) :: jobs
+    type(struct_obs)        :: obsSpaceData
+    real(8)                 :: jobs
     
     if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) then
        jobs = 0.0d0
@@ -1695,17 +1641,18 @@ contains
 
   end subroutine oop_chm_nl
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Compute simulated observations from profiled model increments.
-!!            It returns Hdx in OBS_WORK. Calls the several linear observation operators.
-!--------------------------------------------------------------------------
-  subroutine oop_Htl(column,columng,obsSpaceData,min_nsim)
+
+  subroutine oop_Htl( column, columng, obsSpaceData, min_nsim )
+    !
+    ! :Purpose: Compute simulated observations from profiled model increments.
+    !           It returns Hdx in OBS_WORK. Calls the several linear observation operators.
+    !
     implicit none
 
-    type(struct_columnData) :: column,columng
-    type(struct_obs) :: obsSpaceData
+    type(struct_columnData)   :: column,columng
+    type(struct_obs)          :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
-    integer, intent(in) :: min_nsim
+    integer, intent(in)       :: min_nsim
 
     logical, save :: firstTime = .true.
 
@@ -1765,18 +1712,17 @@ contains
 
   CONTAINS
 
-    subroutine subasic_obs(columng)
-      implicit none
-
-      ! s/r SUBASIC_OBS
-      !     OBJECT: Initialise background state dependant factors
+    subroutine subasic_obs( columng )
+      !
+      ! :Purpose:   Initialise background state dependant factors
       !             and vectors for use in TLM and adjoint of
       !             non-linear operator
       !
-      !     Author  : S. Pellerin *ARMA/AES Sept. 98
-      !
-      !
+      implicit none
+
       type(struct_columnData) :: columng
+
+      ! locals
       type(struct_vco), pointer :: vco_anl
       integer :: jlev,columnIndex,nlev_T,vcode_anl,status
       real(8) :: zhu,one
@@ -1811,15 +1757,14 @@ contains
 
 
     SUBROUTINE oop_Hpp()
-      !*
-      !* Purpose: Compute simulated Upper Air observations from profiled model
-      !*          increments.
-      !*          It returns Hdx in OBS_WORK
-      !*          Interpolate vertically the contents of commvo to
-      !*          the pressure levels of the observations.
-      !*          A linear interpolation in ln(p) is performed.
-      !*
-      !*implicits
+      !
+      ! : Purpose: Compute simulated Upper Air observations from profiled model
+      !            increments.
+      !            It returns Hdx in OBS_WORK
+      !            Interpolate vertically the contents of commvo to
+      !            the pressure levels of the observations.
+      !            A linear interpolation in ln(p) is performed.
+      !
 
       implicit none
 
@@ -1904,11 +1849,11 @@ contains
 
 
     SUBROUTINE oop_Hsf()
-      !*
-      !* Purpose: Compute simulated surface observations from profiled model
-      !*          increments.
-      !*          It returns Hdx in OBS_WORK
-      !*
+      !
+      ! :Purpose: Compute simulated surface observations from profiled model
+      !           increments.
+      !           It returns Hdx in OBS_WORK
+      !
       IMPLICIT NONE
 
       INTEGER IPB,IPT,IXTR
@@ -2014,11 +1959,11 @@ contains
 
 
     subroutine oop_Hsst()
-      !*
-      !* Purpose: Compute simulated sea surface temperature observations 
-      !*          from profiled model increments.
-      !*          It returns Hdx in OBS_WORK
-      !*
+      !
+      ! :Purpose: Compute simulated sea surface temperature observations 
+      !           from profiled model increments.
+      !           It returns Hdx in OBS_WORK
+      !
       implicit none
 
       integer :: headerIndex, bodyIndex, ityp
@@ -2055,11 +2000,11 @@ contains
 
 
     subroutine oop_Hice()
-      !*
-      !* Purpose: Compute simulated sea ice concentration observations 
-      !*          from profiled model increments.
-      !*          It returns Hdx in OBS_WORK
-      !*
+      !
+      ! :Purpose: Compute simulated sea ice concentration observations 
+      !           from profiled model increments.
+      !           It returns Hdx in OBS_WORK
+      !
       implicit none
 
       integer :: headerIndex, bodyIndex, ityp
@@ -2101,20 +2046,9 @@ contains
 
     subroutine oop_Hto()
       !
-      ! Purpose: Compute simulated radiances observations from profiled model
+      ! :Purpose: Compute simulated radiances observations from profiled model
       !          increments.
       !          It returns Hdx in OBS_WORK
-      !
-      !author        : j. halle *cmda/aes  april 8, 2005
-      !
-      !revision 001  : a. beaulne *cmda/smc  july 2006
-      !                    -addition of geopotential field in call to
-      !                     tovs_fill_profiles
-      !                S. Pellerin, ARMA, August 2008
-      !                    - Avoid multiple (iterative) interpolation to 43 levels
-      !                      background variable profiles
-      !                S. Pellerin, ARMA, January 2009
-      !                    - call to oop_storeHdx_radiances instead computing Jo
       !
       implicit none
 
@@ -2145,17 +2079,9 @@ contains
 
 
     SUBROUTINE oop_Hro()
-      !*
-      !* Purpose: Compute the tangent operator for GPSRO observations.
-      !*
-      !*Author  : J. M. Aparicio Jan 2004
-      !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
       !
-      ! revision 02: M. Bani Shahabadi, Nov 2018
-      !            - Calculation of the Jacobians is done separately in 
-      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
-      !              placed here in the observation operator.
-      !*    -------------------
+      ! :Purpose: Compute the tangent operator for GPSRO observations.
+      !
 
       implicit none
 
@@ -2257,18 +2183,15 @@ contains
 
 
     SUBROUTINE oop_Hzp()
-      !*
-      !* Purpose: Compute simulated geometric-height based observations from
-      !*          profiled model
-      !*          increments, including profiler data and aladin wind data.
-      !*          It returns Hdx in OBS_WORK
-      !*          Interpolate vertically the contents of commvo to heights
-      !*          (in meters) of the observations.
-      !*          A linear interpolation in z is performed.
-      !*
-      !*Author  :  J. St-James, CMDA/SMC July 2003
-      !*           J.W. Blezius arma     March 2018 add aladin winds
-
+      !
+      ! :Purpose: Compute simulated geometric-height based observations from
+      !           profiled model
+      !           increments, including profiler data and aladin wind data.
+      !           It returns Hdx in OBS_WORK
+      !           Interpolate vertically the contents of commvo to heights
+      !           (in meters) of the observations.
+      !           A linear interpolation in z is performed.
+      !
       implicit none
 
       INTEGER IPB,IPT
@@ -2368,21 +2291,10 @@ contains
 
 
     SUBROUTINE oop_Hgp()
-      !*
-      !***s/r  -oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
-      !*
-      !*
-      !*Author  : S. Macpherson *ARMA October 2012
       !
-      ! revision 01 : M. Bani Shahabadi Dec 2018
-      !             - The ztd Jacobian contains the derivative w.r.t height. 
+      ! :Purpose: Compute H'dx for all GPS ZTD observations
+      !           oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
       !
-      ! revision 02 : M. Bani Shahabadi Dec 2018
-      !             - Calculation of the Jacobians in done separately in 
-      !               'oop_calcGPSGBJacobian' subroutine
-      !*    -------------------
-      !**    Purpose: Compute H'dx for all GPS ZTD observations
-      !*
       implicit none
 
       REAL*8 ZHX
@@ -2485,20 +2397,9 @@ contains
 
     subroutine oop_Hchm()
       !
-      !**s/r oop_Hchm- Compute simulated chemical constituents observations from profiled model
-      !                increments, and returns Hdx in OBS_WORK
+      ! :Purpose: Compute simulated chemical constituents observations from profiled model    
+      !           increments, and returns Hdx in OBS_WORK
       !
-      !*Author: M. Sitwell, ARQI/AQRD, Aug 2015
-      !         - Reduced to a call of chm_observation_operators
-      !           which contains much of the original version by Ping Du (CMDA/MSC) and
-      !           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
-      !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
-      !           with further original changes by Y. Rochon and M. Sitwell, 2015. 
-      !
-      !**   Purpose: Compute simulated chemical constituents observations from profiled model    
-      !              increments, and returns Hdx in OBS_WORK
-      !
-      !-----------------------------------------------------------------------------------
 
       implicit none
 
@@ -2512,13 +2413,16 @@ contains
   end subroutine oop_Htl
 
 
-  subroutine oop_Had(column,columng,obsSpaceData)
+  subroutine oop_Had( column, columng, obsSpaceData )
+    !
+    ! :Purpose: Call the several adjoint of observation operators
+    !    
     implicit none
-    !
-    !Call the several adjoint of observation operators
-    !
-    type(struct_columnData) :: column,columng
-    type(struct_obs) :: obsSpaceData
+
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columng
+    type(struct_obs)        :: obsSpaceData
+
     type(struct_vco), pointer :: vco_anl
     logical, save :: firstTime = .true.
 
@@ -2575,17 +2479,11 @@ contains
 
     SUBROUTINE oop_HTpp
       !
-      !**s/r   - Adjoint of the "vertical" interpolation
-      !          for "UPPER AIR" data files.
-      !
-      !
-      !
-      !Author  : P. Koclas *CMC/AES  April 1996
-      !
-      !     Purpose: based on vint3d to build the adjoint of the
-      !              vertical interpolation for UPPER-AIR data files.
+      ! :Purpose: Adjoint of the "vertical" interpolation, based on vint3d,
+      !           for "UPPER AIR" data files.
       !
       implicit none
+
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
       REAL*8 ZWB,ZWT
@@ -2681,17 +2579,12 @@ contains
 
 
     SUBROUTINE oop_HTsf
-      !*
-      !***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
-      !*                  for "SURFACE" data files.
-      !*
-      !*Author  : P. Koclas *CMC/AES  April 1996
-      !*    -------------------
-      !*
-      !*     Purpose: based on surfc1dz to build the adjoint of the
-      !*              vertical interpolation for SURFACE data files.
-      !*
+      !
+      ! :Purpose: based on surfc1dz to build the adjoint of the
+      !          vertical interpolation for SURFACE data files.
+      !
       implicit none
+
       INTEGER IPB,IPT
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
@@ -2810,9 +2703,9 @@ contains
 
 
     subroutine oop_HTsst
-      !*
-      !*** Adjoint of the "vertical" interpolation for SST data
-      !*
+      !
+      ! :Purpose: Adjoint of the "vertical" interpolation for SST data
+      !
       implicit none
       real(8) :: residual
       integer :: headerIndex, bodyIndex, ityp 
@@ -2852,10 +2745,11 @@ contains
 
 
     subroutine oop_HTice
-      !*
-      !*** Adjoint of the "vertical" interpolation for ICE data
-      !*
+      !
+      ! :Purpose: Adjoint of the "vertical" interpolation for ICE data
+      !
       implicit none
+
       real(8) :: residual, scaling
       integer :: headerIndex, bodyIndex, ityp
       real(8), pointer :: columnGL(:)
@@ -2895,18 +2789,9 @@ contains
 
     subroutine oop_HTto
       !
-      !**s/r tovs_obs_ad  - Adjoint of computation of residuals to the tovs observations
+      ! :Purpose: Adjoint of computation of residuals to the tovs observations
       !
-      !
-      !author        : j. halle *cmda/aes  april 19, 2005
-      !
-      !revision 001  :
-      !                S. Pellerin - ARMA, jan. 2009
-      !                - call  to oop_get_radiance_ad
-      !
-      !    -------------------
-      !     purpose:
-      !
+
       implicit none
 
       if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) return
@@ -2924,17 +2809,9 @@ contains
 
 
     SUBROUTINE oop_HTro
-      !*
-      !* Purpose: Compute the adjoint operator for GPSRO observations.
-      !*
-      !*Author  : J. M. Aparicio Jan 2004
-      !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
       !
-      ! revision 02: M. Bani Shahabadi, Nov 2018
-      !            - Calculation of the Jacobians is done separately in 
-      !              'oop_calcGPSROJacobian' subroutine. The call to this routine is
-      !              placed here in the observation operator.
-      !*    -------------------
+      ! :Purpose: Compute the adjoint operator for GPSRO observations.
+      !
 
       implicit none
 
@@ -3052,20 +2929,13 @@ contains
 
 
     SUBROUTINE oop_HTzp
-      !*
-      !***s/r AOBSZZZ  - Adjoint of the "vertical" interpolation in z
-      !*                 for profiler and aladin data.
-      !*
-      !*Author  : J. St-James *CMDA/SMC  July 2003
-      !*          J.W. Blezius arma      March 2018 add aladin winds
-      !*Revision :
-      !*    -------------------
-      !*
-      !*     Purpose: based on vint3d to build the adjoint of the
-      !*              vertical interpolation of geometric-height based data,
-      !*              including profiler data and aladin wind data.
-      !*
+      !
+      ! :Purpose: based on vint3d to build the adjoint of the
+      !           vertical interpolation of geometric-height based data,
+      !           including profiler data and aladin wind data.
+      !
       implicit none
+
       INTEGER IPB,IPT
       REAL(8) :: ZRES,ZDA1,ZDA2,ZDENO,columngVarB,columngVarT
       REAL(8) :: ZWB,ZWT,deltaAladin
@@ -3170,30 +3040,11 @@ contains
 
 
     SUBROUTINE oop_HTgp
-      !*
-      !***s/r  -oop_HTgp Adjoint of TL routine oop_Hgp
-      !*
-      !*
-      !*Author  : S. Macpherson *ARMA October 2012
       !
-      !*Revisions:
+      ! :Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
       !
-      ! S. Macpherson ARMA  14 Jan 2013
-      !            - like oop_HTro, use OpenMP and Jacobian storage to speed up
+      ! :Note:  ZTD Jacobians are computed and stored in oop_Hgp (first iter.)
       !
-      ! revision 01 : M. Bani Shahabadi Dec 2018
-      !            - The ztd Jacobian contains the derivative w.r.t height. 
-      !
-      ! revision 02 : M. Bani Shahabadi Dec 2018
-      !             - Calculation of the Jacobians in done separately in 
-      !               'oop_calcGPSGBJacobian' subroutine
-      !
-      !*    -------------------
-      !**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
-      !
-      !  NOTE:  ZTD Jacobians are computed and stored in oop_Hgp (first iter.)
-      !
-      !*
       implicit none
 
       REAL*8 DPJO0(ngpscvmx)
@@ -3299,20 +3150,9 @@ contains
 
 
     subroutine oop_HTchm
-      !*
-      !***s/r  - oop_HTchm: Adjoint of TL routine oda_Hchm
-      !*
-      !*
-      !*Author: M. Sitwell, ARQI/AQRD, Aug 2015
-      !         - Reduced to a call of chm_observation_operators
-      !           which contains much of the original version by Ping Du (CMDA/MSC) and
-      !           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
-      !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
-      !           with further original changes by Y. Rochon and M. Sitwell, 2015.
       !
-      !**   Purpose: Compute H^T * R^-1 (OmP-Hdx) for all CH observations  
+      ! :Purpose: Compute H^T * R^-1 (OmP-Hdx) for all CH observations  
       !
-      !-----------------------------------------------------------------------------------
 
       implicit none
       
@@ -3324,16 +3164,21 @@ contains
 
   end subroutine oop_Had
 
-  function HUtoES(hu,tt,pressure) result(es)
+  function HUtoES( hu, tt, pressure ) result( es )
     !
-    ! Purpose:
+    ! :Purpose:
     !          to calculate the dew point depression from specific
     !          humidity, temperature and pressure.  No ice phase
     !          is permitted and the pressure vector is given.
     !
     implicit none
-    real(8), intent(in) :: hu, tt, pressure
-    real(8) :: husat, td, es
+    real(8), intent(in) :: hu
+    real(8), intent(in) :: tt
+    real(8), intent(in) :: pressure
+
+    real(8)             :: es
+
+    real(8) :: husat, td
 
     ! get the saturated vapor pressure from lq (log of specific humidity)
     husat = foefq8(hu,pressure)
@@ -3349,15 +3194,24 @@ contains
 
   function HUtoES_tl(HU_inc,TT_inc,P_inc,HU_trial,PRES_trial) result(ES_inc)
     !
-    ! Purpose: TLM VERSION
-    !          to calculate the dew point depression from specific
-    !          humidity, temperature and pressure.  No ice phase
-    !          is permitted and the pressure vector is given.
+    ! :Purpose: TLM VERSION
+    !           to calculate the dew point depression from specific
+    !           humidity, temperature and pressure.  No ice phase
+    !           is permitted and the pressure vector is given.
     !
     implicit none
-    REAL(8), intent(in) :: HU_inc, TT_inc, P_inc, HU_trial, PRES_trial
-    REAL(8) :: ZE, ZTD, dTDdE, ZQBRANCH, ES_inc
-    REAL(8) :: dESdLQ, dESdTT, dESdP
+    real(8)             :: ES_inc
+
+    ! Arguments:
+    real(8), intent(in) :: HU_inc
+    real(8), intent(in) :: TT_inc
+    real(8), intent(in) :: P_inc
+    real(8), intent(in) :: HU_trial
+    real(8), intent(in) :: PRES_trial
+
+    ! Locals:
+    real(8) :: ZE, ZTD, dTDdE, ZQBRANCH
+    real(8) :: dESdLQ, dESdTT, dESdP0
 
     dESdTT = 1.0d0
 
@@ -3418,17 +3272,15 @@ contains
   end subroutine HUtoES_ad
 
 
-  subroutine oop_calcGPSROJacobian(columng,obsSpaceData)
+  subroutine oop_calcGPSROJacobian( columng, obsSpaceData )
     !
-    !**s/r oop_calcGPSROJacobian - Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
-    !
-    !Author  : M. Bani Shahabadi, Oct 2018
-    !          - based on the original oop_Hro by Josep M. Aparicio 
+    ! :Purpose: Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
     !
 
     implicit none
+
     type(struct_columnData) :: columng
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
 
     real(8) :: zlat, lat, slat
     real(8) :: zlon, lon
@@ -3593,14 +3445,13 @@ contains
   end subroutine oop_calcGPSROJacobian
 
 
-  subroutine oop_calcGPSGBJacobian(columng,obsSpaceData)
+  subroutine oop_calcGPSGBJacobian( columng, obsSpaceData )
     !
-    !**s/r oop_calcGPSGBJacobian - Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
+    ! :Purpose: Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
     !
-    !Author  : M. Bani Shahabadi, Dec 2018
-    !          - based on the original oop_Hgp by S. Macpherson
-    !
+
     implicit none
+
     type(struct_columnData) :: columng
     type(struct_obs) :: obsSpaceData
 

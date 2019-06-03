@@ -50,7 +50,12 @@ module oMinusF_mod
 
     subroutine omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
                            varMode, addHBHT, addSigmaO)
+      !
+      ! :Purpose: compute Observation-minus-Forecast (OmF)
+      !
+
       implicit none
+      ! Arguments:
       type(struct_columnData),target, intent(inout)  :: trlColumnOnAnlLev
       type(struct_columnData),target, intent(inout)  :: trlColumnOnTrlLev
       type(struct_obs),       target, intent(inout)  :: obsSpaceData
@@ -58,6 +63,7 @@ module oMinusF_mod
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
 
+      ! locals
       type(struct_vco),       pointer :: vco_anl  => null()
       type(struct_hco),       pointer :: hco_anl  => null()
       type(struct_hco),       pointer :: hco_core => null()

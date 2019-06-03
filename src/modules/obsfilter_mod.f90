@@ -181,7 +181,7 @@ contains
     itotelem = 0
     do elem2 = 1, filt_nelems
        elem=obs_get_obs_index_for_bufr_element(nlist(elem2))
-       if (elem .ne. -1) then
+       if (elem /= -1) then
           itotelem = itotelem + 1
           ielem = nlist(itotelem)
           nlist(itotelem) = nlist(elem2)
@@ -259,9 +259,9 @@ contains
   ! filt_suprep
   !--------------------------------------------------------------------------
   subroutine filt_suprep(obsSpaceData)
-    !!
-    !!*    Purpose: Select the data in the obsSpaceData which are to be assimilated
-    !!
+    !
+    ! :Purpose: Select the data in the obsSpaceData which are to be assimilated
+    !
     implicit none
     type(struct_obs) :: obsSpaceData
     integer bodyIndex,headerIndex
@@ -361,7 +361,7 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topo
   !--------------------------------------------------------------------------
-  subroutine filt_topo(columnhr,obsSpaceData,beSilent)
+  subroutine filt_topo( columnhr, obsSpaceData, beSilent )
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -402,16 +402,17 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoSurface
   !--------------------------------------------------------------------------
-  subroutine filt_topoSurface(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Purpose: Refuse elements which are too far away from the surface.
-    !!          Replace the pressure of elements which are slightly below
-    !!          the model surface by the pressure of the trial field.
-    !!
+  subroutine filt_topoSurface( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose: Refuse elements which are too far away from the surface.
+    !           Replace the pressure of elements which are slightly below
+    !           the model surface by the pressure of the trial field.
+    !
     implicit none
+
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
 
     logical :: llok
     real(8) :: zdiff
@@ -517,13 +518,14 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoRadiosonde
   !--------------------------------------------------------------------------
-  subroutine filt_topoRadiosonde(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Purpose: Refuse elements which are too far away from the surface of the model
-    !!          Refuse elements which are considered in the free atmosphere of
-    !!          the RAOB but fall in the surface boundary layer of the model atmosphere.
-    !!
+  subroutine filt_topoRadiosonde( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose: Refuse elements which are too far away from the surface of the model
+    !           Refuse elements which are considered in the free atmosphere of
+    !           the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !
     implicit none
+   
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
@@ -710,10 +712,10 @@ contains
   !--------------------------------------------------------------------------
   ! filt_topoAISW
   !--------------------------------------------------------------------------
-  subroutine filt_topoAISW(columnhr,obsSpaceData,obsFamily,beSilent)
-    !!
-    !! Purpose:  Refuse elements which are too close to the surface.
-    !!
+  subroutine filt_topoAISW( columnhr, obsSpaceData, obsFamily, beSilent )
+    !
+    ! :Purpose:  Refuse elements which are too close to the surface.
+    !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -758,7 +760,7 @@ contains
       zval = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
       zdiff = col_getElem(columnhr,1,headerIndex,'P0') - zval
-      if ( zdiff .lt. surfaceBufferZone_Pres ) then
+      if ( zdiff < surfaceBufferZone_Pres ) then
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
         if(listIndex == -1) cycle BODY
@@ -795,11 +797,11 @@ end subroutine filt_topoAISW
   ! filt_topoProfiler
   !--------------------------------------------------------------------------
   subroutine filt_topoProfiler(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Purpose: Refuse elements which are too far away from the surface of the model
-    !!          Refuse elements which are considered in the free atmosphere of
-    !!          the RAOB but fall in the surface boundary layer of the model atmosphere.
-    !!
+    !
+    ! :Purpose: Refuse elements which are too far away from the surface of the model
+    !           Refuse elements which are considered in the free atmosphere of
+    !           the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -860,12 +862,12 @@ end subroutine filt_topoAISW
           ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
           llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1  &
-               .and. ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
+               .and. ivnm /= BUFR_NEGZ .and. listIndex /= -1)
           if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = zModAlt
-          if (zStnAlt .gt. zModAlt) then
+          if (zStnAlt > zModAlt) then
              zpt = zStnAlt + surfaceBufferZone_Height
           else
              zpt = zModAlt + surfaceBufferZone_Height
@@ -920,12 +922,12 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoAladin
   !--------------------------------------------------------------------------
-  subroutine filt_topoAladin(columnhr,obsSpaceData,beSilent)
-    !!
-    !! *Purpose*: Refuse elements which are considered to be in the free atmosphere
-    !!            of the Aladin instrument but which fall in the surface boundary
-    !!            layer of the model atmosphere.
-    !!
+  subroutine filt_topoAladin( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose: Refuse elements which are considered to be in the free atmosphere
+    !           of the Aladin instrument but which fall in the surface boundary
+    !           layer of the model atmosphere.
+    !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1039,10 +1041,10 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoTovs
   !--------------------------------------------------------------------------
-  subroutine filt_topoTovs(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Purpose:  Refuse data which are too close to the surface.
-    !!
+  subroutine filt_topoTovs( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose:  Refuse data which are too close to the surface.
+    !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1120,10 +1122,10 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_surfaceWind
   !--------------------------------------------------------------------------
-  SUBROUTINE filt_surfaceWind(lobsSpaceData,beSilent)
-    !!
-    !!* Purpose: zap sfc wind components at land stations
-    !!
+  SUBROUTINE filt_surfaceWind( lobsSpaceData, beSilent )
+    !
+    ! :Purpose: zap sfc wind components at land stations
+    !
     IMPLICIT NONE
     type(struct_obs) :: lobsSpaceData
     logical :: beSilent
@@ -1251,16 +1253,17 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_gpsro
   !--------------------------------------------------------------------------
-  SUBROUTINE FILT_GPSRO(lcolumnhr,lobsSpaceData)
-    !!
-    !!**s/r FILTERGPSRO - Filter GPSRO observations
-    !!                    Guarantee that altitude and observation values are
-    !!                    within bounds for further processing
-    !!
-    !!                    For noncompliant GPSRO observations:
-    !!                    -Set assimilable flag to 0
-    !!                    -Set bit of cma flag 11 ON
-    !!
+  SUBROUTINE FILT_GPSRO( lcolumnhr, lobsSpaceData )
+    !
+    ! :Purpose: Filter GPSRO observations
+    !           Guarantee that altitude and observation values are
+    !           within bounds for further processing
+    !
+    ! :Note: For noncompliant GPSRO observations:
+    !
+    !                   - Set assimilable flag to 0
+    !                   - Set bit of cma flag 11 ON
+    !
     use gps_mod
     IMPLICIT NONE
     !
@@ -1413,15 +1416,15 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_topoChemistry
   !--------------------------------------------------------------------------
-  SUBROUTINE filt_topoChemistry(columnhr,obsSpaceData,beSilent)
-    !!
-    !! Purpose: Rejects elements which are too far below the model surface
-    !!          or above the model top.
-    !!
-    !! Comments:
-    !!   - Flagging of bit 4 in OBS_FLG done in filt_topoChemistry instead of set_scale_chm
-    !!     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
-    !!
+  SUBROUTINE filt_topoChemistry( columnhr, obsSpaceData, beSilent )
+    !
+    ! :Purpose: Rejects elements which are too far below the model surface
+    !           or above the model top.
+    !
+    ! :Comments:
+    !    Flagging of bit 4 in OBS_FLG done in filt_topoChemistry instead of set_scale_chm
+    !    since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
+    !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
