@@ -24,7 +24,6 @@ nil
 MODULES REMAINING - clean up existing subroutine descriptions
 =================            ================================
 >>> JEFF IS WORKING DOWN THIS LIST FROM HERE <<<
-gps_mod.f90
 gridBinning_mod.ftn90
 gridstatevector_mod.f90
 horizontalcoord_mod.f90
