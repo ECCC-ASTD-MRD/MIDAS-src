@@ -1548,7 +1548,7 @@ contains
     logical :: llprint,bgckMode
     character(len=2) :: option
 
-    if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) then
+    if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) then
        jobs=0.0d0
        return
     end if
@@ -1632,7 +1632,7 @@ contains
     type(struct_obs)        :: obsSpaceData
     real(8)                 :: jobs
     
-    if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) then
+    if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) then
        jobs = 0.0d0
        return
     end if
@@ -2054,7 +2054,7 @@ contains
 
       integer :: datestamp
 
-      if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) return
+      if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
       !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
       !     .    -----------------------------------------------------------------------------
@@ -2403,7 +2403,7 @@ contains
 
       implicit none
 
-      if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) return
+      if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
       call chm_observation_operators(columng,obsSpaceData,kmode=2,columnInc_opt=column) ! kmode=2 for tangent linear operator
 
@@ -2794,7 +2794,7 @@ contains
 
       implicit none
 
-      if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) return
+      if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
       !     1.   Getting the adjoint of the residuals
       !     .    ----------------------------------
@@ -3156,7 +3156,7 @@ contains
 
       implicit none
       
-      if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) return
+      if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
       call chm_observation_operators(columng,obsSpaceData,kmode=3,columnInc_opt=column) ! kmode=3 for adjoint of the tangent linear operator
 

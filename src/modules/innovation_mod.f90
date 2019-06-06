@@ -497,7 +497,7 @@ contains
     !        GPS - RADIO OCCULTATION
     !-------------------------------
     ZJOGPSRO=0.0D0
-    if (obs_famExist(obsSpaceData,'RO',local_mpi=.true.)) then
+    if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
        CALL filt_gpsro(columnhr,obsSpaceData)
        CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
        call oop_gpsro_nl(columnhr,obsSpaceData,beSilent,ZJOGPSRO)
@@ -511,7 +511,7 @@ contains
     !-------------------------------
     !
     ZJOGPSGB=0.0D0
-    if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
+    if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
         call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
         if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.true.)
