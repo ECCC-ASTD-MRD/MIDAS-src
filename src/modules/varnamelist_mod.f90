@@ -178,7 +178,7 @@ module varNameList_mod
         varName='DW'
       case ( BUFR_SST )
         varname='TG'
-      case ( BUFR_ICEC  )
+      case ( BUFR_ICEC, BUFR_ICEP, BUFR_ICEV )
         varname='GL'
       case ( bufr_vis )
         varname='LVIS'

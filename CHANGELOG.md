@@ -5,16 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
- * Minor fix in tt2phi_mod.f90 (slightly affects results) : now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
- * Change '!' to '!!' in those places that bothered Sphinx.
-	
+ 
 ### Added
 
+ * Footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197, !222)
  * The environment variable `MIDAS_MAKE_LINKS_MACHINE_LIST` can be
    used to control the hosts on which links will be created by
    `install_suite.sh` in the maestro test suite.  By default, only the
    links on which the suite will run are created. (#231 and !216)
- * The logical namelist variable ltopofilt has been removed. You probably MUST update your namelist. The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples (#225 and !211).
+ * The logical namelist variable ltopofilt has been removed. Note: you probably **must update your namelist** (#225 and !211)
+   * The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples.
  * Add ability to define a local domain and control inclusion of each variable for energy norm (#207 and !204)
  * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
@@ -51,13 +51,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * Variable/function/subroutine names that include `gz` are changed to `height` to reflect the fact that geometric altitude/height is now the primary variable instead of geopotential.
     * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations). 
     * The execution time is also increased for some (e.g. gdps takes ~100 seconds longer, but this can be reduced by increasing number of nodes to 30 or 36).
+ * Minor change in tt2phi_mod.f90 (slightly affects results): now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
  * The namelist variable `scaleFactor` in NAMBHI must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
  * CalcStats in LAM mode was made MPI compatible (#158 and !202)
- * Replacing the old numerical recipe for generating gaussian random
-   values by a much more efficient method (#82 and !192)
+ * Replacing the old numerical recipe for generating gaussian random values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
     * This is changing the results only for the program `randomPert.Abs`.
- * Change to the height (GZ) calculation within MIDAS so that GPS-RO and GPS-gb now use same heights as other obs types (#141 and !191)
+ * Changes to the height (GZ) calculation within MIDAS so that GPS-RO and GPS-gb now use same heights as other obs types (#141 and !191)
     * The variable was also changed from geopotential to altitude
     * New namelist variable to allow using static GPS-RO observation error variance
     * Small change to H(x) results due to these modifications for GPS-RO, GPS-gb, GZ and possibly sfc obs

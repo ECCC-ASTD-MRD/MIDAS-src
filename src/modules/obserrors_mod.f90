@@ -855,7 +855,7 @@ contains
 
       idata    = obs_headElem_i( lobsSpaceData, OBS_RLN, headerIndex )
       idatend  = obs_headElem_i( lobsSpaceData, OBS_NLV, headerIndex ) + idata - 1
-      cfam     =  obs_getFamily( lobsSpaceData, headerIndex )
+      cfam     = obs_getFamily ( lobsSpaceData, headerIndex )
       zlat     = obs_headElem_r( lobsSpaceData, OBS_LAT, headerIndex )
       zlon     = obs_headElem_r( lobsSpaceData, OBS_LON, headerIndex )
       codeType = obs_headElem_i( lobsSpaceData, OBS_ITY, headerIndex )
@@ -1124,7 +1124,7 @@ contains
                 !        ALADIN HORIZONTAL LINE-OF-SIGHT WIND DATA
                 !***********************************************************************
 
-          else if ( CFAM == 'AL' ) then
+          else if ( cfam == 'AL' ) then
 
             ! TEMPORARILY, hard-code the observation error of AL winds to 2 m/s
             call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 2.0d0 )

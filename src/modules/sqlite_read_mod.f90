@@ -78,7 +78,7 @@ contains
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*) , intent(in)    :: rdbSchema,idStation
+    character(len=*) , intent(in)    :: rdbSchema, idStation
     character(len=2) , intent(in)    :: familyType
     integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, landSea, roQcFlag
     integer          , intent(in)    :: obsSat, instrument, idProf
@@ -140,7 +140,8 @@ contains
     character(len=*) , intent(in)    :: fileName   ! SQLITE filename
     integer          , intent(in)    :: FileNumb   ! Stdout file unit number
     ! locals
-    character(len=9)         :: rdbSchema,idStation
+    character(len=9)         :: rdbSchema
+    character(len=12)        :: idStation
     integer                  :: obsIdo, obsIdd, codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
     real(obs_real)           :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact

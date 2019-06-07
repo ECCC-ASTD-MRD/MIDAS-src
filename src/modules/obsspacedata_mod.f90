@@ -3845,6 +3845,11 @@ contains
          call obs_headSet_r(obsdat, OBS_SZA, obsdat%numHeader, satzen)
          call obs_headSet_r(obsdat, OBS_CLF, obsdat%numHeader, clfr)
          ! PLH       call obs_headSet_i(obsdat, ncmst1, obsdat%numHeader, iflgs)
+
+      else
+
+         call obs_abort('obs_generate_header: numHeader reached numHeader_max')
+
       endif
 
    end subroutine obs_generate_header
