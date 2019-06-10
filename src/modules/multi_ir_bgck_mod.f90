@@ -162,19 +162,13 @@ contains
   end subroutine irbg_init
 
 
-  subroutine irbg_setup(lobsSpaceData)
-!
-!  s/r irbg_setup : Memory allocation for the Hyperspectral Infrared
-!                background check variables
-!          (original name of routine: sutovalo)
-!
-! Revision:
-
-!           S.  Heilliette
-!            - creation from tovs_setup_allo  December 2013
-
+  subroutine irbg_setup( lobsSpaceData )
+    !
+    ! :Purpose: Memory allocation for the Hyperspectral Infrared
+    !           background check variables
+    !           (original name of routine: sutovalo)
+    !
     implicit none
-!implicits
 
     type(struct_obs) :: lobsSpaceData
 
@@ -246,13 +240,11 @@ contains
 
   end subroutine irbg_setup
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Do background check on all hyperspectral infrared observations
-!!
-!! @author P. Koclas *CMC/CMDA  Nov 1998
-!!
-!--------------------------------------------------------------------------
-  subroutine irbg_bgCheckIR(columnhr,obsSpaceData)
+
+  subroutine irbg_bgCheckIR( columnhr, obsSpaceData )
+    !
+    ! :Purpose: Do background check on all hyperspectral infrared observations
+    !
     IMPLICIT NONE
 
     type(struct_obs) :: obsSpaceData
@@ -326,11 +318,13 @@ contains
 
   END subroutine IRBG_BGCHECKIR
 
-  subroutine add_cloudprms(lobsSpaceData)
+
+  subroutine add_cloudprms( lobsSpaceData )
+
     implicit none
 
-    type(struct_obs) :: lobsSpaceData
-    integer          :: fileIndex
+    type(struct_obs)  :: lobsSpaceData
+    integer           :: fileIndex
     character(len=10) :: obsFileType
     
     ! If obs files not split and I am not task 0, then return
@@ -351,9 +345,9 @@ contains
   end subroutine add_cloudprms
 
 
-  subroutine hir_cldprm_to_brp(lobsspacedata,brp_file)
+  subroutine hir_cldprm_to_brp( lobsspacedata, brp_file )
     IMPLICIT NONE
-    !implicits
+
     CHARACTER(LEN=128),intent(in)     :: BRP_FILE
     type(struct_obs),intent(inout)    :: lobsSpaceData
 
@@ -868,11 +862,16 @@ contains
 
   contains
 
-    !------------------------------------- HANDLE_ERROR -----
   
-    subroutine handle_error(errormessage)
+    subroutine handle_error( errormessage )
+      !
+      ! :Purpose: handle error
+      !
+
       implicit none
+
       character (len=*) :: errormessage
+
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
       call BURP_STR_ERROR_HISTORY()
@@ -881,12 +880,19 @@ contains
       call BURP_Free(Rpt_in,Cp_rpt)
       call BURP_Free(Block_in)
       call utl_abort(trim(errormessage))
+
     end subroutine handle_error
 
-    subroutine Insert_into_burp_r8(r8val,pele,pval,pt)
+
+    subroutine Insert_into_burp_r8( r8val, pele, pval, pt )
+      !
       implicit none
-      real (8), intent(in):: r8val
-      integer, intent(in) :: pele,pval,pt
+
+      real (8), intent(in) :: r8val
+      integer , intent(in) :: pele
+      integer , intent(in) :: pval
+      integer , intent(in) :: pt
+
       integer :: error
       
       if ( r8val >= 0.d0 ) then
@@ -911,10 +917,15 @@ contains
 
     end subroutine Insert_into_burp_r8
 
-    subroutine Insert_into_burp_i(ival,pele,pval,pt)
+    subroutine Insert_into_burp_i( ival, pele, pval, pt )
+      !
       implicit none
+
       integer, intent(in) :: ival
-      integer, intent(in) :: pele,pval,pt
+      integer, intent(in) :: pele
+      integer, intent(in) :: pval
+      integer, intent(in) :: pt
+
       integer :: error
       
       if ( ival >= 0 ) then
@@ -943,10 +954,13 @@ contains
   END subroutine HIR_CLDPRM_TO_BRP
 
 
-  subroutine BGCK_GET_QCID(CINSTR,QCID)
+  subroutine BGCK_GET_QCID( CINSTR, QCID )
+    !
     implicit none
-    character (len=*),intent(in) :: CINSTR
-    integer ,intent (out) :: QCID
+
+    character (len=*), intent(in)   :: CINSTR
+    integer          , intent (out) :: QCID
+
     !**********
     integer :: i 
 
@@ -966,34 +980,18 @@ contains
 
   end subroutine BGCK_GET_QCID
 
-  subroutine irbg_doQualityControl ( lcolumnhr, lobsSpaceData,CINST,id_opt)
-!!
-!!**ID irbg_doQualityControl -- QUALITY CONTROL OF HYPERSPECTRAL INFRARED OBSERVATIONS
-!!
-!!       SCIENCE:  L. GARAND
-!!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
-!!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
-!!                 S. HEILLIETTE           February 2008 (adaptation to IASI)
-!!                 S. MACPHERSON, S.HEILLIETTE (ARMA) February 2013 
-!!                   -- modify test pour detecter le isatzen manquant ou anormal
-!!
-!!       REVISION:
-!!
-!!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS 
-!!
-!!       ARGUMENTS:
-!!          INPUT:
-!!            -LOOP_DONE : NUMBER OF PREVIOUS CALLS TO irbg_doQualityControl
-!!
-!!          OUTPUT:
-!!            -LEND       : AT THE END OF THIS CALL TO irbg_doQualityControl, DO ALL 
-!!                               PROFILES BEEN TREATED (true) OR NOT (false)
-!!
+  subroutine irbg_doQualityControl ( lcolumnhr, lobsSpaceData, CINST, id_opt )
+    !
+    ! :Purpose: QUALITY CONTROL OF HYPERSPECTRAL INFRARED OBSERVATIONS.
+    !           ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS 
+    !
     implicit none
-    integer,intent(in),optional :: id_opt
-    type(struct_columnData),intent(in) :: lcolumnhr
-    type(struct_obs),intent(inout) :: lobsSpaceData
-    character (len=*),intent(in) :: CINST
+
+    type(struct_columnData), intent(in)              :: lcolumnhr
+    type(struct_obs)       , intent(inout)           :: lobsSpaceData
+    character (len=*)      , intent(in)              :: CINST
+    integer                , intent(in)   , optional :: id_opt
+
 !******************************************************************
     integer       :: JC,NCHN,JCH,JF,JL,NLEV,NLEVB,iextr,NPRF,NFLG,ICHN
     integer       :: IWINDO,IWINDO_ALT
@@ -1404,18 +1402,18 @@ contains
         LEV_START = 0
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
-        call CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt2)
+        call CLOUD_HEIGHT ( PTOP_MB, NTOP_MB, btobs, cldflag, zt, &
+             zht(:,1), zps, zlevmod(:,1), ichref, lev_start, iopt2 )
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
-        call CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt1)
+        call CLOUD_HEIGHT ( PTOP_EQ, NTOP_EQ, btobs, cldflag, zt, &
+             zht(:,1), zps, zlevmod(:,1), ichref, lev_start, iopt1 )
 
         if (liasi) then
 ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
            
           call get_avhrr_emiss(emi_sfc(channelIndex(1:nchannels)),tvs_coefs(id) % coef % ff_cwn(channelIndex(1:nchannels)), &
-               nchannels,avhrr_surfem1)
+               avhrr_surfem1)
 
           call tovs_rttov_AVHRR_for_IASI(indx,avhrr_surfem1,tvs_satellites(id))
                  
@@ -1445,21 +1443,21 @@ contains
               cldflag_avhrr(JC) = -1
             end if
             
-            call CLOUD_HEIGHT (PTOP_EQ_AVHRR(JC),NTOP_EQ_AVHRR(JC), btobs_avhrr(:,JC),cldflag_avhrr(JC),zt, &
-                 zht(:,1),zps,zvlev,nlv_T,NIR,ichref_avhrr(JC),lev_start_avhrr(JC),iopt1)
+            call CLOUD_HEIGHT ( PTOP_EQ_AVHRR(JC), NTOP_EQ_AVHRR(JC), btobs_avhrr(:,JC), cldflag_avhrr(JC), zt, &
+                 zht(:,1), zps, zvlev, ichref_avhrr(JC), lev_start_avhrr(JC), iopt1 )
           end do
           
         end if
 
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
-        call GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-             zht(:,1),nlv_T,nchn,ptop_eq,ntop_eq,ichref)
+        call GARAND1998NADON ( CLDFLAG, btobs, ztg, zt, &
+             zht(:,1), ptop_eq, ntop_eq, ichref )
 
         if (liasi) then
           do JC=1,nClassAVHRR
-            call GARAND1998NADON (CLDFLAG_AVHRR(jC), btobs_avhrr(:,JC),ztg,zt, &
-                 zht(:,1),nlv_T,NIR,ptop_eq_avhrr(JC),ntop_eq_avhrr(JC),ichref_avhrr(JC))
+            call GARAND1998NADON ( CLDFLAG_AVHRR(jC), btobs_avhrr(:,JC), ztg,zt, &
+                 zht(:,1), ptop_eq_avhrr(JC), ntop_eq_avhrr(JC), ichref_avhrr(JC) )
           end do
         end if
         
@@ -1478,7 +1476,7 @@ contains
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
 
         call ESTIM_TS(ZTS, ztg, emi_sfc, rcal_clr, robs, &
-             sfctau, cldflag, ichref, nchn, tvs_coefs(id) )
+             sfctau, cldflag, ichref, tvs_coefs(id) )
 
         if ( CLDFLAG == 0 .and. KSURF == 1 &
              .and. abs(ZTS-ZTG) > DTW ) CLDFLAG = 1 
@@ -1490,7 +1488,7 @@ contains
 
           do JC=1,nClassAVHRR
             call ESTIM_TS(ZTS_AVHRR(JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,robs_avhrr(:,JC), &
-                 sfctau_avhrr,CLDFLAG_AVHRR(JC),ichref_avhrr(JC),NIR, coefs_avhrr)
+                 sfctau_avhrr,CLDFLAG_AVHRR(JC),ichref_avhrr(JC), coefs_avhrr)
           end do
 
           do JC=1,nClassAVHRR
@@ -1600,17 +1598,17 @@ contains
           call tvs_getChannelIndexFromChannelNumber(id,ILIST_HE(JCH),ILIST1(QCID,JCH))
         end do
 
-        call CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
-             btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,zvlev,nlevb, &
-             nchn,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
+        call CLOUD_TOP ( PTOP_BT, PTOP_RD, NTOP_BT, NTOP_RD, &
+             btobs, toext, zhoext(:,1), rcal_clr, zps, robs, rcld, zvlev, &
+             cldflag, rejflag, lev_start, iopt2, ihgt, ichref, ilist_he)
 
         if (liasi) then
           LEV_START_AVHRR(:) = 0
           
           do JC=1,nClassAVHRR
-            call CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,JC),PTOP_RD_AVHRR(:,JC),NTOP_BT_AVHRR(:,JC),NTOP_RD_AVHRR(:,JC), &
-                 btobs_avhrr(:,JC),toext,zhoext(:,1),rcal_clr_avhrr,zps,robs_avhrr(:,JC),rcld_avhrr,zvlev,nlevb, &
-                 NIR,cldflag_avhrr(jc),lev_start_avhrr(JC),iopt2,ihgt,nn,ilist_avhrr)
+            call CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,JC), PTOP_RD_AVHRR(:,JC), NTOP_BT_AVHRR(:,JC), NTOP_RD_AVHRR(:,JC), &
+                 btobs_avhrr(:,JC), toext, zhoext(:,1), rcal_clr_avhrr, zps, robs_avhrr(:,JC), rcld_avhrr, zvlev, &
+                 cldflag_avhrr(jc), lev_start_avhrr(JC), iopt2, ihgt, ilist_avhrr)
           end do
         end if
 
@@ -1650,10 +1648,10 @@ contains
         
         LEV_START = max( min(LEV_START,CO2MAX(1)), CO2MIN(1) )
 
-        call CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-             rcal_clr,rcld,robs,zps,zvlev,nlevb,nchn,cldflag,rejflag, &
-             lev_start,ichref,ilist_co2,ilist_co2_pair)
-
+        call CO2_SLICING ( PTOP_CO2, NTOP_CO2, FCLOUD_CO2, &
+             rcal_clr, rcld, robs, zps, zvlev, cldflag, rejflag, &
+             lev_start, ichref, ilist_co2, ilist_co2_pair )
+    !
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
  
         call SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, heff,ptop_co2,fcloud_co2, &
@@ -1709,7 +1707,7 @@ contains
         end if
 
         !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS        
-        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nchn,imodtop )
+        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag, imodtop )
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
 ! *** TEST # 3 ***
@@ -1902,13 +1900,14 @@ contains
         
   end subroutine irbg_doQualityControl
 
-  subroutine convert_avhrr(sunzen,avhrr)
-! conversion des radiance IR en temperatures de brillance
-! et des radiances visibles en "albedo"
+  subroutine convert_avhrr( sunzen, avhrr )
+    !
+    ! :Purpose: conversion des radiance IR en temperatures de brillance
+    !           et des radiances visibles en "albedo"
   
     implicit none
-    real(8) ,intent(in) :: sunzen
-    type (avhrr_bgck_iasi) ,intent(inout) :: avhrr
+    real(8)               , intent(in)    :: sunzen
+    type (avhrr_bgck_iasi), intent(inout) :: avhrr
 
     integer :: ICL
     real (8) :: tb(NIR),dtbsdrad(NIR)
@@ -1929,7 +1928,8 @@ contains
 
   end subroutine convert_avhrr
 
-  subroutine calcreflect(rad,sunzen,reflect)
+  subroutine calcreflect( rad, sunzen, reflect )
+
     implicit none
 
     real (8) , intent(in) :: rad(nvis)
@@ -1959,18 +1959,26 @@ contains
   
   end subroutine calcreflect
 
-  subroutine calcbt(rad,tb,dtbsdrad,freq,offset,slope)
+  subroutine calcbt( rad, tb, dtbsdrad, freq, offset, slope )
+    !
     implicit none
-    integer,parameter  :: nchan=3
-    real(8) ,parameter :: c1= 1.19106590D-05   ! first planck constant
-    real(8) ,parameter :: c2= 1.438833d0     ! second planck constant 
-    real (8) , intent(in) :: rad(nchan), freq(nchan), offset(nchan), slope(nchan)
-    real (8) , intent(out):: tb(nchan), dtbsdrad(nchan)
+
+    ! Arguments:
+    real (8) , intent(in) :: rad( nir )
+    real (8) , intent(in) :: freq( nir )
+    real (8) , intent(in) :: offset( nir )
+    real (8) , intent(in) :: slope( nir )
+    real (8) , intent(out):: tb( nir )
+    real (8) , intent(out):: dtbsdrad( nir )
+
     !************
     integer :: i
     real (8) ::  radtotal,tstore,planck1,planck2
+    real(8) ,parameter :: c1= 1.19106590D-05   ! first planck constant
+    real(8) ,parameter :: c2= 1.438833d0       ! second planck constant 
 
-    do i = 1, nchan
+
+    do i = 1, nir
       if (rad(i) > 1.d-20) then
         planck2 = c2 * freq(I)
         planck1 = c1 * ( freq(I) ** 3 ) 
@@ -1992,11 +2000,15 @@ contains
 
   end subroutine calcbt
 
-  subroutine stat_avhrr(avhrr)
-    ! calcul de statistiques
-    ! sur l'information sous-pixel AVHRR
+  subroutine stat_avhrr( avhrr )
+    !
+    ! :Purpose: calcul de statistiques
+    !           sur l'information sous-pixel AVHRR
+    !
     implicit none
-    type (avhrr_bgck_iasi) ,intent(inout) :: avhrr
+
+    type (avhrr_bgck_iasi), intent(inout) :: avhrr
+
     integer :: ICL,ICH
     real (8) :: SUMFRAC(NVIS+NIR),TBMIN(NVIS+1:NVIS+NIR),TBMAX(NVIS+1:NVIS+NIR),SUMTB(NVIS+1:NVIS+NIR),SUMTB2(NVIS+1:NVIS+NIR)
     real (8) :: SUMALB(1:NVIS),SUMALB2(1:NVIS)
@@ -2056,67 +2068,70 @@ contains
       
   end subroutine stat_avhrr
 
-  subroutine CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
-       rcal,rcld,robs,ps,plev,nlev,nchn,cldflag,rejflag, &
-       lev_start,ichref,ilist,ilist_pair)
-!!
-!!*ID CO2_SLICING -- CLOUD TOP HEIGHT COMPUTATION
-!!
-!!      AUTHOR:   L. GARAND               July 2004
-!!                A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
-!!
-!!      REVISION: 001 O. Pancrati various improvements
-!!
-!!      OBJECT:   CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
-!!
-!!      ARGUMENTS:
-!!         INPUT:
-!!           -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!!           -RCLD(NCHN,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
-!!           -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (")
-!!           -PS             : SURFACE PRESSURE (HPA)
-!!           -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
-!!           -NLEV                 : NUMBER OF VERTICAL LEVELS
-!!           -NCHN                 : NUMBER OF CHANNELS
-!!           -CLDFLAG        : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
-!!           -REJFLAG(NCHN,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
-!!           -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
-!!           -ICHREF         : WINDOW CHANNEL TO PREDETERMINE CLEAR
-!!           -NCO2                 : NUMBER OF CHANNELS TO GET ESTIMATES IN
-!!                                    COMBINATION WITH ICHREF_CO2 (NOT INCLUDED)
-!!           -ILIST(NCO2)          : LIST OF THE CHANNEL NUMBERS, ICHREF_CO2 NOT INCLUDED
-!!                                    (SUBSET VALUES)
-!!
-!!         INPUT/OUTPUT:
-!!           -LEV_START      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!!
-!!         OUTPUT:
-!!           -PTOP(NCO2)      : CLOUD TOP (HPA)
-!!           -FCLOUD(NCO2)    : CLOUD FRACTION
-!!           -NTOP(NCO2)      : NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
-!!                                    (PTOP <= PS)
-!!
+  subroutine CO2_SLICING ( ptop, ntop, fcloud,    &
+       rcal, rcld, robs, ps, plev, cldflag, rejflag, &
+       lev_start, ichref, ilist, ilist_pair)
+    !
+    ! :Purpose: CLOUD TOP HEIGHT COMPUTATION.
+    !           CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
+    !
+    ! :Arguments:
+    !         :rcal(nchn): COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+    !         :rcld(nchn,nlev): COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+    !         :robs(nchn): COMPUTED OBSERVED RADIANCES (")
+    !         :ps:  SURFACE PRESSURE (HPA)
+    !         :plev(nlev): PRESSURE LEVELS (HPA)
+    !         :cldflag: 
+    !
+    !                   - '0' CLEAR, 
+    !                   - '1' CLOUDY, 
+    !                   - '-1' UNDEFINED PROFILE
+    !         :rejflag(nchm,bitflag): FLAGS FOR REJECTED OBSERVATIONS
+    !         :ichref: WINDOW CHANNEL TO PREDETERMINE CLEAR
+    !         :ilist(NCO2): LIST OF THE CHANNEL NUMBERS, ICHREF_CO2 NOT INCLUDED
+    !                       (SUBSET VALUES)
+    !         :lev_start: LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+    !         :ptop(NCO2): CLOUD TOP (HPA)
+    !         :fcloud(NCO2): CLOUD FRACTION
+    !         :ntop(NCO2): NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
+    !                      (PTOP <= PS)
+    !
     implicit none
-    integer ,intent (in) :: NLEV,NCHN
-    real(8) ,intent (in) :: RCAL(NCHN),RCLD(NCHN,NLEV),ROBS(NCHN)
-    real(8) ,intent (in) :: PLEV(NLEV),PS
-    integer ,intent (in) :: ICHREF,CLDFLAG,REJFLAG(NCHN,0:BITFLAG)
-    integer ,intent (in) :: ILIST(NCO2),ILIST_PAIR(NCO2)
-    integer ,intent (inout) :: LEV_START
-    real(8) ,intent (out) :: PTOP(NCO2),FCLOUD(NCO2)
-    integer ,intent (out) :: NTOP(NCO2)
-    !*********************************************************************************
+
+    real(8) , intent (in)    :: rcal(:)
+    real(8) , intent (in)    :: rcld(:,:) 
+    real(8) , intent (in)    :: robs(:)
+    real(8) , intent (in)    :: plev(:)
+    real(8) , intent (in)    :: ps
+    integer , intent (in)    :: ichref
+    integer , intent (in)    :: cldflag
+    integer , intent (in)    :: rejflag(1:,0:)
+    integer , intent (in)    :: ilist( NCO2 )
+    integer , intent (in)    :: ilist_pair( NCO2 )
+    integer , intent (inout) :: lev_start
+    real(8) , intent (out)   :: ptop( NCO2 )
+    real(8) , intent (out)   :: fcloud( NCO2 )
+    integer , intent (out)   :: ntop( NCO2 )
+
+    integer     :: nlev      ! NUMBER OF VERTICAL LEVELS 
+    integer     :: nchn      ! NUMBER OF CHANNELS
     integer     :: J,JCH,JC,JPMAX,JMAX
     integer     :: SUMREJ
-    real(8)     :: EPS
-    real(8)     :: FC(NCHN,NLEV),RAPG,RADP
-    real(8)     :: DRAP(NCO2,NLEV),A_DRAP(NLEV)
+    real(8) ,parameter  :: EPS = 1.D-12
+    real(8)     :: RAPG, RADP
+    real(8), allocatable :: FC(:,:), DRAP(:,:), a_drap(:)
     real(8)     :: VAL,VAL1,VAL2,VAL3,FCINT
     real(8)     :: EMI_RATIO
     integer     :: JC_PAIR
     integer     :: ITER,NITER
-      
-    EPS = 1.D-12
+
+    nchn = size( rcal )
+    nlev = size( rcld, dim = 2 )
+    
+    allocate( fc( nchn, nlev ) )
+    allocate( drap( NCO2, nlev ) ) 
+    allocate( a_drap( nlev ) )
+ 
     
     PTOP(:) = -1.d0
     NTOP(:) = -1
@@ -2283,48 +2298,56 @@ contains
       end do iteration
      
     end do channels
-      
+
+    deallocate( fc )
+    deallocate( drap ) 
+    deallocate( a_drap )
+    
   end subroutine CO2_SLICING
 
-  subroutine SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,gncldflag )
-!
-!**ID SELTOP -- SELECT CLOUD TOP
-!
-!       AUTHOR:   L. GARAND                  July 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   SELECT CLOUD TOP BY AVERAGING CO2-SLICING RESULTS
-!          JUDGED CORRECT. ALL MISSING VALUES ARE -1.
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -HE(NPRF)      : EQUIVALENT CLOUD TOP HEIGHTS 
-!                              FROM A WINDOW CHANNEL (HPA)
-!            -HT(NCO2,NPRF) : CLOUD TOPS FROM CO2-SLICING (HPA)
-!            -CF(NCO2,NPRF) : EFFECTIVE CLOUD FRACTION FOR CO2-SLICING
-!            -CFSUB(NPRF)   : visible ("subpixel") cloud fraction
-!            -PTOP_MB(NPRF) : height (mb) from cloud_height subroutine           
-!            -PS(NPRF)      : SURFACE PRESSURE IN (HPA)
-!            -CLDFLAG(NPRF) : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
-!            -NPRF          : NUMBER OF PROFILES
-!
-!          OUTPUT:
-!            -ETOP(NPRF)    : CONSENSUS CLOUD TOP (HPA)
-!            -VTOP(NPRF)    : CORRESPONDING VARIANCE ON ETOP (HPA)
-!            -ECF(NPRF)     : CONSENSUS EFFECTIVE CLOUD FRACTION
-!            -VCF(NPRF)     : CORRESPONDING VARIANCE ON ECF
-!            -NGOOD(NPRF)   : NUMBER OF GOOD ESTIMATES
-!
+
+  subroutine SELTOP ( etop, vtop, ecf, vcf, ngood, he, ht, cf, cfsub, ptop_mb, ps, cldflag, gncldflag )
+    !
+    ! :Purpose: SELECT CLOUD TOP BY AVERAGING CO2-SLICING RESULTS
+    !           JUDGED CORRECT. ALL MISSING VALUES ARE -1.
+    !
+    ! :Arguments:
+    !           :he: EQUIVALENT CLOUD TOP HEIGHTS 
+    !                FROM A WINDOW CHANNEL (HPA)
+    !           :ht(NCO2): CLOUD TOPS FROM CO2-SLICING (HPA)
+    !           :cf(NCO2): EFFECTIVE CLOUD FRACTION FOR CO2-SLICING
+    !           :cfsub: visible ("subpixel") cloud fraction
+    !           :ptop_mb: height (mb) from cloud_height subroutine           
+    !           :ps: SURFACE PRESSURE IN (HPA)
+    !           :cldflag: 
+    !
+    !                         - (0) CLEAR, 
+    !                         - (1) CLOUDY, 
+    !                         - (-1) UNDEFINED PROFILE
+    !           :etop: CONSENSUS CLOUD TOP (HPA)
+    !           :vtop: CORRESPONDING VARIANCE ON ETOP (HPA)
+    !           :ecf: CONSENSUS EFFECTIVE CLOUD FRACTION
+    !           :vcf: CORRESPONDING VARIANCE ON ECF
+    !           :ngood: NUMBER OF GOOD ESTIMATES
+    !
     implicit none
-    real(8) ,intent (in) :: HE,HT(NCO2),CF(NCO2),PS,CFSUB
-    integer ,intent (in) :: CLDFLAG, GNCLDFLAG
-    real(8) ,intent (out):: ETOP,VTOP,ECF,VCF
-    integer ,intent (out):: NGOOD
-    !***********************************************************************************
+
+    ! Arguments:
+    real(8) , intent (in)  :: he
+    real(8) , intent (in)  :: ht(NCO2)
+    real(8) , intent (in)  :: cf(NCO2)
+    real(8) , intent (in)  :: ps
+    real(8) , intent (in)  :: cfsub
+    integer , intent (in)  :: cldflag
+    integer , intent (in)  :: gncldflag
+    real(8) , intent (out) :: etop
+    real(8) , intent (out) :: vtop
+    real(8) , intent (out) :: ecf
+    real(8) , intent (out) :: vcf
+    integer , intent (out) :: ngood
+    real(8) , intent (in)  :: ptop_mb
+
     integer    :: N,JCH
-    real(8)    :: PTOP_MB
     real(8)    :: H(NCO2),F(NCO2)
 
 
@@ -2420,17 +2443,21 @@ contains
   end subroutine SELTOP
   
 
-  subroutine calcul_median_fast(NN,Nmax,Hin,Fin,CTP,CFR)
-! 
+  subroutine calcul_median_fast( NN, Nmax, Hin, Fin, CTP, CFR )
+    ! 
     implicit none
-    integer ,intent (in) :: NN
-    integer ,intent (in) :: Nmax
-    real (8) ,intent (in):: Hin(Nmax),Fin(Nmax)
-    real (8) ,intent (out):: CTP,CFR
-!*********************************************
+
+    ! Arguments:
+    integer , intent (in)  :: NN
+    integer , intent (in)  :: Nmax
+    real (8), intent (in)  :: Hin(Nmax)
+    real (8), intent (in)  :: Fin(Nmax)
+    real (8), intent (out) :: CTP
+    real (8), intent (out) :: CFR
+
+    ! locals
     integer    :: index(NN)
     real (4) :: H(NN)
-!*******
     integer :: i
 
     if (NN == 1) then
@@ -2456,48 +2483,56 @@ contains
 
   end subroutine calcul_median_fast
 
-  subroutine MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,imodtop)
-!
-!**ID MIN_PRES -- FIND MINIMUM HEIGHT LEVEL OF SENSITIVITY
-!
-!       AUTHOR:   L. GARAND                   May 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   FROM TOTAL TRANSMITTANCE ARRAY, FIND MINIMUM HEIGHT 
-!          LEVEL OF SENSITIVITY FOR A NUMBER OF PROFILES AND CHANNELS.
-!          THIS MAY BE USED TO SELECT FOR ASSIMILATION ONLY THE
-!          OBSERVATIONS WITHOUT SENSITIVITY TO CLOUDS, THAT IS THE
-!          RESPONSE FUNCTION SIGNIFICANT ONLY ABOVE CLOUD LEVEL.
-!          THE CRITERION IS THAT dTAU/dPLEV > 0.01 FOR A 100 MB LAYER.
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -PS            : SURFACE PRESSURE (HPA)
-!            -TAU(NCHN,NLEV) : LAYER TO SPACE TRANSMITTANCES (0.-1.)
-!            -PLEV(NLEV)          : PRESSURE LEVELS (HPA)
-!            -CLDFLAG       : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
-!            -NLEV                : NUMBER OF VERTICAL LEVELS
-!            -NCHN                : NUMBER OF CHANNELS
-!            -IMODTOP             : RT MODEL LEVEL NEAREST TO MODEL TOP
-!
-!          OUTPUT:
-!            -PMIN(NCHN)     : MINIMUM HEIGHT OF SENSITIVITY (HPA)
-!            -MINP(NCHN)     : VERTICAL LEVEL CORRESPONDING TO PMIN
-!            -DT1(NCHN)      : VALUE OF 'DTAU/DLOGP' AT MODEL TOP
-!            -MAXHEIGHT(NCHN): Height (hPa) of the maximum of the weighting function
-!
+  subroutine MIN_PRES_new( maxheight, minp, pmin, dt1, ps, tau, plev, cldflag, imodtop )
+    !
+    ! :Purpose: FIND MINIMUM HEIGHT LEVEL OF SENSITIVITY.
+    !           FROM TOTAL TRANSMITTANCE ARRAY, FIND MINIMUM HEIGHT 
+    !           LEVEL OF SENSITIVITY FOR A NUMBER OF PROFILES AND CHANNELS.
+    !           THIS MAY BE USED TO SELECT FOR ASSIMILATION ONLY THE
+    !           OBSERVATIONS WITHOUT SENSITIVITY TO CLOUDS, THAT IS THE
+    !           RESPONSE FUNCTION SIGNIFICANT ONLY ABOVE CLOUD LEVEL.
+    !           THE CRITERION IS THAT dTAU/dPLEV > 0.01 FOR A 100 MB LAYER.
+    !
+    ! :Arguments:
+    !           :ps: SURFACE PRESSURE (HPA)
+    !           :tau(nchn,nlev): LAYER TO SPACE TRANSMITTANCES (0.-1.)
+    !           :plev(nlev): PRESSURE LEVELS (HPA)
+    !           :cldflag: 
+    !      
+    !                   - (0) CLEAR, 
+    !                   - (1) CLOUDY, 
+    !                   - (-1) UNDEFINED PROFILE
+    !           :imodtop: RT MODEL LEVEL NEAREST TO MODEL TOP
+    !           :pmin(nchn): MINIMUM HEIGHT OF SENSITIVITY (HPA)
+    !           :minp(nchn): VERTICAL LEVEL CORRESPONDING TO PMIN
+    !           :dt1(nchn): VALUE OF 'DTAU/DLOGP' AT MODEL TOP
+    !           :maxheight(nchn): Height (hPa) of the maximum of the weighting function
+    !
     implicit none
-    integer ,intent(in)   :: NCHN,NLEV,IMODTOP,CLDFLAG
-    real(8), intent(in)   :: PLEV(NLEV),PS,TAU(NCHN,NLEV)
-    integer, intent (out) :: MINP(NCHN)
-    real(8), intent(out)  :: PMIN(NCHN), DT1(NCHN),MAXHEIGHT(NCHN)
-    !*******************************************************************************
 
+    ! Arguments:
+    integer ,intent(in)   :: imodtop
+    integer ,intent(in)   :: cldflag
+    real(8), intent(in)   :: plev(:)
+    real(8), intent(in)   :: ps
+    real(8), intent(in)   :: tau(:,:)
+    integer, intent (out) :: minp(:)
+    real(8), intent(out)  :: pmin(:)
+    real(8), intent(out)  :: dt1(:)
+    real(8), intent(out)  :: maxheight(:)
+
+    ! locals
+    integer :: NCHN  ! NUMBER OF CHANNELS
+    integer :: NLEV  ! NUMBER OF VERTICAL LEVELS
     real(8) :: MAXWF
     integer   :: J,JC,ipos(1)
-    real(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
+    real(8), allocatable :: WFUNC(:),RAP(:)
+
+    nlev = size ( plev )
+    nchn = size ( tau, dim = 1 )
+
+    allocate ( wfunc ( nlev - 1 ) )
+    allocate (   rap ( nlev - 1 ) )
 
     MINP(:) = -1
     PMIN(:) = -1.d0
@@ -2553,69 +2588,63 @@ contains
      
     end do channels
 
+    deallocate ( wfunc )
+    deallocate ( rap )
+
   end subroutine MIN_PRES_NEW
 
-  subroutine CLOUD_HEIGHT (PTOP,NTOP, &
-       btobs,cldflag,tt,height,ps,plev,nlev, &
-       nchn,ichref,lev_start,iopt)
-!!
-!!*ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
-!!
-!!      SCIENCE:  L. GARAND
-!!      AUTHOR:   A. BEAULNE (CMDA/SMC)   August 2004
-!!                A. BEAULNE (CMDA/SMC) February 2006  (ADAPT TO 3DVAR)                 
-!!
-!!      REVISION:
-!!
-!!      OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
-!!         BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
-!!         REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
-!!         TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
-!!
-!!      ARGUMENTS:
-!!         INPUT:
-!!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
-!!           -CLDFLAG    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!!           -TT(NLEV)    : TEMPERATURE PROFILES (DEG K)
-!!           -HEIGHT(NLEV)    : HEIGHT PROFILES ABOVE GROUND (M)
-!!           -PS(NPRF)         : SURFACE PRESSURE (HPA)
-!!           -PLEV(NLEV)  : PRESSURE LEVELS (HPA)
-!!           -NLEV             : NUMBER OF VERTICAL LEVELS
-!!           -NCHN             : NUMBER OF CHANNELS
-!!           -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
-!!           -IOPT             : LEVELS USING PLEV (1) OR HEIGHT (2)
-!!
-!!
-!!         INPUT/OUTPUT:
-!!           -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!!
-!!         OUTPUT:
-!!           -PTOP    : CHOSEN EQUIVALENT CLOUD TOPS 
-!!                            (IN HPA|M WITH IOPT = 1|2) 
-!!           -NTOP    : NUMBER OF POSSIBLE PTOP SOLUTIONS
-!!
-!!
+  subroutine CLOUD_HEIGHT ( ptop, ntop, btobs, cldflag, tt, height, ps, plev, &
+                            nlev, nchn, ichref, lev_start, iopt )
+    !
+    ! :Purpose: 
+    !         COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+    !         BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
+    !         REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
+    !         TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
+    !
+    ! :Arguments:
+    !           :cldflag: 
+    !
+    !                    - (0) CLEAR, 
+    !                    - (1) CLOUDY, 
+    !                    - (-1) UNDEFINED PROFILES
+    !
     implicit none
-    integer ,intent (in) :: NCHN,NLEV,IOPT,ICHREF,CLDFLAG
-    real(8) ,intent (in) :: BTOBS(NCHN),TT(NLEV),height(NLEV),PS,PLEV(NLEV)
-    integer ,intent (inout) :: LEV_START
-    real(8) ,intent (out) :: PTOP
-    integer ,intent (out) :: NTOP
-    !**********************************************************************************************
 
-    integer     :: JN 
-    integer     :: ITOP
-    integer     :: NHT
-    real(8)     :: HT(NLEV)
+    ! Arguments:
+    integer , intent (in)    :: iopt    ! levels using plev (1) or height (2)
+    integer , intent (in)    :: ichref  ! chosen reference surface channel
+    integer , intent (in)    :: cldflag
+    real(8) , intent (in)    :: btobs(:)! observed brightness temperature (deg k)
+    real(8) , intent (in)    :: tt(:)   ! temperature profiles (deg K)
+    real(8) , intent (in)    :: height(:)! height profiles above ground (m)
+    real(8) , intent (in)    :: ps      ! surface pressure (hPa)
+    real(8) , intent (in)    :: plev(:) ! pressure levels (hPa)
+    integer :: nlev                     ! number of vertical levels
+    integer :: nchn                     ! number of channels
+    integer , intent (inout) :: lev_start! level to start iteration (ideally tropopause)
+    real(8) , intent (out)   :: ptop    ! chosen equivalent cloud tops  (in hpa|m with iopt = 1|2)
+    integer , intent (out)   :: ntop    ! number of possible ptop solutions
+
+    ! Locals:
+    integer :: JN 
+    integer :: ITOP
+    integer :: NHT
+    real(8) :: HT(NLEV)
  
+    nchn = size ( btobs )
+    nlev = size ( tt )
+
     if ( IOPT == 1 ) then
      
       PTOP = PS
       NTOP = 1      
 
       if ( CLDFLAG == -1 ) return
+
+      allocate ( ht ( nlev ) )
       
-      call GET_TOP ( HT,NHT, btobs(ichref),tt,plev,nlev,lev_start,iopt ) 
+      call GET_TOP ( HT, NHT, btobs(ichref), tt, plev, lev_start, iopt ) 
 
       ITOP = 1
       if ( NHT >= 2 ) ITOP = 2
@@ -2637,47 +2666,45 @@ contains
       NTOP = NHT
        
     end if
+ 
+    deallocate ( ht )
 
   end subroutine CLOUD_HEIGHT
- 
-  subroutine GARAND1998NADON (CLDFLAG, btobs,tg,tt,height,nlev, &
-       nchn,ptop_eq,ntop_eq,ichref)
-!!
-!!*ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
-!!
-!!      SCIENCE:  L. GARAND AND S. NADON
-!!      AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
-!!                A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!!
-!!      REVISION:
-!!
-!!      OBJECT:   DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
-!!         THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
-!!         WITH CHANNEL IREF
-!!
-!!      ARGUMENTS:
-!!         INPUT:
-!!           -BTOBS(NCHN) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
-!!           -TG         : GUESS SKIN TEMPERATURES (DEG K)
-!!           -TT(NLEV)    : GUESS TEMPERATURE PROFILES (DEG K)
-!!           -height(NLEV)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
-!!           -NLEV             : NUMBER OF VERTICAL LEVELS
-!!           -NCHN             : NUMBER OF CHANNELS
-!!           -PTOP_EQ    : CHOSEN EQUIVALENT CLOUD TOPS (M)
-!!           -NTOP_EQ    : NUMBER OF POSSIBLE PTOP_EQ SOLUTIONS
-!!           -ICHREF     : CHOSEN REFERENCE SURFACE CHANNEL
-!!
-!!         INPUT/OUTPUT:
-!!           -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!!
+
+  subroutine GARAND1998NADON ( cldflag, btobs, tg, tt, height, nlev, nchn, &
+                               ptop_eq, ntop_eq, ichref )
+    !
+    ! :Purpose: DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
+    !           THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
+    !           WITH CHANNEL IREF
+    !
+    ! :Arguments:
+    !           :cldflag: 
+    !
+    !                   - (0) CLEAR, 
+    !                   - (1) CLOUDY, 
+    !                   - (-1) UNDEFINED PROFILES
+    !
     implicit none
-    integer ,intent (in) :: NLEV,NCHN
-    real(8) ,intent (in) :: BTOBS(NCHN),TG,height(NLEV),TT(NLEV),PTOP_EQ
-    integer ,intent (in) :: NTOP_EQ,ICHREF
-    integer ,intent (inout) :: CLDFLAG
-!*********************************************************************************************
+
+    ! Arguments:
+    real(8) , intent (in)    :: btobs(:) ! observed brightness temperatures (K)
+    real(8) , intent (in)    :: tg       ! guess skin temperatures (K)
+    real(8) , intent (in)    :: height(:)! guess height profile above ground (m)
+    integer , intent (in)    :: nlev     ! number of vertical levels
+    integer , intent (in)    :: nchn     ! number of channels
+    real(8) , intent (in)    :: tt(:)    ! guess temperature profiles (K)
+    real(8) , intent (in)    :: ptop_eq  ! chosen equivalent cloud tops (m)
+    integer , intent (in)    :: ntop_eq  ! number of possible ptop_eq solutions
+    integer , intent (in)    :: ichref   ! chosen reference surface channel
+    integer , intent (inout) :: cldflag
+
+    ! Locals
     integer    :: NINV
     real(8)    :: LEV(2)
+
+    nchn = size ( btobs )
+    nlev = size ( tt )
 
       
     LEV(1) = 222.d0
@@ -2761,43 +2788,32 @@ contains
     
   end subroutine GARAND1998NADON
 
-  subroutine MONOTONIC_INVERSION (NINVR, ptg,ptt,pheight,npr,lvl)
-
-!***********************************************************************
-!
-!**ID MONOTONIC_INVERSION -- DETECT TEMPERATURE INVERSION
-!
-!       SCIENCE:  L. GARAND AND S. NADON
-!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   DETERMINE IF THERE IS A PRESENCE (NINVR=1) OR NOT (NINVR=0)
-!           OF A TEMPERATURE INVERSION GOING FROM THE SURFACE UP TO THE
-!           HEIGHT LVL
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -PTG       : SKIN TEMPERATURE (DEG K)
-!            -PTT(NPR) : TEMPERATURE PROFILE (DEG K)
-!            -Pheight(NPR) : HEIGHT PROFILE ABOVE GROUND (M)
-!            -NPR     : NUMBER OF VERTICAL LVLELS
-!            -LVL      : HEIGHT TO SEARCH FOR TEMPERATURE INVERSION (M)
-!
-!          OUTPUT:
-!            -NINVR     : PRESENCE (1) OR NOT (0) OF A TEMPERATURE INVERSION
-!                         FROM THE SURFACE TO HEIGHT LVL
-!
-!
-!***********************************************************************
-
+  subroutine MONOTONIC_INVERSION ( ninvr, ptg, ptt, pheight, npr, lvl )
+    !
+    ! :Purpose: DETECT TEMPERATURE INVERSION.
+    !           DETERMINE IF THERE IS A PRESENCE (NINVR=1) OR NOT (NINVR=0)
+    !           OF A TEMPERATURE INVERSION GOING FROM THE SURFACE UP TO THE
+    !           HEIGHT LVL
+    !
+    ! :Arguments:
+    !            :ninvr: PRESENCE (1) OR NOT (0) OF A TEMPERATURE INVERSION
+    !                    FROM THE SURFACE TO HEIGHT LVL
+    !
     implicit none
-    integer ,intent (in) :: npr
-    real(8),intent (in)  :: PTT(NPR),Pheight(NPR),PTG,LVL
-    integer ,intent (out):: ninvr
-!**************************************************
+
+    ! Arguments:
+    real(8) , intent (in)  :: ptt(:)    ! temperature profile (K)
+    real(8) , intent (in)  :: pheight(:)! height profile above ground (m)
+    integer , intent (in)  :: npr       ! number of vertical lvlels
+    real(8) , intent (in)  :: ptg       ! skin temperature (K)
+    real(8) , intent (in)  :: lvl       ! height to search for temperature inversion (m)
+    integer , intent (out) :: ninvr
+
+    ! Locals:
     integer   :: NL
+    integer   :: npr ! NUMBER OF VERTICAL LEVELS
+
+    npr = size ( ptt )
 
     NINVR = 0
     if ( PTG - PTT(NPR) < 0.d0 ) then
@@ -2813,51 +2829,52 @@ contains
 
   end subroutine MONOTONIC_INVERSION
 
-  subroutine ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
-       ichref,nchnkept,myCoefs)
-
-!
-!**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
-!
-!       AUTHOR:   L. GARAND                   May 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   GET AN ESTIMATED SKIN TEMPERATURE BY INVERSION OF
-!          RADIATIVE TRANSFER EQUATION ASSUMING GUESS T AND Q PROFILES
-!          ARE PERFECT. DESIGNED FOR A SINGLE CHANNEL ICHREF AND NPRF
-!          PROFILES. ASSUMES A REAL TG (GUESS) OVER OCEANS AND A TG 
-!          WITH HYPOTHESIS OF UNITY EMISSIVITY OVER LAND.
-!      
-!          USES:  RCAL = B(TG)*EMI*SFCTAU + ATMOS_PART
-!             TS = B(TS)*EMI*SFCTAU + ATMOS_PART
-!          SOLVES FOR TS
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -TG          : GUESS SKIN TEMPERATURE (DEG K)
-!            -EMI(NCHNKEPT)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
-!            -RCAL(NCHNKEPT)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -RADOBS(NCHNKEPT) : OBSERVED RADIANCES (")
-!            -SFCTAU(NCHNKEPT) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
-!            -CLDFLAG     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
-!            -ICHREF      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
-!            -NCHNKEPT          : NUMBER OF CHANNELS KEPT IN CMA
-!
-!          OUTPUT:
-!            -TS          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
-!
+  subroutine ESTIM_TS( ts, tg, emi, rcal, radobs, sfctau, cldflag, &
+                       ichref, myCoefs )
+    !
+    ! :Purpose: GET AN ESTIMATED SKIN TEMPERATURE BY INVERSION OF
+    !           RADIATIVE TRANSFER EQUATION ASSUMING GUESS T AND Q PROFILES
+    !           ARE PERFECT. DESIGNED FOR A SINGLE CHANNEL ICHREF AND NPRF
+    !           PROFILES. ASSUMES A REAL TG (GUESS) OVER OCEANS AND A TG 
+    !           WITH HYPOTHESIS OF UNITY EMISSIVITY OVER LAND.
+    !      
+    ! :Note:  Uses RCAL = B(TG)*EMI*SFCTAU + ATMOS_PART
+    !         TS = B(TS)*EMI*SFCTAU + ATMOS_PART
+    !         SOLVES FOR TS
+    !
+    ! :Arguments:
+    !            :TG: GUESS SKIN TEMPERATURE (DEG K)
+    !            :emi(nchnkept): SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
+    !            :rcal(nchnkept): COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+    !            :radobs(nchnkept): OBSERVED RADIANCES (")
+    !            :sfctau(nchnkept): SURFACE TO SPACE TRANSMITTANCES (0.-1.)
+    !            :cldflag: 
+    !
+    !                    - CLEAR (0), 
+    !                    - CLOUDY(1),
+    !                    - UNDEFINED PROFILES (-1)
+    !            :ichref: REFERENCE SURFACE CHANNEL (SUBSET VALUES)
+    !            :ts: RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
+    !
     implicit none
-    integer ,intent(in) :: NCHNKEPT
-    integer ,intent(in) :: ICHREF,CLDFLAG
-    real(8) ,intent(in) :: TG,EMI(NCHNKEPT),RCAL(NCHNKEPT),RADOBS(NCHNKEPT)
-    real(8) ,intent(in) :: SFCTAU(NCHNKEPT)
-    real(8) ,intent(out):: TS
-    type( rttov_coefs ) ,intent(in) :: myCoefs
-!************************************************************************************
+
+    ! Arguments:
+    integer             , intent(in)  :: ichref
+    integer             , intent(in)  :: cldflag
+    real(8)             , intent(in)  :: tg
+    real(8)             , intent(in)  :: emi(:)
+    real(8)             , intent(in)  :: rcal(:)
+    real(8)             , intent(in)  :: radobs(:)
+    real(8)             , intent(in)  :: sfctau(:)
+    real(8)             , intent(out) :: ts
+    type( rttov_coefs ) , intent(in)  :: myCoefs
+
+    ! locals
     real(8)    :: RTG,RADTG
     real(8)    :: RADTS,tstore,t_effective
+    integer    :: nchnkept ! NUMBER OF CHANNELS KEPT IN CMA
+
+    nchnkept = size ( emi )
   
     TS = -1.d0
 
@@ -2901,73 +2918,67 @@ contains
   end subroutine ESTIM_TS
 
 
-  subroutine CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
-       btobs,tt,height,rcal,ps,robs,rcld,plev,nlev,nchn, &
-       cldflag,rejflag,lev_start,iopt,ihgt,ichref,nch,ilist)
-!
-!**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
-!
-!       AUTHOR:   L. GARAND             August 2004
-!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)      
-!                
-!       REVISION:  001 S. Heilliette: removal of hard-coded rttov level
-!
-!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
-!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
-!          BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
-!          RADIANCES WITH BACKGROUND RADIANCE PROFILES.
-!          TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -BTOBS(NCHN)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
-!            -TT(NLEV)        : TEMPERATURE PROFILES (DEG K)
-!            -height(NLEV)        : HEIGHT PROFILES ABOVE GROUND (M)
-!            -RCAL(NCHN)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -PS            : SURFACE PRESSURE (HPA)
-!            -ROBS(NCHN)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
-!            -RCLD(NCHN,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
-!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
-!            -NLEV                 : NUMBER OF VERTICAL LEVELS
-!            -NCHN                 : NUMBER OF CHANNELS
-!            -CLDFLAG        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
-!            -REJFLAG(NCHN,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
-!            -IOPT                 : LEVELS USING PLEV (1) OR height (2)
-!            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
-!            -ICHREF         : REFERENCE SURFACE CHANNEL (SUBSET VALUE)
-!            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
-!            -ILIST(NCH )          : LIST OF THE CHANNEL NUMBERS (SUBSET VALUES) 
-!
-!          INPUT/OUTPUT:
-!            -LEV_START      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!
-!          OUTPUT:
-!            -PTOP_BT(NCHN)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
-!                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
-!            -PTOP_RD(NCHN)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
-!                                    RADIANCES (IN HPA|M WITH IOPT = 1|2)
-!            -NTOP_BT       : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
-!            -NTOP_RD       : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
-!
+  subroutine CLOUD_TOP ( ptop_bt, ptop_rd, ntop_bt, ntop_rd, btobs,  &
+                         tt, height, rcal, ps, robs, rcld, plev, nlev, nchn, &
+                         cldflag, rejflag, lev_start, iopt, ihgt, ichref, nch, &
+                         ilist )
+    !
+    ! :Purpose: COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+    !           BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
+    !           BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+    !           RADIANCES WITH BACKGROUND RADIANCE PROFILES.
+    !           TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
+    !
+    ! :Arguments:
+    !            :cldflag: 
+    !
+    !                    - CLEAR (0), 
+    !                    - CLOUDY (1), 
+    !                    - UNDEFINED PROFILES (-1)
+    !            :ptop_bt(nchn): CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+    !                            BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
+    !            :ptop_rd(nchn): CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+    !                            RADIANCES (IN HPA|M WITH IOPT = 1|2)
+    !
     implicit none
-    integer, intent (in) :: NCHN,NCH,NLEV,IOPT,IHGT
-    real(8), intent (in) :: BTOBS(NCHN),RCLD(NCHN,NLEV)
-    real(8), intent (in) :: ROBS(NCHN),RCAL(NCHN)
-    real(8), intent (in) :: TT(NLEV),height(NLEV),PLEV(NLEV),PS
-    integer, intent (in) :: REJFLAG(NCHN,0:BITFLAG),ILIST(NCH),CLDFLAG,ICHREF
-    integer, intent (inout) :: LEV_START
-    real(8), intent (out) ::  PTOP_BT(NCHN),PTOP_RD(NCHN)
-    integer, intent (out) ::  NTOP_BT(NCHN),NTOP_RD(NCHN)
-    !******************************************************************
-    integer      ::  JCH,JC,ITOP,NHT,i10,i
-    integer      ::  SUMREJ
-    real(8)      ::  HT(NLEV)
 
-      
+    ! Arguments:
+    integer, intent (in)    :: iopt     ! levels using plev (1) or height (2)
+    integer, intent (in)    :: ihgt     ! get *_bt* only (0), *_rd* only (1), both (2)
+    real(8), intent (in)    :: btobs(:) ! observed brightness temperautres (K)
+    real(8), intent (in)    :: rcld(:,:)! computed cloud radiances from each level (hPa)
+    real(8), intent (in)    :: robs(:)  ! computed observed radiances (m@/m2/sr/cm-1)
+    real(8), intent (in)    :: rcal(:)  ! computed clear radiances (mW/m2/sr/cm-1)
+    real(8), intent (in)    :: tt(:)    ! temperature profiles (K)
+    real(8), intent (in)    :: height(:)! height profiles above ground (m)
+    real(8), intent (in)    :: plev(:)  ! pressure levels (hPa)
+    integer, intent (in)    :: nlev     ! number of vertical levels
+    integer, intent (in)    :: nchn     ! number of channels
+    real(8), intent (in)    :: ps       ! surface pressure (hPa)
+    integer, intent (in)    :: rejflag(1:,0:)! flags for rejected observations
+    integer, intent (in)    :: ilist(:) ! list of the channel numbers (subset values)
+    integer, intent (in)    :: cldflag
+    integer, intent (in)    :: ichref   ! reference surface channel (subset value)
+    integer, intent (in)    :: nch      ! number of channels we want outputs  
+    integer, intent (inout) :: lev_start! level to start iteration (ideally tropopause)
+    real(8), intent (out)   :: ptop_bt(:)
+    real(8), intent (out)   :: ptop_rd(:)
+    integer, intent (out)   :: ntop_bt(:)! number of possible ptop_bt solutions
+    integer, intent (out)   :: ntop_rd(:)! number of possible ptop_rd solutions
+
+    ! Locals:
+    integer      :: JCH,JC,ITOP,NHT,i10,i
+    integer      :: SUMREJ
+    real(8), allocatable :: HT(:)
+
+    nchn = size ( rcld, dim = 1 )     
+    nlev = size ( rcld, dim = 2 )
+    nch  = size ( ilist )
+
     i10=1
-    do I=2,NLEV
+    do i=2,NLEV
       if (plev(i - 1) <= 100.d0 .and. plev(i) > 100.d0) then
-        I10 = I
+        i10 = i
         exit
       end if
     end do
@@ -3000,11 +3011,12 @@ contains
       NTOP_RD(:) = 1
      
       LEV_START = max ( LEV_START , i10 )
-    
+
       return
 
     end if
 
+    allocate ( ht( nlev ) )
 
     channels: do JCH = 1, NCH
        
@@ -3040,7 +3052,7 @@ contains
         if ( IOPT == 1 ) then
           
           if ( IHGT == 0 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, btobs(jc),tt,plev,nlev,lev_start,iopt) 
+            call GET_TOP ( HT,NHT, btobs(jc), tt, plev, lev_start, iopt ) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_BT(JC) = min ( HT(ITOP), PS )
@@ -3048,7 +3060,7 @@ contains
           end if
           
           if ( IHGT == 1 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),plev,nlev,lev_start,iopt)
+            call GET_TOP ( HT, NHT, robs(jc), rcld(jc,:), plev, lev_start, iopt )
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_RD(JC) = min ( HT(ITOP), PS )
@@ -3079,8 +3091,11 @@ contains
       
     end do channels
 
+    deallocate ( ht )
+
   end subroutine CLOUD_TOP
 
+<<<<<<< HEAD
   subroutine CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
        btobs,tt,height,rcal,ps,robs,rcld,plev,nlev,nchn, &
        cldflag,lev_start,iopt,ihgt,nch,ilist)
@@ -3095,7 +3110,7 @@ contains
 !
 !       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
 !          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
-!          BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+!          BACKGROUND TEMPRATURE PROFILES AND/OR COMPUTED OBSERVED
 !          RADIANCES WITH BACKGROUND RADIANCE PROFILES.
 !          TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
 !
@@ -3139,9 +3154,61 @@ contains
     real(8) ,intent(out) ::  PTOP_BT(NCHN),PTOP_RD(NCHN)
     integer ,intent(out) ::  NTOP_BT(NCHN),NTOP_RD(NCHN)
     !*********************************************************************
+=======
+  subroutine CLOUD_TOP_AVHRR ( ptop_bt, ptop_rd, ntop_bt, ntop_rd,  &
+                               btobs, tt, height, rcal, ps, robs, rcld, plev, &
+                               nlev, nchn, cldflag, lev_start, iopt, ihgt, &
+                               nch, ilist)
+    !
+    ! :Purpose: COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+    !           BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
+    !           BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+    !           RADIANCES WITH BACKGROUND RADIANCE PROFILES.
+    !           TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
+    !
+    ! :Arguments:
+    !            :cldflag: 
+    !
+    !                    - CLEAR (0), 
+    !                    - CLOUDY (1), 
+    !                    - UNDEFINED PROFILES (-1)
+    !            :ptop_bt(nchn): CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+    !                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
+    !            :ptop_rd(nchn): CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+    !                             RADIANCES (IN HPA|M WITH IOPT = 1|2)
+    !
+    implicit none
+
+    ! Arguments
+    integer , intent(in)    :: nlev      ! number of vertical levels
+    integer , intent(in)    :: nchn      ! number of channels
+    integer , intent(in)    :: nch       ! number of channels we want output
+    integer , intent(in)    :: iopt      ! levels using plev (1) or gz (2)
+    integer , intent(in)    :: ihgt      ! get *_bt* only (0), *_rd* only (1), both (2)
+    integer , intent(in)    :: ilist(:)  ! list of the channel numbers (subset values)
+    integer , intent(in)    :: cldflag
+    real(8) , intent(in)    :: plev(:)   ! pressure levels (hPa)
+    real(8) , intent(in)    :: ps        ! surface pressure (hPa)
+    real(8) , intent(in)    :: robs(:)   ! computed observed radiances (mW/m2/sr/cm-1)
+    real(8) , intent(in)    :: rcal(:)   ! computed clear radiances (mW/m2/sr/cm-1)
+    real(8) , intent(in)    :: btobs(:)  ! observed brightness temperautres (K)
+    real(8) , intent(in)    :: rcld(:,:) ! computed cloud radiances from each level (mW/m2/sr/cm-1)
+    real(8) , intent(in)    :: tt(:)     ! temperature profiles (K)
+    real(8) , intent(in)    :: height(:) ! height profiles above ground (m)
+    integer , intent(inout) :: lev_start ! level to start iteration (ideally tropopause)
+    real(8) , intent(out)   :: ptop_bt(:)   
+    real(8) , intent(out)   :: ptop_rd(:)    
+    integer , intent(out)   :: ntop_bt(:)! number of possible ptop_bt solutions 
+    integer , intent(out)   :: ntop_rd(:)! number of possible ptop_rd solutions
+
+    ! locals
     integer      ::  JCH,JC,ITOP,NHT,i10,i
-    real(8)      ::  HT(NLEV)
-     
+    real(8), allocatable ::  HT(:)
+    
+    nchn = size ( rcld, dim = 1 )
+    nlev = size ( rcld, dim = 2 )
+    nch  = size ( ilist )
+
     i10 = 1
     do I=2,NLEV
       if (plev(i - 1) <= 100.d0 .and. plev(i) > 100.d0) then
@@ -3178,10 +3245,12 @@ contains
       NTOP_RD(:) = 1
       
       LEV_START = max ( LEV_START , i10 )
-       
+
       return
 
     end if
+
+    allocate ( ht ( nlev ) )
 
     channels: do JCH = 1, NCH
 
@@ -3217,7 +3286,7 @@ contains
         if ( IOPT == 1 ) then
 
           if ( IHGT == 0 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, btobs(jc),tt,plev,nlev,lev_start,iopt) 
+            call GET_TOP ( HT, NHT, btobs(jc), tt, plev, lev_start, iopt ) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_BT(JC) = min ( HT(ITOP), PS )
@@ -3225,7 +3294,7 @@ contains
           end if
               
           if ( IHGT == 1 .or. IHGT == 2 ) then
-            call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),plev,nlev,lev_start,iopt)
+            call GET_TOP ( HT, NHT, robs(jc), rcld(jc,:), plev, lev_start, iopt )
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
             PTOP_RD(JC) = min ( HT(ITOP), PS )
@@ -3256,53 +3325,47 @@ contains
 
     end do channels
 
+    deallocate ( ht )
+
   end subroutine CLOUD_TOP_AVHRR
 
-  subroutine GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
-
-!**************************************************************************
-!
-!**ID GET_TOP -- CLOUD TOP HEIGHT COMPUTATION
-!
-!       AUTHOR:   L. GARAND                       2004
-!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT AND NUMBER OF POSSIBLE HEIGHTS
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -BT        : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
-!                          OR COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
-!            -TT(NLEV)  : TEMPERATURE PROFILE (DEG K)
-!                          OR COMPUTED CLOUD RADIANCE FROM EACH LEVEL TO TOP (")
-!            -PP(NLEV)  : PRESSURE (HPA) OR HEIGHTS (M) PROFILE (IOPT=1 OR 2)
-!            -NLEV      : NUMBER OF VERTICAL LEVELS
-!            -IOPT      : HEIGHT UNITS IN HPA (1) OR IN METERS (2)
-!
-!          INPUT/OUTPUT:
-!            -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
-!                         (IF <= 0, SEARCH & START AT COLDEST LEVEL)
-!
-!          OUTPUT:
-!            -HT(NLEV)  : CLOUD TOP HEIGHT IN HPA OR METERS (IOPT = 1 OR 2)
-!            -NHT       : NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS
-!
-!***************************************************************************
+  subroutine GET_TOP ( HT, NHT, bt, tt ,pp, lev_start, iopt )
+    !
+    ! :Purpose: COMPUTATION OF CLOUD TOP HEIGHT AND NUMBER OF POSSIBLE HEIGHTS
+    !
+    ! :Arguments:
+    !            :bt: OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+    !                 OR COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+    !            :tt(nlev): TEMPERATURE PROFILE (DEG K)
+    !                       OR COMPUTED CLOUD RADIANCE FROM EACH LEVEL TO TOP (")
+    !            :pp(nlev): PRESSURE (HPA) OR HEIGHTS (M) PROFILE (IOPT=1 OR 2)
+    !            :iopt: HEIGHT UNITS IN HPA (1) OR IN METERS (2)
+    !            :lev_start: LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+    !                         (IF <= 0, SEARCH & START AT COLDEST LEVEL)
+    !            :ht(nlev): CLOUD TOP HEIGHT IN HPA OR METERS (IOPT = 1 OR 2)
+    !            :nht: NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS 
+    !
 
     implicit none
-    integer ,intent   (in) :: NLEV,IOPT
-    integer ,intent (inout) :: lev_start
-    real(8)  ,intent (in) :: BT, TT(NLEV), PP(NLEV)
-    real(8)  ,intent (out) :: HT(NLEV)
-    integer ,intent (out) :: NHT
-!*******************************************************
-     
-    integer   :: I, IM, i10
-    real(8)   :: P(NLEV)
+
+    ! Arguments:
+    integer , intent (in)    :: iopt
+    integer , intent (inout) :: lev_start
+    real(8) , intent (in)    :: bt
+    real(8) , intent (in)    :: tt(:)
+    real(8) , intent (in)    :: pp(:)
+    real(8) , intent (out)   :: ht(:)
+    integer , intent (out)   :: nht
+    
+    ! locals
+    integer   :: nlev ! NUMBER OF VERTICAL LEVELS 
+    integer   :: I, IM(1), i10
+    real(8), allocatable :: p(:)
     real(8)   :: DT, A, AA, B
     
+    nlev = size ( tt )
+    allocate ( p ( nlev ) )
+
     HT(:) = -1.
     
     if (IOPT == 1) P(:) = log(PP(:))
@@ -3314,9 +3377,9 @@ contains
     if ( LEV_START <= 0 ) then
 
       !*      SEARCH INDEX IM WHERE TT IS MINIMUM
-
-      call FMIN (IM, tt, nlev)
-  
+ 
+      im = minloc( TT )
+ 
       i10 = -1
       do I=2,NLEV
         if (pp(i-1) <= 100.d0 .and. pp(i) > 100.d0) then
@@ -3325,12 +3388,13 @@ contains
         end if
       end do
        
-      LEV_START = IM
+      LEV_START = IM(1)
      
-      if ( IM == NLEV ) then
+      if ( IM(1) == NLEV ) then
         LEV_START = max(LEV_START,i10)
         NHT = 1
         HT(1) = PP(NLEV)
+        deallocate ( p )
         return
       end if
        
@@ -3339,7 +3403,7 @@ contains
 
     NHT = 0        
     
-    do I = IM, NLEV - 1
+    do I = IM(1), NLEV - 1
       DT = TT(I + 1) - TT(I) + 1.D-12
       if ( BT > TT(I) .and. BT <= TT(I + 1) ) then
         
@@ -3373,74 +3437,38 @@ contains
     end do
     
     
-    if ( NHT == 0 .and. BT < TT(IM) )  then
+    if ( NHT == 0 .and. BT < TT(IM(1)) )  then
       NHT  = 1
-      HT(1) = PP(IM)
+      HT(1) = PP(IM(1))
     else if ( NHT == 0 .and. BT > TT(NLEV) )  then
       NHT   = 1
       HT(1) = PP(NLEV)
     end if
+
+    deallocate ( p )
     
   end subroutine GET_TOP
 
-  subroutine FMIN ( IMIN, f, ndim )
 
-!***********************************************************************
-!
-!**ID FMIN -- SEARCH MINIMUM VALUE OF VECTOR
-!
-!       AUTHOR:   L. GARAND
-!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   SEARCH THE POSITION IN VECTOR F WHERE VALUE IF MINIMUM
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -F     : 1D VECTOR
-!            -NDIM  : VECTOR DIMENSION
-!
-!          OUTPUT:
-!            -IM    : INDEX OF VECTOR F WHERE VALUE IS MINIMUM
-!
-!
-!***********************************************************************
+  subroutine get_avhrr_emiss( iasi_surfem1, freqiasi, avhrr_surfem1 )
+    ! 
+    ! :Purpose: choisi l'emissivite d'un canal IASI proche pour AVHRR
+    !           a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
+    !
     implicit none
-    integer,intent (in) :: ndim
-    real(8),intent (in) :: f(ndim)
-    integer,intent (out):: imin
-    !*********************************
-    integer  :: I
-    real(8)  :: X
 
+    ! Arguments:
+    real (8) , intent (in)  :: iasi_surfem1 (:)
+    real (8) , intent (in)  :: freqiasi(:)
+    real (8) , intent (out) :: avhrr_surfem1( NIR )
 
-    IMIN = 1
-    X = F(1)
-    
-    do I=2,NDIM
-      if (F(I) < X) then
-        X = F(I)
-        IMIN = I
-      end if
-    end do
-    
-
-  end subroutine FMIN
-
-  subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,avhrr_surfem1)
-    ! choisi l'emissivite d'un canal IASI proche pour AVHRR
-    ! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
-    implicit none
-    integer ,intent(in) :: nchaniasi
-    real (8) ,intent (in) :: iasi_surfem1 ( nchaniasi )
-    real (8) ,intent (in) :: freqiasi( nchaniasi )
-    real (8) ,intent (out):: avhrr_surfem1( NIR )
-    !****************************
+    ! locals
     real (8),parameter :: freqavhrr(NIR)= (/0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03/)
     integer,save :: indxavhrr(NIR)
-    integer :: i,pos(1)
-    !*************************************************************8
+    integer :: i,pos(1), nchaniasi
+
+    nchaniasi = size ( iasi_surfem1 )
+
     do I=1,NIR
       pos = minloc ( abs (freqiasi(:) - freqavhrr(I)) )
       indxavhrr(i) = pos(1)
@@ -3452,33 +3480,21 @@ contains
   
   end subroutine get_avhrr_emiss
  
-  subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
-
-!
-!**s/r tovs_rttov_AVHRR_for_IASI  - Computation of forward radiance with rttov_direct
-!                   (for AVHRR)
-!
-!
-!author        : S. Heilliette
-!
-!revision 001  : s. heilliette october 2010
-!                  - adaptation to rttov 10.0
-!revision 002  : s. heilliette may 2017
-!                  - adaptation to rttov 12.1
-!    -------------------
-!     purpose:
-!
-!arguments
-!
-
-! appel de RTTOV pour le calcul des radiances AVHRR
-! (non assimilees mais necessaires au background check IASI)
-
+  subroutine tovs_rttov_AVHRR_for_IASI ( iptobs,surfem1_avhrr, idiasi )
+    !
+    ! :Purpose: Computation of forward radiance with rttov_direct
+    !           (for AVHRR).
+    !           appel de RTTOV pour le calcul des radiances AVHRR
+    !           (non assimilees mais necessaires au background check IASI)
+    !
     implicit none
-    integer ,intent(in) :: idiasi
-    integer ,intent (in) :: iptobs(1)
-    real (8) , intent (in) :: surfem1_avhrr(3)
-!*********************************************************************
+
+    ! Arguments:
+    integer , intent(in) :: idiasi
+    integer , intent(in) :: iptobs(1)
+    real (8), intent(in) :: surfem1_avhrr(3)
+
+    ! locals
     type (rttov_chanprof)  :: chanprof(3)
     logical :: calcemis  (3)
     integer ::  list_sensor (3),errorstatus,alloc_status(2)
@@ -3490,7 +3506,7 @@ contains
     type ( rttov_emissivity )    :: emissivity(3)
     integer :: nchannels
     integer :: asw,nlevels,io
-!***********************************************
+
   
     if (IDIASI_OLD /= IDIASI) then
       LIST_SENSOR(1) = 10
@@ -3584,30 +3600,19 @@ contains
   end subroutine tovs_rttov_AVHRR_for_IASI
 
   subroutine  COR_ALBEDO  ( DEL, SCOS )
-!***subroutine     COR_ALBEDO
-!*
-!*auteur           Louis Garand  - rpn - dorval
-!*
-!*revision 001     Jacques Halle - ddo - dorval - 421-4660
-!*                                 fev 1991
-!*                 adapter au systeme operationel GOES.
-!*
-!*REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
-!*                                 Decembre 1995
-!*                 Generaliser pour toutes les plateformes satellitaires.
-!*
-!*objet            ce sous-programme calcule un facteur de correction
-!*                 pour l'albedo a partir du cosinus de l'angle solaire. 
-!*
-!*appel            CALL COR_ALBEDO  ( DEL, SCOS )
-!*
-!*arguments        del   - output - facteur de correction
-!*                 scos  - input  - cosinus de l'angle solaire
-!**
+    !
+    ! :Purpose: ce sous-programme calcule un facteur de correction
+    !           pour l'albedo a partir du cosinus de l'angle solaire. 
+    !
+    ! :Arguments:
+    !           :del: facteur de correction
+    !           :scos: cosinus de l'angle solaire
+    !
     implicit  none
-    real(8),intent(in)  ::  scos
-    real(8),intent(out) ::  del
-    !************************************
+
+    real(8), intent(in)  :: scos
+    real(8), intent(out) :: del
+
     integer  i1, i2
     real(8)  x1, x2, g1, g2, a, b
     real(8)  S(11)
@@ -3633,40 +3638,22 @@ contains
 
 
   subroutine  SOLU ( YY1, XX1, YY2, XX2, AA, BB )
-!**subroutine     SOLU
-!
-!auteur           Louis Garand  - rpn - dorval
-!
-!revision 001     Jacques Halle - ddo - dorval - 421-4660
-!                                 fev 1991
-!                 adapter au systeme operationel GOES.
-!
-!REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
-!                                 Decembre 1995
-!                 Generaliser pour toutes les plateformes satellitaires.
-!
-!langage          fortran 90
-!
-!objet            ce sous-programme calcule la pente et l'intercept
-!                 a partir de deux couples de donnees.
-!
-!appel            CALL SOLU ( Y1, X1, Y2, X2, A, B )
-!
-!arguments        XY1    - input - coordonnee Y du point 1
-!                 XX1    - input - coordonnee X du point 1
-!                 YY2    - input - coordonnee Y du point 2
-!                 YX2    - input - coordonnee X du point 2
-!                 AA     - output- pente
-!                 BB     - output- intercept
-!*
+    !
+    ! :Purpose: ce sous-programme calcule la pente et l'intercept
+    !           a partir de deux couples de donnees.
+    !
     implicit none
-    real(8),intent (in)  ::  YY1, XX1, YY2, XX2
-    real(8),intent (out) ::  AA, BB
+
+    ! Arguments:
+    real(8), intent (in)  :: YY1 ! coordonnee Y du point 1
+    real(8), intent (in)  :: XX1 ! coordonnee X du point 1
+    real(8), intent (in)  :: YY2 ! coordonnee Y du point 2
+    real(8), intent (in)  :: XX2 ! coordonnee X du point 2
+    real(8), intent (out) ::  AA ! pente
+    real(8), intent (out) ::  BB ! intercept
     ! 
-!  DROITE PASSANT PAR DEUX POINTS PENTE A ET INTERCEPT B
-!
-
-
+    !  DROITE PASSANT PAR DEUX POINTS PENTE A ET INTERCEPT B
+    !
     AA = (YY1 - YY2) / (XX1 - XX2)
     BB = YY1 - AA * XX1
 
@@ -3674,32 +3661,17 @@ contains
 
  
   real(8) function  DRCLD ( IZ ) 
-!**fonction       DRCLD
-!
-!auteur           Louis Garand  - rpn - dorval
-!
-!revision 001     Jacques Halle - ddo - dorval - 421-4660
-!                                 fev 1991
-!                 adapter au systeme operationel GOES.
-!
-!REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
-!                                 Decembre 1995
-!                 Generaliser pour toutes les plateformes satellitaires.
-!
-!langage          fortran 5
-!
-!objet            ce sous-programme calcule la normalisation due
-!                 a l'angle zenith solaire selon 
-!                 MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.  
-!
-!appel            xnorm = DRCLD ( IZ )
-!
-!arguments        xnorm - output - facteur de normalisation
-!                 iz    - input  - cosinus de l'angle solaire
-!*
+    !
+    ! :Purpose: Generaliser pour toutes les plateformes satellitaires.
+    !           Ce sous-programme calcule la normalisation due
+    !           a l'angle zenith solaire selon 
+    !           MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.  
+    !
+    ! :Output: facteur de normalisation
+    !
     implicit  none
 
-    integer,intent (in) ::  iz
+    integer, intent (in) ::  iz ! cosinus de l'angle solaire
     
     real(8)  DRF(11) 
     
@@ -3710,44 +3682,42 @@ contains
     
   end function DRCLD
 
-  subroutine VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
-!***subroutine     VISOCN
-!*
-!*auteur           LOUIS GARAND 1985
-!*
-!*REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
-!*                                 Decembre 1995
-!*                 Generaliser pour toutes les plateformes satellitaires.
-!*
-!*objet            THIS ROUTINE PROVIDES THE CORRECTIVE FACTORS FOR THE ANISOTROPY
-!*                 OF REFLECTANCE OVER CLEAR OCEAN.
-!*                 
-!*
-!*appel            CALL VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
-!*
-!*arguments        sz     - input  - SUN ZENITH ANGLE IN DEGREES (0 TO 90)
-!*                 satz   - input  - SATELLITE ZENITH ANGLE (0 TO 90)
-!*                 rz     - input  - RELATIVE   ANGLE IN DEGREES (0 TO 180) WITH
-!*                                   0 AS BACKSCATTERING AND 
-!*                                   180 AS FORWARD SCATTERING
-!*                 anisot - output - ANISOTROPIC CORRECTIVE FACTOR 
-!*                                  (KHI IN MINNIS-HARRISSON)
-!*                 zlamb  - output - CORRECTIVE FACTOR FOR LAMBERTIAN REFLECTANCE
-!*                                   (DELTA """") ZLAMB IS A FUNCTION OF SZ ONLY.
-!*                                   THIS IS FOR OCEAN SURFACE.
-!*                 zcloud - output - SAME AS ZLAMB BUT FOR CLOUD SURFACE
-!*                 ier    - output - error code (0=ok; -1=problem with interpolation)
-!*
-!*notes            OBTAINED FROM DR PAT MINNIS,LANGLEY , AND BASED ON THE WORK
-!*                 OF MINNIS AND HARRISSON,JCAM 1984,P993.
-!*                 THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
-!*                 THREE ANGLES. 
-!**
+  subroutine VISOCN( sz, satz, rz, anisot, zlamb, zcloud, ier )
+    !
+    ! :Purpose: THIS ROUTINE PROVIDES THE CORRECTIVE FACTORS FOR THE ANISOTROPY
+    !              OF REFLECTANCE OVER CLEAR OCEAN.
+    !                 
+    ! :Arguments:
+    !           :sz: SUN ZENITH ANGLE IN DEGREES (0 TO 90)
+    !           :satz: SATELLITE ZENITH ANGLE (0 TO 90)
+    !           :rz: RELATIVE ANGLE IN DEGREES (0 TO 180) WITH
+    !                0 AS BACKSCATTERING AND 
+    !                180 AS FORWARD SCATTERING
+    !           :anisot: ANISOTROPIC CORRECTIVE FACTOR 
+    !                    (KHI IN MINNIS-HARRISSON)
+    !           :zlamb: CORRECTIVE FACTOR FOR LAMBERTIAN REFLECTANCE
+    !                   (DELTA """") ZLAMB IS A FUNCTION OF SZ ONLY.
+    !                   THIS IS FOR OCEAN SURFACE.
+    !           :zcloud: SAME AS ZLAMB BUT FOR CLOUD SURFACE
+    !           :ier: error code (0=ok; -1=problem with interpolation)
+    !
+    ! :Notes:  OBTAINED FROM DR PAT MINNIS,LANGLEY , AND BASED ON THE WORK
+    !          OF MINNIS AND HARRISSON,JCAM 1984,P993.
+    !          THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
+    !          THREE ANGLES. 
+    !
     implicit  none
-    real (8),intent(in) :: SZ,SATZ,rz
-    real (8),intent(out):: ANISOT,ZLAMB,ZCLOUD
-    integer ,intent(out) :: ier
-    !********************************************************
+
+    ! Arguments:
+    real (8), intent(in)  :: sz
+    real (8), intent(in)  :: SATZ
+    real (8), intent(in)  :: rz
+    real (8), intent(out) :: ANISOT
+    real (8), intent(out) :: ZLAMB
+    real (8), intent(out) :: ZCLOUD
+    integer , intent(out) :: ier
+
+    ! locals
     integer  i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
     real(8) cc, d1, d2, slop, cept, x1, x2
     real(8) g1, g2
@@ -3998,33 +3968,20 @@ contains
   end subroutine VISOCN
 
   
-  subroutine LINEQ(XX1,XX2,YY1,YY2,AA,BB,IERR) 
-!**subroutine     LINEQ
-!
-!auteur           Louis Garand  - rpn - dorval
-!
-!REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
-!                                 Decembre 1995
-!                Generaliser pour toutes les plateformes satellitaires.
-!
-!langage          fortran 90
-!
-!objet            calculate slope and intercept of a line.
-!
-!appel            CALL  LINEQ(X1,X2,Y1,Y2,A,B,IER)
-!
-!arguments        x1  - input  - coordinate x of point 1
-!                 x2  - input  - coordinate x of point 2
-!                 y1  - input  - coordinate y of point 1
-!                 y2  - input  - coordinate y of point 2
-!                 a   - output - slope
-!                 b   - output - intercept
-!                 ier - output - error code (0=ok)
-!
-    real(8) ,intent(in)     :: XX1,XX2,YY1,YY2
-    real(8) ,intent(out)    :: AA,BB
-    integer ,intent(out) :: ierr
-!****************************************
+  subroutine LINEQ( XX1, XX2, YY1, YY2, AA, BB, IERR ) 
+    !
+    ! :Purpose: calculate slope and intercept of a line.
+    !
+    implicit none
+   
+    ! Arguments:
+    real(8) , intent(in)  :: XX1   ! coordinate x of point 1
+    real(8) , intent(in)  :: XX2   ! coordinate x of point 2
+    real(8) , intent(in)  :: YY1   ! coordinate y of point 1
+    real(8) , intent(in)  :: YY2   ! coordinate y of point 2
+    real(8) , intent(out) :: AA    ! slope
+    real(8) , intent(out) :: BB    ! intercept
+    integer , intent(out) :: ierr  ! error code (0=ok)
      
     ierr = 0
     
@@ -4039,26 +3996,14 @@ contains
   end subroutine LINEQ
 
   real(8) function DRM(IZ) 
-!**function       DRM
-!
-!auteur           Louis Garand  - rpn - dorval
-!
-!REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
-!                                 Decembre 1995
-!                 Generaliser pour toutes les plateformes satellitaires.
-!
-!langage          fortran 90
-!
-!objet            NORMALIZATION FOR SUN ZENITH ANGLE (LAMBERTIAN)
-!                 FOR OCEAN.
-!
-!appel            val = DRM(IZ)
-!
-!arguments        iz  - input  - index
-!                 val - output - normalization factor
-!*
-
-    integer,intent (in) ::  iz
+    !
+    ! :Purpose: NORMALIZATION FOR SUN ZENITH ANGLE (LAMBERTIAN)
+    !           FOR OCEAN.
+    !
+    ! :Outputs: normalization factor
+    !
+    
+    integer,intent (in) ::  iz  ! index
 
     real(8)  DRF(11)
 
