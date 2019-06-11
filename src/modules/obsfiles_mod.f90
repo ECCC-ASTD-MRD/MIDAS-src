@@ -407,6 +407,10 @@ contains
     ! Sea Surface Temperature data file name
     clvalu(78) = 'brpsst'
     clvalu(79) = 'obsal'
+    clvalu(80) = 'brpcrisfsr3'
+    clvalu(81) = 'brpcrisfsr4'
+    clvalu(82) = 'obscrisfsr3'
+    clvalu(83) = 'obscrisfsr4'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -489,6 +493,10 @@ contains
     cfami(77)  = 'XX'
     cfami(78)  = 'TM'
     cfami(79)  = 'AL'
+    cfami(80)  = 'TO'
+    cfami(81)  = 'TO'
+    cfami(82)  = 'TO'
+    cfami(83)  = 'TO'
 
     obsDirectory = 'obs'
 
