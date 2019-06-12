@@ -356,24 +356,26 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
       else
-        call hir_cldprm_to_brp( lobsspacedata, obsf_cfilnam(fileIndex) )
+        call hir_cldprm_to_brp( lobsspacedata, fileIndex )
       end if
     end do
 
   end subroutine add_cloudprms
 
 
-  subroutine hir_cldprm_to_brp(lobsspacedata,brp_file)
+  subroutine hir_cldprm_to_brp(lobsspacedata,fileIndex)
     IMPLICIT NONE
     !implicits
-    CHARACTER(LEN=128),intent(in)     :: BRP_FILE
+   
     type(struct_obs),intent(inout)    :: lobsSpaceData
-
+    integer ,intent(in)               :: fileIndex
+    
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN
       
     CHARACTER(LEN=9)       :: OPT_MISSING
+    CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: NEW_BTYP
     INTEGER                :: BTYP10
     INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG,BTYP10OMP
@@ -423,6 +425,8 @@ contains
 
     ! opening file
     ! ------------
+
+    BRP_FILE = obsf_cfilnam(fileIndex) 
 
     write(*,*) 'OPENED FILE = ', trim(brp_file)
 
@@ -494,7 +498,8 @@ contains
           HEADER: do
             i = obs_getHeaderIndex(lobsSpaceData)
             if (i < 0) exit HEADER  
-            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp) then
+            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp .and.  &
+                  obs_headElem_i(lobsSpaceData,OBS_OTP,i) == fileIndex) then
               idata2 = i
               exit HEADER
             end if
@@ -654,6 +659,14 @@ contains
 
             flag_passage2 = 1
 
+
+            if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+              Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
+              Write(*,*) "Should not happen..."
+              call utl_abort('hir_cldprm_to_brp')
+            end if
+
+
             call BURP_Resize_Block(Block_in, ADD_NELE=11, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block info")
@@ -726,6 +739,12 @@ contains
 
           if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
             flag_passage3 = 1
+
+            if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+              Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex
+              Write(*,*) "Should not happen..."
+              call utl_abort('hir_cldprm_to_brp')
+            end if
 
             call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
             if (error/=burp_noerr) then
@@ -1309,7 +1328,6 @@ contains
             call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
             nchannels = nchannels + 1
             channelIndex(nchannels) = chan_indx
-!            channelNumber(nchannels) = ICHN
             BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
             BTOBS(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 
