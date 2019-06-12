@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Reject unknown satellites instead of aborting (#221 et !221)
+ * Correction of a bug in the update of cloud parameters and
+   emissivity in IR bgcheck mode that was affecting CrIS FSR. (#240
+   and !223)
+ * Adding two files for instrument CrIS FSR for observations inputs in
+   case we receive more than 2 satellites.  We already introduced:
+    * `obscrisfsr1` and `obscrisfsr2` recently and we add
+    * `obscrisfsr3` and `obscrisfsr4`.
 
 ### Removed
 
