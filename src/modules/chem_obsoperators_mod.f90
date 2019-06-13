@@ -767,7 +767,7 @@ contains
   
           ! Get background error std dev profile at obs locations
           sigma_trial(:,:)=0.D0
-          call bchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
+          call bchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1),vlev_opt=obsoper%pp) 
 !!          call blamchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
 !!          call benschm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,2)) 
 
@@ -2225,30 +2225,31 @@ contains
        !  call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,1:obsoper%nmodlev), &
        !                        zhbh,obsoper%imodlev_top(iobslev),obsoper%imodlev_bot(iobslev),1,obsoper%nmodlev, &
        !                        1,lrgsig,3,sigma_trial)
-         do imodlev=obsoper%imodlev_top(iobslev),obsoper%imodlev_bot(iobslev)
-            work(imodlev)=sum(obsoper%zh(iobslev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)) &
-                         *bchm_corvert(imodlev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev),jvar) &
-                         *sigma_trial(obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev),1))*sigma_trial(imodlev,1)
-         end do
-         zhbh(1)=sum(obsoper%zh(iobslev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)) &
-              *work(obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)))
+       do imodlev=obsoper%imodlev_top(iobslev),obsoper%imodlev_bot(iobslev)
+          work(imodlev)=sum(obsoper%zh(iobslev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)) &
+                       *bchm_corvert(imodlev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev),jvar) &
+                       *sigma_trial(obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev),1))*sigma_trial(imodlev,1)
+       end do
+       zhbh(1)=sum(obsoper%zh(iobslev,obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)) &
+            *work(obsoper%imodlev_top(iobslev):obsoper%imodlev_bot(iobslev)))
 
-         ! Set proportionality factor 'a'
+       ! Set proportionality factor 'a'
          
-         za=sqrt(zhbh(1)/zwbw(1))
-         ! if (abs(obsoper%lat*180./3.1415-78.).lt.2.0.and.abs(rlon*180./3.1415-185.).lt.2.0) then
-         !     write(6,*) 'ZA  ',obsoper%lat*180.0/3.1415,rlon*180.0/3.1415,za,zhbh(1),zwbw(1)
-         !     write(6,*) 'obsoper%trial',obsoper%trial(1:obsoper%nmodlev)
-         !     write(6,*) 'sigma_trial',sigma_trial(1:obsoper%nmodlev,1)
-         !     write(6,*) 'ZH  ',chm_obsoper%zh(iobslev,1:obsoper%nmodlev)
-         !     write(6,*) 'ZHP ',chm_obsoper%zhp(iobslev,1:obsoper%nmodlev)*za
-         ! end if
+       za=sqrt(zhbh(1)/zwbw(1))
+       ! if (abs(obsoper%lat*180./3.1415-78.).lt.2.0.and.abs(rlon*180./3.1415-185.).lt.2.0) then
+       !     write(6,*) 'ZA  ',obsoper%lat*180.0/3.1415,rlon*180.0/3.1415,za,zhbh(1),zwbw(1)
+       !     write(6,*) 'obsoper%trial',obsoper%trial(1:obsoper%nmodlev)
+       !     write(6,*) 'sigma_trial',sigma_trial(1:obsoper%nmodlev,1)
+       !     write(6,*) 'ZH  ',chm_obsoper%zh(iobslev,1:obsoper%nmodlev)
+       !     write(6,*) 'ZHP ',chm_obsoper%zhp(iobslev,1:obsoper%nmodlev)*za
+       ! end if
          
-         ! Set final innovation operator
+       ! Set final innovation operator
          
-         obsoper%zh(iobslev,1:obsoper%nmodlev)=obsoper%zhp(iobslev,1:obsoper%nmodlev)*za
+       obsoper%zh(iobslev,1:obsoper%nmodlev)=obsoper%zhp(iobslev,1:obsoper%nmodlev)*za
          
-      end do
+    end do
+
       
   end subroutine chm_genoper
 
