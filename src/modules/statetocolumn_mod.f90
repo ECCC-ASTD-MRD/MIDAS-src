@@ -65,8 +65,6 @@ module stateToColumn_mod
     ! lat-lon location of observations to be interpolated (only needed to rotate winds)
     real(8), pointer          :: allLat(:,:,:,:) => null()         ! (headerUsed, kIndex, step, proc)
     real(8), pointer          :: allLon(:,:,:,:) => null()         ! (headerUsed, kIndex, step, proc)
-    real(8), pointer          :: allLatOneLev(:,:) => null()   ! (headerUsed, proc)
-    real(8), pointer          :: allLonOneLev(:,:) => null()   ! (headerUsed, proc)
     real(8), pointer          :: allLatRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, kIndex, step, proc)
     real(8), pointer          :: allLonRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, kIndex, step, proc)
 
@@ -79,6 +77,9 @@ module stateToColumn_mod
   end type struct_interpInfo
 
   type(struct_interpInfo) :: interpInfo_tlad, interpInfo_nl
+
+  real(8), pointer :: allLatOneLev(:,:)
+  real(8), pointer :: allLonOneLev(:,:)
 
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
@@ -484,8 +485,10 @@ contains
     allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(interpInfo%allLat(numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
     allocate(interpInfo%allLon(numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
-    allocate(interpInfo%allLatOneLev(numHeaderUsedMax,mpi_nprocs))
-    allocate(interpInfo%allLonOneLev(numHeaderUsedMax,mpi_nprocs))
+    nullify(allLatOneLev)
+    nullify(allLonOneLev)
+    allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
+    allocate(allLonOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(numGridpt(interpInfo%hco%numSubGrid))
     interpInfo%allHeaderIndex(:,:,:) = 0
@@ -560,18 +563,16 @@ contains
       end do header_loop2
 
       ! gather geographical lat, lon positions of observations from all processors
-      call rpn_comm_allgather(real(latVec_r4,8),            numHeaderUsedMax, 'MPI_REAL8', &
-                              interpInfo%allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', &
-                              'GRID', ierr)
-      call rpn_comm_allgather(real(lonVec_r4,8),            numHeaderUsedMax, 'MPI_REAL8', &
-                              interpInfo%allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', &
-                              'GRID', ierr)
+      call rpn_comm_allgather(real(latVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
+                              allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
+      call rpn_comm_allgather(real(lonVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
+                              allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
       call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
                               allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
                               'GRID', ierr)
       k_loop: do kIndex = mykBeg, statevector%mykEnd
-        interpInfo%allLat(:,kIndex,stepIndex,:) = interpInfo%allLatOneLev(:,:)
-        interpInfo%allLon(:,kIndex,stepIndex,:) = interpInfo%allLonOneLev(:,:)
+        interpInfo%allLat(:,kIndex,stepIndex,:) = allLatOneLev(:,:)
+        interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
       end do k_loop
 
     end do step_loop2
@@ -726,9 +727,12 @@ contains
       end do k_loop3
     end do step_loop3
 
-    deallocate(allFootprintRadius_r4)
-
     deallocate(height)
+
+    deallocate(allFootprintRadius_r4)
+    deallocate(allLonOneLev)
+    deallocate(allLatOneLev)
+
     deallocate(headerIndexVec)
     deallocate(latVec_r4)
     deallocate(lonVec_r4)
