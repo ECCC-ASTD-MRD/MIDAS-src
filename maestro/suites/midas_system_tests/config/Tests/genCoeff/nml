@@ -10,6 +10,8 @@
     centerPredictors=.false.,
     lweightedEstimate=.false.,
     loutstats=.true.,
+    loutcoeffcov=.true.,
+    filterObs = .true.,
     cinst(1)="AMSUA"
     nbscan(1)=30
     cglobal(1)="DEF"

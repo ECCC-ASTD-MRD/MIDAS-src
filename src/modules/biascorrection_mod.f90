@@ -58,6 +58,7 @@ MODULE biasCorrection_mod
     integer   :: coeff_nobs
     real(8),allocatable  :: coeffIncr_fov(:)
     real(8),allocatable  :: stddev(:)
+    real(8),allocatable  :: coeffCov(:,:)
   end type struct_chaninfo
 
   type  :: struct_bias
@@ -91,14 +92,14 @@ MODULE biasCorrection_mod
   logical  :: lMimicSatbcor, lweightedEstimate, filterObs
   real(8)  :: bg_stddev(NumPredictors),predScalingFactor(NumPredictors),predOffset(NumPredictors)
   real(8)  :: scanBiasCorLength 
-  logical  :: removeBiasCorrection, refreshBiasCorrection, centerPredictors
+  logical  :: removeBiasCorrection, refreshBiasCorrection, centerPredictors,loutCoeffCov
   character (len=3) :: cglobal(25)
   character (len=7) :: cinst(25)
   integer :: nbscan(25)
   integer, external            :: fnom,fclos 
   namelist /nambias/ lvarbc,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
   namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
-  namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats
+  namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats,loutCoeffCov
 CONTAINS
  
   !-----------------------------------------------------------------------
@@ -147,6 +148,7 @@ CONTAINS
     lMimicSatbcor = .true.
     scanBiasCorLength = -1.d0
     lweightedEstimate = .false.
+    loutCoeffCov = .false.
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
@@ -842,7 +844,6 @@ CONTAINS
 
       trialHeight1m10(nobs) = height2 - height1
 
-
       trialTG(nobs) = col_getElem(columnhr,1,headerIndex,'TG')
 
     end do HEADER2
@@ -851,7 +852,7 @@ CONTAINS
       write(*,*) 'bias_getTrialPredictors_forTG: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
- 
+
     trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion factor
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
@@ -1595,6 +1596,74 @@ CONTAINS
 
   end subroutine bias_updateCoeff
 
+  !--------------------------------------
+  ! bias_writeCoeff
+  !! This subroutine write out  the coeff files.
+  !! (regression case)
+  !--------------------------------------
+  subroutine bias_writeCoeff()
+    implicit none
+    integer            :: iuncoef, ierr, numPred
+    character(len=80)  :: filename
+    character(len=80)  :: instrName, satNamecoeff
+    character (len=2),parameter  :: predTab(5) = (/ "T1", "T2", "T3", "T4", "SV"/)
+    integer :: sensorIndex,nchans,nscan,nfov,kpred,kFov,jChan
+
+    if (mpi_myId == 0 ) then
+
+      SENSORS:do sensorIndex = 1, tvs_nsensors
+
+        if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
+
+        write(*,*) " sensorIndex ",  sensorIndex
+
+        nchans = bias(sensorIndex)%numChannels
+        nscan   = bias(sensorIndex)% numscan
+
+        instrName = InstrNameinCoeffFile(tvs_instrumentName(sensorIndex))
+        satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(sensorIndex)) 
+
+        iuncoef = 0
+        filename ='./anlcoeffs_'// trim(instrName) !  // "_" // trim( satNameCoeff) 
+        call utl_open_asciifile(filename,iuncoef)
+        nfov = bias(sensorIndex) % numScan
+        do jChan = 1, nchans
+          numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
+          
+          write(iuncoef, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
+               satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, bias(sensorIndex) % chans(jChan) %coeff_nobs, numPred, nfov
+          write(iuncoef, '(A7,6(1X,A2))') 'PTYPES:',  ( predtab(bias(sensorIndex) % chans(jChan) %predictorIndex(kPred)) , kPred=2,numPred-1 )
+          write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff_fov(kFov),kFov=1,nfov)
+          write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff(kPred),kPred=1,numPred)
+
+        end do
+
+        close(iuncoef) 
+
+        if (loutCoeffCov) then
+          iuncoef = 0
+          filename ='./anlcoeffsCov_'// trim(instrName) !  // "_" // trim( satNameCoeff) 
+          call utl_open_asciifile(filename,iuncoef)
+          do jChan = 1, nchans
+            numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
+          
+            write(iuncoef, '(A38,A8,1X,A7,1X,I6,1X,I2)') 'SATELLITE, INSTRUMENT, CHANNEL, NPRED: ',  &
+                 satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, numPred
+            do kpred =1, numPred
+              write(iuncoef, '(10e14.6)')  bias(sensorIndex)%chans(jChan)%coeffCov(kpred,:)
+            end do
+          end do
+
+          close(iuncoef) 
+
+        end if
+
+      end do SENSORS
+
+    end if
+
+ end subroutine bias_writeCoeff
+
 
   !-----------------------------------------
   ! bias_removeBiasCorrection
@@ -1967,6 +2036,9 @@ CONTAINS
 
       allocate( LineVec(1,ndimmax ) )
 
+      allocate(pIMatrix(ndimmax,ndimmax))
+
+
       ! First pass throught ObsSpaceData to estimate scan biases and count data
 
       call obs_set_current_header_list(obsSpaceData,'TO')
@@ -2137,8 +2209,9 @@ CONTAINS
       do iChannel = 1, nchans
 
         if (mpi_myId == 0) then
-          ntot = sum(omfCountMpiGlobal(iChannel,:) ) 
-          if (ntot > 0) then
+          ntot = sum(omfCountMpiGlobal(iChannel,:) )
+          bias(sensorIndex)%chans(iChannel)%coeff_nobs = ntot
+          if (ntot > 0 .and. .not. lMimicSatbcor ) then
             norm = 1.d0 / ( ntot ) 
             matrixMpiGlobal(iChannel,:,:) =  matrixMpiGlobal(iChannel,:,:) * norm
             vectorMpiGlobal(iChannel,:) = vectorMpiGlobal(iChannel,:) * norm
@@ -2159,17 +2232,25 @@ CONTAINS
             deallocate( BMatrixMinusOne)
           end if
 
-          allocate(pIMatrix(ndim,ndim))
-          call pseudo_inverse(ndim,ndim,matrixMpiGlobal(iChannel,1:ndim,1:ndim),pIMatrix)
-          LineVec(1,:) = matmul(pIMatrix,vectorMpiGlobal(iChannel,:))
-          deallocate( pIMatrix)
+          pIMatrix(:,:) = 0.d0
+          call pseudo_inverse(matrixMpiGlobal(iChannel,1:ndim,1:ndim), pIMatrix(1:ndim,1:ndim) )
+          LineVec(1,1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
+         
           !          call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
         end if
 
-        call RPN_COMM_bcast(LineVec(1,:), size(LineVec(1,:)), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+        call RPN_COMM_bcast(ndim, 1, "MPI_INTEGER" , 0, "GRID",ierr )
+
+        call RPN_COMM_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 6",  ierr 
           call utl_abort("bias_do_regression")
+        end if
+
+        if (loutCoeffCov) then
+          allocate ( bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim) ) 
+          call RPN_COMM_bcast(pIMatrix(1:ndim,1:ndim), ndim*ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+          bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
         if ( lMimicSatbcor ) then
@@ -2187,7 +2268,8 @@ CONTAINS
       deallocate( Vector   )
       deallocate( omfCountMpiGlobal )
       deallocate( matrixMpiGlobal )
-      deallocate( vectorMpiGlobal   )
+      deallocate( vectorMpiGlobal )
+      deallocate( pIMatrix )
       if ( allocated(OmFBias) ) deallocate( OmFBias )
       deallocate( OmFCount )
        
@@ -2224,10 +2306,9 @@ CONTAINS
         deallocate(bias(iSensor)%chans(iChannel)%predictorIndex)
         if (allocated(bias(iSensor)%chans(iChannel)%coeffIncr_fov)) deallocate(bias(iSensor)%chans(iChannel)%coeffIncr_fov)
         deallocate(bias(iSensor)%chans(iChannel)%coeff_offset)
-        if (allocated(bias(iSensor)%chans(iChannel)%coeff)) then
-          deallocate(bias(iSensor)%chans(iChannel)%coeff)
-          deallocate(bias(iSensor)%chans(iChannel)%coeff_fov)
-        end if
+        if (allocated(bias(iSensor)%chans(iChannel)%coeff)) deallocate(bias(iSensor)%chans(iChannel)%coeff)
+        if (allocated(bias(iSensor)%chans(iChannel)%coeff_fov))  deallocate(bias(iSensor)%chans(iChannel)%coeff_fov)
+        if (allocated(bias(iSensor)%chans(iChannel)%coeffCov)) deallocate(bias(iSensor)%chans(iChannel)%coeffCov)
       end do
       deallocate(bias(iSensor)%chans)
     end do
@@ -2772,21 +2853,27 @@ CONTAINS
  ! output in AS
  ! the hard work is done with lapack
  !--------------------------------------
-  subroutine pseudo_inverse(m,n,a,as,threshold_opt)
+  subroutine pseudo_inverse(a,as,threshold_opt)
     implicit none
-    integer ,intent(in) :: n,m
-    Real(8) ,intent(in) :: a(m,n)
-    Real(8) ,intent(out) :: as(n,m)
+    Real(8) ,intent(in)  :: a(:,:)     ! Input Matrix
+    Real(8) ,intent(out) :: as(:,:) ! Its Moore Penrose Pseudo-Inverse
     real(8),optional,intent(in) :: threshold_opt
- 
     !**********************************
-    Real(8) :: aa(m,n),u(m,m),vt(n,n)
-    Real(8) :: s(min(n,m))
+    Real(8),allocatable :: aa(:,:),u(:,:),vt(:,:)
+    Real(8),allocatable :: s(:)
     integer :: info,lwork,i
+    integer :: m,n,minDim
     real(8) :: thresh
     Real(8),allocatable :: work(:)
     !
-    aa(:,:) = a(:,:)
+    m = size(a, dim=1)
+    n = size(a, dim=2)
+    minDim = min(m,n)
+
+    allocate( aa(m,n), u(m,m), vt(n,n) )
+    allocate( s(minDim) )
+
+    aa(:,:) = a(:,:) ! Work with a copy because aa will be overwriten
     lwork=max(10000,max(1,3*min(m,n)+max(m,n),5*min(m,n)))
     allocate(work(lwork))
     call DGESVD("A","A", m, n, aa, m, s, u, m, vt, n, work, lwork, info ) 
@@ -2807,13 +2894,16 @@ CONTAINS
     print *,"seuil",thresh
 
     as(:,:)=0.d0
-    do i=1,min(n,m)
+    do i=1,minDim
       If (s(i)>thresh) then
         as(i,:) = (1.d0/s(i)) * u(:,i)
       end if
     end do
 
     as = matmul(transpose(vt),as)
+
+    deallocate( aa, u, vt )
+    deallocate( s )
 
   end subroutine pseudo_inverse
 
