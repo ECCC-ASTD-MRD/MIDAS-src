@@ -64,7 +64,6 @@ program midas_gencoeff
   type(struct_vco), pointer        :: vco_anl => null()
 
 
-  character(len=12)  :: clmsg
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                  varMode        = 'analysis'
 
@@ -86,11 +85,7 @@ program midas_gencoeff
 
   call tmg_start(1,'MAIN')
 
-  if(mpi_myid == 0) then
-    clmsg = 'GENCOEFF_BEG'
-    call utl_writeStatus(clmsg)
-  endif 
-
+ 
   ! 1. Top level setup
 
   nulnam=0
@@ -105,14 +100,15 @@ program midas_gencoeff
  
 
   ! Do initial set up
-  call tmg_start(2,'PREMIN')
+  call tmg_start(2,'SETUP')
 
   call gencoeff_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
   ! Read trials and horizontally interpolate to columns
-  call tmg_start(2,'PREMIN')
+  call tmg_start(3,'TRIALS')
   call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData )
+  call tmg_stop(3)
 
 
 
@@ -120,49 +116,59 @@ program midas_gencoeff
   !
   ! Remove bias correction if requested
   !
-  call tmg_start(3,'REMOVE_BCOR')
+  call tmg_start(4,'REMOVE_BCOR')
   call bias_removeBiasCorrection(obsSpaceData,"TO")
-  call tmg_stop(3)
+  call tmg_stop(4)
 
    
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations
+  call tmg_start(5,'COMP_INOV')
   call inn_computeInnovation(trlColumnOnAnlLev,obsSpaceData)
-  call tmg_stop(2)
+  call tmg_stop(5)
 
   
     !
     ! Refresh bias correction if requested
     !
-  call tmg_start(4,'REFRESH_BCOR')
+  call tmg_start(6,'REFRESH_BCOR')
   call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
-  call tmg_stop(4)
+  call tmg_stop(6)
 
   !
   ! Filter obs if requested
   !
 
-  call tmg_start(5,'FILTER_OBS')
-  call bias_filterObs(obsSpaceData)
-  call tmg_stop(5)
- 
+  call tmg_start(7,'REGRESSION')
   call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)
+  call tmg_stop(7)
 
   ! Write coefficients to file
+  call tmg_start(8,'WRITECOEFFS')
   call bias_writebias()
+  call tmg_stop(8)
   
 
+  !
+  ! output O-F statistics befor bias coorection
+  !
+  call tmg_start(9,'STATS')
   call bias_computeResidualsStatistics(obsSpaceData,"_raw")
-
+  call tmg_stop(9)
   !
   ! fill OBS_BCOR with computed bias correction
   !
-
-
+  call tmg_start(10,'COMPBIAS')
   call bias_calcBias(obsSpaceData,trlColumnOnAnlLev)
+  call tmg_stop(10)
 
+  !
+  ! output  O-F statistics after bias coorection
+  !
+  call tmg_start(9,'STATS')
   call  bias_computeResidualsStatistics(obsSpaceData,"_corrected")
+  call tmg_stop(9)
 
   ! Deallocate internal bias correction structures 
 
@@ -175,11 +181,6 @@ program midas_gencoeff
   ! 3. Job termination
 
    istamp = exfin('GENCOEFF','FIN','NON')
-
-   if(mpi_myid == 0) then
-     clmsg = 'GENCOEFF_END'
-     call utl_writeStatus(clmsg)
-   end if
 
    call tmg_stop(1)
 
