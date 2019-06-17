@@ -96,10 +96,15 @@ MODULE biasCorrection_mod
   character (len=3) :: cglobal(25)
   character (len=7) :: cinst(25)
   integer :: nbscan(25)
+  integer :: bitListHyperIR(10)
+  integer :: bitListGeo(10)
+  integer :: bitListTovs(10)
+  integer :: bitListSsmis(10)
   integer, external            :: fnom,fclos 
   namelist /nambias/ lvarbc,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
   namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
   namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats,loutCoeffCov
+  namelist /nambias/ bitListHyperIR, bitListGeo, bitListTovs, bitListSsmis
 CONTAINS
  
   !-----------------------------------------------------------------------
@@ -153,6 +158,10 @@ CONTAINS
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
     loutstats = .false.
+    bitListHyperIR(:) = -1
+    bitListGeo(:) = -1
+    bitListTovs(:) = -1
+    bitListSsmis(:) = -1
     ! read in the namelist NAMBIAS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -1716,11 +1725,7 @@ CONTAINS
     integer :: assim,flag,codtyp
     integer :: indxtovs, iSensor, instrum
     logical :: lHyperIr, lGeo,lSsmis
-    integer, parameter :: bitListHyperIR(8)=(/6,7,9,16,18,19,21,23/)
-    integer, parameter :: bitListGeo(1)=(/11/)
-    integer, parameter :: bitListTovs(5)=(/6,7,9,16,18/)
-    integer, parameter :: bitListSsmis(5)=(/6,7,9,16,18/)
-    logical :: lBitsOn(23),lBitsOff(23)
+    character (len=codtyp_name_length) :: familyName
 
     if (.not.  filterObs ) return
 
@@ -1733,9 +1738,37 @@ CONTAINS
 
       indxtovs = tvs_ltovsno(headerIndex)
 
-      if ( indxtovs == 0 ) then
-        call utl_abort('bias_filterObs')
-      end if
+      lHyperIr = .false.
+      lGeo =  .false.
+      lSsmis = .false.
+
+      familyName = codtyp_get_name(codtyp)
+
+      select case (familyName)
+      case("ssmis")
+        lSsmis = .true.
+      case("csr")
+        lGeo = .true.
+      case("airs","iasi","cris","crisfsr")
+        lHyperIr = .true.
+      end select
+
+      isatBufr = obs_headElem_i(obsSpaceData,OBS_SAT,headerIndex) !BUFR element 1007
+      instBufr = obs_headElem_i(obsSpaceData,OBS_INS,headerIndex)  !BUFR element 2019
+
+      call tvs_mapSat(isatBufr,iplatform,isat)
+      call tvs_mapInstrum(instBufr,inst)
+
+      idsat = -1
+      do i =1, tvs_nsensors
+        if (tvs_platforms(i)  == iplatform .and.  &
+             tvs_satellites(i)   == isat            .and.  &
+             tvs_instruments(i)== inst )       then
+          idsat = i
+          exit
+        end if
+      end do
+      if (idsat == -1) cycle HEADER
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       iSensor = tvs_lsensor( indxtovs )
@@ -1749,35 +1782,23 @@ CONTAINS
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
 
-        flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
+        assim =  obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
-        assim = 0
-
-        if (lHyperIr) then ! HyperSpectral IR case
-          lBitsOn = getBitsOn(flag,bitListHyperIR) 
-          lBitsOff = .not. lBitsOn
-          if (  (  lBitsOff(7) .and.  lBitsOff(9)  .and. lBitsOff(19)  .and. lBitsOff(21)  .and. lBitsOff(23)  ) .or. &
-                 ( lBitsOn(9)  .and. lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(16) .and. lBitsOff(7)  ) ) assim =1
-        else if ( lGeo ) then ! geostationnary imager case
-          lBitsOn = getBitsOn(flag,bitListGeo) 
-          lBitsOff = .not. lBitsOn
-          if ( lBitsOff(11) ) assim = 1
-        else if ( lSsmis)  then ! SSMIS case
-          lBitsOn = getBitsOn(flag,bitListSsmis) 
-          lBitsOff = .not. lBitsOn
-!! soit bit 9 eteint
-!! ou
-!! bit 9 allumé + bit 6 OFF + bit 16 ON + bit 18 OFF  + [bit 7 OFF]
-          if ( ( lBitsOff(9)) .or. &
-               ( lBitsOn(9) .and.  lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(18)  .and.  lBitsOff(7) ) ) assim =1
-        else ! AMSUA, AMSUAB, MHS, ATMS "TOVS"
-          lBitsOn = getBitsOn(flag,bitListTovs) 
-          lBitsOff = .not. lBitsOn
-! soit bit 9 eteint
-! ou
-! bit 9 allume et bit 6 eteint et bit 16 allume bit 18 eteint bit 7 eteint
-          if ( (lBitsOff(9))  .or. &
-                ( lBitsOn(9) .and. lBitsOn(16) .and. lBitsOff(6) .and. lBitsOff(18) .and. lBitsOff(7)  ) ) assim =1
+        if ( assim == 0 ) then
+          call bias_getChannelIndex(obsSpaceData, idsat, chanIndx,bodyIndex)
+          if (chanIndx > 0) then
+            flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
+            if (lHyperIr) then ! HyperSpectral IR case 
+              if ( keepData(flag,bitListHyperIR) ) assim =1  
+            else if ( lGeo ) then ! geostationnary imager case
+              if ( keepData(flag,bitListGeo) ) assim =1  
+            else if ( lSsmis)  then ! SSMIS case
+              if ( keepData(flag,bitListSsmis) ) assim =1  
+            else ! AMSUA, AMSUB, MHS, ATMS "TOVS"
+              if ( keepData(flag,bitListTovs) ) assim =1  
+            end if
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
+          end if
         end if
 
         call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
@@ -1834,20 +1855,20 @@ CONTAINS
 
   contains
 
-    function getBitsOn(flag,bitList)
-      integer ,intent(in) :: flag,bitList(:)
-      logical :: getBitsOn(23)
-
+    logical function keepData(flag,bitList)
+      integer ,intent(in) :: flag
+      integer ,intent(in) :: bitList(:)
       integer :: i,j
 
-      getBitsOn(:) = .false.
+      keepData = .true.
 
       do i=1,size(  bitList )
         j = bitList(i)
-        getBitsOn(j) = btest(flag,j)
+        if (j==-1) exit
+        keepData = keepData .and. (.not. btest(flag,j) )
       end do
 
-    end function getBitsOn
+    end function keepData
  
   end subroutine bias_filterObs
 
