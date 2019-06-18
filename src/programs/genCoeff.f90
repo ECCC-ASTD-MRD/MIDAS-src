@@ -120,73 +120,78 @@ program midas_gencoeff
   call bias_removeBiasCorrection(obsSpaceData,"TO")
   call tmg_stop(4)
 
+  call tmg_start(5,'REMOVE_OUTLIERS')
+  call bias_removeOutliers(obsSpaceData)
+  call tmg_stop(5)
+
+
    
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations
-  call tmg_start(5,'COMP_INOV')
+  call tmg_start(6,'COMP_INOV')
   call inn_computeInnovation(trlColumnOnAnlLev,obsSpaceData)
-  call tmg_stop(5)
+  call tmg_stop(6)
 
   
     !
     ! Refresh bias correction if requested
     !
-  call tmg_start(6,'REFRESH_BCOR')
+  call tmg_start(8,'REFRESH_BCOR')
   call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
-  call tmg_stop(6)
+  call tmg_stop(8)
 
   !
   ! Filter obs if requested
   !
 
-  call tmg_start(7,'REGRESSION')
+  call tmg_start(9,'REGRESSION')
   call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)
-  call tmg_stop(7)
+  call tmg_stop(9)
 
   ! Write coefficients to file
-  call tmg_start(8,'WRITECOEFFS')
+  call tmg_start(12,'WRITECOEFFS')
   call bias_writebias()
-  call tmg_stop(8)
+  call tmg_stop(12)
   
 
   !
   ! output O-F statistics befor bias coorection
   !
-  call tmg_start(9,'STATS')
+  call tmg_start(13,'STATS')
   call bias_computeResidualsStatistics(obsSpaceData,"_raw")
-  call tmg_stop(9)
+  call tmg_stop(13)
   !
   ! fill OBS_BCOR with computed bias correction
   !
-  call tmg_start(10,'COMPBIAS')
+  call tmg_start(15,'COMPBIAS')
   call bias_calcBias(obsSpaceData,trlColumnOnAnlLev)
-  call tmg_stop(10)
+  call tmg_stop(15)
 
   !
   ! output  O-F statistics after bias coorection
   !
-  call tmg_start(9,'STATS')
+  call tmg_start(13,'STATS')
   call  bias_computeResidualsStatistics(obsSpaceData,"_corrected")
-  call tmg_stop(9)
+  call tmg_stop(13)
 
   ! Deallocate internal bias correction structures 
 
   call bias_finalize()
 
    ! Deallocate copied obsSpaceData
-   call obs_finalize(obsSpaceData)
+  call obs_finalize(obsSpaceData)
 
   
   ! 3. Job termination
 
-   istamp = exfin('GENCOEFF','FIN','NON')
+  istamp = exfin('GENCOEFF','FIN','NON')
 
-   call tmg_stop(1)
+  call tmg_stop(1)
 
-   call tmg_terminate(mpi_myid, 'TMG_GENCOEFF' )
+  call tmg_terminate(mpi_myid, 'TMG_GENCOEFF' )
 
-   call rpn_comm_finalize(ierr) 
+  call rpn_comm_finalize(ierr) 
 
 contains
 

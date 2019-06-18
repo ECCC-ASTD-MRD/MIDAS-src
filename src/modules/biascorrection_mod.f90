@@ -36,15 +36,17 @@ MODULE biasCorrection_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use stateToColumn_mod
-
+  use codtyp_mod
+  use timeCoord_mod
 
   implicit none
   save
   private
 
   public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize, bias_cvToCoeff
-  public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection
-  public               :: bias_doRegression, bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
+  public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection, bias_readConfig
+  public               :: bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
+  public               :: bias_removeOutliers
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -616,9 +618,11 @@ CONTAINS
           if (chanindx > 0) then
             OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
             bcor =  obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
-            tbias(chanIndx,iScan) = tbias(chanIndx,iScan) + ( OmF + bcor )
-            tstd(chanIndx,iScan) = tstd(chanIndx,iScan) + ( OmF + bcor ) ** 2
-            tcount(chanIndx,iScan) =  tcount(chanIndx,iScan) + 1
+            if (OmF /= MPC_missingValue_R8 .and. bcor /= MPC_missingValue_R8) then
+              tbias(chanIndx,iScan) = tbias(chanIndx,iScan) + ( OmF + bcor )
+              tstd(chanIndx,iScan) = tstd(chanIndx,iScan) + ( OmF + bcor ) ** 2
+              tcount(chanIndx,iScan) =  tcount(chanIndx,iScan) + 1
+            end if
           end if
         end do BODY
       end do HEADER
@@ -627,19 +631,19 @@ CONTAINS
       allocate( stdMpiGlobal(nchans,nscan) )
       allocate( countMpiGlobal(nchans,nscan) )
 
-      call RPN_COMM_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 1",  ierr 
         call utl_abort("bias_computeResidualsStatistics")
       end if
 
-      call RPN_COMM_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 2",  ierr 
         call utl_abort("bias_computeResidualsStatistics")
       end if
 
-      call RPN_COMM_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 3",  ierr 
         call utl_abort("bias_computeResidualsStatistics")
@@ -683,6 +687,190 @@ CONTAINS
     write(*,*) "Exiting bias_computeResidualsStatistics"
     
   end subroutine bias_computeResidualsStatistics
+
+  !---------------------------------------
+  !  bias_removeOutliers
+  !---------------------------------------- 
+ subroutine  bias_removeOutliers(obsSpaceData)
+   implicit none
+    type(struct_obs)  :: obsSpaceData
+
+    real(8),allocatable :: tbias(:,:),tstd(:,:)
+    integer,allocatable :: tcount(:,:)
+    real(8),allocatable :: biasMpiGlobal(:,:),stdMpiGLobal(:,:)
+    integer,allocatable :: countMpiGlobal(:,:)
+    integer :: sensorIndex, headerIndex, bodyIndex
+    integer :: nchans, nfiles
+    integer :: iSensor, chanIndx, timeIndex
+    real(8)  ::  OmF
+    real(8) ,parameter :: alpha =5.d0
+    real(8) :: stepObsIndex
+    integer :: ierr
+
+    if ( .not. lvarbc ) return
+
+    write(*,*) "Entering bias_removeOutliers"
+
+    SENSORS:do sensorIndex = 1, tvs_nsensors
+
+      if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
+
+      write(*,*) " sensorIndex ",  sensorIndex
+
+      nchans = bias(sensorIndex)%numChannels
+      nfiles = tim_nstepobs
+     
+      allocate(tbias(nchans,nfiles) )
+      tbias(:,:) = 0.d0
+      allocate( tstd(nchans,nfiles) )
+      tstd(:,:) = 0.d0
+      allocate( tcount(nchans,nfiles) )
+      tcount(:,:) = 0
+
+      call obs_set_current_header_list(obsSpaceData,'TO')
+
+      HEADER1: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if ( headerIndex < 0 ) exit HEADER1
+
+        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        if (iSensor /= sensorIndex) cycle HEADER1
+
+        call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+             obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+             obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex),tim_nstepobs)
+
+        timeIndex = nint( stepObsIndex )
+         if  ( timeIndex <0 ) cycle HEADER1
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if ( bodyIndex < 0 ) exit BODY1
+          
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 .and. &
+               .not. btest( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),6) ) then 
+            call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+            if (chanindx > 0) then
+              OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+              if ( OmF /= MPC_missingValue_R8) then
+                tbias(chanIndx,timeindex) = tbias(chanIndx,timeindex) +  OmF
+                tstd(chanIndx,timeindex) = tstd(chanIndx,timeindex) + ( OmF ) ** 2
+                tcount(chanIndx,timeindex) =  tcount(chanIndx,timeindex) + 1
+              end if
+            end if
+          end if
+        end do BODY1
+      end do HEADER1
+
+      allocate( biasMpiGlobal(nchans,nfiles) )
+      allocate( stdMpiGlobal(nchans,nfiles) )
+      allocate( countMpiGlobal(nchans,nfiles) )
+
+      call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 1",  ierr 
+        call utl_abort("bias_removeOutliers")
+      end if
+
+      call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 2",  ierr 
+        call utl_abort("bias_removeOutliers")
+      end if
+
+      call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 3",  ierr 
+        call utl_abort("bias_removeOutliers")
+      end if
+
+      if ( mpi_myId == 0 ) then
+        where( countMpiGlobal > 0 ) 
+          biasMpiGlobal = biasMpiGlobal / countMpiGlobal
+          stdMpiGlobal = sqrt( stdMpiGlobal/ countMpiGlobal  - biasMpiGlobal**2)
+        end where
+      end if
+
+     
+
+      call rpn_comm_bcast(countMpiGlobal,nchans*nfiles,"mpi_integer",0,"GRID",ierr)
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 4",  ierr 
+        call utl_abort("bias_removeOutliers")
+      end if
+      call rpn_comm_bcast(stdMpiGlobal,nchans*nfiles,"mpi_double_precision",0,"GRID",ierr)
+      if (ierr /=0) then
+        Write(*,*) " MPI communication error 5",  ierr 
+        call utl_abort("bias_removeOutliers")
+      end if
+
+      if ( sum(countMpiGlobal)/=0 ) then
+
+        tcount(:,:) = 0
+
+        call obs_set_current_header_list(obsSpaceData,'TO')
+
+        HEADER2: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if ( headerIndex < 0 ) exit HEADER2
+
+          iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+          if (iSensor /= sensorIndex) cycle HEADER2
+
+          call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
+               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex),tim_nstepobs)
+
+          timeIndex = nint( stepObsIndex )
+          if  ( timeIndex <0 ) cycle HEADER2
+          
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
+          BODY2: do
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if ( bodyIndex < 0 ) exit BODY2
+          
+            if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 .and. &
+                 .not. btest( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),6) ) then 
+
+              call bias_getChannelIndex(obsSpaceData,iSensor,chanIndx,bodyIndex)
+
+              if (chanindx > 0) then
+             
+                OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                if (countMpiGlobal(chanIndx,timeindex) >2 .and.  &
+                     abs(OmF) > alpha * stdMpiGlobal(chanIndx,timeindex) ) then
+                  call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+                  tcount(chanIndx,timeindex) = tcount(chanIndx,timeindex) +1
+                end if
+             
+              end if
+            end if
+          end do BODY2
+        end do HEADER2
+
+        do chanIndx =1, nchans
+          if ( sum( tcount(chanIndx,:)) > 0) then
+            Write(*,'(A,1x,i2,1x,i4,1x,i6,1x,30e14.6)') "bias_removeOutliers:", sensorindex, chanIndx, sum( tcount(chanIndx,:)), stdMpiGlobal(chanIndx,:)
+          end if
+        end do
+
+      end if
+
+      deallocate( biasMpiGlobal )
+      deallocate( stdMpiGlobal )
+      deallocate( countMpiGlobal )
+
+      deallocate(tbias)
+      deallocate( tstd )
+      deallocate( tcount )
+
+
+    end do SENSORS
+
+    write(*,*) "Exiting bias_removeOutliers"
+
+  end subroutine bias_removeOutliers
+
 
 
   !---------------------------------------
@@ -1698,8 +1886,8 @@ CONTAINS
       if ( bodyIndex < 0 ) exit BODY
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY  
       biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
-      if (biasCor /= MPC_missingValue_R8) then
-        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      if (biasCor /= MPC_missingValue_R8 .and. Obs /= MPC_missingValue_R8) then
         call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs - biasCor,OBS_REAL))
         call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, real(0.d0,OBS_REAL))
         nbcor = nbcor + 1
@@ -2111,13 +2299,15 @@ CONTAINS
       allocate( omfCountMpiGlobal(nchans,nscan) )
 
       if ( lMimicSatbcor ) then
-        call RPN_COMM_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+        call rpn_comm_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 1",  ierr 
           call utl_abort("bias_do_regression")
         end if
       end if
-      call RPN_COMM_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
+
+      call rpn_comm_reduce(OmFCount, omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER", "MPI_SUM", 0, "GRID", ierr )
+
       if (ierr /=0) then
         Write(*,*) " MPI communication error 2",  ierr 
         call utl_abort("bias_do_regression")
@@ -2127,7 +2317,7 @@ CONTAINS
           where( omfCountMpiGlobal == 0 ) omfBiasMpiGlobal = 0.d0
           where( omfCountMpiGlobal > 0 ) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
-        call RPN_COMM_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+        call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 3",  ierr 
           call utl_abort("bias_do_regression")
@@ -2216,12 +2406,12 @@ CONTAINS
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call RPN_COMM_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 4",  ierr 
         call utl_abort("bias_do_regression")
       end if
-      call RPN_COMM_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
         Write(*,*) " MPI communication error 5",  ierr 
         call utl_abort("bias_do_regression")
@@ -2260,9 +2450,9 @@ CONTAINS
           !          call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
         end if
 
-        call RPN_COMM_bcast(ndim, 1, "MPI_INTEGER" , 0, "GRID",ierr )
+        call rpn_comm_bcast(ndim, 1, "MPI_INTEGER" , 0, "GRID",ierr )
 
-        call RPN_COMM_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+        call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
           Write(*,*) " MPI communication error 6",  ierr 
           call utl_abort("bias_do_regression")
@@ -2270,7 +2460,7 @@ CONTAINS
 
         if (loutCoeffCov) then
           allocate ( bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim) ) 
-          call RPN_COMM_bcast(pIMatrix(1:ndim,1:ndim), ndim*ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
+          call rpn_comm_bcast(pIMatrix(1:ndim,1:ndim), ndim*ndim, "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
           bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
