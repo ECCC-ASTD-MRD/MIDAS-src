@@ -283,7 +283,7 @@ contains
        if(mpi_myid == 0) then
            write(*,*) 'Size of BchmVars is zero. Bhi matrix for CH family not produced.'
            write(*,*) 'No chemical assimilation to be performed.'
-           write(*,*) 'END OF bchm_SETUP'
+           write(*,*) 'END OF BCHM_SETUP'
        end if
        call tmg_stop(120)
        cvdim_out = 0
@@ -332,7 +332,7 @@ contains
       if (mpi_myid == 0) then
         write(*,*) 'Bhi matrix for CH family not produced.'
         write(*,*) 'No chemical assimilation to be performed.'
-        write(*,*) 'END OF bchm_SETUP'
+        write(*,*) 'END OF BCHM_SETUP'
       end if
       call tmg_stop(120)
       cvDim_out = 0
@@ -427,7 +427,7 @@ contains
     
     call bchm_sucorns2
     
-    if(mpi_myid == 0) write(*,*) 'END OF bchm_SETUP'
+    if(mpi_myid == 0) write(*,*) 'END OF BCHM_SETUP'
     
     initialized = .true.
 
