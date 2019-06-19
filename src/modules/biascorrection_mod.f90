@@ -46,12 +46,14 @@ MODULE biasCorrection_mod
   public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize, bias_cvToCoeff
   public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection, bias_readConfig
   public               :: bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
-  public               :: bias_removeOutliers
+  public               :: bias_removeOutliers, bias_applyBiasCorrection
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
     logical :: isDynamic
     integer :: channelNum
+    character(len=1) :: bcmode
+    character(len=1) :: bctype
     integer,allocatable  :: predictorIndex(:)
     real(8),allocatable  :: coeff(:)
     real(8),allocatable  :: coeffIncr(:)
@@ -77,7 +79,6 @@ MODULE biasCorrection_mod
   type(struct_gsv)      :: statevector_mask
   type(struct_columnData) :: column_mask
   logical               :: initialized = .false.
-  integer, parameter    :: maxNumChannels = tvs_maxChannelNumber
   integer, parameter    :: NumPredictors = 6
   integer, parameter    :: maxfov = 120
 
@@ -110,9 +111,9 @@ MODULE biasCorrection_mod
 CONTAINS
  
   !-----------------------------------------------------------------------
-  ! bias_setup
+  ! bias_readConfig
   !-----------------------------------------------------------------------
-  subroutine bias_setup()
+  subroutine bias_readConfig()
     implicit none
 
     integer  :: cvdim
@@ -175,6 +176,32 @@ CONTAINS
 
     bias_doRegression =  doRegression
 
+ end subroutine bias_readConfig
+
+
+  !-----------------------------------------------------------------------
+  ! bias_setup
+  !-----------------------------------------------------------------------
+  subroutine bias_setup()
+    implicit none
+
+    integer  :: cvdim
+    integer  :: iSensor,iPredictor, instIndex
+    integer  :: iChan
+    integer  :: iPred,jPred, kPred,iScan1, iScan2
+    character(len=85)  :: bcifFile
+    character(len=10)  :: instrName, instrNamecoeff, satNamecoeff 
+    logical            :: bcifExists
+   
+    !variables from background coeff file
+    integer            :: nfov,exitCode
+    integer            :: nchan(tvs_nSensors)
+    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
+    integer                    :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
+    character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
+    character(len=3)   :: global 
+    real(8),allocatable :: Bmatrix(:,:)
+
     cvdim = 0
 
     if ( lvarbc ) then
@@ -195,14 +222,14 @@ CONTAINS
         bcifFile = 'bcif_'//trim(instrName)
 
         global = "XXX"
-        myNbScan = -1
+        nfov = -1
         do instIndex =1,size(cinst)
           if (trim(instrNamecoeff) == trim(cinst(instIndex))) then
             global = cglobal(instIndex)
-            myNbScan = nbscan(instIndex)
+            nfov = nbscan(instIndex)
           end if
         end do
-        if ( myNbScan == -1) then
+        if ( nfov == -1) then
           write(*,*) "Problem with instrName ",instrNamecoeff
           write(*,'(15(A10,1x))')  cinst(:)
           write(*,*) "check nambias namelist"
@@ -228,7 +255,9 @@ CONTAINS
           do ichan=1, ncanBcif 
             bias(iSensor) % chans(ichan) % channelNum = canBCIF(ichan + 1) 
             bias(iSensor) % chans(ichan) % coeff_nobs = 0
-            bias(iSensor) % chans(ichan) %isDynamic = ( (biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
+            bias(iSensor) % chans(ichan) % bcmode =  bcmodeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % bctype =  bctypeBCIF(ichan + 1)
+            bias(iSensor) % chans(ichan) % isDynamic = ( (biasmode == "varbc" .and. bcmodeBCIF(ichan + 1) == "D") .or. biasmode /= "varbc")
             npredictors =  1 + npredBCIF(ichan + 1)
             bias(iSensor) % chans(ichan) % numActivePredictors = npredictors
 
@@ -341,7 +370,159 @@ CONTAINS
       call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
 
+
+    call  bias_readCoeffs() ! Read coefficient files in the case of bias correction application (biasMode=="apply")
+
   end subroutine bias_setup
+
+  !-----------------------------------------------------------------------
+  ! bias_readCoeffs
+  !-----------------------------------------------------------------------
+  !! Fill the bias structure with read static and dynamic bias correction coefficient files
+  !! for all instruments
+  !
+  subroutine bias_readCoeffs()
+    integer :: iSensor, iSat, jchannel, jChan
+    integer :: satIndexDynamic, satIndexStatic
+    integer :: chanindexDynamic, chanindexStatic
+    character(len=10)  :: instrName, instrNamecoeff, satNamecoeff
+    character(len=64)  :: dynamicCoeffFile, staticCoeffFile
+    logical            :: corrected
+    integer            :: nfov, npredictors
+
+    character(len=10) :: satsDynamic(tvs_nsensors)       ! dim(maxsat), satellite names 1
+    integer           :: chansDynamic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), channel numbers 2
+    real(8)           :: fovbiasDynamic(tvs_nsensors,tvs_maxchannelnumber,maxfov)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
+    real(8)           :: coeffDynamic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors+1)  ! dim(maxsat,maxchan,maxpred+1) 4
+    integer           :: nsatDynamic          !5
+    integer           :: nchanDynamic(tvs_nsensors)      ! dim(maxsat), number of channels 6
+    integer           :: nfovDynamic          !7
+    integer           :: npredDynamic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), number of predictors !8
+    character(len=7)  :: cinstrumDynamic      ! string: instrument (e.g. AMSUB) 9
+    character(len=2)  :: ptypesDynamic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors) ! dim(maxsat,maxchan,maxpred) 11
+    integer           :: ndataDynamic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), number of channels 12
+
+    character(len=10) :: satsStatic(tvs_nsensors)       ! dim(maxsat), satellite names 1
+    integer           :: chansStatic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), channel numbers 2
+    real(8)           :: fovbiasStatic(tvs_nsensors,tvs_maxchannelnumber,maxfov)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
+    real(8)           :: coeffStatic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors+1)  ! dim(maxsat,maxchan,maxpred+1) 4
+    integer           :: nsatStatic          !5
+    integer           :: nchanStatic(tvs_nsensors)      ! dim(maxsat), number of channels 6
+    integer           :: nfovStatic          !7
+    integer           :: npredStatic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), number of predictors !8
+    character(len=7)  :: cinstrumStatic      ! string: instrument (e.g. AMSUB) 9
+    character(len=2)  :: ptypesStatic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors) ! dim(maxsat,maxchan,maxpred) 11
+    integer           :: ndataStatic(tvs_nsensors,tvs_maxchannelnumber)    ! dim(maxsat, maxchan), number of channels 12
+
+
+    if (lvarbc .and. biasMode=="apply") then
+
+      ! 1 fichier de coefficient par intrument avec les differentes plateformes
+      ! Cas particulier GEORAD (CSR) 
+      
+      do iSensor = 1, tvs_nSensors
+
+        write(*,*) "iSensor = ",iSensor
+       
+        instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
+        instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
+        satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(iSensor)) 
+
+        if (  tvs_isInstrumGeostationary( tvs_coefs(iSensor) % coef % id_inst) ) then
+          dynamicCoeffFile = "coeff_file_" // trim( instrName ) // "." // trim( satNamecoeff )
+          staticCoeffFile = "static_file_" // trim( instrName ) // "." // trim( satNamecoeff ) 
+        else
+          dynamicCoeffFile = "coeffs_" // trim( instrName )
+          staticCoeffFile = "coeff_file_" // trim(instrName)
+        end if
+
+        call read_coeff(satsDynamic, chansDynamic, fovbiasDynamic, coeffDynamic, nsatDynamic, nchanDynamic, nfovDynamic, &
+             npredDynamic, cinstrumDynamic, dynamicCoeffFile, ptypesDynamic,ndataDynamic)
+
+        call read_coeff(satsStatic, chansStatic, fovbiasStatic, coeffStatic, nsatStatic, nchanStatic, nfovStatic, &
+             npredStatic, cinstrumStatic, staticCoeffFile, ptypesStatic,ndataStatic)
+
+        if ( cinstrumDynamic /= cinstrumStatic ) then
+          write(*,*) " Inconsistency between static and dynamic coefficient files"
+          call utl_abort('bias_readCoeffs')
+        end if
+
+        satIndexDynamic = -1
+        do iSat = 1, nsatDynamic
+          if ( trim(satNameCoeff) /= trim(satsDynamic(iSat)) .or. trim(instrNamecoeff) /= trim(cinstrumDynamic) ) cycle
+          satIndexDynamic = iSat
+        end do
+
+        satIndexStatic = -1
+        do iSat = 1, nsatStatic
+          if ( trim(satNameCoeff) /= trim(satsStatic(iSat)) .or. trim(instrNamecoeff) /= trim(cinstrumStatic) ) cycle
+          satIndexStatic = iSat
+        end do
+
+        nfov =  bias(iSensor) % numscan
+
+        do jChannel = 1, bias(iSensor)%numChannels
+
+          chanindexDynamic = -1
+          if ( satIndexDynamic > 0) then
+            do jChan = 1, nchanDynamic(satIndexDynamic)
+              if ( chansDynamic(satIndexDynamic,jChan) == bias(iSensor)%chans(jChannel)%channelNum ) then
+                chanindexDynamic = jChan
+                exit
+              end if
+            end do
+          end if
+
+          chanindexStatic = -1
+          if ( satIndexStatic > 0) then
+            do jChan = 1, nchanStatic(satIndexStatic)
+              if ( chansStatic(satIndexStatic,jChan) == bias(iSensor)%chans(jChannel)%channelNum ) then
+                chanindexStatic = jChan
+                exit
+              end if
+            end do
+          end if
+          npredictors = bias(iSensor) % chans(jChannel) % numActivePredictors
+       
+          corrected =.true.
+          select case(bias(iSensor) % chans(jChannel) % bcmode)
+          case("D")
+            if ( chanindexDynamic > 0) then
+              if (bias(iSensor) % chans(jChannel) % bctype=="C") &
+                   bias(iSensor) % chans(jChannel) % coeff(1:npredictors) = coeffDynamic(satIndexDynamic,chanindexDynamic,1:npredictors)
+              if (bias(iSensor) % chans(jChannel) % bctype=="C" .or. bias(iSensor) % chans(jChannel) % bctype=="F") &
+                   bias(iSensor) % chans(jChannel) % coeff_fov(1:nfov) = fovbiasDynamic(satIndexDynamic,chanindexDynamic,1:nfov)
+            else if ( chanindexStatic > 0) then
+              if (bias(iSensor) % chans(jChannel) % bctype=="C") &
+                   bias(iSensor) % chans(jChannel) % coeff(1:npredictors) = coeffStatic(satIndexStatic,chanindexStatic,1:npredictors)
+              if (bias(iSensor) % chans(jChannel) % bctype=="C" .or. bias(iSensor) % chans(jChannel) % bctype=="F") &
+                   bias(iSensor) % chans(jChannel) % coeff_fov(1:nfov) = fovbiasStatic(satIndexStatic,chanindexStatic,1:nfov)
+            else
+              corrected = .false.
+            end if
+          case("S")
+            if ( chanindexStatic > 0) then
+              if (bias(iSensor) % chans(jChannel) % bctype=="C") &
+                   bias(iSensor) % chans(jChannel) % coeff(1:npredictors) = coeffStatic(satIndexStatic,chanindexStatic,1:npredictors)
+              if (bias(iSensor) % chans(jChannel) % bctype=="C" .or. bias(iSensor) % chans(jChannel) % bctype=="F") & 
+                   bias(iSensor) % chans(jChannel) % coeff_fov(1:nfov) = fovbiasStatic(satIndexStatic,chanindexStatic,1:nfov)
+            else
+              corrected = .false.
+            end if
+          end select
+          
+          if (.not. corrected) then
+            Write(*,*) "Warning: channel ",  bias(iSensor) % chans(jChannel) % channelNum, " of ", &
+                 trim( instrName )," ",trim( satNamecoeff )," not corrected!"
+          end if
+
+        end do
+
+      end do
+        
+    end if
+
+  end subroutine bias_readCoeffs
 
   subroutine bias_computePredictorBiases(obsSpaceData)
     type(struct_obs),intent(inout)  :: obsSpaceData
@@ -1593,12 +1774,7 @@ CONTAINS
     ! update coeff_file_instrument and write out
     do iInstr=1, numCoefFile 
       BgFileName ='./coeff_file_'//coefInstrName(iInstr)
-      do instIndex =1,size(cinst)
-        if (trim(coefInstrName(iInstr)) == trim(cinst(instIndex))) then
-          myNbScan = nbscan(instIndex)
-        end if
-      end do
-      call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum,myNbScan)
+      call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName,sats,chans,nsat,nchan,nfov,cinstrum)
     end do
 
 
@@ -1608,19 +1784,18 @@ CONTAINS
   ! bias_updateCoeff
   ! This subroutine read, and optionaly update and write out, the coeff files.
   !--------------------------------------
-  subroutine bias_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,nbscan,updateCoeff_opt)
+  subroutine bias_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,updateCoeff_opt)
     implicit none
 
     ! There are three parts in this subroutine, read, update and write out the coeff files
     ! IN
-
-    integer,intent(in)           :: maxsat, maxpred,nbscan
+    integer,intent(in)           :: maxsat, maxpred
     character(len=*),intent(in)  :: coeff_file
     logical,optional,intent(in)  :: updateCoeff_opt
 
     ! OUT 
    
-    integer ,intent(out)         :: chans(maxsat, maxNumChannels)       ! channel numbers
+    integer ,intent(out)         :: chans(maxsat, tvs_maxChannelNumber)       ! channel numbers
     integer ,intent(out)         :: nsat, nfov
     integer ,intent(out)         :: nchan(maxsat)       ! number of channels
     character(len=10),intent(out):: sats(maxsat)        ! dim(maxsat), satellite names
@@ -1628,12 +1803,11 @@ CONTAINS
  
     ! Local
    
-    
-    real(8)            :: fovbias(maxsat,maxNumChannels,maxfov)     ! dim(maxsat,maxnumchannels,maxfov), bias as F(fov)
-    real(8)            :: coeff(maxsat,maxNumChannels,maxpred)       ! dim(maxsat,maxnumchannels,maxpred)
-    character(len=2)   :: ptypes(maxsat,maxNumChannels,maxpred) ! dim(maxsat,maxNumChannelsmaxchan,maxpred)
-    integer            :: npred(maxsat, maxNumChannels)       ! dim(maxsat, maxnumchannels), number of predictors
-    integer            :: ndata(maxsat, maxNumChannels)
+    real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)     ! dim(maxsat,tvs_maxchannelnumber,maxfov), bias as F(fov)
+    real(8)            :: coeff(maxsat,tvs_maxChannelNumber,maxpred)       ! dim(maxsat,tvs_maxchannelnumber,maxpred)
+    character(len=2)   :: ptypes(maxsat,tvs_maxChannelNumber,maxpred) ! dim(maxsat,tvs_maxChannelNumbermaxchan,maxpred)
+    integer            :: npred(maxsat, tvs_maxChannelNumber)       ! dim(maxsat, tvs_maxchannelnumber), number of predictors
+    integer            :: ndata(maxsat, tvs_maxChannelNumber)
     ! LOCAL for reading background coeff file
     character(len=10)  :: sat
     character(len=120) :: line
@@ -1646,8 +1820,8 @@ CONTAINS
     integer            :: iun
 
     ! update coeff files
-    real               :: fovbias_an(maxsat,maxNumChannels,maxfov)
-    real               :: coeff_an(maxsat,maxNumChannels,maxpred) 
+    real               :: fovbias_an(maxsat,tvs_maxChannelNumber,maxfov)
+    real               :: coeff_an(maxsat,tvs_maxChannelNumber,maxpred) 
     integer            :: iSensor, jChannel , iFov, iPred, totPred
     character(len=10)  :: tmp_SatName, tmp_InstName 
 
@@ -1678,8 +1852,8 @@ CONTAINS
 
     verbose = .false.
    
-    call read_coeff(sats, chans, fovbias, coeff, nsat, nchan, nfov, nbscan, &
-         npred, cinstrum, maxsat, maxpred, coeff_file, ptypes,ndata)
+    call read_coeff(sats, chans, fovbias, coeff, nsat, nchan, nfov, &
+         npred, cinstrum, coeff_file, ptypes,ndata)
 
 ! Transfer of coefficients read from file to the bias structure
     satloop :do iSat = 1, nsat  !backgroud sat
@@ -2065,9 +2239,11 @@ CONTAINS
   ! bias_applyBiasCorrection
   ! apply bias correction from OBS_BCOR to OBS_VAR
   ! after the call OBS_VAR contains the corrected observation and OBS_BCOR is not modified.
-  subroutine bias_applyBiasCorrection(obsSpaceData,family_opt)
-    type(struct_obs)  :: obsSpaceData
+  subroutine bias_applyBiasCorrection(obsSpaceData,column,family_opt)
+    type(struct_obs)                      :: obsSpaceData
+    integer ,intent(in)                   :: column !obsSpaceData column
     character (len=2),intent(in),optional :: family_opt
+   
     integer :: nbcor
     integer :: bodyIndex
     real(8) :: biascor, Obs
@@ -2083,8 +2259,8 @@ CONTAINS
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= 1 ) cycle BODY  
       biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8) then
-        Obs =  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs + biasCor,OBS_REAL))
+        Obs =  obs_bodyElem_r(obsSpaceData,column,bodyIndex)
+        call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,OBS_REAL))
         nbcor = nbcor + 1
       end if
     end do BODY
@@ -2110,7 +2286,7 @@ CONTAINS
 
     if ( mpi_myid == 0 ) write(*,*) ' starting bias_refreshBiasCorrection'
     call bias_calcBias(obsSpaceData,columnhr)
-    call bias_applyBiasCorrection(obsSpaceData,"TO")
+    call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
     if ( mpi_myid == 0 ) write(*,*) ' exiting bias_refreshBiasCorrection'
 
   end subroutine bias_refreshBiasCorrection
@@ -2657,10 +2833,10 @@ CONTAINS
      character(len=*) ,intent(in) :: bcifFile
      logical,intent(in)           :: hspec
      integer ,intent(out)         :: exitcode,ncan
-     integer ,intent(out)         :: can(maxnumchannels), npred(maxnumchannels)
+     integer ,intent(out)         :: can(tvs_maxchannelnumber), npred(tvs_maxchannelnumber)
      character(len=3),intent(in)  :: global_opt
-     character(len=1),intent(out) :: bcmode(maxnumchannels), bctype(maxnumchannels)
-     character(len=2),intent(out) :: pred(maxnumchannels,numpredictors)
+     character(len=1),intent(out) :: bcmode(tvs_maxchannelnumber), bctype(tvs_maxchannelnumber)
+     character(len=2),intent(out) :: pred(tvs_maxchannelnumber,numpredictors)
      !********
      character(len=7)             :: instrum
      integer                      :: i, j, ier, ii, iun
@@ -2825,8 +3001,8 @@ CONTAINS
   ! read_coeff
   ! Read radiance bias correction coefficients file
   !  input args in CAPS
-  !      call read_coeff(rc_satnames, rc_channels, rc_scanbias, rc_coeff, rc_nsat, rc_nchan, rc_nfov, RC_NBSCAN, &
-  !                      rc_npred, rc_cinstrum, RC_MAXSAT, RC_MAXPRED, RC_COEFF_FILE, rc_ptypes)
+  !      call read_coeff(rc_satnames, rc_channels, rc_scanbias, rc_coeff, rc_nsat, rc_nchan, rc_nfov, &
+  !                      rc_npred, rc_cinstrum, RC_COEFF_FILE, rc_ptypes)
   ! RETURNS:
   !   sats(nsat)            = satellite names
   !   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
@@ -2837,39 +3013,35 @@ CONTAINS
   !   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
   !   nsat, nchan, nfov, cinstrum (output) are determined from file
   !   if returned nsat = 0, coeff_file was empty
-  !   nbscan (input)  is expected nfov based on instrument name read from BCIF
-  !   maxpred (input) is max number of predictors
-  !   maxsat (input)  is max number of satellites
   !-----------------------------
-  subroutine read_coeff(sats,chans,fovbias,coeff,nsat,nchan,nfov,nbscan,npred,cinstrum,maxsat,maxpred,coeff_file,ptypes,ndata)
+  subroutine read_coeff(sats,chans,fovbias,coeff,nsat,nchan,nfov,npred,cinstrum,coeff_file,ptypes,ndata)
 
     implicit none
 
-    ! IN
-    integer, intent(in)          :: nbscan, maxsat, maxpred
-    character(len=*), intent(in) :: coeff_file
-
-    ! OUT
-    character(len=10), intent(out) :: sats(:)       ! dim(maxsat), satellite names
-    integer*4, intent(out)        :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers
-    real(8), intent(out)          :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov)
-    real(8), intent(out)          :: coeff(:,:,:)  ! dim(maxsat,maxchan,maxpred+1)
-    integer, intent(out)          :: nsat, nfov
-    integer , intent(out)         :: nchan(:)      ! dim(maxsat), number of channels
-    integer , intent(out)         :: ndata(:,:)    ! dim(maxsat, maxchan), number of channels
-    integer , intent(out)         :: npred(:,:)    ! dim(maxsat, maxchan), number of predictors
-    character(len=7), intent(out) :: cinstrum      ! string: instrument (e.g. AMSUB)
-    character(len=2), intent(out) :: ptypes(:,:,:) ! dim(maxsat,maxchan,maxpred)
+    ! Arguments
+    character(len=10), intent(out) :: sats(:)       ! dim(maxsat), satellite names 1
+    integer*4, intent(out)         :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers 2
+    real(8), intent(out)           :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
+    real(8), intent(out)           :: coeff(:,:,:)  ! dim(maxsat,maxchan,maxpred+1) 4
+    integer, intent(out)           :: nsat          !5
+    integer, intent(out)           :: nchan(:)      ! dim(maxsat), number of channels 6
+    integer, intent(out)           :: nfov          !7
+    integer, intent(out)           :: npred(:,:)    ! dim(maxsat, maxchan), number of predictors !8
+    character(len=7), intent(out)  :: cinstrum      ! string: instrument (e.g. AMSUB) 9
+    character(len=*), intent(in)   :: coeff_file    ! 10
+    character(len=2), intent(out)  :: ptypes(:,:,:) ! dim(maxsat,maxchan,maxpred) 11
+    integer, intent(out)           :: ndata(:,:)    ! dim(maxsat, maxchan), number of channels 12
 
     ! LOCAL
     character(len=8)               :: sat
     character(len=120)             :: line
     integer*4                      :: chan
-    integer*4                      :: nbfov, nbpred, i, j, k, ier, istat, ii,nobs
+    integer*4                      :: nbfov, nbpred, i, j, k, ier, istat, ii, nobs
     logical                        :: newsat
     real                           :: dummy
     integer*4                      :: iun
-
+    integer*4                      :: maxsat    
+    integer*4                      :: maxpred 
 
     iun = 0
     ier = fnom(iun,coeff_file,'FMT',0)
@@ -2880,6 +3052,9 @@ CONTAINS
 
     write(*,*)
     write(*,*) 'Bias correction coefficient file open = ', coeff_file
+
+    maxsat =  size( sats )
+    maxpred = size(ptypes, dim=3)
 
     coeff(:,:,:)    = 0.0
     fovbias(:,:,:)  = 0.0
@@ -2979,18 +3154,6 @@ CONTAINS
     nsat      = ii
     nfov      = nbfov
     nchan(ii) = j
-    if ( nbscan /= 0 ) then
-      if ( nfov /= nbscan ) then
-        write(*,*) ' INFO - Number of FOV in coeff file (nfov) does not equal default value (nbscan).'
-        write(*,*) '         nfov = ', nfov
-        write(*,*) '       nbscan = ', nbscan
-      end if
-    else ! nbscan = 0 case
-      if ( nfov /= 1 ) then
-        write(*,*) ' INFO - Number of FOV in coeff file (nfov) does not equal default value (1).'
-        write(*,*) '         nfov = ', nfov
-      end if
-    end if
 
     write(*,*) ' '
     write(*,*) ' ------------- BIAS CORRECTION COEFFICIENT FILE ------------------ '
@@ -3066,7 +3229,7 @@ CONTAINS
  !--------------------------------------
   subroutine pseudo_inverse(a,as,threshold_opt)
     implicit none
-    Real(8) ,intent(in)  :: a(:,:)     ! Input Matrix
+    Real(8) ,intent(in)  :: a(:,:)  ! Input Matrix
     Real(8) ,intent(out) :: as(:,:) ! Its Moore Penrose Pseudo-Inverse
     real(8),optional,intent(in) :: threshold_opt
     !**********************************

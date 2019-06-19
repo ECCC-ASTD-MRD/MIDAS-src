@@ -125,6 +125,12 @@ program midas_var
 
   call ram_setup
 
+  !
+  !- Read variational bias correction namelist (default is to not use it)
+  !
+  call bias_readConfig()
+
+
   ! 2. Decide on configuration of job
 
   ! ---BGCHECK (conventional obs)--- !
@@ -183,7 +189,14 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    ! Do the IR background check 
+    call bias_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+
+    call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
+
+    call bias_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO") ! Apply bias correction to O-F
+
+    ! Do the IR background check
+
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
 
     !  Write out contents of obsSpaceData into BURP files
