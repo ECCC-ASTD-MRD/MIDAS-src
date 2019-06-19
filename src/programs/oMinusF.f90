@@ -25,6 +25,7 @@ program midas_ominusf
   use obsFiles_mod
   use utilities_mod
   use mpi_mod
+  use biasCorrection_mod
   implicit none
 
   ! Namelist
@@ -67,11 +68,23 @@ program midas_ominusf
 
 
 
+  !
+  !- 1.3 Read variational bias correction namelist (default is to not use it)
+  !
+  call bias_readConfig()
+
+
+
   ! 2.1 Calculate the Observation - Forecast difference
   call omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
                    'OminusF', addHBHT, addSigmaO)
 
-  
+  call bias_calcBias(obsSpaceData,trlColumnOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
+
+  call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO") ! Apply bias correction to OBS
+
+  call bias_applyBiasCorrection(obsSpaceData,OBS_OMP,"TO") ! Apply bias correction to O-F
+
   if ( addHBHT ) then
     ! 2.2 Compute the background errors in observation space
     call hbht_compute(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
