@@ -659,14 +659,6 @@ contains
 
             flag_passage2 = 1
 
-
-            if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-              Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
-              Write(*,*) "Should not happen..."
-              call utl_abort('hir_cldprm_to_brp')
-            end if
-
-
             call BURP_Resize_Block(Block_in, ADD_NELE=11, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block info")
@@ -690,6 +682,12 @@ contains
             do k = 1, nte
               
               if ( goodprof(k) == 1 ) then
+
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
 
                 call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
 
@@ -740,12 +738,6 @@ contains
           if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
             flag_passage3 = 1
 
-            if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
-              Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex
-              Write(*,*) "Should not happen..."
-              call utl_abort('hir_cldprm_to_brp')
-            end if
-
             call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block data")
@@ -758,6 +750,12 @@ contains
               end do
                  
               if ( goodprof(k) == 1 ) then
+
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
 
                 IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,idata3)
                 IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,idata3) + IDATA - 1
