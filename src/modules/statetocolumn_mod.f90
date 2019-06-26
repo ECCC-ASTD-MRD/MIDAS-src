@@ -405,9 +405,8 @@ contains
     character(len=2)           :: inputStateVectorType
 
     ! locals
-    type(struct_gsv)          :: statevector_height, statevector_noZnoP
     type(struct_gsv), target  :: stateVector_height_VarsLevs
-    type(struct_gsv), pointer :: stateVector_ptr 
+    type(struct_gsv), pointer :: statevector_height, stateVector_ptr 
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
@@ -647,33 +646,9 @@ contains
       statevector_ptr => statevector
     else
       if ( .not. statevector_height_VarsLevs%allocated ) then
-        ! initialize statevector_height on analysis grid
-        call gsv_allocate( statevector_height, tim_nstepobs, &
-                           statevector%hco, statevector%vco, &
-                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                           varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
 
-        ! initialize statevector_noZnoP on analysis grid
-        call gsv_allocate( statevector_noZnoP, tim_nstepobs, &
-                           statevector%hco, statevector%vco, &
-                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
-                           varNames_opt=(/'TT','HU','P0'/))
-
-        ! read trial files using default horizontal interpolation degree
-        call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
-
-        ! copy the statevectors
-        call gsv_copy( statevector_noZnoP, statevector_height, allowMismatch_opt=.true. )
-
-        call gsv_deallocate(statevector_noZnoP)
-
-        call vtr_transform( statevector_height, & ! INOUT
-                            'PsfcToP_nl')         ! IN
-
-        call vtr_transform( statevector_height, & ! INOUT
-                            'TTHUtoHeight_nl')    ! IN
+        nullify(statevector_height)
+        statevector_height => vtr_getStateVectorTrial()
 
         ! transpose to VarsLevs
         nullify(varNames)
@@ -683,7 +658,7 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
                            varNames_opt=varNames )
         call gsv_transposeTilesToVarsLevs( statevector_height, statevector_height_VarsLevs )
-        call gsv_deallocate(statevector_height)
+        nullify(statevector_height)
 
       end if
       statevector_ptr => statevector_height_VarsLevs

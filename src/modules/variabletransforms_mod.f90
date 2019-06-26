@@ -41,14 +41,15 @@ module variableTransforms_mod
   private
 
   ! public procedures
-  public :: vtr_setup, vtr_transform
+  public :: vtr_setup, vtr_transform, vtr_getStateVectorTrial
 
   logical                   :: huTrialsInitialized  = .false.
   logical                   :: heightTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv) :: statevector_trial_hu, statevector_trial_height
+  type(struct_gsv)         :: statevector_trial_hu
+  type(struct_gsv), target :: statevector_trial_height
 
   ! module interfaces
   interface vtr_transform
@@ -353,6 +354,20 @@ CONTAINS
     end select
 
   end subroutine vtr_transform_ens
+
+  !--------------------------------------------------------------------------
+  ! vtr_getStateVectorTrial
+  !--------------------------------------------------------------------------
+  function vtr_getStateVectorTrial() result(statevector_ptr)
+    implicit none
+   
+    type(struct_gsv), pointer  :: statevector_ptr
+
+    if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
+
+    statevector_ptr => statevector_trial_height
+
+  end function vtr_getStateVectorTrial
 
   !--------------------------------------------------------------------------
   ! LQtoHU
