@@ -289,17 +289,17 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LFN_CURVEFIT
   !--------------------------------------------------------------------------
-  SUBROUTINE lfn_curveFit(Nn, x, y, w, nmax, param, minv, ilist, ierr, ssq)
-    IMPLICIT NONE
-
-    ! Purpose: This subroutine compute the lengthscale (sl, here: param) of a
-    !          FUNCTION that best fit (in a least-square perspective) a
-    !          data set. The method follow routine CURVEFIT from:
+  subroutine lfn_curveFit(Nn, x, y, w, nmax, param, minv, ilist, ierr, ssq)
+    !
+    !:Purpose: This subroutine computes the lengthscale (sl, here: param) of a
+    !          FUNCTION that best fits (in a least-square perspective) a
+    !          data set. The method follows routine CURVEFIT from:
     !          Heeswijk, M.V., and C.G. Fox, 1988: Iterative Method and Fortran
     !          Code for Nonlinear Curve Fitting, Computers and Geosciences, 14,
     !          4, pp. 489-503.
+    implicit none
 
-    ! Subroutine arguments:
+    ! Arguments:
     INTEGER,            INTENT(IN)    :: Nn
     REAL(8),            INTENT(IN)    :: x(Nn)
     REAL(8),            INTENT(IN)    :: y(Nn)
@@ -311,7 +311,7 @@ CONTAINS
     INTEGER,            INTENT(INOUT) :: ierr
     REAL(8),            INTENT(OUT)   :: ssq
 
-    ! Local declarations:
+    ! Locals:
     INTEGER, PARAMETER    :: icon = 100   ! max iteration
     INTEGER, PARAMETER    :: lbis = 10    ! max bisection
     

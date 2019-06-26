@@ -41,10 +41,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_gsvSaturationLimit(statevector)
     !
-    ! Purpose:
-    !          impose saturation limit on humidity variable of a statevector
+    !:Purpose: To impose saturation limit on humidity variable of a statevector
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
 
     write(*,*) 'qlim_gsvSaturationLimit: STARTING'
@@ -71,12 +72,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_gsvSaturationLimit_r8(statevector)
     !
-    ! Purpose:
-    !          impose saturation limit on humidity variable of a r8 statevector
+    !:Purpose: To impose saturation limit on humidity variable of a r8
+    !          statevector
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
 
+    ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), tt_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
@@ -142,12 +146,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_gsvSaturationLimit_r4(statevector)
     !
-    ! Purpose:
-    !          impose saturation limit on humidity variable of a r4 statevector
+    !:Purpose: To impose saturation limit on humidity variable of a r4
+    !          statevector
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
 
+    ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(4), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), tt_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
@@ -213,12 +220,14 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_gsvRttovLimit(statevector)
     !
-    ! Purpose:
-    !          impose RTTOV limits on humidity
+    !:Purpose: To impose RTTOV limits on humidity
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
 
+    ! Locals:
     integer          :: levIndex, numLev_rttov
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
     character(len=256) :: fileName
@@ -278,16 +287,19 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_gsvRttovLimit_r8
   !--------------------------------------------------------------------------
-  subroutine qlim_gsvRttovLimit_r8(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+  subroutine qlim_gsvRttovLimit_r8(statevector, press_rttov, qmin_rttov, &
+                                   qmax_rttov, numLev_rttov)
     !
-    ! Purpose:
-    !          impose RTTOV limits on humidity
+    !:Purpose: To impose RTTOV limits on humidity
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
     integer, intent(in) :: numLev_rttov
     real(8), intent(in) :: press_rttov(numLev_rttov), qmin_rttov(numLev_rttov), qmax_rttov(numLev_rttov)
 
+    ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
@@ -364,16 +376,19 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_gsvRttovLimit_r4
   !--------------------------------------------------------------------------
-  subroutine qlim_gsvRttovLimit_r4(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+  subroutine qlim_gsvRttovLimit_r4(statevector, press_rttov, qmin_rttov, &
+                                   qmax_rttov, numLev_rttov)
     !
-    ! Purpose:
-    !          impose RTTOV limits on humidity
+    !:Purpose: To impose RTTOV limits on humidity
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector
     integer, intent(in) :: numLev_rttov
     real(8), intent(in) :: press_rttov(numLev_rttov), qmin_rttov(numLev_rttov), qmax_rttov(numLev_rttov)
 
+    ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(4), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
@@ -451,26 +466,26 @@ contains
   ! qlim_lintv_minmax
   !--------------------------------------------------------------------------
   subroutine qlim_lintv_minmax(press_src, qmin_src, qmax_src, numLev_src, &
-       ni_dest, nj_dest, numLev_dest, press_dest, qmin_dest, qmax_dest)
-    !Arguments
-    !     i   press_src(numLev_src)    : Vertical levels, pressure (source)
-    !     i   qmin/max_src(numLev_src)   : Vectors to be interpolated (source)
-    !     i   numLev_src               : Number of input levels (source)
-    !     i   ni_dest,nj_dest          : Number of profiles
-    !     i   numLev_dest              : Number of output levels (destination)
-    !     i   press_dest(ni_dest,nj_dest,numLev_dest) : Vertical levels, pressure (destination)
-    !     o   qmin/max_dest(ni_dest,nj_dest,numLev_dest) : Interpolated profiles (destination)
+                               ni_dest, nj_dest, numLev_dest, press_dest, &
+                               qmin_dest, qmax_dest)
     !
-    !!    ------------------
-    !     Purpose: Performs the vertical interpolation in log of pressure
-    !              and constant value extrapolation of one-dimensional vectors.
+    !:Purpose: To perform the vertical interpolation in log of pressure and
+    !          and constant value extrapolation of one-dimensional vectors.
     implicit none
 
-    integer, intent(in) :: numLev_src, ni_dest, nj_dest, numLev_dest
-    real(8), intent(in) :: press_src(numLev_src)
-    real(8), intent(in) :: qmin_src(numLev_src) ,qmax_src(numLev_src)
-    real(8)             :: press_dest(:,:,:), qmin_dest(:,:,:), qmax_dest(:,:,:)
+    ! Arguments:
+    real(8), intent(in) :: press_src(numLev_src) ! Vertical levels, pressure (source)
+    real(8), intent(in) :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
+    real(8), intent(in) :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
+    integer, intent(in) :: numLev_src ! Number of input levels (source)
+    integer, intent(in) :: ni_dest ! Number of profiles
+    integer, intent(in) :: nj_dest ! Number of profiles
+    integer, intent(in) :: numLev_dest ! Number of output levels (destination)
+    real(8)             :: press_dest(:,:,:) ! Vertical levels, pressure (destination)
+    real(8)             :: qmin_dest(:,:,:)  ! Interpolated profiles (destination)
+    real(8)             :: qmax_dest(:,:,:)  ! Interpolated profiles (destination)
 
+    ! Locals:
     integer :: ji, jk, jo, ii, jj, ik, iorder
     integer :: ilen, ierr
     real(8) :: zpo(numLev_dest)

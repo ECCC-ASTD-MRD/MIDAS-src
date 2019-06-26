@@ -18,9 +18,9 @@ module innovation_mod
   ! MODULE innovation_mod (prefix='inn' category='1. High-level functionality')
   !
   ! :Purpose: Several high-level subroutines used to compute the innovations:
-  !           that is, the observation-minus-background values. This includes the
-  !           subroutine that reads in the gridded high-res background state from
-  !           standard files.
+  !           that is, the observation-minus-background values. This includes
+  !           the subroutine that reads in the gridded high-res background state
+  !           from standard files.
   !
   use mpi_mod
   use ramDisk_mod
@@ -67,26 +67,18 @@ contains
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
        innovationMode_in, obsClean_opt )
-    !!
-    !! s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
-    !!
-    !! Revisions:
-    !!          Y. Rochon and M. Sitwell, Jan 2016
-    !!          - Use of obs_famExist and corresponding move of calls
-    !!            to gps_setupro, gps_setupgb and tovs_setup after the call to obsf_readFiles
-    !!            as initialization of family list in obs_famExist must follow
-    !!            saving of the obs in obsSpaceData.
-    !!          - Addition of call to chm_setup for inclusion of constituent data
-    !!            info not included in obsSpaceData_mod and reading of NAMCHEM.
-    !!
-    IMPLICIT NONE
+    !
+    !:Purpose: To initialize the observation parameters and constants
+    implicit none
 
+    ! Arguments:
     type(struct_obs)                        :: obsSpaceData
     character(len=*)                        :: obsMpiStrategy
     character(len=*)                        :: obsColumnMode
     character(len=*), intent(in)            :: innovationMode_in
     logical,                       optional :: obsClean_opt
 
+    ! Locals:
     character(len=20) :: nameDimFile
     integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
@@ -406,14 +398,15 @@ contains
 
   subroutine inn_computeInnovation(columnhr,obsSpaceData,beSilent_opt)
     !
-    ! Initialise Observation Innovations using the nonlinear H
-    !
+    !:Purpose: To initialize Observation Innovations using the nonlinear H
     implicit none
 
+    ! Arguments:
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     logical, optional       :: beSilent_opt
 
+    ! Locals:
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
     real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjoaladin,zjosfctm
     real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl
@@ -603,15 +596,15 @@ contains
 
   subroutine setObsMpiStrategy(obsSpaceData, mpiStrategy)
     !
-    ! PURPOSE:
-    !  Header indices are distributed following the chosen strategy,
-    !  current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES".
-    !
+    !:Purpose: To distribute header indices following the chosen strategy,
+    !          current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES".
     implicit none
 
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in)    :: mpiStrategy
 
+    ! Locals:
     type(struct_hco), pointer :: hco_anl
 
     real(8) :: lat_r8, lon_r8
@@ -708,21 +701,23 @@ contains
   end subroutine setObsMpiStrategy
 
 
-  subroutine inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_column_index_src,obs_column_index_dest)
+  subroutine inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis, &
+                          indexBatch,obs_column_index_src,obs_column_index_dest)
     !
-    !Purpose:
-    ! Perturb the innovation vector to simulate effect of observation uncertainty
+    !:Purpose: To perturb the innovation vector to simulate effect of
+    !          observation uncertainty
     !
-    ! WARNING: perturbations are not the same when MPI topology changes!!!
-    !
-    !Author  : M. Buehner, Dec, 2013
+    !.. WARNING:: perturbations are not the same when MPI topology changes!!!
     !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
-    integer :: numAnalyses,indexAnalysis,indexBatch,numPerturbations
+    integer :: numAnalyses,indexAnalysis,indexBatch
     integer :: obs_column_index_src,obs_column_index_dest
 
+    ! Locals:
+    integer :: numPerturbations
     integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily
     integer, parameter :: numFamily=9
     real*8  :: zmean,originalOmp

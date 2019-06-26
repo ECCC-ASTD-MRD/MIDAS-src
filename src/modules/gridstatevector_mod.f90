@@ -3128,15 +3128,16 @@ module gridStateVector_mod
   ! gsv_fileUnitsToStateUnits
   !--------------------------------------------------------------------------
   subroutine gsv_fileUnitsToStateUnits(statevector, containsFullField, stepIndex_opt)
-    ! Unit conversion needed after reading rpn standard file
+    !
+    !:Purpose: Unit conversion needed after reading rpn standard file
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv)            :: statevector
     logical                     :: containsFullField
     integer, optional           :: stepIndex_opt
 
-    ! locals
+    ! Locals:
     real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:,:)
     real(8) :: multFactor
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
@@ -3207,14 +3208,16 @@ module gridStateVector_mod
   ! gsv_transposeVarsLevsToTiles
   !--------------------------------------------------------------------------
   subroutine gsv_transposeVarsLevsToTiles(statevector_in, statevector_out)
-    ! Transpose the data from mpi_distribution=VarsLevs to Tiles
+    !
+    !:Purpose: Transpose the data from mpi_distribution=VarsLevs to Tiles
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
-    ! locals
+    ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
     integer :: sendrecvKind, inKind, outKind, stepIndex
     integer, allocatable :: displs(:), nsizes(:)
@@ -3435,14 +3438,15 @@ module gridStateVector_mod
   ! gsv_transposeTilesToVarsLevs
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToVarsLevs(statevector_in, statevector_out)
-    ! Transpose the data from mpi_distribution=Tiles to VarsLevs
+    !
+    !:Purpose: Transpose the data from mpi_distribution=Tiles to VarsLevs
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
-    ! locals
+    ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, MpiIdUU, MpiIdVV
     integer :: levUV, kIndex, stepIndex, numSend, numRecv
@@ -3758,14 +3762,16 @@ module gridStateVector_mod
   ! gsv_transposeTilesToVarsLevsAd
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToVarsLevsAd(statevector_in, statevector_out)
-    ! Adjoint of Transpose the data from mpi_distribution=Tiles to VarsLevs
+    !
+    !:Purpose: Adjoint of Transpose the data from mpi_distribution=Tiles to
+    !          VarsLevs
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
-    ! locals
+    ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiIdUU, mpiIdVV
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, kIndex
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
@@ -4084,14 +4090,15 @@ module gridStateVector_mod
   ! gsv_hInterpolate
   !--------------------------------------------------------------------------
   subroutine gsv_hInterpolate(statevector_in,statevector_out)
-    ! s/r gsv_hInterpolate  - Horizontal interpolation of pressure defined fields
+    !
+    !:Purpose: Horizontal interpolation of pressure defined fields
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
-    ! locals
+    ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
 
     real(8), pointer :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
@@ -4222,14 +4229,15 @@ module gridStateVector_mod
   ! gsv_hInterpolate_r4
   !--------------------------------------------------------------------------
   subroutine gsv_hInterpolate_r4(statevector_in,statevector_out)
-    ! s/r gsv_hInterpolate_r4  - Horizontal interpolation of pressure defined fields
+    !
+    !:Purpose: Horizontal interpolation of pressure defined fields
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
-    ! locals
+    ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
 
     real(4), pointer :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -4360,16 +4368,17 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt, &
                               PsfcReference_opt,checkModelTop_opt)
-    ! s/r gsv_vInterpolate  - Vertical interpolation of pressure defined fields
+    !
+    !:Purpose: Vertical interpolation of pressure defined fields
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv)  :: statevector_in
     type(struct_gsv)  :: statevector_out
     logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
     real(8), optional :: PsfcReference_opt(:,:,:)
 
-    ! locals
+    ! Locals:
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
     integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
@@ -4507,16 +4516,17 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
                                  PsfcReference_opt,checkModelTop_opt)
-    ! s/r gsv_vInterpolate_r4  - Vertical interpolation of pressure defined fields
+    !
+    !:Purpose: Vertical interpolation of pressure defined fields
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv)  :: statevector_in
     type(struct_gsv)  :: statevector_out
     logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
     real(4), optional :: PsfcReference_opt(:,:,:)
 
-    ! locals
+    ! Locals:
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
     integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
@@ -5553,16 +5563,17 @@ module gridStateVector_mod
   ! gsv_transposeStepToTiles
   !--------------------------------------------------------------------------
   subroutine gsv_transposeStepToTiles(stateVector_1step_r4, stateVector_tiles, stepIndexBeg)
-    ! **Purpose:**
-    ! Do mpi transpose from 1 timestep per mpi task to 4D lat-lon Tiles
+    !
+    !:Purpose: Do mpi transpose from 1 timestep per mpi task to 4D lat-lon Tiles
     !
     implicit none
-    ! arguments
+
+    ! Arguments:
     type(struct_gsv) :: stateVector_1step_r4, stateVector_tiles
     integer :: stepIndexBeg
 
-    ! locals
-    integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount 
+    ! Locals:
+    integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount
     integer :: displs(mpi_nprocs), nsizes(mpi_nprocs)
     integer :: senddispls(mpi_nprocs), sendsizes(mpi_nprocs)
     integer :: recvdispls(mpi_nprocs), recvsizes(mpi_nprocs)
@@ -5756,15 +5767,16 @@ module gridStateVector_mod
   ! gsv_transposeTilesToStep
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_tiles, stepIndexBeg)
-    ! **Purpose:**
-    ! Do mpi transpose from 4D lat-lon Tiles to 1 timestep per mpi task
+    !
+    !:Purpose: Do mpi transpose from 4D lat-lon Tiles to 1 timestep per mpi task
     !
     implicit none
-    ! arguments
+
+    ! Arguments:
     type(struct_gsv) :: stateVector_1step_r4, stateVector_tiles
     integer :: stepIndexBeg
 
-    ! locals
+    ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
     integer :: kIndex, procIndex, stepIndex, numStepOutput, stepCount
     logical :: thisProcIsAreceiver(mpi_nprocs)
@@ -5959,23 +5971,17 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_varKindExist(varKind) result(KindFound)
     !
-    ! Author: M. Sitwell Sept 2015
-    !
-    ! Purpose: Checks if any of the variables to be assimilated (i.e. specified in the
-    !          namelist NAMSTATE) are part of the specified variable kind
-    ! 
-    ! IN
-    ! 
-    !    varKind      Variable kind (e.g. MT or CH)
-    !  
-    ! OUT
-    !
-    !   KindFound     Logical indicating if var kind found 
+    !:Purpose: To check whether any of the variables to be assimilated
+    !          (i.e. specified in the namelist NAMSTATE) are part of the
+    !          specified variable kind
     !
     implicit none
-    character(len=*) :: varKind
-    logical :: KindFound
-    
+    logical :: KindFound  ! Logical indicating whether var kind found 
+
+    ! Arguments:
+    character(len=*) :: varKind ! Variable kind (e.g. MT or CH)
+
+    ! Locals:
     integer :: varIndex
 
     KindFound = .false.
@@ -6351,47 +6357,37 @@ module gridStateVector_mod
   ! gsv_field3d_hbilin
   !--------------------------------------------------------------------------
   subroutine gsv_field3d_hbilin(field,nlong,nlat,nlev,xlong,xlat,vlev, &
-                              fieldout,nlongout,nlatout,nlevout,xlongout,xlatout,vlevout)
-  !
-  ! Author:  Y. Rochon, May 2018 
-  !
-  ! Purpose: Horizontal bilinear interpolation from a 3D regular gridded field to 
-  !          another 3D regular gridded field.
-  !
-  !          This version can be used with fields that are not part of the background state,
-  !          such as climatologies.
-  !
-  !          This version does not depend on gridstatevector data types/structures.
-  !
-  ! Arguments:
-  !
-  !   Input
-  !      
-  !     field(nlong,nlat,nlev)  3D field
-  !     nlong         number or latitudes
-  !     nlat          number of longitudes
-  !     nlev          number of vertical levels
-  !     xlong         longitudes (radians)
-  !     xlat          latitudes (radians)
-  !     vlev          vertical levels of input field (in pressure)
-  !     nlongout      number or latitudes
-  !     nlatout       number of target longitudes
-  !     xlatout       target of target latitudes (radians)
-  !     xlongout      target longitudes (radians) 
-  !     nlevout       Number of target vertical levels
-  !     vlevout       Target vertical levels (in pressure)
-  !
-  !   Output
-  !
-  !     fieldout(nlongout,nlatout,nlevout)   3D field
-  !
+                                fieldout,nlongout,nlatout,nlevout,xlongout, &
+                                xlatout,vlevout)
+    !
+    !:Purpose: Horizontal bilinear interpolation from a 3D regular gridded field
+    !          to another 3D regular gridded field.
+    !
+    !          This version can be used with fields that are not part of the
+    !          background state, such as climatologies.
+    !
+    !          This version does not depend on gridstatevector data
+    !          types/structures.
+    !
     implicit none
 
-    integer, intent(in) :: nlong,nlat,nlev,nlevout,nlongout,nlatout
-    real(8), intent(in) :: field(nlong,nlat,nlev),vlev(nlev),xlong(nlong),xlat(nlat)
-    real(8), intent(in) :: vlevout(nlevout),xlongout(nlongout),xlatout(nlatout)
-    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout)
-    
+    ! Arguments:
+    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
+    integer, intent(in) :: nlong ! number of latitudes
+    integer, intent(in) :: nlat  ! number of longitudes
+    integer, intent(in) :: nlev  ! number of vertical levels
+    real(8), intent(in) :: xlong(nlong) ! longitudes (radians)
+    real(8), intent(in) :: xlat(nlat)   ! latitudes (radians)
+    real(8), intent(in) :: vlev(nlev)   ! vertical levels of input field (in pressure)
+    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
+    integer, intent(in) :: nlongout ! number or latitudes
+    integer, intent(in) :: nlatout  ! number of target longitudes
+    integer, intent(in) :: nlevout  ! Number of target vertical levels
+    real(8), intent(in) :: xlongout(nlongout) ! target longitudes (radians) 
+    real(8), intent(in) :: xlatout(nlatout)   ! target of target latitudes (radians)
+    real(8), intent(in) :: vlevout(nlevout)   ! Target vertical levels (in pressure)
+
+    ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
     integer :: ilev,ilon,ilat,i,j,ilongout,ilatout
     logical :: same_vlev
@@ -6504,13 +6500,12 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, &
        varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt )
-    ! **Purpose:**
-    ! Apply a horizontal smoothing to all of the fields according
-    ! to the specified horizontal length scale
+    !:Purpose: To apply a horizontal smoothing to all of the fields according
+    !          to the specified horizontal length scale
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv), target, intent(inout):: stateVector_inout
     real(8), intent(in)                    :: horizontalScale
     logical, optional, intent(in)          :: maskNegatives_opt
@@ -6519,7 +6514,7 @@ module gridStateVector_mod
     real(8), optional, pointer, intent(in) :: binReal_opt(:,:)
     real(8), optional :: binRealThreshold_opt
 
-    ! locals
+    ! Locals:
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: stateVector_varsLevs
 

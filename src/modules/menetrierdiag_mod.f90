@@ -666,17 +666,18 @@ contains
   ! DISTANCE
   !--------------------------------------------------------------------------
   function calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
+    !:Purpose: To compute the distance between two points on Earth: (lat1,lon1)
+    !          and (lat2,lon2). Calcul utilisant la Formule d'Haversine
+    !          Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope,
+    !          vol.68, no.2, 1984, p.159)
     implicit none
-
-    ! Compute the distance between two point on earth: (lat1,lon1) and (lat2,lon2)
-    !     Calcul utilisant la Formule d'Haversine
-    !     Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope,
-    !     vol.68, no.2, 1984, p.159)
-
-    real(8) :: lat1, lon1, lat2, lon2
-    real(8) :: dlat, dlon, a, c
-
     real(8) :: distanceInM
+
+    ! Arguments:
+    real(8) :: lat1, lon1, lat2, lon2
+
+    ! Locals:
+    real(8) :: dlat, dlon, a, c
 
     dlon = lon2 - lon1
     dlat = lat2 - lat1

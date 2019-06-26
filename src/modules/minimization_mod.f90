@@ -220,15 +220,16 @@ CONTAINS
 
 
   subroutine quasiNewtonMinimization(column,columng,obsSpaceData,vazx)
-      ! **Purpose:**
-      ! 3D/En-VAR minimization
       !
+      !:Purpose: 3D/En-VAR minimization
       implicit none
 
+      ! Arguments:
       type(struct_columnData),target :: column,columng
       type(struct_obs),target :: obsSpaceData
       real*8 :: vazx(:)
 
+      ! Locals:
       type(struct_dataptr) :: dataptr 
       integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
       integer              :: nulout = 6
@@ -536,17 +537,21 @@ CONTAINS
   end subroutine min_writeHessian
 
 
-  subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
-    ! **Purpose:** 
-    ! Use QNA_N1QN3 minimization to perform analysis step on ensemble perturbations
+  subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng, &
+                              obsSpaceData)
     !
+    !:Purpose: To use QNA_N1QN3 minimization to perform analysis step on
+    !          ensemble perturbations
     implicit none
 
-    ! arguments
+    ! Arguments
     real(8)                        :: vatra(:)
+    integer                        :: iztrl(:), dataptr_int(:)
+    real(8)                        :: zdf1
     type(struct_columnData),target :: column,columng
     type(struct_obs),target        :: obsSpaceData
-    ! locals
+
+    ! Locals
     type(struct_gsv) :: statevector_ens(numAnalyses)
     type(struct_gsv) :: statevector_mean, statevector_incr, statevector_incr_perturbed, statevector_randpert
     type(struct_hco), pointer :: hco_anl
@@ -561,10 +566,9 @@ CONTAINS
     character(len=2)   :: trialTimeIndex_str
     integer :: stamp_last, ndate, ntime, ierr, newdate
     real(8),allocatable :: vazg(:)
-    real(8) :: zjsp, zxmin, zdf1
+    real(8) :: zjsp, zxmin
     real(8) :: dlds(1)
     real :: zzsunused(1)
-    integer :: iztrl(:), dataptr_int(:)
     integer :: nulout, impres, simtot, indic
     logical :: llvazx = .false.
 
@@ -791,23 +795,15 @@ CONTAINS
 
 
   subroutine calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
-    ! **Purpose:**
-    ! Compute additive inflation random perturbations for VarEnKF
     !
-    ! **Revisions:**
-    !
-    ! 1. Y. Rochon, ARQI, Oct 2016
-    !
-    !    * Added consideration of constituent fields (kind 'CH') without 
-    !      adding a new logical pertBchmOnly
-    !    * Loop over all fields instead of over 3D and 2D fields separately.
-    !      Prevents necessity of 2D fields being ordered after 3D fields for
-    !      constituents (i.e. related to icount index).
-    ! 
+    !:Purpose: To compute additive inflation random perturbations for VarEnKF
     implicit none
+
+    ! Arguments:
     type(struct_gsv) :: statevector_randpert
     integer :: numAnalyses, indexAnalysis
 
+    ! Locals:
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
@@ -965,30 +961,36 @@ CONTAINS
 
 
   subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
+    !
+    !:Purpose: To implement the Variational solver as described in
+    !          Courtier, 1997, Dual Formulation of Four-Dimentional Variational
+    !          Assimilation, Q.J.R., pp2449-2461.
+    !
+    !:Arguments:
+    !    :na_indic:
+    !               =1 No action taken
+    !
+    !               =2 Same as 4 (compute J and gradJ) but do not interrupt
+    !                  timer of the minimizer.
+    !
+    !               =3 Compute Jo and gradJo only.
+    !
+    !               =4 Both J(u) and its gradient are computed.
+    !
+    !               .. Note:: 1 and 4 are reserved values for call back from
+    !                         m1qn3. For direct calls, use a value other than 1
+    !                         and 4.
     implicit none
-    ! Argument declarations
-    integer :: na_dim ! Dimension of the control vector in forecast error covariances space
-    ! Value of na_indic
-    ! Note: 1 and 4 are reserved values for call back from m1qn3.
-    !       For direct calls use other value than 1 and 4.
-    ! =1 No action taken; =4 Both J(u) and its gradient are computed.
-    ! =2 Same as 4 (compute J and gradJ) but do not interrupt timer of the
-    !    minimizer.
-    ! =3 Compute Jo and gradJo only.
+
+    ! Arguments:
     integer :: na_indic
+    integer :: na_dim! Control-vector dimension, forecast-error covariance space
+    real(8) :: da_v(na_dim) ! Control variable, forecast-error covariance space
     real*8  :: da_J ! Cost function of the Variational algorithm
-    real*8, dimension(na_dim) :: da_gradJ ! Gradient of the Variational Cost funtion
-    real*8, dimension(na_dim) :: da_v ! Control variable in forecast error covariances space
+    real(8) :: da_gradJ(na_dim) ! Gradient of the Variational Cost funtion
     integer :: dataptr_int(dataptr_int_size)  ! integer work area used to transmit a pointer to the obsSpaceData
-    !
-    ! Purpose: Implement the Variational solver as described in
-    ! Courtier, 1997, Dual formulation of four-dimentional variational assimilation,
-    ! Q.J.R., pp2449-2461.
-    !
-    ! Author : Simon Pellerin *ARMA/MSC October 2005
-    !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
-    !
-    ! Local declaration
+
+    ! Locals:
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv) :: statevector
@@ -1097,50 +1099,53 @@ CONTAINS
   end subroutine simvar
 
 
-  subroutine DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
-    ! **Purpose:** 
-    ! Interface for the inner product to be used
-    ! by the minimization subroutines QNA_N1QN3.
+  subroutine dscalqn(kdim,px,py,ddsc,kzs, pzs, ddzs)
+    !:Purpose: Interface for the inner product to be used by the minimization
+    !          subroutines QNA_N1QN3.
     !
-    ! Arguments
-    !
-    ! * i : KDIM      : dimension of the vectors
-    ! * i : PX, PY    : vector for which <PX,PY> is being calculated
-    ! * o : DDSC      : result of the inner product
-    ! * i :  KZS(1)   : unused working space for INTEGER  (not used)
-    ! * i :  PZS(1)   : unused working space for REAL     (not used)
-    ! * i : PDZS(1)   : unused working space for REAL*8   (not used)
-    !
-    IMPLICIT NONE
+    !:Arguments:
+    !   i : kdim
+    !   i : px,py
+    !   o : ddsc
+    !   i : kzs
+    !   i : pzs
+    !   i : ddzs
+    implicit none
 
-    REAL PZS(1)
-    INTEGER KZS(1)
-    REAL*8  DDZS(1)
+    ! Arguments:
+    integer:: kdim     ! dimension of the vectors
+    real*8 :: px(kdim) ! vector for which <PX,PY> is being calculated
+    real*8 :: py(kdim) ! vector for which <PX,PY> is being calculated
+    real*8 :: ddsc     ! result of the inner product
+    integer:: kzs(1)   ! unused working space for INTEGER  (not used)
+    real   :: pzs(1)   ! unused working space for REAL     (not used)
+    real*8 :: ddzs(1)  ! unused working space for REAL*8   (not used)
 
-    INTEGER KDIM
-    REAL*8 PX(KDIM), PY(KDIM)
-    REAL*8 DDSC
 
     CALL PRSCAL(KDIM,PX,PY,DDSC)
     RETURN
-  end subroutine DSCALQN
+  end subroutine dscalqn
 
 
-  subroutine PRSCAL(KDIM,PX,PY,DDSC)
-    ! **Purpose:**
-    ! Evaluation of the inner product used in the minimization
+  subroutine prscal(kdim,px,py,ddsc)
     !
-    ! Arguments
+    !:Purpose: To evaluate the inner product used in the minimization
     !
-    ! * i : KDIM     : dimension of the vectors
-    ! * i : PX, PY   : vector for which <PX,PY> is being calculated
-    ! * o : DDSC     : result of the inner product
+    !:Arguments:
+    !    i : KDIM
+    !    i : PX, PY
+    !    o : DDSC
     !
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER KDIM, J, RR, IERR
-    REAL*8 PX(KDIM), PY(KDIM)
-    REAL*8 DDSC
+    ! Arguments:
+    integer :: kdim     ! dimension of the vectors
+    real*8  :: px(kdim) ! vector for which <PX,PY> is being calculated
+    real*8  :: py(kdim) ! vector for which <PX,PY> is being calculated
+    real*8  :: ddsc     ! result of the inner product
+
+    ! Locals:
+    INTEGER J, RR, IERR
     REAL*8 partialsum(128)
     INTEGER mythread,numthreads,jstart,jend
     INTEGER omp_get_thread_num,omp_get_num_threads
@@ -1159,25 +1164,27 @@ CONTAINS
     call tmg_stop(71)
 
     RETURN
-  end subroutine PRSCAL
+  end subroutine prscal
 
 
-  subroutine DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
-    ! **Purpose:** 
-    ! Change of variable associated with the canonical inner product
+  subroutine dcanab(kdim,py,px,kzs,pzs,pdzs)
     !
-    ! * PX = L^-1 * Py with L related to the inner product
-    ! * <PX,PY> = PX^t  L^t  L PY
-    ! * (see the modulopt documentation aboutn DTCAB)
-    ! * NOTE: L is assumed to be the identity!
+    !:Purpose: Change of variable associated with the canonical inner product:
     !
-    IMPLICIT NONE
+    !    * PX = L^-1 * Py with L related to the inner product
+    !    * <PX,PY> = PX^t  L^t  L PY
+    !    * (see the modulopt documentation aboutn DTCAB)
+    !    * NOTE: L is assumed to be the identity!
+    !
+    implicit none
 
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
-    REAL*8 PX(KDIM), PY(KDIM)
-    REAL*8 PDZS(1)
+    ! Arguments:
+    integer kdim, kzs(1)
+    real pzs(1)
+    real*8 px(kdim), py(kdim)
+    real*8 pdzs(1)
 
+    ! Locals
     INTEGER JDIM
 
     DO JDIM = 1, KDIM
@@ -1188,20 +1195,23 @@ CONTAINS
   end subroutine DCANAB
 
 
-  subroutine DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
-    ! **Purpose:** 
-    ! Change of variable associated with the canonical inner product
+  subroutine dcanonb(kdim,px,py,kzs,pzs,pdzs)
     !
-    ! * PY = L * PX with L related to the inner product
-    ! * <PX,PY> = PX^t  L^t  L PY
-    ! * (see the modulopt documentation about DTONB)
+    !:Purpose: Change of variable associated with the canonical inner product:
     !
-    IMPLICIT NONE
-    INTEGER KDIM, KZS(1)
-    REAL PZS(1)
-    REAL*8 PX(KDIM), PY(KDIM)
-    REAL*8 PDZS(1)
+    !    * PY = L * PX with L related to the inner product
+    !    * <PX,PY> = PX^t  L^t  L PY
+    !    * (see the modulopt documentation about DTONB)
+    !
+    implicit none
 
+    ! Arguments:
+    integer kdim, kzs(1)
+    real pzs(1)
+    real*8 px(kdim), py(kdim)
+    real*8 pdzs(1)
+
+    ! Locals:
     INTEGER JDIM
 
     DO JDIM = 1, KDIM
@@ -1212,41 +1222,52 @@ CONTAINS
   end subroutine DCANONB
 
 
-  subroutine hessianIO (cfname,status,                       &
-          nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
-          iztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
-    ! **Purpose:** 
-    ! Read-Write Hessian and increment (possibly for outer loop) on a file
+  subroutine hessianIO (cfname,status,                             &
+                        nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot, &
+                        iztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
     !
+    !:Purpose: Read-Write Hessian and increment (possibly for outer loop) on a
+    !          file
+    !
+    !:Arguments:
+    !   * i   cfname
+    !   * i   status
+    !   * i   nsim
+    !   * io  kbrpstamp
+    !   * i   zeps1
+    !   * i   zdf1
+    !   * i   itertot
+    !   * i   isimtot
+    !   * i   iztrl
+    !   * i   vatra
+    !   * i   vazxbar
+    !   * i   vazx
+    !   * i   llxbar
+    !   * i   llvazx
+    !   * i   k1gc
+    !   * o   imode
+    !
+    implicit none
+
     ! Arguments:
-    !
-    ! * i   cfname    : precon file
-    ! * i   status    : = 0 if READ, = 1 if WRITE
-    ! * i   nsim      : Number of simulations in QNA_N1QN3
-    ! * io  kbrpstamp : Date
-    ! * i   zeps1     : Parameter in QNA_N1QN3
-    ! * i   zdf1      : Parameter in QNA_N1QN3
-    ! * i   itertot   : Parameter in QNA_N1QN3
-    ! * i   isimtot   : Parameter in QNA_N1QN3
-    ! * i   iztrl     : Localisation parameters for Hessian
-    ! * i   vatra     : Hessian
-    ! * i   vazxbar   : Vazx of previous loop
-    ! * i   vazx      : Current state of the minimization
-    ! * i   llxbar    : read in vaxzbar if dates are compatible
-    ! * i   llvazx    : Logical to read vazx
-    ! * i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3)
-    ! * o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
-    !
-    IMPLICIT NONE
+    character(len=*) :: cfname ! precon file
+    integer status  ! = 0 if READ, = 1 if WRITE
+    integer nsim    ! Number of simulations in QNA_N1QN3
+    integer kbrpstamp ! Date
+    real*8 :: zeps1    ! Parameter in QNA_N1QN3
+    real*8 :: zdf1     ! Parameter in QNA_N1QN3
+    integer itertot ! Parameter in QNA_N1QN3
+    integer isimtot ! Parameter in QNA_N1QN3
+    integer, target:: iztrl(5)     ! Localisation parameters for Hessian
+    real*8, target :: vatra(nmtra) ! Hessian
+    real*8, target :: vazxbar(nvadim_mpilocal) ! Vazx of previous loop
+    real*8, target :: vazx(nvadim_mpilocal) ! Current state of the minimization
+    logical llxbar  ! read in vaxzbar if dates are compatible
+    logical llvazx  ! Logical to read vazx
+    integer k1gc    ! Minimizer ID (2: m1qn2, 3: m1qn3)
+    integer imode   ! If status=0, set imode=0 (no prec) or 2 (prec)
 
-    logical llxbar,llvazx
-
-    integer status,kbrpstamp,nsim,itertot,isimtot
-    integer, dimension(5), target :: iztrl
-    integer k1gc, imode
-    real*8 zeps1,zdf1
-    real*8, dimension(nvadim_mpilocal), target :: vazxbar, vazx
-    real*8, dimension(nmtra), target :: vatra
+    ! Locals:
     real*4, allocatable :: vatravec_r4_mpiglobal(:)
     real*4, allocatable :: vatra_r4(:)
     real*8, allocatable :: vatravec_r8_mpiglobal(:)
@@ -1259,7 +1280,6 @@ CONTAINS
     integer :: jvec, i1gc,ictrlvec,ii,jproc
     integer, dimension(10), target, save :: iztrl_io
 
-    character(len=*) :: cfname
     character(len=3) :: cl_version
 
     if (status == 0) then
@@ -1484,22 +1504,26 @@ CONTAINS
   end subroutine hessianIO
 
   subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)
-  ! **Purpose:**
-  ! to compare the variation of the functional against what the gradient
-  ! gives for small changes in the control variable. This test should be
-  ! accurate for values as small as DLALPHA =  SQRT(machine precision).
-  ! (see Courtier, 1987)
+  !
+  !:Purpose: To compare the variation of the functional against what the
+  !          gradient gives for small changes in the control variable. This test
+  !          should be accurate for values as small as DLALPHA =  SQRT(machine
+  !          precision). (see Courtier, 1987)
+  !
+  !:Arguments:
+  !    :na_range:  the test will be carried over values of ALPHA ranging between
+  !                10**(-NA_RANGE) < ALPHA < 0.1
   !
   implicit none
-  ! Dummies
-  integer, intent(in) :: na_dim ! Size of the control vector
-  integer, intent(in) :: na_range ! the test will be carried over values of
-                                  ! ALPHA ranging between
-                                  ! 10**(-NA_RANGE) < ALPHA < 0.1
-  integer, intent(inout) :: dataptr(:)
-  real*8,  intent(in), dimension(na_dim) :: da_x0 ! Control vector
-  external simul ! simulator: return cost function estimate and its gradient
 
+  ! Arguments:
+  external simul ! simulator: return cost function estimate and its gradient
+  integer, intent(in) :: na_dim ! Size of the control vector
+  real*8,  intent(in) :: da_x0(na_dim) ! Control vector
+  integer, intent(in) :: na_range
+  integer, intent(inout) :: dataptr(:)
+
+  ! Locals:
   integer :: nl_indic, nl_j,ierr
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end

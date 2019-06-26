@@ -38,8 +38,7 @@ for file in $program_filelist ; do
 done
 echo "Number of programs = $numPrograms"
 
-#module_filelist=`ls -dR -1 $codedir/modules/*f*90`
-module_filelist="../../src/modules/bmatrixchem_mod.f90"
+module_filelist=`ls -dR -1 $codedir/modules/*f*90`
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 

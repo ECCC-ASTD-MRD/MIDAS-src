@@ -23,66 +23,7 @@ nil
 
 MODULES REMAINING - clean up existing subroutine descriptions
 =================            ================================
->>> JEFF IS WORKING DOWN THIS LIST FROM HERE <<<
-gridBinning_mod.ftn90
-gridstatevector_mod.f90
-horizontalcoord_mod.f90
-humiditylimits_mod.f90
-increment_mod.f90
-innovation_mod.f90
-lambmatrixhi_mod.f90
-lamspectraltransform_mod.f90
-localization_mod.f90
-localizationfunction_mod.f90
-localizationspectral_mod.f90
-mathphysconstants_mod.f90
-menetrierdiag_mod.f90
-minimization_mod.f90
-mpi_mod.f90
-mpivar_mod.f90
-multi_ir_bgck_mod.f90
-obsUtil_mod.f90
-obserrors_mod.f90
-obsfiles_mod.f90
-obsfilter_mod.f90
-obsoperators_mod.f90
-obsspacedata_mod.f90
-obsspacediag_mod.f90
-obssubspacedata_mod.f90
-obstimeinterp_mod.f90
-ominusf_mod.f90
-
-
->>> SERGEY <<<
-rmatrix_mod.f90
-rttov_interfaces_mod.ftn90
-slantprofilelatlon_mod.f90
-spectralfilter_mod.f90
-sqlite_read_mod.f90
-sqlitefiles_mod.f90
-statetocolumn_mod.f90
-thinning_mod.f90
-timecoord_mod.f90
-tovs_extrap_mod.f90
-tovs_lin_mod.f90
-tovs_nl_mod.f90
-tt2phi_mod.f90
-utilities_mod.f90
-variabletransforms_mod.f90
-varnamelist_mod.f90
-varqc_mod.f90
-verticalcoord_mod.f90
-windrotation_mod.f90
-
-MARK
-
-ozoneclim_mod.f90
-physicsfunctions_mod.f90
-presprofileoperators_mod.f90
-quasinewton_mod.f90
-ramdisk_mod.f90
-randomnumber_mod.f90
-residual_mod.f90
+nil
 
 
 
