@@ -3211,7 +3211,7 @@ contains
 
     ! Locals:
     real(8) :: ZE, ZTD, dTDdE, ZQBRANCH
-    real(8) :: dESdLQ, dESdTT, dESdP0
+    real(8) :: dESdLQ, dESdTT, dESdP
 
     dESdTT = 1.0d0
 

@@ -1021,8 +1021,8 @@ module physicsFunctions_mod
          (1.D0 + C1 * Altitude + C2 * Altitude**2)
   end function phf_gravityalt
 
-
-  subroutine phf_alt2geopotential(altitude, latitude, geopotential, printHeight)
+  subroutine phf_height2geopotential(altitude, latitude, geopotential, &
+                                     printHeight)
     !
     !:Purpose: Geopotential energy at a given point.
     !          Result is based on the WGS84 approximate expression for the
