@@ -89,20 +89,23 @@ contains
   ! findHeightMpiId
   !---------------------------------------------------------
   subroutine findHeightMpiId( stateVector_in, height, stepIndex )
-    ! **Purpose:**
-    ! Obtain the MpiId of the height for each kIndex level, 
-    ! needed to calculate the lat/lon along the slant-path.
+    !
+    !:Purpose: To obtain the MpiId of the height for each kIndex level, needed to
+    !          calculate the lat/lon along the slant-path.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
-    real(8), intent(inout) :: height(statevector_in%ni,statevector_in%nj,statevector_in%mykBeg:statevector_in%mykEnd)
+    real(8), intent(inout) :: height(statevector_in%ni,&
+                                     statevector_in%nj,&
+                                     statevector_in%mykBeg:statevector_in%mykEnd)
+    integer :: stepIndex
 
-    ! locals
+    ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
     integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
-    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
+    integer :: levVar, kIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
     integer :: requestIdHeightSfcSend(10), requestIdHeightSfcRecv(10)
     integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
@@ -2277,23 +2280,25 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupHorizInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+                                  stateVector, headerIndex, kIndex, stepIndex, &
+                                  procIndex, numGridpt)
     !
-    !:Purpose: Identify the appropriate horizontal interpolation scheme based on
-    !          footprint radius value. Then call the corresponding
-    !          subroutine to determine the grid points and their associated weights.
+    !:Purpose: To identify the appropriate horizontal interpolation scheme based
+    !          on footprint radius value. Then to call the corresponding
+    !          subroutine to determine the grid points and their associated
+    !          weights.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4)                , intent(in)    :: footprintRadius_r4 ! (metres)
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
-
-    ! locals
 
     if ( footprintRadius_r4 > 0.0 ) then
 
@@ -2321,19 +2326,19 @@ contains
   !------------------------------------------------------------------
   function s2c_getFootprintRadius( obsSpaceData, headerIndex ) result(fpr)
     !
-    !:Purpose: Determine the footprint radius (metres) of the observation.
+    !:Purpose: To determine the footprint radius (metres) of the observation.
     !          In the case of bilinear horizontal interpolation,
     !          the returned footprint is zero (default).
     !          To indicate lake operator, the returned footprint is -1.0.
     !
     implicit none
-
-    ! arguments
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer         , intent(in)  :: headerIndex
     real(4)                       :: fpr
 
-    ! locals
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: headerIndex
+
+    ! Locals:
     character(len=2)  :: cfam
     character(len=12) :: cstnid
 
@@ -2402,21 +2407,24 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, &
+                                     headerIndex, kIndex, stepIndex, procIndex,&
+                                     numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the bilinear horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    ! locals
+    ! Locals:
     integer :: localHeaderIndex, bodyIndex, depotIndex
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd, niP1
@@ -2619,22 +2627,25 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupFootprintInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, &
+                                      stateVector, headerIndex, kIndex, &
+                                      stepIndex, procIndex, numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the footprint horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4)                , intent(in)    :: fpr ! footprint radius (metres)
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    ! locals
+    ! Locals:
     integer :: localHeaderIndex, bodyIndex, depotIndex
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd
@@ -2849,18 +2860,21 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupLakeInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, &
+                                 headerIndex, kIndex, stepIndex, procIndex, &
+                                 numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the lake horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     numGridpt(:) = 0
@@ -2874,12 +2888,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine checkColumnStatevectorMatch(column,statevector)
     !
-    !:Purpose: Check column and statevector have identical nk and variables.
+    !:Purpose: To check column and statevector have identical nk and variables.
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv)       , intent(in) :: statevector
     type(struct_columnData), intent(in) :: column
 
+    ! Locals:
     integer :: kIndex
 
     ! check column/statevector have same nk

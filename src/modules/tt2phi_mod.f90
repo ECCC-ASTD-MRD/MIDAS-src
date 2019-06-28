@@ -571,7 +571,8 @@ end subroutine tt2phi_tl
 
 subroutine tt2phi_ad(statevector,statevector_trial)
   !
-  !:Purpose: Adjoint of temperature to geopotential transformation on gridstatevector
+  !:Purpose: Adjoint of temperature to geopotential transformation on
+  !          gridstatevector
   !
   !
   implicit none

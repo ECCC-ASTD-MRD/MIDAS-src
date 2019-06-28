@@ -965,9 +965,12 @@ CONTAINS
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
     real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
@@ -1049,9 +1052,12 @@ CONTAINS
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:) 
     real(kind=4), pointer       :: dP_dPsfc_out(:,:,:)
@@ -1131,10 +1137,13 @@ CONTAINS
     !:Purpose: calculation of the pressure increment on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain the P_T/P_M increments
+    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(8), allocatable  :: Psfc(:,:)
     real(8), pointer      :: delPsfc(:,:,:,:)
     real(8), pointer      :: field_Psfc(:,:,:,:)
@@ -1225,10 +1234,13 @@ CONTAINS
     !:Purpose: adjoint of calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain ncrement of Psfc.
-    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain ncrement of Psfc.
+    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: delPsfc(:,:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
