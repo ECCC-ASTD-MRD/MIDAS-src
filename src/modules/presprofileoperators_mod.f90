@@ -43,36 +43,6 @@ module presProfileOperators_mod
       !     
       !               with ZPZ=H on output of LAYERAVG
       !
-      !     2) Cases:
-      !
-      !               a) KFLAG=0 for application as forward interpolator::
-      !
-      !                      Y = sum(H*PVI)
-      !                        = PVO
-      !
-      !                      with ZPZ=H on output of LAYERAVG
-      !
-      !               b) KFLAG=1 for TLM case::
-      !
-      !                     dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-      !                        =     ZPVO   +       ZPVOPS
-      !                        = PVO
-      !
-      !                   where
-      !                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-      !                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
-      !
-      !                   with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
-      !                        ZPZ(i)=H(i) on output of LAYERAVG
-      !            
-      !               c) KFLAG=2 for adjoint case::
-      !               
-      !                     PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-      !                               = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-      !
-      !                     PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-      !                             = PPS(jn) + sum_jo (ZPZPS(jo))
-      !
       implicit none
       REAL(8), intent(in) :: PVLEV(KNI,KNPROF) ! Vertical levels, pressure (source)
       REAL(8), intent(in) :: PPO(KNO)          ! Vertical levels, pressure (destination)
@@ -82,13 +52,9 @@ module presProfileOperators_mod
       INTEGER, intent(in) :: KNO               ! Number of output levels (destination)
       INTEGER, intent(in) ::  KNPROF           ! Number of profiles
 
-      INTEGER  JO, JN, KFLAG
+      INTEGER  JO, JN
       REAL*8  ZLNPI (KNI),ZPZ(KNI),ZPG(KNI),ZPS(KNI)
       REAL*8  ZLNPO (KNO),ZPZPS,PSS
-
-! --- KFLAG defines type of calculation: 0=Forward, 1=TLM, 2=ADJ
-
-      KFLAG=0
 
 ! --- Apply weighted averaging 
 
@@ -115,36 +81,6 @@ module presProfileOperators_mod
       !:Comments:
       !
       !     1) vlev in eta coordinate associated to pvlev in pressure.
-      !
-      !     2) Cases:
-      !
-      !            a) KFLAG=0 for application as forward interpolator::
-      !
-      !                 Y = sum(H*PVI)
-      !                   = PVO
-      !
-      !                 with ZPZ=H on output of LAYERAVG
-      !
-      !            b) KFLAG=1 for TLM case::
-      !
-      !                 dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-      !                    =     ZPVO    +       ZPVOPS
-      !                    = PVO
-      !
-      !                 where
-      !                    dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-      !                               = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
-      !
-      !                 with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
-      !                      ZPZ(i)=H(i) on output of LAYERAVG
-      !
-      !            c) KFLAG=2 for adjoint case::
-      !
-      !                 PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-      !                           = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-      !
-      !                 PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-      !                         = PPS(jn) + sum_jo (ZPZPS(jo))
       !
       implicit none
 
@@ -189,37 +125,6 @@ module presProfileOperators_mod
       !:Comments:
       !
       !     1) vlev in eta coordinate associated to pvlev in pressure.
-      !
-      !     2) Cases:
-      !
-      !            a) KFLAG=0 for application as forward interpolator:: 
-      !
-      !                  Y = sum(H*PVI)
-      !                    = PVO
-      !
-      !                with ZPZ=H on output of LAYERAVG
-      !
-      !            b) KFLAG=1 for TLM case::
-      !
-      !                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-      !                     =     ZPVO    +       ZPVOPS
-      !                     = PVO
-      !
-      !                where
-      !
-      !                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-      !                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
-      !
-      !                with ZPZ(k)=dP_dPsfc(k)/PVLEV(k) on input to LAYERAVG and
-      !                    ZPZ(i)=H(i) on output of LAYERAVG
-      !
-      !            c) KFLAG=2 for adjoint case::
-      !
-      !                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-      !                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-      !
-      !                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-      !                          = PPS(jn) + sum_jo (ZPZPS(jo))
       !
       implicit none
 
@@ -304,8 +209,6 @@ module presProfileOperators_mod
          z2=px2(kn2)
          skip = .true.
       end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
 
       pz(1:kn2)=0.0D0
       test = .false.
@@ -405,8 +308,6 @@ module presProfileOperators_mod
             skip = .true.
           end if
 
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
-
           pzps(jo,levIndex)=0.0D0
           pz(1:kni)=0.0D0
           pzp(1:kni)=0.0D0
@@ -444,8 +345,6 @@ module presProfileOperators_mod
             pz(j)=1.0D0
             !pzp(j)=1.0D0
           end if
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
 
           zsum=0.0D0
           zsum2=0.0D0
@@ -488,7 +387,7 @@ module presProfileOperators_mod
       INTEGER,intent(in) ::  KNI                   ! Dimension of other arrays
       REAL(8),intent(inout) ::  PP(kni,knprof)     ! pressure adjoint (in/out)
       REAL(8),intent(in) ::  PMEAN(kno,knprof)     ! Mean weigthed value for PX1(KI-1) to PX1(KI+1)
-      REAL(8),intent(out)::  PZ(KNI)         ! Resultant accumulated contribution factors Adjoint when KFLAG=2
+      REAL(8),intent(out)::  PZ(KNI)         ! Resultant accumulated contribution factors Adjoint
       REAL(8),intent(in) ::  PZS(KNI,knprof) ! dlnP/dPs
       INTEGER,intent(in) ::  knprof
 
@@ -524,8 +423,6 @@ module presProfileOperators_mod
             skip = .true.
           end if
 
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
-
           pz(1:kni)=0.0D0
           pzp(1:kni)=0.0D0
           test = .false.
@@ -559,8 +456,6 @@ module presProfileOperators_mod
           end do
 
           if (.not. test) pz(j)=1.0D0
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
 
           zsum=0.0D0
           do j=1,kni
@@ -598,11 +493,6 @@ module presProfileOperators_mod
       !            - output: Updated gradient contribution for weights*variable
       !                      w.r.t Ps
       !
-      !:Other Output:
-      !    :tot:   Evaluated integral
-      !    :g1:    Gradient of weights*variables w.r.t. x1
-      !    :g2:    Gradient of weights*variables w.r.t. x2
-      !
       implicit none
 
       ! Arguments:
@@ -620,7 +510,10 @@ module presProfileOperators_mod
       real(8), intent(inout), optional :: pzps
 
       ! Locals:
-      real(8) y1,y2,tot,d,w10,w20,dz,dx,dy,dzd,dxd,g1,g2
+      real(8) :: tot ! Evaluated integral
+      real(8) :: g1  ! Gradient of weights*variables w.r.t. x1
+      real(8) :: g2  ! Gradient of weights*variables w.r.t. x2
+      real(8) y1,y2,d,w10,w20,dz,dx,dy,dzd,dxd
       real(8) a1,a2,aa1,aa2
       logical bot,top
 !
