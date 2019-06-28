@@ -402,11 +402,11 @@ contains
     type(struct_gsv), target   :: stateVector
     logical                    :: rejectOutsideObs
     character(len=*)           :: timeInterpType
-    character(len=2)           :: inputStateVectorType
+    character(len=*)           :: inputStateVectorType
 
     ! locals
-    type(struct_gsv), target  :: stateVector_height_VarsLevs
-    type(struct_gsv), pointer :: statevector_height, stateVector_ptr 
+    type(struct_gsv), target  :: stateVectorHeight_VarsLevs
+    type(struct_gsv), pointer :: stateVectorHeight, stateVector_ptr 
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
@@ -645,29 +645,33 @@ contains
     if ( inputStateVectorType == 'nl' ) then
       statevector_ptr => statevector
     else
-      if ( .not. statevector_height_VarsLevs%allocated ) then
+      if ( .not. stateVectorHeight_VarsLevs%allocated        .and. &
+           statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
 
-        nullify(statevector_height)
-        statevector_height => vtr_getStateVectorTrial()
+        nullify(stateVectorHeight)
+        stateVectorHeight => vtr_getStateVectorTrial('height')
 
         ! transpose to VarsLevs
         nullify(varNames)
-        call gsv_varNamesList( varNames, statevector_height )
-        call gsv_allocate( statevector_height_VarsLevs, tim_nstepobs, &
+        call gsv_varNamesList( varNames, stateVectorHeight )
+        call gsv_allocate( stateVectorHeight_VarsLevs, tim_nstepobs, &
                            statevector%hco, statevector%vco, &
                            mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
                            varNames_opt=varNames )
-        call gsv_transposeTilesToVarsLevs( statevector_height, statevector_height_VarsLevs )
-        nullify(statevector_height)
+        call gsv_transposeTilesToVarsLevs( stateVectorHeight, stateVectorHeight_VarsLevs )
+        nullify(stateVectorHeight)
 
       end if
-      statevector_ptr => statevector_height_VarsLevs
+      statevector_ptr => stateVectorHeight_VarsLevs
     end if
 
     step_loop3: do stepIndex = 1, numStep
 
       height(:,:,:) = 0.0d0
-      call findHeightMpiId(statevector_ptr, height, stepIndex)
+      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) & 
+        call findHeightMpiId(statevector_ptr, height, stepIndex)
 
       k_loop3: do kIndex = mykBeg, statevector%mykEnd
         do procIndex = 1, mpi_nprocs
@@ -758,7 +762,7 @@ contains
       end do k_loop3
     end do step_loop3
 
-    if ( statevector_height_VarsLevs%allocated .and. inputStateVectorType /= 'nl' ) call gsv_deallocate(statevector_height_VarsLevs)
+    if ( stateVectorHeight_VarsLevs%allocated .and. inputStateVectorType /= 'nl' ) call gsv_deallocate(stateVectorHeight_VarsLevs)
 
     deallocate(height)
 
