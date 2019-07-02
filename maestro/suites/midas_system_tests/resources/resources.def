@@ -1,6 +1,6 @@
 # Machine stuff
-FRONTEND=eccc-ppp2
-BACKEND=brooks
+FRONTEND=eccc-ppp4
+BACKEND=daley
 
 BACKEND_DEFAULT_Q=development
 FRONTEND_DEFAULT_Q=development
