@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added a test 'var/EnVar/geps' to check the configuration used in the Operational ENKF (#240 and !229)
 
 ### Changed
 
