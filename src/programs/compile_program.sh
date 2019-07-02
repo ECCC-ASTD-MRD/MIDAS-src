@@ -144,6 +144,16 @@ if [ $mode == full ] ; then
       SRC_FILES_F90="${SRC_FILES_F90} ${file90}"
   done
 
+  echo "... > Compiling TMG stubs ..."
+  echo "...   if aborting, check in ${PWD}/listing_tmgstubs"
+  s.compile $COMPF -O ${FOPTMIZ} -src tmg_stubs.ftn90 > listing_tmgstubs 2>&1
+  status=1
+  grep fail listing_tmgstubs || status=0
+  if [ "${status}" -ne 0 ] ; then
+      echo "... !! Compilation aborted: check in ${PWD}/listing_tmgstubs !!"
+      exit 1
+  fi
+
   echo "... > Compiling all modules and subroutines ..."
   echo "...   if aborting, check in ${PWD}/listing"
 
