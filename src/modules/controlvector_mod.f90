@@ -14,19 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE controlVector (prefix='cvm' category='2. High-level data objects')
-!!
-!! *Purpose*: The control vector and related information.  
-!!
-!! Revisions:
-!!       Ping Du, June-Sept 2014
-!!       - Introduced optional consideration of arrays/variables for
-!!         constituents. See variables *Bchm*.
-!!       M. Sitwell Aug 2015
-!!       - Added cvm_numSubvector
-!--------------------------------------------------------------------------
 module controlVector_mod
+  ! MODULE controlVector_mod (prefix='cvm' category='2. High-level data objects')
+  !
+  ! :Purpose: The control vector and related information.  
+  !
   use utilities_mod
   implicit none
   save
@@ -63,12 +55,12 @@ contains
   subroutine cvm_setupSubVector(label, BmatrixType, dimVector)
     implicit none
 
-    ! arguments
+    ! Arguments
     character(len=*) :: label
     character(len=*) :: BmatrixType
     integer :: dimVector
 
-    ! locals
+    ! Locals
     integer :: ierr, dimVector_mpiglobal
 
     if ( numVectors == maxNumVectors ) then
@@ -120,12 +112,12 @@ contains
 
   function cvm_indexFromLabel(subVectorLabel) result(subVectorIndex)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     integer :: subVectorIndex
 
-    ! locals
+    ! Arguments
+    character(len=*) :: subVectorLabel
+
+    ! Locals
     logical :: found
 
     found = .false.
@@ -143,14 +135,14 @@ contains
   end function cvm_indexFromLabel
 
 
-  function cvm_subVectorExists(subVectorLabel) RESULT(exists)
+  function cvm_subVectorExists(subVectorLabel) result(exists)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     logical :: exists
 
-    ! locals
+    ! Arguments
+    character(len=*) :: subVectorLabel
+
+    ! Locals
     integer :: subVectorIndex
 
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
@@ -171,13 +163,13 @@ contains
 
   function cvm_getSubVector(controlVector,subVectorLabel) result(subVector)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     real*8, pointer :: subVector(:)
+
+    ! Arguments
+    character(len=*) :: subVectorLabel
     real*8, target  :: controlVector(:)
 
-    ! locals
+    ! Locals
     integer         :: subVectorIndex, indexBeg, indexEnd
 
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
@@ -195,13 +187,13 @@ contains
 
   function cvm_getSubVector_r4(controlVector,subVectorLabel) result(subVector)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     real*4, pointer :: subVector(:)
+
+    ! Arguments
+    character(len=*) :: subVectorLabel
     real*4, target  :: controlVector(:)
 
-    ! locals
+    ! Locals
     integer         :: subVectorIndex, indexBeg, indexEnd
 
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
@@ -217,15 +209,15 @@ contains
   end function cvm_getSubVector_r4
 
 
-  function cvm_getSubVector_mpiglobal(controlVector,subVectorLabel) RESULT(subVector)
+  function cvm_getSubVector_mpiglobal(controlVector,subVectorLabel) result(subVector)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     real*8, pointer :: subVector(:)
+
+    ! Arguments
+    character(len=*) :: subVectorLabel
     real*8, target  :: controlVector(:)
 
-    ! locals
+    ! Locals
     integer         :: subVectorIndex, indexBeg, indexEnd
 
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
@@ -241,15 +233,15 @@ contains
   end function cvm_getSubVector_mpiglobal
 
 
-  function cvm_getSubVector_mpiglobal_r4(controlVector,subVectorLabel) RESULT(subVector)
+  function cvm_getSubVector_mpiglobal_r4(controlVector,subVectorLabel) result(subVector)
     implicit none
-
-    ! arguments
-    character(len=*) :: subVectorLabel
     real*4, pointer :: subVector(:)
+
+    ! Arguments
+    character(len=*) :: subVectorLabel
     real*4, target  :: controlVector(:)
 
-    ! locals
+    ! Locals
     integer         :: subVectorIndex, indexBeg, indexEnd
 
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)

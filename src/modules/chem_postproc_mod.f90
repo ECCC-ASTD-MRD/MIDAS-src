@@ -14,22 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE chem_postproc_mod (prefix='chm' category='3. High-level transformations')
-!!
-!! *Purpose*: Provides post-analysis routines.
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Public routines:
-!!v       - "chm_transform_final_increments" for any transformations or boundary
-!!v          values to apply to final increments.
-!!
-!!
-!! Comment:
-!!
-!--------------------------------------------------------------------------
 module chem_postproc_mod
+  ! MODULE chem_postproc_mod (prefix='chm' category='3. High-level transformations')
+  !
+  ! :Purpose: Provides post-analysis routines for chemical constituents.
+  !
 
   use utilities_mod
   use chem_setup_mod, only: chm_var_maxnumber, chm_setup_get_str, &
@@ -51,38 +40,31 @@ module chem_postproc_mod
 
 contains
 
-!--------------------------- MODEL and ANALYSIS SPACE POST-PROC --------------------
-!-----------------------------------------------------------------------------------
+!--------------------------- MODEL and ANALYSIS SPACE POST-PROC ----------------
+!-------------------------------------------------------------------------------
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Apply any required adjustments and/or transformations to increments
-!!            prior to saving in rebm file.
-!!
-!! @author M. Sitwell Sept 2015
-!!
-!! InOut
-!!
-!!v     statevector_increment     statevector for the increment (with same resolution as the background)
-!!
-!! Comments:
-!!v    - Possible adjustments/transformations:
-!!v        - Convert to dx when the analysis increments are in a different form (e.g. dlnx).
-!!v        - Checks for negative analysis values and if any negative values found will
-!!v          modify the increment so that the analysis  is reset to low_cutoff*background
-!!v          at these points. This check is done with fields of the same resolution as
-!!v          the increment. Correspondingly impose upper limits.
-!!
-!! Revisions:
-!!v       Y. Rochon, Nov 2015
-!!v         - Added upper bound.
-!!v         - Use of col_varExist.
-!--------------------------------------------------------------------------
   subroutine chm_transform_final_increments(statevector_increment)
+    !
+    !:Purpose: Apply any required adjustments and/or transformations to
+    !          increments prior to saving in rebm file.
+    !
+    !:Comments:
+    !     - Possible adjustments/transformations:
+    !         - Convert to dx when the analysis increments are in a different
+    !           form (e.g. dlnx).
+    !         - Checks for negative analysis values and if any negative values
+    !           found will modify the increment so that the analysis is reset to
+    !           low_cutoff*background at these points. This check is done with
+    !           fields of the same resolution as the increment. Correspondingly
+    !           impose upper limits.
+    !
 
     implicit none
-    
-    type(struct_gsv), intent(inout) :: statevector_increment
 
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_increment ! statevector for the increment (same resolution as the background)
+
+    !Locals:
     type(struct_gsv) :: statevector_trial
     integer :: jvar,unit,ier
     character(len=4) :: varName
@@ -145,38 +127,24 @@ contains
 
   end subroutine chm_transform_final_increments
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Apply transform (or its inverse) of 4D background field or increment field.
-!!
-!! @author Y. Rochon, Nov 2015
-!!
-!! Input
-!!
-!!v     varName          Field name (nomvar)
-!!v     l_reverse        Reverse/inverse transformation
-!!v     mode             selected sub-transformation type (defined for each transformation
-!!v                      given in chm_setup_get_int('transform',*)
-!!
-!! InOut
-!!
-!!v     background       statevector for the background
-!!v     increment        statevector for the increment (with same resolution as the background)
-!!
-!! Revisions:
-!!v        M. Sitwell, April 2016
-!!v          - Added input integer mode for selection of transform sub-type.
-!!v          - Create new sub-function log_matrix from previous code for handling
-!!v            negative values before taking the log. 
-!--------------------------------------------------------------------------
-  subroutine chm_apply_transform(background,varName,l_reverse,mode,increment_opt)
+  subroutine chm_apply_transform(background,varName,l_reverse,mode, &
+                                 increment_opt)
+    !
+    !:Purpose: Apply transform (or its inverse) of 4D background field or
+    !          increment field.
+    !
+    !:Arguments:
+    !     :mode:        selected sub-transformation type (defined for each
+    !                   transformation given in chm_setup_get_int('transform',*)
+    !
 
     implicit none
 
-    type(struct_gsv), intent(inout) :: background
-    type(struct_gsv), intent(inout), optional :: increment_opt
-    character(len=*), intent(in) :: varName
+    type(struct_gsv), intent(inout) :: background ! statevector for the background
+    character(len=*), intent(in) :: varName ! Field name (nomvar)
+    logical, intent(in) :: l_reverse ! Reverse/inverse transformation
     integer, intent(in) :: mode
-    logical, intent(in) :: l_reverse
+    type(struct_gsv), intent(inout), optional :: increment_opt ! statevector for the increment (same resolution as the background)
 
     real(8), pointer :: background_field(:,:,:,:)        
     real(8), pointer :: increment_field(:,:,:,:)   
@@ -254,19 +222,19 @@ contains
   contains
 
     function log_field(field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2)
-    !
-    ! Author: Y. Rochon, Nov 2015 (made into function by M. Sitwell)
-    !
-    ! Purpose: Helper function for taking the log of a field that might contain negative values.
-    !          Places where negative values occur will be set as the log of the minimum positive
-    !          value along the longitudinal dimension.
-    !
-    !-----------------------------------------------------------------------------------
-
+      !
+      !:Purpose: Helper function for taking the log of a field that might
+      !          contain negative values. Places where negative values occur
+      !          will be set as the log of the minimum positive value along the
+      !          longitudinal dimension.
+      !
       implicit none
 
+      ! Arguments:
       integer, intent(in) :: lon1,lon2,lev1,lev2,lat1,lat2,step1,step2
       real(8), intent(in) :: field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
+
+      ! Locals:
       real(8) :: log_field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
 
       integer :: jstep,jlon,jlev,jlat
@@ -292,42 +260,30 @@ contains
       end do
 
     end function log_field
-
+    !
   end subroutine chm_apply_transform
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Checks for negative analysis values and if any negative values found will
-!!            modify the increment so that the analysis  is reset to low_cutoff*background
-!!            at these points. This check is done with fields of the same resolution as
-!!            the increment. Also applies upper bound.
-!!
-!! @author M. Sitwell Sept 2015
-!!
-!! Input
-!!
-!!v    varName        Field name (nomvar)
-!!
-!! InOut
-!!
-!!v    background       statevector for the background
-!!v    increment        statevector for the increment (with same resolution as the background)
-!!
-!! Revisions:
-!!v       Y. Rochon, Nov 2015, Mar 2017
-!!v          - Modified to chm_apply_bounds
-!!
-!! Comment:
-!!   
-!!   Lines with !x commented out to reduce output
-!!
-!--------------------------------------------------------------------------
   subroutine chm_apply_bounds(background,increment,varName)
+    !
+    !:Purpose: Checks for negative analysis values and if any negative values
+    !          found will modify the increment so that the analysis is reset to
+    !          low_cutoff*background at these points. This check is done with
+    !          fields of the same resolution as the increment. Also applies
+    !          upper bound.
 
+
+    ! Comment:
+    !   
+    !   Lines with !x commented out to reduce output
+    !
     implicit none
-    
-    type(struct_gsv), intent(inout) :: background,increment
-    character(len=*), intent(in) :: varName
 
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: background ! statevector for the background
+    type(struct_gsv), intent(inout) :: increment ! statevector for the increment (same resolution as the background)
+    character(len=*), intent(in) :: varName ! Field name (nomvar)
+
+    ! Locals:
     real(8), pointer :: background_field(:,:,:,:),increment_field(:,:,:,:)
     real(8) :: bkgrnd,inc,new_inc,refval,bg_sigma
     integer :: iconstituent_id,count,ier,unit,jvar

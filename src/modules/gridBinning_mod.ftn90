@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE gridBinning (prefix="gbi" category='3. High-level transformations')
-!!
-!! *Purpose*: To compute categorical mean and standard deviation for
-!!            gridded data contained in a gridStateVector or in an
-!!            ensemble of gridStateVectors (e.g. the respective mean over land and sea)
-!!
-!--------------------------------------------------------------------------
 module gridBinning_mod
+  ! MODULE gridBinning_mod (prefix='gbi' category='3. High-level transformations')
+  !
+  ! :Purpose: To compute categorical mean and standard deviation for gridded data
+  !           contained in a gridStateVector or in an ensemble of
+  !           gridStateVectors (e.g. the respective mean over land and sea)
+  !
   use mpi_mod
   use mpivar_mod
   use ensembleStateVector_mod

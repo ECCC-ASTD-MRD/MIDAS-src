@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE oMinusF (prefix="omf" category='1. High-level functionality')
-!!
-!! *Purpose*: Module for Observation minus Forecast (O-F) computation
-!!
-!--------------------------------------------------------------------------
 module oMinusF_mod
+  ! MODULE oMinusF_mod (prefix='omf' category='1. High-level functionality')
+  !
+  ! :Purpose: Module for Observation minus Forecast (O-F) computation
+  !
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
@@ -52,7 +50,12 @@ module oMinusF_mod
 
     subroutine omf_oMinusF(trlColumnOnAnlLev, trlColumnOnTrlLev, obsSpaceData, &
                            varMode, addHBHT, addSigmaO)
+      !
+      ! :Purpose: compute Observation-minus-Forecast (OmF)
+      !
+
       implicit none
+      ! Arguments:
       type(struct_columnData),target, intent(inout)  :: trlColumnOnAnlLev
       type(struct_columnData),target, intent(inout)  :: trlColumnOnTrlLev
       type(struct_obs),       target, intent(inout)  :: obsSpaceData
@@ -60,6 +63,7 @@ module oMinusF_mod
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
 
+      ! locals
       type(struct_vco),       pointer :: vco_anl  => null()
       type(struct_hco),       pointer :: hco_anl  => null()
       type(struct_hco),       pointer :: hco_core => null()

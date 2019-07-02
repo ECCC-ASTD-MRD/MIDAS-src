@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE varqc (prefix='vqc' category='1. High-level functionality')
-!!
-!! *Purpose*: Procedures related to variational quality control including
-!!            hard-coded values that determine how quickly the observation
-!!            weight begins to be reduced
-!!
-!--------------------------------------------------------------------------
 module varqc_mod
+  ! MODULE varqc (prefix='vqc' category='1. High-level functionality')
+  !
+  ! :Purpose: Procedures related to variational quality control including
+  !           hard-coded values that determine how quickly the observation
+  !           weight begins to be reduced
+  !
   use MathPhysConstants_mod
   use EarthConstants_mod
   use codtyp_mod
@@ -42,29 +40,14 @@ module varqc_mod
   contains
 
   subroutine vqc_setup(obsSpaceData)
-    !!
-    !!s/r vqc_setup - SET CERTAIN PARAMETERS FOR THE ASYMMETRIC
-    !!                CHECK AND FOR VARIATIONAL QUALITY CONTROL
-    !!
-    !!Author  : B. BRASNETT CMDA   JUNE 1999
-    !!Revision:
-    !!          S. Pellerin ARMA/SMC Nov. 2002
-    !!             . Elemination of nincrem variable
-    !!          R. Sarrazin/B. Brasnett CMC March 2004
-    !!             . tighten rejection on satwinds
-    !!          J. Hale CMC Sept. 2005
-    !!             . added MHS (codtyp=182).
-    !!          S. Macpherson ARMA/CMC Sept. 2007
-    !!             . add parameters for GB-GPS ZTD
-    !!          S. Macpherson ARMA/CMC March 2013
-    !!             . modified GPS ZTD parameters to increase QC-Var rejections
-    !!          Y.J. Rochon ARQI/AQRD, Feb 2015
-    !!             . Added ZACH and ZDCH for chemical constituents
-    !!             . Added call to bufr_IsAtmosConstituent(ITYP)
-    !!               with addition of 'use varNamelist_mod'
-    !!
+    !
+    ! :Purpose: To set certain parameters for the asymmetric check
+    !           and for variational quality control
+    !
+
     implicit none
-    type(struct_obs) :: obsSpaceData
+
+    type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
     integer jdata, kindic, iter, jjo, idata, idatend, idburp
     integer ityp, iass, ifld, iother, jj, istyp, ilev
@@ -325,19 +308,17 @@ module varqc_mod
 
 
   subroutine vqc_tl(obsSpaceData)
+    !
+    ! :Purpose: 1) Modify Jo [OBS_JOBS] according to
+    !              Andersson and Jarvinen 1999, Variational quality control,
+    !              Q.J.R., 125, pp. 697-722.
+    !           2) Save the values of (1-Wqc) in OBS_QCV
+    !              for gradient factorization and postalt flag criterion.
+    !
     implicit none
-    !
-    !Purpose : 1) Modify Jo [OBS_JOBS] according to
-    !             Andersson and Jarvinen 1999, Variational quality control,
-    !             Q.J.R., 125, pp. 697-722.
-    !          2) Save the values of (1-Wqc) in OBS_QCV
-    !             for gradient factorization and postalt flag criterion.
-    !
-    !Author  : S. Pellerin, ARMA, January 2009
-    !          Generalisation of QCVAR originally embeded in observation
-    !          operators from P. Koclas, J. Halle and J. St-James
-    !
-    type(struct_obs) :: obsSpaceData
+
+    type(struct_obs) :: obsSpaceData ! obsSpaceData object
+
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start,ierr,index_family
     real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
     logical :: lluv
@@ -348,7 +329,7 @@ module varqc_mod
                     (obs_getFamily(obsSpaceData,bodyIndex=index_body).ne.'RO')
       ! pas de qcvar pour  les radiances en mode matrice R non diagonale
       if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-        (obs_getFamily(obsSpaceData,bodyIndex=index_body).ne.'TO') 
+        (obs_getFamily(obsSpaceData,bodyIndex=index_body) /= 'TO') 
 
       if (includeFlag) then
         index_header = obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body)
@@ -422,29 +403,22 @@ module varqc_mod
 
   subroutine vqc_ad(obsSpaceData)
     !
-    !Purpose : Factorizes Grad(Jo) according to Andersson and Jarvinen
-    !          1999, Variational quality control, Q.J.R., 125,
-    !          pp. 697-722.
-    !          It uses the value of (1-Wqc) saved in OBS_QCV
-    !          in vqc_tl
-    !
-    !Author  : S. Pellerin, ARMA, January 2009
-    !          Generalisation of QCVAR originally embeded in adjoint of
-    !          observation operators from P. Koclas, J. Halle and
-    !          J. St-James
-    !
+    ! :Purpose: Factorizes Grad(Jo) according to Andersson and Jarvinen
+    !           1999, Variational quality control, Q.J.R., 125, pp. 697-722.
+    !           It uses the value of (1-Wqc) saved in OBS_QCV in vqc_tl
     implicit none
 
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs) :: obsSpaceData ! obsSpaceData object
+
     integer :: index_body
     logical :: includeFlag
 
     do index_body=1,obs_numbody(obsSpaceData)
       includeFlag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.  &
-                    (obs_getFamily(obsSpaceData,bodyIndex=index_body).ne.'RO')
+                    (obs_getFamily(obsSpaceData,bodyIndex=index_body) /= 'RO')
       ! pas de qcvar pour les radiances en mode matrice R non diagonale
       if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-         (obs_getFamily(obsSpaceData,bodyIndex=index_body).ne.'TO')
+         (obs_getFamily(obsSpaceData,bodyIndex=index_body) /= 'TO')
 
       if (includeFlag) then
         call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body,  &
@@ -457,28 +431,16 @@ module varqc_mod
 
 
   subroutine vqc_listrej(lobsSpaceData)
-    !!
-    !!PURPOSE: LIST ALL OBSERVATIONS REJECTED BY THE VARIATIONAL QC
-    !!         SET QC FLAGS CONSISTENT WITH VARQC DECISIONS
-    !!         SET GLOBAL FLAG INDICATING REPORT CONTAINS REJECTED OBSERVATION
-    !!           AS REQUIRED
-    !!
-    !!
-    !!AUTHOR: B. BRASNETT (CMDA/MSC) MARCH 2000
-    !!
-    !!*REVISION: Y.J. Rochon ARQI Jan 2015
-    !!          - Additions of CH families with CODTYP=195 (remote sounding)
-    !!            and 196 (in-situ). 
-    !!          - Changed meters to hectometers (hm) for CH output
-    !!          - Output ZVAR, ZFCST and ZANA as percent difference relative to 
-    !!            ZFCST for CH constituents 
-    !!          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
-    !!            from I5 to I7.
-    !!          Y. Rochon and M. Sitwell, June 2016
-    !!          - Introduction of codtypname to prevent recursive write error and 
-    !!            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
+    !
+    ! :Purpose: List all observations rejected by the variational QC
+    !           Set QC flags consistent with VARQC decisions
+    !           Set global flag indicating report contains rejected observations
+    !           as required
+
     implicit none
+
     type(struct_obs) :: lobsSpaceData
+
     integer, parameter :: numFamily = 13
     character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM','AL','GL'/)
     integer, parameter :: numitem = 16

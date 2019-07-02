@@ -14,27 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsSpaceDiag (prefix="osd" category='1. High-level functionality')
-!!
-!! *Purpose*: Some experimental procedures for computing various diagnostics 
-!!            in observation space.
-!!
-!--------------------------------------------------------------------------
 module obsSpaceDiag_mod
-!!
-!! Author: Mark Buehner, ARMA.
-!!
-!! Revisions: M. Sitwell, ARQI (July 2015)
-!!            - Addition of lrandom logical (see osd_setup)
-!!            Y. Rochon, ARQI (Oct 2015)
-!!            - Addition of public procedure 'osd_ObsSpaceDiag'
-!!            Y. Rochon and M. Sitwell (Feb 2017)
-!!            - Transfer of "struct_osd_diagn", "osd_obsPostProc" (and its dependencies),
-!!              "osd_obsspace_diagn_*" and "osd_update_obsfile" to this module
-!!
-!!
-!!------------------------------------------------------------------------------------------
+  ! MODULE obsSpaceDiag_mod (prefix="osd" category='1. High-level functionality')
+  !
+  ! :Purpose: Some experimental procedures for computing various diagnostics in
+  !           observation space.
+  !
   use mpi_mod
   use mpivar_mod
   use bufr_mod
@@ -181,30 +166,21 @@ module obsSpaceDiag_mod
 contains
 
 !-------------------------------------------------------------------------------------------
-  subroutine osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt)
-!!           
-!! Purpose: Calls routines to perform observation-space diagnostic tasks
-!!
-!! Author:  Y. Rochon, ARQI (Oct 2015, followed by additions in June 2016)
-!!
-!! Revisions:
-!!
-!! Arguments
-!!
-!!   Input
-!!
-!!     obsSpaceData   Obs space data structure
-!!     columng        Structure of vertical columns at obs locations.
-!!                    Expected to be for analysis vertical levels if to be used.
-!!     analysisMode   logical indicating if following analysis mode or not (optional)
-!!                    Assumed .true. if not present.
-!!   Output 
-!!       
-!!------------------------------------------------------------------------------------------
+  subroutine osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt )
+    !           
+    ! :Purpose: Calls routines to perform observation-space diagnostic tasks
+    !
+    ! :Arguments:
+    !           :obsSpaceData: Obs space data structure
+    !           :columng:      Structure of vertical columns at obs locations.
+    !                          Expected to be for analysis vertical levels if to be used.
+    !           :analysisMode: logical indicating if following analysis mode or not (optional)
+    !                          Assumed .true. if not present.
+    !
 
     implicit none
-    type(struct_obs) :: obsSpaceData
-    type(struct_columnData) :: columng
+    type(struct_obs)              :: obsSpaceData
+    type(struct_columnData)       :: columng
     logical, intent(in), optional :: analysisMode_opt
     
     logical :: nmlExists,anlm_mod    
@@ -238,36 +214,19 @@ contains
   end subroutine osd_ObsSpaceDiag
   
 !-------------------------------------------------------------------------------------------
-  subroutine osd_calcInflation(obsSpaceData,columng,dateprnt)
-!
-! Author:  Mark Buehner
-!          
-! Purpose:  Calculates observation-space diagnostics from random perturbations
-!
-! Revisions: M. Sitwell, ARQI (July 2015)
-!            - Changed ordering of Bhi and Bens perturbation ordering for consistency with
-!              the comments.
-!            - Accounts for the association of cvBhi and cvBen in the dermination of random
-!              perturbations and related calculation and output of diagnostics.
-!            - Changed to sum locally over my_*Std arrays to fix bug when rpn_comm_allreduce
-!              is called.
-!            - Added call to the routine osd_chem_diagnostics for the CH family for calculation
-!              and writing of additional diagsnotics. 
-!            Y. Rochon, ARQI (July 2015)
-!            - Added the possibility of perturbation-based diagnostics for constituents - cvBChm
-!            - Changed scaleFactor* array names
-!            - Adjusted MaxLat and MaxLon settings
-!            - Added HH to dateprnt
-!            - Added use of logicals lpert_static and lpert_ens.
-!            Y. Rochon, ARQI (Oct 2015)
-!            - Some of the above indicated additions moved to routine osd_obspsace_diag.
-!       
-!!------------------------------------------------------------------------------------------
+  subroutine osd_calcInflation( obsSpaceData, columng, dateprnt )
+    !      
+    ! :Purpose: Calculates observation-space diagnostics from random perturbations
+    !
 
     implicit none
-    type(struct_obs) :: obsSpaceData
+ 
+    ! Arguments:
+    type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
+    integer                 :: dateprnt
 
+    ! locals
     type(struct_gsv) :: statevector
     type(struct_columnData) :: column
     type(struct_hco), pointer :: hco_anl
@@ -284,7 +243,7 @@ contains
     integer, allocatable :: my_counts(:,:,:)
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
-    integer :: dateprnt,ivar_count,nlev_max
+    integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
     real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), field(:,:,:,:)
     real*8,allocatable :: HxBhi(:), HxBen(:)
@@ -295,7 +254,7 @@ contains
     
     write(*,*) 'osd_calcInflation: Starting'
 
-    if(nrandseed.eq.999) nrandseed=dateprnt ! if seed not set by namelist, use valid date/time
+    if( nrandseed == 999 ) nrandseed=dateprnt ! if seed not set by namelist, use valid date/time
     write(*,*) 'osd_calcInflation: random seed set to ',nrandseed
 
     maxLat = nint(180.0d0/deltaLat)
@@ -378,11 +337,11 @@ contains
 
              field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
 
-             if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
+             if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactor(jlev).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactor(jlev)
+                   if(scaleFactor(jlev) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactor(jlev)
                 enddo
-             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
+             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
@@ -432,14 +391,14 @@ contains
 
              field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
 
-             if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
+             if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactor(jlev).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactor(jlev)
+                   if(scaleFactor(jlev) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactor(jlev)
                 enddo
-             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
+             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
+                   if(scaleFactorChm(jlev,ivar_count) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
                          /scaleFactorChm(jlev,ivar_count)
                 end do
              end if
@@ -481,7 +440,7 @@ contains
         lpert_static=.false.
         lpert_ens=.false.
         
-        if (familyList(familyIndex).ne.'CH') then
+        if (familyList(familyIndex) /= 'CH') then
            if (cvm_subVectorExists('B_HI')) lpert_static=.true.
         else        
            if (cvm_subVectorExists('B_CHM')) lpert_static=.true.
@@ -499,15 +458,15 @@ contains
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
-          if(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.elementList(elementIndex) .and. &
+          if(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == elementList(elementIndex) .and. &
              obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
 
             call osd_getIndices(obsSpaceData,bodyIndex,latIndex,lonIndex,verticalIndex)
             
-            if(verticalIndex.eq.-1) then
+            if(verticalIndex == -1) then
                ! skip this obs for whatever reason
                cycle BODY
-            else if(latIndex.gt.maxLat .or. lonIndex.gt.maxLon .or. verticalIndex.gt.maxVertical) then
+            else if(latIndex > maxLat .or. lonIndex > maxLon .or. verticalIndex > maxVertical) then
                write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
                           ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
                call utl_abort('osd_calcInflation')
@@ -536,15 +495,15 @@ contains
         if (lpert_static) call rpn_comm_allreduce(my_bmatHiStd,bmatHiStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
         if (lpert_ens) call rpn_comm_allreduce(my_bmatEnStd,bmatEnStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
-        where (counts.gt.0) innovStd = sqrt(innovStd/counts)
+        where (counts > 0) innovStd = sqrt(innovStd/counts)
         if (lpert_static) then
-           where (counts.gt.0) bmatHiStd = sqrt(bmatHiStd/counts)
+           where (counts > 0) bmatHiStd = sqrt(bmatHiStd/counts)
         end if
         if (lpert_ens) then
-           where (counts.gt.0) bmatEnStd = sqrt(bmatEnStd/counts)
+           where (counts > 0) bmatEnStd = sqrt(bmatEnStd/counts)
         end if 
         
-        if(mpi_myid.eq.0 .and. sum(counts(:,:,:)).gt.0) then
+        if(mpi_myid == 0 .and. sum(counts(:,:,:)) > 0) then
 
          ! determine file names
           write(dateStr,'(i10.10)') dateprnt
@@ -642,17 +601,17 @@ contains
   end subroutine osd_calcInflation
 
 !------------------------------------------------------------------------------------
-  subroutine osd_getIndices(obsSpaceData,bodyIndex,latIndex,lonIndex,verticalIndex)
-!
-!   Revisions:
-!             Y.J. Rochon, ARQI/AQRD, Aug 2015
-!             - Account for vco=4,5 (total column and constituent surface measurements)
-!             - Adjusted latIndex and lonIndex settings
-!
-!!-----------------------------------------------------------------------------------
+  subroutine osd_getIndices( obsSpaceData, bodyIndex, latIndex, lonIndex, verticalIndex )
+    !
     implicit none
+
     type(struct_obs) :: obsSpaceData
-    integer :: bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
+    integer          :: bodyIndex
+    integer          :: headerIndex
+    integer          :: latIndex
+    integer          :: lonIndex
+    integer          :: verticalIndex
+
     real(8), parameter :: epsilon=0.001
 
     ! codtypes for tovs: 164(AMSUA) 168 180 181 182 183 185 186 192 193
@@ -660,9 +619,9 @@ contains
     ! epsilon is added below to handle case where lon/dlon~1 or lat/dlat~1
     headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
     latIndex = 1 + floor((90.0d0 + obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8)/deltaLat - epsilon)
-    if (latIndex.eq.0) latIndex=1
+    if (latIndex == 0) latIndex=1
     lonIndex = 1 + floor(obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8/deltaLon - epsilon)
-    if (lonIndex.eq.0) lonIndex=1
+    if (lonIndex == 0) lonIndex=1
 
     select case(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex))
       case(1)
@@ -674,7 +633,7 @@ contains
       case(3)
         ! channel number
         verticalIndex = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        if(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex).eq.codtyp_get_codtyp("AMSUA")) then
+        if(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == codtyp_get_codtyp("AMSUA")) then
           ! amsu-a
           verticalIndex = verticalIndex - 27
         else
@@ -694,13 +653,9 @@ contains
 
 !-------------------------------------------------------------------------------------------
   subroutine osd_setup(nmlExists) 
-!
-! Revisions: M. Sitwell, ARQI (July 2015)
-!            - Added lrandom with initialization to .false.
-!
-!!------------------------------------------------------------------------------------------
- 
+    !
     implicit none
+
     logical :: nmlExists
 
     integer :: nulnam,ierr,fnom,fclos,j
@@ -777,18 +732,12 @@ contains
   
 !---------------------------------------------------------------------------------------
 
-  subroutine osd_update_obsfile(obsSpaceData)
-!
-! Author   : Y. Rochon, June 2016 
-! 
-! Revisions: Sergey Skachko, March 2018
-!          
-! Purpose: Update of obs file(s) for content other
-!          than OBS,OMA,OMP,OER,FGE,MRK in obsSpaceData
-!          
-!          Content can be augmented as needed.
-!
-!!---------------------------------------------------------------------------------------
+  subroutine osd_update_obsfile( obsSpaceData )
+    !
+    ! :Purpose: Update of obs file(s) for content other
+    !           than OBS,OMA,OMP,OER,FGE,MRK in obsSpaceData
+    !           Content can be augmented as needed.
+    !
 
     implicit none
     ! arguments
@@ -796,8 +745,8 @@ contains
 
     integer :: ierr,nrep_modified,varno(1)
 
-!   If needed, add effective temperature values in CH family obs file 
-!   for total column measurements
+    ! If needed, add effective temperature values in CH family obs file 
+    ! for total column measurements
 
     if (obs_famExist(obsSpaceData,'CH')) call chm_add_efftemp_obsfile()
 
@@ -806,44 +755,36 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- Observation-space diagnostic functions and routines -----------------
 
-  subroutine osd_obsPostProc(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
-!
-! Author:   Y. Rochon, ARQI/AQRD, June 2016
-!
-! Revisions: Sergey Skachko, ARMA, March 2018
-!          
-! Purpose:  Interface for observation-space post-processing procedures.
-!
-! Arguments
-!
-!   Input
-!
-!       obsSpaceData    Obs space data structure
-!       obsfam          Target obs family (e.g. CH)
-!       codtyplist      Code type list asscoiated to obsfam.
-!       columng         Columns from analysis vertical coordinate in obs space (at obs location)
-!       date            YYYYMMDDHH
-!       deltaLat        Size of latitude bins for diagnostics (degrees)
-!       deltaLon        Size of longitude bins for diagnostics (degrees)
-!       deltaPressure   Size of vertical bins for diagnostics (Pascal)
-!       anlm_mode       Logical indicating if OmA (and Jo) diagnostics to be generated.
-!
-!   Output 
-!
-!!------------------------------------------------------------------------------------------
+  subroutine osd_obsPostProc( obsSpaceData, columng, date, deltaLat, deltaLon, deltaPressure, anlm_mode )
+    !
+    ! :Purpose: Interface for observation-space post-processing procedures.
+    !
+    ! :Arguments:
+    !       :obsSpaceData:    Obs space data structure
+    !       :obsfam:          Target obs family (e.g. CH)
+    !       :codtyplist:      Code type list asscoiated to obsfam.
+    !       :columng:         Columns from analysis vertical coordinate in obs space (at obs location)
+    !       :date:            YYYYMMDDHH
+    !       :deltaLat:        Size of latitude bins for diagnostics (degrees)
+    !       :deltaLon:        Size of longitude bins for diagnostics (degrees)
+    !       :deltaPressure:   Size of vertical bins for diagnostics (Pascal)
+    !       :anlm_mode:       Logical indicating if OmA (and Jo) diagnostics to be generated.
+    ! 
 
     implicit none
 
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
-    integer, intent(in) :: date
-    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
-    logical, intent(in) :: anlm_mode
+    integer, intent(in)     :: date
+    real(8), intent(in)     :: deltaLat
+    real(8), intent(in)     :: deltaLon
+    real(8), intent(in)     :: deltaPressure
+    logical, intent(in)     :: anlm_mode
     
     integer, allocatable :: codtyplist(:)
     integer :: jelm,ifam
     
-    if (mpi_myid.eq.0) then
+    if (mpi_myid == 0) then
        write(*,*)
        write(*,*) "Enter osd_obsPostProc: Observation-space post-processing tasks for chemical constituents"
        write(*,*)
@@ -855,12 +796,12 @@ contains
   
        ifam=0
        do jelm=1,numFamily
-          if (familyList(jelm).eq.'CH') then
+          if (familyList(jelm) == 'CH') then
              ifam=jelm
              exit
           end if
        end do
-       if (ifam.eq.0) then
+       if (ifam == 0) then
        
           write(*,*) 'osd_obsPostProc: Warning - No post-processing requested for CH family.'
                      
@@ -900,7 +841,7 @@ contains
     
     call osd_update_obsfile(obsSpaceData)
 
-    if (mpi_myid.eq.0) then
+    if (mpi_myid == 0) then
        write(*,*)
        write(*,*) "Exit osd_obsPostProc"
        write(*,*)
@@ -910,56 +851,48 @@ contains
   
 !------------------------------------------------------------------------------------------
 
-  subroutine osd_obsDiagnostics(obsSpaceData,columng,obsfam,codtyplist,filename,save_diagn,date, &
-                                deltaLat,deltaLon,deltaPressure,pressmin,anlm_mode)
-!
-! Author:   M. Sitwell, ARQI/AQRD, June 2015
-!
-! Revisions:
-!            Y. Rochon, ARQI/AQRD, July 2015
-!            - Additional generalizations
-!            M. Sitwell, ARQI/AQRD, Aug 2016
-!            - Modified for calculation of diagnostic-only observations
-!            - Changed to use of osd_obsspace_diagn_* functions
-!          
-! Purpose:  Calculates and prints observation-space diagnostics for chemical constituents
-!
-! Arguments
-!
-!   Input
-!
-!       obsSpaceData    Obs space data structure
-!       columng         Columns from analysis vertical coordinate in obs space (at obs location)
-!       obsfam          Obs family (e.g. 'CH'
-!       codtypelist     Code type list 
-!       filename        Output file name
-!       save_diagn      Logical indicating gridded diagnostics are to be save
-!       date            YYYYMMDDHH
-!       deltaLat        Size of latitude bins for diagnostics (degrees)
-!       deltaLon        Size of longitude bins for diagnostics (degrees)
-!       deltaPressure   Size of vertical bins for diagnostics (Pascal)
-!       pressmin        bottom of top layer for diagnostics (in Pa).
-!       anlm_mode       Logical indicating if OmA diagnostics are to be generated.
-!
-!   Output 
-!
-!       Content of ascii file with obs space diagnostics
-!
-! Comments:
-!   - Although Jo_analysis is already calculated in OBS_JOBS obsSpaceData and can be passed
-!     to osd_obsspace_diagn_add, it is recalculated in osd_obsspace_diagn_add since OBS_JOBS
-!     will be set to zero for diagnostic-only observations.
-!
-!!------------------------------------------------------------------------------------------
+  subroutine osd_obsDiagnostics( obsSpaceData, columng, obsfam, codtyplist, filename, save_diagn, date, &
+                                 deltaLat, deltaLon, deltaPressure, pressmin, anlm_mode )
+    !       
+    ! :Purpose: Calculates and prints observation-space diagnostics for chemical constituents
+    !
+    ! :Arguments:
+    !       :obsSpaceData:    Obs space data structure
+    !       :columng:         Columns from analysis vertical coordinate in obs space (at obs location)
+    !       :obsfam:          Obs family (e.g. 'CH'
+    !       :codtypelist:     Code type list 
+    !       :filename:        Output file name
+    !       :save_diagn:      Logical indicating gridded diagnostics are to be save
+    !       :date:            YYYYMMDDHH
+    !       :deltaLat:        Size of latitude bins for diagnostics (degrees)
+    !       :deltaLon:        Size of longitude bins for diagnostics (degrees)
+    !       :deltaPressure:   Size of vertical bins for diagnostics (Pascal)
+    !       :pressmin:        bottom of top layer for diagnostics (in Pa).
+    !       :anlm_mode:       Logical indicating if OmA diagnostics are to be generated. 
+    !
+    ! :Output: Content of ascii file with obs space diagnostics
+    !
+    ! :Comments:
+    !
+    !   - Although Jo_analysis is already calculated in OBS_JOBS obsSpaceData and can be passed
+    !     to osd_obsspace_diagn_add, it is recalculated in osd_obsspace_diagn_add since OBS_JOBS
+    !     will be set to zero for diagnostic-only observations.
+    !
 
     implicit none
 
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
-    character(len=*) :: obsfam,filename
-    integer, intent(in) :: date,codtyplist(:)
-    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure,pressmin
-    logical, intent(in) :: anlm_mode,save_diagn
+    character(len=*)        :: obsfam
+    character(len=*)        :: filename
+    integer, intent(in)     :: date
+    integer, intent(in)     :: codtyplist(:)
+    real(8), intent(in)     :: deltaLat
+    real(8), intent(in)     :: deltaLon
+    real(8), intent(in)     :: deltaPressure
+    real(8), intent(in)     :: pressmin
+    logical, intent(in)     :: anlm_mode
+    logical, intent(in)     :: save_diagn
 
     type(struct_osd_diagn) :: obs_diagn
     integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
@@ -982,9 +915,9 @@ contains
     ! Get combination lists to group diagnostics by
     call oss_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
     
-    if (num_elemID.eq.0) return
+    if (num_elemID == 0) return
 
-    if (mpi_myid.eq.0) then
+    if (mpi_myid == 0) then
        write(*,*)
        write(*,*) "osd_obsDiagnostics: Observation-space diagnostics for chemical constituents"
        write(*,*)
@@ -1014,7 +947,7 @@ contains
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
-          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
+          if (vco /= 1 .and. vco /= 2 .and. vco /= 4 .and. vco /= 5) then
              ! Vertical coordinate not handled
              write(*,*) 'osd_obsDiagnostics: Currently unaccounted VCO = ',vco
              cycle HEADER
@@ -1029,7 +962,7 @@ contains
           do
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit
-             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) then
                 nlev_obs = nlev_obs-1
              else
                 varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
@@ -1038,8 +971,8 @@ contains
 
           ! Determine if this observation should be added to this group (as specified by nset)
           if (.not.utl_stnid_equal(stnid_elemID(elemID),stnid)) cycle HEADER
-          if (nset.ge.2.and.varno.ne.varno_elemID(elemID)) cycle HEADER
-          if (nset.ge.3.and..not.((nlev_obs.eq.1.and.vco.eq.4).eqv.unilev_elemID(elemID))) cycle HEADER
+          if (nset >= 2.and.varno /= varno_elemID(elemID)) cycle HEADER
+          if (nset >= 3.and..not.(( nlev_obs == 1 .and. vco == 4 ).eqv.unilev_elemID(elemID))) cycle HEADER
 
           ! Accumulate for this combo
           
@@ -1066,7 +999,7 @@ contains
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit BODY
              
-             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= varno) cycle BODY
              
              ilev_obs = ilev_obs+1
 
@@ -1086,7 +1019,7 @@ contains
              lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
              ! Include in the sum assimilated data and diagnostic only data
-             if (status(ilev_obs).gt.0) then
+             if (status(ilev_obs) > 0) then
                 
                 omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
                 obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
@@ -1095,7 +1028,7 @@ contains
                    oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
                    if (status_hpht) then
                       sqrtHPHT(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_HPHT,bodyIndex)
-                      if (sqrtHPHT(ilev_obs).lt.1.D-30) then
+                      if (sqrtHPHT(ilev_obs) < 1.D-30) then
                          write(*,*) 'osd_obsDiagnostics: WARNING. sqrtHPHT not found for all obs'
                          write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
                          status_hpht=.false.
@@ -1121,7 +1054,7 @@ contains
              do ilev_mod=1,nlev_mod
                 pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
              end do
-               
+
              ! Convert altidudes to pressure
              success = status.gt.0
              lev = phf_convert_z_to_pressure(lev,height_mod,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
@@ -1170,19 +1103,19 @@ contains
        call osd_obsspace_diagn_MPIreduce(obs_diagn)
        
        ! Output, and deallocate diagnostic arrays
-       if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
+       if (mpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                               'stats', pressmin, status_hpht, label_opt=label, openfile_opt=.true.)
  
     end do
     
     ! Output diagnostics summary (over all CH observations)
-    if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
+    if (mpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                             'summary', pressmin, status_hpht, openfile_opt=.true.)
  
     ! Deallocate arrays in obs_diagn
     call osd_obsspace_diagn_dealloc(obs_diagn)
    
-    if (mpi_myid.eq.0) then
+    if (mpi_myid == 0) then
        write(*,*)
        write(*,*) "End osd_obsDiagnostics"
        write(*,*)
@@ -1192,26 +1125,17 @@ contains
 
 !-----------------------------------------------------------------------------------
 
-  subroutine osd_ReadSqrtHPHT(obsSpaceData,obsfam,codtyplist,status_hpht)
-!
-! Author: Y. Rochon, Oct 2016
-!
-! Revisions:
-!
-! Purpose: Read background error std. dev. at obs locations from the obs files and store
-!          under OBS_HPHT in obsSpaceData
-!
-! InOut
-!
-!   obsSpaceData     Observation space data
-!   obsfam           Obs family. e.g. 'CH'
-!   codtyplist       Code type list associated to obsfam
-!
-! Out
-!
-!   status_hpht      logical indicating if successfully retrieved sqrtHPHT from obs file
-!
-!!----------------------------------------------------------------------------------
+  subroutine osd_ReadSqrtHPHT( obsSpaceData, obsfam, codtyplist, status_hpht )
+    !
+    ! :Purpose: Read background error std. dev. at obs locations from the obs files and store
+    !           under OBS_HPHT in obsSpaceData
+    !
+    ! :Arguments:
+    !   :obsSpaceData:     Observation space data
+    !   :obsfam:           Obs family. e.g. 'CH'
+    !   :codtyplist:       Code type list associated to obsfam
+    !   :status_hpht:      logical indicating if successfully retrieved sqrtHPHT from obs file
+    !
 
     implicit none
 
@@ -1238,7 +1162,7 @@ contains
     SqrtHPHT_struct = obsf_obsSub_read(obsfam,stnid,-1,max_nlev,ndim,bkstp_opt=15,block_opt='DATA', &
                                     match_nlev_opt=.false.,codtyp_opt=codtyplist)
 
-    if (SqrtHPHT_struct%nrep.eq.0) then
+    if (SqrtHPHT_struct%nrep == 0) then
        write(*,*) 'osd_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'
        write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
        status_hpht=.false.
@@ -1255,7 +1179,7 @@ contains
        if (headerIndex < 0) exit HEADER
   
        icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-       if (all(icodtyp.ne.codtyplist)) cycle HEADER
+       if (all(icodtyp /= codtyplist)) cycle HEADER
   
        ! Search for corresponding HPHT profile/element
        
@@ -1265,7 +1189,7 @@ contains
              obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), &
              obs_elem_c(obsSpaceData,'STID',headerIndex),stat_opt=stat) 
  
-       if (stat.eq.0) then
+       if (stat == 0) then
 
           ! Store OBS_HPHT profile
 
@@ -1274,7 +1198,7 @@ contains
           kk=0
           do bodyIndex = rln, nlv + rln -1
              varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-             if (varno.gt.10000.and.varno.lt.16000) then 
+             if ( varno > 10000 .and. varno < 16000 ) then 
                 kk=kk+1
                 call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,array(kk))
              else
@@ -1293,31 +1217,24 @@ contains
 
 !-----------------------------------------------------------------------------------
 
-  subroutine osd_obsspace_diagn_alloc(obs_diagn,deltaLat,deltaLon,deltaPressure,pressmin)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Allocates diagnostic arrays in obs_diagn.
-!
-! Revisions: 
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!          
-! Arguments:
-!
-!   Input
-!
-!     deltaLat       latitude bin size in degrees
-!     deltaLon       longitutde in degrees
-!     deltaPressure  pressures bin size in Pa (approximate)
-!     pressmin       bottom of top layer for diagnostics (in Pa).
-!
-!!---------------------------------------------------------------------------------------
+  subroutine osd_obsspace_diagn_alloc( obs_diagn, deltaLat, deltaLon, deltaPressure, pressmin )
+    !
+    ! :Purpose: Allocates diagnostic arrays in obs_diagn.
+    !          
+    ! :Arguments:
+    !     :deltaLat:       latitude bin size in degrees
+    !     :deltaLon:       longitutde in degrees
+    !     :deltaPressure:  pressures bin size in Pa (approximate)
+    !     :pressmin:       bottom of top layer for diagnostics (in Pa).
+    !
 
     implicit none
 
     type(struct_osd_diagn), intent(inout) :: obs_diagn
-    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure,pressmin
+    real(8)               , intent(in)    :: deltaLat
+    real(8)               , intent(in)    :: deltaLon
+    real(8)               , intent(in)    :: deltaPressure
+    real(8)               , intent(in)    :: pressmin
     
     integer :: nlev,nlat,nlon,nbin,nstat
 
@@ -1329,8 +1246,8 @@ contains
     nlon = floor(360.0d0/deltaLon)
 
     ! Add a last unequal size bin if remainder is larger than one degree
-    if (180.0d0-nlat*deltaLat.gt.1.) nlat = nlat+1
-    if (360.0d0-nlon*deltaLon.gt.1.) nlon = nlon+1
+    if (180.0d0-nlat*deltaLat > 1.) nlat = nlat+1
+    if (360.0d0-nlon*deltaLon > 1.) nlon = nlon+1
 
     ! Set number of levels for a pressure coordinate in hPa to cover the range
     ! of 0.01*pressmin (in hPa) to 1000 hPa for layers 2 to nlev-1. 
@@ -1363,17 +1280,9 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine osd_obsspace_diagn_init(obs_diagn)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Initializes diagnostic arrays in obs_diagn.
-!
-! Revisions: 
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!
-!!---------------------------------------------------------------------------------------
-
+    !
+    ! :Purpose: Initializes diagnostic arrays in obs_diagn.
+    !
     implicit none
 
     type(struct_osd_diagn), intent(inout) :: obs_diagn
@@ -1396,17 +1305,9 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine osd_obsspace_diagn_dealloc(obs_diagn)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Deallocates diagnostic arrays in obs_diagn.
-!
-! Revisions: 
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!
-!!---------------------------------------------------------------------------------------
-
+    !          
+    ! :Purpose: Deallocates diagnostic arrays in obs_diagn.
+    !
     implicit none
 
     type(struct_osd_diagn), intent(inout) :: obs_diagn
@@ -1419,51 +1320,49 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine osd_obsspace_diagn_add(obs_diagn,lat,lon,pressure,pressmin,OmP,obs,sigma_obs,nlev_obs, &
-                                    unilevel,assim_obs,status,OmA_opt,sqrtHPHT_opt)
-!!
-!! Author:  M. Sitwell, ARQI/AQRD June 2015
-!!          
-!! Purpose: Adds an observation to the diagnostic arrays in obs_diagn.
-!!
-!! Revisions:
-!!           M. Sitwell ARQI/AQRD Aug 2016
-!!           - Cast as a separate subroutine
-!!          
-!! Arguments:
-!!
-!!   Input
-!!
-!!     lat            latitude in degrees
-!!     lon            longitutde in degrees
-!!     pressure       pressures of the profile (Pa)
-!!     pressmin       bottom of top layer for diagnostics (in Pa).
-!!     OmP            obs - background
-!!     OmA            obs - analysis
-!!     obs            observations
-!!     Jo             cost function
-!!     sigma_obs      observation error standard deviation
-!!     sqrtHPHT       forecast error standard deviation in obs space
-!!     assim_obs      indicates if the profile belongs to an assimilated data set
-!!     status         indicates status of the observations, with values denoting:
-!!                      0 - observation has been rejected and not included in diagnostics
-!!                      1 - observation has been assimilated
-!!                      2 - observation has been used for diagnostics only (not assimilated)
-!!                    only observations with status=1,2 will be added to the statistic arrays
-!!     nlev_obs       number of observations in the profile
-!!     unilevel       if the observation does not have a defined height coordinate
-!!
-!!---------------------------------------------------------------------------------------
+  subroutine osd_obsspace_diagn_add( obs_diagn, lat, lon, pressure, pressmin, OmP, obs, sigma_obs, nlev_obs, &
+                                     unilevel, assim_obs, status, OmA_opt, sqrtHPHT_opt)
+    !        
+    ! :Purpose: Adds an observation to the diagnostic arrays in obs_diagn.
+    !
+    ! :Arguments:
+    !     :lat:            latitude in degrees
+    !     :lon:            longitutde in degrees
+    !     :pressure:       pressures of the profile (Pa)
+    !     :pressmin:       bottom of top layer for diagnostics (in Pa).
+    !     :OmP:            obs - background
+    !     :OmA_opt:        obs - analysis
+    !     :obs:            observations
+    !     :Jo:             cost function
+    !     :sigma_obs:      observation error standard deviation
+    !     :sqrtHPHT_opt:   forecast error standard deviation in obs space
+    !     :assim_obs:      indicates if the profile belongs to an assimilated data set
+    !     :status:         indicates status of the observations, with values denoting:
+    !
+    !                      - 0 - observation has been rejected and not included in diagnostics
+    !                      - 1 - observation has been assimilated
+    !                      - 2 - observation has been used for diagnostics only (not assimilated)
+    !                      only observations with status=1,2 will be added to the statistic arrays
+    !     :nlev_obs:       number of observations in the profile
+    !     :unilevel:       if the observation does not have a defined height coordinate
+    ! 
 
     implicit none
 
-    type(struct_osd_diagn), intent(inout) :: obs_diagn
-    real(8), intent(in) :: lat,lon
-    integer, intent(in) :: nlev_obs,status(nlev_obs)
-    real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs)
-    real(8), intent(in) :: sigma_obs(nlev_obs),pressmin
-    logical, intent(in) :: unilevel,assim_obs
-    real(8), intent(in), optional :: OmA_opt(nlev_obs),sqrtHPHT_opt(nlev_obs)
+    type(struct_osd_diagn), intent(inout)        :: obs_diagn
+    real(8)               , intent(in)           :: lat
+    real(8)               , intent(in)           :: lon
+    integer               , intent(in)           :: nlev_obs
+    integer               , intent(in)           :: status(nlev_obs)
+    real(8)               , intent(in)           :: pressure(nlev_obs)
+    real(8)               , intent(in)           :: OmP(nlev_obs)
+    real(8)               , intent(in)           :: obs(nlev_obs)
+    real(8)               , intent(in)           :: sigma_obs(nlev_obs)
+    real(8)               , intent(in)           :: pressmin
+    logical               , intent(in)           :: unilevel
+    logical               , intent(in)           :: assim_obs
+    real(8)               , intent(in), optional :: OmA_opt(nlev_obs)
+    real(8)               , intent(in), optional :: sqrtHPHT_opt(nlev_obs)
 
     integer :: ilat,ilon,ilev,ilev_obs
 
@@ -1484,7 +1383,7 @@ contains
        
        obs_diagn%nstatus(ilat,ilon,ilev,status(ilev_obs)) = obs_diagn%nstatus(ilat,ilon,ilev,status(ilev_obs)) + 1
 
-       if (status(ilev_obs).eq.0) cycle LEVELS  ! skip adding of stats if the observation was rejected
+       if (status(ilev_obs) == 0) cycle LEVELS  ! skip adding of stats if the observation was rejected
    
        obs_diagn%counts(ilat,ilon,ilev) = obs_diagn%counts(ilat,ilon,ilev) + 1
 
@@ -1495,7 +1394,7 @@ contains
        obs_diagn%obs_stats(ilat,ilon,ilev,2) = obs_diagn%obs_stats(ilat,ilon,ilev,2) + obs(ilev_obs)
 
        obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
-       if (status(ilev_obs).eq.1) obs_diagn%Jo_stats(ilat,ilon,ilev,4)  = obs_diagn%Jo_stats(ilat,ilon,ilev,4)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+       if (status(ilev_obs) == 1) obs_diagn%Jo_stats(ilat,ilon,ilev,4)  = obs_diagn%Jo_stats(ilat,ilon,ilev,4)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
        if (present(OmA_opt)) then
           
@@ -1503,7 +1402,7 @@ contains
           obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA_opt(ilev_obs)
           obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA_opt(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
-          if (status(ilev_obs).eq.1) then
+          if (status(ilev_obs) == 1) then
 
              obs_diagn%diagR_stats(ilat,ilon,ilev,1) = obs_diagn%diagR_stats(ilat,ilon,ilev,1) &
                 + OmP(ilev_obs)*OmA_opt(ilev_obs)/sigma_obs(ilev_obs)**2
@@ -1513,7 +1412,7 @@ contains
                 + OmA_opt(ilev_obs)/sigma_obs(ilev_obs)
 
              if (present(sqrtHPHT_opt)) then
-                if (sqrtHPHT_opt(ilev_obs).gt.0.0) then
+                if (sqrtHPHT_opt(ilev_obs) > 0.0) then
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
                         + OmP(ilev_obs)*(OmP(ilev_obs)-OmA_opt(ilev_obs))/sqrtHPHT_opt(ilev_obs)**2
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
@@ -1547,17 +1446,9 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine osd_obsspace_diagn_MPIreduce(obs_diagn)
-!
-! Author:  M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Performs a MPI allreduce on diagnostic arrays in obs_diagn.
-!
-! Revisions:
-!           M. Sitwell ARQI/AQRD Aug 2016
-!           - Cast as a separate subroutine
-!
-!!---------------------------------------------------------------------------------------
-
+    !         
+    ! :Purpose: Performs a MPI allreduce on diagnostic arrays in obs_diagn.
+    !
     implicit none
 
     type(struct_osd_diagn), intent(inout) :: obs_diagn
@@ -1618,44 +1509,35 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine osd_obsspace_diagn_print(obs_diagn,filename,save_diagn,print_type,pressmin,status_hpht,label_opt,openfile_opt)
-!!
-!! Author:  M. Sitwell, ARQI/AQRD June 2015
-!!          
-!! Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
-!!          printed statistics will be added to the total diagnostic arrays.
-!!
-!! Revisions: 
-!!           Y. Rochon ARQI/AQRD July 2015
-!!           - Further generalizations.
-!!           M. Sitwell ARQI/AQRD Aug 2016
-!!           - Cast as a separate subroutine
-!!          
-!! Arguments:
-!!
-!!   Input
-!!
-!!     filename       output file name
-!!     save_diagn     Logical indicating gridded diagnostics are to be save
-!!     print_type     Specifies which statistics to print, with possible values:
-!!                      'stats'  - prints statistics for the the arrays within obs_diagn
-!!                      'summary'- prints total statistics held in the saved variables
-!!                                 within this subrouine
-!!     pressmin       min pressure level for output
-!!     label          label to print (only relevant if print_type = 'stats')
-!!     openfile       logical indicating if file filename is to be opened.
-!!     status_hpht    logical indicating if sqrtHPHT were available.
-!!
-!!---------------------------------------------------------------------------------------
+  subroutine osd_obsspace_diagn_print(obs_diagn, filename, save_diagn, print_type, pressmin, status_hpht, label_opt, openfile_opt )
+    !        
+    ! :Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
+    !           printed statistics will be added to the total diagnostic arrays.
+    !        
+    ! :Arguments:
+    !     :filename:       output file name
+    !     :save_diagn:     Logical indicating gridded diagnostics are to be save
+    !     :print_type:     Specifies which statistics to print, with possible values:
+    !
+    !                      - 'stats'  - prints statistics for the the arrays within obs_diagn
+    !                      - 'summary'- prints total statistics held in the saved variables
+    !                                 within this subrouine
+    !     :pressmin:       min pressure level for output
+    !     :label_opt:      label to print (only relevant if print_type = 'stats')
+    !     :openfile_opt:   logical indicating if file filename is to be opened.
+    !     :status_hpht:    logical indicating if sqrtHPHT were available.
+    !
     
     implicit none
 
-    type(struct_osd_diagn), intent(inout) :: obs_diagn
-    character(len=*) :: print_type, filename
-    real(8) :: pressmin
-    logical, intent(in) :: status_hpht, save_diagn
-    logical, intent(in), optional :: openfile_opt
-    character(len=256), intent(in), optional :: label_opt
+    type(struct_osd_diagn), intent(inout)        :: obs_diagn
+    character(len=*)                             :: print_type
+    character(len=*)                             :: filename
+    real(8)                                      :: pressmin
+    logical               , intent(in)           :: status_hpht
+    logical               , intent(in)           :: save_diagn
+    logical               , intent(in), optional :: openfile_opt
+    character(len=256)    , intent(in), optional :: label_opt
 
     integer, external :: fnom, fclos
     
@@ -1737,7 +1619,7 @@ contains
              icount = sum(ncounts(1:nlev-1))
              icount_assim = sum(ncounts_assim(1:nlev-1))
              
-             if (icount.gt.0) then
+             if (icount > 0) then
                 Jo_a = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,1))
                 Jo_b = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,2))
                 Jo_a_assim = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,3))
@@ -1771,7 +1653,7 @@ contains
           
           if (unilevel) then
              
-             if (ncounts(nlev).gt.0) then
+             if (ncounts(nlev) > 0) then
                 Jo_a = sum(obs_diagn%Jo_stats(:,:,nlev,1))
                 Jo_b = sum(obs_diagn%Jo_stats(:,:,nlev,2))
                 Jo_a_assim = sum(obs_diagn%Jo_stats(:,:,nlev,3))
@@ -1806,7 +1688,7 @@ contains
              
           ! Output lat,lon dependent averages to file if obsspace_diagn_filename is provided
           if (present(openfile_opt)) then
-             if (openfile_opt.and.save_diagn.and.(nlat.gt.1.or.nlon.gt.1)) then
+             if (openfile_opt .and. save_diagn .and. (nlat > 1 .or. nlon > 1)) then
                 
                 write(unit,*)
                 write(unit,'(A)') " Lat-lon gridded statistics"
@@ -1820,7 +1702,7 @@ contains
                       write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
                            (ilat-1.)*obs_diagn%deltaLat-90.," < lat < ",ilat*obs_diagn%deltaLat-90., &
                            (ilon-1.)*obs_diagn%deltaLon," < lon < ",ilon*obs_diagn%deltaLon
-                      if (any(obs_diagn%nstatus(ilat,ilon,1:nlev-1,:).gt.0)) then
+                      if (any(obs_diagn%nstatus(ilat,ilon,1:nlev-1,:) > 0)) then
                          write(unit,*)
                          write(unit,'(A)') " Multi-level data:"
                          write(unit,*)
@@ -1831,7 +1713,7 @@ contains
                          write(unit,'(A)') " No multi-level data."
                          write(unit,*)
                       end if
-                      if (any(obs_diagn%nstatus(ilat,ilon,nlev,:).gt.0)) then
+                      if (any(obs_diagn%nstatus(ilat,ilon,nlev,:) > 0)) then
                          write(unit,*)
                          write(unit,'(A)') " Uni-level data:"
                          write(unit,*)
@@ -1894,26 +1776,32 @@ contains
  
     !----------------------------------------------------------------------------------------
 
-    subroutine print_J(unit,title,Jo_analysis,Jo_backgrnd,nobs,Jo_anal_assim,Jo_bgck_assim,Jpa_assim,Jo_p_assim,nobs_assim)
-
+    subroutine print_J( unit, title, Jo_analysis, Jo_backgrnd, nobs, Jo_anal_assim, Jo_bgck_assim, Jpa_assim, Jo_p_assim, nobs_assim )
+      !
       implicit none
 
-      integer, intent(in) :: unit,nobs,nobs_assim
+      integer         , intent(in) :: unit
+      integer         , intent(in) :: nobs
+      integer         , intent(in) :: nobs_assim
       character(len=*), intent(in) :: title
-      real(8), intent(in) :: Jo_analysis,Jo_backgrnd
-      real(8), intent(in) :: Jo_anal_assim,Jo_bgck_assim,Jpa_assim,Jo_p_assim
+      real(8)         , intent(in) :: Jo_analysis
+      real(8)         , intent(in) :: Jo_backgrnd
+      real(8)         , intent(in) :: Jo_anal_assim
+      real(8)         , intent(in) :: Jo_bgck_assim
+      real(8)         , intent(in) :: Jpa_assim
+      real(8)         , intent(in) :: Jo_p_assim
 
       real(8) :: Jo_analysis_norm,Jo_backgrnd_norm,Jt_assim
       real(8) :: Jpa_norm_assim,Jt_norm_assim,Jo_p_norm_assim
       character(len=100) :: fmt
 
-      if (Jo_analysis.lt.1.0d6.and.Jo_backgrnd.lt.1.0d6) then
+      if (Jo_analysis < 1.0d6 .and. Jo_backgrnd < 1.0d6) then
          fmt = '(A,F24.8,A,F24.8)'
       else
          fmt = '(A,ES24.8,A,ES24.8)'
       end if
 
-      if (nobs.gt.0) then
+      if (nobs > 0) then
          Jo_analysis_norm = 2.*Jo_analysis/nobs
          Jo_backgrnd_norm = 2.*Jo_backgrnd/nobs
       else
@@ -1921,7 +1809,7 @@ contains
          Jo_backgrnd_norm = 0.0d0
       end if
 
-      if ((nobs.gt.0.and.nobs_assim.gt.0).or.nobs_assim.eq.0) then
+      if ((nobs > 0 .and. nobs_assim > 0) .or. nobs_assim == 0) then
          write(unit,*)
          write(unit,'(A)') " " // title // " totals "
          write(unit,*)
@@ -1931,7 +1819,7 @@ contains
          write(unit,*)
       end if
 
-      if (nobs_assim.gt.0) then
+      if (nobs_assim > 0) then
          Jo_analysis_norm = 2.*Jo_anal_assim/nobs_assim
          Jo_backgrnd_norm = 2.*Jo_bgck_assim/nobs_assim
          Jpa_norm_assim = 2.*Jpa_assim/nobs_assim 
@@ -1954,13 +1842,19 @@ contains
 
     !----------------------------------------------------------------------------------------
 
-    subroutine print_stats(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end)
+    subroutine print_stats( unit, obs_diagn, pressure, ilat_start, ilat_end, ilon_start, ilon_end, ilev_start, ilev_end )
 
       implicit none
 
       type(struct_osd_diagn), intent(in) :: obs_diagn
-      real(8), intent(in) :: pressure(obs_diagn%nlev+1)
-      integer, intent(in) :: unit,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end
+      real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
+      integer               , intent(in) :: unit
+      integer               , intent(in) :: ilat_start
+      integer               , intent(in) :: ilat_end
+      integer               , intent(in) :: ilon_start
+      integer               , intent(in) :: ilon_end
+      integer               , intent(in) :: ilev_start
+      integer               , intent(in) :: ilev_end
 
       integer :: ilev,level,counts(obs_diagn%nlev),N_assim,N_diagn,N_rej
       real(8) :: pres1,pres2,jo_a,jo_b,jo_a_norm,jo_b_norm,obs_sum,obs_mean,obs_std,OmP_mean,OmP_rms,OmA_mean,OmA_rms
@@ -1971,7 +1865,7 @@ contains
       write(unit,'(A)') "  Layer     Pressure (hPa)      Counts (N)    N_assim    N_diagn      N_rej    Jo(O-A)     2*Jo(O-A)/N   Jo(O-P)     2*Jo(O-P)/N"
       write(unit,'(A)') "  -----     --------------      ----------    -------    -------      -----    -------     -----------   -------     -----------"
 
-      do ilev=ilev_start,ilev_end
+      do ilev = ilev_start, ilev_end
 
          counts(ilev) = sum(obs_diagn%counts(ilat_start:ilat_end,ilon_start:ilon_end,ilev))
 
@@ -1979,11 +1873,11 @@ contains
          N_assim = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
          N_diagn = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
 
-         skip(ilev) = counts(ilev).eq.0.and.N_rej.eq.0
+         skip(ilev) = counts(ilev) == 0 .and. N_rej == 0
 
          if (skip(ilev)) cycle
 
-         if (ilev.lt.nlev) then
+         if (ilev < nlev) then
             pres1 = pressure(ilev)
             pres2 = pressure(ilev+1)
             level = ilev
@@ -1996,7 +1890,7 @@ contains
          jo_a = sum(obs_diagn%Jo_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
          jo_b = sum(obs_diagn%Jo_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
 
-         if (counts(ilev).eq.0) then
+         if ( counts(ilev) == 0 ) then
             jo_a_norm = 0.0d0
             jo_b_norm = 0.0d0
          else
@@ -2021,7 +1915,7 @@ contains
 
          if (skip(ilev)) cycle
 
-         if (ilev.lt.nlev) then
+         if (ilev < nlev) then
             pres1 = pressure(ilev)
             pres2 = pressure(ilev+1)
             level = ilev
@@ -2031,7 +1925,7 @@ contains
             level = 0
          end if
          
-         if (counts(ilev).eq.0) then
+         if (counts(ilev) == 0) then
             obs_mean = 0.0d0
             obs_std = 0.0d0
             OmP_rms = 0.0d0
@@ -2067,26 +1961,24 @@ contains
     end subroutine print_stats
 
     !----------------------------------------------------------------------------------------
-    subroutine print_Desroziers(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end,status_hpht)
+    subroutine print_Desroziers( unit, obs_diagn, pressure, ilat_start, ilat_end, ilon_start, ilon_end, ilev_start, ilev_end, status_hpht )
       !
-      ! Author:  Y. Rochon, ARQI/AQRD Aug 2016
-      !          based on routine 'print_stats'
-      !          
-      ! Purpose: Prints elements contributing to the calc of scaling factors for observation and background
-      !          error std. dev. based on the Desroziers approach.
+      ! :Purpose: Prints elements contributing to the calc of scaling factors for observation and background
+      !           error std. dev. based on the Desroziers approach.
       !
-      ! Revisions: M. Sitwell, ARQI/AQRD Aug 2016
-      !            - Changed printing of HPHT stats as HPHT is currently not available
-      !              in assimilation mode.
-      ! 
-      !!--------------------------------------------------------------------------------------
-
+ 
       implicit none
 
       type(struct_osd_diagn), intent(in) :: obs_diagn
-      real(8), intent(in) :: pressure(obs_diagn%nlev+1)
-      integer, intent(in) :: unit,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end
-      logical, intent(in) :: status_hpht
+      real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
+      integer               , intent(in) :: unit
+      integer               , intent(in) :: ilat_start
+      integer               , intent(in) :: ilat_end
+      integer               , intent(in) :: ilon_start
+      integer               , intent(in) :: ilon_end
+      integer               , intent(in) :: ilev_start
+      integer               , intent(in) :: ilev_end
+      logical               , intent(in) :: status_hpht
 
       integer :: ilev,level,N_assim(obs_diagn%nlev)
       real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
@@ -2100,9 +1992,9 @@ contains
          
          N_assim(ilev) = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
 
-         if (N_assim(ilev).eq.0) cycle
+         if (N_assim(ilev) == 0) cycle
 
-         if (ilev.lt.nlev) then
+         if (ilev < nlev) then
             pres1 = pressure(ilev)
             pres2 = pressure(ilev+1)
             level = ilev
@@ -2132,9 +2024,9 @@ contains
 
       do ilev=ilev_start,ilev_end
          
-         if (N_assim(ilev).eq.0) cycle
+         if (N_assim(ilev) == 0) cycle
          
-         if (ilev.lt.nlev) then
+         if (ilev < nlev) then
             pres1 = pressure(ilev)
             pres2 = pressure(ilev+1)
             level = ilev

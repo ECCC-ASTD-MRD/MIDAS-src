@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE CalcStatsGlb (prefix="csg" category='1. High-level functionality')
-!!
-!! *Purpose*: Compute homogeneous and isotropic background error covariances 
-!!            from forecast error estimate in model variable space (global version).
-!!
-!--------------------------------------------------------------------------
-module calcstatsglb_mod
+module CalcStatsGlb_mod
+  ! MODULE CalcStatsGlb_mod (prefix='csg' category='1. High-level functionality')
+  !
+  ! :Purpose: To compute homogeneous and isotropic background error covariances
+  !           from forecast error estimate in model variable space (global
+  !           version).
+  !
   use gridStateVector_mod
   use globalSpectralTransform_mod
   use mathPhysConstants_mod
@@ -2710,4 +2709,4 @@ module calcstatsglb_mod
 
   end subroutine calcLocalCorrelations
 
-end module calcstatsglb_mod
+end module CalcStatsGlb_mod

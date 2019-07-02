@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tovs_lin (prefix='tvslin' category='4. Observation operators')
-!!
-!! *Purpose*: Derived types, public variables and procedures related to the 
-!!            tangent-linear and adjoint versions of RTTOV
-!!
-!--------------------------------------------------------------------------
 module tovs_lin_mod
+  ! MODULE tovs_lin (prefix='tvslin' category='4. Observation operators')
+  !
+  ! :Purpose: Derived types, public variables and procedures related to the 
+  !           tangent-linear and adjoint versions of RTTOV
+  !
   use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance
@@ -51,47 +49,35 @@ module tovs_lin_mod
 
 contains
 
-  subroutine LEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
-!!
-!!**** *lexthum4* - tangent linear of extrapolaation of upper level humidity profile.
-!!                (adapted from exthumtl by J. Eyre)
-!!
-!!    purpose.
-!!    --------
-!!         to extend mixing ratio profile into stratosphere in
-!!         a reasonable way.
-!!
-!!*   interface.
-!!    ----------
-!!         *call* *lexthum4(knpf,klapf,ppres,pav,pav5)*
-!!              *knpf*:  no. of profiles to be processed.
-!!              *klapf*: length of atm. profiles.
-!!              *ppres*: pressure levels of atm. profiles.
-!!              *pav*:   gradient humidity profiles.
-!!              *pav5*:  humidity profiles.
-!!
-!!    method.
-!!    -------
-!!         take top tropospheric mixing ratio (e.g. near 300 mb) and
-!!         extrapolate with given fall off into lower stratosphere
-!!         (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
-!!         (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
-!!
-!!    externals.
-!!    ----------
-!!         none.
-!!
-!!    reference.
-!!    ----------
-!!         ecmwf tech mem 176.
-!!
+  subroutine lexthum4(knpf, klapf, ppres, pav, pav5)
+!
+! :Purpose: tangent linear of extrapolaation of upper level humidity profile
+!           (adapted from exthumtl by J. Eyre).
+!           to extend mixing ratio profile into stratosphere in
+!           a reasonable way.
+!           Take top tropospheric mixing ratio (e.g. near 300 mb) and
+!           extrapolate with given fall off into lower stratosphere
+!           (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
+!           (e.g. 0.000003 kg/kg).   In upper strat, mixing ratio = zwmin.
+!           Reference: ecmwf tech mem 176.
+!
+! :Arguments:
+!              :knpf:  no. of profiles to be processed.
+!              :klapf: length of atm. profiles.
+!              :ppres: pressure levels of atm. profiles.
+!              :pav:   gradient humidity profiles.
+!              :pav5:  humidity profiles.
+!
 
     implicit none
 
-    integer :: klapf, knpf
-    REAL(8) PPRES(*),PAV(KLAPF,*),PAV5(KLAPF,*)
+    integer :: klapf 
+    integer :: knpf
+    real(8) :: ppres(*)
+    real(8) :: pav( klapf, * )
+    real(8) :: pav5( klapf, * )
 
-    REAL(8) :: ZPRES3(KLAPF)
+    REAL(8) :: ZPRES3( klapf )
 
     real(8) zwb5,zwb
     real(8) ,parameter :: ZP1 = 70.0D0  ! PRESS LIMITS (IN HPA) OF REGION  to be extrapolated
@@ -135,32 +121,20 @@ contains
       end do
     end do
     
-  end subroutine LEXTHUM4
+  end subroutine lexthum4
 
   subroutine tvslin_rttov_tl(column, columng, lobsSpaceData)
-!!-------------------------------------------------------------------------
-!! *Purpose*: Tangent linear of computation of radiance with rttov_tl
-!!
-!! @author j. halle *cmda/aes  april 19, 2005
-!!
-!!
-!!revision 001  : a. beaulne *cmda/msc  june 2006
-!!                  - addition of ozone and IR surface emissivities
-!!revision 002  : r. sarrazin cmda   april 2008
-!!                  - adapt to CSR
-!!revision 003  : s. heilliette
-!!                  - adapt to IASI
-!!         S. heilliette:
-!!                  - adaptation to rttov 10.0 (october 2010)
-!!revision 004  : s. macpherson  nov 2012
-!!                  - remove #include "comtovst.cdk"
-!!
-!!-------------------------------------------------------------------------
+    !
+    ! :Purpose: Tangent linear of computation of radiance with rttov_tl
+    !
+
    
     implicit none
 
-    type(struct_obs) :: lobsSpaceData
-    type(struct_columnData) :: column,columng
+    type(struct_obs)        :: lobsSpaceData
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columng
+
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: iptobs    (:) 
     integer, allocatable :: iptobs_header (:) 
@@ -621,29 +595,19 @@ contains
   end subroutine tvslin_rttov_tl
 
 
-  subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
-!!-------------------------------------------------------------------------
-!! *Purpose*: Adjoint of computation of radiance with rttov_ad
-!!
-!! @author j. halle *cmda/aes  april 19, 2005
-!!
-!!revision 001  : a. beaulne *cmda/smc  june 2006
-!!                  -addition of ozone and IR surface emissivities
-!!revision 002  : r. sarrazin cmda  april 2008
-!!                  -adapt to CSR
-!!revision 003  : s. heilliette
-!!                  -adapt to IASI
-!!           S. Heilliette
-!!              - adaptation to rttov 10.0 (october 2010)
-!!revision 004  : s. macpherson  nov 2012
-!!                  - remove #include "comtovst.cdk"
-!!-------------------------------------------------------------------------
-   
+  subroutine tvslin_rttov_ad( column, columng, lobsSpaceData )
+    !
+    ! :Purpose: Adjoint of computation of radiance with rttov_ad
+    !
 
     implicit none
 
-    type(struct_columnData) :: column,columng
+    ! Arguments:
+    type(struct_columnData) :: column
+    type(struct_columnData) :: columng
+    type(struct_obs)        :: lobsSpaceData
 
+    ! locals
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: iptobs    (:) 
     integer, allocatable :: iptobs_header (:) 
@@ -660,7 +624,7 @@ contains
     
     real(8), allocatable :: to_ad    (:,:)
     real(8), allocatable :: huo_ad   (:,:)
-    real(8), allocatable :: loghuo_ad   (:,:)
+    real(8), allocatable :: loghuo_ad(:,:)	
     real(8), allocatable :: toext_ad (:,:)
     real(8), allocatable :: qoext_ad (:,:)
     real(8), allocatable :: zvlev    (:,:)
@@ -679,8 +643,6 @@ contains
    
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:),p_column(:)
     real(8), pointer :: TTb(:), HUb(:), Pres(:)
-
-    type(struct_obs) :: lobsSpaceData
 
     integer :: count_tb
     integer :: max_nthreads
@@ -1112,51 +1074,38 @@ contains
   end subroutine tvslin_rttov_ad
 
 
-  subroutine AEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
-!!
-!!****aexthum4* - adjoint of extrapolation of upper level humidity profile.
-!!               (adapted from exthumad by J. Eyre)
-!!
-!!    purpose.
-!!    --------
-!!         ad of routine
-!!         to extend mixing ratio profile into stratosphere in
-!!         a reasonable way.
-!!
-!!*   interface.
-!!    ----------
-!!         *call* *aexthum4(knpf,klapf,ppres,pav,pav5)*
-!!              *knpf*:  no. of profiles to be processed.
-!!              *klapf*: length of atm. profiles.
-!!              *ppres*: pressure levels of atm. profiles.
-!!              *pav*:   ad of humidity profiles.
-!!              *pav5*:  humidity profiles.
-!!
-!!    method.
-!!    -------
-!!         take top tropospheric mixing ratio (e.g. near 300 mb) and
-!!         extrapolate with given fall off into lower stratosphere
-!!         (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
-!!         (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
-!!
-!!    externals.
-!!    ----------
-!!         none.
-!!
-
-   
+  subroutine aexthum4 ( knpf, klapf, ppres, pav, pav5 )
+    !
+    ! :Purpose: adjoint of extrapolation of upper level humidity profile
+    !           (adapted from exthumad by J. Eyre).
+    !           To extend mixing ratio profile into stratosphere in a reasonable way.
+    !           Take top tropospheric mixing ratio (e.g. near 300 mb) and
+    !           extrapolate with given fall off into lower stratosphere
+    !           (e.g. to 70 mb). Constrain mixing ratio to be >= zwmin
+    !           (e.g. 0.000003 kg/kg). In upper strat, mixing ratio = zwmin.
+    ! 
+    ! :Arguments:
+    !           :knpf:  no. of profiles to be processed.
+    !           :klapf: length of atm. profiles.
+    !           :ppres: pressure levels of atm. profiles.
+    !           :pav:   ad of humidity profiles.
+    !           :pav5:  humidity profiles.
+    ! 
     implicit none
-
-    integer :: klapf,knpf
-    REAL(8) PPRES(*),PAV(KLAPF,*), PAV5(KLAPF,*)
-
-    REAL(8) :: ZPRES3(KLAPF)
-
-    real(8) zwmix,zwb
-    real(8),parameter ::  ZP1 = 70.0D0 ! PRESS LIMITS (IN HPA) OF REGION to be extrapolated
-    integer :: inlvw,j,jnpf
     
+    ! Arguments
+    integer :: klapf
+    integer :: knpf
+    real(8) :: ppres(*)
+    real(8) ::  pav( klapf, * )
+    real(8) :: pav5( klapf, * )
 
+    ! locals
+    real(8)            :: zpres3(klapf)
+    real(8)            :: zwmix, zwb
+    real(8), parameter ::  ZP1 = 70.0D0 ! PRESS LIMITS (IN HPA) OF REGION to be extrapolated
+    integer            :: inlvw, j, jnpf
+    
     !          find top level of given profile
     INLVW = -1
     do J=KLAPF,1,-1
@@ -1190,7 +1139,7 @@ contains
     end do
    
 
-  end subroutine AEXTHUM4
+  end subroutine aexthum4
 
  
 End module tovs_lin_mod

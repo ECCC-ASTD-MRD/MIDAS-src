@@ -14,16 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE columnData (prefix="col" category='2. High-level data objects')
-!!
-!! *Purpose*: A derived type and related procedures for storing and manipulating
-!!            vertical columns of analysis variables on model or analysis grid levels.
-!!            These columns are general produced by horizontally interpolating
-!!            a gridStateVector object to the observation locations.
-!!
-!--------------------------------------------------------------------------
 module columnData_mod
+  ! MODULE columnData_mod (prefix='col' category='2. High-level data objects')
+  !
+  ! :Purpose: A derived type and related procedures for storing and manipulating
+  !           vertical columns of analysis variables on model or analysis grid
+  !           levels. These columns are general produced by horizontally
+  !           interpolating a gridStateVector object to the observation
+  !           locations.
+  !
   use mpi_mod
   use earthConstants_mod
   use varNameList_mod
@@ -302,11 +301,6 @@ contains
 
 
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
-    !
-    !   Revisions:
-    !             Y.J. Rochon (ARQI), Jan. 2015
-    !             - Added optional varCHnumber
-    !          
     implicit none
     type(struct_columnData) :: column
     integer, intent(in)     :: varnum
@@ -394,9 +388,6 @@ contains
 
   end subroutine col_calcPressure
 
-  !--------------------------------------------------------------------------
-  ! col_vintprof
-  !--------------------------------------------------------------------------
   subroutine col_vintprof(column_in,column_out,varName,useColumnPressure_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
@@ -587,9 +578,7 @@ contains
 
   end subroutine col_vintprof
 
-  !--------------------------------------------------------------------------
-  ! col_getPressure
-  !--------------------------------------------------------------------------
+
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column

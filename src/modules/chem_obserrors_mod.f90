@@ -96,17 +96,11 @@ module chem_obserrors_mod
 
 contains
 
-!-------------------------------------------------------------------------
-!
-! SUBROUTINE chem_read_obs_err_stddev
-!!
-!! *Purpose*: Read observation errors from auxiliary file or observation file.
-!!
-!! @author M. Sitwell, March 2015
-!!
-!--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev
-
+    !
+    !:Purpose: To read observation errors from auxiliary file or observation
+    !          file.
+    !
     implicit none
 
     integer, parameter :: ndim=1
@@ -132,17 +126,11 @@ contains
 
   end subroutine chm_read_obs_err_stddev
 
-!-------------------------------------------------------------------------
-!
-! SUBROUTINE chm_read_obs_err_stddev_auxfile
-!!
-!! *Purpose*:  Read and store observation error std. dev. as needed for CH family obs.
-!!
-!! @author Y. Rochon, Nov 2014
-!!
-!--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev_auxfile
-
+    !
+    !:Purpose:  To read and store observation error std. dev. as needed for CH
+    !           family obs.
+    !
   implicit none
 
   integer :: FNOM, FCLOS
@@ -319,17 +307,11 @@ contains
 
   end subroutine chm_read_obs_err_stddev_auxfile
 
-!-------------------------------------------------------------------------
-!
-! SUBROUTINE chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
-!! 
-!! *Purpose*: Returns the station ID and latitude indices corresponding to a measurement.
-!!
-!! @author M. Sitwell Feb 2015 
-!!
-!--------------------------------------------------------------------------
   subroutine chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
-
+    ! 
+    !:Purpose: To return the station ID and latitude indices corresponding to a
+    !          measurement.
+    !
     implicit none
 
     character(len=*), intent(in)  :: CSTNID
@@ -396,38 +378,28 @@ contains
 
   end subroutine chm_obs_err_stddev_index
 
-!-------------------------------------------------------------------------
-!
-! FUNCTION chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev)
-!! 
-!! *Purpose*: Returns the observational error std for a CH family measurement
-!!
-!! @author Y. Rochon and M. Sitwell, Feb 2015
-!!
-!! Input
-!!v    cstnid        station ID
-!!v    nlev          number of levels
-!!v    varno         BUFR number
-!!v    zlat          latitude (radians)
-!!v    zlon          longitude (radians)
-!!v    idate         date in YYYYMMDD format
-!!v    itime         time in HHMM format
-!!v    zval          observation values
-!!v    zlev          vertical coordinate value
-!!v    ilev          observation number in the profile
-!!v    ifirst        logical indicating if first call for a profile
-!!
-!--------------------------------------------------------------------------
-  function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev) 
-
+  function chm_get_obs_err_stddev(cstnid,nlev,varno,zlat,zlon,idate,itime,zval,&
+                                  zlev,ilev,ifirst) result(obs_err_stddev) 
+    ! 
+    !:Purpose: To return the observational error std dev for a CH family
+    !          measurement
     implicit none
-   
-    character(len=*), intent(in) :: CSTNID
-    real(8), intent(in) :: ZVAL,ZLEV,ZLAT,ZLON
-    integer, intent(in) :: NLEV,VARNO,IDATE,ITIME,ILEV
-    logical, intent(in) :: IFIRST
     real(8)  :: obs_err_stddev 
+   
+    ! Arguments:
+    character(len=*), intent(in) :: CSTNID ! station ID
+    integer, intent(in) :: NLEV ! number of levels
+    integer, intent(in) :: VARNO ! BUFR number
+    real(8), intent(in) :: ZLAT ! latitude (radians)
+    real(8), intent(in) :: ZLON ! longitude (radians)
+    integer, intent(in) :: IDATE ! date in YYYYMMDD format
+    integer, intent(in) :: ITIME ! time in HHMM format
+    real(8), intent(in) :: ZVAL  ! observation values
+    real(8), intent(in) :: ZLEV  ! vertical coordinate value
+    integer, intent(in) :: ILEV  ! observation number in the profile
+    logical, intent(in) :: IFIRST! true:  first call for a profile
 
+    ! Locals:
     real(8) :: wgt,zwb,sigma
     integer :: ibegin,JLEV,JN,stat
 
@@ -536,17 +508,11 @@ contains
     
   end function chm_get_obs_err_stddev
 
-!-------------------------------------------------------------------------
-!
-!! SUBROUTINE chm_dealloc_obs_err_stddev
-!! 
-!! *Purpose*: Deallocate temporary storage space used for observation errors for the CH family.
-!!
-!! @author Y. Rochon, Nov 2014
-!!
-!--------------------------------------------------------------------------
   subroutine chm_dealloc_obs_err_stddev
-  
+    ! 
+    !:Purpose: To deallocate temporary storage space used for observation errors
+    !          for the CH family.
+    !
     implicit none
 
     integer :: istnid

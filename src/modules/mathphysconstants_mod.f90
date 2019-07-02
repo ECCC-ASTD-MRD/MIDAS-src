@@ -7,16 +7,13 @@
 !          ./thermoconsts_to_MathPhysConstants.py
 
 MODULE MathPhysConstants_mod
-  ! Mathematical and Physical Constants
-  implicit none
-  public
-  !-----------------------------------------------------------------------------
   ! MODULE MathPhysConstants_mod (prefix='mpc' category='8. Global constants and interfaces')  
   !
-  ! Purpose: To supply mathematical and physical constants in a universal,
-  !          reliable fashion.
-  !-----------------------------------------------------------------------------
-  ! Feb  9, 2012 Jeff Blezius
+  ! :Purpose: To supply mathematical and physical constants in a universal,
+  !           reliable fashion.
+  !
+  implicit none
+  public
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
    real(8), parameter ::MPC_PI_R8                         =  3.141592653589793D+00 ! (unitless)
@@ -219,7 +216,11 @@ MODULE MathPhysConstants_mod
 contains
 
   subroutine mpc_setValue(name, var_r4, var_r8, value)
-     ! A means to change a (non-parameter) value
+     !
+     !:Purpose: To provide a means to change a (non-parameter) value
+     implicit none
+
+     ! Arguments:
      character(len=*) :: name
      real(4) :: var_r4
      real(8) :: var_r8, value
@@ -237,6 +238,13 @@ contains
   end subroutine mpc_setValue
 
   subroutine mpc_printConstants(kulout)
+     !
+     !:Purpose: To print all of the constants that are provided by this module.
+     !          The intent is to make it clear in a program listing which values
+     !          were used.
+     implicit none
+
+     ! Arguments:
      integer, intent(in) :: kulout     ! unit number for printing
 
      write(kulout,FMT='(//,4x ,"*** mpc_printConstants: definition of Mathematical and Physical constants  ***",/)')

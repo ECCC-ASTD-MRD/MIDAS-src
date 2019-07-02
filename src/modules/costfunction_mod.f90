@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE utilities_mod,(prefix="cfn" category='1. High-level functionality')
-!!
-!! *Purpose*: To compute Jo term
-!!
-!--------------------------------------------------------------------------
 module costfunction_mod
+  ! MODULE costfunction_mod, (prefix="cfn" category='1. High-level functionality')
+  !
+  ! :Purpose: To compute Jo term
+  !
   use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
@@ -43,16 +41,17 @@ contains
   ! cfn_RsqrtInverse
   !--------------------------------------------------------------------------
   subroutine cfn_RsqrtInverse( lobsSpaceData, elem_dest_i, elem_src_i )
-
+    !
+    !:Purpose: To apply observation-error variances to ROBDATA8(k_src,*) and to
+    !          store it in the elem_src_s of lobsSpaceData
     implicit none
 
+    ! Arguments:
     type(struct_obs), intent(inout) :: lobsSpaceData
     integer, intent(in)  :: elem_dest_i ! destination index
     integer, intent(in)  :: elem_src_i  ! source index
-    !
-    ! Applied observation error variances to ROBDATA8(k_src,*)
-    ! and store it in the elem_src_s of lobsSpaceData
-    !
+
+    ! Locals:
     integer :: bodyIndex, headerIndex
     integer :: idata, idatend, idatyp, count, ichn
     real(8) :: x( tvs_maxChannelNumber ), y( tvs_maxChannelNumber )
@@ -114,13 +113,15 @@ contains
   ! cfn_calcJo
   !--------------------------------------------------------------------------
   subroutine cfn_calcJo(lobsSpaceData)
+    !
+    !:Purpose: To compute JO contribution of each assimilated and diagnosed
+    !          datum, and to store the result in OBS_JOBS
     implicit none
 
-    ! Compute JO contribution of each assimilated and diagnosed datum
-    ! and store the result in OBS_JOBS
-
+    ! Arguments:
     type(struct_obs) :: lobsSpaceData
 
+    ! Locals:
     integer :: bodyIndex
 
 !$OMP PARALLEL DO PRIVATE(bodyIndex)
@@ -144,17 +145,17 @@ contains
   ! cfn_sumJo
   !--------------------------------------------------------------------------
   subroutine cfn_sumJo( lobsSpaceData, pjo )
-
-    ! Purpose:
-    !   Compute the sum of Jo contributions saved in OBS_JOBS
-    !   Also, compute contribution of each family of observation (for
-    !   diagnostic purposes)
-
+    !
+    !:Purpose: To compute the sum of Jo contributions saved in OBS_JOBS. Also,
+    !          to compute contribution of each family of observation (for
+    !          diagnostic purposes)
     implicit none
 
+    ! Arguments:
+    type(struct_obs) :: lobsSpaceData
     real(8) :: pjo ! Total observation cost function
 
-    type(struct_obs) :: lobsSpaceData
+    ! Locals:
     integer :: bodyIndex, itvs, isens, headerIndex, idata, idatend
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice

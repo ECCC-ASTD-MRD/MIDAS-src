@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE tt2phi (prefix="tt2phi" category='3. High-level transformations')
-!!
-!! *Purpose*: Subroutines for computing height from TT, HU and P0. Nonlinear, tangent-
-!!            linear and adjoint versions of this transformation are included in separate
-!!            subroutines.
-!!
-!--------------------------------------------------------------------------
 module tt2phi_mod
+  ! MODULE tt2phi (prefix='tt2phi' category='3. High-level transformations')
+  !
+  ! :Purpose: Subroutines for computing height from TT, HU and P0. Nonlinear,
+  !           tangent-linear and adjoint versions of this transformation are
+  !           included in separate subroutines.
+  !
   use mpi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
@@ -59,15 +57,13 @@ contains
 
 subroutine tt2phi(statevector_trial,beSilent_opt)
   !
-  !**s/r tt2phi - Temperature to geopotential transformation on GEM4 staggered levels
-  !                   NOTE: we assume 
-  !                     1) nlev_T = nlev_M+1 
-  !                     2) height_T(nlev_T) = height_M(nlev_M), both at the surface
-  !                     3) a thermo level exists at the top, higher than the highest momentum level
-  !                     4) the placement of the thermo levels means that height_T is the average of 2 nearest height_M
-  !                        (according to Ron and Claude)
-  !
-  !Author  : M. Bani Shahabadi, January 2019
+  ! :Purpose: Temperature to geopotential transformation on GEM4 staggered levels
+  !           NOTE: we assume 
+  !           1) nlev_T = nlev_M+1 
+  !           2) alt_T(nlev_T) = alt_M(nlev_M), both at the surface
+  !           3) a thermo level exists at the top, higher than the highest momentum level
+  !           4) the placement of the thermo levels means that alt_T is the average of 2 nearest alt_M
+  !           (according to Ron and Claude)
   !
   implicit none
 
@@ -390,9 +386,8 @@ end subroutine tt2phi
 
 subroutine tt2phi_tl(statevector,statevector_trial)
   !
-  !**s/r tt2phi_tl- temperature to geopotential transformation on gridstatevector
+  ! :Purpose: Temperature to geopotential transformation on gridstatevector
   !
-  !Author  : M. Bani Shahabadi, September 2018
   !
   implicit none
 
@@ -576,9 +571,9 @@ end subroutine tt2phi_tl
 
 subroutine tt2phi_ad(statevector,statevector_trial)
   !
-  !**s/r tt2phi_ad- Adjoint of temperature to geopotential transformation on gridstatevector
+  !:Purpose: Adjoint of temperature to geopotential transformation on
+  !          gridstatevector
   !
-  !Author  : M. Bani Shahabadi, September 2018
   !
   implicit none
 
@@ -805,10 +800,7 @@ end subroutine tt2phi_ad
 
 subroutine calcHeightCoeff_gsv(statevector_trial)
   !
-  !**s/r calcHeightCoeff_gsv - Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
-  !
-  !Author  : M. Bani Shahabadi, Jan 2019
-  !          - based on the original calcHeightCoeff by M. Bani Shahabadi
+  ! :Purpose: Calculating the coefficients of height for tt2phi_tl/tt2phi_ad
   !
   implicit none
 

@@ -14,13 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE timeCoord (prefix="tim" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: To store public variables and procedures related to the time coordinate.
-!!
-!--------------------------------------------------------------------------
 module timeCoord_mod
+  ! MODULE timeCoord (prefix='tim' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: To store public variables and procedures related to the time
+  !           coordinate.
+  !
   use mpi_mod
   use mpivar_mod
   use utilities_mod
@@ -51,28 +50,22 @@ contains
 
   subroutine tim_setup(fileNameForDate_opt)
     !
-    ! Purpose: Setup of obs time window size and related trial field 
-    !          time step for OmP determination. 
-    !  
-    ! Revisions:
-    !           Y. Rochon ARQI/AQRD July 2016
-    !           - Allowance for obs time windows of size different from 6 hours.
-    !!            Related addition of dwindowsize and tim_windowsize 
+    ! :Purpose: Setup of obs time window size and related trial field 
+    !           time step for OmP determination. 
     !
-    ! Namelist parameters:
+    ! :Namelist parameters:
+    !         :dstepobs:    time step (hrs) between successive trial fields 
+    !                       for use in OmP determation. Set to dwindowsize for
+    !                       single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
+    !                       nstepobs = number of trial fields 
+    !         :dstepobsinc: time step (hrs) between obs groupings in time. Set to
+    !                       dwindowsize for use of a single obs group.
+    !                       nstepobsinc = number of obs time intervals 
+    !         :dwindowsize: Time window size (hrs).
     !
-    !   dstepobs          time step (hrs) between successive trial fields 
-    !                     for use in OmP determation. Set to dwindowsize for
-    !                     single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
-    !                     nstepobs = number of trial fields 
-    !   dstepobsinc       time step (hrs) between obs groupings in time. Set to
-    !                     dwindowsize for use of a single obs group.
-    !                     nstepobsinc = number of obs time intervals 
-    !   dwindowsize       Time window size (hrs).
+    ! :Comment:
     !
-    ! Comment:
-    !
-    ! - Provided dates and number of provided trial field files must be
+    !   Provided dates and number of provided trial field files must be
     !   consistent with nstepobs, dstepobs and dwindowsize with reference datestamp
     !   corresponding to the date of the middle trial field file.
     !
@@ -167,7 +160,8 @@ contains
 
   function tim_getDatestampFromFile(fileName) result(dateStamp_out)
     !
-    ! object: to extract the dateStamp from the supplied file.
+    ! :Purpose: to extract the dateStamp from the supplied file.
+    !
     implicit none
 
     ! arguments
@@ -268,8 +262,9 @@ contains
 
   subroutine tim_setDatestamp(datestamp_in)
     !
-    ! object: to control access to the minimization object.  Sets the date
-    !         of the window centre of analysis validity to the indicated value.
+    ! :Purpose: to control access to the minimization object.  Sets the date
+    !           of the window centre of analysis validity to the indicated value.
+    !
     implicit none
     integer, intent(in) :: datestamp_in
 
@@ -282,8 +277,9 @@ contains
 
   function tim_getDatestamp() result(datestamp_out)
     !
-    ! object: to control access to the minimization object.  Returns the date
-    !         of the window centre of analysis validity.
+    ! :Purpose: to control access to the minimization object.  Returns the date
+    !           of the window centre of analysis validity.
+    !
     implicit none
     integer :: datestamp_out
 
@@ -295,15 +291,11 @@ contains
 
 
   subroutine tim_getStampList(datestamplist, numStep, middleDateStamp)
+    !
+    ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
+    !           implicit none
+    !
     implicit none
-    !
-    ! Author: Simon Pellerin *ARMA/SMC Nov. 2001
-    ! Purpose: Compute a list of STAMPS corresponding to stepobs time
-    !
-    ! Revisions:
-    !           Y. Rochon ARQI/AQRD Julu 2016
-    !           - Allowance for obs time windows of size different from 6 hours
-    !             through use of tim_windowsize.
 
     ! arguments
     integer, intent(in)  :: numStep ! number of step obs
@@ -332,22 +324,18 @@ contains
 
 
   subroutine tim_getStepObsIndex(dnstepobs, middleDateStamp, obsYYYMMDD, obsHHMM, numStep)
+    !
+    ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
+    !
+
     implicit none
-    ! Author : Mark Buehner (based on stepobs.ftn90)
-    !
-    ! Purpose: Return the stepobs index as a real number (-1.0 if out of range)
-    !
-    ! Revisions:
-    !           Y. Rochon ARQI/AQRD Julu 2016
-    !           - Allowance for obs time windows of size different from 6 hours
-    !             through use of tim_windowsize.
 
     ! arguments
-    real(8), intent(out):: dnstepobs ! number of stepobs from reference time
-    integer, intent(in) :: middleDateStamp    ! Synop CMC date-time stamp
-    integer, intent(in) :: obsYYYMMDD ! Obs date YYYYMMDD
-    integer, intent(in) :: obsHHMM    ! Obs time HHMM
-    integer, intent(in) :: numStep ! number of stepobs in assimilation window
+    real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
+    integer, intent(in)  :: middleDateStamp    ! Synop CMC date-time stamp
+    integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
+    integer, intent(in)  :: obsHHMM            ! Obs time HHMM
+    integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
     ! locals
     integer :: newdate, istat, imode

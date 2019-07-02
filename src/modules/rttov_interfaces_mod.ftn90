@@ -14,16 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE rttov_interfaces_mod (prefix='' category='8. Global constants and interfaces')
-!!
-!! *Purpose*: 'include' all of the needed files containing the interfaces
-!!            for the rttov library subroutines. This allows all other 
-!!            files in MIDAS to be of the 'f90' type (instead of 'ftn90'),
-!!            thus avoiding a pass through the pre-processor.
-!!
-!--------------------------------------------------------------------------
 module rttov_interfaces_mod
+  ! MODULE rttov_interfaces_mod (prefix='' category='8. Global constants and interfaces')
+  !
+  ! :Purpose: To *include* all of the needed files containing the interfaces
+  !           for the rttov library subroutines. This allows all other 
+  !           files in MIDAS to be of the *f90* type (instead of *ftn90*),
+  !           thus avoiding a pass through the pre-processor.
+  !
 implicit none
 public
 

@@ -15,13 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module stateToColumn_mod
-  !
   ! MODULE stateToColumn (prefix='s2c' category='3. High-level transformations')
   !
-  ! **Purpose:** 
-  ! Non-linear, tangent-linear and adjoint versions of
-  ! horizontal-temporal interpolation between a gridStateVector object
-  ! and a columnData object.
+  ! :Purpose: Non-linear, tangent-linear and adjoint versions of
+  !           horizontal-temporal interpolation between a gridStateVector object
+  !           and a columnData object.
   !
   use mathPhysConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
@@ -93,20 +91,23 @@ contains
   ! findHeightMpiId
   !---------------------------------------------------------
   subroutine findHeightMpiId( stateVector_in, height, stepIndex )
-    ! **Purpose:**
-    ! Obtain the MpiId of the height for each kIndex level, 
-    ! needed to calculate the lat/lon along the slant-path.
+    !
+    !:Purpose: To obtain the MpiId of the height for each kIndex level, needed to
+    !          calculate the lat/lon along the slant-path.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: statevector_in
-    real(8), intent(inout) :: height(statevector_in%ni,statevector_in%nj,statevector_in%mykBeg:statevector_in%mykEnd)
+    real(8), intent(inout) :: height(statevector_in%ni,&
+                                     statevector_in%nj,&
+                                     statevector_in%mykBeg:statevector_in%mykEnd)
+    integer :: stepIndex
 
-    ! locals
+    ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
     integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
-    integer :: levVar, kIndex, stepIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
+    integer :: levVar, kIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
     integer :: requestIdHeightSfcSend(10), requestIdHeightSfcRecv(10)
     integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
@@ -268,8 +269,8 @@ contains
   ! s2c_latLonChecks
   !---------------------------------------------------------
   subroutine s2c_latLonChecks(obsSpaceData, moveObsAtPole)
-    ! **Purpose:** 
-    ! Check the lat/lon of observations and modify if necessary
+    !
+    ! :Purpose: Check the lat/lon of observations and modify if necessary
     !
     implicit none
 
@@ -389,10 +390,9 @@ contains
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
                                   timeInterpType, rejectOutsideObs, &
                                   inputStateVectorType )
-    ! **Purpose:**
-    ! Setup all of the information needed to quickly
-    ! perform the horizontal interpolation to the observation
-    ! locations.
+    ! :Purpose: Setup all of the information needed to quickly
+    !           perform the horizontal interpolation to the observation
+    !           locations.
     !
     implicit none
 
@@ -786,16 +786,17 @@ contains
   ! s2c_tl
   !---------------------------------------------------------
   subroutine s2c_tl( statevector, column, columng, obsSpaceData )
-    ! **Purpose:** 
-    ! Tangent linear version of the horizontal
-    ! interpolation, used for the increment (or perturbations).
+    !
+    ! :Purpose: Tangent linear version of the horizontal
+    !           interpolation, used for the increment (or perturbations).
     !
     implicit none
 
     ! arguments
     type(struct_gsv)           :: stateVector
     type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: column, columng
+    type(struct_columnData)    :: column
+    type(struct_columnData)    :: columng
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -991,16 +992,17 @@ contains
   ! s2c_ad
   !---------------------------------------------------------
   subroutine s2c_ad( statevector, column, columng, obsSpaceData )
-    ! **Purpose:** 
-    ! Adjoint version of the horizontal interpolation,
-    ! used for the cost function gradient with respect to the increment.
+    !
+    ! :Purpose: Adjoint version of the horizontal interpolation,
+    !           used for the cost function gradient with respect to the increment.
     !
     implicit none
 
     ! arguments
     type(struct_gsv)           :: stateVector
     type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: column, columng
+    type(struct_columnData)    :: column
+    type(struct_columnData)    :: columng
 
     ! locals
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -1188,10 +1190,9 @@ contains
   !---------------------------------------------------------
   subroutine s2c_nl( stateVector, obsSpaceData, column, timeInterpType, varName_opt, &
                      dealloc_opt, moveObsAtPole_opt )
-    ! **Purpose:** 
-    ! Non-linear version of the horizontal interpolation,
-    ! used for a full field (usually the background state when computing
-    ! the innovation vector).
+    ! :Purpose: Non-linear version of the horizontal interpolation,
+    !           used for a full field (usually the background state when computing
+    !           the innovation vector).
     !
     implicit none
 
@@ -1533,10 +1534,10 @@ contains
   ! -------------------------------------------------
   ! myezsint: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex ) 
-    ! **Purpose:** 
-    ! Scalar horizontal interpolation, replaces the
-    ! ezsint routine from rmnlib.
+  subroutine myezsint( column_out, varName, field_in, interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Scalar horizontal interpolation, replaces the
+    !           ezsint routine from rmnlib.
     !
     implicit none
 
@@ -1545,7 +1546,9 @@ contains
     character(len=*)        :: varName
     real(8)                 :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex, procIndex, kIndex
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
 
     ! locals
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -1582,20 +1585,22 @@ contains
   ! -------------------------------------------------------------
   ! myezsintad: Adjoint of scalar field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezsintad( column_in, varName, field_out, interpInfo, kIndex, stepIndex, procIndex ) 
-    ! **Purpose:** 
-    ! Adjoint of the scalar horizontal interpolation.
+  subroutine myezsintad( column_in, varName, field_out, interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Adjoint of the scalar horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
     real(8)                 :: field_out(:,:)
     type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex, procIndex, kIndex
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: weight
 
@@ -1630,19 +1635,22 @@ contains
   ! myezuvint_nl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_nl( column_out, varName, fieldUU_in, fieldVV_in,  &
-                           interpInfo, kIndex, stepIndex, procIndex ) 
-    ! **Purpose:** 
-    ! Vector horizontal interpolation, replaces the
-    ! ezuvint routine from rmnlib.
+                           interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Vector horizontal interpolation, replaces the
+    !           ezuvint routine from rmnlib.
     !
     implicit none
 
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_in(:,:), fieldVV_in(:,:)
+    real(8)                 :: fieldUU_in(:,:)
+    real(8)                 :: fieldVV_in(:,:)
     type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex, procIndex, kIndex 
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
 
     ! locals
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -1713,19 +1721,21 @@ contains
   ! myezuvint_tl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_tl( column_out, varName, fieldUU_in, fieldVV_in,  &
-                           interpInfo, kIndex, stepIndex, procIndex ) 
-    ! **Purpose:** 
-    ! Vector horizontal interpolation, replaces the
-    ! ezuvint routine from rmnlib.
+                           interpInfo, kIndex, stepIndex, procIndex )
+    ! :Purpose: Vector horizontal interpolation, replaces the
+    !           ezuvint routine from rmnlib.
     !
     implicit none
 
     ! arguments
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_in(:,:), fieldVV_in(:,:)
+    real(8)                 :: fieldUU_in(:,:)
+    real(8)                 :: fieldVV_in(:,:)
     type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex, procIndex, kIndex
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
 
     ! locals
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -1796,18 +1806,21 @@ contains
   ! myezuvint_ad: Adjoint of vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_ad( column_in, varName, fieldUU_out, fieldVV_out, &
-                           interpInfo, kIndex, stepIndex, procIndex ) 
-    ! **Purpose:** 
-    ! Adjoint of the vector horizontal interpolation.
+                           interpInfo, kIndex, stepIndex, procIndex )
+    !
+    ! :Purpose: Adjoint of the vector horizontal interpolation.
     !
     implicit none
 
     ! arguments
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
-    real(8)                 :: fieldUU_out(:,:), fieldVV_out(:,:)
+    real(8)                 :: fieldUU_out(:,:)
+    real(8)                 :: fieldVV_out(:,:)
     type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex, procIndex, kIndex
+    integer                 :: stepIndex
+    integer                 :: procIndex
+    integer                 :: kIndex
 
     ! locals
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -1878,12 +1891,12 @@ contains
   !------------------------------------------------------------------
   function getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
-    ! **Purpose:** 
-    ! Compute the grid XY position from a lat-lon. This
-    ! simply calls the ezsint routine gdxyfll for simple grids. For
-    ! Yin-Yan grids it can return locations from both the Yin and Yan
-    ! subgrids when in the overlap region, depending on the logical 
-    ! variable `useSingleValueOverlap`.
+    !
+    ! :Purpose: Compute the grid XY position from a lat-lon. This
+    !           simply calls the ezsint routine gdxyfll for simple grids. For
+    !           Yin-Yan grids it can return locations from both the Yin and Yan
+    !           subgrids when in the overlap region, depending on the logical 
+    !           variable `useSingleValueOverlap`.
     !
     implicit none
 
@@ -1891,8 +1904,12 @@ contains
     integer :: ierr
     integer :: gdid
     integer :: subGridIndex
-    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    real(4) :: lat_deg_r4, lon_deg_r4
+    real(4) :: xpos_r4
+    real(4) :: ypos_r4
+    real(4) :: xpos2_r4
+    real(4) :: ypos2_r4
+    real(4) :: lat_deg_r4
+    real(4) :: lon_deg_r4
 
     ! locals
     integer :: numSubGrids
@@ -2019,10 +2036,10 @@ contains
   ! s2c_bgcheck_bilin
   !---------------------------------------------------------
   subroutine s2c_bgcheck_bilin(column,statevector,obsSpaceData)
-    ! **Purpose:**
-    ! Special version of s2c_tl used for background check. This should
-    ! be replaced by direct call to s2c_tl. It is not general enough to
-    ! be used for new analysis variables.
+    !
+    ! :Purpose: Special version of s2c_tl used for background check. This should
+    !           be replaced by direct call to s2c_tl. It is not general enough to
+    !           be used for new analysis variables.
     !
     implicit none
 
@@ -2210,16 +2227,14 @@ contains
   !--------------------------------------------------------------------------
   subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat, &
                                plong,plat,vprof,vlevout,nlevout)
-    ! **Purpose:** 
-    ! Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
-    ! Assumes vertical interpolation not needed or already done.
     !
-    ! This version can be used with fields that are not part of the background state,
-    ! such as climatologies.
+    ! :Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
+    !           Assumes vertical interpolation not needed or already done.
     !
-    ! This version does not depend in column_data and gridstatevector modules.
+    !           This version can be used with fields that are not part of the background state,
+    !           such as climatologies.
     !
-    ! **Author:** Y. Rochon, Nov 2015 
+    !           This version does not depend in column_data and gridstatevector modules.
     !
     implicit none
 
@@ -2305,23 +2320,25 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupHorizInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+                                  stateVector, headerIndex, kIndex, stepIndex, &
+                                  procIndex, numGridpt)
     !
-    !:Purpose: Identify the appropriate horizontal interpolation scheme based on
-    !          footprint radius value. Then call the corresponding
-    !          subroutine to determine the grid points and their associated weights.
+    !:Purpose: To identify the appropriate horizontal interpolation scheme based
+    !          on footprint radius value. Then to call the corresponding
+    !          subroutine to determine the grid points and their associated
+    !          weights.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4)                , intent(in)    :: footprintRadius_r4 ! (metres)
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
-
-    ! locals
 
     if ( footprintRadius_r4 > 0.0 ) then
 
@@ -2349,19 +2366,19 @@ contains
   !------------------------------------------------------------------
   function s2c_getFootprintRadius( obsSpaceData, headerIndex ) result(fpr)
     !
-    !:Purpose: Determine the footprint radius (metres) of the observation.
+    !:Purpose: To determine the footprint radius (metres) of the observation.
     !          In the case of bilinear horizontal interpolation,
     !          the returned footprint is zero (default).
     !          To indicate lake operator, the returned footprint is -1.0.
     !
     implicit none
-
-    ! arguments
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer         , intent(in)  :: headerIndex
     real(4)                       :: fpr
 
-    ! locals
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: headerIndex
+
+    ! Locals:
     character(len=2)  :: cfam
     character(len=12) :: cstnid
 
@@ -2430,21 +2447,24 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, &
+                                     headerIndex, kIndex, stepIndex, procIndex,&
+                                     numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the bilinear horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    ! locals
+    ! Locals:
     integer :: localHeaderIndex, bodyIndex, depotIndex
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd, niP1
@@ -2647,22 +2667,25 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupFootprintInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupFootprintInterp(fpr, interpInfo, obsSpaceData, &
+                                      stateVector, headerIndex, kIndex, &
+                                      stepIndex, procIndex, numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the footprint horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4)                , intent(in)    :: fpr ! footprint radius (metres)
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    ! locals
+    ! Locals:
     integer :: localHeaderIndex, bodyIndex, depotIndex
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd
@@ -2877,18 +2900,21 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupLakeInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+  subroutine s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, &
+                                 headerIndex, kIndex, stepIndex, procIndex, &
+                                 numGridpt)
     !
-    !:Purpose: Determine the grid points and their associated weights
+    !:Purpose: To determine the grid points and their associated weights
     !          for the lake horizontal interpolation.
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo), intent(in)    :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     numGridpt(:) = 0
@@ -2902,12 +2928,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine checkColumnStatevectorMatch(column,statevector)
     !
-    !:Purpose: Check column and statevector have identical nk and variables.
+    !:Purpose: To check column and statevector have identical nk and variables.
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv)       , intent(in) :: statevector
     type(struct_columnData), intent(in) :: column
 
+    ! Locals:
     integer :: kIndex
 
     ! check column/statevector have same nk

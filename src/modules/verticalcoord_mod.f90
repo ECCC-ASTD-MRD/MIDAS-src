@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE verticalcoord (prefix="vco" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Derived type and procedures related to the vertical levels including
-!!            a pointer to the associated VGRID descriptor
-!!
-!--------------------------------------------------------------------------
 module verticalCoord_mod
+  ! MODULE verticalcoord (prefix='vco' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Derived type and procedures related to the vertical levels.
+  !           The derived type includes a pointer to the associated VGRID
+  !           descriptor.
+  !
   use mpi_mod
   use MathPhysConstants_mod
   use Vgrid_Descriptors
@@ -55,12 +54,16 @@ module verticalCoord_mod
 
 contains
   
-  !--------------------------------------------------------------------------
-  ! vco_allocate
-  !--------------------------------------------------------------------------
   subroutine vco_allocate(vco)
+    !
+    ! :Purpose: Allocate a vertical coordinate object
+    !
     implicit none
-    type(struct_vco), pointer :: vco
+
+    ! Arguments:
+    type(struct_vco), pointer :: vco ! Vertical coordinate object
+
+    ! locals
     integer :: ilnk,stat,nl_stat
 
     stat        = 0
@@ -73,22 +76,22 @@ contains
     allocate (vco%ip1_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
-    if(stat .ne. 0 ) then
+    if( stat /= 0 ) then
        call utl_abort('vco_allocate: problem with allocate in vco ')
     endif
 
   end subroutine vco_allocate
 
-  !--------------------------------------------------------------------------
-  ! vco_SetupFromFile
-  !--------------------------------------------------------------------------
+
   subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
-    !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
+    ! 
+    ! :Purpose: Initialize structure for a standard file using vgrid_descriptors library.
+    !
     implicit none
-    type(struct_vco),pointer :: vco
-    character(len=*) :: templatefile
-    character(len=*), optional :: etiket_opt
-    logical, optional :: beSilent_opt
+    type(struct_vco),pointer   :: vco          ! Vertical coordinate object 
+    character(len=*)           :: templatefile ! Template file
+    character(len=*), optional :: etiket_opt   ! Optional argument etiket
+    logical, optional          :: beSilent_opt ! Optional argument beSilent
 
     logical           :: beSilent
     character(len=12) :: etiket
@@ -132,14 +135,14 @@ contains
       beSilent = .false.
     endif
 
-    if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(mpi_myid == 0 .and. .not. beSilent) then
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
     endif
     inquire(file=templatefile,exist=isExist_L)
     if( isExist_L )then
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-      if( ierr .eq. 0 ) then
+      if( ierr == 0 ) then
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
         call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
@@ -206,9 +209,9 @@ contains
     end if
 
     ! Print out vertical structure 
-    if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(mpi_myid == 0 .and. .not. beSilent) then
       stat = vgd_print(vco%vgrid)
-      if(stat.ne.VGD_OK)then
+      if( stat /= VGD_OK )then
         call utl_abort('vco_setupFromFile: ERROR with vgd_print')
       endif
     endif
@@ -218,7 +221,7 @@ contains
 
     stat = 0
     stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-    if(stat.ne.VGD_OK) then
+    if( stat /= VGD_OK ) then
       call utl_abort('vco_setupFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
     if (Vcode /= 5002 .and. Vcode /= 5005) then
@@ -235,7 +238,7 @@ contains
     stat = vgd_get(vco%vgrid,key='vipt - vertical ip1 levels (t)',value=vgd_ip1_t)
     stat = stat + VGD_OK
 
-    if(stat.ne.0) then
+    if(stat /= 0) then
       call utl_abort('vco_setupFromFile: problem with vgd_get')
     endif
 
@@ -249,19 +252,19 @@ contains
     nomvar_T = 'TH  '
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-      if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
+      if(ikey > 0) vco%nlev_T = vco%nlev_T + 1
     enddo
-    if(vco%nlev_T.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(vco%nlev_T == 0) then
+      if(mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: TH not found looking for TT to get nlev_T'
       endif
       nomvar_T = 'TT  '
       do jlev = 1, vgd_nlev_T
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-        if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
+        if(ikey > 0) vco%nlev_T = vco%nlev_T + 1
       enddo
     endif
-    if(vco%nlev_T.eq.0) then
+    if( vco%nlev_T == 0 ) then
       write(*,*) 
       write(*,*) 'vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!'
     endif
@@ -270,10 +273,10 @@ contains
     nomvar_M = 'MM  '
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-      if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
+      if(ikey > 0) vco%nlev_M = vco%nlev_M + 1
     enddo
-    if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(vco%nlev_M == 0) then
+      if(mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: MM not found looking for UU to get nlev_M'
       endif
       nomvar_M = 'UU  '
@@ -282,17 +285,17 @@ contains
         if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
       enddo
     endif
-    if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(vco%nlev_M == 0) then
+      if(mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: UU not found looking for PP to get nlev_M'
       endif
       nomvar_M = 'PP  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
+        if( ikey > 0 ) vco%nlev_M = vco%nlev_M + 1
       enddo
     endif
-    if(vco%nlev_M.eq.0) then
+    if(vco%nlev_M == 0) then
       write(*,*) 
       write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
     endif
@@ -305,7 +308,7 @@ contains
       call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if
 
-    if(mpi_myid.eq.0 .and. .not.beSilent) then
+    if(mpi_myid == 0 .and. .not.beSilent) then
       write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     endif
     
@@ -318,7 +321,7 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-      if(ikey.gt.0) then
+      if( ikey > 0 ) then
         nlevMatched = nlevMatched + 1
         if(nlevMatched.gt.vco%nlev_M) then
           call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
@@ -338,9 +341,9 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-      if(ikey.gt.0) then
+      if( ikey > 0 ) then
         nlevMatched = nlevMatched + 1
-        if(nlevMatched.gt.vco%nlev_T) then
+        if(nlevMatched > vco%nlev_T) then
           call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
         endif
         vco%ip1_T(nlevMatched) = vgd_ip1_T(jlev)
@@ -368,7 +371,7 @@ contains
       write(*,*) 'vco_setupFromFile: Could not find IP1=',ip1_sfc
       call utl_abort('vco_setupFromFile: No surface level found in Vgrid!!!')
     else
-      if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
+      if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
     endif
 
     !
@@ -386,15 +389,18 @@ contains
 
   end subroutine vco_setupFromFile
 
-  !--------------------------------------------------------------------------
-  ! vco_deallocate
-  !--------------------------------------------------------------------------
+
   subroutine vco_deallocate(vco)
+    !
+    ! :Purpose: Deallocate vertical coordinate object
+    !
     implicit none
-    type(struct_vco), pointer :: vco
+
+    type(struct_vco), pointer :: vco ! Vertical coordinate object
+
     integer :: stat
 
-    if (vco%vgridPresent) then
+    if ( vco%vgridPresent ) then
       deallocate (vco%ip1_M)
       deallocate (vco%ip1_T)
       stat = vgd_free(vco%vgrid)
@@ -404,20 +410,23 @@ contains
 
   end subroutine vco_deallocate
 
-  !--------------------------------------------------------------------------
-  ! vco_getNumLev
-  !--------------------------------------------------------------------------
+
   function vco_getNumLev(vco,varLevel) result(nlev)
+    ! 
+    ! :Purpose: get number of vrtical levels
+    ! 
     implicit none
-    type(struct_vco), pointer    :: vco
-    character(len=*), intent(in) :: varLevel
+
+    type(struct_vco), pointer    :: vco      ! Vertical coordinate object
+    character(len=*), intent(in) :: varLevel ! 'TH', 'MM' or 'SF'
+
     integer                      :: nlev
 
-    if(varLevel.eq.'MM') then
+    if(varLevel == 'MM') then
       nlev = vco%nlev_M
-    elseif(varLevel.eq.'TH') then
+    elseif(varLevel == 'TH') then
       nlev = vco%nlev_T
-    elseif(varLevel.eq.'SF') then
+    elseif(varLevel == 'SF') then
       nlev = 1
     else
       call utl_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
@@ -425,12 +434,15 @@ contains
 
   end function vco_getNumLev
 
-  !--------------------------------------------------------------------------
-  ! vco_mpiBcast
-  !--------------------------------------------------------------------------
+
   subroutine vco_mpiBcast(vco)
+    !
+    ! :Purpose: MPI broadcast of vertical coordinate object
+    !
     implicit none
-    type(struct_vco), pointer :: vco
+    ! Arguments:
+    type(struct_vco), pointer :: vco ! vertical coordinate object
+    ! locals
     integer :: ierr, vgd_nlev_M, vgd_nlev_T
     integer :: vgdig1, vgdig2, vgdig3, vgdig4, vgdip1, vgdip2, vgdip3, vgddate
     integer :: vgdtable_dim1, vgdtable_dim2, vgdtable_dim3
@@ -527,19 +539,18 @@ contains
 
   end subroutine vco_mpiBcast
 
-  !--------------------------------------------------------------------------
-  ! vco_ensureCompatibleTops
-  !--------------------------------------------------------------------------
+
   subroutine vco_ensureCompatibleTops(vco_sourceGrid,vco_destGrid) 
     !
-    !- This function checks if the top of a destination grid
-    !  is ~equal or lower than the top of the source grid
-    !  the code aborts if this is not the case
+    ! :Purpose: This function checks if the top of a destination grid
+    !           is ~equal or lower than the top of the source grid
+    !           the code aborts if this is not the case
     !
     implicit none
 
-    ! input
-    type(struct_vco), pointer :: vco_sourceGrid, vco_destGrid
+    ! Arguments:
+    type(struct_vco), pointer :: vco_sourceGrid ! vertical coordinate source grid
+    type(struct_vco), pointer :: vco_destGrid   ! vertical coordinate destination grid
 
     ! internal
     integer :: status, nAbove
@@ -560,7 +571,7 @@ contains
                       levels=sourcePressureLevels,   &
                       sfc_field=pSfc,                &
                       in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
+    if( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
 
     !pressure on momentum levels of destination grid
     status=vgd_levels(vco_destGrid%vgrid,            &
@@ -568,7 +579,7 @@ contains
                       levels=destPressureLevels,     &
                       sfc_field=pSfc,                &
                       in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
+    if( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
 
     !count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
@@ -578,18 +589,23 @@ contains
     end do
 
     !Destination grid has "nAbove" levels above source grid;  tolerate one
-    if (nAbove > 1) then
+    if ( nAbove > 1 ) then
       call utl_abort('vco_ensureCompatibleTops: top of destination grid is more than one level higher than the top of source grid')
     end if
 
   end subroutine vco_ensureCompatibleTops
 
-  !--------------------------------------------------------------------------
-  ! vco_equal
-  !--------------------------------------------------------------------------
+
   function vco_equal(vco1,vco2) result(equal)
+    !
+    ! :Purpose: Compare two vertical grid object and provide a logical result if they are equal or not
+    !
     implicit none
-    type(struct_vco), pointer :: vco1, vco2
+  
+    !Arguments:
+    type(struct_vco), pointer :: vco1 ! vertical coordinate object one
+    type(struct_vco), pointer :: vco2 ! vertical coordinate object two
+
     logical                   :: equal
 
     equal = .true.
@@ -638,15 +654,17 @@ contains
 
   end function vco_equal
 
-  !--------------------------------------------------------------------------
-  ! vco_subsetOrNot
-  !--------------------------------------------------------------------------
+
   function vco_subsetOrNot(vco_template, vco_full) result(subset)
+    !
+    ! :Purpose: This function determines if vco_template is a subset of vco_full.
+    !
     implicit none
-    !
-    !- This function determines if vco_template is a subset of vco_full.
-    !
-    type(struct_vco), pointer, intent(in)  :: vco_full, vco_template
+    
+    ! Arguments:
+    type(struct_vco), pointer, intent(in)  :: vco_full     ! vertical coordinate object full
+    type(struct_vco), pointer, intent(in)  :: vco_template ! vertical coordinate object template
+    ! Result:
     logical :: subset
 
     integer, allocatable :: THlevelWanted(:), MMlevelWanted(:)
@@ -701,13 +719,17 @@ contains
 
   end function vco_subsetOrNot
 
-  !--------------------------------------------------------------------------
-  ! hybridCoefEqualOrNot
-  !--------------------------------------------------------------------------
+
   function hybridCoefEqualOrNot(vco1, vco2) result(equal)
+    !
+    ! :Purpose: To compare two vertical coordinate hybrid coefficient object 
+    !
     implicit none
 
-    type(struct_vco), pointer, intent(in)  :: vco1, vco2
+    ! Arguments:
+    type(struct_vco), pointer, intent(in)  :: vco1 ! vertical coordinate object one
+    type(struct_vco), pointer, intent(in)  :: vco2 ! vertical coordinate object two
+    ! Result:
     logical :: equal
 
     real(8) :: ptop1, ptop2
@@ -793,18 +815,21 @@ contains
 
   end function hybridCoefEqualOrNot
 
-  !--------------------------------------------------------------------------
-  ! vco_levelMatchingList
-  !--------------------------------------------------------------------------
+
   subroutine vco_levelMatchingList(THmatchingList, MMmatchingList, vco1, vco2)
+    !
+    ! :Purpose: This subroutine returns arrays of array indices of the levels (ip1s) in vco2 
+    !           corresponding with the levels (ip1s) in vco1
+    !
     implicit none
-    !
-    !- This subroutine returns arrays of array indices of the levels (ip1s) in vco2 
-    !  corresponding with the levels (ip1s) in vco1
-    !
-    type(struct_vco), pointer, intent(in) :: vco1, vco2
-    integer, intent(out) :: THmatchingList(vco1%nlev_T), MMmatchingList(vco1%nlev_M)
- 
+
+    ! Arguments:
+    type(struct_vco), pointer, intent(in) :: vco1       ! vertical coordinate object one
+    type(struct_vco), pointer, intent(in) :: vco2       ! vertical coordinate object two
+    integer, intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
+    integer, intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
+
+    ! locals
     integer :: levIndex1, levIndex2
 
     !
@@ -839,12 +864,15 @@ contains
 
   end subroutine vco_levelMatchingList
 
-  !--------------------------------------------------------------------------
-  ! set_2m_10m_levels
-  !--------------------------------------------------------------------------
+
   subroutine set_2m_10m_levels(vco)
+    !
+    ! :Purpose: To set 2-m and 10-m levels
+    !
     implicit none
-    type(struct_vco), pointer, intent(in) :: vco
+
+    type(struct_vco), pointer, intent(in) :: vco ! vertical coordinate object
+
     character(len=10) :: blk_s
 
     if      (vco%Vcode == 5002) then
@@ -860,4 +888,4 @@ contains
 
   end subroutine set_2m_10m_levels
 
-end module VerticalCoord_mod
+end module verticalCoord_mod

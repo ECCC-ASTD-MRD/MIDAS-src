@@ -39,23 +39,10 @@ module backgroundCheck_mod
 
   contains
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Do background check on all conventionnal observations
-!!
-!! @author P. Koclas *CMC/CMDA  Nov 1998
-!!
-!! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
-!!           - Added call to BGCDATA for chemical constituents
-!!           - Added loop over bgfam list
-!!
-!!           Y. Rochon (ARQI/AQRD) June 2016
-!!           - Added call to osd_ObsSpaceDiag
-!!
-!!           S. Laroche (ARMA/MRD) October 2017
-!!           - New option NEW_BGCK_SW for AMVs
-!!
-!--------------------------------------------------------------------------
 subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
+  !
+  !:Purpose: Do background check on all conventional observations
+  !
 
   IMPLICIT NONE
 
@@ -123,35 +110,11 @@ subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
 end subroutine bgck_bgcheck_conv
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*:  Calculate a background check for a data family
-!!             AND SET the appropriate quality control flags in
-!!             obsSpaceData
-!!
-!! @author P. Koclas *CMC/CMDA  January 1999
-!!
-!! Revisions:
-!!
-!!        -S. Macpherson *ARMA/MRD  9 October 2015
-!!           - Changed background check for GB-GPS ZTD observations:
-!!v               Changed
-!!v                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
-!!v               to
-!!v                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
-!!v               where ZFGE = StdDev(O-P) estimated from ZWD and set in
-!!v               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
-!!
-!!        -Y.J. Rochon *ARQD/ARQI March 2016
-!!          - Allow ZFGE**2 + ZOER**2 .LT. 1.D-5 for CDFAM='CH'
-!!          - Set output format 124 for 'CH'
-!!
-!!
-!!        -S. Laroche  *ARMA/MRD October 2017
-!!           -New background check for AMVs that checks u and v
-!!            simultaneously.
-!!
-!--------------------------------------------------------------------------
       SUBROUTINE bgck_data(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
+      !
+      !:Purpose:  Calculate a background check for a data family and set the
+      !           appropriate quality-control flags in obsSpaceData
+      !
 
       IMPLICIT NONE
 !*
@@ -501,16 +464,11 @@ end subroutine bgck_bgcheck_conv
       END SUBROUTINE bgck_data
 
 
-!--------------------------------------------------------------------------
-!!  *Purpose*: Set background check flag on GPSRO data if ABS(O-P)/P is too large
-!!
-!!  @author P. KOCLAS. Mar 2008
-!!  Modified: 
-!!            -J.M. Aparicio, Dec 2012.
-!!                -Simplified and adapted to both refractivity and bending angle data
-!!
-!--------------------------------------------------------------------------
       SUBROUTINE bgck_gpsro(lcolumnhr,lobsSpaceData)
+      !
+      !:Purpose: Set background-check flag on GPSRO data if ABS(O-P)/P is too
+      !          large
+      !
       IMPLICIT NONE
 
       type(struct_columnData) :: lcolumnhr
@@ -617,31 +575,24 @@ end subroutine bgck_bgcheck_conv
       END SUBROUTINE bgck_gpsro
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*:  Set BACKGROUND CHECK FLAGS According to values set in a table.
-!!             Original values in table come from ecmwf.
-!!
-!! @author P. Koclas *CMC/CMSV  September 1998
-!!
-!! Arguments:
-!!     -KVNAM= VARIABLE NAME ( BURP )
-!!     -KODTYP=BURP CODE TYPE
-!!     -CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-!!     -ZLEV = LEVEL
-!!     -zbgchk=NORMALIZED BACKGROUND DEPARTURE
-!!     -lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
-!!
-!--------------------------------------------------------------------------
       function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
+      !
+      !:Purpose: Set BACKGROUND-CHECK FLAGS According to values set in a table.
+      !          Original values in table come from ecmwf.
+      !
 
       IMPLICIT NONE
       integer isetflag
-      integer kvnam,kodtyp
-      real*8 zlev
-      real*8 zbgchk
-      character*2 cdfam
-      logical lmodif1020
 
+      ! Arguments:
+      character*2 cdfam ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+      integer :: kodtyp ! BURP CODE TYPE
+      integer :: kvnam  ! VARIABLE NAME ( BURP )
+      real*8  :: zlev   ! LEVEL
+      real*8  :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+      logical :: lmodif1020! switch to activate special criteria for backound check (*ua 10-20 mb)
+
+      ! Locals:
       real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3),zalcrit(3)
       real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3),zviscrit(3)
       real*8 zchcrit(3)

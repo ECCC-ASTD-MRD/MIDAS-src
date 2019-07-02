@@ -22,8 +22,8 @@ module BMatrix_mod
   !           bmatrixEnsemble
   !
   ! :Comments:
-  !           - Considerations for ensemble-based and regional static covariances
-  !             for constituents are not yet included.
+  !           - Considerations for ensemble-based and regional static
+  !             covariances for constituents are not yet included.
   !
   use mpi_mod
   use mpivar_mod
@@ -60,11 +60,11 @@ contains
   ! bmat_setup
   !--------------------------------------------------------------------------
   subroutine bmat_setup(hco_anl, vco_anl)
+    !
+    !:Purpose: To initialize the analysis Background term for the specific
+    !          analysis configuration used.
+    !
     implicit none
-    !
-    !- bmat_setup - Initializes the analysis Background term for the 
-    !               specific analysis configuration used.
-    !
 
     type(struct_vco), pointer :: vco_anl
     type(struct_hco), pointer :: hco_anl
@@ -155,11 +155,12 @@ contains
   ! bmat_sqrtB
   !-------------------------------------------------------------------------- 
   subroutine bmat_sqrtB(controlVector,cvdim,statevector,useFSOFcst_opt)
+    !
+    !:Purpose: To transform model state from control-vector space to grid-point
+    !          space.
+    !          
+    !
     implicit none
-    !
-    !- Purpose: Transforms model state from control vector space
-    !           to grid point space.
-    !
 
     ! arguments
     integer         :: cvdim
@@ -261,11 +262,11 @@ contains
   ! bmat_sqrtBT
   !--------------------------------------------------------------------------
   subroutine bmat_sqrtBT(controlVector,cvdim,statevector,useFSOFcst_opt)
+    !
+    !:Purpose: To transform model state from grid-point space to
+    !          error-covariance space.
+    !
     implicit none
-    !
-    !- Purpose: Transforms model state from grid point space 
-    !           to error covariance space.
-    !
 
     ! arguments
     integer :: cvdim
@@ -360,11 +361,11 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_finalize
   !--------------------------------------------------------------------------
-  subroutine bmat_finalize()
-    implicit none    
+  subroutine bmat_finalize()   
     !
-    !- Purpose: Releases memory used by B matrices.
+    !:Purpose: To release memory used by B matrices.
     !
+    implicit none 
 
     call bhi_finalize()
     call blb_finalize()
@@ -378,11 +379,12 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_reduceToMPILocal
   !--------------------------------------------------------------------------
-  subroutine bmat_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
-    implicit none    
+  subroutine bmat_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)    
     !
-    ! Purpose: distribute MPI_global control vector from task 0 to all tasks
+    !:Purpose: To distribute MPI_global control vector from task 0 to all tasks
+    !          where the arguments are real(8)'s
     !
+    implicit none
 
     ! arguments
     real(8), intent(out) :: cv_mpilocal(:)
@@ -447,10 +449,11 @@ contains
   ! bmat_reduceToMPILocal_r4
   !--------------------------------------------------------------------------
   subroutine bmat_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
+    !
+    !:Purpose: To distribute MPI_global control vector from task 0 to all tasks
+    !          where the arguments are real(4)'s.
+    !
     implicit none
-    !
-    ! Purpose: distribute MPI_global control vector from task 0 to all tasks
-    !
 
     ! arguments
     real(4), intent(out) :: cv_mpilocal(:)
@@ -515,10 +518,11 @@ contains
   ! bmat_expandToMPIGlobal
   !--------------------------------------------------------------------------
   subroutine bmat_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
+    !
+    !:Purpose: To gather control vector from all tasks to task 0 where the
+    !          arguments are real(8)'s.
+    !
     implicit none
-    !
-    ! Purpose: gather control vector from all tasks to task 0
-    !
 
     ! arguments
     real(8), intent(in)  :: cv_mpilocal(:)
@@ -583,10 +587,11 @@ contains
   ! bmat_expandToMPIGlobal_r4
   !--------------------------------------------------------------------------
   subroutine bmat_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
+    !
+    !:Purpose: To gather control vector from all tasks to task 0 where the
+    !          arguments are real(4)'s.
+    !
     implicit none
-    !
-    ! Purpose: gather control vector from all tasks to task 0
-    !
 
     ! arguments
     real(4), intent(in)  :: cv_mpilocal(:)

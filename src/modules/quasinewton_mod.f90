@@ -11,21 +11,15 @@
 !     See the above mentioned License/Disclaimer for more details.
 !     You should have received a copy of the License/Disclaimer along with this software;
 !     if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!     CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+  ! CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !--------------------------------------LICENCE END --------------------------------------
 
 
-!--------------------------------------------------------------------------
-!     MODULE quasinewton_mod,(prefix="qna" category='1. High-level functionality')
-!     
-!     Purpose: the module version of the modulopt/n1qn3 library
-!     
-!     Subroutines:
-!     
-!     Dependencies:
-!     none
-!--------------------------------------------------------------------------
-      module quasinewton_mod
+module quasinewton_mod
+  ! MODULE quasinewton_mod (prefix='qna' category='1. High-level functionality')
+  !
+  ! Purpose: The n1qn3 routine, and its supporting subroutines
+  !
       use mpi_mod
       implicit none
       save 
@@ -36,14 +30,18 @@
       contains
       
       subroutine dcube(t,f,fp,ta,fa,fpa,tlower,tupper)
+!
+!:Purpose: [to be completed]
+!
+
 !     
 !     --- arguments
 !     
-      double precision sign,den,anum,t,f,fp,ta,fa,fpa,tlower,tupper
+      real(8) sign,den,anum,t,f,fp,ta,fa,fpa,tlower,tupper
 !     
 !     --- variables locales
 !     
-      double precision z1,b,discri
+      real(8) z1,b,discri
 !     
 !     Using f and fp at t and ta, computes new t by cubic formula
 !     safeguarded inside [tlower,tupper].
@@ -98,42 +96,40 @@
 
       subroutine ddd (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,jmax, &
                       precos,diag,ybar,sbar,izs,rzs,dzs)
-!!---
-!
-!     calcule le produit H.g ou
-!         . H est une matrice construite par la formule de bfgs inverse
-!           a nm memoires a partir de la matrice diagonale diag
-!           dans un espace hilbertien dont le produit scalaire
-!           est donne par prosca
-!           (cf. J. Nocedal, Math. of Comp. 35/151 (1980) 773-782)
-!         . g est un vecteur de dimension n (en general le gradient)
-!
-!     la matrice diag apparait donc comme un preconditionneur diagonal
-!
-!     depl = g (en entree), = H g (en sortie)
-!
-!     la matrice H est memorisee par les vecteurs des tableaux
-!     ybar, sbar et les pointeurs jmin, jmax
-!
-!     alpha(nm) est une zone de travail
-!
-!     izs(1),rzs(1),dzs(1) sont des zones de travail pour prosca
-!
-!!---
-!
-!         arguments
-!
+      !
+      !:Purpose: Calcule le produit H.g ou
+      !
+      !          * H est une matrice construite par la formule de bfgs inverse
+      !            a nm memoires a partir de la matrice diagonale diag
+      !            dans un espace hilbertien dont le produit scalaire
+      !            est donne par prosca
+      !            (cf. J. Nocedal, Math. of Comp. 35/151 (1980) 773-782)
+      !          * g est un vecteur de dimension n (en general le gradient)
+      !
+      !          * la matrice diag apparait donc comme un preconditionneur diagonal
+      !
+      !          * depl = g (en entree), = H g (en sortie)
+      !
+      !          * la matrice H est memorisee par les vecteurs des tableaux
+      !            ybar, sbar et les pointeurs jmin, jmax
+      !
+      !          * alpha(nm) est une zone de travail
+      !
+      !          * izs(1),rzs(1),dzs(1) sont des zones de travail pour prosca
+      !
+
+      ! arguments
       logical sscale
       integer n,nm,jmin,jmax,izs(1)
       real rzs(1)
-      double precision depl(n),precos,diag(n),alpha(nm),ybar(n,1), &
+      real(8) depl(n),precos,diag(n),alpha(nm),ybar(n,1), &
           sbar(n,1),aux(n),dzs(1)
       external prosca,dtonb,dtcab
 !
 !         variables locales
 !
       integer jfin,i,j,jp
-      double precision r,ps
+      real(8) r,ps
 !
       call tmg_start(72,'DDD')
       jfin=jmax
@@ -191,28 +187,28 @@
 
       subroutine ddds (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin, &
                        jmax,precos,diag,ybar,sbar,izs,rzs,dzs)
-!!---
-!
-!     This subroutine has the same role as ddd (computation of the
-!     product H.g). It supposes however that the (y,s) pairs are not
-!     stored in core memory, but on a devise chosen by the user.
-!     The access to this devise is performed via the subroutine dystbl.
-!
-!!---
+      !
+      !
+      !:Purpose: This subroutine has the same role as ddd (computation of the
+      !          product H.g). It supposes however that the (y,s) pairs are not
+      !          stored in core memory, but on a devise chosen by the user.
+      !          The access to this devise is performed via the subroutine dystbl.
+      !
+
 !
 !         arguments
 !
       logical sscale
       integer n,nm,jmin,jmax,izs(1)
       real rzs(1)
-      double precision depl(n),precos,diag(n),alpha(nm),ybar(n),sbar(n), &
+      real(8) depl(n),precos,diag(n),alpha(nm),ybar(n),sbar(n), &
           aux(n),dzs(1)
       external prosca,dtonb,dtcab
 !
 !         variables locales
 !
       integer jfin,i,j,jp
-      double precision r,ps
+      real(8) r,ps
 !
       call tmg_start(72,'DDD')
       jfin=jmax
@@ -263,29 +259,29 @@
       end subroutine ddds
 
       subroutine dystbl (store,ybar,sbar,n,j)
-!!---
-!
-!     This subroutine should store (if store = .true.) or restore
-!     (if store = .false.) a pair (ybar,sbar) at or from position
-!     j in memory. Be sure to have 1 <= j <= m, where m in the number
-!     of updates specified by subroutine mupdts.
-!
-!     The subroutine is used only when the (y,s) pairs are not
-!     stored in core memory in the arrays ybar(.,.) and sbar(.,.).
-!     In this case, the subroutine has to be written by the user.
-!
-!!---
+      !
+      !:Purpose: This subroutine should store (if store = .true.) or restore
+      !          (if store = .false.) a pair (ybar,sbar) at or from position
+      !          j in memory. Be sure to have 1 <= j <= m, where m in the number
+      !          of updates specified by subroutine mupdts.
+      !
+      !          The subroutine is used only when the (y,s) pairs are not
+      !          stored in core memory in the arrays ybar(.,.) and sbar(.,.).
+      !          In this case, the subroutine has to be written by the user.
+      !
+
 !
 !         arguments
 !
       logical store
       integer n,j
-      double precision ybar(n),sbar(n)
+      real(8) ybar(n),sbar(n)
 !
       !return
       end subroutine dystbl
 
       subroutine mupdts (sscale,inmemo,n,m,nrz)
+
 !
 !         arguments
 !
@@ -325,69 +321,72 @@
       subroutine qna_n1qn3 (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
            epsg,impres,io,mode,niter,nsim,iz,dz,ndz, &
            izs,rzs,dzs)
-!!--- 
-!     
-!     N1QN3, Version 2.0c, June 1995
-!     Jean Charles Gilbert, Claude Lemarechal, INRIA.
-!     
-!     Double precision version of M1QN3.
-!     
-!     N1qn3 has two running modes: the SID (Scalar Initial Scaling) mode
-!     and the DIS (Diagonal Initial Scaling) mode. Both do not require
-!     the same amount of storage, the same subroutines, ...
-!     In the description below, items that differ in the DIS mode with
-!     respect to the SIS mode are given in brakets.
-!     
-!     Use the following subroutines:
-!     N1QN3A
-!     DDD, DDDS
-!     NLIS0 + DCUBE (Dec 88)
-!     MUPDTS, DYSTBL.
-!     
-!     The following routines are proposed to the user in case the
-!     Euclidean scalar product is used:
-!     DUCLID, DTONBE, DTCABE.
-!     
-!     La sous-routine N1QN3 est une interface entre le programme
-!     appelant et la sous-routine N1QN3A, le minimiseur proprement dit.
-!     
-!     Le module PROSCA est sense realiser le produit scalaire de deux
-!     vecteurs de Rn; le module DTONB est sense realiser le changement
-!     de coordonnees correspondant au changement de bases: base
-!     euclidienne -> base orthonormale (pour le produit scalaire
-!     PROSCA); le module CTBAB fait la transformation inverse: base
-!     orthonormale -> base euclidienne.
-!     
-!     Iz is an integer working zone for N1QN3A, its dimension is 5.
-!     It is formed of 5 scalars that are set by the optimizer:
-!     - the dimension of the problem,
-!     - a identifier of the scaling mode,
-!     - the number of updates,
-!     - two pointers.
-!     
-!     Dz est la zone de travail pour N1QN3A, de dimension ndz.
-!     Elle est subdivisee en
-!     3 [ou 4] vecteurs de dimension n: d,gg,[diag,]aux
-!     m vecteurs de dimension n: ybar
-!     m vecteurs de dimension n: sbar
-!     
-!     m est alors le plus grand entier tel que
-!     m*(2*n+1)+3*n .le. ndz [m*(2*n+1)+4*n .le. ndz)]
-!     soit m := (ndz-3*n) / (2*n+1) [m := (ndz-4*n) / (2*n+1)].
-!     Il faut avoir m >= 1, donc ndz >= 5n+1 [ndz >= 6n+1].
-!     
-!     A chaque iteration la metrique est formee a partir d'un multiple
-!     de l'identite [d'une matrice diagonale] D qui est mise a jour m
-!     fois par la formule de BFGS en utilisant les m couples {y,s} les
-!     plus recents.
-!     
-!!--- 
+      !     
+      !:Purpose: N1QN3, Version 2.0c, June 1995
+      !          Jean Charles Gilbert, Claude Lemarechal, INRIA.
+      !     
+      !          Double precision version of M1QN3.
+      !     
+      !          N1qn3 has two running modes: the SID (Scalar Initial Scaling) mode
+      !          and the DIS (Diagonal Initial Scaling) mode. Both do not require
+      !          the same amount of storage, the same subroutines, ...
+      !          In the description below, items that differ in the DIS mode with
+      !          respect to the SIS mode are given in brakets.
+      !     
+      !          Use the following subroutines:
+      !
+      !          * N1QN3A
+      !          * DDD, DDDS
+      !          * NLIS0 + DCUBE (Dec 88)
+      !          * MUPDTS, DYSTBL.
+      !     
+      !          The following routines are proposed to the user in case the
+      !          Euclidean scalar product is used:
+      !          DUCLID, DTONBE, DTCABE.
+      !     
+      !          La sous-routine N1QN3 est une interface entre le programme
+      !          appelant et la sous-routine N1QN3A, le minimiseur proprement dit.
+      !     
+      !          Le module PROSCA est sense realiser le produit scalaire de deux
+      !          vecteurs de Rn; le module DTONB est sense realiser le changement
+      !          de coordonnees correspondant au changement de bases: base
+      !          euclidienne -> base orthonormale (pour le produit scalaire
+      !          PROSCA); le module CTBAB fait la transformation inverse: base
+      !          orthonormale -> base euclidienne.
+      !     
+      !          Iz is an integer working zone for N1QN3A, its dimension is 5.
+      !          It is formed of 5 scalars that are set by the optimizer:
+      !
+      !          - the dimension of the problem,
+      !          - a identifier of the scaling mode,
+      !          - the number of updates,
+      !          - two pointers.
+      !     
+      !          Dz est la zone de travail pour N1QN3A, de dimension ndz.
+      !          Elle est subdivisee en
+      !
+      !          - 3 [ou 4] vecteurs de dimension n: d,gg,[diag,]aux
+      !          - m vecteurs de dimension n: ybar
+      !          - m vecteurs de dimension n: sbar
+      !     
+      !          m est alors le plus grand entier tel que
+      !
+      !          - m*(2*n+1)+3*n .le. ndz [m*(2*n+1)+4*n .le. ndz)]
+      !          - soit m := (ndz-3*n) / (2*n+1) [m := (ndz-4*n) / (2*n+1)].
+      !          Il faut avoir m >= 1, donc ndz >= 5n+1 [ndz >= 6n+1].
+      !     
+      !          A chaque iteration la metrique est formee a partir d'un multiple
+      !          de l'identite [d'une matrice diagonale] D qui est mise a jour m
+      !          fois par la formule de BFGS en utilisant les m couples {y,s} les
+      !          plus recents.
+      !     
+
 !     
 !     arguments
 !     
       integer n,impres,io,mode,niter,nsim,iz(5),ndz,izs(1)
       real rzs(1)
-      double precision x(n),f,g(n),dxmin,df1,epsg,dz(ndz),dzs(1)
+      real(8) x(n),f,g(n),dxmin,df1,epsg,dz(ndz),dzs(1)
       external simul,prosca,dtonb,dtcab
 !     
 !     variables locales
@@ -395,7 +394,7 @@
       logical inmemo,sscale
       integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal,ierr
       integer m_max
-      double precision d1,d2,ps
+      real(8) d1,d2,ps
 !     
 !---- impressions initiales et controle des arguments
 !     
@@ -559,18 +558,17 @@
       subroutine n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
                          epsg,impres,io,mode,niter,nsim,inmemo,m,jmin, &
                          jmax,d,gg,diag,aux,ybar,sbar,izs,rzs,dzs)
-!!---
-!
-!     Code d'optimisation proprement dit.
-!
-!!---
+     !
+     !:Purpose: Code d'optimisation proprement dit.
+     !
+
 !
 !         arguments
 !
       logical inmemo
       integer n,impres,io,mode,niter,nsim,m,jmin,jmax,izs(1)
       real rzs(1)
-      double precision x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n), &
+      real(8) x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n), &
           aux(n),ybar(n,1),sbar(n,1),dzs(1)
       external simul,prosca,dtonb,dtcab
 !
@@ -578,17 +576,17 @@
 !
       logical sscale,cold,warm,ntotal
       integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
-      double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
+      real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
 !
 !         parametres
 !
-      double precision rm1,rm2
+      real(8) rm1,rm2
       parameter (rm1=0.0001d+0,rm2=0.9d+0)
-      double precision pi
+      real(8) pi
       parameter (pi=3.1415927d+0)
-      double precision rmin
+      real(8) rmin
 !
 !---- initialisation
 !
@@ -1066,40 +1064,30 @@
 
       subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g, &
                         amd,amf,imp,io,logic,nap,napmax,x,izs,rzs,dzs)
-!!----
-!!
-!!    nlis0 + minuscules + commentaires
-!!    + version amelioree (XII 88): interpolation cubique systematique
-!!      et anti-overflows
-!!    + declaration variables (II/89, JCG).
-!!    + barr is also progressively decreased (12/93, CL & JChG).
-!!      barmul is set to 5.
-!!
-!!    ----------------------------------------------------------------
-!!
-!!       en sortie logic =
-!!
-!!       0          descente serieuse
-!!       1          descente bloquee
-!!       4          nap > napmax
-!!       5          retour a l'utilisateur
-!!       6          fonction et gradient pas d'accord
-!!       < 0        contrainte implicite active
-!!
-!!----
+      !
+      !:Purpose: en sortie logic =
+      !
+      !          * 0          descente serieuse
+      !          * 1          descente bloquee
+      !          * 4          nap > napmax
+      !          * 5          retour a l'utilisateur
+      !          * 6          fonction et gradient pas d'accord
+      !          * < 0        contrainte implicite active
+      !
+
 !!
 !!--- arguments
 !!
       external simul,prosca
       integer n,imp,io,logic,nap,napmax,izs(*)
       real rzs(*)
-      double precision xn(n),fn,fpn,t,tmin,tmax,d(n),g(n),amd,amf,x(n),dzs(*)
+      real(8) xn(n),fn,fpn,t,tmin,tmax,d(n),g(n),amd,amf,x(n),dzs(*)
 !
 ! --- variables locales
 !
       logical lfound,lfound2
       integer i,indic,indica,indicd,ierr,ntotal
-      double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
+      real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !
       call tmg_start(74,'NLIS0')

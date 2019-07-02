@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE enkf (prefix="enkf" category='1. High-level functionality')
-!!
-!! *Purpose*: Implementation of the EnKF in MIDAS.
-!!
-!--------------------------------------------------------------------------
-MODULE enkf_mod
+module enkf_mod
+  ! MODULE enkf_mod (prefix='enkf' category='1. High-level functionality')
+  !
+  ! :Purpose: Implementation of the EnKF in MIDAS.
+  !
   use mpi_mod
   use gridStateVector_mod
   use mathPhysConstants_mod
@@ -46,10 +44,10 @@ contains
   subroutine enkf_computeColumnsMean(column_mean, columns)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: column_mean, columns(:)
 
-    ! locals
+    ! Locals:
     logical :: verbose = .true.
     integer :: memberIndex, nEns, levIndex
     real(8) :: multFactor
@@ -105,10 +103,10 @@ contains
   subroutine enkf_computeColumnsPerturbations(columns, column_mean)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columns(:), column_mean
 
-    ! locals
+    ! Locals:
     logical :: verbose = .true.
     integer :: memberIndex, nEns, levIndex
     real(8), pointer :: column_ptr(:)
@@ -159,15 +157,16 @@ contains
   end subroutine enkf_computeColumnsPerturbations
 
 
-  subroutine enkf_extractObsRealBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+  subroutine enkf_extractObsRealBodyColumn(outputVector, obsSpaceData, &
+                                           obsColumnIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)          :: outputVector(:)
     type(struct_obs) :: obsSpaceData
     integer          :: obsColumnIndex
 
-    ! locals
+    ! Locals:
     integer :: bodyIndex
 
     call tmg_start(148,'ENKF_EXTRACTBODY')
@@ -181,15 +180,16 @@ contains
   end subroutine enkf_extractObsRealBodyColumn
 
 
-  subroutine enkf_extractObsIntBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+  subroutine enkf_extractObsIntBodyColumn(outputVector, obsSpaceData, &
+                                          obsColumnIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer          :: outputVector(:)
     type(struct_obs) :: obsSpaceData
     integer          :: obsColumnIndex
 
-    ! locals
+    ! Locals:
     integer :: bodyIndex
 
     call tmg_start(148,'ENKF_EXTRACTBODY')
@@ -206,11 +206,11 @@ contains
   subroutine enkf_gatherHX(HXens,HXensT_mpiglobal)
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8) :: HXens(:,:)
     real(8),pointer :: HXensT_mpiglobal(:,:)
 
-    ! locals
+    ! Locals:
     integer :: ierr, nEns, numBody, procIndex, memberIndex, numBody_mpiglobal
     integer :: allNumBody(mpi_nprocs), displs(mpi_nprocs)
 

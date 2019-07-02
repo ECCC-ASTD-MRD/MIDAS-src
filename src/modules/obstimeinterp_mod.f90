@@ -14,13 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE obsTimeInterp (prefix="oti" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: To store public variables and procedures related to the time coordinate.
-!!
-!--------------------------------------------------------------------------
 module obsTimeInterp_mod
+  ! MODULE obsTimeInterp_mod (prefix='oti' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: To store public variables and procedures related to the time
+  !           coordinate.
+  !
   use mpi_mod
   use mpivar_mod
   use utilities_mod
@@ -49,8 +48,11 @@ module obsTimeInterp_mod
 
 contains
 
-  function oti_initialized(oti) result(initialized_out)
+  function oti_initialized( oti ) result( initialized_out )
+    !
     implicit none
+  
+    ! Arguments:
     type(struct_oti), pointer :: oti
     logical                   :: initialized_out
 
@@ -59,12 +61,13 @@ contains
   end function oti_initialized
 
 
-  subroutine oti_timeBinning(obsSpaceData,nstepobs)
+  subroutine oti_timeBinning( obsSpaceData, nstepobs )
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
-    integer :: nstepobs
+    integer          :: nstepobs
 
     ! locals
     integer :: stepIndex, headerIndex, familyIndex
@@ -190,10 +193,11 @@ contains
   end subroutine oti_timeBinning
 
 
-  subroutine oti_setup(oti, obsSpaceData, numStep, interpType, flagObsOutside_opt)
+  subroutine oti_setup( oti, obsSpaceData, numStep, interpType, flagObsOutside_opt )
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_oti), pointer  :: oti
     type(struct_obs)           :: obsSpaceData
     integer                    :: numStep
@@ -288,10 +292,11 @@ contains
   end subroutine oti_deallocate
 
 
-  subroutine oti_setupMpiGlobal(oti)
+  subroutine oti_setupMpiGlobal( oti )
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_oti), pointer :: oti
 
     ! locals
@@ -329,41 +334,57 @@ contains
   end subroutine oti_setupMpiGlobal
 
 
-  subroutine oti_setTimeInterpWeight(oti, weight_in, headerIndex, stepObs)
+  subroutine oti_setTimeInterpWeight( oti, weight_in, headerIndex, stepObs )
+    !
     implicit none
+
+    ! Arguments:
     type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex, stepObs
+    integer, intent(in)       :: headerIndex
+    integer, intent(in)       :: stepObs
     real(8), intent(in)       :: weight_in
 
     oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
-  end SUBROUTINE oti_setTimeInterpWeight
+  end subroutine oti_setTimeInterpWeight
 
 
-  function oti_getTimeInterpWeight(oti, headerIndex, stepObs) result(weight_out)
+  function oti_getTimeInterpWeight( oti, headerIndex, stepObs ) result(weight_out)
+    !
     implicit none
+
+    ! Arguments:
     type(struct_oti), pointer :: oti
     real(8)                   :: weight_out
-    integer, intent(in)       :: headerIndex, stepObs
+    integer, intent(in)       :: headerIndex
+    integer, intent(in)       :: stepObs
 
     weight_out = oti%timeInterpWeight(headerIndex, stepObs)
 
   end function oti_getTimeInterpWeight
 
 
-  function oti_getTimeInterpWeightMpiGlobal(oti, headerIndex, stepObs, procIndex) result(weight_out)
+  function oti_getTimeInterpWeightMpiGlobal( oti, headerIndex, stepObs, procIndex ) result(weight_out)
+    !
     implicit none
+  
+    ! Arguments:
     type(struct_oti), pointer :: oti
     real(8)                   :: weight_out
-    integer, intent(in)       :: headerIndex, stepObs, procIndex
+    integer, intent(in)       :: headerIndex
+    integer, intent(in)       :: stepObs
+    integer, intent(in)       :: procIndex
 
     weight_out = oti%timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
 
   end function oti_getTimeInterpWeightMpiGlobal
 
 
-  function oti_timeInterpWeightAllZero(oti, headerIndex) result(allZero)
+  function oti_timeInterpWeightAllZero( oti, headerIndex ) result(allZero)
+    !
     implicit none
+
+    ! Arguments:
     type(struct_oti), pointer :: oti
     logical                   :: allZero
     integer, intent(in)       :: headerIndex
@@ -377,10 +398,11 @@ contains
   end function oti_timeInterpWeightAllZero
 
 
-  subroutine oti_flagObsOutsideWindow(oti, obsSpaceData)
+  subroutine oti_flagObsOutsideWindow( oti, obsSpaceData )
+    !
     implicit none
 
-    ! arguments
+    ! Arguments
     type(struct_oti), pointer :: oti
     type(struct_obs)          :: obsSpaceData
 

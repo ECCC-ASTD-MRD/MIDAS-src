@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE variableTransforms (prefix='vtr' category='3. High-level transformations')
-!!
-!! *Purpose*: To store various functions for variable transforms using inputs from
-!!            gridStateVector(s). Outputs are also placed in a GridStateVector.
-!!
-!--------------------------------------------------------------------------
 module variableTransforms_mod
+  ! MODULE variableTransforms (prefix='vtr' category='3. High-level transformations')
+  !
+  ! :Purpose: To store various functions for variable transforms using inputs
+  !           from gridStateVector(s). Outputs are also placed in a
+  !           GridStateVector.
+  !
   use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -59,10 +58,14 @@ module variableTransforms_mod
 
 CONTAINS
 
-  !--------------------------------------------------------------------------
-  ! vtr_setup
-  !--------------------------------------------------------------------------
   subroutine vtr_setup(hco_in,vco_in)
+    ! 
+    ! :Purpose: To set up a variable transformation object
+    !
+    ! :Arguments:
+    !           :hco_in: horizontal coordinate object input 
+    !           :vco_in: vertical   coordinate object input
+    !
     implicit none
 
     type(struct_hco), pointer :: hco_in
@@ -80,10 +83,9 @@ CONTAINS
 
   end subroutine vtr_setup
 
-  !--------------------------------------------------------------------------
-  ! vtr_setupTrials
-  !--------------------------------------------------------------------------
+
   subroutine vtr_setupTrials(varName)
+
     implicit none
 
     type(struct_gsv) :: statevector_noZnoP
@@ -134,9 +136,7 @@ CONTAINS
 
   end subroutine vtr_setupTrials
 
-  !--------------------------------------------------------------------------
-  ! vtr_transform_gsv
-  !--------------------------------------------------------------------------
+
   subroutine vtr_transform_gsv(statevector,transform, statevectorOut_opt)
     implicit none
    
@@ -332,9 +332,7 @@ CONTAINS
 
   end subroutine vtr_transform_gsv
 
-  !--------------------------------------------------------------------------
-  ! vtr_transform_ens
-  !--------------------------------------------------------------------------
+
   subroutine vtr_transform_ens(ens,transform)
     implicit none
    
@@ -410,9 +408,7 @@ CONTAINS
 
   end subroutine LQtoHU
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_gsv
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_gsv(statevector)
     implicit none
 
@@ -460,9 +456,7 @@ CONTAINS
 
   end subroutine HUtoLQ_gsv
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_ens
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_ens(ens)
     implicit none
 
@@ -498,9 +492,7 @@ CONTAINS
 
   end subroutine HUtoLQ_ens
 
-  !--------------------------------------------------------------------------
-  ! LQtoHU_tlm
-  !--------------------------------------------------------------------------
+
   subroutine LQtoHU_tlm(statevector)
     implicit none
 
@@ -529,9 +521,7 @@ CONTAINS
 
   end subroutine LQtoHU_tlm
 
-  !--------------------------------------------------------------------------
-  ! HUtoLQ_tlm
-  !--------------------------------------------------------------------------
+
   subroutine HUtoLQ_tlm(statevector)
     implicit none
 
@@ -560,9 +550,7 @@ CONTAINS
 
   end subroutine HUtoLQ_tlm
 
-  !--------------------------------------------------------------------------
-  ! LVIStoVIS
-  !--------------------------------------------------------------------------
+
   subroutine LVIStoVIS(statevector_in, statevectorOut_opt)
     implicit none
 
@@ -741,9 +729,7 @@ CONTAINS
 
   end subroutine UVtoVortDiv_gsv
 
-  !--------------------------------------------------------------------------
-  ! vortDivToPsiChi_gsv
-  !--------------------------------------------------------------------------
+
   subroutine vortDivToPsiChi_gsv(statevector)
     implicit none
    
@@ -813,9 +799,7 @@ CONTAINS
 
   end subroutine VortDivToPsiChi_gsv
 
-  !--------------------------------------------------------------------------
-  ! UVtoPsiChi_gsv
-  !--------------------------------------------------------------------------
+
   subroutine UVtoPsiChi_gsv(statevector)
     implicit none
    
@@ -901,9 +885,7 @@ CONTAINS
 
   end subroutine UVtoPsiChi_gsv
   
-  !--------------------------------------------------------------------------
-  ! UVtoPsiChi_ens
-  !--------------------------------------------------------------------------
+
   subroutine UVtoPsiChi_ens(ens)
     implicit none
    
@@ -954,9 +936,7 @@ CONTAINS
 
   end subroutine UVtoPsiChi_ens
 
-  !--------------------------------------------------------------------------
-  ! UVtoVortDiv_ens
-  !--------------------------------------------------------------------------
+
   subroutine UVtoVortDiv_ens(ens)
     implicit none
    
@@ -1015,9 +995,12 @@ CONTAINS
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
     real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
@@ -1099,9 +1082,12 @@ CONTAINS
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector ! inout statevector that will contain P_T/P_M
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector ! statevector that will contain P_T/P_M
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:) 
     real(kind=4), pointer       :: dP_dPsfc_out(:,:,:)
@@ -1181,10 +1167,13 @@ CONTAINS
     !:Purpose: calculation of the pressure increment on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain the P_T/P_M increments
-    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain the P_T/P_M increments
+    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(8), allocatable  :: Psfc(:,:)
     real(8), pointer      :: delPsfc(:,:,:,:)
     real(8), pointer      :: field_Psfc(:,:,:,:)
@@ -1275,10 +1264,13 @@ CONTAINS
     !:Purpose: adjoint of calculation of the pressure on the grid.
     !
     implicit none
-    type(struct_gsv), intent(inout) :: statevector       ! inout statevector that will contain ncrement of Psfc.
-    type(struct_gsv), intent(in)    :: statevector_trial ! in statevector that has the Psfc
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector       ! statevector that will contain ncrement of Psfc.
+    type(struct_gsv), intent(in)    :: statevector_trial ! statevector that has the Psfc
     logical, optional               :: beSilent_opt
 
+    ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: delPsfc(:,:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)

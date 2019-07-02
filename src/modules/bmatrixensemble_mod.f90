@@ -905,7 +905,8 @@ CONTAINS
   ! ben_getnEns
   !--------------------------------------------------------------------------
   integer function ben_getnEns()
-    !func getnEns - returns the number ensemble member
+    !
+    !:Purpose: To return the number of ensemble members
     implicit none
     ben_getnEns = nEns
   end function ben_getnEns

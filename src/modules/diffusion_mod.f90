@@ -14,28 +14,21 @@
 !CANADA, H9P 1J3; or send e-mail to ec.service.rpn.ec@canada.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE diffusion (prefix="diff" category='3. High-level transformations')
-!!
-!! *Purpose*: 
-!! Storage for data required by the diffusion operator used to model
-!! background-error horizontal correlations.
-!!
-!! Reference:
-!! Weaver, A. T., and P. Courtier, 2001: Correlation modelling on the
-!! sphere using a generalized diffusion equation.
-!! Q. J. R. Meteorol. Soc., 127, 1815-1846.
-!!
-!! Basic equations:
-!! Lcorr^2 = 2*k*dt*numt   (1)
-!! stab    = k*dt/dx^2     (2)
-!!
-!! Author: Alain Caya (alain.caya@canada.ca)
-!!
-!! *Origin*: diffus_mod.f from the envar experiments by Anna Shlyaeva
-!!
-!--------------------------------------------------------------------------
 module diffusion_mod
+  ! MODULE diffusion_mod (prefix='diff' category='3. High-level transformations')
+  !
+  ! :Purpose: Storage for data required by the diffusion operator used to model
+  !           background-error horizontal correlations.
+  !
+  ! :Reference: Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
+  !             the sphere using a generalized diffusion equation.
+  !             Q. J. R. Meteorol. Soc., 127, 1815-1846.
+  !
+  ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
+  !                   stab    = k*dt/dx^2     (2)
+  !
+  ! :Origin: diffus_mod.f from the envar experiments by Anna Shlyaeva
+  !
 
   implicit none
   private
@@ -79,23 +72,14 @@ contains
 
     implicit none
 
+    ! Arguments:
     type(struct_hco), pointer :: hco
+    real, intent(in) :: corr_len     ! Horizontal correlation length scale (km)
+    real, intent(in) :: stab         ! Stability criteria (definitely < 0.5)
+    integer, intent(in) :: nsamp     ! Number of samples in the estimation of the normalization factors by randomization.
+    logical, intent(in) :: limplicit ! Indicate to use the implicit formulation of the diffusion operator (.true.) or the explicit version (.false.).
 
-    ! Horizontal correlation length scale (km)
-    real, intent(in) :: corr_len
-
-    ! Stability criteria (definitely < 0.5)
-    real, intent(in) :: stab
-
-    ! Number of samples in the estimation of the normalization factors by randomization.
-    integer, intent(in) :: nsamp
-
-    ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
-    ! the explicit version (.false.).
-    logical, intent(in) :: limplicit
-
-
-    ! Local Variables
+    ! Locals:
 
     ! latitudes on the analysis rotated grid, in radians
     real(8), allocatable :: latr(:)
@@ -515,22 +499,13 @@ contains
 
   end function diff_setup
 
-!**********************************************************
 
   subroutine diff_finalize(diffID)
-
-!-----------------------------------------------------------------------
-!
-! Purpose:
-! Finalize the diffusion operator module.
-! Free up memory.
-!
-! Author: Alain Caya (alain.caya@canada.ca)
-!
-!-----------------------------------------------------------------------
-
+    !
+    !:Purpose: To finalize the diffusion operator module, and to free up memory.
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
 
     deallocate(diff(diffID)%diff1y_c)
@@ -548,26 +523,19 @@ contains
 
   end subroutine diff_finalize
 
-!**********************************************************
 
   subroutine diffusion_explicit(diffID, xin, xout)
-
-!-----------------------------------------------------------------------
-!
-! Purpose:
-! compute Lsqrt*xin (diffusion over numt/2 timesteps)
-! specify initial conditions
-!
-! Author: Alain Caya (alain.caya@canada.ca)
-!
-!-----------------------------------------------------------------------
-
+    !
+    !:Purpose: To compute Lsqrt*xin (diffusion over numt/2 timesteps), and to
+    !          specify initial conditions
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t, latIndex, lonIndex
 
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
@@ -605,16 +573,17 @@ contains
 
   end subroutine diffusion_explicit
 
-!**********************************************************
 
   subroutine diff_Csqrt(diffID, xin, xout)
 
     implicit none
 
+    ! Arguments
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t
 
     ! compute Csqrt
@@ -633,16 +602,17 @@ contains
 
   end subroutine diff_Csqrt
 
-!**********************************************************
 
   subroutine diff_Csqrtadj(diffID, xin, xout)
 
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t
 
     ! compute Csqrtadj
@@ -662,26 +632,20 @@ contains
 
   end subroutine diff_Csqrtadj
 
-!**********************************************************
 
   subroutine diffusion1x_implicit(diffID, xin, xout)
-
-!-----------------------------------------------------------------------
-!
-! Purpose:
-! compute Lsqrt*xin (diffusion over 1 timestep, loop over timesteps is external to the subroutine)
-! specify initial conditions
-!
-! Author: Mark Buehner (mark.buehner@canada.ca)
-!
-!-----------------------------------------------------------------------
-
+    !
+    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
+    !          timesteps is external to the subroutine), and to specify initial
+    !          conditions
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t, latIndex, lonIndex
 
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
@@ -719,26 +683,21 @@ contains
     end do
 
   end subroutine diffusion1x_implicit
-!**********************************************************
+
 
   subroutine diffusion1y_implicit(diffID, xin, xout)
-
-!-----------------------------------------------------------------------
-!
-! Purpose:
-! compute Lsqrt*xin (diffusion over 1 timestep, loop over timesteps is external to the subroutine)
-! specify initial conditions
-!
-! Author: Mark Buehner (mark.buehner@canada.ca)
-!
-!-----------------------------------------------------------------------
-
+    !
+    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over 
+    !          timesteps is external to the subroutine), and to specify initial
+    !          conditions
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t, latIndex, lonIndex
 
     real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
@@ -781,16 +740,16 @@ contains
   end subroutine diffusion1y_implicit
 
 
-!**********************************************************
-
   subroutine diffusion(diffID, xin, xout)
 
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    ! Locals:
     integer :: t
 
     xout(:,:) = xin(:,:)

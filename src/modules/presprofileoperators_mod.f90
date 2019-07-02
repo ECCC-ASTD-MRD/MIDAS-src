@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE presProfileOperators (prefix="ppo" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Vertical interpolation subroutines, including the special routines
-!!            designed to interpolate to the (widely spaced) RTTOV pressure levels.
-!!
-!--------------------------------------------------------------------------
 module presProfileOperators_mod
+  ! MODULE presProfileOperators_mod (prefix='ppo' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Vertical interpolation subroutines, including the special routines
+  !           designed to interpolate to the (widely spaced) RTTOV pressure
+  !           levels.
+  !
   implicit none
   save
   private
@@ -31,93 +30,31 @@ module presProfileOperators_mod
 
   contains
 
-    SUBROUTINE ppo_INTAVG (PVLEV,PVI,KNI,KNPROF,KNO,PPO,PVO)
-!!-------------------------------------------------------------------
-!!
-!!**s/r INTAVG   - Forward interpolator based on piecewise 
-!!                weighted averaging.
-!!
-!!Author  : Y.J. Rochon *ARQX/EC Nov 2005
-!!          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!!
-!!Revisions: 
-!!          Saroja Polavarapu *ARMA/EC Nov 2005
-!!          - Completed split into three routines for consistency with
-!!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!!Arguments
-!!     i   KFLAG                   : Indicates purpose of calc
-!!                                   0 - Application of TLM as forward model
-!!                                   1 - Application as TLM with increments
-!!                                   2 - Setting of adjoint elements
-!!     i   PVLEV(KNIDIM,KNPROF)    : Vertical levels, pressure (source)
-!!    i/o  PVI(KNIDIM,KNPROF)      : kflag=0, Input vector to be interpolated (source)
-!!                                   kflag=1, Input increments of above 
-!!                                   kflag=2, Output adjoint of above
-!!     i   PVIG(KNIDIM,KNPROF)     : kflag>0, Vector to be interpolated (source)
-!!                                   Not used otherwise 
-!!    i/o  PPS(KNPROF)             : kflag=0, Not needed (source)
-!!                                   kflag=1, Input surface pressure increments
-!!                                   kflag=2, Output adjoint of above
-!!     i   KNIDIM                  : Dimension of input levels (source)
-!!     i   KNI                     : Number of input levels (source)
-!!     i   KNPROF                  : Number of profiles
-!!     i   KNO                     : Number of output levels (destination)
-!!     i   PPO(KNO)                : Vertical levels, pressure (destination)
-!!    o/i  PVO(KNO,KNPROF)         : kflag=0, Output interpolated profiles (destination)
-!!                                   kflag=1, Output increments of above         
-!!                                   kflag=2, Input adjoint of above            
-!!
-!!   -------------------
-!!
-!! Purpose: Forward interpolator based on piecewise
-!!          weighted averaging in log of pressure   
-!!          of one-dimensional vectors.
-!!
-!! Comments:
-!!
-!!     1) vlev in eta coordinate associated to pvlev in pressure.
-!!
-!!     2) Cases:
-!!
-!!               a) KFLAG=0 for application as forward interpolator
-!!
-!!                  Y = sum(H*PVI)
-!!                    = PVO
-!!     
-!!               with ZPZ=H on output of LAYERAVG
-!!
-!!               b) KFLAG=1 for TLM case:
-!!
-!!                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-!!                     =     ZPVO    +       ZPVOPS
-!!                     = PVO
-!!
-!!               where
-!!
-!!                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-!!                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
-!!
-!!               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
-!!                    ZPZ(i)=H(i) on output of LAYERAVG
-!!            
-!!               c) KFLAG=2 for adjoint case:
-!!               
-!!                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-!!                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-!!                    
-!!                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-!!                          = PPS(jn) + sum_jo (ZPZPS(jo))
-!!
-!!-------------------------------------------------------------------
-      IMPLICIT NONE
-      INTEGER,intent(in)  :: KNI, KNO,KNPROF
-      REAL(8) ,intent(in)  :: PVLEV(KNI,KNPROF)
-      REAL(8) ,intent(in)  :: PVI(KNI,KNPROF)
-      REAL(8) ,intent(in)  :: PPO(KNO)
-      REAL(8) ,intent(out) ::  PVO(KNO,KNPROF)
+    subroutine ppo_INTAVG (PVLEV,PVI,KNI,KNPROF,KNO,PPO,PVO)
+      !
+      !:Purpose: Forward interpolator based on piecewise
+      !          weighted averaging in log of pressure   
+      !          of one-dimensional vectors.
+      !
+      !:Comments:
+      !     1) vlev in eta coordinate associated to pvlev in pressure.
+      !                  Y = sum(H*PVI)
+      !                    = PVO
+      !     
+      !               with ZPZ=H on output of LAYERAVG
+      !
+      implicit none
+      REAL(8), intent(in) :: PVLEV(KNI,KNPROF) ! Vertical levels, pressure (source)
+      REAL(8), intent(in) :: PPO(KNO)          ! Vertical levels, pressure (destination)
+      REAL(8), intent(out):: PVO(KNO,KNPROF)   ! Output interpolated profiles (destination)
+      REAL(8), intent(in) :: PVI(KNI,KNPROF)   ! Input vector to be interpolated (source)
+      INTEGER, intent(in) :: KNI               ! Number of input levels (source)
+      INTEGER, intent(in) :: KNO               ! Number of output levels (destination)
+      INTEGER, intent(in) ::  KNPROF           ! Number of profiles
+
       INTEGER  JO, JN
-      REAL(8)  ZLNPI (KNI),ZPS(KNI)
-      REAL(8)  ZLNPO (KNO)
+      REAL*8  ZLNPI (KNI),ZPZ(KNI),ZPG(KNI),ZPS(KNI)
+      REAL*8  ZLNPO (KNO),ZPZPS,PSS
 
 ! --- Apply weighted averaging 
 
@@ -135,87 +72,31 @@ module presProfileOperators_mod
 
     END SUBROUTINE PPO_INTAVG
 
-    SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
-!!-------------------------------------------------------------------
-!
-!!!s/r INTAVGTL - Application of tangent Linear of piecewise weighted averaging.
-!
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov 2005
-!          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!
-!Revisions:
-!          Saroja Polavarapu *ARMA/EC Nov 2005
-!          - Completed split into three routines for consistency with
-!!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!          S. Pellerin, ARMA, August 2008
-!          - Optimisation, call to LAYERAVG2
-!
-!Arguments
-!     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
-!     i   dP_dPsfc(KNI,KNPROF) : derivative of pressure wrt sfc pressure for vertical coordinate (source)
-!     i   PVI(KNI,KNPROF)      : Increments of vector on input levels
-!     i   PVIG(KNI,KNPROF)     : Vector on input levels (source)
-!     i   PPS(KNPROF)             : Input surface pressure increments
-!     i   KNI                  : Dimension of input levels (source)
-!     i   KNI                     : Number of input levels (source)
-!     i   KNPROF                  : Number of profiles
-!     i   KNO                     : Number of output levels (destination)
-!     i   PPO(KNO)                : Vertical levels, pressure (destination)
-!     o   PVO(KNO,KNPROF)         : Increments of vector on output levels
-!
-!!   -------------------
-!
-! Purpose: Application of tangent linear
-!          of piecewise weighted averaging
-!          in log of pressure of one-dimensional vectors.
-!
-! Comments:
-!
-!     1) vlev in eta coordinate associated to pvlev in pressure.
-!
-!     2) Cases:
-!
-!               a) KFLAG=0 for application as forward interpolator
-!
-!                  Y = sum(H*PVI)
-!                    = PVO
-!
-!               with ZPZ=H on output of LAYERAVG
-!
-!               b) KFLAG=1 for TLM case:
-!
-!                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-!                     =     ZPVO    +       ZPVOPS
-!                     = PVO
-!
-!               where 
-!
-!                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-!                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
-!
-!               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
-!                    ZPZ(i)=H(i) on output of LAYERAVG
-!
-!               c) KFLAG=2 for adjoint case:
-!
-!                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-!                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-!
-!                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-!                          = PPS(jn) + sum_jo (ZPZPS(jo))
-! 
-!!------------------------------------------------------------------- 
-!
-      IMPLICIT NONE
-      INTEGER,intent(in)  :: KNI, KNO,KNPROF
-      REAL(8),intent(in)   :: PVLEV(KNI,KNPROF)
-      REAL(8),intent(in)   :: dP_dPsfc(KNI,KNPROF)
-      REAL(8),intent(in)   :: PPO(KNO)
-      REAL(8),intent(in)   :: PVI(KNI,KNPROF)
-      REAL(8),intent(in)   :: PVIG(KNI,KNPROF)
-      REAL(8),intent(in)   :: PP(KNI,KNPROF)
-      REAL(8),intent(out)  :: PVO(KNO,KNPROF)
+    SUBROUTINE ppo_INTAVGTL_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO, &
+                               PVO)
+      !
+      !:Purpose: Application of tangent linear of piecewise-weighted averaging
+      !          in log of pressure of one-dimensional vectors
+      !
+      !:Comments:
+      !
+      !     1) vlev in eta coordinate associated to pvlev in pressure.
+      !
+      implicit none
+
+      ! Arguments:
+      real(8),intent(in)   :: pvlev(kni,knprof)   ! Vertical levels, pressure (source)
+      real(8),intent(in)   :: dp_dpsfc(kni,knprof)! derivative of pressure wrt sfc pressure for vertical coordinate (source)
+      real(8),intent(in)   :: pvi(kni,knprof)     ! Increments of vector on input levels
+      real(8),intent(in)   :: pvig(kni,knprof)    ! Vector on input levels (source)
+      real(8),intent(in)   :: pp(kni,knprof)      ! Input surface pressure increments
+      integer,intent(in)   :: kni                 ! Number of input levels (source)
+      integer,intent(in)   :: knprof              ! Number of profiles
+      integer,intent(in)   :: kno                 ! Number of output levels (destination)
+      real(8),intent(in)   :: ppo(kno)            ! Vertical levels, pressure (destination)
+      real(8),intent(out)  :: pvo(kno,knprof)     ! Increments of vector on output levels
+
+      ! Locals:
       REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
       REAL(8)  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
 
@@ -235,85 +116,31 @@ module presProfileOperators_mod
     END SUBROUTINE PPO_INTAVGTL_v2
 
 
-    SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,PVO)
-!!-------------------------------------------------------------------
-!
-!!!s/r INTAVGAD - Adjoint of piecewise weighted averaging.
-!
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov 2005
-!          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!
-!Revisions:
-!          Saroja Polavarapu *ARMA/EC Nov 2005
-!          - Completed split into three routines for consistency with
-!!           LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
-!          S. Pellerin, ARMA, August 2008
-!          - Optimisation, call to LAYERAVG2
-!
-!Arguments
-!     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
-!     o   PVI(KNI,KNPROF)      : Adjoint of increments on input levels (output)
-!     i   PVIG(KNI,KNPROF)     : Vector to be interpolated (source)
-!     o   PPS(KNPROF)             : Output adjoint of sfc P incr
-!     i   KNI                  : Dimension of input levels (source)
-!     i   KNI                     : Number of input levels (source)
-!     i   KNPROF                  : Number of profiles
-!     i   KNO                     : Number of output levels
-!     i   PPO(KNO)                : Vertical levels, pressure
-!     i   PVO(KNO,KNPROF)         : Input adjoint of interpolated profiles
-!
-!!   -------------------
-!
-!!Purpose: Performs calculation for adjoint of
-!          piecewise weighted averaging
-!          in log of pressure of one-dimensional vectors.
-!
-! Comments:
-!
-!     1) vlev in eta coordinate associated to pvlev in pressure.
-!
-!     2) Cases:
-!
-!               a) KFLAG=0 for application as forward interpolator  
-!
-!                  Y = sum(H*PVI)
-!                    = PVO
-!
-!               with ZPZ=H on output of LAYERAVG
-!
-!               b) KFLAG=1 for TLM case:
-!
-!                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
-!                     =     ZPVO    +       ZPVOPS
-!                     = PVO
-!
-!               where
-!
-!                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-!                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
-!
-!               with ZPZ(k)=dP_dPsfc(k)/PVLEV(k) on input to LAYERAVG and
-!                    ZPZ(i)=H(i) on output of LAYERAVG
-!
-!               c) KFLAG=2 for adjoint case:
-!
-!                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
-!                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
-!
-!                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
-!                          = PPS(jn) + sum_jo (ZPZPS(jo))
-!
-!!-------------------------------------------------------------------  
-      IMPLICIT NONE
-     
-      INTEGER,intent(in) :: KNI, KNO, KNPROF
-      REAL(8),intent(in) :: PVLEV(KNI,KNPROF)
+    SUBROUTINE ppo_INTAVGAD_v2(PVLEV,dP_dPsfc,PVI,PVIG,PP,KNI,KNPROF,KNO,PPO,&
+                               PVO)
+      !
+      !:Purpose: To calculate the adjoint of piecewise-weighted averaging in log
+      !          of pressure of one-dimensional vectors
+      !
+      !:Comments:
+      !
+      !     1) vlev in eta coordinate associated to pvlev in pressure.
+      !
+      implicit none
+
+      ! Arguments:
+      REAL(8),intent(in) :: PVLEV(KNI,KNPROF)   ! Vertical levels, pressure (source)
       REAL(8),intent(in) :: dP_dPsfc(KNI,KNPROF)
-      REAL(8),intent(in) :: PPO(KNO), PVO(KNO,KNPROF)
-      REAL(8),intent(in) :: PVIG(KNI,KNPROF)
-      REAL(8),intent(out):: PVI(KNI,KNPROF)
-      REAL(8),intent(out):: PP(KNI,KNPROF)
+      REAL(8),intent(out):: PVI(KNI,KNPROF)     ! Adjoint of increments on input levels (output)
+      REAL(8),intent(in) :: PVIG(KNI,KNPROF)    ! Vector to be interpolated (source)
+      REAL(8),intent(out):: PP(KNI,KNPROF)      ! Output adjoint of sfc P incr
+      INTEGER,intent(in) :: KNI                 ! Number of input levels (source)
+      INTEGER,intent(in) :: KNPROF              ! Number of profiles
+      INTEGER,intent(in) :: KNO                 ! Number of output levels
+      REAL(8),intent(in) :: PPO(KNO)            ! Vertical levels, pressure
+      REAL(8),intent(in) :: PVO(KNO,KNPROF)     ! Input adjoint of interpolated profiles
+
+      ! Locals:
       REAL(8) ZLNPI (KNI,knprof),ZPZ(KNI)
       REAL(8) ZPS(KNI,knprof)
       REAL(8) ZLNPO (KNO)
@@ -333,51 +160,26 @@ module presProfileOperators_mod
 
 
     SUBROUTINE LAYERAVG(PX1,PX2,PY2,KN1,KN2,KI,PMEAN)
+      !
+      !:Purpose: Perform integration between points PX1(KI-1) and
+      !          PX1(KI+1) with  piecewise linear weighting having 
+      !          weights of zero at  ki-1 and ki+1 and max weight at ki.
+      !  
+      !:Output: Weighted mean value, its contribution to the TLM*increment or to
+      !         the adjoint.
+      !
+      implicit none
 
-      IMPLICIT NONE
+      ! Arguments:
+      real(8),intent(in)  :: px1(kn1) ! Reference levels (e.g. lnP; in increasing values)
+      real(8),intent(in)  :: px2(kn2) ! Available levels (e.g. lnP; in increasing values)
+      real(8),intent(in)  :: py2(kn2) ! Values at levels (e.g. temperature)
+      integer,intent(in)  :: kn1      ! Dimension of PX1
+      integer,intent(in)  :: kn2      ! Dimension of other arrays
+      integer,intent(in)  :: ki       ! Identifies region of interest: PX1(KI-1) to PX1(KI+1)
+      real(8),intent(out) :: pmean    ! Mean weigthed value for PX1(KI-1) to PX1(KI+1) using background values
 
-      INTEGER,intent(in) :: KN1,KN2,KI
-      REAL(8),intent(in)  :: PX1(KN1),PX2(KN2),PY2(KN2)
-      REAL(8),intent(out) :: PMEAN
-!---------------------------------------------------------
-!
-!!!s/r LAYERAVG - Perform integration between points PX1(KI-1) and
-!                 PX1(KI+1) with  piecewise linear weighting having 
-!                 weights of zero at  ki-1 and ki+1 and max weight at ki.
-!
-!                  Output: Weighted mean value, its contribution to
-!                          the TLM*increment or to the adjoint.
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov. 2005
-!
-!!Revisions: 
-!
-!    -------------------
-!
-!Purpose: Perform integration between points PX1(KI-1) and
-!         PX1(KI+1) with  piecewise linear weighting having 
-!         weights of zero at  ki-1 and ki+1 and max weight at ki.
-!  
-!         Output: Weighted mean value, its contribution to
-!                 the TLM*increment or to the adjoint.
-!
-!Arguments:
-!
-!   INPUT
-!
-!
-!     PX1:      Reference levels (e.g. lnP; in increasing values)
-!     PX2:      Available levels (e.g. lnP; in increasing values)
-!     PY2:      Values at levels (e.g. temperature) 
-!     KN1:      Dimension of PX1.
-!     KN2:      Dimension of other arrays.
-!     KI:       Identifies region of interest: PX1(KI-1) to PX1(KI+1)
-!
-!   OUTPUT:
-!
-!     PMEAN:    Mean weigthed value for PX1(KI-1) to PX1(KI+1) using
-!               background values
-!-----------------------------------------------------------
+      ! Locals:
       REAL(8) :: PZ(KN2)
       REAL(8) Z1,Z2,Z3,ZW1,ZW2
       REAL(8) zsum
@@ -407,8 +209,6 @@ module presProfileOperators_mod
          z2=px2(kn2)
          skip = .true.
       end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
 
       pz(1:kn2)=0.0D0
       test = .false.
@@ -451,63 +251,33 @@ module presProfileOperators_mod
 
 
     SUBROUTINE LAYERAVG_TL_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,PZPS,knprof,pvo)
+      !
+      !:Purpose: To integrate between points PX1(KI-1) and PX1(KI+1) with
+      !          piecewise linear weighting having weights of zero at ki-1 and
+      !          ki+1 and max weight at ki
+      !
+      !:Output: Weighted mean value, its contribution to the TLM*increment or to
+      !         the adjoint. 
+      !
+      implicit none
 
-      IMPLICIT NONE
-      INTEGER,intent(in) :: KNO,KNI,knprof
-      REAL(8),intent(out) :: pvo(kno,knprof)
-      REAL(8),intent(out) :: PMEAN(kno,knprof)
-      REAL(8),intent(in)  :: PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof),PY2INCR(KNI,knprof)
-      REAL(8),intent(in)  :: PP(kni,knprof)
-      REAL(8),intent(in)  :: PZS(KNI,knprof)
-      REAL(8),intent(out) :: PZ(KNI),PZPS(kno,knprof)      
+      ! Arguments:
+      real(8),intent(in)  :: px1(kno)           ! Reference levels (e.g. lnP; in increasing values)
+      real(8),intent(in)  :: px2(kni,knprof)    ! Available levels (e.g. lnP; in increasing values)
+      real(8),intent(in)  :: py2(kni,knprof)    ! Values at levels (e.g. temperature)
+      real(8),intent(in)  :: py2incr(kni,knprof)! Increments
+      integer,intent(in)  :: kno                ! Dimension of PX1
+      integer,intent(in)  :: kni                ! Dimension of other arrays
+      real(8),intent(in)  :: pp(kni,knprof)     ! Surface pressure increment
+      real(8),intent(out) :: pmean(kno,knprof)  ! Mean weigthed value for PX1(KI-1) to PX1(KI+1) increments
+      real(8),intent(out) :: pz(kni)            ! Resultant accumulated contribution factors TLM 
+      real(8),intent(in)  :: pzs(kni,knprof)    ! dlnP/dPs
+      real(8),intent(out) :: pzps(kno,knprof)   ! Surface pressure related TLM*increment term
+      integer,intent(in)  :: knprof
+      real(8),intent(out) :: pvo(kno,knprof)
+
+      ! Locals:   
       REAL(8) ::  PZP(KNI)
-!---------------------------------------------------------
-!
-! s/r LAYERAVG - Perform integration between points PX1(KI-1) and
-!                 PX1(KI+1) with  piecewise linear weighting having 
-!                 weights of zero at  ki-1 and ki+1 and max weight at ki
-!
-!                  Output: Weighted mean value, its contribution to
-!                          the TLM*increment or to the adjoint.
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov. 2005
-!
-!Revisions: 
-!          S. Pellerin, ARMA, August 2008
-!!             - Introduction of version 2
-!!             - Introduction of profile and kno loops to reduce the
-!!               number of calls (optimisation)
-!
-!    -------------------
-!
-!Purpose: Perform integration between points PX1(KI-1) and
-!         PX1(KI+1) with  piecewise linear weighting having 
-!         weights of zero at  ki-1 and ki+1 and max weight at ki.
-!  
-!         Output: Weighted mean value, its contribution to
-!                 the TLM*increment or to the adjoint.
-!
-!Arguments:
-!
-!   INPUT
-!     PX1:      Reference levels (e.g. lnP; in increasing values)
-!     PX2:      Available levels (e.g. lnP; in increasing values)
-!     PY2:      Values at levels (e.g. temperature) 
-!     PY2INCR:  Increments
-!     PZ:       Extra array related to gradients w.r.t. Ps 
-!     KNO:      Dimension of PX1.
-!     KNI:      Dimension of other arrays.
-!     PZS:      dlnP/dPs
-!     KI:       Identifies region of interest: PX1(KI-1) to PX1(KI+1)
-!     PP:       Surface pressure increment
-!
-!   OUTPUT:
-!
-!     PMEAN:    Mean weigthed value for PX1(KI-1) to PX1(KI+1) increments
-!     PZ:       Resultant accumulated contribution factors TLM 
-!     PZPS:     Surface pressure related TLM*increment term
-!
-!-----------------------------------------------------------
       REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
       REAL(8) zsum, zsum2
       INTEGER J,jo,levIndex
@@ -537,8 +307,6 @@ module presProfileOperators_mod
             z2=px2(kni,levIndex)
             skip = .true.
           end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
 
           pzps(jo,levIndex)=0.0D0
           pz(1:kni)=0.0D0
@@ -577,8 +345,6 @@ module presProfileOperators_mod
             pz(j)=1.0D0
             !pzp(j)=1.0D0
           end if
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
 
           zsum=0.0D0
           zsum2=0.0D0
@@ -601,63 +367,32 @@ module presProfileOperators_mod
     END SUBROUTINE LAYERAVG_TL_v2
 
 
-    SUBROUTINE LAYERAVG_AD_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS,knprof)
+    SUBROUTINE LAYERAVG_AD_v2(PX1,PX2,PY2,PY2INCR,KNO,KNI,PP,PMEAN,PZ,PZS, &
+                              knprof)
+      !
+      !:Purpose: Perform integration between points PX1(KI-1) and
+      !          PX1(KI+1) with piecewise linear weighting having 
+      !          weights of zero at ki-1 and ki+1 and max weight at ki.
+      !  
+      !          Output: Weighted mean value, its contribution to
+      !          the TLM*increment or to the adjoint.
+      implicit none
 
-      IMPLICIT NONE
-      INTEGER,intent(in) ::  KNO,KNI,knprof
-      REAL(8),intent(in) :: PMEAN(kno,knprof)
-      REAL(8),intent(in) ::  PX1(KNO),PX2(KNI,knprof),PY2(KNI,knprof)
-      REAL(8),intent(inout) :: PY2INCR(KNI,knprof)
-      REAL(8),intent(in) ::  PZS(KNI,knprof)
-      REAL(8),intent(inout) ::  PP(kni,knprof)
-      REAL(8),intent(out) ::  PZ(KNI)
-      real(8)             :: pzp(kni)
-!---------------------------------------------------------
-!
-! s/r LAYERAVG - Perform integration between points PX1(KI-1) and
-!                 PX1(KI+1) with  piecewise linear weighting having 
-!                 weights of zero at  ki-1 and ki+1 and max weight at ki
-!
-!                  Output: Weighted mean value, its contribution to
-!                          the TLM*increment or to the adjoint.
-!
-!Author  : Y.J. Rochon *ARQX/EC Nov. 2005
-!
-!Revisions: 
-!          S. Pellerin, ARMA, August 2008
-!!             - Introduction of version 2
-!!             - Introduction of profile and kno loops to reduce the
-!!               number of calls (optimisation)
-!
-!    -------------------
-!
-!Purpose: Perform integration between points PX1(KI-1) and
-!         PX1(KI+1) with  piecewise linear weighting having 
-!         weights of zero at  ki-1 and ki+1 and max weight at ki.
-!  
-!         Output: Weighted mean value, its contribution to
-!                 the TLM*increment or to the adjoint.
-!
-!Arguments:
-!
-!   INPUT
-!
-!     PX1:      Reference levels (e.g. lnP; in increasing values)
-!     PX2:      Available levels (e.g. lnP; in increasing values)
-!     PY2:      Values at levels (e.g. temperature) 
-!     PY2INCR:  Increments
-!     PMEAN:    Mean weigthed value for PX1(KI-1) to PX1(KI+1)
-!     KNO:      Dimension of PX1.
-!     KNI:      Dimension of other arrays.
-!     PZS:      dlnP/dPs
-!     KI:       Identifies region of interest: PX1(KI-1) to PX1(KI+1)
-!     PP:       pressure adjoint (in/out)
-!
-!   OUTPUT:
-!
-!     PZ:       Resultant accumulated contribution factors Adjoint when KFLAG=2 
-!
-!-----------------------------------------------------------
+      ! Arguments:
+      REAL(8),intent(in) ::  PX1(KNO)        ! Reference levels (e.g. lnP; in increasing values)
+      REAL(8),intent(in) ::  PX2(KNI,knprof) ! Available levels (e.g. lnP; in increasing values)
+      REAL(8),intent(in) ::  PY2(KNI,knprof) ! Values at levels (e.g. temperature)
+      REAL(8),intent(inout) :: PY2INCR(KNI,knprof) ! Increments
+      INTEGER,intent(in) ::  KNO                   ! Dimension of PX1
+      INTEGER,intent(in) ::  KNI                   ! Dimension of other arrays
+      REAL(8),intent(inout) ::  PP(kni,knprof)     ! pressure adjoint (in/out)
+      REAL(8),intent(in) ::  PMEAN(kno,knprof)     ! Mean weigthed value for PX1(KI-1) to PX1(KI+1)
+      REAL(8),intent(out)::  PZ(KNI)         ! Resultant accumulated contribution factors Adjoint
+      REAL(8),intent(in) ::  PZS(KNI,knprof) ! dlnP/dPs
+      INTEGER,intent(in) ::  knprof
+
+      ! Locals:
+      real(8)            ::  pzp(kni)
       REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
       REAL(8) zsum, zsum2
       INTEGER J,jo,jn
@@ -687,8 +422,6 @@ module presProfileOperators_mod
             z2=px2(kni,jn)
             skip = .true.
           end if
-
-! --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
 
           pz(1:kni)=0.0D0
           pzp(1:kni)=0.0D0
@@ -723,8 +456,6 @@ module presProfileOperators_mod
           end do
 
           if (.not. test) pz(j)=1.0D0
-! --- Apply forward interpolator (kflag=0), determine TLM*increment (kflag=1)
-!     or use TLM for adjoint calc (kflag=2)
 
           zsum=0.0D0
           do j=1,kni
@@ -743,62 +474,47 @@ module presProfileOperators_mod
 
 
     SUBROUTINE SUBLAYER(z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,pzps)
-      IMPLICIT NONE
-      REAL(8),intent(in) :: z1,z2,z3,x1,x2,t1,t2
-      REAL(8),intent(out) :: w1,w2
-      REAL(8),intent(inout) ,optional :: pzps
-      REAL(8),intent(in)    ,optional :: pzs1,pzs2
-!-----------------------------------------------------------------
-!
-!  Written by Yves J. Rochon *ARQX/EC, Nov. 2005
-!
-!  Revisions:
-!            Saroja Polavarapu *ARMA/EC, Nov 2005
-!            - Setting of y1 and y2 moved from calling routine.           
-!
-!  Revisions:
-!
-!  Purpose: Determine weight coefficients to assign to NWP variables
-!           at x1 and x2. Weights are determined from integration over
-!           the range (y1,y2), which is within the ranges of the
-!           NWP layer (x1,x2) and of the RTM layer (z1,z2). Intergrals
-!           are approximated via the trapezoidal rule:
-!
-!              integral of f(x) from y1 to y2 = (f(y1)+f(y2))/2*abs(y1-y2) 
-!
-!           This is synonomous to having an integrand linear in x.
-!
-!           Normalization done in calling routine.
-!
-!  Input:
-!
-!       z1.........Outer boundary of RTM level (could be above are below z2)
-!       z2.........Inner boundary of RTM level 
-!                      (position of RTM reference level)
-!       z3.........Second outer boundary
-!       x1.........Upper boundary of NWP layer (x1<x2)
-!       x2.........Lower boundary of NWP layer
-!       t1.........Variable value at upper NWP level.
-!       t2.........Variable value at lower NWP level.
-!       pzs1.......dlnP/dPs = dx1/dPs
-!       pzs2.......dlnP/dPs = dx2/dPs
-!       pzps.......Current gradient contribution for weights*variable w.r.t Ps
-!
-!  Output:
-!
-!       w1.........Weight assigned to variable at upper NWP level
-!       w2.........Weight assigned to variable at lower NWP level
-!       pzps.......Updated gradient contribution for weights*variable w.r.t Ps
-!
-!  Other:
-!
-!       tot........Evaluated integral
-!       g1.........Gradient of weights*variables w.r.t. x1
-!       g2.........Gradient of weights*variables w.r.t. x2
-!
-!-----------------------------------------------------------------
-      REAL(8) y1,y2,tot,d,w10,w20,dz,dx,dy,dzd,dxd,g1,g2
-      REAL(8) a1,a2,aa1,aa2
+      !
+      !:Purpose: Determine weight coefficients to assign to NWP variables
+      !          at x1 and x2. Weights are determined from integration over
+      !          the range (y1,y2), which is within the ranges of the
+      !          NWP layer (x1,x2) and of the RTM layer (z1,z2). Intergrals
+      !          are approximated via the trapezoidal rule:
+      !
+      !          integral of f(x) from y1 to y2 = (f(y1)+f(y2))/2*abs(y1-y2) 
+      !
+      !          This is synonomous to having an integrand linear in x.
+      !
+      !          Normalization done in calling routine.
+      !
+      !:Arguments:
+      !    :pzps:  - input:  Current gradient contribution for weights*variable
+      !                      w.r.t Ps
+      !            - output: Updated gradient contribution for weights*variable
+      !                      w.r.t Ps
+      !
+      implicit none
+
+      ! Arguments:
+      real(8), intent(in) :: z1   ! Outer boundary of RTM level (could be above are below z2)
+      real(8), intent(in) :: z2   ! Inner boundary of RTM level (position of RTM reference level)
+      real(8), intent(in) :: z3   ! Second outer boundary
+      real(8), intent(in) :: x1   ! Upper boundary of NWP layer (x1<x2)
+      real(8), intent(in) :: x2   ! Lower boundary of NWP layer
+      real(8), intent(in) :: t1   ! Variable value at upper NWP level
+      real(8), intent(in) :: t2   ! Variable value at lower NWP level
+      real(8), intent(out):: w1   ! Weight assigned to variable at upper NWP level
+      real(8), intent(out) :: w2   ! Weight assigned to variable at lower NWP level
+      real(8), intent(in),    optional :: pzs1 ! dlnP/dPs = dx1/dPs
+      real(8), intent(in),    optional :: pzs2 ! dlnP/dPs = dx2/dPs
+      real(8), intent(inout), optional :: pzps
+
+      ! Locals:
+      real(8) :: tot ! Evaluated integral
+      real(8) :: g1  ! Gradient of weights*variables w.r.t. x1
+      real(8) :: g2  ! Gradient of weights*variables w.r.t. x2
+      real(8) y1,y2,d,w10,w20,dz,dx,dy,dzd,dxd
+      real(8) a1,a2,aa1,aa2
       logical bot,top
 !
 ! --- Identify and set upper and lower boundaries of
@@ -934,65 +650,46 @@ module presProfileOperators_mod
 
       end if
 
-  END SUBROUTINE SUBLAYER
+    END SUBROUTINE SUBLAYER
 
-  SUBROUTINE SUBLAYER_v2(z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,zp1,zp2)
-    IMPLICIT NONE
-    REAL(8),intent(in) :: z1,z2,z3,x1,x2,t1,t2
-    REAL(8),intent(out) :: w1,w2
-    REAL(8),intent(out) :: zp1, zp2
-    REAL(8),intent(in)  :: pzs1,pzs2
-!-----------------------------------------------------------------
-!
-!  Written by Yves J. Rochon *ARQX/EC, Nov. 2005
-!
-!  Revisions:
-!            Saroja Polavarapu *ARMA/EC, Nov 2005
-!            - Setting of y1 and y2 moved from calling routine.           
-!
-!  Purpose: Determine weight coefficients to assign to NWP variables
-!           at x1 and x2. Weights are determined from integration over
-!           the range (y1,y2), which is within the ranges of the
-!           NWP layer (x1,x2) and of the RTM layer (z1,z2). Intergrals
-!           are approximated via the trapezoidal rule:
-!
-!              integral of f(x) from y1 to y2 = (f(y1)+f(y2))/2*abs(y1-y2) 
-!
-!           This is synonomous to having an integrand linear in x.
-!
-!           Normalization done in calling routine.
-!
-!  Input:
-!
-!       z1.........Outer boundary of RTM level (could be above are below z2)
-!       z2.........Inner boundary of RTM level 
-!                      (position of RTM reference level)
-!       z3.........Second outer boundary
-!       x1.........Upper boundary of NWP layer (x1<x2)
-!       x2.........Lower boundary of NWP layer
-!       t1.........Variable value at upper NWP level.
-!       t2.........Variable value at lower NWP level.
-!       pzs1.......dlnP/dP = dx1/dP
-!       pzs2.......dlnP/dP = dx2/dP
-!       pzps.......Current gradient contribution for weights*variable w.r.t P
-!
-!  Output:
-!
-!       w1.........Weight assigned to variable at upper NWP level
-!       w2.........Weight assigned to variable at lower NWP level
-!       pzps.......Updated gradient contribution for weights*variable w.r.t P
-!
-!  Other:
-!
-!       tot........Evaluated integral
-!       g1.........Gradient of weights*variables w.r.t. x1
-!       g2.........Gradient of weights*variables w.r.t. x2
-!
-!-----------------------------------------------------------------
+    SUBROUTINE SUBLAYER_v2(z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,zp1,zp2)    
+      !
+      !:Purpose: Determine weight coefficients to assign to NWP variables
+      !          at x1 and x2. Weights are determined from integration over
+      !          the range (y1,y2), which is within the ranges of the
+      !          NWP layer (x1,x2) and of the RTM layer (z1,z2). Intergrals
+      !          are approximated via the trapezoidal rule:
+      !
+      !             integral of f(x) from y1 to y2 = (f(y1)+f(y2))/2*abs(y1-y2) 
+      !
+      !          This is synonomous to having an integrand linear in x.
+      !
+      !          Normalization done in calling routine.
+      !
+      implicit none
 
-    REAL(8) y1,y2,tot,d,w10,w20,dz,dx,dy,dzd,dxd,g1,g2
-    REAL(8) a1,a2,aa1,aa2
-    logical bot,top
+      ! Arguments:
+      real(8),intent(in) :: z1    ! Outer boundary of RTM level (could be above are below z2)
+      real(8),intent(in) :: z2    ! Inner boundary of RTM level (position of RTM reference level)
+      real(8),intent(in) :: z3    ! Second outer boundary
+      real(8),intent(in) :: x1    ! Upper boundary of NWP layer (x1<x2)
+      real(8),intent(in) :: x2    ! Lower boundary of NWP layer
+      real(8),intent(in) :: t1    ! Variable value at upper NWP level
+      real(8),intent(in) :: t2    ! Variable value at lower NWP level
+      real(8),intent(out):: w1    ! Weight assigned to variable at upper NWP level
+      real(8),intent(out):: w2    ! Weight assigned to variable at lower NWP level
+      real(8),intent(in) :: pzs1  ! dlnP/dP = dx1/dP
+      real(8),intent(in) :: pzs2  ! dlnP/dP = dx2/dP
+      real(8),intent(out):: zp1
+      real(8),intent(out):: zp2
+
+      ! Locals:
+      real(8) :: tot   ! Evaluated integral
+      real(8) :: g1    ! Gradient of weights*variables w.r.t. x1
+      real(8) :: g2    ! Gradient of weights*variables w.r.t. x2
+      REAL(8) y1,y2,d,w10,w20,dz,dx,dy,dzd,dxd
+      REAL(8) a1,a2,aa1,aa2
+      logical bot,top
 
     top = .false.
     bot = .false.
@@ -1122,32 +819,24 @@ module presProfileOperators_mod
   END SUBROUTINE SUBLAYER_v2
 
   SUBROUTINE PPO_LINTV (PVLEV,PVI,KNI, KNPROF,KNO,PPO,PVO)
+      !
+      !:Purpose: To perform the vertical interpolation in log of pressure and
+      !          constant-value extrapolation of one-dimensional vectors. Input
+      !          pressure levels can vary for each profile.
+      !
+      implicit none
 
-      !*
-      !***s/r PPO_LINTV  - Linear interpolation and constant value extrapolation.
-      !*                Input pressure levels can vary for each profile.
-      !*
-      !*Arguments
-      !*     i   PVLEV(KNI,KNPROF)    : Vertical levels, pressure (source)
-      !*     i   PVI(KNI,KNPROF)      : Vector to be interpolated (source)
-      !*     i   KNI                     : Number of input levels (source)
-      !*     i   KNPROF                  : Number of profiles
-      !*     i   KNO                     : Number of output levels (destination)
-      !*     i   PPO(KNO)                : Vertical levels, pressure (destination)
-      !*     o   PVO(KNO,KNPROF)         : Interpolated profiles (destination)
-      !*
-      !!*    -------------------
-      !**    Purpose: Performs the vertical interpolation in log of pressure
-      !*              and constant value extrapolation of one-dimensional vectors.
-      
-      IMPLICIT NONE
-      INTEGER,intent(in)  :: KNI, KNO,KNPROF
-      REAL(8) ,intent(in)  :: PVLEV(KNI,KNPROF)
-      REAL(8) ,intent(in)  :: PVI(KNI,KNPROF)
-      REAL(8) ,intent(in)  :: PPO(KNO)
-      REAL(8) ,intent(out) ::  PVO(KNO,KNPROF)
+      ! Arguments:
+      real(8) ,intent(in)  :: pvlev(kni,knprof) ! Vertical levels, pressure (source)
+      real(8) ,intent(in)  :: pvi(kni,knprof)   ! Vector to be interpolated (source)
+      integer ,intent(in)  :: kni               ! Number of input levels (source)
+      integer ,intent(in)  :: knprof            ! Number of profiles
+      integer ,intent(in)  :: kno               ! Number of output levels (destination)
+      real(8) ,intent(in)  :: ppo(kno)          ! Vertical levels, pressure (destination)
+      real(8) ,intent(out) :: pvo(kno,knprof)   ! Interpolated profiles (destination)
+
+      ! Locals:
       INTEGER  JI, JK, JO, profileIndex, IK, IORDER
-      
       REAL(8)     ZPI (0:KNI+1,KNPROF)
       REAL(8)     ZPVI(0:KNI+1,KNPROF)
       INTEGER  IL  (KNO    ,KNPROF)

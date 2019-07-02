@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE fileNames_mod (prefix="fln" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Routines related to file names
-!!
-!--------------------------------------------------------------------------
 module fileNames_mod
+  ! MODULE fileNames_mod (prefix='fln' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Routines related to file names
+  !
   use utilities_mod
   use clib_interfaces_mod
   use ramDisk_mod
@@ -36,12 +34,13 @@ contains
  !--------------------------------------------------------------------------
  ! fln_ensFileName
  !--------------------------------------------------------------------------
-  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt,  &
-                             ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
-                             copyToRamDisk_opt )
+  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, &
+                             ensFileNamePrefix_opt, ensFileBaseName_opt, &
+                             shouldExist_opt, ensembleFileExtLength_opt, &
+                             copyToRamDisk_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
     integer           :: memberIndex
@@ -50,7 +49,7 @@ contains
     integer, optional :: ensembleFileExtLength_opt
     logical, optional :: copyToRamDisk_opt
 
-    ! locals
+    ! Locals:
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
     character(len=10):: ensNumber  !! this is sufficient until we reach 10^10 members
     logical          :: shouldExist

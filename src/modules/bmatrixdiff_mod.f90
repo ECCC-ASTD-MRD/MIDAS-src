@@ -252,16 +252,10 @@ CONTAINS
   end subroutine bdiff_getScaleFactor
 
 
-!-----------------------------------------------------------------------------------------------
-!!
-!! *Purpose*: Reads background-error stats file.
-!!
-!! @author A. Caya, Sep 2017
-!!v            - Based on BCHM_RDSTATS
-!!
-!-----------------------------------------------------------------------------------------
-  SUBROUTINE BDIFF_RDSTATS
-
+  subroutine bdiff_rdstats
+    !
+    !:Purpose: To read background-error stats file.
+    !
     implicit none
 
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
@@ -314,18 +308,12 @@ CONTAINS
 
     call BDIFF_scalestd
 
-  END SUBROUTINE BDIFF_RDSTATS
+  end subroutine bdiff_rdstats
 
-!-----------------------------------------------------------------------------------------------
-!!
-!! *Purpose*: Reads 2D stddev and store as 3D
-!!
-!! @author A. Caya, Sep 2017
-!!v         - Based on BCHM_RDSTD
-!!
-!-----------------------------------------------------------------------------------------------
-  SUBROUTINE BDIFF_RDSTD
-
+  subroutine bdiff_rdstd
+    !
+    !:Purpose: To read 2D stddev and store as 3D
+    !
     implicit none
 
     integer :: jvar, in
@@ -373,18 +361,12 @@ CONTAINS
 
     end do
 
-  END SUBROUTINE BDIFF_RDSTD
+  end subroutine bdiff_rdstd
 
-!-------------------------------------------------------------------------------------------
-!!
-!! *Purpose*: Scales background-error standard deviation values.
-!!
-!! @author A. Caya
-!!v            - Converted from original of bchm_scalestd. 
-!!
-!-----------------------------------------------------------------------------------------
-  SUBROUTINE BDIFF_scalestd
-
+  subroutine bdiff_scalestd
+    !
+    !:Purpose: To scale background-error standard-deviation values.
+    !
     implicit none
 
     integer :: jlon, jlat, jvar
@@ -398,7 +380,7 @@ CONTAINS
        end do
     end do
 
-  END SUBROUTINE BDIFF_scalestd
+  end subroutine bdiff_scalestd
 
 
   SUBROUTINE BDIFF_bSqrt(controlVector_in, statevector)

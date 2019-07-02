@@ -15,12 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module mpivar_mod
+  ! MODULE mpivar_mod (prefix='mpivar' category='7. Low-level data objects and utilities')
   !
-  ! MODULE mpivar (prefix="mpivar" category='7. Low-level data objects and utilities')
-  !
-  ! **Purpose**: Subroutine and public variables related to the mpi decomposition
-  ! specific to the MIDAS code. Depends on the more general mpi_mod module.
-  !
+  ! :Purpose: Subroutine and public variables related to the mpi decomposition
+  !           specific to the MIDAS code. Depends on the more general mpi_mod
+  !           module.
   !
   use mpi_mod
   use utilities_mod
@@ -40,11 +39,17 @@ module mpivar_mod
 
   subroutine mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
                                    myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
-    integer           :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd, njlath
-    integer, optional :: myLatHalfBeg_opt, myLatHalfEnd_opt
+    integer           :: nj
+    integer           :: latPerPE
+    integer           :: latPerPEmax
+    integer           :: myLatBeg
+    integer           :: myLatEnd
+    integer           :: njlath
+    integer, optional :: myLatHalfBeg_opt
+    integer, optional :: myLatHalfEnd_opt
     logical, optional :: divisible_opt
 
     integer :: latPerPEmin, ierr
@@ -88,10 +93,12 @@ module mpivar_mod
 
 
   function mpivar_myidYfromLat(latIndex, nj) result(IP_y)
-    ! Purpose: use same logic as setup_latbands to compute myidy
+    ! :Purpose: use same logic as setup_latbands to compute myidy
     !          corresponding to a latitude grid index
     implicit none
-    integer :: latIndex, nj, IP_y
+    integer :: latIndex
+    integer :: nj
+    integer :: IP_y
 
     IP_y = (latIndex-1) / floor( real(nj) / real(mpi_npey) )
     IP_y = min( mpi_npey-1, IP_y )
@@ -100,10 +107,15 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          longitudes over tasks in X direction (npex)
     implicit none
-    integer          :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+
+    integer          :: ni
+    integer          :: lonPerPE
+    integer          :: lonPerPEmax
+    integer          :: myLonBeg
+    integer          :: myLonEnd
     logical, optional :: divisible_opt
 
     integer :: lonPerPEmin, ierr
@@ -133,10 +145,13 @@ module mpivar_mod
 
 
   function mpivar_myidXfromLon(lonIndex, ni) result(IP_x)
-    ! Purpose: use same logic as setup_lonbands to compute myidx
+    ! :Purpose: use same logic as setup_lonbands to compute myidx
     !          corresponding to a longitude grid index
     implicit none
-    integer :: lonIndex, ni, IP_x
+
+    integer :: lonIndex
+    integer :: ni
+    integer :: IP_x
 
     IP_x = (lonIndex-1) / floor( real(ni) / real(mpi_npex) )
     IP_x = min( mpi_npex-1, IP_x )
@@ -145,10 +160,15 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          wavenumber m over tasks in Y direction (npey)
     implicit none
-    integer :: ntrunc, mymBeg, mymEnd, mymSkip, mymCount, jm
+    integer :: ntrunc
+    integer :: mymBeg
+    integer :: mymEnd
+    integer :: mymSkip
+    integer :: mymCount
+    integer :: jm
 
     mymBeg = mpi_myidy
     mymEnd = ntrunc
@@ -164,10 +184,16 @@ module mpivar_mod
 
  
   subroutine mpivar_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          wavenumber n over tasks in X direction (npex)
     implicit none
-    integer :: ntrunc, mynBeg, mynEnd, mynSkip, mynCount, jn
+
+    integer :: ntrunc
+    integer :: mynBeg
+    integer :: mynEnd
+    integer :: mynSkip
+    integer :: mynCount
+    integer :: jn
 
     mynBeg = mpi_myidx
     mynEnd = ntrunc
@@ -183,11 +209,17 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_levels(numlevels, myLevBeg, myLevEnd, myLevCount)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          levels over tasks in X direction (npex)
     implicit none
-    integer :: numlevels, myLevBeg, myLevEnd, myLevCount
-    integer :: jlev, jproc, factor
+
+    integer :: numlevels
+    integer :: myLevBeg
+    integer :: myLevEnd
+    integer :: myLevCount
+    integer :: jlev
+    integer :: jproc
+    integer :: factor
     integer :: myLevCounts(mpi_npex)
 
     ! when possible, always divide into even number of levels per MPI task
@@ -230,11 +262,17 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_varslevels(numk, mykBeg, mykEnd, mykCount)
-    ! Purpose: compute parameters that define the mpi distribution of
+    ! :Purpose: compute parameters that define the mpi distribution of
     !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
     implicit none
-    integer :: numk, mykBeg, mykEnd, mykCount
-    integer :: jk, jproc, mykCounts(mpi_nprocs)
+
+    integer :: numk
+    integer :: mykBeg
+    integer :: mykEnd
+    integer :: mykCount
+    integer :: jk
+    integer :: jproc
+    integer :: mykCounts(mpi_nprocs)
 
     mykCounts(:) = 0
     do jproc = 1, mpi_nprocs

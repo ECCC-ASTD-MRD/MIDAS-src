@@ -14,15 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!************************************************************************
-!! MODULE ozoneClim (prefix="ozo" category='4. Observation operators')
-!!
-!! *PURPOSE*: Climatological ozone (1998)
-!!
-!! @author A. BEAULNE (CMDA/SMC) May 2006
-!!
-!************************************************************************
 module ozoneClim_mod
+  ! MODULE ozoneClim_mod (prefix='ozo' category='4. Observation operators')
+  !
+  ! :Purpose: Climatological ozone (1998)
+  !
   use obsSpaceData_mod
   use presProfileOperators_mod
   use utilities_mod
@@ -50,135 +46,98 @@ module ozoneClim_mod
 
 contains
 
-  SUBROUTINE OZO_GET_PROFILE(O3P,toto3obs,zlat,plev,nlev,nprf,datestamp)
+  subroutine ozo_get_profile(o3p,toto3obs,zlat,plev,nlev,nprf,datestamp)
+    !
+    !:Purpose: Get ozone profile from climatology interpolated to desired P levels
+    !
+    IMPLICIT NONE       
 
-!***********************************************************************
-!
-!**ID OZO_GET_PROFILE -- GET OZONE PROFILE FROM CLIMATOLOGY INTERPOLATED TO DESIRED P LEVELS
-!
-!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
-!
-!       REVISION:
-!
-!       OBJECT:   GET OZONE PROFILE FROM CLIMATOLOGY INTERPOLATED TO DESIRED P LEVELS
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -TOTO3OBS(NPRF)      : TOTAL OZONE IF KNOWN FROM OUTSIDE SOURCE SUCH AS TOMS
-!            -ZLAT(NPRF)          : ARRAY OF LATITUDE (-90S TO 90N)
-!            -PLEV(NLEV)          : PRESSURE LEVELS (HPA)
-!            -NLEV                : NUMBER OF VERTICAL LEVELS
-!            -NPRF                : NUMBER OF PROFILES
-!
-!          OUTPUT:
-!            -O3P(NLEV,NPRF)      : OZONE PROFILES (PPMV)
-!
-!
-!***********************************************************************
+    integer ,intent(in) :: nlev            ! NUMBER OF VERTICAL LEVELS
+    integer ,intent(in) :: nprf            ! NUMBER OF PROFILES
+    REAL(8),intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
+    REAL(8),intent(in)  :: TOTO3OBS(NPRF)  ! TOTAL OZONE IF KNOWN FROM OUTSIDE SOURCE SUCH AS TOMS
+    REAL(8),intent(in)  :: PLEV(NLEV)      ! PRESSURE LEVELS (HPA)
+    REAL(8),intent(out)  :: O3P(NLEV,NPRF) ! OZONE PROFILES (PPMV)
+    integer, intent(in) :: datestamp       ! DateStamp
 
-IMPLICIT NONE       
-
-integer ,intent(in) :: nlev,nprf
-REAL(8),intent(in)  :: ZLAT(NPRF), TOTO3OBS(NPRF),PLEV(NLEV)
-REAL(8),intent(out)  :: O3P(NLEV,NPRF)
-integer, intent(in) :: datestamp
-!***************************************************************
-INTEGER   :: JN, K, NUMLAT(NPRF)
-INTEGER   :: IJOUR,ITIME,IJ,IMONTH,IER
-REAL(8)   :: QO3B(NLEVO3,NPRF)
-REAL(8)   :: PRO3(NLEVO3,NPRF)
-INTEGER   :: NEWDATE
+    INTEGER   :: JN, K, NUMLAT(NPRF)
+    INTEGER   :: IJOUR,ITIME,IJ,IMONTH,IER
+    REAL(8)   :: QO3B(NLEVO3,NPRF)
+    REAL(8)   :: PRO3(NLEVO3,NPRF)
+    INTEGER   :: NEWDATE
 
 
-!* assign default qgas values if need be
+    !* assign default qgas values if need be
 
-DO JN = 1, NPRF
-   NUMLAT(JN) = NINT( (ZLAT(JN)+90.D0) / (180.D0/(REAL(NLATO3-1,8))) ) + 1
-   DO K = 1, NLEVO3
-      QO3B(K,JN) = FOZO_r4(NUMLAT(JN),K)
-   END DO
-END DO
+    DO JN = 1, NPRF
+       NUMLAT(JN) = NINT( (ZLAT(JN)+90.D0) / (180.D0/(REAL(NLATO3-1,8))) ) + 1
+       DO K = 1, NLEVO3
+          QO3B(K,JN) = FOZO_r4(NUMLAT(JN),K)
+       END DO
+    END DO
 
-!* interpolation of field QO3B at NLEVO3 levels of height PO3mbb
-!* into field O3P at NLEV levels of height PLEV
+    !* interpolation of field QO3B at NLEVO3 levels of height PO3mbb
+    !* into field O3P at NLEV levels of height PLEV
 
-FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
+    FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
 
-CALL ppo_LINTV(pro3,qo3b,nlevo3,nprf,nlev,plev,O3P)
+    CALL ppo_LINTV(pro3,qo3b,nlevo3,nprf,nlev,plev,O3P)
 
+    !* if total climatological ozone is known from outside source
+    !* then set the climatological profile so that it matches that total
 
-!* if total climatological ozone is known from outside source
-!* then set the climatological profile so that it matches that total
-
-DO JN = 1, NPRF
-   IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
-!      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
-      ier = newdate(datestamp,ijour,itime,-3)
-      IJ = IJOUR/100
-      IMONTH = IJ - (IJ/100)*100
-      O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO_r4(NUMLAT(JN),IMONTH)
-   END IF
-ENDDO
-
-
-END SUBROUTINE OZO_GET_PROFILE
+    DO JN = 1, NPRF
+       IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
+    !      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
+          ier = newdate(datestamp,ijour,itime,-3)
+          IJ = IJOUR/100
+          IMONTH = IJ - (IJ/100)*100
+          O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO_r4(NUMLAT(JN),IMONTH)
+       END IF
+    ENDDO
 
 
-SUBROUTINE OZO_READ_CLIMATOLOGY(datestamp)
+  end subroutine ozo_get_profile
 
-!***********************************************************************
-!
-!**ID OZONECLIM -- READ OZONE CLIMATOLOGICAL FIELDS
-!
-!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
-!
-!       REVISION:
-!
-!       OBJECT:   READ OZONE CLIMATOLOGICAL FIELDS AND PUT IN COMMON DECK
-!
-!       ARGUMENTS:
-!          INPUT:  NONE
-!          OUTPUT: NONE
-!
-!
-!***********************************************************************
 
-  IMPLICIT NONE
-  integer            :: datestamp
+  subroutine ozo_read_climatology(datestamp)
+    !
+    !:Purpose: READ OZONE CLIMATOLOGICAL FIELDS
+    !
+    IMPLICIT NONE
+    integer            :: datestamp
 
-  INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
-  CHARACTER(len=100) :: CFILE
-  INTEGER            :: NIOZO,NJOZO,NKOZO
-  INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE
+    INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
+    CHARACTER(len=100) :: CFILE
+    INTEGER            :: NIOZO,NJOZO,NKOZO
+    INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE
 
-  integer            :: IOZTEST
-  integer            :: iv1,iv2,iv3,iv4,iv5,iv6
+    integer            :: IOZTEST
+    integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
-!  IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
-  ier = newdate(datestamp,ijour,itime,-3)
+    ier = newdate(datestamp,ijour,itime,-3)
 
-  IJ= IJOUR/100
-  IMONTH = IJ - (IJ/100)*100
+    IJ= IJOUR/100
+    IMONTH = IJ - (IJ/100)*100
 
-  ioztest=0
+    ioztest=0
 
-  CFILE='ozoneclim98'
-  IV1=FNOM(IOZTEST,CFILE,'RND+R/O',0)
-  IV2=FSTOUV(IOZTEST,'RND')
-  IV3=FSTLIR(FOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,IMONTH,' ','O3')
-  IV4=FSTLIR(TOTOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,-1,' ','TO')
-  IV5=FSTFRM(IOZTEST)
-  IV6=FCLOS(IOZTEST)
+    CFILE='ozoneclim98'
+    IV1=FNOM(IOZTEST,CFILE,'RND+R/O',0)
+    IV2=FSTOUV(IOZTEST,'RND')
+    IV3=FSTLIR(FOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,IMONTH,' ','O3')
+    IV4=FSTLIR(TOTOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,-1,' ','TO')
+    IV5=FSTFRM(IOZTEST)
+    IV6=FCLOS(IOZTEST)
 
-  if(iv1.lt.0.or.iv2.lt.0.or.iv3.lt.0.or.iv4.lt.0.or.iv5.lt.0.or.iv6.lt.0) then
-     write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
-     write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
-     write(*,*) 'datestamp,ijour,itime,imonth = ',datestamp,ijour,itime,imonth
-     call utl_abort('Problem with file in ozo_read_climatology (ozoneclim_mod)')
-  endif
+    if(iv1.lt.0.or.iv2.lt.0.or.iv3.lt.0.or.iv4.lt.0.or.iv5.lt.0.or.iv6.lt.0) then
+       write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
+       write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
+       write(*,*) 'datestamp,ijour,itime,imonth = ',datestamp,ijour,itime,imonth
+       call utl_abort('Problem with file in ozo_read_climatology (ozoneclim_mod)')
+    endif
     
-END SUBROUTINE OZO_READ_CLIMATOLOGY
+  end subroutine OZO_READ_CLIMATOLOGY
 
 
-
-End module ozoneClim_mod
+end module ozoneClim_mod

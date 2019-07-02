@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
-!!
-!! *Purpose*: To read and update SQLITE observation files. Data is stored in 
-!!            obsSpaceData object.
-!!
-!--------------------------------------------------------------------------
 module sqliteRead_mod
+  ! MODULE sqliteRead (prefix='sqlr' category='6. Observation input/output')
+  !
+  ! :Purpose: To read and update SQLITE observation files. Data is stored in 
+  !           obsSpaceData object.
+  !
 
 use codePrecision_mod
 use obsSpaceData_mod
@@ -55,12 +53,19 @@ public :: sqlr_thinSqlite, sqlr_writeAllSqlDiagFiles
 contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData )
-    ! Initialze data values for an observation object
+    !
+    ! :Purpose: Initialze data values for an observation object.
+    !
     implicit none
+
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
-    real(obs_real)   , intent(in)    :: vertCoord, obsValue
-    integer          , intent(in)    :: obsVarno, obsFlag, vertCoordType, numberData
+    real(obs_real)   , intent(in)    :: vertCoord
+    real(obs_real)   , intent(in)    :: obsValue
+    integer          , intent(in)    :: obsVarno
+    integer          , intent(in)    :: obsFlag 
+    integer          , intent(in)    :: vertCoordType
+    integer          , intent(in)    :: numberData
 
     call obs_bodySet_r(obsdat, OBS_PPP, numberData, vertCoord     )
     call obs_bodySet_r(obsdat, OBS_VAR, numberData, obsValue      )
@@ -75,14 +80,37 @@ contains
                               earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
                               solarAzimuth, landSea, obsIdo, obsLat, obsLon, codeType, obsDate, obsTime, &
                               obsStatus, idStation, idProf)
+    !
+    ! :Purpose: To initialize the header information when SQLite files are read.
+    !
     implicit none
+
     ! arguments
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*) , intent(in)    :: rdbSchema, idStation
+    character(len=*) , intent(in)    :: rdbSchema
+    character(len=*) , intent(in)    :: idStation
     character(len=2) , intent(in)    :: familyType
-    integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, landSea, roQcFlag
-    integer          , intent(in)    :: obsSat, instrument, idProf
-    real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon, solarAzimuth, cloudCover, solarZenith, zenith, azimuth
+    integer          , intent(in)    :: headerIndex
+    integer          , intent(in)    :: obsIdo
+    integer          , intent(in)    :: codeType
+    integer          , intent(in)    :: obsDate
+    integer          , intent(in)    :: obsTime
+    integer          , intent(in)    :: obsStatus
+    integer          , intent(in)    :: landSea
+    integer          , intent(in)    :: roQcFlag
+    integer          , intent(in)    :: obsSat
+    integer          , intent(in)    :: instrument
+    integer          , intent(in)    :: idProf
+    real(obs_real)   , intent(in)    :: geoidUndulation
+    real(obs_real)   , intent(in)    :: earthLocRadCurv
+    real(obs_real)   , intent(in)    :: elev
+    real(obs_real)   , intent(in)    :: obsLat
+    real(obs_real)   , intent(in)    :: obsLon
+    real(obs_real)   , intent(in)    :: solarAzimuth
+    real(obs_real)   , intent(in)    :: cloudCover
+    real(obs_real)   , intent(in)    :: solarZenith
+    real(obs_real)   , intent(in)    :: zenith
+    real(obs_real)   , intent(in)    :: azimuth
 
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
     call obs_headSet_i( obsdat, OBS_IDO, headerIndex, obsIdo        )       
@@ -133,12 +161,16 @@ contains
 
 
   subroutine sqlr_readSqlite(obsdat, familyType, fileName, FileNumb )
+    !
+    ! :Purpose: To read SQLite namelist and files.
+    ! 
     implicit none
-    ! arguments
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
     character(len=*) , intent(in)    :: familyType ! Family Type may be TOVS or CONV
-    character(len=*) , intent(in)    :: fileName   ! SQLITE filename
-    integer          , intent(in)    :: FileNumb   ! Stdout file unit number
+    character(len=*) , intent(in)    :: fileName   ! SQLite filename
+    integer          , intent(in)    :: fileNumb   ! Stdout file unit number
     ! locals
     character(len=9)         :: rdbSchema
     character(len=12)        :: idStation
@@ -617,9 +649,13 @@ contains
 
 
   function sqlr_query(db,query)
+    !
+    ! :Purpose: To create a query to read an SQLite file
+    !
     implicit none
+
     ! arguments
-    type(fSQL_DATABASE)  :: db   ! type handle for  SQLIte file
+    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
     character(len = *)   :: query
     ! locals
     character(len = 256) :: sqlr_query, result
@@ -977,13 +1013,12 @@ contains
   end subroutine sqlr_insertSqlite
 
 
-  !--------------------------------------------------------------------------
-  !!
-  !! *Purpose*: to flagged (bit 11 set) observations in an SQL file
-  !!
-  !--------------------------------------------------------------------------
   subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
+    !
+    ! :Purpose: to flagged (bit 11 set) observations in an SQLite file
+    !
     implicit none
+
     ! arguments
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
     type(struct_obs),    intent(inout) :: obsdat
@@ -1021,9 +1056,14 @@ contains
 
 
   subroutine sqlr_writeAllSqlDiagFiles( obsdat )
+    !
+    ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
+    !  
     implicit none
+
     ! arguments
-    type(struct_obs)       :: obsdat
+    type(struct_obs)       :: obsdat ! obsSpaceData object
+
     ! locals
     character(len=*), parameter :: myName    = 'sqlr_writeAllSqlDiagFiles'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -1133,13 +1173,17 @@ contains
 
 
   subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, instrumentFileName, codeTypeInput )
-
+    !
+    ! :Purpose: To write the obsSpaceData content into SQLite format files
+    !
     implicit none
+
     ! arguments
     type(struct_obs)           :: obsdat
     character(len=2)           :: obsFamily    
     character(len=*)           :: instrumentFileName
     integer,          optional :: codeTypeInput(:)
+
     ! locals
     type(fSQL_DATABASE)    :: db                   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements

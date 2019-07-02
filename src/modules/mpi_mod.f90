@@ -16,9 +16,9 @@
 
 module mpi_mod
   !
-  ! MODULE mpi (prefix='mpi' category='7. Low-level data objects and utilities')
+  ! MODULE mpi_mod (prefix='mpi' category='7. Low-level data objects and utilities')
   !
-  ! **Purpose**: Subroutine and public variables related to general aspects of mpi.
+  ! :Purpose: Subroutine and public variables related to general aspects of mpi.
   !
   use utilities_mod
   implicit none
@@ -99,9 +99,12 @@ module mpi_mod
   end subroutine mpi_initialize
 
 
-  subroutine mpi_getptopo(npex,npey)
+  subroutine mpi_getptopo( npex, npey )
+
     implicit none
-    integer,intent(out) :: npex,npey
+
+    integer, intent(out) :: npex
+    integer, intent(out) :: npey
 
     integer :: ierr
     namelist /ptopo/npex,npey
@@ -121,8 +124,10 @@ module mpi_mod
   end subroutine mpi_getptopo 
 
 
-  subroutine mpi_allreduce_sumreal8scalar(sendRecvValue,comm)
+  subroutine mpi_allreduce_sumreal8scalar( sendRecvValue, comm )
+
     implicit none
+
     real(8), intent(inout)       :: sendRecvValue ! value to be summed over all mpi tasks
     character(len=*), intent(in) :: comm          ! rpn_comm communicator
 
@@ -157,20 +162,17 @@ module mpi_mod
   end subroutine mpi_allreduce_sumreal8scalar
  
   
-  subroutine mpi_allgather_string(str_list,str_list_all,nlist,nchar,nproc,comm,ierr)
+  subroutine mpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
-    ! **Purpose**: Performs the MPI 'allgather' routine for an array of strings
-    !
-    ! Author:  Y. Rochom, ARQI/AQRD, July 2015
-    !
-    ! Revisions:  M. Sitwell, ARQI/AQRD, Aug 2015
-    !             - Code set as a subroutine
+    ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
     !
     implicit none
 
     character(len=nchar), intent(in) :: str_list(nlist)
-    character(len=*), intent(in) :: comm
-    integer, intent(in) :: nlist,nchar,nproc
+    character(len=*)    , intent(in) :: comm
+    integer             , intent(in) :: nlist
+    integer             , intent(in) :: nchar
+    integer             , intent(in) :: nproc
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
     integer, intent(out) :: ierr
 

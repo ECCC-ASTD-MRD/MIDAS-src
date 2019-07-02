@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE computeHBHT_mod (prefix='hbht' category='1. High-level functionality')
-!!
-!! *Purpose*: Contains subroutines for computing the background error 
-!!            variance in observation space
-!!
-!--------------------------------------------------------------------------
 module computeHBHT_mod
+  ! MODULE computeHBHT_mod (prefix='hbht' category='1. High-level functionality')
+  !
+  ! :Purpose: Contains subroutines for computing the background-error variance
+  !           in observation space
+  !
   use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
@@ -54,28 +52,18 @@ module computeHBHT_mod
 
   contains
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Compute background error stddev in observation space.
-!!
-!! Revision:   
-!!v            M. Sitwell (ARQI/AQRD)  May 2015
-!!v               - Added call to compute_HBHT_static_chem for computation
-!!v                 with B_chm for chemical constituents
-!!v            Y.J. Rochon (ARQI/AQDR) March 2016
-!!v               - Allowed static=ensemble=.false. when static_chm=.true.
-!!v               - Allowed possibility of static_chm=.true. and ensemble=.true.
-!!v                 with and without static=.true.
-!--------------------------------------------------------------------------
-subroutine hbht_compute(columng,columnhr,obsSpaceData)
+  subroutine hbht_compute(columng,columnhr,obsSpaceData)
+    !
+    !:Purpose: To compute background-error stddev in observation space.
+    !
+    implicit none
 
-  implicit none
+    ! Arguments:
+    type(struct_columnData) :: columng      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
+    type(struct_columnData) :: columnhr     ! Columns of the background interpolated to obs horizontal locations
+    type(struct_obs) :: obsSpaceData ! Observation-related data
 
-  type(struct_obs)        :: obsSpaceData ! Observation-related data
-  type(struct_columnData) :: columng      ! Columns of the background interpolated 
-                                          ! to analysis levels and to obs horizontal locations
-  type(struct_columnData) :: columnhr     ! Columns of the background interpolated 
-                                          ! to obs horizontal locations
-
+    ! Locals:
   real(8) :: HBHT_static, HBHT_ensemble, HBHT_hybrid
 
   logical :: static   = .false.
@@ -96,21 +84,24 @@ subroutine hbht_compute(columng,columnhr,obsSpaceData)
   !
 
   !- 1.1 HBHT from the Bnmc matrix
-  call hbht_compute_static( columng,      & ! IN
-                            columnhr,     & ! IN
-                            obsSpaceData, & ! INOUT (HBnmcHT std. dev. outputted in OBS_HPHT)
-                            static        ) ! OUT   (Active if TRUE)
+  !     obsSpaceData - INOUT (HBnmcHT std. dev. output in OBS_HPHT)
+  call hbht_compute_static( columng,      &
+                            columnhr,     &
+                            obsSpaceData, &
+                            static        )
 
   !- 1.2 HBHT from the Bens
-  call hbht_compute_ensemble( columng,      & ! IN
-                              columnhr,     & ! IN
-                              obsSpaceData, & ! INOUT (HBensHT std. dev. outputted in OBS_WORK)
-                              ensemble )      ! OUT   (Active if TRUE)
+  !     obsSpaceData - INOUT (HBensHT std. dev. outputted in OBS_WORK)
+  call hbht_compute_ensemble( columng,      & 
+                              columnhr,     &
+                              obsSpaceData, &
+                              ensemble )
 
   !- 1.3 HBHT from the B_static matrix for chemistry
-  call hbht_compute_static_chem( columng,      & ! IN
-                                 obsSpaceData, & ! INOUT ( sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
-                                 static_chm )    ! OUT   (Active if TRUE)
+  !     obsSpaceData - INOUT ( sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
+  call hbht_compute_static_chem( columng,      &
+                                 obsSpaceData, &
+                                 static_chm )
 
   !
   !- 2. Select/Blend HBHT
@@ -166,16 +157,15 @@ subroutine hbht_compute(columng,columnhr,obsSpaceData)
      call utl_abort('compute_HBHT: no B matrix was initialized')
   end if
 
-end subroutine hbht_compute
+  end subroutine hbht_compute
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Compute background error stddev in observation space using
-!!            fixed statistics specific in stats file.
-!!
-!--------------------------------------------------------------------------
-SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
-      IMPLICIT NONE
+  subroutine hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
+    !
+    !:Purpose: To compute background-error stddev in observation space using
+    !          fixed statistics specific in stats file.
+    !
+    implicit none
 
       type(struct_hco), pointer        :: hco_anl
       type(struct_vco), pointer        :: vco_anl
@@ -646,40 +636,24 @@ SUBROUTINE hbht_compute_static(lcolumng,lcolumnhr,lobsSpaceData,active)
       write(*,*)
       write(*,*) 'Computing HBHT from Bnmc - END'
       
-    END SUBROUTINE hbht_compute_static
+  end subroutine hbht_compute_static
 
 
-SUBROUTINE hbht_compute_static_chem(lcolumng,lobsSpaceData,active)
-!
-! Author  : M. Sitwell, May 2015
-!
-! Purpose: To compute the background error standard deviations in
-!          observation space, sqrt(diag(H*B_static*H^T)).
-!
-! Arguments:
-!
-!  Input
-!
-!           lcolumng             column at observation location
-!
-!  Inout:
-!
-!           lobsSpaceData        observation space data, output saved in OBS_HPHT column
-!
-!  Output:
-!           active               flag to indicate if chemical constituents are to be used
-!
-! Revision:
-!
-!!-------------------------------------------------------------------------------
-
-  implicit none
+  subroutine hbht_compute_static_chem(lcolumng,lobsSpaceData,active)
+    !
+    !:Purpose: To compute the background error standard deviations in
+    !          observation space, sqrt(diag(H*B_static*H^T)).
+    !
+    implicit none
   
+    ! Arguments:
+    type(struct_columnData) :: lcolumng      ! column at observation location
+    type(struct_obs)        :: lobsSpaceData ! observation-space data, output saved in OBS_HPHT column
+    logical                 :: active        ! flag to indicate if chemical constituents are to be used
+
+    ! Locals:
   type(struct_hco), pointer :: hco_anl
   type(struct_vco), pointer :: vco_anl
-  type(struct_obs)        :: lobsSpaceData
-  type(struct_columnData) :: lcolumng
-  logical                 :: active
       
   integer :: cvdim
 
@@ -708,23 +682,22 @@ SUBROUTINE hbht_compute_static_chem(lcolumng,lobsSpaceData,active)
   write(*,*) 'Computing H*B*H^T using B_static_chm - End'
   
   RETURN
-END SUBROUTINE hbht_compute_static_chem
+  end subroutine hbht_compute_static_chem
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Compute background error stddev in observation space using
-!!            ensemble-based statistics.
-!!
-!--------------------------------------------------------------------------
-subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
-  implicit none
+  subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
+    !
+    !:Purpose: To compute background-error stddev in observation space using
+    !          ensemble-based statistics.
+    !
+    implicit none
 
-  type(struct_obs)        :: obsSpaceData ! Observation-related data
-  type(struct_columnData) :: columng      ! Columns of the background interpolated 
-                                          ! to analysis levels and to obs horizontal locations
-  type(struct_columnData) :: columnhr     ! Columns of the background interpolated 
-                                          ! to obs horizontal locations
-  logical                 :: active
+    ! Arguments:
+    type(struct_columnData) :: columng      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
+    type(struct_columnData) :: columnhr     ! Columns of the background interpolated to obs horizontal locations
+    type(struct_obs)        :: obsSpaceData ! Observation-related data
+    logical                 :: active
 
+    ! Locals:
   type(struct_columnData) :: column
   type(struct_gsv)        :: statevector
 
@@ -782,19 +755,21 @@ subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
      !- 2.1 Extract perturbations from the current memberIndex
      write(*,*)
      write(*,*) 'Reading ensemble perturbation from member = ', memberIndex
-     call ben_getPerturbation( statevector,    & ! OUT
-                               memberIndex,    & ! IN
-                               'ConstantValue' ) ! IN
+     call ben_getPerturbation( statevector,    &
+                               memberIndex,    &
+                               'ConstantValue' )
 
      !- 2.2 Interpolation to the observation horizontal locations
-     call s2c_tl( statevector,           & ! IN
-                  column,                & ! OUT (H_horiz EnsPert)
-                  columng, obsSpaceData )  ! IN
+     !       column - OUT (H_horiz EnsPert)
+     call s2c_tl( statevector,           &
+                  column,                &
+                  columng, obsSpaceData )
 
      !- 2.3 Interpolation to observation space
-     call oop_Htl( column, columng, & ! IN
-                   obsSpaceData,    & ! OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
-                   1 )                ! IN
+     !         obsSpaceData - OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
+     call oop_Htl( column, columng, &
+                   obsSpaceData,    &
+                   1 )
 
      !- 2.4 alpha * HBH^T = sum(OBS_WORK^2)
      do index_body = 1, obs_numBody(obsSpaceData)
@@ -819,22 +794,25 @@ subroutine hbht_compute_ensemble(columng,columnhr,obsSpaceData,active)
   write(*,*)
   write(*,*) 'Computing HBHT from ensemble perturbations - END'
 
-end subroutine hbht_compute_ensemble
+  end subroutine hbht_compute_ensemble
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Interpolate vertically the contents of "column" to
-!!            the pressure levels of the observations. Then
-!!            compute THE FIRST GUESS ERROR VARIANCES
-!!            A linear interpolation in ln(p) is performed.
-!!
-!! @author P. Koclas *CMC/CMSV November 1998
-!--------------------------------------------------------------------------
-      SUBROUTINE setfgefam(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-      IMPLICIT NONE
-      type(struct_columnData) :: lcolumn,lcolumng
-      type(struct_obs) :: lobsSpaceData
-      CHARACTER*2 CDFAM
+  subroutine setfgefam(cdfam,lcolumn,lcolumng,lobsSpaceData)
+    !
+    !:Purpose: To interpolate vertically the contents of "column" to
+    !          the pressure levels of the observations. Then to compute
+    !          THE FIRST GUESS ERROR VARIANCES. A linear interpolation in ln(p)
+    !          is performed.
+    !
+    implicit none
+
+    ! Arguments:
+    character*2 cdfam
+    type(struct_columnData) :: lcolumn
+    type(struct_columnData) :: lcolumng
+    type(struct_obs) :: lobsSpaceData
+
+    ! Locals:
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,ITYP,IK
       INTEGER INDEX_BODY
@@ -907,23 +885,24 @@ end subroutine hbht_compute_ensemble
       END DO HEADER
 
       RETURN
-      END SUBROUTINE setfgefam
+  end subroutine setfgefam
 
 
-!--------------------------------------------------------------------------
-!!    Purpose: Interpolate vertically the contents of "column" to
-!!             the levels of the observations (in meters). Then
-!!             compute THE FIRST GUESS ERROR VARIANCES
-!!             A linear interpolation in z is performed.
-!!
-!! @author J. St-James, CMDA/SMC November 2002
-!!
-!--------------------------------------------------------------------------
-      SUBROUTINE setfgefamz(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-      IMPLICIT NONE
-      type(struct_columnData) :: lcolumn,lcolumng
-      type(struct_obs) :: lobsSpaceData
-      CHARACTER*2 CDFAM
+  subroutine setfgefamz(cdfam,lcolumn,lcolumng,lobsSpaceData)
+    !
+    !:Purpose: To interpolate vertically the contents of "column" to the levels
+    !          of the observations (in meters). Then to compute THE FIRST GUESS
+    !          ERROR VARIANCES. A linear interpolation in z is performed.
+    !
+    implicit none
+
+    ! Arguments:
+    character*2 cdfam
+    type(struct_columnData) :: lcolumn
+    type(struct_columnData) :: lcolumng
+    type(struct_obs) :: lobsSpaceData
+
+    ! Locals:
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
       INTEGER J,INDEX_BODY
@@ -1012,22 +991,24 @@ end subroutine hbht_compute_ensemble
       END DO HEADER
 
       RETURN
-      END SUBROUTINE setfgefamz
+  end subroutine setfgefamz
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Interpolate vertically the contents of "column" to
-!!            the pressure levels of the observations. Then
-!!            compute THE FIRST GUESS ERROR VARIANCES
-!!            A linear interpolation in ln(p) is performed.
-!!
-!! @author P. Koclas *CMC/CMSV November 1998
-!!
-!--------------------------------------------------------------------------
-      SUBROUTINE setfgett(lcolumn,lcolumng,lobsSpaceData)
-      IMPLICIT NONE
-      type(struct_columnData) :: lcolumn,lcolumng
-      type(struct_obs) :: lobsSpaceData
+  subroutine setfgett(lcolumn,lcolumng,lobsSpaceData)
+    !
+    !:Purpose: To interpolate vertically the contents of "column" to the
+    !          pressure levels of the observations. Then to compute THE FIRST
+    !          GUESS ERROR VARIANCES. A linear interpolation in ln(p) is
+    !          performed.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData) :: lcolumn
+    type(struct_columnData) :: lcolumng
+    type(struct_obs) :: lobsSpaceData
+
+    ! Locals:
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
       INTEGER J,INDEX_BODY
@@ -1077,24 +1058,23 @@ end subroutine hbht_compute_ensemble
       END DO BODY
 
       RETURN
-      END SUBROUTINE setfgett
+  end subroutine setfgett
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Interpolate vertically the contents of "column" to
-!!            the pressure levels of the observations.
-!!            A linear interpolation in ln(p) is performed.
-!!
-!! @author P. Koclas *CMC/AES  September 2000
-!!
-!--------------------------------------------------------------------------
-  subroutine setfgeSurf( lcolumn, lcolumng, lobsSpaceData )
-  
-  implicit none
-  ! arguments
-  type(struct_columnData) :: lcolumn, lcolumng
-  type(struct_obs)        :: lobsSpaceData
-  ! locals
+  subroutine setfgeSurf(lcolumn, lcolumng, lobsSpaceData)
+    !
+    !:Purpose: To interpolate vertically the contents of "column" to the
+    !          pressure levels of the observations. A linear interpolation in
+    !          ln(p) is performed.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData) :: lcolumn
+    type(struct_columnData) :: lcolumng
+    type(struct_obs)        :: lobsSpaceData
+
+    ! Locals
   integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp
   real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh
   character(len=2) :: cfam, varLevel
@@ -1194,23 +1174,20 @@ end subroutine hbht_compute_ensemble
   end subroutine setfgeSurf
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Construct the FIRST GUESS ERROR VARIANCES from the
-!!            diff-calculated dependencies and the primary errors.
-!!
-!! @author J.M. Aparicio *MSC/ARMA Nov 2004
-!!
-!!          Adapted Nov 2012 for both refractivity and bending angle data
-!!
-!--------------------------------------------------------------------------
-      SUBROUTINE setfgedif(CDFAM,lcolumng,lobsSpaceData)
-      IMPLICIT NONE
-!C
-      type(struct_columnData) :: lcolumng
-      type(struct_obs)        :: lobsSpaceData
-!C
+  subroutine setfgedif(cdfam,lcolumng,lobsSpaceData)
+    !
+    !:Purpose: To construct the FIRST GUESS ERROR VARIANCES from the
+    !          diff-calculated dependencies and the primary errors.
+    !
+    implicit none
+
+    ! Arguments:
+    character*2 cdfam
+    type(struct_columnData) :: lcolumng
+    type(struct_obs)        :: lobsSpaceData
+
+    ! Locals:
       INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
-      CHARACTER*2 CDFAM
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
       REAL*8 zAzm !, Azm
@@ -1456,51 +1433,38 @@ end subroutine hbht_compute_ensemble
 
       WRITE(*,*)'EXIT SETFGEDIFF'
       RETURN
-      END SUBROUTINE setfgedif
+  end subroutine setfgedif
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Set FGE for all GPS ZTD observations using
-!!            Jacobians from ZTD observation operator
-!!
-!! OPTION: Test ZTD operators (compares H(x+dx)-H(x) with (dH/dx)*dx
-!!         when LTESTOP = .true.)
-!!
-!! @author S. Macpherson *ARMA/MSC  December 2004
-!!
-!! Revisions:
-!!
-!!        -S. Macpherson *ARMA/MSC  18 March 2010
-!!           - add optional NL, TL and AD operator tests
-!!        -S. Macpherson *ARMA/MSC   August 2010
-!!           - use new GPS ZTD observation operator (from GPS-RO modules)
-!!        -S. Macpherson *ARMA/MSC   December 2012
-!!           - update from Rev189 to Rev213
-!!           - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
-!!           - LTESTOP option now set in 3dvar namelist
-!!           - if numGPSZTD=0, does nothing and returns
-!!        -S. Macpherson *ARMA/MSC   November 2014
-!!           - add surface pressure (P0) argument to call gps_structztd()
-!!        -M. Bani Shahabadi Dec 2018
-!!           - use the calculated height in tt2phi in the gps_structztd_v2()
-!!
-!!v     *********************************************************************
-!!v     ****                   9 October 2015                            ****
-!!v     ****                                                             ****
-!!v     **** NOTE: Effective Rev644M, this routine is no longer used!    ****
-!!v     ****       FGE for ZTD is no longer needed for background check. ****
-!!v     ****       Routine is only called when LTESTOP=.true., in which  ****
-!!v     ****       case the operator test only is done.                  ****
-!!v     ****                                                             ****
-!!v     *********************************************************************
-!!
-!--------------------------------------------------------------------------
-      SUBROUTINE setfgegps(lcolumn,lcolumng,lobsSpaceData)
-      IMPLICIT NONE
+  subroutine setfgegps(lcolumn,lcolumng,lobsSpaceData)
+    !
+    !:Purpose: To set FGE for all GPS ZTD observations using Jacobians from ZTD
+    !          observation operator
+    !
+    !:Option: Test ZTD operators (compares H(x+dx)-H(x) with (dH/dx)*dx
+    !         when LTESTOP = .true.)
+    !
+    !:Note:
+    !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    !                             9 October 2015                               
+    !                                                                          
+    !          :NOTE: Effective Rev644M, this routine is no longer used!       
+    !                 FGE for ZTD is no longer needed for background check.    
+    !                 Routine is called only when LTESTOP=.true., in which     
+    !                 case the operator test only is done.                     
+    !                                                                          
+    !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData) :: lcolumn
+    type(struct_columnData) :: lcolumng
+    type(struct_obs) :: lobsSpaceData
+
+    ! Locals:
 !   lcolumn  contains background errors for control variables on model levels
 !   lcolumng contains lo-res first guess profiles at obs locations
-      type(struct_columnData) :: lcolumn, lcolumng
-      type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -1847,6 +1811,6 @@ end subroutine hbht_compute_ensemble
       deallocate(ZQQ)
 
       RETURN
-      END SUBROUTINE setfgegps
+  end subroutine setfgegps
 
 end module computeHBHT_mod

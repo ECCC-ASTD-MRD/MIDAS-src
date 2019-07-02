@@ -15,11 +15,9 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module ramDisk_mod
-  !
   ! MODULE ramDisk_mod (prefix='ram' category='7. Low-level data objects and utilities')
   !
-  ! **Purpose**: Control the file manipulations/enquiries on the RAM disk
-  !
+  ! :Purpose: To control the file manipulations/enquiries on the RAM disk
   !
   use utilities_mod
   use clib_interfaces_mod
@@ -71,11 +69,14 @@ contains
   end subroutine ram_setup
 
   !--------------------------------------------------------------------------
-  ! ram_fullWorkingPath - given a filename, return the full path by either
-  !                       adding the current working directory or the ram disk
-  !                       directory
+  ! ram_fullWorkingPath
   !--------------------------------------------------------------------------
   function ram_fullWorkingPath(fileName, noAbort_opt, copyToRamDisk_opt) result(fullWorkingPath)
+    !
+    !:Purpose: Given a filename, return the full path by either adding the 
+    !          current working directory or the ram disk directory. By default,
+    !          will copy the file to the ram disk directory, if it exists.
+    !
     implicit none
     character(len=512) :: fullWorkingPath
     logical, optional  :: noAbort_opt
@@ -178,10 +179,13 @@ contains
   end function ram_fullWorkingPath
 
   !--------------------------------------------------------------------------
-  ! ram_remove - given the full path+filename, remove the file only if 
-  !                     it is located on the ram disk (to free up memory)
+  ! ram_remove
   !--------------------------------------------------------------------------
   function ram_remove(fullWorkingPath) result(returnCode)
+    !
+    !:Purpose:  Given the full path+filename, remove the file only if 
+    !           it is located on the ram disk (to free up memory)
+    !
     implicit none
     character(len=*) :: fullWorkingPath
     integer          :: returnCode
@@ -215,11 +219,14 @@ contains
   end function ram_remove
 
   !--------------------------------------------------------------------------
-  ! copyFile - copy the specified file to the new location and/or name
-  !            This function is very general, but was initially written to
-  !            copy files from the disk to the ram disk
+  ! copyFile
   !--------------------------------------------------------------------------
   function copyFile(filein, fileout) result(status)
+    !
+    !:Purpose: Copy the specified file to the new location and/or name
+    !          This function is very general, but was initially written to
+    !          copy files from the disk to the ram disk
+    !
     implicit none
     character(len=*) :: filein
     character(len=*) :: fileout

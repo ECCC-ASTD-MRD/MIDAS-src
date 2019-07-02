@@ -1,3 +1,20 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
 
 ! NOTE:  Throughout this file:
@@ -9,76 +26,72 @@
 !             HeaderIndex,etc.-necessarily a row index
 
 module IndexListDepot_mod
-   !!
-   !! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects
-   !!                            and utilities')
-   !!
-   !! PURPOSE:
-   !!    The raison d'etre of this module is to support ObsSpaceData_mod in
-   !!    facilitating the traversal of a selection of the rows in its table.  The
-   !!    selection of rows could be from either the header table or the body
-   !!    table. ObsSpaceData_mod currently populates the list with one of:
-   !!                 all header members of a given family
-   !!                 all   body members of a given family
-   !!                 all   body members of a given header row index
-   !!
-   !! USAGE:
-   !!    An ObsSpaceData_mod client must first call either
-   !!    obs_set_current_body_list or obs_set_current_header_list, specifying
-   !!    either the family of interest or the header row index of interest. 
-   !!    This does not return the list directly to the caller, but rather writes
-   !!    the list, as a struct_index_list, to the private contents of the obs
-   !!    oject that is returned to the caller but which cannot be examined by the
-   !!    caller.  Two lists can be active simultaneously:  one header list and
-   !!    one body list.
-   !!
-   !!    In order to access the indices that are in the list, the
-   !!    ObsSpaceData_mod client must call either obs_getHeaderIndex or
-   !!    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
-   !!    On each call, one index is returned.  On calls after the last index in
-   !!    the list, a value of -1 is returned.
-   !!
-   !!    This is not a fully fledged module.  It is better described as a
-   !!    structure definition with a couple of helpful methods.  It is intended
-   !!    that the client, ObsSpaceData_mod, read/write directly from/to instances
-   !!    of these structures.
-   !!
-   !! STRUCT_INDEX_LIST:
-   !!    A struct_index_list contains the identity of the family or header that
-   !!    was used to create the list, the actual list of indices, and the number
-   !!    of the list element that was last returned to the user.
-   !!
-   !! STRUCT_INDEX_LIST_DEPOT:
-   !!    Because it is typical for a client to traverse a small group of lists
-   !!    several times each, performance is improved by retaining recent lists,
-   !!    thus avoiding having to regenerate them on each request.  Recent lists
-   !!    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
-   !!    struct_index_list_depot for header lists and another for body lists.
-   !!    The struct_index_list_depot structure contains current_list, a pointer
-   !!    to the list in the depot that was last requested by the ObsSpaceData_mod
-   !!    client.
-   !!
-   !! OMP:
-   !!    ObsSpaceData_mod has been designed so that it may be called from within
-   !!    an OMP section of code.  If there are n OMP threads, it is possible that
-   !!    there be as many as n lists in use simultaneously.  The parameter, 
-   !!    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
-   !!    this case, because the current_list of the depot is not OMP-private, it
-   !!    cannot be asked to remember the current list for each of the OMP
-   !!    threads.  Therefore, obs_set_current_header/body_list returns to the
-   !!    client an additional pointer to the list itself.  This pointer must then
-   !!    be passed as an optional parameter to obs_getHeader/BodyIndex.  When a
-   !!    new list is requested by an OMP thread, the same physical memory is
-   !!    re-used for the new list.
-   !!
-   !!    In order to ensure that the same physical memory is not initially
-   !!    distributed to more than one OMP thread, the two small sections of
-   !!    IndexListDepot_mod that accomplish this are marked omp-critical.
-   !!
-   !! author  : J.W. Blezius - 2012
-   !!
-   !! Revisions:
-   !!
+  ! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: The raison d'etre of this module is to support ObsSpaceData_mod in
+  !           facilitating the traversal of a selection of the rows in its table.
+  !           The selection of rows could be from either the header table or the
+  !           body table. ObsSpaceData_mod currently populates the list with one
+  !           of:
+  !                 all header members of a given family
+  !                 all   body members of a given family
+  !                 all   body members of a given header row index
+  !
+  ! :Usage:
+  !    An ObsSpaceData_mod client must first call either
+  !    obs_set_current_body_list or obs_set_current_header_list, specifying
+  !    either the family of interest or the header row index of interest. 
+  !    This does not return the list directly to the caller, but rather writes
+  !    the list, as a struct_index_list, to the private contents of the obs
+  !    oject that is returned to the caller but which cannot be examined by the
+  !    caller.  Two lists can be active simultaneously:  one header list and
+  !    one body list.
+  !
+  !    In order to access the indices that are in the list, the
+  !    ObsSpaceData_mod client must call either obs_getHeaderIndex or
+  !    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
+  !    On each call, one index is returned.  On calls after the last index in
+  !    the list, a value of -1 is returned.
+  !
+  !    This is not a fully fledged module.  It is better described as a
+  !    structure definition with a couple of helpful methods.  It is intended
+  !    that the client, ObsSpaceData_mod, read/write directly from/to instances
+  !    of these structures.
+
+
+
+  ! STRUCT_INDEX_LIST:
+  !    A struct_index_list contains the identity of the family or header that
+  !    was used to create the list, the actual list of indices, and the number
+  !    of the list element that was last returned to the user.
+  !
+  ! STRUCT_INDEX_LIST_DEPOT:
+  !    Because it is typical for a client to traverse a small group of lists
+  !    several times each, performance is improved by retaining recent lists,
+  !    thus avoiding having to regenerate them on each request.  Recent lists
+  !    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
+  !    struct_index_list_depot for header lists and another for body lists.
+  !    The struct_index_list_depot structure contains current_list, a pointer
+  !    to the list in the depot that was last requested by the ObsSpaceData_mod
+  !    client.
+  !
+  ! OMP:
+  !    ObsSpaceData_mod has been designed so that it may be called from within
+  !    an OMP section of code.  If there are n OMP threads, it is possible that
+  !    there be as many as n lists in use simultaneously.  The parameter, 
+  !    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
+  !    this case, because the current_list of the depot is not OMP-private, it
+  !    cannot be asked to remember the current list for each of the OMP
+  !    threads.  Therefore, obs_set_current_header/body_list returns to the
+  !    client an additional pointer to the list itself.  This pointer must then
+  !    be passed as an optional parameter to obs_getHeader/BodyIndex.  When a
+  !    new list is requested by an OMP thread, the same physical memory is
+  !    re-used for the new list.
+  !
+  !    In order to ensure that the same physical memory is not initially
+  !    distributed to more than one OMP thread, the two small sections of
+  !    IndexListDepot_mod that accomplish this are marked omp-critical.
+  !
 
    implicit none
    save
@@ -128,16 +141,14 @@ module IndexListDepot_mod
 
 
 contains
-   subroutine ild_finalize(depot)
+
+   subroutine ild_finalize( depot )
       !
-      ! PURPOSE:
-      !      Finalize the indicated list depot
-      !
-      ! author  : J.W. Blezius - 2012
+      ! :Purpose: Finalize the indicated list depot
       !
       implicit none
-                                        ! the depot to be finalized
-      type(struct_index_list_depot), intent(inout) :: depot
+
+      type(struct_index_list_depot), intent(inout) :: depot ! the depot to be finalized
 
       integer :: list                   ! an index
 
@@ -152,29 +163,23 @@ contains
    end subroutine ild_finalize
 
 
-   function ild_get_empty_index_list(depot, private_list) &
+   function ild_get_empty_index_list( depot, private_list ) &
                                                          result(empty_index_list)
       !
-      ! PURPOSE:
-      !      From the given depot, return an index-list structure that contains
-      !      no data, as a pointer.
+      ! :Purpose: From the given depot, return an index-list structure that contains
+      !           no data, as a pointer.
+      !           In other words, clear data from the (cyclicly) next (i.e. oldest)
+      !           list and return a pointer to it.
       !
-      !      In other words, clear data from the (cyclicly) next (i.e. oldest)
-      !      list and return a pointer to it.
-      !
-      !      If the list is being used within an OMP block, the ObsSpaceData
-      !      client is responsible for holding a pointer to its own list.  This
-      !      is supplied as the parameter, private_list.
-      !
-      ! author  : J.W. Blezius - 2012
+      !           If the list is being used within an OMP block, the ObsSpaceData
+      !           client is responsible for holding a pointer to its own list.  This
+      !           is supplied as the parameter, private_list.
       !
       implicit none
-                                        ! the returned list
-      type(struct_index_list), pointer :: empty_index_list
-                                        ! the depot containing the list
-      type(struct_index_list_depot), intent(inout), target :: depot
-                                        ! used instead of depot (for OMP blocks)
-      type(struct_index_list), pointer, intent(inout), optional :: private_list
+
+      type(struct_index_list), pointer                     :: empty_index_list  ! the returned list
+      type(struct_index_list_depot), intent(inout), target :: depot             ! the depot containing the list
+      type(struct_index_list), pointer, intent(inout), optional :: private_list ! used instead of depot (for OMP blocks)
 
       nullify(empty_index_list)
 
@@ -210,24 +215,17 @@ contains
 
    function ild_get_next_index_depot(depot, no_advance) result(next_index)
       !
-      ! PURPOSE:
-      !      From the given depot, increment the index to the current element,
-      !      and return the element itself, the new current element.
-      !
-      ! author  : J.W. Blezius - 2012
+      ! :Purpose: From the given depot, increment the index to the current element,
+      !           and return the element itself, the new current element.
       !
       implicit none
-      integer :: next_index             ! the returned index
 
-                                        ! the depot containing the list
-      type(struct_index_list_depot), intent(inout), target :: depot
-                                        ! if present, do not increment
-                                        ! current_element, just return next one
-      logical, intent(in), optional :: no_advance
-
-                                        ! current list of the depot
-      type(struct_index_list), pointer :: current_list
-      integer :: next_element           ! next element of the current list
+      integer :: next_index                                                ! the returned index
+      type(struct_index_list_depot), intent(inout), target :: depot        ! the depot containing the list
+                                                                           ! if present, do not increment
+      logical, intent(in), optional                        :: no_advance   ! current_element, just return next one
+      type(struct_index_list), pointer                     :: current_list ! current list of the depot
+      integer                                              :: next_element ! next element of the current list
 
       current_list => depot%current_list
 !$omp critical
@@ -245,22 +243,15 @@ contains
    function ild_get_next_index_private(private_list, no_advance) &
                                                                result(next_index)
       !
-      ! PURPOSE:
-      !      From the given list, increment the index to the current element, and
-      !      return the element itself, the new current element.
-      !
-      ! author  : J.W. Blezius - 2012
+      ! :Purpose:  From the given list, increment the index to the current element, and
+      !            return the element itself, the new current element.
       !
       implicit none
-      integer :: next_index             ! the returned index
-
-                                        ! the list of interest
-      type(struct_index_list), pointer, intent(inout) :: private_list
-                                        ! if present, do not increment
-                                        ! current_element, just return next one
-      logical, intent(in), optional :: no_advance
-
-      integer :: next_element           ! next element of the list
+      integer :: next_index                                           ! the returned index
+      type(struct_index_list), pointer, intent(inout) :: private_list ! the list of interest
+                                                                      ! if present, do not increment
+      logical, intent(in), optional                   :: no_advance   ! current_element, just return next one
+      integer                                         :: next_element ! next element of the list
 
                                         ! Obtain the next element from the list
       next_element = private_list%current_element + 1
@@ -274,22 +265,19 @@ contains
 
 
    subroutine ild_initialize(depot, numHeaderBody_max)
-      !!
-      !! PURPOSE:
-      !!      Initialize the indicated list depot
-      !!      NOTE:  indices is allocated with 2 extra elements to make room for
-      !!             the end-of-list flag that is set in
-      !!             obs_set_current_header/body_list
-      !!
-      !! author  : J.W. Blezius - 2012
-      !!
+      !
+      ! :Purpose: Initialize the indicated list depot
+      !   
+      ! :Note: indices is allocated with 2 extra elements to make room for
+      !        the end-of-list flag that is set in
+      !        obs_set_current_header/body_list
+      !
       implicit none
-                                        ! the depot to be initialized
-      type(struct_index_list_depot), intent(inout) :: depot
-                                        ! max size of header or body of
-                                        ! struct_obs & hence of depot
-      integer, intent(in) :: numHeaderBody_max
 
+      type(struct_index_list_depot), intent(inout) :: depot ! the depot to be initialized
+                                                            ! max size of header or body of
+                                                            ! struct_obs & hence of depot
+      integer, intent(in) :: numHeaderBody_max
       integer :: list                   ! an index
 
       ! Allocate each list
@@ -309,24 +297,19 @@ end module IndexListDepot_mod
 
 
 module ObsColumnNames_mod
-   !!
-   !! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects
-   !!                            and utilities')
-   !!
-   !! NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
-   !!        In fact, if fortran allowed it, ObsColumnNames_mod would be
-   !!        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
-   !!        more importantly because these parameters constitute a part of the
-   !!        visible (from outside ObsSpaceData_mod) interface to
-   !!        ObsSpaceData_mod, the parameters defined in this module carry the
-   !!        prefix, OBS, and not CN.
-   !!
-   !! Revisions:
-   !!           Y.J. Rochon (ARQI), Dec 2014
-   !!           -- Addition of OBS_CHM integer header element
-   !!              for identifying the constituent type according
-   !!              to BUFR code table 08046 (plus local additions).
-   !!
+  ! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: This module simply groups together many fortran paramters that
+  !           serve as column names for ObsSpaceData_mod.
+  !
+  ! :NOTE: This module is logistically a part of the ObsSpaceData_mod module.
+  !        In fact, if fortran allowed it, ObsColumnNames_mod would be
+  !        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
+  !        more importantly because these parameters constitute a part of the
+  !        visible (from outside ObsSpaceData_mod) interface to
+  !        ObsSpaceData_mod, the parameters defined in this module carry the
+  !        prefix, OBS, and not CN.
+  !
 
    public
 
@@ -615,17 +598,16 @@ end module ObsColumnNames_mod
 
 
 module ObsDataColumn_mod
-   !
-   ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
-   !
-   ! This module is used exclusively by the obsSpaceData module which follows
-   ! in this file. The derived type is used to represent a "column" of
-   ! observation data in an instance of the struct_obs defined in obsSpaceData.
-   ! It contains a pointer for each possible type of data stored in a column,
-   ! but only one should be allocated at any time.
-   !
-   ! author  : Mark Buehner - 2012
-   !
+  !
+  ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose:
+  !    This module is used exclusively by the obsSpaceData module which follows
+  !    in this file. The derived type is used to represent a "column" of
+  !    observation data in an instance of the struct_obs defined in obsSpaceData.
+  !    It contains a pointer for each possible type of data stored in a column,
+  !    but only one should be allocated at any time.
+  !
    use codePrecision_mod
    use ObsColumnNames_mod
    implicit none
@@ -721,16 +703,14 @@ module ObsDataColumn_mod
 contains
 
    subroutine odc_abort(cdmessage)
-      ! s/r ODC_ABORT  - Abort a job on error (same as OBS_ABORT)
-      !
-      !
-      !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !
-      !Arguments
-      !     i     CDMESSAGE: message to be printed
-      !
-      !NOTE:  For debugging (i.e. UNIT_TESTING is defined), obs_abort should
-      !       generally be followed by a 'return' in the calling routine.
+     !
+     ! :Purpose: Abort a job on error (same as OBS_ABORT)
+     !
+     ! :Arguments:
+     !           :cdmessage: message to be printed
+     !
+     ! :Note: For debugging (i.e. UNIT_TESTING is defined), obs_abort should
+     !        generally be followed by a 'return' in the calling routine.
 
 !#if defined(UNIT_TESTING)
 !      use pFUnit
@@ -753,12 +733,9 @@ contains
    function odc_activeIndexFromColumnIndex(odc_flavour,column_index_in, &
                                            recompute) result(active_index_out)
       !
-      ! PURPOSE:
-      !      The list of active columns is only a subset of all possible
-      !      columns.  Return the index into the list of active columns, given
-      !      the index into the list of all columns.
-      !
-      ! author  : Mark Buehner - 2012
+      ! :Purpose: The list of active columns is only a subset of all possible
+      !           columns.  Return the index into the list of active columns, given
+      !           the index into the list of all columns.
       !
       implicit none
       type(struct_odc_flavour), intent(inout) :: odc_flavour
@@ -798,19 +775,19 @@ contains
    end function odc_activeIndexFromColumnIndex
 
 
-   subroutine odc_allocate(odc,numRows,name,dataType,scratchReal,scratchInt)
-      ! s/r ODC_ALLOCATE  - Allocate a single column of obs data according to 
-      !                     specifications in input arguments
-      !
-      !Arguments
-      !     i/o     ODC: instance of the obsDataColumn type
-      !     i       numRows: number of column rows to allocate
-      !     i       name: character string name of column
-      !     i       dataType: character string type of column data: REAL or INT
-      !     i       headOrBody: character string indicating HEAD or BODY
-      !
-      ! author : M. Buehner September 27, 2012
-      !
+   subroutine odc_allocate( odc, numRows, name, dataType, scratchReal, scratchInt )
+     !
+     ! :Purpose: Allocate a single column of obs data according to 
+     !           specifications in input arguments
+     !
+     ! :Arguments:
+     !           :odc:        instance of the obsDataColumn type
+     !           :numRows:    number of column rows to allocate
+     !           :name:       character string name of column
+     !           :dataType:   character string type of column data: REAL or INT
+     !           :headOrBody: character string indicating HEAD or BODY
+     !
+     !
       implicit none
       type(struct_obsDataColumn), intent(inout) :: odc
       integer, intent(in) :: numRows
@@ -847,11 +824,8 @@ contains
 
    subroutine odc_activateColumn(odc_flavour, column_index)
       !
-      ! PURPOSE:
-      !      Set the 'active' flag for the indicated column.  This enables memory
-      !      allocation for this column without actually allocating the memory.
-      !
-      ! author  : Mark Buehner - 2012
+      ! :Purpose: Set the 'active' flag for the indicated column.  This enables memory
+      !           allocation for this column without actually allocating the memory.
       !
       implicit none
       type(struct_odc_flavour), intent(inout)  :: odc_flavour
@@ -874,11 +848,9 @@ contains
 
    subroutine odc_initColumnFlavour(odc_flavour, dataType_in, headOrBody_in)
       !
-      ! PURPOSE:  Set pointers according to the four column flavours (header /
+      ! :Purpose: Set pointers according to the four column flavours (header /
       !           body, integer / real).
       !      
-      ! author  : J.W. Blezius - 2013
-      !
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       character(len=*)        , intent(in)    :: dataType_in    ! REAL or INT
       character(len=*)        , intent(in)    :: headOrBody_in  ! HEAD or BODY
@@ -936,13 +908,8 @@ contains
 
 
    subroutine odc_class_initialize(obsColumnMode, myip)
-      !s/r odc_class_initialize - Set observation-data-column class variables.
       !
-      ! PURPOSE:
-      !      Set variables that use the same values for all instances of the
-      !      class.
-      !
-      ! author  : J.W. Blezius - 2013 - extracted from obs_class_initialize
+      ! :Purpose: Set variables that use the same values for all instances of the class.
       !
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
@@ -1095,25 +1062,22 @@ contains
 
 
    subroutine odc_columnElem(odc_array, column_index, row_index, value_i,value_r)
-      !
-      ! PURPOSE:
-      !      Returns the value of the row_index'th element in the column array
-      !      with the indicated column_index.
-      !
-      !      The column array can be of any one of the four possible column-array
-      !      flavours.  The flavour is selected by one of four wrappers to this
-      !      method.
-      !
-      ! author  : J.W. Blezius - 2013 - extracted from M Buehner's obs_bodyElem_i
-      !
-      implicit none
-      type(struct_obsDataColumn_Array), intent(in)  :: odc_array
-      integer                         , intent(in)  :: column_index
-      integer                         , intent(in)  :: row_index
-      integer                         , intent(out) :: value_i
-      real(OBS_REAL)                  , intent(out) :: value_r
+     !
+     ! :Purpose: Returns the value of the row_index'th element in the column array
+     !           with the indicated column_index.
+     !
+     !           The column array can be of any one of the four possible column-array
+     !           flavours.  The flavour is selected by one of four wrappers to this
+     !           method.
+     !
+     implicit none
+     type(struct_obsDataColumn_Array), intent(in)  :: odc_array
+     integer                         , intent(in)  :: column_index
+     integer                         , intent(in)  :: row_index
+     integer                         , intent(out) :: value_i
+     real(OBS_REAL)                  , intent(out) :: value_r
 
-      character(len=100) :: message
+     character(len=100) :: message
       
       if(      column_index >= odc_array%odc_flavour%ncol_beg &
          .and. column_index <= odc_array%odc_flavour%ncol_end) then
@@ -1142,14 +1106,10 @@ contains
    function odc_columnIndexFromActiveIndex(odc_flavour,active_index_in, &
                                            recompute) result(column_index_out)
       !
-      ! PURPOSE:
-      !      The list of active columns is only a subset of all possible
-      !      columns.  Return the index into the list of all columns, given
-      !      the index into the list of active columns, and given the column
-      !      flavour.
-      !
-      ! author  : J.W. Blezius - 2013 - generalized from
-      !                                 obs_columnIndexFromActiveIndex_*
+      ! :Purpose: The list of active columns is only a subset of all possible
+      !           columns.  Return the index into the list of all columns, given
+      !           the index into the list of active columns, and given the column
+      !           flavour.
       !
       implicit none
       type(struct_odc_flavour), intent(inout) :: odc_flavour
@@ -1183,15 +1143,12 @@ contains
    subroutine odc_columnSet(odc_array, column_index, row_index, &
                             value_i, value_r, numElements, numElements_max)
       !
-      ! PURPOSE:
-      !      Sets the value of the row_index'th element in the column array with
-      !      the indicated column_index.
+      ! :Purpose: Sets the value of the row_index'th element in the column array with
+      !           the indicated column_index.
       !
-      !      The column array can be of any one of the four possible column-array
-      !      flavours.  The flavour is selected by one of four wrappers to this
-      !      method.
-      !
-      ! author  : J.W. Blezius - 2013 - extracted from obs_bodySet_i
+      !           The column array can be of any one of the four possible column-array
+      !           flavours.  The flavour is selected by one of four wrappers to this
+      !           method.
       !
       implicit none
       type(struct_obsDataColumn_Array), intent(inout) :: odc_array
@@ -1254,12 +1211,11 @@ contains
 
 
    subroutine odc_deallocate(odc)
-      ! s/r ODC_DEALLOCATE  - Deallocate a single column of obs data
       !
-      !Arguments
-      !     i/o     ODC: instance of the obsDataColumn type
+      ! :Purpose: Deallocate a single column of obs data
       !
-      ! author  : M. Buehner September 27, 2012
+      ! :Arguments:
+      !           :odc: instance of the obsDataColumn type
       !
       implicit none
       type(struct_obsDataColumn), intent(inout) :: odc
@@ -1286,15 +1242,11 @@ contains
 
    function odc_numActiveColumn(odc_array) result(numActiveColumn)
       !
-      ! PURPOSE:
-      !      Return the number of active columns that are contained in the given
-      !      column array.
+      ! :Purpose: Return the number of active columns that are contained in the given
+      !           column array.
       !
-      !      The column array can be of any one of the four possible column-array
-      !      flavours.
-      !
-      ! author  : J.W. Blezius - 2013 - generalized from M Buehner's
-      !                                 obs_numActiveColumn_IB
+      !           The column array can be of any one of the four possible column-array
+      !           flavours.
       !
       implicit none
       type(struct_obsDataColumn_Array), intent(in) :: odc_array
@@ -1314,9 +1266,14 @@ end module ObsDataColumn_mod
 
 
 module ObsSpaceData_mod
-   !
-   ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
-   !
+  ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
+  !
+  ! :Purpose: This module contains a structure definition, struct_obs, and
+  !           methods for accessing its data.  An instance of struct_obs contains
+  !           all information pertaining to a set of observation-space data.
+  !           (This had evolved from the CMA structure, originated in work by
+  !           D. Vasiljevic at ECMWF.)
+  !
    use codePrecision_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod
@@ -1325,13 +1282,6 @@ module ObsSpaceData_mod
    save
    private
 
-   ! This module deals with operations involving the data structure that
-   ! stores observational information.
-   !   (this had evolved from the CMA structure, originated in work by
-   !    D. Vasiljevic at ECMWF)
-   !
-   ! First creation of the module: February 2011 by Peter Houtekamer
-   !
 
 
    ! CLASS-CONSTANT:
@@ -1550,27 +1500,12 @@ contains
 
 
    subroutine obs_abort(cdmessage)
-      !! s/r OBS_ABORT  - Abort a job on error
-      !!
-      !!
-      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !!Revision:
-      !!     . P. Gauthier *ARMA/AES  January 29, 1996 
-      !!     . P. Koclas   CMC/CMSV   January  1997 
-      !!         -add call to abort
-      !!     . S. Pellerin ARMA/SMC   October 2000
-      !!         - replace call to abort for call to exit(1)
-      !!     . C. Charette ARMA/SMC   October 2001
-      !!         - replace SUTERM by SUTERMF to only close files
-      !!     . J. Blezius  ARMA/SMC   2012
-      !!         - import utl_abort into obsspacedata_mod as OBS_ABORT
-      !!         - delete call to SUTERMF
-      !!
-      !! Purpose:
-      !!      To stop a job when an error occurred
-      !!
-      !!Arguments
-      !!     i     CDMESSAGE: message to be printed
+      !
+      ! :Purpose: To stop a job when an error occurred
+      !
+      ! :Arguments:
+      !           :cdmessage: message to be printed
+      !
 
 !#if defined(UNIT_TESTING)
 !      use pFUnit
@@ -1592,18 +1527,15 @@ contains
 
 
    subroutine obs_allocate(obsdat, numHeader_max, numBody_max, silent)
-      !s/r obs_allocate - Allocate the object's arrays.
       !
-      ! PURPOSE:
-      !      Allocate arrays according to the parameters, numHeader_max and
-      !      numBody_max.  This is a private method.
-      !
-      ! author  : J.W. Blezius - 2012
+      ! :Purpose: Allocate arrays according to the parameters, numHeader_max and
+      !           numBody_max.  This is a private method.
       !
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer,          intent(in)    :: numHeader_max,numBody_max
+      integer,          intent(in)    :: numHeader_max
+      integer,          intent(in)    :: numBody_max
       logical, optional,intent(in)    :: silent
 
       logical :: silent_
@@ -1703,16 +1635,13 @@ contains
    end subroutine obs_allocate
 
 
-   subroutine obs_append(obsdat,hx,obs_out,hx_out)
+   subroutine obs_append( obsdat, hx, obs_out, hx_out )
       !
-      ! PURPOSE:
-      !      with a call of type obs_append(obs_1,obs_2) append obs_1 to obs_2
+      ! :Purpose: with a call of type obs_append(obs_1,obs_2) append obs_1 to obs_2
       !
-      ! author  : Peter Houtekamer: May 2011
 
       type (struct_obs), intent(in)    :: obsdat
       type (struct_obs), intent(inout) :: obs_out
-
       real(8),           intent(in)    :: hx(:,:)
       real(8),           intent(inout) :: hx_out(:,:)
 
@@ -1810,100 +1739,65 @@ contains
                       n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
                       KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
                       vconv,nonelev)
+      !
+      ! :Purpose: TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
+      !           THE IN-CORE FORMAT (OBSDAT) OF THE 3-D VARIATIONAL ANALYSIS
+      !
+      ! :Arguments:
+      !           :PVALUES: DATA BLOCK
+      !           :KLIST:   LIST OF BUFR ELEMENTS
+      !           :KFLAGS:  QUALITY CONTROL FLAGS
+      !           :LDFLAG:  
+      !
+      !                     - .true. --> INSERT FLAGS IN OBSDAT
+      !                     - .false. --> INSERT DUMMY VALUE(2**12)
+      !           :LERR:    .TRUE. --> INSERT OBS ERROR IN OBSDAT (HUMSAT DATA)
+      !           :LDSAT:   .TRUE. --> INSERT REF PRESSURE IN OBSDAT (SATEMS)
+      !           :LDGO:    .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (GOES RADIANCES)
+      !           :LDAIRS:  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
+      !           :LDIASI:  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (IASI RADIANCES)
+      !           :n_elements_in_block: NUMBER OF ELEMENTS IN DATA BLOCK
+      !           :n_levels_in_block: NUMBER OF LEVELS IN DATA BLOCK
+      !           :KNT:  THIRD DIMENSION OF DATA BLOCK
+      !           :KNDAT:  THIRD DIMENSION OF DATA BLOCK
+      !           :KVCORD:  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+      !           :PVCORD:  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+      !           :KINDEX:  THIRD DIMENSION INDEX OF DATA BLOCK
+      !           :PPMIS:  VALUE OF MISSING DATA
+      !           :VCONV:  CONVERSION FACTOR FOR PRESSURE CO-ORDINATE
+      !           :KNDAT: NUMBER OF DATA INSERTED IN OBSDAT FILE
+      !
+      !***********************************************************************
+
       use EarthConstants_mod
       use MathPhysConstants_mod
       IMPLICIT NONE
 
       type(struct_obs), intent(inout) :: obsdat
       INTEGER, intent(out) :: KNDAT
-      INTEGER, intent(in)  :: n_elements_in_block,n_levels_in_block,KNT
-      INTEGER, intent(in)  :: KVCORD,KINDEX,KIDTYP
+      INTEGER, intent(in)  :: n_elements_in_block
+      INTEGER, intent(in)  :: n_levels_in_block
+      INTEGER, intent(in)  :: KNT
+      INTEGER, intent(in)  :: KVCORD
+      INTEGER, intent(in)  :: KINDEX
+      INTEGER, intent(in)  :: KIDTYP
       INTEGER, intent(in)  :: KLIST(n_elements_in_block)
-      INTEGER, intent(in)  :: KFLAGS(n_elements_in_block,n_levels_in_block,KNT)
-      integer, intent(in)  :: nvcordtyp,nonelev
-
-      REAL(kind=8),intent(in)::PVALUES(n_elements_in_block,n_levels_in_block,KNT)
-      REAL(kind=8),intent(in)::PVCORD(n_levels_in_block)
-      REAL(kind=8),intent(in)::PROFIL(n_levels_in_block)
-      REAL(kind=8),intent(in)::PPMIS
-      real(kind=8),intent(in)::vconv
-                                        ! vertical coordinate parameters
-                                        ! for surface data
-      real(kind=8),intent(in)::vcordsf(:,:)
-
-      LOGICAL, intent(in) :: LDFLAG,LDERR,LDSAT,LDGO,LDAIRS,LDIASI,LDCRIS
-
-      !***********************************************************************
-      !
-      !***s/r OBS_BDY -FILL BODY OF OBSDAT REPORT
-      !
-      !Author    . P. KOCLAS(CMC TEL. 4665)
-      !
-      !Revision:
-      !          . P. Koclas *CMC/AES Sept  1994: Add call to cvt3d
-      !          .   before insertion of U and V for consistency
-      !          . P. Koclas *CMC/AES February  1995:
-      !          .  New call sequence neccessary to :
-      !          . -allow insertion of "grouped data" records in BURP files.
-      !          . -allow data observed in various vertical coordinates
-      !          . -observation errors no longer initialized
-      !
-      !          . P. Koclas *CMC/AES March     1995:
-      !            -Additions for humsat and satem data
-      !          .
-      !          . C. Charette *ARMA Jan        2001
-      !            -Max value for T-Td surface element(12203)
-      !
-      !           JM Belanger CMDA/SMC  Feb 2001
-      !                   . 32 bits conversion
-      !          . P. Koclas *CMC/CMDA Sept     2001:
-      !            -set first-guess and observation errors to missing values
-      !
-      !          .N Wagneur CMDA/SMC  Jine 2002
-      !                   . -Additions for goes data
-      !          . P. Koclas *CMC/CMDA Dec      2003:
-      !                -conversion for surface wind
-      !          . C. Charette *ARMA/SMC Apr      2005:
-      !                -Set flag bit #12(Element assimilated by analysis) to zero
-      !                 (see banco-burp documentation for more detail)
-      !          . A. Beaulne *CMDA/SMC  Aug 2006
-      !                     -Additions for AIRS data
-      !          . S. Heilliette
-      !                     -Additions for IASI data
-      !                     -Additions for CrIS data
-      !
-      !    PURPOSE : TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
-      !              THE IN-CORE FORMAT (OBSDAT) OF THE 3-D VARIATIONAL ANALYSIS
-      !
-      !    ARGUMENTS:
-      !     INPUT:
-      !
-      !           -PVALUES : DATA BLOCK
-      !           -KLIST   : LIST OF BUFR ELEMENTS
-      !           -KFLAGS  : QUALITY CONTROL FLAGS
-      !
-      !           -LDFLAG  :  .TRUE. --> INSERT FLAGS IN OBSDAT
-      !                      .FALSE. --> INSERT DUMMY VALUE(2**12)
-      !           -LERR    :  .TRUE. --> INSERT OBS ERROR IN OBSDAT (HUMSAT DATA)
-      !           -LDSAT   :  .TRUE. --> INSERT REF PRESSURE IN OBSDAT (SATEMS)
-      !           -LDGO    :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (GOES RADIANCES)
-      !           -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
-      !           -LDIASI  :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (IASI RADIANCES)
-      !
-      !           -n_elements_in_block  : NUMBER OF ELEMENTS IN DATA BLOCK
-      !           -n_levels_in_block    : NUMBER OF LEVELS IN DATA BLOCK
-      !           -KNT     :  THIRD DIMENSION OF DATA BLOCK
-      !           -KNDAT   :  THIRD DIMENSION OF DATA BLOCK
-      !           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
-      !           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
-      !           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
-      !           -PPMIS   :  VALUE OF MISSING DATA
-      !           -VCONV   :  CONVERSION FACTOR FOR PRESSURE CO-ORDINATE
-      !
-      !    OUTPUT:
-      !           -KNDAT   : NUMBER OF DATA INSERTED IN OBSDAT FILE
-      !
-      !***********************************************************************
+      INTEGER, intent(in)  :: KFLAGS( n_elements_in_block, n_levels_in_block, KNT)
+      integer, intent(in)  :: nvcordtyp
+      integer, intent(in)  :: nonelev
+      REAL(kind=8),intent(in):: PVALUES(n_elements_in_block,n_levels_in_block,KNT)
+      REAL(kind=8),intent(in):: PVCORD(n_levels_in_block)
+      REAL(kind=8),intent(in):: PROFIL(n_levels_in_block)
+      REAL(kind=8),intent(in):: PPMIS
+      real(kind=8),intent(in):: vconv 
+      real(kind=8),intent(in)::vcordsf(:,:) ! vertical coordinate parameters for surface data
+      LOGICAL, intent(in) :: LDFLAG
+      LOGICAL, intent(in) :: LDERR
+      LOGICAL, intent(in) :: LDSAT
+      LOGICAL, intent(in) :: LDGO
+      LOGICAL, intent(in) :: LDAIRS
+      LOGICAL, intent(in) :: LDIASI
+      LOGICAL, intent(in) :: LDCRIS
 
       INTEGER ILEM,IND,IIND,IP,IK
       INTEGER IBAD,IFLAG
@@ -2057,15 +1951,11 @@ contains
    END SUBROUTINE obs_bdy
 
 
-   function obs_bodyElem_i(obsdat,column_index,row_index) result(value_i)
-      !func obs_bodyElem_i - Get an integer-valued body observation-data element
+   function obs_bodyElem_i( obsdat, column_index, row_index) result(value_i)
       !
-      ! PURPOSE:
-      !      To control access to the observation object.  Returns the (integer)
-      !      value of the row_index'th ObsData element with the indicated column
-      !      index from the "body".
-      !
-      ! author  : M. Buehner - 2012
+      ! :Purpose: To control access to the observation object.  Returns the (integer)
+      !           value of the row_index'th ObsData element with the indicated column
+      !           index from the "body".
       !
       implicit none
       integer                       :: value_i
@@ -2081,14 +1971,11 @@ contains
 
 
    function obs_bodyElem_r(obsdat,column_index,row_index) result(value_r)
-      !func obs_bodyElem_r - Get a real-valued body observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Get a real-valued body observation-data element
       !      To control access to the observation object.  Returns the (real)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "body".
-      !
-      ! author  : M. Buehner - 2012
       !
       implicit none
       real(OBS_REAL)                :: value_r
@@ -2104,12 +1991,9 @@ contains
 
 
    function obs_bodyIndex_mpiglobal(obsdat,row_index) result(value)
-      !func obs_bodyIndex_mpiglobal - Get the mpiglobal body row_index
       !
-      ! PURPOSE:
+      ! :Purpose: Get the mpiglobal body row_index.
       !      To control access to the mpiglobal row_index into the "body".
-      !
-      ! author  : M. Buehner
       !
       implicit none
       integer value
@@ -2121,14 +2005,11 @@ contains
 
 
    subroutine obs_bodySet_i(obsdat, column_index, row_index, value_i)
-      !s/r obs_bodySet_i - set an integer-valued body observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Set an integer-valued body observation-data element.
       !      To control access to the observation object.  Sets the (integer)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "body".
-      !
-      ! author  : J.W. Blezius and M. Buehner - 2012
       !
       implicit none
       type(struct_obs), intent(inout)  :: obsdat
@@ -2143,14 +2024,11 @@ contains
 
 
    subroutine obs_bodySet_r(obsdat, column_index, row_index, value_r)
-      !s/r obs_bodySet_r - set a real-valued body observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Set a real-valued body observation-data element.
       !      To control access to the observation object.  Sets the (real)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "body".
-      !
-      ! author  : J.W. Blezius and M. Buehner - 2012
       !
       implicit none
       type(struct_obs), intent(inout)  :: obsdat
@@ -2165,13 +2043,10 @@ contains
 
 
    subroutine obs_class_initialize(obsColumnMode_in, myip)
-      !s/r obs_class_initialize - Set observation-data class variables.
       !
-      ! PURPOSE:
+      ! :Purpose: Set observation-data class variables.
       !      Set variables that take the same value for all instances of the
       !      class.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
@@ -2228,34 +2103,32 @@ contains
 
 
    subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar)
-      !!
-      !! object  - remove all observations from the obsdat  
-      !!         that will not be assimilated. 
-      !!
-      !!author  : Peter Houtekamer
-      !!     revision may 2005. Houtekamer and Mitchell. Addition of the
-      !!          hx and nens arguments
-      !!
-      !!arguments
-      !!     nobsout       : unit number for the ASCII output
-      !!     qcvar         : input logical indicating if the input obsdat 
-      !!                     data have benefited from a qc-var procedure
-      !!
-      !!the logic applied:
-      !!     A body (and its associated header)
-      !!     will be retained if these three conditions are all met:
-      !!        1) either of:
-      !!             1a) btest(obsdat%intBodies%columns(OBS_FLG,jdata),12)
-      !!             1b) .not. qcvar (the 5th parameter of obs_clean)
-      !!        2) obsdat% intBodies%columns(OBS_ASS,jdata) == 1
-      !!        3) obsdat%realBodies%columns(OBS_ZHA,jdata) >= 0.0
-      !!
+      !
+      ! :Purpose: remove all observations from the obsdat  
+      !           that will not be assimilated. 
+      !
+      ! :Arguments:
+      !           :nobsout: unit number for the ASCII output
+      !           :qcvar:   input logical indicating if the input obsdat 
+      !                     data have benefited from a qc-var procedure
+      ! :The logic applied:
+      !     A body (and its associated header)
+      !     will be retained if these three conditions are all met:
+      !
+      !         - 1) either of:
+      !
+      !             - 1a) btest(obsdat%intBodies%columns(OBS_FLG,jdata),12)
+      !             - 1b) .not. qcvar (the 5th parameter of obs_clean)
+      !         - 2) obsdat% intBodies%columns(OBS_ASS,jdata) == 1
+      !         - 3) obsdat%realBodies%columns(OBS_ZHA,jdata) >= 0.0
+      !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
 
       real(8), intent(inout) :: hx(:,:)
-      integer, intent(in)    :: nens, nobsout
+      integer, intent(in)    :: nens
+      integer, intent(in)    :: nobsout
       logical, intent(in)    :: qcvar
 
       integer :: iaccept,idata,ipnt,iwrite
@@ -2350,10 +2223,9 @@ contains
 
    subroutine obs_clean2(obsdat)
      !
-     ! object  - remove all observations from the obsdat  
+     ! :Purpose: remove all observations from the obsdat  
      !           that will not be assimilated. 
-     !
-     ! modified version of obs_clean, used by MIDAS
+     !           modified version of obs_clean, used by MIDAS
      !
      implicit none
 
@@ -2432,10 +2304,8 @@ contains
 
    function obs_columnActive_IB(obsdat,column_index) result(columnActive)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the active status for a column
-      !
-      ! author  : M. Buehner - 2013 
       !
       implicit none
       type (struct_obs), intent(inout) :: obsdat
@@ -2449,10 +2319,8 @@ contains
 
    function obs_columnActive_IH(obsdat,column_index) result(columnActive)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the active status for a column
-      !
-      ! author  : M. Buehner - 2013 
       !
       implicit none
       type (struct_obs), intent(inout) :: obsdat
@@ -2466,10 +2334,8 @@ contains
 
    function obs_columnActive_RB(obsdat,column_index) result(columnActive)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the active status for a column
-      !
-      ! author  : M. Buehner - 2013 
       !
       implicit none
       type (struct_obs), intent(inout) :: obsdat
@@ -2483,10 +2349,8 @@ contains
 
    function obs_columnActive_RH(obsdat,column_index) result(columnActive)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the active status for a column
-      !
-      ! author  : M. Buehner - 2013 
       !
       implicit none
       type (struct_obs), intent(inout) :: obsdat
@@ -2501,12 +2365,9 @@ contains
    function obs_columnIndexFromName(odc_flavour, column_name) &
                                                          result(column_index_out)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Situations do occur where the client knows only the name of a
       !      column, but needs to know its index. This method supplies the index.
-      !
-      ! author  : J.W. Blezius - 2013 - extracted from M Buehner's
-      !                                 obs_columnIndexFromName_IB
       !
       implicit none
       type(struct_odc_flavour), intent(in) :: odc_flavour
@@ -2538,13 +2399,9 @@ contains
 
    function obs_columnIndexFromName_IB(column_name) result(column_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      This wrapper around obs_columnIndexFromName selects the data-column
       !      flavour.
-      !
-      ! author  : Mark Buehner - 2012
-      !           J.W. Blezius - 2013 - contents extracted to
-      !                                 obs_columnIndexFromName
       !
       implicit none
       character(len=*), intent(in) :: column_name
@@ -2556,13 +2413,9 @@ contains
 
    function obs_columnIndexFromName_IH(column_name) result(column_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      This wrapper around obs_columnIndexFromName selects the data-column
       !      flavour.
-      !
-      ! author  : Mark Buehner - 2012
-      !           J.W. Blezius - 2013 - contents extracted to
-      !                                 obs_columnIndexFromName
       !
       implicit none
       character(len=*), intent(in) :: column_name
@@ -2574,13 +2427,9 @@ contains
 
    function obs_columnIndexFromName_RB(column_name) result(column_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      This wrapper around obs_columnIndexFromName selects the data-column
       !      flavour.
-      !
-      ! author  : Mark Buehner - 2012
-      !           J.W. Blezius - 2013 - contents extracted to
-      !                                 obs_columnIndexFromName
       !
       implicit none
       character(len=*), intent(in) :: column_name
@@ -2592,13 +2441,9 @@ contains
 
    function obs_columnIndexFromName_RH(column_name) result(column_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      This wrapper around obs_columnIndexFromName selects the data-column
       !      flavour.
-      !
-      ! author  : Mark Buehner - 2012
-      !           J.W. Blezius - 2013 - contents extracted to
-      !                                 obs_columnIndexFromName
       !
       implicit none
       character(len=*), intent(in) :: column_name
@@ -2608,24 +2453,25 @@ contains
    end function obs_columnIndexFromName_RH
 
 
-   subroutine obs_comm(obsdat,myip,nens,nstncom,hx)
-      !!authors  Peter Houtekamer and Herschel Mitchell May 2005
-      !!     (this routine evolved from the earlier routine commstns that worked
-      !!      per analysis pass and did not consider hx).
-      !!
-      !!object: communicate information on the stations and the observations
-      !!        between the processes
-      !!
-      !!input variables:
-      !!     myip: number of the processor.
-      !!     nens: number of ensemble members for hx (may be zero)
-      !!     nstncom: we wish to exchange the obsdat for stations 1 ... nstncom
-      !!       (nstncom may be less than obsdat%numHeader_max).
+   subroutine obs_comm( obsdat, myip, nens, nstncom, hx )
+     !
+     ! :Purpose: communicate information on the stations and the observations
+     !        between the processes
+     ! :Comment: this routine evolved from the earlier routine commstns that worked
+     !      per analysis pass and did not consider hx.
+     !
+     ! :Arguments:     
+     !           :myip: number of the processor.
+     !           :nens: number of ensemble members for hx (may be zero)
+     !           :nstncom: we wish to exchange the obsdat for stations 1 ... nstncom
+     !                     (nstncom may be less than obsdat%numHeader_max).
 
       implicit none
 
-      type (struct_obs), intent(inout) :: obsdat
-      integer,           intent(in)    :: myip,nens,nstncom
+      type (struct_obs), intent(inout)                 :: obsdat
+      integer,           intent(in)                    :: myip
+      integer,           intent(in)                    :: nens
+      integer,           intent(in)                    :: nstncom
       real(8),           intent(inout), dimension(:,:) :: hx    
 
       integer :: column_index
@@ -2769,22 +2615,21 @@ contains
    end subroutine obs_comm
 
 
-   subroutine obs_copy(obs_a,obs_b)
+   subroutine obs_copy( obs_a, obs_b )
       !
-      ! object  - copy an obsdat object
+      ! :Purpose: copy an obsdat object
       !
-      !author  : Peter Houtekamer. August 2011.
+      ! :Arguments:
+      !           :obs_a: input object
+      !           :obs_b: a copy of obs_a
       !
-      !arguments
-      !     input : obs_a input object
-      !     output: obs_b a copy of obs_a
-      !
-      !note:  this method assumes that obs_b has already been initialized
+      ! :Note: this method assumes that obs_b has already been initialized
       !
       implicit none
 
-      type(struct_obs), intent(in)  :: obs_a
+      type(struct_obs), intent(in)    :: obs_a
       type(struct_obs), intent(inout) :: obs_b
+
       integer :: column_index
 
       ! check if object to be copied is empty and react appropriately
@@ -2854,23 +2699,23 @@ contains
    end subroutine obs_copy
 
 
-   subroutine obs_count_headers(obsdat,kulout)
-      !
-      ! object - count the number of stations and
-      !         observations that are in the obsdat.
-      !
-      !author  : Peter Houtekamer
-      !
-      !arguments
-      !     input:    kulout: unit number for ASCII error messages and 
-      !                  observation counts.
-      !
+   subroutine obs_count_headers( obsdat, kulout )
+     !
+     ! :Purpose: count the number of stations and
+     !           observations that are in the obsdat.
+     !
+     ! :Arguments:
+     !           :obsdat: obsSpaceData object
+     !           :kulout: unit number for ASCII error messages and 
+     !                    observation counts.
+     !
       implicit none
 
-      integer, parameter :: MAXID = 256
+     ! Arguments: 
       type (struct_obs), intent(in) :: obsdat
-      integer, intent(in) :: kulout
+      integer          , intent(in) :: kulout
 
+      integer, parameter :: MAXID = 256
       integer  :: allstn,allobs,id,idata,kobs
       integer, dimension(MAXID)   :: numobs,numstn
       character(len=100) :: message
@@ -2915,12 +2760,9 @@ contains
 
 
    subroutine obs_deallocate(obsdat)
-      !s/r obs_deallocate - De-allocate the object's arrays.
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      De-allocate arrays.  This is a private method.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
 
@@ -3001,14 +2843,11 @@ contains
 
 
    function obs_elem_c(obsdat,name,row_index) result(value)
-      !func obs_elem_c - Get a character-string-valued observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Get a character-string-valued observation-data element.
       !      To control access to the observation object.  Returns the
       !      (character) value of the ObsData element with the indicated name
       !      and row_index.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
 
@@ -3027,82 +2866,48 @@ contains
    end function obs_elem_c
 
 
-   subroutine obs_enkf_bdy(obsdat,vconv, &
-                           pvalues,klist,kflags,profil, &
-                           ldairs,kndat,kvcord,pvcord,kindex,kidtyp, &
-                           nvcordtyp, vcordsf)
-      !!s/r obs_enkf_bdy -FILL BODY OF OBSDAT REPORT
-      !!
-      !!Author    . P. KOCLAS(CMC TEL. 4665)
-      !!
-      !!Revision:
-      !!         . P. Koclas *CMC/AES Sept  1994: Add call to cvt3d
-      !!         .   before insertion of U and V for consistency
-      !!         . P. Koclas *CMC/AES February  1995:
-      !!         .  New call sequence neccessary to :
-      !!         . -allow insertion of "grouped data" records in BURP files.
-      !!         . -allow data observed in various vertical coordinates
-      !!         . -observation errors no longer initialized
-      !!
-      !!         . P. Koclas *CMC/AES March     1995:
-      !!           -Additions for humsat and satem data
-      !!         .
-      !!         . C. Charette *ARMA Jan        2001
-      !!           -Max value for T-Td surface element(12203)
-      !!
-      !!          JM Belanger CMDA/SMC  Feb 2001
-      !!                  . 32 bits conversion
-      !!          P. Houtekamer July 2005. Remove the lines for HUMSAT data
-      !!         . A. Beaulne *CMDA/SMC  Aug 2006
-      !!                    -Additions for AIRS data
-      !!          Xingxiu Deng, August 2008. added calling readpeak, calling airszha
-      !!                    to define realBodies(ncmzha,:) for AIRS
-      !!          Xingxiu Deng, July 2009. added including column.cdk, calling readip1
-      !!                    to get ptop and define ncmzha for AMSU-A channel 11 and 12
-      !!                     if ptop is equal or higher than 2 hPa.
-      !!
-      !!   PURPOSE : TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
-      !!             THE IN-CORE FORMAT (OBSDAT) OF THE ANALYSIS
-      !!
-      !!   ARGUMENTS:
-      !!    INPUT:
-      !!
-      !!          -PVALUES : DATA BLOCK
-      !!          -KLIST   : LIST OF BUFR ELEMENTS
-      !!          -KFLAGS  : QUALITY CONTROL FLAGS
-      !!
-      !!          -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
-      !!
-      !!          -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
-      !!          -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
-      !!          -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
-      !!          -KIDTYP  :  burptype
-      !!          -vconv   :  conversion factor for pressure coordinate
-      !!          -profil  :  for GOES and AIRS
-      !!          -nvcordtyp :
-      !!
-      !!   OUTPUT:
-      !!          -KNDAT   : NUMBER OF DATA INSERTED IN OBSDAT FILE
-      !!          -OBSDAT%REALBODIES, OBSDAT%INTBODIES: obsdat body-information (new information added)
-      !!
+   subroutine obs_enkf_bdy( obsdat, vconv, &
+                           pvalues, klist, kflags, profil, &
+                           ldairs, kndat, kvcord, pvcord, kindex, kidtyp, &
+                           nvcordtyp, vcordsf )
+      !
+      ! :Purpose: FILL BODY OF OBSDAT REPORT. TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
+      !          THE IN-CORE FORMAT (OBSDAT) OF THE ANALYSIS
+      !
+      ! :Arguments:
+      !          :obsdat: obsdat body-information (new information added)
+      !          :vconv:  conversion factor for pressure coordinate
+      !          :pvalues: DATA BLOCK
+      !          :klist:   LIST OF BUFR ELEMENTS
+      !          :kflags: QUALITY CONTROL FLAGS
+      !          :profil:  for GOES and AIRS
+      !          :ldairs:  .TRUE. --> INSERT EMISSIVITIES IN OBSDAT (AIRS RADIANCES)
+      !          :kndat: NUMBER OF DATA INSERTED IN OBSDAT FILE
+      !          :kvcord:  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+      !          :pvcord:  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+      !          :kindex:  THIRD DIMENSION INDEX OF DATA BLOCK
+      !          :kidtyp:  burptype
+      !          :nvcordtyp:
+      !          :vcordsf: vertical coordinate parameters for surface data
+      !
       use EarthConstants_mod, only:  GRAV
       use MathPhysConstants_mod
       implicit none
 
-      type(struct_obs), intent(inout) :: obsdat
-
-      logical, intent(in)  :: ldairs
-      integer, intent(in)  :: kidtyp,kindex,kvcord
-      integer, dimension(:),     intent(in) :: klist 
-      integer, dimension(:,:,:), intent(in) :: kflags
-      real(kind=4), intent(in) :: vconv
-      real(kind=4), dimension(:), intent(in) :: profil,pvcord
-      real(kind=4), dimension(:,:,:),  intent(in) :: pvalues
-      integer, intent(out) :: kndat
-      integer, intent(in) :: nvcordtyp
-                                        ! vertical coordinate parameters
-                                        ! for surface data
-      real, dimension(:,:) :: vcordsf
+      type(struct_obs)              , intent(inout) :: obsdat
+      logical                       , intent(in)    :: ldairs
+      integer                       , intent(in)    :: kidtyp
+      integer                       , intent(in)    :: kindex
+      integer                       , intent(in)    :: kvcord
+      integer     , dimension(:)    , intent(in)    :: klist 
+      integer     , dimension(:,:,:), intent(in)    :: kflags
+      real(kind=4)                  , intent(in)    :: vconv
+      real(kind=4), dimension(:)    , intent(in)    :: profil
+      real(kind=4), dimension(:)    , intent(in)    :: pvcord
+      real(kind=4), dimension(:,:,:), intent(in)    :: pvalues
+      integer                       , intent(out)   :: kndat
+      integer                       , intent(in)    :: nvcordtyp
+      real        , dimension(:,:)                  :: vcordsf
 
       integer :: ichn,ik,ilem,ind,ip,ielement,ilevel,n_elements_in_block
       integer :: n_levels_in_block,zesmax
@@ -3212,17 +3017,13 @@ contains
 
 
    subroutine obs_enkf_prntbdy(obsdat,kstn,kulout)
-      !!
-      !! object  - print all data records associated with an observation
-      !!
-      !!author  : P. Gauthier, C. Charette
-      !!revision:
-      !!     P. Houtekamer mrb 2000: reduction and improved readability of output
-      !!
-      !!arguments
-      !!     i   kstn  : no. of station 
-      !!     i   kulout: unit used for printing
-      !!
+      !
+      ! :Purpose:  print all data records associated with an observation
+      !
+      ! :Arguments:
+      !     :kstn: no. of station 
+      !     :kulout: unit used for printing
+      !
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
@@ -3284,16 +3085,13 @@ contains
 
 
    subroutine obs_enkf_prnthdr(obsdat,kobs,kulout)
-      !!
-      !! object  - printing of the header of an observation record
-      !!
-      !!author  : P. Gauthier *arma/aes  June 9, 1992
-      !!revision:
-      !!     . P. Houtekamer modification of the cma format 
-      !!arguments
-      !!     i   kobs  : no. of observation
-      !!     i   kulout: unit used for optional printing
-      !!
+      !
+      ! :Purpose: printing of the header of an observation record
+      !
+      ! :Arguments:
+      !           :kobs: no. of observation
+      !           :kulout: unit used for optional printing
+      !
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
@@ -3348,22 +3146,15 @@ contains
 
 
    subroutine obs_expandToMpiGlobal(obsdat)
-      !!
-      !!**s/r obs_expandToMpiGlobal - restore Global array realBodies and
-      !!                              intBodies.
-      !!
-      !! PURPOSE:
-      !!      To reconstitute the mpi-global observation object by gathering the
-      !!      necessary data from all processors (to all processors).
-      !!
-      !! NOTE: for the character data cstnid(:), this is converted to integers
-      !!       with IACHAR and back to characters with ACHAR, to facilitate this
-      !!       gather through rpn_comm_allreduce
-      !!
-      !! author  : Bin He (ARMA/MRB )
-      !! Revision: Mark Buehner - replaced rpn_comm_allreduce with
-      !!                          rpn_comm_gather  and complete rewrite
-      !!
+      !
+      ! :Purpose: restore Global array realBodies and intBodies.
+      !      To reconstitute the mpi-global observation object by gathering the
+      !      necessary data from all processors (to all processors).
+      !
+      ! :Note: for the character data cstnid(:), this is converted to integers
+      !       with IACHAR and back to characters with ACHAR, to facilitate this
+      !       gather through rpn_comm_allreduce
+      !
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
@@ -3760,13 +3551,10 @@ contains
 
 
    subroutine obs_finalize(obsdat)
-      !s/r obs_finalize - De-allocate memory and clean up the object.
       !
-      ! PURPOSE:
+      ! :Purpose: De-allocate memory and clean up the object.
       !      De-allocate object arrays, and perform any other clean-up that is
       !      necessary before object deletion.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout) :: obsdat
@@ -3779,19 +3567,32 @@ contains
                                   satzen, isat, itech, nvtyp, ity, idate, &
                                   itime, clstnid, imask, satazim, sunza, clfr)
       !
-      !    OUTPUT:
-      !           obsdat%realHeaders%columns(OBS_LON,) - in degrees
-      !           obsdat%realHeaders%columns(OBS_LAT,) - in degrees, equator at 0 degrees
-      !           obsdat%realHeaders%columns(OBS_ALT,) - in metres, with no offset
+      ! :Note: Output:
+      !
+      !           - obsdat%realHeaders%columns(OBS_LON,) - in degrees
+      !           - obsdat%realHeaders%columns(OBS_LAT,) - in degrees, equator at 0 degrees
+      !           - obsdat%realHeaders%columns(OBS_ALT,) - in metres, with no offset
       !
       use MathPhysConstants_mod
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer, intent(in) :: ilat, ilon, ialt, inbon, instrum
-      integer, intent(in) :: isat, itech, nvtyp, ity, idate, itime
+      integer, intent(in) :: ilat
+      integer, intent(in) :: ilon
+      integer, intent(in) :: ialt
+      integer, intent(in) :: inbon
+      integer, intent(in) :: instrum
+      integer, intent(in) :: isat
+      integer, intent(in) :: itech
+      integer, intent(in) :: nvtyp
+      integer, intent(in) :: ity
+      integer, intent(in) :: idate
+      integer, intent(in) :: itime
       integer, intent(in) :: imask
-      real(kind=OBS_REAL) :: clfr, sunza, satzen, satazim
+      real(kind=OBS_REAL) :: clfr
+      real(kind=OBS_REAL) :: sunza
+      real(kind=OBS_REAL) :: satzen
+      real(kind=OBS_REAL) :: satazim
       character(len=9), intent(in) :: clstnid
       real(kind=8) :: torad
 
@@ -3856,25 +3657,24 @@ contains
 
 
    integer function obs_get_obs_index_for_bufr_element(kbufrn)
-      implicit none
-      integer, intent(in) :: kbufrn
       !
-      !      PURPOSE: TO FIND THE INDEX OF THE OBSDAT VARIABLE TYPES LIST ELEMENT
-      !               THAT CONTAINS A BUFR ELEMENT NUMBER
+      ! :Purpose: TO FIND THE INDEX OF THE OBSDAT VARIABLE TYPES LIST ELEMENT
+      !           THAT CONTAINS A BUFR ELEMENT NUMBER
       !
-      !    ARGUMENTS:
-      !               INPUT:
-      !                   -KBUFRN: THE BUFR CLASSIFICATION ELEMENT NUMBER
+      ! :Arguments:
+      !                   :KBUFRN: THE BUFR CLASSIFICATION ELEMENT NUMBER
       !                            i.e. known locally as the 'burp variable type'
       !                            i.e. table B of the ECMWF BUFR reference
       !                            BUFR = Binary Universal Form for the
       !                                   Representation of meteorological data
       !
-      !               OUTPUT:
+      ! :Note:
       !                   - obs_get_obs_index_for_bufr_element:
       !                            THE FOUND INDEX (=-1 IF NOT FOUND)
       !
-      !       AUTHOR: P. KOCLAS (CMC TEL. 4665)
+      implicit none
+
+      integer, intent(in) :: kbufrn
 
       integer indbuf
       integer, parameter, dimension(OBS_JPNBRELEM) :: NVNUMB = (/ &
@@ -3967,10 +3767,8 @@ contains
 
    function obs_getBodyIndex_depot(obsdat) result(row_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the next element from the current body list
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       integer :: row_index
@@ -3982,10 +3780,8 @@ contains
 
    function obs_getBodyIndex_private(private_list) result(row_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the next element from the supplied private body list
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       integer :: row_index
@@ -3997,11 +3793,9 @@ contains
 
    function obs_getFamily(obsdat,headerIndex_in,bodyIndex)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the family for the indicated header, or else for the
       !      indicated body.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
 
@@ -4026,10 +3820,9 @@ contains
 
 
    function obs_getNclassAvhrr() 
-      ! PURPOSE:
-      !      to get the number of  AVHRR radiance classes
       !
-      ! author  : S. Heilliette - 2013
+      ! :Purpose:
+      !      to get the number of  AVHRR radiance classes
       !
      implicit none
 
@@ -4040,10 +3833,9 @@ contains
    end function obs_getNclassAvhrr
 
    function obs_getNchanAvhrr() 
-      ! PURPOSE:
-      !      to get the number of AVHRR channels
       !
-      ! author  : S. Heilliette - 2013
+      ! :Purpose:
+      !      to get the number of AVHRR channels
       !
      implicit none
 
@@ -4055,10 +3847,8 @@ contains
 
    function obs_getHeaderIndex(obsdat) result(row_index)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Return the next element from the current header list.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       integer :: row_index
@@ -4069,14 +3859,11 @@ contains
 
 
    function obs_headElem_i(obsdat,column_index,row_index) result(value_i)
-      !func obs_headElem_i -Get an integer-valued header observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Get an integer-valued header observation-data element.
       !      To control access to the observation object.  Returns the (integer)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "header".
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       integer                       :: value_i
@@ -4092,14 +3879,11 @@ contains
 
 
    function obs_headElem_r(obsdat,column_index,row_index) result(value_r)
-      !func obs_headElem_r - Get a real-valued header observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: Get a real-valued header observation-data element.
       !      To control access to the observation object.  Returns the (real)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "header".
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       real(OBS_REAL)                :: value_r
@@ -4115,12 +3899,9 @@ contains
 
 
    function obs_headerIndex_mpiglobal(obsdat,row_index) result(value)
-      !func obs_headerIndex_mpiglobal - Get the mpiglobal header row index
       !
-      ! PURPOSE:
+      ! :Purpose: Get the mpiglobal header row index.
       !      To control access to the mpiglobal row_index into the "header".
-      !
-      ! author  : M. Buehner - 2012
       !
       implicit none
       integer value
@@ -4132,14 +3913,11 @@ contains
 
 
    subroutine obs_headSet_i(obsdat, column_index, row_index, value_i)
-      !s/r obs_headSet_i - set an integer-valued header observation-data element
       !
-      ! PURPOSE:
+      ! :Purpose: set an integer-valued header observation-data element.
       !      To control access to the observation object.  Sets the (integer)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "header".
-      !
-      ! author  : J.W. Blezius and M. Buehner - 2012
       !
       implicit none
       type(struct_obs), intent(inout)  :: obsdat
@@ -4154,14 +3932,11 @@ contains
 
 
    subroutine obs_headSet_r(obsdat, column_index, row_index, value_r)
-      !s/r obs_headSet_r - set a real header value in the observation object
       !
-      ! PURPOSE:
+      ! :Purpose: set a real header value in the observation object.
       !      To control access to the observation object.  Sets the (real)
       !      value of the row_index'th ObsData element with the indicated column
       !      index from the "header".
-      !
-      ! author  : J.W. Blezius and M. Buehner - 2012
       !
       implicit none
       type(struct_obs), intent(inout)  :: obsdat
@@ -4177,13 +3952,10 @@ contains
 
    subroutine obs_initialize(obsdat, numHeader_max, numBody_max, mpi_local, &
                              silent)
-      !s/r obs_initialize - Set an observation-data module to a known state.
       !
-      ! PURPOSE:
+      ! :Purpose: Set an observation-data module to a known state.
       !      Initialize object variables, and allocate arrays according to the
       !      parameters, header_max and body_max.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
                                         ! instance of obsSpaceData
@@ -4279,23 +4051,17 @@ contains
 
    subroutine obs_mpiDistributeIndices(obsdat)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !  Compute headerIndex_mpiglobal and bodyIndex_mpiglobal: 
       !  this determines how obs are distributed over MPI processes
       !  and is needed for converting from mpiglobal to mpilocal and vice versa.
       !  The header indices are distributed following the chosen strategy,
       !  currently either "round robin" or by latitude bands.
       !
-      !  Note: this subroutine is called before converting from mpiglobal to 
+      ! :Note: this subroutine is called before converting from mpiglobal to 
       !        mpilocal
       !
-      !Author  : Bin He *ARMA/MRB  Feb. 2009
-      !
-      !Revision:
-      !  
-      !Arguments: none
-      !
-      !Comments:  In principle this method could have obtained
+      ! :Comments:  In principle this method could have obtained
       !           my_mpi_id by use'ing the module, mpi.  However, it queries
       !           rpn_comm for itself because the mpi module belongs to the
       !           3dvar code, whereas the present module is shared code.
@@ -4323,10 +4089,10 @@ contains
       numHeader_mpiLocal=0
       numBody_mpiLocal=0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if(my_mpi_id == obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
-            numHeader_mpiLocal=numHeader_mpiLocal+1
-            numBody_mpilocal=numBody_mpilocal &
-                            +obs_headElem_i(obsdat,OBS_NLV,headerIndex_mpiglobal)
+         if ( my_mpi_id == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
+            numHeader_mpiLocal = numHeader_mpiLocal + 1
+            numBody_mpilocal = numBody_mpilocal &
+                            +obs_headElem_i( obsdat, OBS_NLV, headerIndex_mpiglobal )
          end if
       enddo
       write(*,*) 'obs_mpidistributeindices: numHeader_mpiLocal,global=',  &
@@ -4334,7 +4100,7 @@ contains
       write(*,*) 'obs_mpidistributeindices: numBody_mpiLocal,global=',  &
                  numBody_mpiLocal,obsdat%numBody
 
-      if(numHeader_mpilocal > 0) then
+      if ( numHeader_mpilocal > 0 ) then
          ! Allocate the list of global header indices
          allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
          obsdat%headerIndex_mpiglobal(:)=0
@@ -4343,7 +4109,7 @@ contains
          write(*,*) 'This mpi processor has zero headers.'
       end if
 
-      if(numBody_mpilocal > 0) then
+      if ( numBody_mpilocal > 0 ) then
          ! Allocate the list of global body indices
          allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
          obsdat%bodyIndex_mpiglobal(:)=0
@@ -4353,9 +4119,9 @@ contains
       endif
 
       ! determine the list of header indices
-      headerIndex_mpilocal=0
+      headerIndex_mpilocal = 0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if(my_mpi_id == obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
+         if ( my_mpi_id == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
             headerIndex_mpilocal=headerIndex_mpilocal+1
             obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) &
                                                            =headerIndex_mpiglobal
@@ -4381,15 +4147,12 @@ contains
 
 
    logical function obs_mpiLocal(obsdat)
-      !func obs_mpiLocal - returns true if the object contains only data that are
-      !                    needed by the current mpi PE; false if it contains all
-      !                    data.
       !
-      ! PURPOSE:
+      ! :Purpose: returns true if the object contains only data that are
+      !          needed by the current mpi PE; false if it contains all
+      !          data.
       !      To provide the state of the internal variable, mpiLocal.  This
       !      method exists primarily to facilitate unit tests on this module.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -4398,13 +4161,10 @@ contains
 
 
    integer function obs_numBody(obsdat)
-      !func obs_numBody - returns the number of mpi-local bodies recorded
       !
-      ! PURPOSE:
+      ! :Purpose: returns the number of mpi-local bodies recorded.
       !      To provide the number of bodies that are currently recorded in the
       !      mpi-local observation-data object.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -4413,32 +4173,30 @@ contains
 
 
    integer function obs_numBody_max(obsdat)
-      !func obs_numBody_max - returns the dimensioned mpi-local number of bodies
       !
-      ! PURPOSE:
+      ! :Purpose: returns the dimensioned mpi-local number of bodies.
       !      To provide the dimension for the number of bodies in the mpi-local
       !      observation-data object.
       !
-      ! author  : J.W. Blezius - 2012
-      !
       implicit none
+
       type(struct_obs) , intent(in)  :: obsdat
+
       obs_numBody_max=obsdat%numBody_max
    end function obs_numBody_max
 
 
    integer function obs_numBody_mpiglobal(obsdat)
-      !func obs_numBody_mpiglobal - returns the number of bodies recorded in the
-      !                             entire mpi-global obs object
       !
-      ! PURPOSE:
+      ! :Purpose: returns the number of bodies recorded in the
+      !           entire mpi-global obs object.
       !      To provide the number of bodies that are currently recorded in the
       !      entire mpi-global observation-data object.
       !
-      ! author  : J.W. Blezius - 2012
-      !
       implicit none
+
       type(struct_obs), intent(in)  :: obsdat
+
       integer :: numBody_mpiGlobal, sizedata, ierr
 
       if(obsdat%mpi_local)then
@@ -4454,29 +4212,24 @@ contains
 
 
    integer function obs_numHeader(obsdat)
-      !func obs_numHeader - returns the number of mpi-local headers recorded
       !
-      ! PURPOSE:
+      ! :Purpose: returns the number of mpi-local headers recorded.
       !      To provide the number of headers that are currently recorded in the
       !      observation-data object.
       !
-      ! author  : J.W. Blezius - 2012
-      !
       implicit none
+
       type(struct_obs) , intent(in)  :: obsdat
+
       obs_numHeader=obsdat%numHeader
    end function obs_numHeader
 
 
    integer function obs_numHeader_max(obsdat)
-      !func obs_numHeader_max - returns the dimensioned mpi-local number of
-      !                         headers
       !
-      ! PURPOSE:
+      ! :Purpose: returns the dimensioned mpi-local number of headers.
       !      To provide the dimension for the number of headers in the mpi-local
       !      observation-data object.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -4485,17 +4238,16 @@ contains
 
 
    integer function obs_numHeader_mpiglobal(obsdat)
-      !func obs_numHeader_mpiglobal - returns the number of headers recorded in
-      !                               the entire mpi-global obs object
       !
-      ! PURPOSE:
+      ! :Purpose: returns the number of headers recorded in
+      !           the entire mpi-global obs object.
       !      To provide the number of headers that are currently recorded in the
       !      entire mpi-global observation-data object.
       !
-      ! author  : J.W. Blezius - 2012
-      !
       implicit none
+
       type(struct_obs) , intent(in)  :: obsdat
+
       integer :: numHeader_mpiGlobal, sizedata, ierr
 
       if(obsdat%mpi_local)then
@@ -4510,12 +4262,15 @@ contains
 
 
    subroutine obs_sethind(obsdat)
+     !
+     ! :Purpose: Set the header index in the body of obsSpaceData
+     !
+
      implicit none
+
      type(struct_obs), intent(inout) :: obsdat
+
      integer :: ij,idata,idatend,bodyIndex,headerIndex
-     !
-     ! Set the header index in the body of obsSpaceData
-     !
      ij=0
      do headerIndex = 1, obs_numheader(obsdat)
        idata   = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
@@ -4530,15 +4285,13 @@ contains
 
    subroutine obs_order(obsdat)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Put an obsdat file into the order required for the sequential
       !      assimilation. Note that it is known, as a by-product of the
       !      algorithm that was used  to determine the pass and the region for
       !      each station, at what exact location (information  in OBS_ONM) each
       !      station has to be. The algorithm requires the exchange of at most
       !      mxstn headers.  A faster algorithm likely exists.
-      !
-      ! author: Peter Houtekamer - March 2000
       !
       implicit none
 
@@ -4548,19 +4301,19 @@ contains
       logical :: sorted
       integer :: bodyElem, first, last
 
-      do hdr=1,obsdat%numHeader
-         sorted=.false.
+      do hdr = 1, obsdat%numHeader
+         sorted = .false.
          do while(.not.sorted)
-            jk=obs_headElem_i(obsdat, OBS_ONM, hdr)
-            if (jk == hdr) then
+            jk = obs_headElem_i(obsdat, OBS_ONM, hdr)
+            if ( jk == hdr ) then
                sorted=.true.
             else
-               call obs_exchange_stations(obsdat,jk,hdr)
+               call obs_exchange_stations( obsdat, jk, hdr )
             endif
          end do
       enddo
 
-      do hdr=1,obsdat%numHeader
+      do hdr = 1, obsdat%numHeader
          ! Make the body members of header(hdr) point to the new row_index of hdr.
          first=        obs_headElem_i(obsdat, OBS_RLN, hdr)
          last =first + obs_headElem_i(obsdat, OBS_NLV, hdr) -1
@@ -4574,19 +4327,15 @@ contains
    contains
 
 
-      subroutine obs_exchange_stations(obsdat,j,k) 
+      subroutine obs_exchange_stations( obsdat, j, k ) 
          !
-         !author: Peter Houtekamer
-         !        February 2000
-         ! February 2011: Peter Houtekamer moved the original routine exchange
-         !   from sortcma.f to the module.
-         !
-         !object: exchange the headers of stations j and k 
+         ! :Purpose: exchange the headers of stations j and k 
          !
          implicit none
 
          type (struct_obs), intent(inout) :: obsdat
-         integer, intent(in)         :: j,k
+         integer          , intent(in)    :: j
+         integer          , intent(in)    :: k
 
          real(OBS_REAL):: rdum 
          integer       :: idum
@@ -4620,14 +4369,13 @@ contains
    end subroutine obs_order
 
 
-   subroutine obs_print(obsdat,nobsout)
+   subroutine obs_print( obsdat, nobsout )
       !
-      ! object  - print the contents of the obsdat to an ASCII file
+      ! :Purpose: print the contents of the obsdat to an ASCII file
       !
-      !author  : P. Houtekamer  February 2011
-      !
-      !arguments
-      !     i   nobsout: unit used for printing
+      ! :Arguments:
+      !           :obsdat:  obsSpaceData object
+      !           :nobsout: unit used for printing
       !
       implicit none
 
@@ -4645,21 +4393,21 @@ contains
    end subroutine obs_print
 
 
-   subroutine obs_prnt_csv(obsdat,nhdrsql,nbdysql)
+   subroutine obs_prnt_csv( obsdat, nhdrsql, nbdysql )
       !
-      ! object  - print the contents of the obsdat to csv (comma separated
+      ! :Purpose: print the contents of the obsdat to csv (comma separated
       !           values) files
       !
-      !author  : P. Houtekamer  February 2011
-      !
-      !arguments
-      !     i   nhdrsql: unit used for printing header
-      !     i   nbdysql: unit used for printing body
+      ! :Arguments:
+      !           :obsdat:  obsSpaceData object
+      !           :nhdrsql: unit used for printing header
+      !           :nbdysql: unit used for printing body
       !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
-      integer,      intent(in)  :: nhdrsql, nbdysql
+      integer          , intent(in)    :: nhdrsql
+      integer          , intent(in)    :: nbdysql
 
       integer :: jo
 
@@ -4672,57 +4420,48 @@ contains
    end subroutine obs_prnt_csv
 
 
-   subroutine obs_prntbdy(obsdat,index_header,unitout)
-      !!
-      !!*s/r PRNTBDY  - Print all data records associated with an observation
-      !!
-      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !!Revision:
-      !!    . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-      !!
-      !!    . C. Charette *ARMA/AES Mar 1996 : format statement
-      !!    . C. Charette *ARMA/AES Nov 1999 : Added print of flag OBS_ASS
-      !!      JM Belanger CMDA/SMC  Jul 2000
-      !!                  . 32 bits conversion
-      !!
-      !!Arguments
-      !!    i   index_header  : index of the group of observations to be printed
-      !!    i   unitout       : unit number on which to print
-      !!
+   subroutine obs_prntbdy( obsdat , index_header, unitout_opt )
+      !
+      ! :Purpose: Print all data records associated with an observation
+      !
+      ! :Arguments:
+      !           :obsdat:  obsSpaceData object
+      !           :index_header: index of the group of observations to be printed
+      !           :unitout: unit number on which to print
+      !
       implicit none
 
-      type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: index_header
-                                        ! variable output unit facilitates unit
-                                        ! testing
-      integer         , intent(in), optional :: unitout
+      type(struct_obs), intent(in)           :: obsdat
+      integer         , intent(in)           :: index_header
+      integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
 
       integer :: unitout_
 
       integer :: ipnt, idata, idata2, jdata, ivco
       character(len=13) :: ccordtyp(4)
 
-      if(present(unitout)) then
-         unitout_ = unitout
+      if ( present( unitout_opt ) ) then
+        unitout_ = unitout_opt
       else
-         unitout_ = 6
+        unitout_ = 6
       end if
 
-      ccordtyp(1)='HEIGHT      :'
-      ccordtyp(2)='PRESSURE    :'
-      ccordtyp(3)='CHANNEL NUM :'
-      ccordtyp(4)='VCO UNDEFINED'
+      ccordtyp(1) = 'HEIGHT      :'
+      ccordtyp(2) = 'PRESSURE    :'
+      ccordtyp(3) = 'CHANNEL NUM :'
+      ccordtyp(4) = 'VCO UNDEFINED'
       !
       ! 1. General information
       !
       ipnt  = obs_headElem_i(obsdat,OBS_RLN,index_header)
       idata = obs_headElem_i(obsdat,OBS_NLV,index_header)
 
-      if(idata == 1) then
-         write(unitout_,fmt=9101)idata,index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
+      if ( idata == 1) then
+        write ( unitout_, fmt=9101 ) idata, index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
       else
-         write(unitout_,fmt=9100)idata,index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
+        write ( unitout_, fmt=9100 ) idata, index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
       end if
+
 9100  format(4x,'THERE ARE ', &
          i3,1x,'DATA IN OBSERVATION RECORD NO.' &
          ,1x,i6,4x,'DATA RECORD''S LENGTH:',i6)
@@ -4733,22 +4472,22 @@ contains
       ! 2. Print all data records
       !
       do jdata = ipnt, ipnt + idata - 1
-         idata2 = jdata -ipnt + 1
-         if(obs_bodyElem_i(obsdat,OBS_ASS,jdata) >= 0) then
-            ivco=obs_bodyElem_i(obsdat,OBS_VCO,jdata)
-            if(ivco < 1.or.ivco > 3) ivco=4
-            write(unitout_,fmt=9201) idata2 &
-               ,obs_bodyElem_i(obsdat,OBS_VNM ,jdata) &
-               ,ccordtyp(ivco) &
-               ,obs_bodyElem_r(obsdat,OBS_PPP ,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_VAR ,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_OMP ,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_OMA ,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_OER ,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_HPHT,jdata) &
-               ,obs_bodyElem_i(obsdat,OBS_FLG ,jdata) &
-               ,obs_bodyElem_i(obsdat,OBS_ASS ,jdata)
-         end if
+        idata2 = jdata -ipnt + 1
+        if ( obs_bodyElem_i( obsdat, OBS_ASS, jdata ) >= 0) then
+          ivco = obs_bodyElem_i( obsdat, OBS_VCO, jdata )
+          if ( ivco < 1 .or. ivco > 3 ) ivco = 4
+          write ( unitout_, fmt=9201 ) idata2 &
+             ,obs_bodyElem_i( obsdat,OBS_VNM ,jdata) &
+             ,ccordtyp(ivco) &
+             ,obs_bodyElem_r( obsdat, OBS_PPP , jdata ) &
+             ,obs_bodyElem_r( obsdat, OBS_VAR , jdata ) &
+             ,obs_bodyElem_r( obsdat, OBS_OMP , jdata ) &
+             ,obs_bodyElem_r( obsdat, OBS_OMA , jdata ) &
+             ,obs_bodyElem_r( obsdat, OBS_OER , jdata ) &
+             ,obs_bodyElem_r( obsdat, OBS_HPHT, jdata ) &
+             ,obs_bodyElem_i( obsdat, OBS_FLG , jdata ) &
+             ,obs_bodyElem_i( obsdat, OBS_ASS , jdata )
+        end if
       end do
 
 9201  format(4x,'DATA NO.',i6,/,10x &
@@ -4768,37 +4507,30 @@ contains
          ,'BURP FLAGS:',i6,4x,'OBS. ASSIMILATED (1-->YES;0-->NO):',i3)
 
       return
+
    end subroutine obs_prntbdy
 
 
-   subroutine obs_prnthdr(obsdat,index_hd,unitout)
-      !!
-      !!*s/r PRNTHDR  - Printing of the header of an observation record
-      !!
-      !!Author  : P. Gauthier *ARMA/AES  June 9, 1992
-      !!Revision:
-      !!    . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-      !!    . P. Koclas   *CMC: Format for transformed latitude has been modified
-      !!    .                   to handle an integer (latitude index of the first
-      !!    .                   latitude circle north of the observation)
-      !!Arguments
-      !!    i   index_hd  : index of the header to be printed
-      !!    i   unitout       : unit number on which to print
-      !!
+   subroutine obs_prnthdr( obsdat, index_hd, unitout_opt )
+      !
+      ! :Purpose: Printing of the header of an observation record
+      ! :Arguments:
+      !           :obsdat:  obsSpaceData object
+      !           :index_hd: index of the header to be printed
+      !           :unitout_opt: unit number on which to print
+      !
 
       implicit none
 
 
-      type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: index_hd
-                                        ! variable output unit facilitates unit
-                                        ! testing
-      integer         , intent(in), optional :: unitout
+      type(struct_obs), intent(in)           :: obsdat
+      integer         , intent(in)           :: index_hd
+      integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
 
       integer :: unitout_
 
-      if(present(unitout)) then
-         unitout_ = unitout
+      if ( present( unitout_opt ) ) then
+         unitout_ = unitout_opt
       else
          unitout_ = 6
       end if
@@ -4847,30 +4579,28 @@ contains
    end subroutine obs_prnthdr
 
 
-   subroutine obs_read(obsdat,hx,nobshdr,nobsbdy,nobshx)
+   subroutine obs_read( obsdat, hx, nobshdr, nobsbdy, nobshx )
       !
-      !authors Peter Houtekamer and Herschel Mitchell October 1999
+      ! :Purpose: read the obsdat structure with observational information from
+      !           unformatted files.  The files have been written by obs_write().
       !
-      !object: read the obsdat structure with observational information from
-      !        unformatted files.  The files have been written by obs_write().
+      ! :Arguments:
+      !           :obsdat:  obsSpaceData object
+      !           :hx:      observation data
+      !           :nobshdr: unit number of the file with obsdat header info.
+      !           :nobsbdy: unit number of the file with obsdat body info.
+      !           :nobshx:  unit number of the file with hx (-1 if not used)
       !
-      !   input: 
-      !      nobshdr: unit number of the file with obsdat header info.
-      !      nobsbdy: unit number of the file with obsdat body info.
-      !      nobshx:  unit number of the file with hx (-1 if not used)
-      !   output:
-      !      intHeaders,realHeaders,cstnid:         station header information
-      !      intBodies,realBodies,hx:               observation data
-      !
-      !NOTE:  It is assumed that the obsdat arrays have already been allocated
-      !       with dimensions that will exactly hold the number of data to be
-      !       read
+      ! :Note: It is assumed that the obsdat arrays have already been allocated
+      !        with dimensions that will exactly hold the number of data to be read
       !
       implicit none
 
-      type (struct_obs), intent(inout) :: obsdat  ! the OBSDAT being prep'ed
-      integer,      intent(in)  :: nobshdr,nobsbdy,nobshx
-      real(8),      intent(out) :: hx(:,:)
+      type (struct_obs), intent(inout) :: obsdat
+      integer          , intent(in)    :: nobshdr
+      integer          , intent(in)    :: nobsbdy
+      integer          , intent(in)    :: nobshx
+      real(8)          , intent(out)   :: hx(:,:)
 
       integer  :: i,ifirst,ilast,iobscur,istn,j,k,myip,nens
       integer  :: column_index
@@ -4959,34 +4689,35 @@ contains
    end subroutine obs_read
 
 
-   subroutine obs_readstns(obsdat,myip,ipasscur,iregcur,nobshdr,nobsbdy,np, &
-                           mxstn,mxobs)
-      !!
-      !!obs_readstns
-      !!
-      !!authors Peter Houtekamer and Herschel Mitchell October 1999
-      !!
-      !!object: read the stations for one analysis pass, from unformatted files,
-      !!       and store them in an ObsSpaceData_mod object.  The files have been
-      !!       written by obs_write().
-      !!       (this routine is intended for the master mpi process,
-      !!        other processes exit immediately)
-      !!
-      !!  input: 
-      !!     myip:     number of the process
-      !!     ipasscur: number of the current analysis pass (i.e. batch)
-      !!     nobshdr:  unit number of the file with obsdat header info.
-      !!     nobsbdy:  unit number of the file with obsdat body info.
-      !!     np   :    total number of processes used in MPI. 
-      !!  output:
-      !!     iregcur: number of the region to be done for this pass. 
-      !!
+   subroutine obs_readstns( obsdat, myip, ipasscur, iregcur, nobshdr, nobsbdy, np, &
+                            mxstn, mxobs )
+      !
+      ! :Purpose: read the stations for one analysis pass, from unformatted files,
+      !       and store them in an ObsSpaceData_mod object.  The files have been
+      !       written by obs_write().
+      !       (this routine is intended for the master mpi process,
+      !        other processes exit immediately)
+      !
+      ! :Arguments:
+      !           :obsdat:   obsSpaceData object
+      !           :myip:     number of the process
+      !           :ipasscur: number of the current analysis pass (i.e. batch)
+      !           :iregcur:  number of the region to be done for this pass. 
+      !           :nobshdr:  unit number of the file with obsdat header info.
+      !           :nobsbdy:  unit number of the file with obsdat body info.
+      !           :np:       total number of processes used in MPI. 
+      !
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer,          intent(in)  :: ipasscur,myip,nobshdr,nobsbdy,np,mxstn, &
-                                       mxobs
-      integer,          intent(out) :: iregcur
+      integer         , intent(in)    :: ipasscur
+      integer         , intent(in)    :: myip
+      integer         , intent(in)    :: nobshdr
+      integer         , intent(in)    :: nobsbdy
+      integer         , intent(in)    :: np
+      integer         , intent(in)    :: mxstn
+      integer         , intent(in)    :: mxobs
+      integer         , intent(out)   :: iregcur
 
       integer :: i,idata,ifirst,ilast,ipass,ireg,j,k
       integer :: active_index
@@ -5127,21 +4858,21 @@ contains
 
    subroutine obs_creatSubCMA(cma,cma_sub,ipasscur,np)
    !
-   !! obs_creatSubCMA 
-   !! Authors:  
-   !! Objects:  create a sub-CMA from the global CMA.   
-   !! input: 
-   !!     cma :  the global CMA. 
-   !!     ipasscur :  current pass number    
-   !!     np       :  number of processors  used .  
-   !! output:  
-   !!     cma_sub  :  the sub-CMA created from the global CMA.  
-   !!
+   ! :Purpose: create a sub-CMA from the global CMA.
+   !   
+   ! :Arguments: 
+   !           :cma: the global CMA. 
+   !           :ipasscur:  current pass number    
+   !           :np:  number of processors  used .  
+   !           :cma_sub:  the sub-CMA created from the global CMA.  
+   !
    implicit none
 
-   integer,intent(in) :: ipasscur,np
-   type(struct_obs),intent(in)  :: cma
-   type(struct_obs),intent(inout)  :: cma_sub
+   integer         , intent(in)    :: ipasscur
+   integer         , intent(in)    :: np
+   type(struct_obs), intent(in)    :: cma
+   type(struct_obs), intent(inout) :: cma_sub
+
 ! local variables ..
    integer :: istn,ipass,ireg ,idata
    integer :: mxstn ,ifirst,ilast ,ier,i,j
@@ -5250,16 +4981,11 @@ contains
 
    subroutine obs_reduceToMpiLocal(obsdat)
       !
-      !**s/r obs_reduceToMpiLocal - re-construct observation data object by
-      !                             giving local Obs TAG. 
-      !
-      ! PURPOSE:
+      ! :Purpose: re-construct observation data object by
+      !          giving local Obs TAG. 
       !      To retain in the observation object only those data that are
       !      pertinent to the present mpi processor, i.e. convert from mpiglobal
       !      to mpilocal.
-      !
-      ! author  : Bin He (ARMA/MRB )
-      ! revision:
       !
       implicit none
 
@@ -5465,12 +5191,9 @@ contains
    end subroutine obs_reduceToMpiLocal
 
 
-   subroutine obs_squeeze(obsdat)
+   subroutine obs_squeeze( obsdat )
       !
-      !**s/r obs_squeeze - re-construct observation data object to save memory
-      !
-      ! author  : M. Buehner
-      ! revision: Initially based on obs_reduceToMpiLocal
+      ! :Purpose: re-construct observation data object to save memory
       !
       implicit none
 
@@ -5607,12 +5330,10 @@ contains
    end subroutine obs_squeeze
 
 
-   subroutine obs_MpiRedistribute(obsdat_inout,target_ip_index)
+   subroutine obs_MpiRedistribute( obsdat_inout, target_ip_index )
       !
-      !**s/r obs_MpiRedistribute - Redistribute obs over mpi tasks according to mpi task id stored 
+      ! :Purpose: Redistribute obs over mpi tasks according to mpi task id stored 
       !                            in the integer header column "target_ip_index"
-      !
-      ! author  : Mark Buehner (ARMA/MRB )
       !
       implicit none
 
@@ -6015,30 +5736,29 @@ contains
    end subroutine obs_MpiRedistribute
 
 
-   subroutine obs_select(obsdat,hx,obs_sel,hx_sel,zhamin,zhamax,nens,nobsout)
+   subroutine obs_select( obsdat ,hx, obs_sel, hx_sel, zhamin, zhamax, nens, nobsout )
       !
-      ! object  - select only the observations with zhamin < lop(P) <= zhamax.   
+      ! :Purpose: select only the observations with zhamin < lop(P) <= zhamax.   
       !
-      !author  : Peter Houtekamer
-      !     January 2012: created using obs_clean as an example
-      !
-      !arguments
-      !     obsdat,hx        : input obsdat and interpolated values
-      !     obs_sel,hx_sel: selected obsdat and interpolated values
-      !     zhamin,zhamax : range of zha values to be selected.
-      !     nens          : number of ensemble members
-      !     nobsout       : unit number for the ASCII output
+      ! :Arguments:
+      !           :obsdat:  input obsSpaceData object 
+      !           :hx:      interpolated values of obsdat
+      !           :obs_sel: selected obsdat 
+      !           :hx_sel:  interpolated values of obs_sel
+      !           :zhamin,zhamax:  range of zha values to be selected.
+      !           :nens: number of ensemble members
+      !           :nobsout: unit number for the ASCII output
       !
       implicit none
 
       type (struct_obs), intent(in) :: obsdat
       type (struct_obs), intent(inout) :: obs_sel
-
       real(8),        intent(in) :: hx(:,:)
-      real(OBS_REAL), intent(in) :: zhamin,zhamax
+      real(OBS_REAL), intent(in) :: zhamin
+      real(OBS_REAL), intent(in) :: zhamax
       real(8),        intent(out):: hx_sel(:,:)
-
-      integer, intent(in)    :: nens, nobsout
+      integer, intent(in)    :: nens
+      integer, intent(in)    :: nobsout
 
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,kobsout
@@ -6116,12 +5836,9 @@ contains
 
 
    subroutine obs_set_c(obsdat, name, row_index, value)
-      !s/r obs_set_c - set a character(len=9) in the observation object
       !
-      ! PURPOSE:
+      ! :Purpose: set a character(len=9) in the observation object
       !      To control access to the observation object.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout)  :: obsdat
@@ -6144,11 +5861,9 @@ contains
    subroutine obs_set_current_body_list_from_family(obsdat, family, &
       list_is_empty, current_list)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Create a row_index list from the indicated family and place it in
       !      the body depot.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
@@ -6236,11 +5951,9 @@ contains
    subroutine obs_set_current_body_list_from_header(obsdat, header, &
       list_is_empty, current_list)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Create a row_index list from the indicated header and place it in
       !      the body depot.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
@@ -6318,11 +6031,9 @@ contains
 
    subroutine obs_set_current_body_list_all(obsdat, list_is_empty, current_list)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Create a row_index list containing all bodies and place it in the
       !      body depot.
-      !
-      ! author  : J.W. Blezius - 2014
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
@@ -6410,11 +6121,9 @@ contains
 
    subroutine obs_set_current_header_list_from_family(obsdat, family)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Find or create a row_index list for the indicated family and place
       !      it in the header depot.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
@@ -6464,11 +6173,9 @@ contains
 
    subroutine obs_set_current_header_list_all(obsdat)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Find or create a row_index list for all headers and place it in the
       !      header depot.
-      !
-      ! author  : J.W. Blezius - 2014
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
@@ -6514,11 +6221,9 @@ contains
 
    subroutine obs_setFamily(obsdat,Family_in,headerIndex_in,bodyIndex)
       !
-      ! PURPOSE:
+      ! :Purpose:
       !      Set to the indicated value the family for the indicated header, or
       !      else for the indicated body.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       implicit none
       type(struct_obs), intent(inout) :: obsdat
@@ -6545,16 +6250,14 @@ contains
 
 
    subroutine obs_status(obsdat, obs_full, numstns_out, numobs_out, kulout)
-      !func obs_status - obtain basic status of the observation object
       !
-      ! PURPOSE:
+      ! :Purpose: obtain basic status of the observation object
       !      Return the values of the object's status variables.
-      !
-      ! author  : J.W. Blezius - 2012
       !
       type (struct_obs), intent(in) :: obsdat
       logical, intent(out) :: obs_full
-      integer, intent(out) :: numstns_out, numobs_out
+      integer, intent(out) :: numstns_out
+      integer, intent(out) :: numobs_out
       integer, intent(in)  :: kulout
 
 
@@ -6576,18 +6279,18 @@ contains
 
    subroutine obs_tosqlbdy(obsdat,kobs,kulout)
       !
-      !s/r obs_tosqlbdybdy  - print all data records associated with a station
+      ! :Purpose: print all data records associated with a station
       !
-      !authors  : Peter Houtekamer and Chantal Cote, July 2003. 
-      !
-      !arguments
-      !     i   kobs  : no. of observation
-      !     i   kulout: unit used for printing
+      ! :Arguments:
+      !           :obsdat: obsSpaceData object
+      !           :kobs: no. of observation
+      !           :kulout: unit used for printing
       !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
-      integer,      intent(in) :: kobs,kulout
+      integer,      intent(in) :: kobs
+      integer,      intent(in) :: kulout
 
       integer :: idata,idata2,ihaht,ihpht,ioer,ioma,ioma0,iomp,iomp6,ipnt, &
          ippp, ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
@@ -6657,20 +6360,19 @@ contains
 
    subroutine obs_tosqlhdr(obsdat,kobs,kulout)
       !
-      !s/r obs_tosqlhdr  - printing of the header of a station record for sql
+      ! :Purpose: printing of the header of a station record for sql
       !
-      !author  : Peter Houtekamer and Chantal Cote, July 2003.
       !
-      ! Revision July 2005 by Peter Houtekamer. Removed ncmblk from the OBSDAT.
-      !
-      !arguments
-      !     i   kobs  : no. of observation
-      !     i   kulout: unit used for output
+      ! :Arguments:
+      !          :obsdat: obsSpaceData object
+      !          :kobs: no. of observation
+      !          :kulout: unit used for output
       !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
-      integer, intent(in) :: kobs,kulout
+      integer, intent(in) :: kobs
+      integer, intent(in) :: kulout
 
       integer :: ialt,idburp,ii,ilon,ilat,iout,jtrans
       character(len=12) :: ccstnid
@@ -6721,13 +6423,11 @@ contains
    subroutine obs_write(obsdat,hx, &
       nens,nobshdrout,nobsbdyout,nobshxout,nobsdimout)
       ! 
-      ! PURPOSE: 
+      ! :Purpose: 
       !      Write the obsdat info to unformatted files.
       !
-      !      Note that the body information is written in the order that it will
+      ! :Note: the body information is written in the order that it will
       !      be used by sekfeta.f
-      !
-      ! author  : Peter Houtekamer - February 2011
       !
       implicit none
       type(struct_obs), intent(in) :: obsdat
@@ -6757,15 +6457,13 @@ contains
 
    subroutine obs_write_bdy(obsdat,kobs,kulout)
       !
-      ! object  - write the data records associated with a
+      ! :Purpose: write the data records associated with a
       !                 station in unformatted form.
       !
-      !author  : P. Houtekamer  March 2000
-      !
-      !arguments
-      !    input
-      !     i   kobs  : no. of observation
-      !     i   kulout: unit used for writing 
+      ! :Arguments:
+      !           :obsdat: obsSpaceData object
+      !           :kobs: no. of observation
+      !           :kulout: unit used for writing 
       !
       implicit none 
 
@@ -6794,24 +6492,24 @@ contains
    end subroutine obs_write_bdy
 
 
-   subroutine obs_write_hdr(obsdat,kobs,kulout,irealBodies,nrealBodies)
+   subroutine obs_write_hdr( obsdat, kobs, kulout, irealBodies, nrealBodies )
       !
-      !object - writing of the header of a station record
+      ! :Purpose: writing of the header of a station record
       !
-      !author  : Peter Houtekamer March 2000
-      !
-      !arguments
-      !     i   kobs  : no. of observation
-      !     i   kulout: unit used for output 
-      !     i   irealBodies: location in the sorted realBodies
-      !    output
-      !     i   nrealBodies: number of observations for this header
+      ! :Arguments:
+      !           :obsdat: obsSpaceData object
+      !           :kobs: no. of observation
+      !           :kulout: unit used for output 
+      !           :irealBodies: location in the sorted realBodies
+      !           :nrealBodies: number of observations for this header
       !
       implicit none
 
-      type(struct_obs), intent(in) :: obsdat
-      integer,      intent(in)  :: kobs,kulout,irealBodies
-      integer,      intent(out) :: nrealBodies
+      type(struct_obs), intent(in)  :: obsdat
+      integer         , intent(in)  :: kobs
+      integer         , intent(in)  :: kulout
+      integer         , intent(in)  :: irealBodies
+      integer         , intent(out) :: nrealBodies
 
       integer :: i,j,nprocs_mpi,ierr
 
@@ -6858,22 +6556,21 @@ contains
 
    subroutine obs_write_hx(obsdat,hx,kobs,kulout)
       !
-      ! object  - write the interpolated values associated with a
+      ! :Purpose: write the interpolated values associated with a
       !                 station in unformatted form.
       !
-      !author  : P. Houtekamer and H. Mitchell May 2005
-      !
-      !arguments
-      !    input
-      !        hx    : interpolated values    
-      !        kobs  : no. of station 
-      !        kulout: unit used for writing 
+      ! :Arguments:
+      !           :obsdat: obsSpaceData object
+      !           :hx: interpolated values    
+      !           :kobs: no. of station 
+      !           :kulout: unit used for writing 
       !
       implicit none 
 
       type(struct_obs), intent(in) :: obsdat
       real(8), intent(in), dimension(:,:) :: hx
-      integer, intent(in) :: kobs,kulout
+      integer, intent(in) :: kobs
+      integer, intent(in) :: kulout
 
       integer :: ipnt,idata,iens,j,jdata,k,nens
 
@@ -6892,36 +6589,30 @@ contains
    end subroutine obs_write_hx
 
 
-   function obs_famExist(obsdat,family,local_mpi)
+   function obs_famExist( obsdat, family, localMPI_opt )
      !
-     ! object - Check if any observations of a particular family are present
+     ! :Purpose: Check if any observations of a particular family are present
      !          in obsdat. Returned result will be the MPI local value if
      !          the optional argument local_mpi is set to .true., will be
      !          the MPI global value otherwise.
      !
-     ! author - M. Sitwell (AQRD/ARQI) Jan 2016 
-     !
-     ! arguments
-     !    input
-     !        obsdat    : ObsSpaceData structure
-     !        family    : Obs family
-     !        local_mpi : return MPI local result; optional, default is .false.
-     !
-     !    output 
-     !        obs_famExist : Logical indicating if 'family' is part of the list
+     ! :Arguments:
+     !           :obsdat: ObsSpaceData structure
+     !           :family: Obs family
+     !           :localMPI_opt: return MPI local result; optional, default is .false.
      !
      implicit none 
 
-     logical :: obs_famExist
-     type(struct_obs), intent(in)  :: obsdat
-     character(len=2), intent(in)  :: family
-     logical, intent(in), optional :: local_mpi
+     logical                                :: obs_famExist  ! Logical indicating if 'family' is part of the list
+     type(struct_obs), intent(in)           :: obsdat
+     character(len=2), intent(in)           :: family
+     logical         , intent(in), optional :: localMPI_opt
      
      integer :: index_header,ierr
      logical :: famExist,local
 
-     if (present(local_mpi)) then
-        local = local_mpi
+     if (present(localMPI_opt)) then
+        local = localMPI_opt
      else
         local = .false.
      end if

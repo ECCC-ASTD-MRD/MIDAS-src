@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE residual_mod,(prefix="res" category='1. High-level functionality')
-!!
-!! *Purpose*: To compute OMA (= OMP - H dx) and its adjoint
-!!
-!--------------------------------------------------------------------------
 module residual_mod
+  ! MODULE residual_mod,(prefix='res' category='1. High-level functionality')
+  !
+  ! :Purpose: To compute OMA (= OMP - H dx) and its adjoint
+  !
   use obsSpaceData_mod
   implicit none
   save
@@ -31,20 +29,13 @@ module residual_mod
 
 contains
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Computes residual of observation - analysis from Hdx.
-!!
-!! Input
-!!
-!!v     OBS_WORK        observation increment Hdx
-!!v     OBS_OMP         innovation
-!!
-!! Output
-!!
-!!v     OBS_OMA         observation - analysis
-!!
-!--------------------------------------------------------------------------
   subroutine res_compute(obsSpaceData)
+    !
+    !:Purpose: Computes residual of observation - analysis from Hdx.
+    !          Takes as input OBS_WORK (observation increment Hdx) and 
+    !          OBS_OMP (innovation) and computes OBS_OMA (observation 
+    !          - analysis)
+    !
     implicit none
 
     type(struct_obs) :: obsSpaceData 
@@ -62,11 +53,11 @@ contains
 
   end subroutine res_compute
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Adjoint of computing residuals to observations.
-!!            OBS_WORK contains input and output.
-!--------------------------------------------------------------------------
   subroutine res_computeAd(obsSpaceData)
+    !
+    !:Purpose: Adjoint of computing residuals to observations.
+    !          OBS_WORK contains input and output.
+    !
     implicit none
 
     type(struct_obs) :: obsSpaceData

@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE LamBMatrixHI (prefix="lbhi" category='5. B and R matrices')
-!!
-!! *Purpose*: Performs transformation from control vector to analysis increment 
-!!            using the homogeneous and isotropic background error covariance 
-!!            matrix.
-!!
-!--------------------------------------------------------------------------
 module LamBMatrixHI_mod
+  ! MODULE LamBMatrixHI_mod (prefix='lbhi' category='5. B and R matrices')
+  !
+  ! :Purpose: Performs transformation from control vector to analysis increment 
+  !           using the homogeneous and isotropic background error covariance 
+  !           matrix.
+  !
   use mpi_mod
   use mpivar_mod
   use horizontalCoord_mod

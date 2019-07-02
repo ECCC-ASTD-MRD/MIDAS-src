@@ -25,6 +25,7 @@ cd $ORIG_PWD
 # GENERATE LIST OF ALL PROGRAMS
 
 program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
+#program_filelist=""
 numPrograms=0
 for file in $program_filelist ; do  
   numPrograms=$((numPrograms + 1))

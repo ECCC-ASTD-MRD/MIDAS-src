@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE sqliteFiles (prefix="sqlite" category='6. Observation input/output')
-!!
-!! *Purpose*: To store the filenames of the sqlite observation files and call
-!!            subroutines in readSqlite to read and update sqlite files.
-!!
-!--------------------------------------------------------------------------
 module sqliteFiles_mod
+  ! MODULE sqliteFiles (prefix='sqlite' category='6. Observation input/output')
+  !
+  ! :Purpose: To store the filenames of the sqlite observation files and call
+  !           subroutines in readSqlite to read and update sqlite files.
+  !
   
   use mathPhysConstants_mod
   use mpiVar_mod
@@ -208,13 +206,12 @@ module sqliteFiles_mod
   end subroutine sqlf_updateFile
 
 
-  !--------------------------------------------------------------------------
-  !!
-  !! *Purpose*: to reduce the number of observation data in an SQL file
-  !!
-  !--------------------------------------------------------------------------
   subroutine sqlf_thinFile(obsSpaceData, fileName, familyType, fileIndex)
+    !
+    ! :Purpose: to reduce the number of observation data in an SQLite file
+    !
     implicit none
+
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*),  intent(in) :: fileName

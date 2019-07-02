@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE cmaFiles (prefix="cma" category='6. Observation input/output')
-!!
-!! *Purpose*: Read/Write "cma" format observation files, as used by the EnKF
-!!
-!--------------------------------------------------------------------------
-MODULE cmaFiles_mod
+module cmaFiles_mod
+  ! MODULE cmaFiles_mod (prefix='cma' category='6. Observation input/output')
+  !
+  ! :Purpose: Read/Write "cma" format observation files, as used by the EnKF
+  !
   use mpi_mod
   use utilities_mod
   use obsSpaceData_mod

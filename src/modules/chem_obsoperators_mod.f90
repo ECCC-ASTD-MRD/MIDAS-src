@@ -14,17 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE chem_obsoperators_mod (prefix='chm' category='4. Observation operators')
-!!
-!! *Purpose*: Provides observation operator routines.
-!!
-!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!!
-!! Public routines:
-!!v       - "chm_obsoperators": Applies observation operators.
-!--------------------------------------------------------------------------
 module chem_obsoperators_mod
+  ! MODULE chem_obsoperators_mod (prefix='chm' category='4. Observation operators')
+  !
+  ! :Purpose: Provides observation operator routines for chemical constituents.
+  !
 
   use utilities_mod
   use chem_setup_mod
@@ -66,99 +60,95 @@ module chem_obsoperators_mod
 
 contains
 
-!------------------ CONTROL ROUTINES FOR OBSERVATION OPERATORS ---------------------
-!-----------------------------------------------------------------------------------
+!------------------ CONTROL ROUTINES FOR OBSERVATION OPERATORS -----------------
+!-------------------------------------------------------------------------------
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Apply the observation operators for chemical constituents.
-!!            Mode of operator set by kmode.
-!!
-!! @author M. Sitwell, Aug 2015
-!!
-!! Revisions: 
-!!v          M. Sitwell, ARQI/AQRD Nov 2015
-!!v          - Modified the flagging of observations after chm_obsoperators is called
-!!v          M. Sitwell, ARQI/AQRD April 2016
-!!v          - Moved most of the input to chm_obsoperators into obsoper
-!!v          Y. Rochon, ARQI/AQRD May 2016
-!!v          - Modified skipping over processing when not needed
-!!
-!! Input
-!!
-!!v   kmode           Mode of observation operator, with values
-!!v                     0 for general (non-linear and linear) simulation operator
-!!v                     1 for determination of sqrt(diag(H*B*H^T))
-!!v                     2 for tangent linear operator
-!!v                     3 for adjoint of tangent linear operator
-!!
-!!v   column_bkgrnd   Column of x_background interpolated to observation location. Can
-!!v                   have the same vertical levels as the trial field (columnhr) or
-!!v                   as the increment field (columng)
-!!
-!!v   obsSpaceData    Observation space data structure
-!!
-!! Output
-!!
-!!v   For kmode values of 0) OmP and total Jo(x_background) for CH. 
-!!v                          OmP saved in OBS_OMP of obsSpaceData
-!!v                       1) background error standard deviations in
-!!v                          observation space, sqrt(diag(H*B_static*H^T)).
-!!v                          Saved in OBS_HPHT of obsSpaceData
-!!v                       2) Hdx saved in OBS_WORK of obsSpaceData
-!!v                       3) H^T * R^-1 (OmP-Hdx) in columnInc_opt
-!!
-!!v   jobs            Optional output of total Jo(x_background) for chemical constituents. 
-!!v                   Required for kmode=0 and not provided otherwise.
-!!
-!! Inout
-!!
-!!v   columnInc_opt   Optional argument for input/output of column of increment (column).
-!!v                   For kmode=2, used as input for increment H_horiz dx interpolated
-!!v                   to observation location. For kmode=3, used as output for
-!!v                   H^T * R^-1 (OmP-Hdx). Required for kmode=2,3.
-!!
-!!  Comments:
-!!v     - See type struct_chm_obsoperators in chem_setup_mod.ftn90 for 
-!!v       description of obsoper elements.
-!!v     - Currently can only handle the case when nlev_bkgrnd == nlev_inc
-!!v     - Two equivalent methods for looping over a report body.
-!!
-!!v       Method 1:
-!!
-!!v            call obs_set_current_body_list(obsSpaceData,headerIndex)
-!!v            BODY: do
-!!
-!!v               bodyIndex = obs_getBodyIndex(obsSpaceData)
-!!v               if (bodyIndex < 0) exit BODY1
-!!
-!!v               ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)
-!!  
-!!v            enddo BODY
-!!
-!!v       Method 2:
-!!
-!!v            bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-!!v            bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-!!v            do  bodyIndex=bodyIndex_start,bodyIndex_end
-!!v               ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)   
-!!v            end do
-!!
-!--------------------------------------------------------------------------
-  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,jobs_opt)
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode, &
+                                       columnInc_opt,jobs_opt)
+    !
+    !:Purpose: To apply the observation operators for chemical constituents.
+    !          Mode of operator set by kmode.
+    !
+    !:Comments:
+    !      - See type struct_chm_obsoperators in chem_setup_mod.ftn90 for 
+    !        description of obsoper elements.
+    !      - Currently can only handle the case when nlev_bkgrnd == nlev_inc
+    !
+    !:Arguments:
+    !   :column_bkgrnd:  Column of x_background interpolated to observation
+    !                    location. Can have the same vertical levels as the
+    !                    trial field (columnhr) or as the increment field
+    !                    (columng)
+    !   :kmode:
+    !        +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+    !        |kmode|       Mode of         |             Results               |
+    !        |     | Observation Operator  |                                   |
+    !        +=====+=======================+===================================+
+    !        |  0  |for general simulation |OmP and total Jo(x_background)     |
+    !        |     |operator               |for CH. OmP saved in OBS_OMP of    |
+    !        |     |(non-linear and linear)|obsSpaceData                       |
+    !        +-----+-----------------------+-----------------------------------+
+    !        |  1  |for determination of   |background error standard          |
+    !        |     |sqrt(diag(H*B*H^T))    |deviations in observation space,   |
+    !        |     |                       |sqrt(diag(H*B_static*H^T)). Saved  |
+    !        |     |                       |in OBS_HPHT of obsSpaceData        |
+    !        +-----+-----------------------+-----------------------------------+
+    !        |  2  |for tangent linear     |Hdx saved in OBS_WORK of           |
+    !        |     |operator               |obsSpaceData                       |
+    !        +-----+-----------------------+-----------------------------------+
+    !        |  3  |for adjoint of tangent |H^T * R^-1 (OmP-Hdx) in            |
+    !        |     |linear operator        |columnInc_opt                      |
+    !        +-----+-----------------------+-----------------------------------+
+    !
+    !
+    !   :columnInc_opt:  Optional argument for input/output of column of
+    !                    increment (column). For kmode=2, used as input for
+    !                    increment H_horiz dx interpolated to observation
+    !                    location. For kmode=3, used as output for H^T * R^-1
+    !                    (OmP-Hdx). Required for kmode=2,3.
+    !
+    !
+    !   :jobs_opt:       Optional output of total Jo(x_background) for chemical
+    !                    constituents. Required for kmode=0 and not provided
+    !                    otherwise.
+    !
+    !
 
+
+    ! More Comments (not rendered in Sphinx):
+    !      - Two equivalent methods for looping over a report body.
+    !
+    !        Method 1:
+    !
+    !             call obs_set_current_body_list(obsSpaceData,headerIndex)
+    !             BODY: do
+    !
+    !                bodyIndex = obs_getBodyIndex(obsSpaceData)
+    !                if (bodyIndex < 0) exit BODY1
+    !
+    !                ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)
+    !  
+    !             enddo BODY
+    !
+    !        Method 2:
+    !
+    !             bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+    !             bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+    !             do  bodyIndex=bodyIndex_start,bodyIndex_end
+    !                ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)   
+    !             end do
+    !
     implicit none
     
-    ! Subroutine arguments
-
+    ! Arguments:
     type(struct_columnData), intent(inout) :: column_bkgrnd
-    type(struct_columnData), intent(inout), optional :: columnInc_opt
-    type(struct_obs), intent(inout) :: obsSpaceData
+    type(struct_obs),intent(inout)::obsSpaceData ! Observation-space data object
     integer, intent(in) :: kmode
+    type(struct_columnData), intent(inout), optional :: columnInc_opt
     real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
-    
     real(8) :: zomp,zinc
     integer :: unit,ier
     integer, external :: fclos
@@ -452,52 +442,47 @@ contains
     
   end subroutine chm_observation_operators
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Initializes struct_chm_obsoperators variables and allocates arrays.
-!!
-!! @author M. Sitwell and Y. Rochon, April 2016
-!!
-!! Revisions:
-!!v           J-F Caron, ARMA/MRD, Jan. 2018
-!!v           - Account for change from LQ to Q for 'HU'
-!!v 
-!! Input
-!!
-!!v     column_bkgrnd   Column of x_background interpolated to observation location. Can
-!!v                     have the same vertical levels as the trial field (columnhr) or
-!!v                     as the increment field (columng)
-!!v     obsSpaceData    Obs database struture
-!!v     headerIndex     Measurement index in obsSpaceData (see main)
-!!v     bodyIndex       Measurement element index in obsSpaceDate (see chm_obsoper_proceed)
-!!v     kmode           0 for non-linear/linear model in assimilation (all models included are currently linear)
-!!v                     1 for determination of sqrt(diag(H*B*H^T))
-!!v                     2 for tangent linear model
-!!v                     3 for adjoint model 
-!!v     nobslev         Number of obs elements (see chm_obsoper_proceed)
-!!v     nmodlev         Number of background field (model) levels
-!!v     varno           BUFR number
-!!v     stnid           Station ID
-!!
-!! InOut
-!!
-!!v     obsoper        Structure for constituents associated to obs (see struct_chm_obsoperators 
-!!v                    in chem_obsoperators_mod.ftn90)
-!!
-!! Comments: 
-!!v          - Allocation of arrays that are only dependent on nlev_bkgrd (nmodlev) have been moved
-!!v            outside this subroutine so that they are only allocated once.
-!--------------------------------------------------------------------------
-  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev,nobslev,kmode,varno,stnid)
-
+  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd, &
+                              nmodlev,nobslev,kmode,varno,stnid)
+    !
+    !:Purpose: To initialize struct_chm_obsoperators variables and to allocate
+    !          arrays.
+    !
+    !:Comments: 
+    !           - Allocation of arrays that are dependent on only nlev_bkgrd
+    !             (nmodlev) have been moved outside this subroutine so that they
+    !             are allocated only once.
+    !
+    !:Arguments:
+    !
+    !     :column_bkgrnd:  Column of x_background interpolated to observation
+    !                      location. Can have the same vertical levels as the
+    !                      trial field (columnhr) or as the increment field
+    !                      (columng)
+    !     :kmode:       
+    !   
+    !                - 0 for non-linear/linear model in assimilation (all models
+    !                  included are currently linear)
+    !                - 1 for determination of sqrt(diag(H*B*H^T))
+    !                - 2 for tangent linear model
+    !                - 3 for adjoint model 
     implicit none
 
-    integer, intent(in) :: headerIndex,nmodlev,nobslev,kmode,varno
-    character(len=12), intent(in) :: stnid
-    type(struct_chm_obsoperators), intent(inout) :: obsoper
-    type(struct_obs), intent(inout) :: obsSpaceData
+    ! Arguments:
+    type(struct_chm_obsoperators), intent(inout) :: obsoper ! Object for constituents associated to obs
+    type(struct_obs), intent(inout) :: obsSpaceData ! Obs-Space Data object
+    integer, intent(in) :: headerIndex ! Measurement index in obsSpaceData
     type(struct_columnData), intent(inout) :: column_bkgrnd
+    integer, intent(in) :: nmodlev ! Number of background field (model) levels
+    integer, intent(in) :: nobslev ! Number of obs elements (see chm_obsoper_proceed)
+    integer, intent(in) :: kmode
+    integer, intent(in) :: varno ! BUFR number
+    character(len=12), intent(in) :: stnid ! Station ID
 
-    integer :: bodyIndex,jl,nmodlev_uv
+
+    ! Locals:
+    integer :: bodyIndex ! Measurement element index in obsSpaceDate (see chm_obsoper_proceed)
+    integer :: jl,nmodlev_uv
     real(8), pointer :: col_height_ptr(:)
     real(8), allocatable :: uu(:),vv(:)
     character(len=2), parameter :: varLevel = 'TH'
@@ -616,19 +601,18 @@ contains
 
   end subroutine chm_obsoper_init
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Deallocate arrays for struct_chm_obsoperators.
-!!
-!! @author M. Sitwell, April 2016
-!!
-!! Comments:
-!!v          - Deallocation of arrays that are only dependent on nmodlev have been moved
-!!v            outside this subroutine so that they are only deallocated once.
-!--------------------------------------------------------------------------
   subroutine chm_obsoper_dealloc(obsoper)
-
+    !
+    !:Purpose: To deallocate arrays for struct_chm_obsoperators.
+    !
+    !:Comments:
+    !           - Deallocation of arrays that are dependent on only nmodlev have
+    !             been moved outside this subroutine so that they are
+    !             deallocated only once.
+    !
     implicit none
 
+    ! Arguments:
     type(struct_chm_obsoperators), intent(inout) :: obsoper
 
     if (allocated(obsoper%obslev))       deallocate(obsoper%obslev)
@@ -641,98 +625,85 @@ contains
 
   end subroutine chm_obsoper_dealloc
 
-!--------------------------- Routines for observation operators ----------------------------
-!-------------------------------------------------------------------------------------------
+!--------------------------- Routines for observation operators ----------------
+!-------------------------------------------------------------------------------
 
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Apply observation operator for indicated observation data and condition.
-!!
-!! @author Y. Rochon, Feb 2015
-!!
-!! Input
-!!
-!!v     kmode  mode of observation observational operator
-!!v              0) general (potentially non-linear) simulation operator
-!!v              1) determination of sqrt(diag(H*B*H^T))
-!!v              2) tangent linear operator
-!!v              3) linear adjoint operator
-!!
-!! Inout
-!!
-!!v     obsoper    Structure that holds information needed by the observation operator
-!!
-!!v     obs_col    Observation space input/output profile
-!!v                  kmode     input/output       profile
-!!v                  -----     ------------       -------
-!!v                    0           out            H(xb)
-!!v                    1           out            sqrt(diag(H*B*H^T))
-!!v                    2           out            H*dx
-!!v                    3           in             R**-1 (Hdx-d)
-!!
-!!v     model_col  Model space input/output profile
-!!v                  kmode     input/output       profile
-!!v                  -----     ------------       -------
-!!v                    0           in             xb
-!!v                    1           not used       not used
-!!v                    2           in             dx at obs location
-!!v                    3           out            adjoint product H^T(...)
-!!
-!!v     ixtr       Flag indicating if obs within the model vertical coord range (.ne.0 for no) 
-!!v                Can be modified internally - hence intent(inout) - even though
-!!v                these changes will not be needed outside this routine.
-!!
-!!v     success   Indicates if the observation was successfully assimilated
-!!
-!! Revisions:
-!!v           Y. Rochon, ARQI/AQRD, Feb. 2015
-!!v           - Modifications of adaptations and update of BUFR elements
-!!v           Ping Du, Mar 2015
-!!v           - Finalization of Ht*grad contribution (case(3))
-!!v           M. Sitwell, ARQI/AQRD, Mar 2015
-!!v           - Modified to calculate whole profile within a single call
-!!v           M. Sitwell, ARQI/AQRD, May 2015
-!!v           - Added vertical interpolation operator
-!!v           M. Sitwell, ARQI/AQRD, June 2015
-!!v           - Changed calculation of HBH^T to forgo calculating off-diagonal elements
-!!v             of the final product
-!!v           M. Sitwell, ARQI/AQRD, April 2016
-!!v           - Modified input arguments so that most inputs are passed through obsoper
-!!
-!! Further changes required for generalization:
-!!
-!!v 1) Add layer average operators.
-!!v 2) Add AOD operators (summation over model layers).
-!!v 3) Add option to include use of obs error correlation matrix for kmode=2,3 
-!!v    (This may/will need to be done in oop_Hchm and oop_HTchm where the division 
-!!v     by sigma_obs is applied. A new routine will be needed for this
-!!v     operation - and others for reading the correlation matrices similarly to the
-!!v     averaging kernels.)
-!!
-!! Comments:
-!!v     - When kmode=0, call from chm_observation_operators passes model_col as a pointer to
-!!v       obsoper%trial.
-!!v     - Does not yet account for potential future applications of obs 
-!!v       vertical correlation matrices.
-!!v     - Potential specification of background error std. dev. (sigma_trial(:,2)) and correlation matrices 
-!!v       for the ensemble-based and lam cases to be done when stats for these become in use with constituents.
-!!v     - 'struct_chm_obsoperators' defined in chem_setup_mod.ftn.
-!--------------------------------------------------------------------------
   subroutine chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
-  
+    !
+    !:Purpose: To apply observation operator for indicated observation data and
+    !          condition.
+    !
+    !:Arguments:
+    !     :kmode: mode of observation observational operator
+    !               0) general (potentially non-linear) simulation operator
+    !               1) determination of sqrt(diag(H*B*H^T))
+    !               2) tangent linear operator
+    !               3) linear adjoint operator
+    !
+    !     :obs_col:   Observation space input/output profile
+    !
+    !                  +------+------+------+------+------+------+------+
+    !                  |kmode |    input/output    | profile            |
+    !                  +======+====================+====================+
+    !                  |  0   |        out         | H(xb)              |
+    !                  +------+--------------------+--------------------+
+    !                  |  1   |        out         | sqrt(diag(H*B*H^T))|
+    !                  +------+--------------------+--------------------+
+    !                  |  2   |        out         | H*dx               |
+    !                  +------+--------------------+--------------------+
+    !                  |  3   |        in          | R**-1 (Hdx-d)      |
+    !                  +------+--------------------+--------------------+
+    !
+    !     :model_col: Model space input/output profile
+    !
+    !                  +------+------+------+------+------+------+------+
+    !                  |kmode |   input/output     | profile            |
+    !                  +======+====================+====================+
+    !                  |  0   |       in           | xb                 |
+    !                  +------+--------------------+--------------------+
+    !                  |  1   |       not used     | not used           |
+    !                  +------+--------------------+--------------------+
+    !                  |  2   |       in           | dx at obs location |
+    !                  +------+--------------------+--------------------+
+    !                  |  3   |       out          | adjoint product    |
+    !                  |      |                    | H^T(...)           |
+    !                  +------+--------------------+--------------------+
+    !
+    !     :ixtr:      Flag indicating whether obs within the model vertical
+    !                 coord range (.ne.0 for no). Can be modified internally
+    !                 - hence intent(inout) - even though these changes will not
+    !                 be needed outside this routine.
+    !
+    ! Further changes required for generalization:
+    !
+    !  1) Add layer average operators.
+    !  2) Add AOD operators (summation over model layers).
+    !  3) Add option to include use of obs error correlation matrix for kmode=2,3 
+    !     (This may/will need to be done in oop_Hchm and oop_HTchm where the division 
+    !      by sigma_obs is applied. A new routine will be needed for this
+    !      operation - and others for reading the correlation matrices similarly to the
+    !      averaging kernels.)
+    !
+    ! Comments:
+    !      - When kmode=0, call from chm_observation_operators passes model_col as a pointer to
+    !        obsoper%trial.
+    !      - Does not yet account for potential future applications of obs 
+    !        vertical correlation matrices.
+    !      - Potential specification of background error std. dev. (sigma_trial(:,2)) and correlation matrices 
+    !        for the ensemble-based and lam cases to be done when stats for these become in use with constituents.
+    !      - 'struct_chm_obsoperators' defined in chem_setup_mod.ftn.
+    !
   implicit none
 
-! Declarations
-
-! Structure to hold observation operator information
-    
-  type(struct_chm_obsoperators), intent(inout) :: obsoper
+  ! Arguments
+  type(struct_chm_obsoperators), intent(inout) :: obsoper ! information needed by the observation operator
 
 ! I/O arguments: obs space variables
     
   integer, intent(in) :: kmode 
   integer, intent(inout) :: ixtr(obsoper%nobslev)
-  logical, intent(inout) :: success(obsoper%nobslev)
+  logical, intent(inout) :: success(obsoper%nobslev) ! Indicates whether the observation was successfully assimilated
 
 ! I/O arguments: model space profile data and others
 
@@ -1039,39 +1010,28 @@ contains
 
   end subroutine chm_obsoperators
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Perform any required nonlinear transformations on a model-space profile.
-!!
-!! @author Y. Rochon, April 2016
-!!
-!! Revisions:
-!!v           J-Caron (ARMA/MRD) and Y Rochon (ARQI/ARQD), Jan. 2018
-!!v           - Account for change from LQ to Q for 'HU' (see  lines with !! for original code)
-!!
-!! Inout
-!!   
-!!v    obsoper               Contains basic information related to the observation operator
-!!v    incrementCol_opt      Model-space increment profile to transform (optional)
-!!v    computeDtransform_opt Computes obsoper%dtransform (optional, only used when incrementCol
-!!v                          is not provided and default is true in this case)
-!!
-!!  Comments:
-!!v    - If incrementCol is not provided, transformations will be done on obsoper%trial. If
-!!v      incrementCol is provided, then transformations will done on incrementCol only and will
-!!v      not be done on obsoper%trial.
-!!v    - When called with incrementCol provided, it is assumed that obsoper%dtransform has
-!!v      already been computed in a previous call.
-!!v    - At some point may be merged with chm_apply_transform.
-!!
-!--------------------------------------------------------------------------
-  subroutine chm_transform_profile(obsoper,incrementCol_opt,computeDtransform_opt)
-    
+  subroutine chm_transform_profile(obsoper,incrementCol_opt, &
+                                   computeDtransform_opt)
+    !
+    !:Purpose: To perform any required nonlinear transformations on a
+    !          model-space profile.
+    !:Comments:
+    !     - If incrementCol is not provided, transformations will be done on
+    !       obsoper%trial. If incrementCol is provided, then transformations
+    !       will done on incrementCol only and will not be done on
+    !       obsoper%trial.
+    !     - When called with incrementCol provided, it is assumed that
+    !       obsoper%dtransform has already been computed in a previous call.
+    !     - At some point may be merged with chm_apply_transform.
+    !
     implicit none
 
-    type(struct_chm_obsoperators), intent(inout) :: obsoper
-    real(8), intent(inout), optional  :: incrementCol_opt(obsoper%nmodlev)
-    logical, intent(in), optional :: computeDtransform_opt
+    ! Arguments:
+    type(struct_chm_obsoperators), intent(inout) :: obsoper ! basic information related to the observation operator
+    real(8), intent(inout), optional  :: incrementCol_opt(obsoper%nmodlev) ! Model-space increment profile to transform
+    logical, intent(in), optional :: computeDtransform_opt ! true: compute obsoper%dtransform (used only when incrementCol is not provided)
     
+    ! Locals:
     logical :: comp_dtransform
     integer :: transform_id
 
@@ -1142,104 +1102,86 @@ contains
 
   end subroutine chm_transform_profile
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Set unit conversion factor for consistency of Hx units with obs units. 
-!!
-!! @author Y. Rochon and Y. Yang, June 2005 to June 2011
-!!
-!! Input
-!!
-!!v     obsoper         Contains basic information related to the observation operator
-!!v     ppb             Logical indicating if model_col should be kept in ug/kg instead of
-!!v                     the units dictated by the BUFR number (optional, .false. by default)
-!!
-!! InOut
-!!
-!!v     model_col       Model space profile to have its units changed
-!!
-!! Other
-!!
-!!v     chm_setup_get_float('amu',*)  Molecular mass of constituent (g/mol).
-!!
-!! Revisions:
-!!v           Ping Du, CDMA,Jan 2015
-!!v           - Adapted for the EnVar
-!!v           Y. Rochon, ARQI/AQRD, Feb. 2015
-!!v           - Modifications of adaptations and update of BUFR elements
-!!v           M. Sitwell, ARQI/AQRD, April 2016
-!!v           - Moved most of the inputs into obsoper
-!!v           Y. Rochon, ARQI/AQRD, April 2016
-!!v           - Added use of varName and consideration of ug/kg for model fields
-!!v           M. Sitwell, ARQI/AQRD, April 2016
-!!v           - Moved nonlinear transformations into chm_transform_profile
-!!v           Y. Rochon, ARQI/AQRD, Oct 2018
-!!v           - Updated to latest set of BUFR_UNIT_* in bufr_mod.f90
-!!
-!! Further changes required for generalization 
-!!
-!!v 1) May ultimately have two versions, with one called outside the minimization section. 
-!!v 2) Conversion for surface emissions not included as yet (if any is needed)
-!!
-!! Comments:
-!!
-!!v     A. Standard model/analysis species field provided as mass mixing 
-!!v        ratio in ug/kg (ppb). Conversion to ppb is applied when this is 
-!!v        not the case except for AOD and surface emissions.
-!!v        As this is hardcoded, any changes in analysis variable must
-!!v        be reflected by correspondingly modifying this module.
-!!
-!!v     B. Unit conversion factor is calculated in chm_convert_units
-!!v        from the following factors:
-!!v          (1) physical constants
-!!v          (2) parameters related to a particular species such as molecular
-!!v              mass
-!!v          (3) variables such as T and P from background field at each
-!!v              iteration
-!!
-!!v     C. The baseline integral observation operator can be interpreted as being 
-!!v        integrals of the gas partial pressure, giving products in kg/m^2, 
-!!v        e.g. with sample discretized layer integrals
-!!v
-!!v               (mass density) * dz = - d(gas partial pressure)/g 
-!!v                                   = - [rho(gas)/rho(air)]*dP/g
-!!v                                   = - 1E-9 * [mass mixing ratio in parts per billion (ppb)]*dP/g 
-!!v
-!!v        The actual integration in pressure (in Pascal) is performed outside this routine.
-!!v        For integral products in kg/m^2, the output of this routine is to be in mmr/(m/s^2) 
-!!v        (mmr=mass mixing ratio), which is equivalent to (1E-9 ug/kg)/(m/s^2) and kg/(m^2*Pa). 
-!!v        Therefore, the input value in ug/kg has to be multiplied by 1E-9/g (g=RG below).
-!!v
-!!v        For integral products in other units, additional conversion factors are to also be applied.
-!!
-!!v     D. Coefficients related to unit conversion
-!!
-!!v        rho_stp=1.293                     Air density at STP (1.293 kg/m^3)
-!!v        RG=9.807 (=g)                     Acceleration due to gravity (m/s^2)
-!!v        MPC_AVOGADRO_R8 = Na              Avogadro's number. 6.023E23 molecules/mole
-!!v        MPC_MOLAR_MASS_DRY_AIR_R8 (m_air) Dry air molecular mass. 28.9644 g/mole
-!!v        MPC_RGAS_IDEAL_R8 = R             Ideal gas constant. 8.341 J/mole/K  (J=kg m^2/s^2)
-!!
-!!v                                            PV = nRT (n=number of moles)
-!!
-!!v        MPC_RGAS_DRY_AIR_R8  = Rd         Dry air constant. 287.1 J/kg/K  (J=kg m^2/s^2)
-!!v                                          = MPC_RGAS_IDEAL_R8 * 1000 g/km / MPC_MOLAR_MASS_DRY_AIR_R8
-!!
-!!v                                            P=rho*Rd*T = [n*m_air*0.001 kg/g]*Rd*T
-!!v                                                       = n*[m_air*0.001*Rd]*T
-!!v                                                       = nRT
-!!
-!!v      E. List should be revised following changes to the 'tableburp' file.
-!!
-!--------------------------------------------------------------------------
   subroutine chm_convert_units(obsoper,model_col,ppb_opt)
-  
+    !
+    !:Purpose: To set unit-conversion factor for consistency of Hx units with
+    !          obs units.
+    !
+    !:Arguments:
+    !     :ppb_opt:        indicates whether model_col should be kept in
+    !                      ug/kg instead of the units dictated by the BUFR
+    !                      number (optional, .false. by default)
+    !
+    !:Comments:
+    !
+    !      A. chm_setup_get_float('amu',*): Molecular mass of constituent(g/mol)
+    !
+    !      B. Standard model/analysis species field provided as mass mixing 
+    !         ratio in ug/kg (ppb). Conversion to ppb is applied when this is 
+    !         not the case except for AOD and surface emissions.
+    !         As this is hard-coded, any changes in analysis variable must
+    !         be reflected by correspondingly modifying this module.
+    !
+    !      C. Unit-conversion factor is calculated in chm_convert_units
+    !         from the following factors:
+    !           (1) physical constants
+    !           (2) parameters related to a particular species such as molecular
+    !               mass
+    !           (3) variables such as T and P from background field at each
+    !               iteration
+    !
+    !      D. The baseline integral observation operator can be interpreted as
+    !         being integrals of the gas partial pressure, giving products in
+    !         kg/m^2, e.g. with sample discretized layer integrals::
+    !                (mass density) * dz = - d(gas partial pressure)/g 
+    !                                    = - [rho(gas)/rho(air)]*dP/g
+    !                                    = - 1E-9 * [mass mixing ratio in parts per billion (ppb)]*dP/g 
+    ! 
+    !         The actual integration in pressure (in Pascal) is performed
+    !         outside this routine. For integral products in kg/m^2, the output
+    !         of this routine is to be in mmr/(m/s^2)  (mmr=mass mixing ratio),
+    !         which is equivalent to (1E-9 ug/kg)/(m/s^2) and kg/(m^2*Pa). 
+    !         Therefore, the input value in ug/kg has to be multiplied by 1E-9/g
+    !         (g=RG below).
+    ! 
+    !         For integral products in other units, additional conversion 
+    !         factors are also to be applied.
+    !
+    !      E. List should be revised following changes to the 'tableburp' file.
+    !
+    ! Further changes required for generalization 
+    !
+    !  1) May ultimately have two versions, with one called outside the
+    !     minimization section. 
+    !  2) Conversion for surface emissions not included as yet (if any is
+    !     needed)
+    !
+
+    !
+    !      F. Coefficients related to unit conversion
+    !
+    !         rho_stp=1.293                     Air density at STP (1.293 kg/m^3)
+    !         RG=9.807 (=g)                     Acceleration due to gravity (m/s^2)
+    !         MPC_AVOGADRO_R8 = Na              Avogadro's number. 6.023E23 molecules/mole
+    !         MPC_MOLAR_MASS_DRY_AIR_R8 (m_air) Dry air molecular mass. 28.9644 g/mole
+    !         MPC_RGAS_IDEAL_R8 = R             Ideal gas constant. 8.341 J/mole/K  (J=kg m^2/s^2)
+    !
+    !                                             PV = nRT (n=number of moles)
+    !
+    !         MPC_RGAS_DRY_AIR_R8  = Rd         Dry air constant. 287.1 J/kg/K  (J=kg m^2/s^2)
+    !                                           = MPC_RGAS_IDEAL_R8 * 1000 g/km / MPC_MOLAR_MASS_DRY_AIR_R8
+    !
+    !                                             P=rho*Rd*T = [n*m_air*0.001 kg/g]*Rd*T
+    !                                                        = n*[m_air*0.001*Rd]*T
+    !                                                        = nRT
     implicit none
 
-    type(struct_chm_obsoperators), intent(inout) :: obsoper
-    real(8), intent(inout) :: model_col(obsoper%nmodlev)
+    ! Arguments:
+    type(struct_chm_obsoperators), intent(inout) :: obsoper ! basic information related to the observation operator
+    real(8), intent(inout) :: model_col(obsoper%nmodlev) ! Model-space profile to have its units changed
     logical, intent(in), optional :: ppb_opt
     
-    ! Declaration of local variables
+    ! Locals:
     real(8) :: zcoef
     integer :: exp_P,exp_T
     logical :: ppb_out
@@ -1429,26 +1371,20 @@ contains
     if (exp_P.ne.0) model_col = model_col * obsoper%pp**exp_P
     
   end subroutine chm_convert_units
-  
-!--------------------------------------------------------------------------
-!! *Purpose*: Determines if the specifed field name is required somewhere
-!!            in the observation operators for a particular observation type.
-!!
-!! @author M. Sitwell Dec 2015
-!!
-!! Input
-!!
-!!v     varName   Name of field 
-!!v     varno     BUFR descriptor element
-!--------------------------------------------------------------------------
+
   function chm_required_field(varName,varno) result(needed)
-
+    !
+    !:Purpose: To determine whether the specifed field name is required
+    !          somewhere in the observation operators for a particular
+    !          observation type.
+    !
     implicit none
-
-    character(len=*), intent(in) ::varName
-    integer, intent(in) :: varno
     logical :: needed
-    
+
+    ! Arguments:
+    character(len=*), intent(in) :: varName ! Name of field
+    integer,          intent(in) :: varno   ! BUFR descriptor element
+
     select case(trim(varName))
     case('TT')
  
@@ -1466,50 +1402,28 @@ contains
 
   end function chm_required_field
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Perform layer integration and calculations.
-!!
-!! @author Y. Rochon, Feb 2015
-!!
-!! Input 
-!!
-!!v     ixtr         Flag indicating if obs outside model vertical range
-!!v                  0 for no.
-!!v     kmode        Observation model stage used to allow option of
-!!v                  tropo increment determination from total column data when
-!!v                  obsoper%column_bound > obsoper%vlayertop for
-!!v                  nobslev=1. For kmode=3, calc only for region between
-!!v                  obsoper%column_bound and surface. For kmode=2, split
-!!v                  calc for model top to obsoper%column_bound and 
-!!v                  obsoper%column_bound and surface.
-!!v     iconstituent_id  BUFR constituent ID.
-!!
-!! InOut
-!!
-!!v     obsoper  observation operator object
-!!v     success      success of integration
-!!v    ixtr         Modified ixtr as needed.
-!!
-!! Revisions:
-!!v           M. Sitwell, ARQI/AQRD, Mar 2015
-!!v           - Modified to calculate whole profile within a single call
-!!v           Y. Rochon ARQOI/AQRD, May 2015
-!!v           - Added input of ixtr and iavgkern
-!!v           Y. Rochon ARQOI/AQRD, Sept 2015
-!!v           - Added iconstituent_id, kmode, ... to varName and related option of producing
-!!v             tropo increments from total column data.
-!!v           M. Sitwell, ARQI/AQRD, April 2016
-!!v           - Many of the input arguments moved into obsoper
-!--------------------------------------------------------------------------
   subroutine chm_layer_integ_operator(obsoper,ixtr,success,kmode)
-
+    !
+    !:Purpose: To perform layer integration and calculations
+    !
+    !:Arguments:
+    !     :kmode:       Observation model stage used to allow option of tropo
+    !                   increment determination from total column data when
+    !                   obsoper%column_bound > obsoper%vlayertop for
+    !                   nobslev=1. For kmode=3, calc only for region between
+    !                   obsoper%column_bound and surface. For kmode=2, split
+    !                   calc for model top to obsoper%column_bound and 
+    !                   obsoper%column_bound and surface.
+    !
     implicit none
 
-    type(struct_chm_obsoperators), intent(inout) :: obsoper
+    ! Arguments:
+    type(struct_chm_obsoperators), intent(inout) :: obsoper ! observation operator object
+    integer, intent(inout) :: ixtr(obsoper%nobslev) ! Flag indicating if obs outside model vertical range: 0 for no.
+    logical, intent(inout) :: success(obsoper%nobslev) ! success of integration
     integer, intent(in) :: kmode
-    integer, intent(inout) :: ixtr(obsoper%nobslev)
-    logical, intent(inout) :: success(obsoper%nobslev)
-    
+
+    ! Locals:
     integer :: ij,iobslev,tropo_mode
     real(8) :: vlayertop_ref,vlayerbottom_ref,imodlev_bot_ref
 
@@ -1620,34 +1534,38 @@ contains
    
   end subroutine chm_layer_integ_operator
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Preliminary calculations for producing components required for vertical 
-!!            integration w.r.t. pressure to calculate partial (or total)
-!!            column value of model state profile or used for adjoint calc.
-!!
-!! @author Y. Rochon, P. Du, and M. Sitwell, Feb 2015 (based on pre-Envar version by
-!!         Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012)
-!!
-!! Output  
-!!v        obsoper%vmodpress(nmodlev+1)       -- Model layer boundaries given that pressmod are
-!!v                                              taken at mid-layer values.
-!!v        obsoper%vweights(nmodlev,nmodlev)  -- Second order Lagrangian interp integration weights
-!!
-!! Comments:
-!!v        - This subroutine does the following:
-!!v           - Setting of model layer boundaries
-!!v           - Determining integration weights associated to second order Lagrangian interpolation.
-!!v        - Layer boundaries are taken as mid-point between eta levels in lnP coordinate. Layer
-!!v          values are set to be the values interpolated to the mid-point in P within the various
-!!v          layers. Interpolation in P is done quadratically. 
-!--------------------------------------------------------------------------
   subroutine chm_vertintg_setup(obsoper)
-
+    !
+    !:Purpose: Preliminary calculations for producing components required for
+    !          vertical  integration w.r.t. pressure to calculate partial (or
+    !          total) column value of model state profile or used for adjoint
+    !          calc.
+    !
+    !:Output:
+    !         :obsoper%vmodpress(nmodlev+1):       Model layer boundaries given
+    !                                              that pressmod are taken at
+    !                                              mid-layer values.
+    !         :obsoper%vweights(nmodlev,nmodlev):  Second order Lagrangian
+    !                                              interp integration weights
+    !
+    !:Comments:
+    !         - This subroutine does the following:
+    !
+    !           - Setting of model layer boundaries
+    !           - Determining integration weights associated to second order
+    !             Lagrangian interpolation.
+    !
+    !         - Layer boundaries are taken as mid-point between eta levels in
+    !           lnP coordinate. Layer values are set to be the values
+    !           interpolated to the mid-point in P within the various layers.
+    !           Interpolation in P is done quadratically. 
+    !
     implicit none
-      
+
+    ! Arguments:
     type(struct_chm_obsoperators), intent(inout) :: obsoper
 
-    ! Declaration of local variables
+    ! Locals:
 
     integer   :: jk
     real(8)   :: zp, zp1, zp2, zp3, zr1, zr2, zr3
@@ -1710,45 +1628,33 @@ contains
 
   end subroutine chm_vertintg_setup
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Calculate components required for vertical integration w.r.t.
-!!            pressure to calculate partial (or total) column value of model
-!!            state profile or used for adjoint calc.
-!!
-!! @author Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012
-!!
-!! Input   
-!!v        obsoper%nmodlev       -- # of model vertical levels
-!!v        obsoper%nobslev       -- # of obs vertical levels
-!!v        obsoper%vweights      -- See routine chm_vertintg_setup
-!!v        obsoper%vmodpress
-!!v        success               -- Logical indicating if calc are to be performed.
-!!v        ixtr                  -- Flag indicating if obs outside model vertical range (0 for no)
-!!
-!! Output  
-!!v        obsoper%zh(obsoper%nobslev,obsoper%nmodlev)  -- Initial innovation model array 
-!!v                                                        (other than conversion constants)
-!!v        obsoper%zhp(obsoper%nobslev,obsoper%nmodlev) -- Part of innovation operator not 
-!!v                                                        related to resolution
-!!
-!! Revisions:
-!!v        Ping Du and Y. Rochon, Jan-Feb 2015
-!!v         - Adapted for the EnVar
-!!v        M. Sitwell, ARQI/AQRD, Mar 2015
-!!v         - Modified to calculate whole profile within a single call
-!!v        Y. Rochon ARQOI/AQRD, May 2015
-!!v         - Added input and use of ixtr and iavgkern
-!!v        M. Sitwell, ARQI/AQRD, April 2016
-!!v         - Some input arguments moved into obsoper
-!--------------------------------------------------------------------------
   subroutine chm_vertintg(obsoper,ixtr,success)
-
+    !
+    !:Purpose: To calculate components required for vertical integration w.r.t.
+    !          pressure to calculate partial (or total) column value of model
+    !          state profile or used for adjoint calc.
+    !
+    !:Input:
+    !         :obsoper%nmodlev:      # of model vertical levels
+    !         :obsoper%nobslev:      # of obs vertical levels
+    !         :obsoper%vweights:     See routine chm_vertintg_setup
+    !         :obsoper%vmodpress:
+    !
+    !:Output:
+    !         :obsoper%zh(obsoper%nobslev,obsoper%nmodlev):
+    !                      Initial innovation model array (other than
+    !                      conversion constants)
+    !         :obsoper%zhp(obsoper%nobslev,obsoper%nmodlev): 
+    !                      Part of innovation operator not related to resolution
+    !
     implicit none
 
+    ! Arguments:
     type(struct_chm_obsoperators), intent(inout) :: obsoper
-    integer, intent(in) ::ixtr(obsoper%nobslev)
-    logical, intent(in) :: success(obsoper%nobslev)
-    
+    integer, intent(in) ::ixtr(obsoper%nobslev) ! Flag indicating if obs outside model vertical range (0 for no)
+    logical, intent(in) :: success(obsoper%nobslev) ! indicating if calc are to be performed
+
+    ! Locals:
     integer, parameter :: ivweights=2  ! Order of Lagrangian interpolation.
 
     ! Declaration of local variables
@@ -1908,46 +1814,37 @@ contains
 
   end subroutine chm_vertintg
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Interpolation to point in profile. Uses piecewise linear vertical
-!!            interpolation in log(Pressure).
-!!
-!! @author M. Sitwell, March 2015 (based on ch_vprof from 3DVAR-CHEM by Y. Rochon July 2005)
-!!
-!! Revisions:
-!!v        Y. Rochon, May 2015
-!!v         - Added input and use of ixtr and iavgkern
-!!v        M. Sitwell, April 2015
-!!v         - Some input arguments moved into obsoper
-!! Input
-!!
-!!v       obsoper%pp      pressure on model levels, assumed to be in ascending order
-!!v       pres_obs        pressure on observation levels
-!!v       ixtr            Flag indicating if obs outside model vertical range (0 for no)
-!!
-!! Output
-!!
-!!v       obsoper%zh      interpolation coefficients
-!!v       success         success of interpolation
-!!v       ixtr            Modified ixtr as needed.
-!!
-!! Comments:
-!!v      - Current implementation searches for index of nearest model level. This step
-!!v        is redundant since this information is already saved in obsSpaceData in OBS_LYR.
-!!v        This step is repeated so that the routines in chem_obsoperators_mod are more independent
-!!v        of the rest of the EnVar code. If it is desired to skip this redundant step,
-!!v        the content of the OBS_LYR column could be passed to chm_obsoperators and
-!!v        subsequentially to this subroutine.
-!--------------------------------------------------------------------------
   subroutine chm_vert_interp_operator(obsoper,pres_obs,ixtr,success)
-
+    !
+    !:Purpose: Interpolation to point in profile. Uses piecewise linear vertical
+    !          interpolation in log(Pressure).
+    !
+    !:Input:
+    !       :obsoper%pp:     pressure on model levels, assumed to be in
+    !                        ascending order
+    !
+    !:Output:
+    !
+    !       :obsoper%zh:     interpolation coefficients
+    !
+    !:Comments:
+    !       - Current implementation searches for index of nearest model level.
+    !         This step is redundant since this information is already saved in
+    !         obsSpaceData in OBS_LYR. This step is repeated so that the
+    !         routines in chem_obsoperators_mod are more independent of the
+    !         rest of the EnVar code. If it is desired to skip this redundant
+    !         step, the content of the OBS_LYR column could be passed to
+    !         chm_obsoperators and subsequently to this subroutine.
+    !
     implicit none
 
+    ! Arguments:
     type(struct_chm_obsoperators), intent(inout) :: obsoper
-    integer, intent(inout) :: ixtr(obsoper%nobslev)
-    real(8), intent(in) :: pres_obs(obsoper%nobslev)
-    logical, intent(inout) :: success(obsoper%nobslev)
+    integer, intent(inout) :: ixtr(obsoper%nobslev)  ! Flag indicating if obs outside model vertical range (0 for no)
+    real(8), intent(in) :: pres_obs(obsoper%nobslev) ! pressure on observation levels
+    logical, intent(inout) :: success(obsoper%nobslev)! success of interpolation
 
+    ! Locals:
     integer :: iobslev,jmodlev
 
     do iobslev=1,obsoper%nobslev
@@ -1993,27 +1890,19 @@ contains
 
   end subroutine chm_vert_interp_operator
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Get the vertical level index for the pressure in rppobs
-!!            within obs layer and nearest specified obs layer boundary.
-!!
-!! @author Y. Yang, May 2004
-!!
-!! Arguments
-!!
-!!v       rpress        pressure value in Pascal
-!!v       rppobs        profile of pressure at obs. location
-!!v       topbtm        indicating whether we are looking for top or bottom pressure
-!!v       ntotlev       total number of levels of rppobs
-!--------------------------------------------------------------------------
   integer function chm_igetmodlev(rpress, rppobs, topbtm, ntotlev)
-
+    !
+    !:Purpose: To get the vertical level index for the pressure in rppobs
+    !          within obs layer and nearest specified obs layer boundary.  
     implicit none
- 
-    integer, intent(in) :: ntotlev
-    real(8), intent(in) :: rpress, rppobs(ntotlev)
-    character(len=*), intent(in) :: topbtm
-    
+
+    ! Arguments:
+    real(8), intent(in) :: rpress          ! pressure value in Pascal
+    real(8), intent(in) :: rppobs(ntotlev) ! profile of pressure at obs location
+    character(len=*), intent(in) :: topbtm ! indicating whether we are looking for top or bottom pressure
+    integer, intent(in) :: ntotlev         ! total number of levels of rppobs
+
+    ! Locals
     integer     :: ilev1, ilev2
     integer     :: jk
 
@@ -2058,114 +1947,114 @@ contains
   
   end function chm_igetmodlev
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Set generalized innovation operator for integral or layer avg obs.
-!!            Relevant only for 3D incremental fields. This version is intended
-!!            to vertically distribute the obs increments proportionally to the
-!!            background state.
-!!
-!! @author Y. Rochon, April 2015 (from pre-EnVar version of Nov 2004)
-!!
-!! Input   
-!!
-!!v      obsoper%zh,zhp       see routine chm_vertintg_setup
-!!v      kmode                index specifying if content to be applied (i.e. if kmode>1)
-!!v      success              logical indicating if calc are to be performed.
-!!
-!! Output  
-!!v      obsoper%zh(obsoper%nmodlev)     a*w: Final innovation model array (other than conversion constants)
-!!v      obsoper%zhp(obsoper%nmodlev)    w (see comments section)
-!!
-!! Revisions:
-!!v         M. Sitwell, April 2016
-!!v          - Some input arguments moved into obsoper
-!!v         Y. Rochon, May 2016
-!!v          - Added weighting cases 
-!!
-!! Comments:
-!!
-!!v     (1) This routine prepares an alternative innovation operator g, called
-!!v     the generalized innovation operator, to take the place of the
-!!v     innovation (TLM) operator h (row of zh). The operator g is
-!!v     specified as:
-!!v
-!!v            g = a*w
-!!v
-!!v     where the modified innovation operator 'w' can be set as:
-!!v
-!!v            w = P[ (h'x)^T ] *  B^{-1}     
-!!v
-!!v     with  h' is the part of h which excludes resolution dependence
-!!v              (only/mostly contains the physics part of h; zhp),
-!!v           x is the state profile rval
-!!v           P is a window cutoff operator (sets small values to zero), and
-!!v           B is the original/initial total "vertical" covariance matrix (in 2D)
-!!v         
-!!v
-!!v     and 'a' is a proportionality constant ensuring that the innovation
-!!v             increment remains unchanged for the 1D case in the absence
-!!v             of other obs., i.e.,
-!!v
-!!v                 a^2 = (h*B*h^T)(w*B*w^T)^{-1},
-!!v
-!!v     Application of the state profile x (rval) is to make the
-!!v     increment profile be more proportional to the state profile.
-!!v
-!!v     The presence of B^{-1} is to negate the weight re-distribution from the later 
-!!v     application of B in grad(Jo).
-!!v
-!!v     While dx is provided to the obs operator, the minimization is done for
-!!v     dx/sigma where sigma is the background error std. dev. in B and so C (correlation matrix)
-!!v     is used instead of B in the minimization. Moreover, the transformation from dx/sigma 
-!!v     to dx is done outside the forward model operators (at the spectral to physical space 
-!!v     transformation step). For this reason, the expression for w should technically be replaced by
-!!v 
-!!v            w = P[ (h'x/sigma^2)^T ] *  C^{-1}             (Option 1 below)
-!!v
-!!v     still with
-!!v
-!!v            a^2 = (h*B*h^T)(w*B*w^T)^{-1}
-!!v 
-!!v     The presence of C^{-1} does/can give difficulty to the iterative variational 
-!!v     minimization. It can result in oscillations in the increment profile depending on
-!!v     where the iterations are stopped. Moreover, if the spectral space C matrix is for 
-!!v     non-seperable vertical and horizontal correlations, there will be oscillations 
-!!v     due to inconstencies between the total inverse vertical correlation C^{-1} in physical space 
-!!v     and the inverse vertical correlation matrix for each spectral wavenumber.
-!!v
-!!v     As alternatives, one can completely omit the role of  C^{-1} from w, i.e.
-!!v
-!!v            w = P[ (h'x/sigma^2)^T ]                        (Option 3)
-!!v
-!!v      or use the following substitute to approximate the role of C^{-1} in approximatily
-!!v      negating the weight re-distribution from later application of C in grad(Jo), i.e.
-!!v
-!!v            w(i) = P[ (h'x/sigma^2)^T ]_i / sum(C(:,i))     (Option 2 - preferred)
-!!v
-!!v     (2) The matrices B and B^{-1} are the total error covariance matrix (in physical space)
-!!v     and its inverse with the related error correlation matrices 'corvert' and 'corverti' 
-!!v     provided from 'bmatrixchem_mod.ftn90'.
-!!v
-!!v     (3) In the presence of both (a) neighbouring measurements and (b) horizontal background error 
-!!v     correlation lengths that vary in the vertical, the increments will also be subject to the
-!!v     the latter, displaying larger increments in vertical regions with larger horizontal
-!!v     error correlation lengths - this distorting the vertical increment distribution stemming
-!!v     from chm_genoper alone. This stems from w accounting for vertical correlations via C^{^-1}
-!!v     and not the horizontal correlations in B.
-!!v
-!!v     (4) NOTE: Cases with ensemble-based and or lam-based background covariances
-!!v     are not taken into account in this version.
-!--------------------------------------------------------------------------
   subroutine chm_genoper(obsoper,kmode,success)
-      
+    !
+    !:Purpose: Set generalized innovation operator for integral or layer avg
+    !          obs. Relevant only for 3D incremental fields. This version is
+    !          intended to vertically distribute the obs increments
+    !          proportionally to the background state.
+    !
+    !:Input:
+    !       :obsoper%zh,zhp:       see routine chm_vertintg_setup
+    !
+    !:Output:
+    !       :obsoper%zh(obsoper%nmodlev):     a*w: Final innovation model array
+    !                                         (other than conversion constants)
+    !       :obsoper%zhp(obsoper%nmodlev):    w (see comments section)
+    !
+    ! Comments:
+    !
+    !      (1) This routine prepares an alternative innovation operator g,
+    !          called the generalized innovation operator, to take the place of
+    !          the innovation (TLM) operator h (row of zh). The operator g is
+    !          specified as:
+    ! 
+    !             g = a*w
+    ! 
+    !          where the modified innovation operator 'w' can be set as:
+    ! 
+    !             w = P[ (h'x)^T ] *  B^{-1}     
+    ! 
+    !          with  h' is the part of h which excludes resolution dependence
+    !          (only/mostly contains the physics part of h; zhp),
+    !
+    !            - x is the state profile rval
+    !            - P is a window cutoff operator (sets small values to zero)
+    !            - B is the original/initial total "vertical" covariance matrix
+    !              (in 2D)
+    !          
+    ! 
+    !          and 'a' is a proportionality constant ensuring that the
+    !          innovation increment remains unchanged for the 1D case in the
+    !          absence of other obs., i.e.,
+    ! 
+    !                  a^2 = (h*B*h^T)(w*B*w^T)^{-1},
+    ! 
+    !          Application of the state profile x (rval) is to make the
+    !          increment profile be more proportional to the state profile.
+    ! 
+    !          The presence of B^{-1} is to negate the weight re-distribution
+    !          from the later application of B in grad(Jo).
+    ! 
+    !          While dx is provided to the obs operator, the minimization is
+    !          done for dx/sigma where sigma is the background error std. dev.
+    !          in B and so C (correlation matrix) is used instead of B in the
+    !          minimization. Moreover, the transformation from dx/sigma to dx is
+    !          done outside the forward model operators (at the spectral to
+    !          physical space  transformation step). For this reason, the
+    !          expression for w should technically be replaced by
+    !  
+    !             w = P[ (h'x/sigma^2)^T ] *  C^{-1}            (Option 1 below)
+    ! 
+    !          still with
+    ! 
+    !             a^2 = (h*B*h^T)(w*B*w^T)^{-1}
+    !  
+    !          The presence of C^{-1} does/can give difficulty to the iterative
+    !          variational  minimization. It can result in oscillations in the
+    !          increment profile depending on where the iterations are stopped.
+    !          Moreover, if the spectral space C matrix is for  non-separable
+    !          vertical and horizontal correlations, there will be oscillations 
+    !          due to inconstencies between the total inverse vertical
+    !          correlation C^{-1} in physical space  and the inverse vertical
+    !          correlation matrix for each spectral wavenumber.
+    ! 
+    !          As alternatives, one can completely omit the role of  C^{-1} from
+    !          w, i.e.
+    ! 
+    !             w = P[ (h'x/sigma^2)^T ]                        (Option 3)
+    ! 
+    !          or use the following substitute to approximate the role of C^{-1}
+    !          in approximately negating the weight re-distribution from later
+    !          application of C in grad(Jo), i.e.
+    ! 
+    !             w(i) = P[ (h'x/sigma^2)^T ]_i / sum(C(:,i))  (Option 2 - preferred)
+    ! 
+    !      (2) The matrices B and B^{-1} are the total error covariance matrix
+    !          (in physical space)
+    !          and its inverse with the related error correlation matrices
+    !          *corvert* and *corverti*  provided from *bmatrixchem_mod.ftn90*.
+    ! 
+    !      (3) In the presence of both (a) neighbouring measurements and (b)
+    !          horizontal background error  correlation lengths that vary in the
+    !          vertical, the increments will also be subject to the latter,
+    !          displaying larger increments in vertical regions with larger
+    !          horizontal error correlation lengths - this distorting the
+    !          vertical increment distribution stemming from chm_genoper alone.
+    !          This stems from w accounting for vertical correlations via
+    !          C^{^-1} and not the horizontal correlations in B.
+    ! 
+    !      (4) NOTE: Cases with ensemble-based and or lam-based background
+    !          covariances are not taken into account in this version.
+    !
     implicit none
-      
+
+    ! Arguments:
     type(struct_chm_obsoperators), intent(inout) :: obsoper
-    integer, intent(in) :: kmode
-    logical, intent(in) :: success(obsoper%nobslev)
-    
-    ! Declaration of local variables
-    
+    integer, intent(in) :: kmode ! index specifying if content to be applied (i.e. if kmode>1)
+    logical, intent(in) :: success(obsoper%nobslev) ! indicating if calc are to be performed
+
+    ! Locals:
     real(8), parameter :: pwin=0.01
     integer  :: iobslev,imodlev,irmse,jvar
     logical  :: lrgsig
@@ -2363,59 +2252,58 @@ contains
       
   end subroutine chm_genoper
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Multiplys a matrix by the covariance matrix or its inverse
-!!            (or combinations of these).
-!!
-!! @author Y. Rochon, April 2015
-!!
-!! Input
-!!
-!!v    itype                    type of multiplication, for an input matrix A the output matrix is
-!!v                               0) D(i,j)=A(i,j)/sum(C(1:n,i))
-!!v                               1) A*C
-!!v                               2) C*A
-!!v                               3) A*C*A^T
-!!v                              -1) A*CI
-!!v                              -2) CI*A
-!!v                              -3) A*CI*A^T
-!!v                             where C is the covariance matrix and CI is its inverse
-!!v    varName                  variable name
-!!v    rmat_in(ndim1,ndim2)     input matrix/vector A (see comments sections)
-!!v    imodlev_top(ndim1)       top level of non-zero values in rmat_in
-!!v    imodlev_bot(ndim1)       bottom level of non-zero values in rmat_in
-!!v    ndim1,ndim2              matrix dimensions (ndim1 to be 1 one 1D input vectors)
-!!v    ndim3                    expected output dimension
-!!v                                   =ndim1 for itype= +/-3
-!!v                                   =ndim2 otherwise
-!!v    lrgsig                   index to indicate if rgsig to be included as part of C or CI below.
-!!v    rsig(ndim2,2)            background error std. dev. at obs locations (must be provided when lrgsig=.true.)
-!!
-!! Output
-!!
-!!v    rmat_out(ndim1,ndim2)    output matrix/vector
-!!
-!! Comments:
-!!
-!!v   - If rmat_in is a 1-D vector, then
-!!v        for cases +/- 2, one should have set ndim2=1 and ndim1=vector-length.
-!!v        for cases +/- 1,3, one should have set ndim1=1 and ndim2=vector-length.
-!!v
-!!v   - Revisions required whem LAM and ensembles cases become available.
-!--------------------------------------------------------------------------
-  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot, &
+  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot,&
                               ndim1,ndim2,ndim3,lrgsig,itype,rsig_opt)
- 
-      implicit none
+    !
+    !:Purpose: To multiply a matrix by the covariance matrix or its inverse
+    !          (or combinations of these).
+    !
+    !:Arguments:
+    !    :ndim3:         output dimension expected by the calling routine
+    !
+    !                        - for itype=+/-3  ndim3=ndim1
+    !                        - otherwise       ndim3=ndim2 
+    !
+    !    :itype:         type of multiplication, for an input matrix A the
+    !                    output matrix is
+    !                      === ===========================
+    !                        0 D(i,j)=A(i,j)/sum(C(1:n,i))
+    !                        1 A*C
+    !                        2 C*A
+    !                        3 A*C*A^T
+    !                       -1 A*CI
+    !                       -2 CI*A
+    !                       -3 A*CI*A^T
+    !                      === ===========================
+    !                    where C is the covariance matrix and CI is its inverse
+    !
+    !:Comments:
+    !
+    !    - If rmat_in is a 1-D vector, then
+    !
+    !         - for cases +/- 2, one should have set ndim2=1 and
+    !           ndim1=vector-length.
+    !         - for cases +/- 1,3, one should have set ndim1=1 and
+    !           ndim2=vector-length.
+    ! 
+    !    - Revisions required whem LAM and ensembles cases become available.
+    !
+    implicit none
 
-      character(len=*), intent(in) :: varName
-      logical, intent(in)    :: lrgsig
-      integer, intent(in)    :: ndim1,ndim2,ndim3,itype
-      integer, intent(in)    :: imodlev_top(ndim1),imodlev_bot(ndim1)
-      real(8), intent(in)    :: rmat_in(ndim1,ndim2)
-      real(8), intent(out)   :: rmat_out(ndim1,ndim3)
-      real(8), intent(in), optional :: rsig_opt(ndim2,2)
-   
+    ! Arguments:
+      character(len=*), intent(in) :: varName ! variable name
+      real(8), intent(in)    :: rmat_in(ndim1,ndim2) ! input matrix/vector A (see comments section)
+      real(8), intent(out)   :: rmat_out(ndim1,ndim3) ! output matrix/vector
+      integer, intent(in)    :: imodlev_top(ndim1) ! top level of non-zero values in rmat_in
+      integer, intent(in)    :: imodlev_bot(ndim1) ! bottom level of non-zero values in rmat_in
+      integer, intent(in)    :: ndim1 ! matrix dimension (one 1D input vector)
+      integer, intent(in)    :: ndim2 ! matrix dimension
+      integer, intent(in)    :: ndim3
+      logical, intent(in)    :: lrgsig ! indicates whether rgsig to be included as part of C or CI below.
+      integer, intent(in)    :: itype
+      real(8), intent(in), optional :: rsig_opt(ndim2,2) ! background error std. dev. at obs locations (must be provided when lrgsig=.true.)
+
+    ! Locals:
       integer :: nsize
       real(8) :: rsig(ndim2,2)
       
@@ -2438,37 +2326,26 @@ contains
 !                                lrgsig,itype,rsig(:,2))
 
   end subroutine chm_corvert_mult
-  
-!--------------------------------------------------------------------------
-!! *Purpose*: Determine and store the boundary (e.g. tropopause or PBL) pressure levels if needed by
-!!            the observation operators.
-!!
-!! @author Y. Rochon, Oct 2015
-!!
-!! Input
-!!
-!!v      iconstituent_id   BUFR code element of Table 08046 identifying the constituent.
-!!v      nmodlev           number of model levels for variables other than uu and vv
-!!v      pressmod          model pressure array
-!!v      tt                model temperature (Kelvin)
-!!v      height            height (meters)
-!!v      hu                specific humidity 
-!!v      uu                model zonal wind component (m/s)
-!!v      vv                model meridional wind component (m/s)
-!!
-!! Output
-!!
-!!v      bound_press       pressure level of boundary to be imposed
-!--------------------------------------------------------------------------
-  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(bound_press)
 
+  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,height,hu_opt, &
+                                uu_opt,vv_opt) result(bound_press)
+    !
+    !:Purpose: To determine and to store the boundary (e.g. tropopause or PBL)
+    !          pressure levels if needed by the observation operators.    
     implicit none
+    real(8) :: bound_press ! pressure level of boundary to be imposed
 
-    integer, intent(in) :: nmodlev,iconstituent_id
-    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),height(nmodlev)
-    real(8), optional, intent(in) :: uu_opt(:),vv_opt(:),hu_opt(nmodlev)
+    ! Arguments:
+    integer, intent(in) :: iconstituent_id  ! BUFR code element of Table 08046 identifying the constituent
+    integer, intent(in) :: nmodlev          ! number of model levels for variables other than uu and vv
+    real(8), intent(in) :: pressmod(nmodlev)! model pressure array
+    real(8), intent(in) :: tt(nmodlev)      ! model temperature (Kelvin)
+    real(8), intent(in) :: height(nmodlev)  ! height (meters)
+    real(8), optional, intent(in) :: hu_opt(nmodlev) ! specific humidity
+    real(8), optional, intent(in) :: uu_opt(:) ! model zonal wind component(m/s)
+    real(8), optional, intent(in) :: vv_opt(:) ! model meridional wind component (m/s)
    
-    real(8) :: bound_press
+    ! Locals:
     integer :: tropo_bound
     
     bound_press = -1.
@@ -2507,21 +2384,20 @@ contains
       
   end function chm_get_col_boundary
        
-!--------------------------------------------------------------------------
-!! *Purpose*: Adds column boundary data to chm_column_boundary which can be retrieved later
-!!            using a header index.
-!!
-!! @author M. Sitwell, April 2016
-!--------------------------------------------------------------------------
   subroutine chm_add_col_boundary(headerIndex,bound_press)
-
+    !
+    !:Purpose: To add column boundary data to chm_column_boundary which can be
+    !          retrieved later using a header index.
+    !
     implicit none 
-    
+
+    ! Arguments:
     integer, intent(in) :: headerIndex
     real(8), intent(in) :: bound_press
-    
+
+    ! Locals:
     integer obsdata_maxsize
-    
+
     obsdata_maxsize = chm_setup_get_int('obsdata_maxsize')   
      
     if (.not.associated(chm_column_boundary%data1d)) then
@@ -2542,18 +2418,18 @@ contains
 
   end subroutine chm_add_col_boundary
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Retrieves previously saved column boundary data in chm_column_boundary from
-!!            the header index.
-!!
-!! @author M. Sitwell, April 2016
-!--------------------------------------------------------------------------
   function chm_retrieve_col_boundary(headerIndex) result(bound_press)
-
+    !
+    !:Purpose: To retrieve previously saved column boundary data in
+    !          chm_column_boundary from the header index.
+    !
     implicit none
-
-    integer, intent(in) :: headerIndex
     real(8) :: bound_press
+
+    ! Arguments:
+    integer, intent(in) :: headerIndex
+
+    ! Locals:
     character(len=22) :: code
 
     write(code,'(I22)') headerIndex
@@ -2562,19 +2438,18 @@ contains
 
   end function chm_retrieve_col_boundary
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Adds background sigma profiles (and inverse) to chm_sigma_trial which can be retrieved later
-!!            using a header index.
-!!
-!! @author Y. Rochon, May 2016 (based on chm_add_col_boundary by M. Sitwell)
-!--------------------------------------------------------------------------
   subroutine chm_add_sigma_trial(headerIndex,sigma)
-
+    !
+    !:Purpose: To add background sigma profiles (and inverse) to chm_sigma_trial
+    !          which can be retrieved later using a header index.
+    !
     implicit none 
-    
+
+    ! Arguments:
     integer, intent(in) :: headerIndex
     real(8), intent(in) :: sigma(:,:)
-   
+
+    ! Locals:
     integer :: obsdata_maxsize
     
     obsdata_maxsize = chm_setup_get_int('obsdata_maxsize')
@@ -2609,18 +2484,17 @@ contains
 
   end subroutine chm_add_sigma_trial
 
-!--------------------------------------------------------------------------
-!! *Purpose*: Retrieves previously saved background sigma profiles chm_sigma_trial from
-!!            the header index.
-!!
-!! @author Y. Rochon, May 2016 (based on chm_retrieve_col_boundary by M. Sitwell)
-!--------------------------------------------------------------------------
   function chm_retrieve_sigma_trial(headerIndex) result(sigma)
-
+    !
+    !:Purpose: To retrieve previously saved background sigma profiles
+    !          chm_sigma_trial from the header index.
     implicit none
-
-    integer, intent(in) :: headerIndex
     real(8) :: sigma(chm_sigma_trial%dim1,chm_sigma_trial%dim2)
+
+    ! Arguments:
+    integer, intent(in) :: headerIndex
+
+    ! Locals:
     character(len=22) :: code
 
     write(code,'(I22)') headerIndex

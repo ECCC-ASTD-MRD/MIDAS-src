@@ -14,15 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!! MODULE varNameList (prefix="vnl" category='7. Low-level data objects and utilities')
-!!
-!! *Purpose*: Contains a list of all possible variable names that can be used 
-!!            as analysis variables along with additional information for each and
-!!            procedures for accessing this information
-!!
-!--------------------------------------------------------------------------
 module varNameList_mod
+  ! MODULE varNameList (prefix='vnl' category='7. Low-level data objects and utilities')
+  !
+  ! :Purpose: Contains a list of all possible variable names that can be used
+  !           as analysis variables along with additional information for each
+  !           and procedures for accessing this information
+  !
   use bufr_mod
   use utilities_mod
   implicit none
@@ -82,17 +80,19 @@ module varNameList_mod
 
   contains
 
-    !--------------------------------------------------------------------------
-    ! vnl_varListIndex3d
-    !--------------------------------------------------------------------------
     function vnl_varListIndex3d(varName) result(listIndex)
+      !
+      ! :Purpose: To get the 3d list index from the variable name
+      !
+
       implicit none
+
       character(len=*), intent(in) :: varName
       integer                      :: jvar,listIndex
 
       listIndex=-1
       do jvar=1,vnl_numvarmax3D
-        if(varName.eq.vnl_varNameList3d(jvar)) then
+        if( varName == vnl_varNameList3d(jvar)) then
           listIndex=jvar
           exit
         endif
@@ -104,12 +104,16 @@ module varNameList_mod
 
     end function vnl_varListIndex3d
 
-    !--------------------------------------------------------------------------
-    ! vnl_varListIndex2d
-    !--------------------------------------------------------------------------
+
     function vnl_varListIndex2d(varName) result(listIndex)
+      !
+      ! :Purpose: To get the 2d list index from the variable name
+      !
+
       implicit none
+
       character(len=*), intent(in) :: varName
+
       integer                      :: jvar,listIndex
 
       listIndex=-1
@@ -126,10 +130,12 @@ module varNameList_mod
 
     end function vnl_varListIndex2d
 
-    !--------------------------------------------------------------------------
-    ! vnl_varListIndex
-    !--------------------------------------------------------------------------
+
     function vnl_varListIndex(varName) result(listIndex)
+      !
+      ! :Purpose: To get the varlist index from the variable name
+      !
+
       implicit none
       character(len=*), intent(in) :: varName
       integer                      :: jvar,listIndex
@@ -148,10 +154,13 @@ module varNameList_mod
 
     end function vnl_varListIndex
 
-    !--------------------------------------------------------------------------
-    ! vnl_varnameFromVarnum
-    !--------------------------------------------------------------------------
+
     function vnl_varnameFromVarnum( varNumber, varNumberChm_opt ) result(varName)
+      !
+      ! :Purpose: To get the variable name from the variable number
+      !
+
+
       implicit none
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
@@ -228,21 +237,24 @@ module varNameList_mod
 
     end function vnl_varnameFromVarnum
 
-    !--------------------------------------------------------------------------
-    ! vnl_varnumFromVarname
-    !-------------------------------------------------------------------------- 
+ 
     function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
-      !   Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
-      !  
-      !   Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
-      !   So one must provide the name directly associated to a single BUFR code.
-      !   As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
+      !
+      ! :Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
+      !           Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
+      !           So one must provide the name directly associated to a single BUFR code.
+      !           As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
       !   
-      !   For constituents, the varNumber refers only to the field/variable and not units. As consequence,
-      !   there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
+      !           For constituents, the varNumber refers only to the field/variable and not units. As consequence,
+      !           there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
+      !
+
       implicit none
+
       character(len=*),  intent(in) :: varName
+
       character(len=*),  intent(in), optional :: varKind_opt
+
       integer    :: varNumber
       
       varNumber=0
@@ -332,10 +344,11 @@ module varNameList_mod
       
     end function vnl_varnumFromVarname
 
-    !--------------------------------------------------------------------------
-    ! vnl_varLevelFromVarname
-    !--------------------------------------------------------------------------
+
     function vnl_varLevelFromVarname(varName) result(varLevel)
+      !
+      ! :Purpose: To get variable level list from variable name 
+      !
       implicit none
 
       character(len=*), intent(in)   :: varName
@@ -346,10 +359,10 @@ module varNameList_mod
     end function vnl_varLevelFromVarname
 
 
-    !--------------------------------------------------------------------------
-    ! vnl_varLevelFromVarnum
-    !--------------------------------------------------------------------------
     function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt) result(varLevel)
+      !
+      ! :Purpose: To get variable level list from the variable number 
+      !
       implicit none
 
       integer, intent(in)           :: varNumber
@@ -362,10 +375,13 @@ module varNameList_mod
 
     end function vnl_varLevelFromVarnum
 
-    !--------------------------------------------------------------------------
-    ! vnl_varKindFromVarname
-    !--------------------------------------------------------------------------
+
     function vnl_varKindFromVarname(varName) result(varKind)
+      !
+      ! :Purpose: To get variable kind list from the variable number 
+      !
+      
+
       implicit none
 
       character(len=*), intent(in) :: varName
@@ -375,10 +391,12 @@ module varNameList_mod
 
     end function vnl_varKindFromVarname
 
-    !--------------------------------------------------------------------------
-    ! vnl_varNamesFromExistList
-    !--------------------------------------------------------------------------
+
     subroutine vnl_varNamesFromExistList(varNames,varExistList)
+      !
+      ! :Purpose: To get variable names from the variable existList 
+      !
+
       implicit none
 
       ! arguments
