@@ -13,7 +13,7 @@ npex=1
 npey=1
 openmp=44
 maxcputime=3000
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
+run_in_parallel=r.run_in_parallel
 #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
 #analysisgrid="/home/mab001/constants/analysis_grid_prototype_glb_1080x540_south-to-north_sfc_vcode5002"
 analysisgrid="/home/alc001/constants/cmde/icea/v2.2.5/arctic/analgrid.std"
@@ -91,16 +91,13 @@ cat << EOF > $TMPDIR/go_seaice.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
-
-# MPI SETUP FOR PPP ONLY
-if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
-  . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-  . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-  . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156 
-  export OMPI_MCA_orte_tmpdir_base=/run/shm
-  export OMPI_MCA_btl_openib_if_include=mlx5_0
-fi
+ . ssmuse-sh -d eccc/mrd/rpn/utils/19.0
+ 
+ # MPI SETUP FOR PPP ONLY
+ if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
+     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+ fi
 
  cd $gest
  export TMG_ON=YES
