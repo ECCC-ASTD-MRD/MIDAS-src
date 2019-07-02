@@ -46,6 +46,12 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     . ssmuse-sh -d hpco/tmp/eccc/201402/06/base
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
+elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+    ## for s.compile, s.f90
+    echo "... loading eccc/mrd/rpn/code-tools/01.0"
+    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
+    echo "... loading compiler PrgEnv-intel-6.0.5"
+    module swap PrgEnv-cray PrgEnv-intel
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
     exit 1
@@ -78,6 +84,12 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     . ssmuse-sh -d eccc/mrd/rpn/libs/16.2
     echo "... loading cray-hdf5"
     module load cray-hdf5
+elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+    ## for rmn, rpncomm
+    echo "... loading eccc/mrd/rpn/libs/19.0-beta"
+    . ssmuse-sh -d eccc/mrd/rpn/libs/19.0-beta
+    echo "... loading cray-hdf5"
+    module load cray-hdf5
 fi
 
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
@@ -95,7 +107,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
 
     echo "... loading eccc/mrd/rpn/anl/rttov/12v1.2"
     . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
     echo "... loading eccc/mrd/rpn/vgrid/6.4-beta"
     . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4-beta
@@ -120,7 +132,7 @@ COMPF_GLOBAL="-openmp -mpi"
 OPTF="=-check =noarg_temp_created =-no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
     OPTF="=-mkl ${OPTF}"
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
     OPTF="${OPTF}"
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
