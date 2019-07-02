@@ -41,14 +41,15 @@ module variableTransforms_mod
   private
 
   ! public procedures
-  public :: vtr_setup, vtr_transform
+  public :: vtr_setup, vtr_transform, vtr_getStateVectorTrial
 
   logical                   :: huTrialsInitialized  = .false.
   logical                   :: heightTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
-  type(struct_gsv) :: statevector_trial_hu, statevector_trial_height
+  type(struct_gsv), target :: stateVectorTrialHU
+  type(struct_gsv), target :: stateVectorTrialHeight
 
   ! module interfaces
   interface vtr_transform
@@ -90,19 +91,19 @@ CONTAINS
 
     select case ( trim(varName) )
     case ('HU')
-      ! initialize statevector_trial_hu on analysis grid
-      call gsv_allocate(statevector_trial_hu, tim_nstepobsinc, hco_anl, vco_anl,   &
+      ! initialize stateVectorTrialHU on analysis grid
+      call gsv_allocate(stateVectorTrialHU, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'HU','P0'/) )
 
       ! read trial files using default horizontal interpolation degree
-      call gsv_readTrials( statevector_trial_hu )  ! IN/OUT
+      call gsv_readTrials( stateVectorTrialHU )  ! IN/OUT
 
       huTrialsInitialized = .true.
     case ('height')
-      ! initialize statevector_trial_height on analysis grid
-      call gsv_allocate(statevector_trial_height, tim_nstepobsinc, hco_anl, vco_anl,   &
+      ! initialize stateVectorTrialHeight on analysis grid
+      call gsv_allocate(stateVectorTrialHeight, tim_nstepobsinc, hco_anl, vco_anl,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         varNames_opt=(/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/))
@@ -118,13 +119,13 @@ CONTAINS
       call gsv_readTrials( statevector_noZnoP )  ! IN/OUT
 
       ! copy the statevectors
-      call gsv_copy( statevector_noZnoP, statevector_trial_height, allowMismatch_opt=.true. )
+      call gsv_copy( statevector_noZnoP, stateVectorTrialHeight, allowMismatch_opt=.true. )
 
       call gsv_deallocate(statevector_noZnoP)
 
       ! do height/P calculation of the grid
-      call PsfcToP_nl( statevector_trial_height )
-      call tt2phi( statevector_trial_height )
+      call PsfcToP_nl( stateVectorTrialHeight )
+      call tt2phi( stateVectorTrialHeight )
 
       heightTrialsInitialized = .true.
     case default
@@ -355,6 +356,33 @@ CONTAINS
   end subroutine vtr_transform_ens
 
   !--------------------------------------------------------------------------
+  ! vtr_getStateVectorTrial
+  !--------------------------------------------------------------------------
+  function vtr_getStateVectorTrial(varName) result(statevector_ptr)
+    implicit none
+
+    ! arguments
+    character(len=*), intent(in) :: varName
+
+    ! local
+    type(struct_gsv), pointer  :: statevector_ptr
+
+    select case ( trim(varName) )
+    case ('HU')
+      if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+      statevector_ptr => stateVectorTrialHU
+
+    case ('height')
+      if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
+      statevector_ptr => stateVectorTrialHeight
+
+    case default
+      call utl_abort('vtr_getStateVectorTrial: unknown variable ='//trim(varName))
+    end select
+
+  end function vtr_getStateVectorTrial
+
+  !--------------------------------------------------------------------------
   ! LQtoHU
   !--------------------------------------------------------------------------
   subroutine LQtoHU(statevector)
@@ -483,7 +511,7 @@ CONTAINS
 
     if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
 
-    hu_trial => gsv_getField_r8(statevector_trial_hu,'HU')
+    hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
@@ -514,7 +542,7 @@ CONTAINS
 
     if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
 
-    hu_trial => gsv_getField_r8(statevector_trial_hu,'HU')
+    hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
@@ -612,7 +640,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call tt2phi_tl(statevector, statevector_trial_height)
+    call tt2phi_tl(statevector, stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_tl
 
@@ -626,7 +654,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call tt2phi_ad(statevector,statevector_trial_height)
+    call tt2phi_ad(statevector,stateVectorTrialHeight)
 
   end subroutine TTHUtoHeight_ad
 
@@ -656,7 +684,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call calcpressure_tl(statevector,statevector_trial_height)
+    call calcpressure_tl(statevector,stateVectorTrialHeight)
 
   end subroutine PsfcToP_tl
 
@@ -670,7 +698,7 @@ CONTAINS
 
     if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
 
-    call calcpressure_ad(statevector,statevector_trial_height)
+    call calcpressure_ad(statevector,stateVectorTrialHeight)
 
   end subroutine PsfcToP_ad
 

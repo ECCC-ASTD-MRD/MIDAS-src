@@ -32,6 +32,7 @@ module stateToColumn_mod
   use columnData_mod
   use analysisgrid_mod
   use horizontalCoord_mod
+  use verticalCoord_mod
   use obsTimeInterp_mod
   use tt2phi_mod
   use windRotation_mod
@@ -39,6 +40,7 @@ module stateToColumn_mod
   use variabletransforms_mod
   use varNameList_mod
   use physicsFunctions_mod
+  use timeCoord_mod
   
   implicit none
   save
@@ -385,7 +387,8 @@ contains
   ! s2c_setupInterpInfo
   !---------------------------------------------------------
   subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
-                                  timeInterpType, rejectOutsideObs )
+                                  timeInterpType, rejectOutsideObs, &
+                                  inputStateVectorType )
     ! **Purpose:**
     ! Setup all of the information needed to quickly
     ! perform the horizontal interpolation to the observation
@@ -396,11 +399,14 @@ contains
     ! arguments
     type(struct_interpInfo)    :: interpInfo
     type(struct_obs)           :: obsSpaceData
-    type(struct_gsv)           :: stateVector
+    type(struct_gsv), target   :: stateVector
     logical                    :: rejectOutsideObs
     character(len=*)           :: timeInterpType
+    character(len=*)           :: inputStateVectorType
 
     ! locals
+    type(struct_gsv), target  :: stateVectorHeight_VarsLevs
+    type(struct_gsv), pointer :: stateVectorHeight, stateVector_ptr 
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
@@ -416,6 +422,7 @@ contains
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: ezgdef, gdllfxy
     logical :: obsOutsideGrid
+    character(len=4), pointer :: varNames(:)
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -436,6 +443,8 @@ contains
     else
       niP1 = statevector%ni
     end if
+
+    write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
 
     ! First count the number of headers for each stepIndex
     allocate(allNumHeaderUsed(numStep,mpi_nprocs))
@@ -633,10 +642,36 @@ contains
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
     allocate( height(statevector%ni,statevector%nj,mykBeg:statevector%mykEnd) )
 
+    if ( inputStateVectorType == 'nl' ) then
+      statevector_ptr => statevector
+    else
+      if ( .not. stateVectorHeight_VarsLevs%allocated        .and. &
+           statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
+
+        nullify(stateVectorHeight)
+        stateVectorHeight => vtr_getStateVectorTrial('height')
+
+        ! transpose to VarsLevs
+        nullify(varNames)
+        call gsv_varNamesList( varNames, stateVectorHeight )
+        call gsv_allocate( stateVectorHeight_VarsLevs, tim_nstepobs, &
+                           statevector%hco, statevector%vco, &
+                           mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                           varNames_opt=varNames )
+        call gsv_transposeTilesToVarsLevs( stateVectorHeight, stateVectorHeight_VarsLevs )
+        nullify(stateVectorHeight)
+
+      end if
+      statevector_ptr => stateVectorHeight_VarsLevs
+    end if
+
     step_loop3: do stepIndex = 1, numStep
 
       height(:,:,:) = 0.0d0
-      call findHeightMpiId(stateVector, height, stepIndex)
+      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           statevector%varExistList(vnl_varListIndex('Z_M')) ) & 
+        call findHeightMpiId(statevector_ptr, height, stepIndex)
 
       k_loop3: do kIndex = mykBeg, statevector%mykEnd
         do procIndex = 1, mpi_nprocs
@@ -726,6 +761,8 @@ contains
 
       end do k_loop3
     end do step_loop3
+
+    if ( stateVectorHeight_VarsLevs%allocated .and. inputStateVectorType /= 'nl' ) call gsv_deallocate(stateVectorHeight_VarsLevs)
 
     deallocate(height)
 
@@ -819,7 +856,8 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad,  rejectOutsideObs=.false. )
+                                timeInterpType_tlad,  rejectOutsideObs=.false., &
+                                inputStateVectorType='tl' )
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1001,7 +1039,8 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad, rejectOutsideObs=.false. )
+                                timeInterpType_tlad, rejectOutsideObs=.false., &
+                                inputStateVectorType='ad' )
     end if
 
     numStep = stateVector_VarsLevs%numStep
@@ -1249,7 +1288,8 @@ contains
 
       ! compute and collect all obs grids onto all mpi tasks
       call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType, rejectOutsideObs=.true. )
+                                timeInterpType, rejectOutsideObs=.true., &
+                                inputStateVectorType='nl' )
       if ( mpi_myid == 0 ) then
         do stepIndex = 1, numStep
           write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
