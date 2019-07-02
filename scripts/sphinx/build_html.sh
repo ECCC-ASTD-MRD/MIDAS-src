@@ -9,8 +9,8 @@ htmldir=${2:-~/public_html/midas_sphinx}
 
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
-do_graphs=no
-do_namelists=no
+do_graphs=yes
+do_namelists=yes
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
@@ -24,8 +24,8 @@ cd $ORIG_PWD
 
 # GENERATE LIST OF ALL PROGRAMS
 
-#program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
-program_filelist=""
+program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
+#program_filelist=""
 numPrograms=0
 for file in $program_filelist ; do  
   numPrograms=$((numPrograms + 1))
