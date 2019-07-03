@@ -168,6 +168,9 @@ module BmatrixChem_mod
     
 contains
 
+  !--------------------------------------------------------------------------
+  ! bchm_setup
+  !--------------------------------------------------------------------------
   subroutine bchm_setup(hco_in,vco_in,CVDIM_OUT,mode_opt)
     !
     !:Purpose: To set up for constituents static background error covariances.
@@ -435,8 +438,9 @@ contains
 
   end subroutine bchm_setup
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_StatsExistForVarName
+  !--------------------------------------------------------------------------
   logical function bchm_StatsExistForVarName(VarName)
     !
     !:Purpose: To check whether covariances have been made available for the
@@ -457,8 +461,9 @@ contains
     
   end function bchm_StatsExistForVarName
 
-!-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_is_initialized
+  !--------------------------------------------------------------------------
   logical function bchm_is_initialized()
     !
     !:Purpose: To check whether B_chm has been initialized
@@ -469,8 +474,9 @@ contains
 
   end function bchm_is_initialized
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_getScaleFactor
+  !--------------------------------------------------------------------------
   subroutine bchm_getScaleFactor(scaleFactor_out)
     !
     !:Purpose: To set scaling factors for background error std. dev.
@@ -487,8 +493,9 @@ contains
 
   end subroutine bchm_getScaleFactor
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdstats
+  !--------------------------------------------------------------------------
   subroutine bchm_rdstats
     !
     !:Purpose: To read chemical constituents background stats file.
@@ -548,8 +555,9 @@ contains
 
   end subroutine bchm_rdstats
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_scalestd
+  !--------------------------------------------------------------------------
   subroutine bchm_scalestd
     !
     !:Purpose: To scale error standard-deviation values.
@@ -596,8 +604,9 @@ contains
 
   end subroutine bchm_scalestd
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_truncateCV
+  !--------------------------------------------------------------------------
   subroutine bchm_truncateCV(controlVector_inout,ntruncCut)
     !
     !:Purpose: To set to zero all coefficients with total wavenumber > ntruncCut
@@ -645,8 +654,9 @@ contains
    
   end subroutine bchm_truncateCV
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_bSqrt
+  !--------------------------------------------------------------------------
   subroutine bchm_bSqrt(controlvector_in,statevector)
     !
     !:Purpose: To apply B_CHM^1/2 to a control vector.
@@ -681,8 +691,9 @@ contains
 
   end subroutine bchm_bSqrt
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_cain
+  !--------------------------------------------------------------------------
   subroutine bchm_cain(controlVector_in,hiControlVector_out)
     !
     implicit none
@@ -718,8 +729,9 @@ contains
 
   end subroutine bchm_cain
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_copyToStatevector
+  !--------------------------------------------------------------------------
   subroutine bchm_copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
@@ -745,8 +757,9 @@ contains
     enddo
   end subroutine bchm_copyToStatevector
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_bSqrtAd
+  !--------------------------------------------------------------------------
   subroutine bchm_bSqrtAd(statevector,controlVector_out)
     !
     !:Purpose: To apply adjoint of B_CHM^1/2 to a statevector.
@@ -784,8 +797,9 @@ contains
 
   end subroutine bchm_bSqrtAd
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_copyFromStatevector
+  !--------------------------------------------------------------------------
   subroutine bchm_copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
@@ -813,8 +827,9 @@ contains
 
   end subroutine bchm_copyFromStatevector
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_readCorns2
+  !--------------------------------------------------------------------------
   subroutine bchm_readCorns2
     !
     !:Purpose: To read correlation information and to form the correlation
@@ -991,8 +1006,9 @@ contains
     !write(*,*) 'Done in bchm_READCORNS2'
   end subroutine bchm_readCorns2
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_convol
+  !--------------------------------------------------------------------------
   subroutine bchm_convol
     implicit none
 
@@ -1228,8 +1244,9 @@ contains
 
   end subroutine bchm_convol
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdstddev
+  !--------------------------------------------------------------------------
   subroutine bchm_rdstddev
     !
     !:Purpose: To read stddev and to set as 3D fields.
@@ -1305,8 +1322,9 @@ contains
     
   end subroutine bchm_rdstddev
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdspstd
+  !--------------------------------------------------------------------------
   subroutine bchm_rdspstd
     implicit none
 
@@ -1383,8 +1401,9 @@ contains
 
   end subroutine bchm_rdspstd
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdspstd_newfmt
+  !--------------------------------------------------------------------------
   subroutine bchm_rdspstd_newfmt
     implicit none
 
@@ -1474,8 +1493,9 @@ contains
 
   end subroutine bchm_rdspstd_newfmt
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdstd
+  !--------------------------------------------------------------------------
   subroutine bchm_rdstd
     !
     !:Purpose: To read 2D stddev and to store as 3D
@@ -1556,8 +1576,9 @@ contains
 
   end subroutine bchm_rdstd
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_rdstd3d
+  !--------------------------------------------------------------------------
   subroutine bchm_rdstd3d
     !
     !:Purpose: To read 3D stddev.
@@ -1649,8 +1670,9 @@ contains
 
   end subroutine bchm_rdstd3d
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_sucorns2
+  !--------------------------------------------------------------------------
   subroutine bchm_sucorns2
     implicit none
 
@@ -1794,8 +1816,9 @@ contains
     
   end subroutine bchm_sucorns2
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_writecorns
+  !--------------------------------------------------------------------------
   subroutine writecorns(nmat,cletiket,nlev)
     implicit none
     character(len=*) :: cletiket
@@ -1872,8 +1895,9 @@ contains
 
   end subroutine writecorns
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_readcorns
+  !--------------------------------------------------------------------------
   subroutine readcorns(lfound,nmat,cletiket)
     implicit none
     logical :: lfound(:)
@@ -1957,8 +1981,9 @@ contains
     
   end subroutine readcorns
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! gaspariCohn
+  !--------------------------------------------------------------------------
   function gaspariCohn(ztlen,zr)
 
     real(8)  :: gasparicohn
@@ -1979,8 +2004,9 @@ contains
 
   end function gaspariCohn
 
-!-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_spa2gd
+  !--------------------------------------------------------------------------
   subroutine bchm_spa2gd(hiControlVector_in,gd_out)
     implicit none
 
@@ -2102,9 +2128,10 @@ contains
 
   end subroutine bchm_spa2gd
 
-  !-----------------------------------------------------------------------------------------------
-
-  subroutine bchjm_spa2gdad(gd_in,hiControlVector_out)
+  !--------------------------------------------------------------------------
+  ! bchm_spa2gdad
+  !--------------------------------------------------------------------------
+  subroutine bchm_spa2gdad(gd_in,hiControlVector_out)
     implicit none
 
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim)
@@ -2212,8 +2239,9 @@ contains
 
   end subroutine bchm_spa2gdad
 
-  !----------------------------------------------------------------------------------------------- 
-
+  !--------------------------------------------------------------------------
+  ! bchm_cainAd
+  !--------------------------------------------------------------------------
   subroutine bchm_cainAd(hiControlVector_in,controlVector_out)
     implicit none
 
@@ -2247,8 +2275,9 @@ contains
 
   end subroutine bchm_cainAd
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_finalize
+  !--------------------------------------------------------------------------
   subroutine bchm_finalize()
     implicit none
 
@@ -2263,8 +2292,9 @@ contains
 
   end subroutine bchm_finalize
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_reduceToMPILocal
+  !--------------------------------------------------------------------------
   subroutine bchm_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
@@ -2414,8 +2444,9 @@ contains
 
   end subroutine bchm_reduceToMPILocal
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_reduceToMPILocal_r4
+  !--------------------------------------------------------------------------
   subroutine bchm_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
@@ -2565,8 +2596,9 @@ contains
 
   end subroutine bchm_reduceToMPILocal_r4
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_expandToMPIGlobal
+  !--------------------------------------------------------------------------
   subroutine bchm_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
@@ -2697,8 +2729,9 @@ contains
 
   end subroutine bchm_expandToMPIGlobal
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_expandToMPIGlobal_r4
+  !--------------------------------------------------------------------------
   subroutine bchm_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
@@ -2829,8 +2862,9 @@ contains
 
   end subroutine bchm_expandtompiglobal_r4
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_corvert_setup
+  !--------------------------------------------------------------------------
   subroutine bchm_corvert_setup
     !
     !:Purpose: To compute total vertical correlations (bchm_corvert) and its
@@ -2992,8 +3026,9 @@ contains
 
   end subroutine bchm_corvert_setup
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_corvert_mult
+  !--------------------------------------------------------------------------
   subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1, &
                                ndim2,ndim3,lrgsig,itype,rsig_opt)
     !
@@ -3233,8 +3268,9 @@ contains
    
   end subroutine bchm_corvert_mult
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_getsigma
+  !--------------------------------------------------------------------------
   subroutine bchm_getsigma(varName,ndim2,xlat,xlong,rsig,vlev_opt)
     !
     !:Purpose: To interpolate error std. dev. to obs location.
@@ -3393,8 +3429,9 @@ contains
 
   end subroutine bchm_getsigma
 
-  !-----------------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! bchm_getbgsigma
+  !--------------------------------------------------------------------------
   real(8) function bchm_getbgsigma(jlon,jlat,jlev,jvar)
     !
     !:Purpose: To get error std. dev. a specified grid point and for specified
@@ -3407,9 +3444,10 @@ contains
     bchm_getbgsigma = rgsig(jlon, jlat, nsposit(jvar)-1+jlev)
 
   end function bchm_getbgsigma
-
-!-----------------------------------------------------------------------------------------------
   
+  !--------------------------------------------------------------------------
+  ! bchm_resetCorvert
+  !--------------------------------------------------------------------------
   subroutine bchm_resetCorvert(nvlev)
     !
     !:Purpose: Vertically interpolate error correlation matrix fields to generate 
