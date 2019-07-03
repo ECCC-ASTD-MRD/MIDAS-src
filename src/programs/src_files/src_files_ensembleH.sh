@@ -2,7 +2,7 @@
 
 set -e
 
-LIBAPPL="rttov_coef_io rttov_hdf rttov_parallel  rttov_main rttov_emis_atlas rttov_other ${HDF5_LIBS} burp_module descrip $MPILIB f90sqlite  udfsqlite"
+LIBAPPL="rttov_coef_io rttov_hdf rttov_parallel  rttov_main rttov_emis_atlas rttov_other ${HDF5_LIBS} burp_module vgrid $MPILIB f90sqlite  udfsqlite"
 
 SRC_FILES="rttov_interfaces_mod.ftn90 clib_interfaces_mod.ftn90 codeprecision_mod.ftn90 utilities_mod.f90 bufr_mod.f90 ramdisk_mod.f90 filenames_mod.f90"
 SRC_FILES="$SRC_FILES mathphysconstants_mod.f90 earthconstants_mod.f90 mpi_mod.f90 mpivar_mod.f90 codtyp_mod.f90 randomnumber_mod.f90"
