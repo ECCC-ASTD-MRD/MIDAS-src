@@ -109,7 +109,7 @@ CONTAINS
     INTEGER                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
     INTEGER                :: IND_ELE,IND_VCOORD
     INTEGER                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
-    INTEGER                :: IND_LAT,IND_LON,IND_TIME
+    INTEGER                :: IND_LAT,IND_LON,IND_TIME, IND_BCOR
 
     INTEGER                :: vcord_type(10),SUM
     REAL                   :: ELEVFACT
@@ -128,7 +128,7 @@ CONTAINS
 
     INTEGER                :: OBS_START,SAVE_OBS,ASSIM
     INTEGER                :: IL_INDEX,IRLN,INLV,LK,VNM
-    REAL                   :: PPP,OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT
+    REAL                   :: PPP,OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT, BCOR
     INTEGER                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS
 
     INTEGER                :: BLOCK_LIST(NBLOC_LIST),bl
@@ -1162,36 +1162,36 @@ CONTAINS
                 is_in_list=FIND_INDEX(LISTE_ELE,iele)
                 if (is_in_list < 0   .and. iele  /= ILEMU .and. iele /= ILEMV)cycle
 
-                  IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
-                  OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
-                  if(iand(iflag,BITSflagoff) /= 0) CYCLE ELEMS     
+                IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
+                OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
+                if(iand(iflag,BITSflagoff) /= 0) CYCLE ELEMS     
 
-                  OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
+                OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
                   !if( idtyp == 168 ) print * , ' bobossmi avant vcoord obsva    stnid =',  VCOORD,OBSVA,stnid
 
-                  if (VCOORD == MPC_missingValue_R4 ) CYCLE ELEMS
-                  if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) CYCLE ELEMS      
+                if (VCOORD == MPC_missingValue_R4 ) CYCLE ELEMS
+                if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) CYCLE ELEMS
 
-                  if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
-                  if (OBSN > obs_numHeader(obsdat))  cycle
-                  IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
-                  INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
-                  TIME=obs_headElem_i(obsdat,OBS_ETM,OBSN)
-                  STID=obs_elem_c(obsdat,'STID',OBSN)
-                  if ( STID /= stnid ) cycle
+                if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
+                if (OBSN > obs_numHeader(obsdat))  cycle
+                IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
+                INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
+                TIME=obs_headElem_i(obsdat,OBS_ETM,OBSN)
+                STID=obs_elem_c(obsdat,'STID',OBSN)
+                if ( STID /= stnid ) cycle
 
-                  IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
+                IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
 
-                  if(HIPCS) then
-                    IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
-                    IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
-                  endif
+                if(HIPCS) then
+                  IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
+                  IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
+                endif
 
-                  IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-                  IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
-                  convfact=1.
-                  if (iele == 10194) convfact=1./RG
-                  do LK=IRLN,IRLN+INLV-1
+                IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
+                IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
+                convfact=1.
+                if (iele == 10194) convfact=1./RG
+                do LK=IRLN,IRLN+INLV-1
                     ASSIM=obs_bodyElem_i(obsdat,OBS_ASS,LK)
                     VNM  =obs_bodyElem_i(obsdat,OBS_VNM,LK)
                     PPP  =obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
@@ -1205,6 +1205,11 @@ CONTAINS
                         FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
                       else
                         FSO = MPC_missingValue_R4
+                      end if
+                      if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
+                        BCOR=obs_bodyElem_r(obsdat,OBS_BCOR,LK)
+                      else
+                        BCOR = MPC_missingValue_R4
                       end if
                       FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                       KOBSN= KOBSN + 1
@@ -1269,12 +1274,17 @@ CONTAINS
                       endif
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
+
+                      IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
+                      if ( IND_BCOR > 0) &
+                           Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_BCOR,NVAL_IND =j,NT_IND = k,RVAL = BCOR) 
+                      
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
 
                       EXIT
 
                     end if
-                  end do 
+                  end do
 
                   IF (HIRES .and. KOBSN > 0 ) THEN
                     STATUS=obs_headElem_i(obsdat,OBS_ST1,OBSN )

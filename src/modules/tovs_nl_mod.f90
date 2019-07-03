@@ -106,7 +106,8 @@ module tovs_nl_mod
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst
-  public :: tvs_isInstrumGeostationary
+  public :: tvs_isInstrumGeostationary,  tvs_isNameHyperSpectral
+  public :: tvs_isNameGeostationary
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs, tvs_getChannelIndexFromChannelNumber
@@ -1183,9 +1184,7 @@ contains
     !          FY1-MVISR              26                     ir
     !                AHI              56                     ir
     ! ==================  =====================  ==================
-    
-
-    implicit none
+     implicit none
 
     ! Arguments
     integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
@@ -1249,6 +1248,55 @@ contains
     end do
 
   end subroutine tvs_mapInstrum
+
+  !--------------------------------------------------------------------------
+  !  tvs_isNameGeostationary
+  !--------------------------------------------------------------------------
+
+  logical function tvs_isNameGeostationary(cinstrum)
+    ! :Purpose: given an instrument name
+    ! return if it is a Geostationnary Imager
+    ! information from namelist NAMGEO
+    implicit none
+    character(len=*),intent(in) :: cinstrum
+    integer ,parameter :: maxsize = 100
+    integer :: nulnam, ierr, i 
+    integer ,save :: ninst_geo
+    logical, save :: lfirst = .true.
+    character (len=8) :: name_inst(maxsize)
+    integer, external :: fnom, fclos
+
+    namelist /NAMGEO/ name_inst
+    if (lfirst) then
+      nulnam = 0
+      ninst_geo = 0
+      name_inst(:) = "XXXXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namgeo, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namgeo)
+      ierr = fclos(nulnam)
+      do i=1, maxsize
+        if (name_inst(i) == "XXXXXXXX") then
+          ninst_geo = i - 1
+          exit
+        end if
+      end do
+      lfirst = .false.
+      if (ninst_geo == 0) then
+        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeo namelist !"
+      end if
+    end if
+    
+    tvs_isNameGeostationary = .false.
+    do i=1, ninst_geo
+      if ( trim(cinstrum) == trim(name_inst(i)) ) then
+        tvs_isNameGeostationary= .true.
+        exit
+      end if
+    end do
+    
+  end function tvs_isNameGeostationary
 
   !--------------------------------------------------------------------------
   !  tvs_mapSat

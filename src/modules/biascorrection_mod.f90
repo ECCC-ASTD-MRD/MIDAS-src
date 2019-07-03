@@ -428,7 +428,7 @@ CONTAINS
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
         satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(iSensor)) 
 
-        if (  tvs_isInstrumGeostationary( tvs_coefs(iSensor) % coef % id_inst) ) then
+        if (  tvs_isNameGeostationary(instrName) ) then
           dynamicCoeffFile = "coeff_file_" // trim( instrName ) // "." // trim( satNamecoeff )
           staticCoeffFile = "static_file_" // trim( instrName ) // "." // trim( satNamecoeff ) 
         else
@@ -441,11 +441,13 @@ CONTAINS
 
         call read_coeff(satsStatic, chansStatic, fovbiasStatic, coeffStatic, nsatStatic, nchanStatic, nfovStatic, &
              npredStatic, cinstrumStatic, staticCoeffFile, ptypesStatic,ndataStatic)
+        write(*,*) "cinstrumDynamic= ", cinstrumDynamic
+        write(*,*) "cinstrumStatic= ", cinstrumStatic
 
-        if ( cinstrumDynamic /= cinstrumStatic ) then
-          write(*,*) " Inconsistency between static and dynamic coefficient files"
-          call utl_abort('bias_readCoeffs')
-        end if
+!        if ( cinstrumDynamic /= cinstrumStatic ) then
+!          write(*,*) " Inconsistency between static and dynamic coefficient files"
+!          call utl_abort('bias_readCoeffs')
+!        end if
 
         satIndexDynamic = -1
         do iSat = 1, nsatDynamic
