@@ -122,7 +122,8 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
     echo "... loading eccc/mrd/rpn/anl/rttov/12v2.0"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v2.0/${COMP_ARCH}
+    #. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v2.0/${COMP_ARCH}
+    . ssmuse-sh -d /home/erv000/SSM/rttov12/1-migration-2019/${COMP_ARCH}
 fi
 
 ## for 'random_tools'
