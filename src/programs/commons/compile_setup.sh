@@ -78,7 +78,6 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     echo "... loading hdf5"
     . ssmuse-sh -x hpco/exp/hdf5-netcdf4/serial/static/intel-19.0.3.199/01
-    HDF5_LIBS="${HDF5_LIBS} irc"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     ## for rmn, rpncomm
     echo "... loading eccc/mrd/rpn/libs/16.2"
