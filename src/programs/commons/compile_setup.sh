@@ -36,8 +36,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
     . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for s.compile, s.f90
-    echo "... loading eccc/mrd/rpn/code-tools/01.0"
-    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
+    echo "... loading eccc/mrd/rpn/code-tools/01.1"
+    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.1
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
@@ -48,8 +48,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for s.compile, s.f90
-    echo "... loading eccc/mrd/rpn/code-tools/01.0"
-    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
+    echo "... loading eccc/mrd/rpn/code-tools/01.1"
+    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.1
     echo "... loading compiler PrgEnv-intel-6.0.5"
     module swap PrgEnv-cray PrgEnv-intel
 else
