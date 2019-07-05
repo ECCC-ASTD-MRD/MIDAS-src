@@ -23,6 +23,7 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.1
+    export OMPI_MCA_orte_rsh_agent=rurun
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
