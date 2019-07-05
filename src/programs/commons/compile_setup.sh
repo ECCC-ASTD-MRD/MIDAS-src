@@ -14,7 +14,7 @@ fi
 # Set the optimization level
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     FOPTMIZ=2
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
+elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o sles-15-skylake-64-xc50 ];then
     FOPTMIZ=4
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 ];then
     FOPTMIZ=4
@@ -51,7 +51,7 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loading eccc/mrd/rpn/code-tools/01.0"
     . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
     echo "... loading compiler PrgEnv-intel-6.0.5"
-    module swap PrgEnv-cray PrgEnv-intel
+    module load PrgEnv-intel/6.0.5
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
     exit 1
