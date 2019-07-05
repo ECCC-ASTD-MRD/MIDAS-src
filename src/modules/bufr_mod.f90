@@ -79,6 +79,7 @@ module bufr_mod
  integer, parameter :: BUFR_ICEV=21169 ! presence of ice retrieval from Vis/IR
  integer, parameter :: bufr_vis =20001
  integer, parameter :: bufr_gust=11041
+ integer, parameter :: bufr_riverFlow=23040
 
  !
  ! Table C-14: (for Code Table 08046)

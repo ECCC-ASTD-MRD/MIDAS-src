@@ -469,18 +469,20 @@ contains
     call rpn_comm_bcast(vco%ip1_T_2m    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mpi_myid == 0 ) then
-      vgd_nlev_M = size(vco%ip1_M)
-      vgd_nlev_T = size(vco%ip1_T)
-    endif
-    call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mpi_myid > 0 ) then
-      allocate(vco%ip1_M(vgd_nlev_M))
-      allocate(vco%ip1_T(vgd_nlev_T))
-    endif
-    call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
+    if (vco%vgridPresent) then
+      if ( mpi_myid == 0 ) then
+        vgd_nlev_M = size(vco%ip1_M)
+        vgd_nlev_T = size(vco%ip1_T)
+      endif
+      call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if ( mpi_myid > 0 ) then
+        allocate(vco%ip1_M(vgd_nlev_M))
+        allocate(vco%ip1_T(vgd_nlev_T))
+      endif
+      call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
+    end if
 
     ! now do bcast for vgrid object
     if (vco%vgridPresent) then
@@ -610,6 +612,11 @@ contains
 
     equal = .true.
 
+    equal = equal .and. (vco1%Vcode == vco2%Vcode)
+    if (.not. equal) then
+      write(*,*) 'vco_equal: Vcode not equal'
+      return
+    endif
     if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
        equal = equal .and. (vco1%vgrid == vco2%vgrid)
        if (.not. equal) then
@@ -629,27 +636,29 @@ contains
        write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
        return
     endif
-    equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
-    if (.not. equal) then
-       write(*,*) 'vco_equal: ip1_T not equal'
-       return
-    endif
-    equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
-    if (.not. equal) then
-       write(*,*) 'vco_equal: ip1_M not equal'
-       return
-    endif
-    equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
-    if (.not. equal) then
-       write(*,*) 'vco_equal: ip1_sfc not equal'
-       return
-    endif
-    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
-      equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
+    if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
+      equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
       if (.not. equal) then
-        write(*,*) 'vco_equal: hybrid parameters are not equal'
+        write(*,*) 'vco_equal: ip1_T not equal'
         return
       endif
+      equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
+      if (.not. equal) then
+        write(*,*) 'vco_equal: ip1_M not equal'
+        return
+      endif
+      equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
+      if (.not. equal) then
+        write(*,*) 'vco_equal: ip1_sfc not equal'
+        return
+      endif
+      if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
+        equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
+        if (.not. equal) then
+          write(*,*) 'vco_equal: hybrid parameters are not equal'
+          return
+        endif
+      end if
     end if
 
   end function vco_equal

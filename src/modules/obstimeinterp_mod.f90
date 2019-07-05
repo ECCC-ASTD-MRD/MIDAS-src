@@ -74,7 +74,7 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
-    integer, parameter   :: numFamily = 13
+    integer, parameter   :: numFamily = 14
     character(len=2)     :: familylist(numFamily)
     character(len=256)   :: formatspec, formatspec2
     real(8)              :: stepObsIndex
@@ -101,6 +101,7 @@ contains
     familylist(11) = 'TM'
     familylist(12) = 'AL'
     familylist(13) = 'GL'
+    familylist(14) = 'HY'
 
     do headerIndex = 1, obs_numheader(obsSpaceData)
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &
@@ -228,20 +229,18 @@ contains
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
-      if (numStep == 1) then
-        call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
+      ! building floating point step index
+      call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
+                               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
+                               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
+      ! leave all weights zero if obs time is out of range, otherwise set weights
+      if (floor(stepObsIndex) > numStep) then
+        write(*,*) 'oti_setup: stepObsIndex too big=', headerIndex, stepObsIndex
+      else if (floor(stepObsIndex) < 1) then
+        write(*,*) 'oti_setup: stepObsIndex too small=',headerIndex, stepObsIndex
       else
-        ! building floating point step index
-        call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-                             obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
-                             obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
-        ! leave all weights zero if obs time is out of range, otherwise set weights
-        if (floor(stepObsIndex) > numStep) then
-          write(*,*) 'oti_setup: stepObsIndex too big=', headerIndex, stepObsIndex
-          !call utl_abort('oti_setup: this case should not occur')
-        else if (floor(stepObsIndex) < 1) then
-          write(*,*) 'oti_setup: stepObsIndex too small=',headerIndex, stepObsIndex
-          !call utl_abort('oti_setup: this case should not occur')
+        if (numStep == 1) then
+          call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
         else
           if ( trim(interpType) == 'LINEAR' ) then
             if ( stepObsIndex >= real(numStep,8) ) then

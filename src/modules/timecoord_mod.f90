@@ -130,7 +130,7 @@ contains
       write(*,*) 'tim_setup: DATESTAMP set by value in namelist'
       write(*,*) 'tim_setup: ====================================================='
       prntdate = date/100
-      prnttime = (date - prntdate*100) * 10000
+      prnttime = (date - prntdate*100) * 1000000
       imode = 3 ! printable to stamp
       ierr = newdate(datestamp, prntdate, prnttime, imode)
       write(*,*) 'tim_setup: printdate = ',prntdate

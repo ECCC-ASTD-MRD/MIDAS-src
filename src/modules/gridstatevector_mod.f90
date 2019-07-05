@@ -5291,7 +5291,7 @@ module gridStateVector_mod
           ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
           ierr = fstouv(nulTrial,'RND+OLD')
           ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
-                 dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+                        dateStamp, ' ', -1, -1, -1, ' ', varNamesToRead(1))
           ierr = fstfrm(nulTrial)
           ierr = fclos(nulTrial)
           if ( ikey > 0 ) exit
@@ -5306,7 +5306,7 @@ module gridStateVector_mod
         if ( batchIndex == 1 ) then
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                             allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,                &
+                             allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
                              hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )

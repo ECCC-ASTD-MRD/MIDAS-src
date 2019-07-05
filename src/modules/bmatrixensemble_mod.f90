@@ -516,6 +516,7 @@ CONTAINS
 
         allocate(pressureProfileEns_M(nLevEns_M))
         pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
+        deallocate(pressureProfileInc_M)
       else ! vco_anl%Vcode == 0
         allocate(pressureProfileEns_M(1))
         pressureProfileEns_M(:) = pSurfRef
@@ -530,9 +531,8 @@ CONTAINS
       end do
 
       cvDim_out = cvDim_mpilocal
-
       deallocate(pressureProfileEns_M)
-      deallocate(pressureProfileInc_M)
+
     end if
 
     !- 2.7 Control variables
@@ -1055,7 +1055,7 @@ CONTAINS
           scaleFactor_MT = scaleFactor_T(lev)
         else ! SF
           topLevOffset = 0
-          scaleFactor_MT = scaleFactor_T(nLevEns_T)
+          scaleFactor_MT = scaleFactor_SF
         end if
 
         levInc = lev + topLevOffset
@@ -1726,6 +1726,7 @@ CONTAINS
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMemberAd( statevector, ensAmplitude_M_ptr,  & ! INOUT
                            waveBandIndex, useFSOFcst)          ! IN
+
       ! 2.2 Advect the  amplitudes
       if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call tmg_start(132,'BEN_ADVEC_AMP_FSO_AD')

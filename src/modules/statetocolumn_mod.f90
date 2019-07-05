@@ -912,6 +912,7 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
+                write(*,*) 'JFC myezsint tl'
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex, procIndex )
               end if
@@ -1359,6 +1360,7 @@ contains
                 call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                    field2d_UV, field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               else
+                write(*,*) 'JFC myezsint nl'
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               end if
@@ -1438,6 +1440,7 @@ contains
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
+              write(*,*) 'JFC myezsint sfc'
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
 
@@ -1561,6 +1564,8 @@ contains
       ! Interpolate the model state to the obs point
       interpValue = 0.0d0
 
+      write(*,*) 'JFC in myezsint , headerIndex = ', headerIndex, interpInfo%hco%numSubGrid, varName
+
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
@@ -1572,6 +1577,8 @@ contains
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
           interpValue = interpValue + weight * field_in(lonIndex, latIndex)
+
+          write(*,*) 'JFC in myezsint ', gridptIndex, lonIndex, latIndex, field_in(lonIndex, latIndex), interpValue 
 
         end do
 
@@ -2352,6 +2359,10 @@ contains
 
       call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
+    else if ( footprintRadius_r4 == -2.0 ) then
+
+      call s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+
     else
 
       write(*,*) 'footprint radius = ',footprintRadius_r4
@@ -2378,14 +2389,14 @@ contains
     type(struct_obs), intent(in)  :: obsSpaceData
     integer         , intent(in)  :: headerIndex
 
-    ! Locals:
-    character(len=2)  :: cfam
+    ! locals
+    character(len=2)  :: obsFamily
     character(len=12) :: cstnid
 
     fpr = 0.0
 
-    cfam = obs_getFamily ( obsSpaceData, headerIndex )
-    if ( cfam == 'GL' ) then
+    obsFamily = obs_getFamily ( obsSpaceData, headerIndex )
+    if ( obsFamily == 'GL' ) then
 
       cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
 
@@ -2436,10 +2447,14 @@ contains
 
       end if
 
+    else if (obsFamily == 'HY') then
+
+      fpr = -2.0 ! Nearest neighbor
+
     else
 
-      fpr = 0.0
-
+      fpr = 0.0  ! bilinear
+      
     end if
 
   end function s2c_getFootprintRadius
@@ -2922,6 +2937,94 @@ contains
     call utl_abort('s2c_setupLakeInterp: no code yet')
 
   end subroutine s2c_setupLakeInterp
+
+  !--------------------------------------------------------------------------
+  ! s2c_setupNearestNeighbor
+  !--------------------------------------------------------------------------
+  subroutine s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, &
+                                      headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+    !
+    !:Purpose: Determine the nearest grid points to the observtions location
+    !
+    implicit none
+
+    ! arguments
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_gsv)       , intent(in)    :: stateVector
+    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
+
+    ! locals
+    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: ierr
+    integer :: bodyIndexBeg, bodyIndexEnd
+    integer :: latIndex, lonIndex
+    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
+    integer :: ipoint, gridptCount
+    real(4) :: lon_deg_r4, lat_deg_r4
+    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+
+    if ( stateVector%hco%grtyp == 'U' ) then
+      call utl_abort('s2c_setupNearestNeighbor: Yin-Yang grid not supported')
+    end if
+
+    numGridpt(:) = 0
+
+    lat_deg_r4 = real(interpInfo%allLat(headerIndex, kIndex, stepIndex, procIndex) *  &
+                 MPC_DEGREES_PER_RADIAN_R8)
+    lon_deg_r4 = real(interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex) *  &
+                 MPC_DEGREES_PER_RADIAN_R8)
+
+    ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                          lat_deg_r4, lon_deg_r4, subGridIndex )
+
+    latIndex = nint(ypos_r4)
+    lonIndex = nint(xpos_r4)
+
+    write(*,*) 'JFC in setupNearestNeighbor', headerIndex, lon_deg_r4, lat_deg_r4, xpos_r4, ypos_r4, lonIndex, latIndex
+
+    ! Handle periodicity in longitude
+    if ( lonIndex == statevector%ni+1 .and. stateVector%hco%grtyp == 'G' ) lonIndex = 1
+
+    ! Test bounds
+    if ( lonIndex < 1 .or. lonIndex > statevector%ni .or. &
+         latIndex < 1 .or. latIndex > statevector%nj  ) then
+
+      if ( procIndex == mpi_myid + 1 ) then
+        
+        localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+
+        write(*,*) 's2c_setupNearestNeighbor: Rejecting OBS outside the grid domain, index ', localHeaderIndex
+        write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+        end do
+        call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
+             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
+
+      end if
+
+    end if
+
+    if ( allocated(interpInfo%interpWeightDepot) ) then
+      
+      depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, kIndex, stepIndex, procIndex)
+      
+      write(*,*) 'JFC in setupNearestNeighbor, depotIndex = ', depotIndex
+
+      interpInfo%interpWeightDepot(depotIndex) = 1.d0
+      interpInfo%latIndexDepot    (depotIndex) = latIndex
+      interpInfo%lonIndexDepot    (depotIndex) = lonIndex
+
+    end if
+
+    numGridpt(subGridIndex) = 1
+
+  end subroutine s2c_setupNearestNeighbor
 
   !--------------------------------------------------------------------------
   ! checkColumnStatevectorMatch

@@ -76,7 +76,7 @@ program midas_adjointTest
   call ram_setup
 
   !- 1.4 Temporal grid
-  call tim_setup(fileNameForDate_opt='./trlm_01')
+  call tim_setup()
 
   !- 1.6 Constants
   if (mpi_myid == 0) call mpc_printConstants(6)
@@ -593,9 +593,13 @@ contains
 
     if ( mpi_myid == 0 ) then
       write(*,*)
-      write(*,'(A20,1X,A,1X,G23.16)') testName, ": InnerProd Difference(%) = ", &
-           100.d0 * (abs(innerProduct2_global-innerProduct1_global) / &
-           (0.5d0*(innerProduct2_global+innerProduct1_global)) )
+      if ( innerProduct2_global + innerProduct1_global /= 0.d0 ) then
+        write(*,'(A20,1X,A,1X,G23.16)') testName, ": InnerProd Difference(%) = ", &
+             100.d0 * (abs(innerProduct2_global-innerProduct1_global) / &
+             (0.5d0*(innerProduct2_global+innerProduct1_global)) )
+      else
+        write(*,*) 'InnerProduct = 0 !!! Obviously, something went wrong...'
+      end if
     end if
 
   end subroutine checkInnerProd

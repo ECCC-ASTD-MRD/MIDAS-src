@@ -438,12 +438,12 @@ contains
     clvalu(77) = 'obsgl_cisI'
     clvalu(78) = 'obsgl_cisL'
     clvalu(79) = 'obsgl_cisR'
-    ! file name for CMA format used by EnKF
-    clvalu(80) = 'cmaheader'
+    clvalu(80) = 'cmaheader' ! file name for CMA format used by EnKF
     clvalu(81) = 'brpsst'
     clvalu(82) = 'obsal'
     clvalu(83) = 'obsradar'
     clvalu(84) = 'obssst'
+    clvalu(85) = 'obshydro'
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -525,12 +525,12 @@ contains
     cfami(77)  = 'GL'
     cfami(78)  = 'GL'
     cfami(79)  = 'GL'
-    ! dummy family type for CMA, since it contains all families
-    cfami(80)  = 'XX'
+    cfami(80)  = 'XX' ! dummy family type for CMA, since it contains all families
     cfami(81)  = 'TM'
     cfami(82)  = 'AL'
     cfami(83)  = 'RA'
     cfami(84)  = 'TM'
+    cfami(85)  = 'HY'
 
     obsDirectory = 'obs'
 
