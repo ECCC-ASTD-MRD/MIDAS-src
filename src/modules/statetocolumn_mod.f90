@@ -405,8 +405,8 @@ contains
     character(len=*)           :: inputStateVectorType
 
     ! locals
-    type(struct_gsv), target  :: stateVectorHeight_VarsLevs
-    type(struct_gsv), pointer :: stateVectorHeight, stateVector_ptr 
+    type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step, stateVector_Tiles_1Step, stateVector_1Step
+    type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
@@ -417,11 +417,13 @@ contains
     real(4) :: footprintRadius_r4 ! (metres)
     integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
-    real(8), allocatable :: height(:,:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: gdllfxy
-    logical :: obsOutsideGrid
+    logical :: obsOutsideGrid, doSlantPath
     character(len=4), pointer :: varNames(:)
+    real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:), height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
+    real(8), pointer :: height3D_r8_ptr1(:,:,:)
+    integer :: nlev_T, nlev_M
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -434,13 +436,13 @@ contains
     if ((stateVector%heightSfcPresent) .and. ( mpi_myid == 0)) then
       mykBeg = 0 
     else
-      mykBeg = statevector%mykBeg
+      mykBeg = stateVector%mykBeg
     end if   
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( stateVector%hco%grtyp == 'G' ) then
-      niP1 = statevector%ni + 1
+      niP1 = stateVector%ni + 1
     else
-      niP1 = statevector%ni
+      niP1 = stateVector%ni
     end if
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
@@ -488,11 +490,11 @@ contains
 
     ! allocate arrays that will be returned
     allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
-    allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
-    allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
+    allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
+    allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
     allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
-    allocate(interpInfo%allLat(numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
-    allocate(interpInfo%allLon(numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
+    allocate(interpInfo%allLat(numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
+    allocate(interpInfo%allLon(numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
     nullify(allLatOneLev)
     nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
@@ -506,15 +508,107 @@ contains
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
-      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
-      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:statevector%mykEnd,numStep,mpi_nprocs))
+      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
+      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd,numStep,mpi_nprocs))
       interpInfo%allLatRot(:,:,:,:,:) = 0.0d0
       interpInfo%allLonRot(:,:,:,:,:) = 0.0d0
     end if
 
     interpInfo%depotIndexBeg(:,:,:,:,:) = 0
     interpInfo%depotIndexEnd(:,:,:,:,:) = -1
- 
+
+    ! prepare for extrating the 3D height for slant-path calculation
+    doSlantPath = .true.
+    if ( doSlantPath .and. &
+         stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+
+      write(*,*) 's2c_setupInterpInfo: doing slant-path for ', inputStateVectorType 
+
+      if ( inputStateVectorType == 'nl' ) then
+        nullify(varNames)
+        call gsv_varNamesList(varNames, stateVector)
+        call gsv_allocate( stateVector_VarsLevs_1Step, 1, &
+                           stateVector%hco, stateVector%vco, &
+                           mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                           dataKind_opt=4, varNames_opt=varNames )
+
+        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector)
+        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_VarsLevs_1Step)
+        height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
+
+        call gsv_allocate( stateVector_Tiles_allVar_1Step, 1, &
+                           stateVector%hco, stateVector%vco, &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, varNames_opt=varNames )
+
+        call gsv_transposeVarsLevsToTiles( stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step )
+        call gsv_deallocate(statevector_VarsLevs_1Step)
+
+        call gsv_allocate( stateVector_Tiles_1Step, 1, &
+                           stateVector%hco, stateVector%vco, &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
+
+        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector_Tiles_allVar_1Step,'Z_T')
+        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_T')
+        height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
+
+        height3D_r4_ptr1 => gsv_getField3D_r4(stateVector_Tiles_allVar_1Step,'Z_M')
+        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_M')
+        height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
+
+        call gsv_deallocate(stateVector_Tiles_allVar_1Step)
+
+      else
+        stateVector_Tiles_ptr => vtr_getStateVectorTrial('height')
+
+        call gsv_allocate( stateVector_Tiles_1Step, 1, &
+                           stateVector%hco, stateVector%vco, &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
+
+        height3D_r8_ptr1 => gsv_getField3D_r8(stateVector_Tiles_ptr,'Z_T')
+        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_T')
+        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+
+        height3D_r8_ptr1 => gsv_getField3D_r8(stateVector_Tiles_ptr,'Z_M')
+        height3D_r4_ptr2 => gsv_getField3D_r4(stateVector_Tiles_1Step,'Z_M')
+        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+
+      end if ! inputStateVectorType 
+
+      nlev_T = gsv_getNumLev(stateVector,'TH')
+      nlev_M = gsv_getNumLev(stateVector,'MM')
+      if ( mpi_myid == 0 ) then
+        call gsv_allocate( stateVector_1Step, 1, &
+                           stateVector%hco, stateVector%vco, &
+                           mpi_local_opt=.false., &
+                           dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
+
+        height3D_T_r4 => gsv_getField3D_r4(stateVector_1Step,'Z_T')
+        height3D_M_r4 => gsv_getField3D_r4(stateVector_1Step,'Z_M')
+
+      else
+        allocate(height3D_T_r4(stateVector%ni,stateVector%nj,nlev_T))
+        allocate(height3D_M_r4(stateVector%ni,stateVector%nj,nlev_M))
+      end if
+
+      ! now bring all the heights to precessor 0
+      call gsv_transposeTilesToStep(stateVector_1Step, stateVector_Tiles_1Step, 1)
+
+      ! broadcast 3D height field (single precision) to all the processors
+      call rpn_comm_bcast(height3D_T_r4, size(height3D_T_r4), 'MPI_REAL4', 0, 'GRID', ierr)
+      call rpn_comm_bcast(height3D_M_r4, size(height3D_M_r4), 'MPI_REAL4', 0, 'GRID', ierr)
+
+      write(*,*) 's2c_setupInterpInfo, height3D_T_r4='
+      write(*,*) height3D_T_r4(1,1,:)
+      write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
+      write(*,*) height3D_M_r4(1,1,:)
+
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if ! doSlantPath 
+
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
@@ -570,21 +664,128 @@ contains
 
       end do header_loop2
 
-      ! gather geographical lat, lon positions of observations from all processors
-      call rpn_comm_allgather(real(latVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
-                              allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-      call rpn_comm_allgather(real(lonVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
-                              allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-      call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
-                              allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
-                              'GRID', ierr)
-      k_loop: do kIndex = mykBeg, statevector%mykEnd
-        interpInfo%allLat(:,kIndex,stepIndex,:) = allLatOneLev(:,:)
-        interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
-      end do k_loop
+!      if ( doSlantPath ) then
+!        ! calculate lat/lon along the line of sight 
+!        ! lonVecAllLev_M(numHeaderUsed,1:nLev_M) = real(latVec_r4,8)
+!        call slp_calcLatLonTovs( obsSpaceData, headerIndex,      & ! IN
+!                                 height3D_T, height3D_M,         & ! IN
+!                                 lonVecAllLev_T, lonVecAllLev_M, & ! OUT       
+!                                 latVecAllLev_T, latVecAllLev_M )  ! OUT
+!
+!        ! put the lat/lon from TH/MM levels to kIndex
+!        do kIndex = mykBeg, stateVector%mykEnd ! or 1, stateVector%nk
+!
+!          levIndex = gsv_getLevFromK(stateVector,kIndex)
+!          varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+!
+!          if ( varLevel == 'TH' ) then
+!            latVecAllkIndex(:,kIndex) = latVecAllLev_T(:,levIndex)
+!            lonVecAllkIndex(:,kIndex) = lonVecAllLev_T(:,levIndex)
+!          else if ( varLevel == 'MM' ) then
+!            latVecAllkIndex(:,kIndex) = latVecAllLev_M(:,levIndex)
+!            lonVecAllkIndex(:,kIndex) = lonVecAllLev_M(:,levIndex)
+!          else if ( varLevel == 'SF' ) then
+!            latVecAllkIndex(:,kIndex) = latVecAllSfc
+!            lonVecAllkIndex(:,kIndex) = lonVecAllSfc
+!          end if
+!
+!        end do
+!
+!        ! alltoallv MPI communication for the slant-path lat/lon
+!        ! determine which tasks have something to send and let everyone know
+!        do procIndex = 1, mpi_nprocs
+!          thisProcIsAsender(procIndex) = .false.
+!          if ( mpi_myid == (procIndex-1) .and. stateVector%allocated ) then
+!            thisProcIsAsender(procIndex) = .true.
+!          end if
+!          call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
+!                              'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+!        end do
+!
+!        maxkCount = maxval(stateVector%allkCount(:))
+!        numkToSend = min(mpi_nprocs,stateVector%nk)
+!        nsizeSend = numHeaderUsedMax * stateVector%allkCount
+!        nsizeRecv = numHeaderUsedMax * stateVector%mykCount
+!
+!        ! only send the data from tasks with data, same amount to all
+!        sendsizes(:) = 0
+!        if ( stateVector%allocated ) then
+!          do procIndex = 1, numkToSend
+!            sendsizes(procIndex) = nsizeSend
+!          end do
+!        end if
+!        senddispls(1) = 0
+!        do procIndex = 2, mpi_nprocs
+!          senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+!        end do
+!
+!        ! all tasks recv only from those with data
+!        recvsizes(:) = 0
+!        if ( (1+mpi_myid) <= numkToSend ) then
+!          do procIndex = 1, mpi_nprocs
+!            if ( thisProcIsAsender(procIndex) ) then
+!              recvsizes(procIndex) = nsizeRecv
+!            end if
+!          end do
+!        end if
+!        recvdispls(1) = 0
+!        do procIndex = 2, mpi_nprocs
+!          recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+!        end do
+!
+!        ! loop to send (at most) 1 level to (at most) all other mpi tasks
+!        do kIndex = 1, maxkCount
+!
+!          ! prepare the complete 1 timestep for sending on all tasks that read something
+!          if ( stateVector%allocated ) then
+!
+!            !$OMP PARALLEL DO PRIVATE(procIndex,kIndex2)
+!            do procIndex = 1, mpi_nprocs
+!              ! compute kIndex value being sent
+!              kIndex2 = kIndex + stateVector%allkBeg(procIndex) - 1
+!              if ( kIndex2 <= stateVector%allkEnd(procIndex) ) then
+!                if( procIndex > numkToSend ) then
+!                  write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
+!                  call utl_abort('ERROR: with numkToSend?')
+!                end if
+!                gd_send_r4(:,kIndex2,procIndex) = latVecAllkIndex(:,kIndex)
+!              end if
+!            end do
+!            !$OMP END PARALLEL DO
+!
+!          end if
+!
+!          call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4,  &
+!                             gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, mpi_comm_grid, ierr)
+!          interpInfo%allLat(:,:,stepIndex,:) = gd_recv_r4
+!
+!      else
+
+        ! gather geographical lat, lon positions of observations from all processors
+        call rpn_comm_allgather(real(latVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
+                                allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
+        call rpn_comm_allgather(real(lonVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
+                                allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
+        call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
+                                allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
+                                'GRID', ierr)
+        k_loop: do kIndex = mykBeg, statevector%mykEnd
+          interpInfo%allLat(:,kIndex,stepIndex,:) = allLatOneLev(:,:)
+          interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
+        end do k_loop
+
+!      end if ! doSlantPath 
 
     end do step_loop2
 
+    if ( doSlantPath ) then
+      if ( mpi_myid == 0 ) then
+        call gsv_deallocate(stateVector_1Step)
+      else
+        deallocate(height3D_T_r4)
+        deallocate(height3D_M_r4)
+      end if
+    end if
     deallocate(footprintRadiusVec_r4)
 
     ! gather the headerIndexVec arrays onto all processors
@@ -639,38 +840,8 @@ contains
     allocate( interpInfo%latIndexDepot(numGridptTotal) )
     allocate( interpInfo%lonIndexDepot(numGridptTotal) )
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
-    allocate( height(statevector%ni,statevector%nj,mykBeg:statevector%mykEnd) )
-
-    if ( inputStateVectorType == 'nl' ) then
-      statevector_ptr => statevector
-    else
-      if ( .not. stateVectorHeight_VarsLevs%allocated        .and. &
-           statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-
-        nullify(stateVectorHeight)
-        stateVectorHeight => vtr_getStateVectorTrial('height')
-
-        ! transpose to VarsLevs
-        nullify(varNames)
-        call gsv_varNamesList( varNames, stateVectorHeight )
-        call gsv_allocate( stateVectorHeight_VarsLevs, tim_nstepobs, &
-                           statevector%hco, statevector%vco, &
-                           mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                           varNames_opt=varNames )
-        call gsv_transposeTilesToVarsLevs( stateVectorHeight, stateVectorHeight_VarsLevs )
-        nullify(stateVectorHeight)
-
-      end if
-      statevector_ptr => stateVectorHeight_VarsLevs
-    end if
 
     step_loop3: do stepIndex = 1, numStep
-
-      height(:,:,:) = 0.0d0
-      if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
-           statevector%varExistList(vnl_varListIndex('Z_M')) ) & 
-        call findHeightMpiId(statevector_ptr, height, stepIndex)
 
       k_loop3: do kIndex = mykBeg, statevector%mykEnd
         do procIndex = 1, mpi_nprocs
@@ -760,10 +931,6 @@ contains
 
       end do k_loop3
     end do step_loop3
-
-    if ( stateVectorHeight_VarsLevs%allocated .and. inputStateVectorType /= 'nl' ) call gsv_deallocate(stateVectorHeight_VarsLevs)
-
-    deallocate(height)
 
     deallocate(allFootprintRadius_r4)
     deallocate(allLonOneLev)
