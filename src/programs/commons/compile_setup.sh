@@ -35,9 +35,6 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
     echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    ## for s.compile, s.f90
-    echo "... loading eccc/mrd/rpn/code-tools/01.0"
-    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
@@ -47,9 +44,6 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    ## for s.compile, s.f90
-    echo "... loading eccc/mrd/rpn/code-tools/01.0"
-    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.0
     echo "... loading compiler PrgEnv-intel-6.0.5"
     module load PrgEnv-intel/6.0.5
 else
@@ -72,7 +66,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for rmn, rpncomm
     echo "... loading eccc/mrd/rpn/libs/19.0-beta"
-    . ssmuse-sh -d eccc/mrd/rpn/libs/19.0-beta
+    . r.load.dot eccc/mrd/rpn/libs/19.0-beta
     ## for openmpi
     echo "... loading hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045"
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
@@ -121,7 +115,7 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
     echo "... loading eccc/mrd/rpn/anl/rttov/12v1.3"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.3/${COMP_ARCH}
+    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.3/${COMP_ARCH}
 fi
 
 ## for 'random_tools'
