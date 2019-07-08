@@ -107,8 +107,13 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4
 
     ## for 'burplib'
-    echo "... loading eccc/cmd/cmda/libs/19.0-beta/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.0-beta/${COMP_ARCH}
+    if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+	echo "... loading eccc/cmd/cmda/libs/19.0-beta/${COMP_ARCH}"
+	. ssmuse-sh -d eccc/cmd/cmda/libs/19.0-beta/${COMP_ARCH}
+    elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+	echo "... loading eccc/cmd/cmda/libs/19.0-beta2/${COMP_ARCH}"
+	. ssmuse-sh -d eccc/cmd/cmda/libs/19.0-beta2/${COMP_ARCH}
+    fi
 
     ## For 'perftools' needed for TMG timings
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
