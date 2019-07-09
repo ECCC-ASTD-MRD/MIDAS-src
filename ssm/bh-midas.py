@@ -19,6 +19,12 @@ def _init(b):
     elif b.platform.startswith("ubuntu-14.04"):
         environ["AFSISIO_MAKESHIFT"] = "/home/smco502/env_ubuntu-14.04-amd64-64"
         environ["midas_compile_platform"] = environ["ORDENV_PLAT"]
+    elif b.platform.startswith("ubuntu-18.04"):
+        environ["AFSISIO_MAKESHIFT"] = "/home/smco502/env_ubuntu-18.04-skylake-64"
+        environ["midas_compile_platform"] = environ["ORDENV_PLAT"]
+    elif b.platform.startswith("sles-15"):
+        environ["AFSISIO_MAKESHIFT"] = "/home/smco502/env_sles-15-skylake-64-xc50"
+        environ["midas_compile_platform"] = environ["ORDENV_PLAT"]
     elif b.platform.startswith("sles-11"):
         environ["AFSISIO_MAKESHIFT"] = "/home/smco502/env_sles-11-broadwell-64-xc40"
         environ["midas_compile_platform"] = "sles-11-broadwell-64-xc40"
@@ -56,6 +62,17 @@ def _make(b):
             echo \"BuildInfo: Compile script for MIDAS version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE}\"   >> ${CONTROL_FILE}
             echo \"Description:  Modular and Integrated Data Assimilation System (MIDAS)\">> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Modular and Integrated Data Assimilation System (MIDAS)\",
+    \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
+}
+EOF
            )""")
     else:
         b.shell("""
@@ -69,6 +86,17 @@ def _make(b):
             echo \"BuildInfo: Compiled with './compile_all.sh' version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE}\"   >> ${CONTROL_FILE}
             echo \"Description:  Modular and Integrated Data Assimilation System (MIDAS)\">> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Modular and Integrated Data Assimilation System (MIDAS)\",
+    \"build_info\": \"git clone -b ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd midas; cd src/programs; ./compile_all.sh\"
+}
+EOF
 
             cd ${BH_TOP_BUILD_DIR}/src/programs
             ./compile_all.sh
@@ -180,6 +208,8 @@ if __name__ == "__main__":
     b.supported_platforms = [
         "ubuntu-14.04-amd64-64",
         "sles-11-broadwell-64-xc40",
+        "ubuntu-18.04-skylake-64",
+        "sles-15-skylake-64-xc50",
         "all"
     ]
     dr.run(b)

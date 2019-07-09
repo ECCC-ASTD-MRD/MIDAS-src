@@ -39,10 +39,21 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: arma (E. Lapalme, J. Blezius)\" >> ${CONTROL_FILE}
+            echo \"Maintainer: RPN-AD\"                        >> ${CONTROL_FILE}
             echo \"BuildInfo: Compiled with 'make write_subdomains_${BASE_ARCH}'\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
-            echo \"Description:  Manipulate observations files according to geographical criteria\">> ${CONTROL_FILE}
+            echo \"Description:  Split Fstd Files into several subgrids\">> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Fstd Files into several subgrids\",
+    \"build_info\": \"git clone --branch ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd write_subdomains; ./compile.sh\"
+}
+EOF
 
             cd ${BH_TOP_BUILD_DIR}
             ./compile.sh

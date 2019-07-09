@@ -47,10 +47,21 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: arma (E. Lapalme, J. Blezius)\" >> ${CONTROL_FILE}
+            echo \"Maintainer: RPN-AD\"                        >> ${CONTROL_FILE}
             echo \"BuildInfo: Compiled with 'make splitobs_${BASE_ARCH}'\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
             echo \"Description:  Manipulate observations files according to geographical criteria\">> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Manipulate observations files according to geographical criteria\",
+    \"build_info\": \"git clone --branch ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd splitobs; make splitobs_${ORDENV_PLAT}\"
+}
+EOF
             set -ex
             cd ${BH_TOP_BUILD_DIR}
             export VERSION=${BH_PULL_SOURCE_GIT_BRANCH}

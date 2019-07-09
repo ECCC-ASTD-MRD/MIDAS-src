@@ -33,9 +33,19 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: RPN-DAT (E. Lapalme)\"          >> ${CONTROL_FILE}
+            echo \"Maintainer: RPN-AD\"                        >> ${CONTROL_FILE}
             echo \"BuildInfo: envar.findTrials from ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
             echo \"Description: script to find trials in the assimilation window\"                               >> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Script to find trials in the assimilation window\",
+    \"build_info\": \"'envar.findTrials' from ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"
+}
            )""")
 
 def _install(b):

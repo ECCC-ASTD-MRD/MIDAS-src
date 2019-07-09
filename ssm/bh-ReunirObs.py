@@ -39,10 +39,21 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: arma (E. Lapalme, J. Blezius)\" >> ${CONTROL_FILE}
+            echo \"Maintainer: CMDA\"                          >> ${CONTROL_FILE}
             echo \"BuildInfo: Compiled with 'make reunir_obs_${BASE_ARCH}'\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
-            echo \"Description:  Manipulate observations files according to geographical criteria\">> ${CONTROL_FILE}
+            echo \"Description:  Regroup splitted observation BURP records\">> ${CONTROL_FILE}
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"CMDA (Jose Garcia)\",
+    \"summary\": \"Regroup splitted observation BURP records\",
+    \"build_info\": \"git clone --branch ${BH_PULL_SOURCE_GIT_BRANCH} ${BH_PULL_SOURCE}; cd reunir_obs; make ${ORDENV_PLAT}\"
+}
+EOF
+
             set -ex
             cd ${BH_TOP_BUILD_DIR}
             export VERSION=${BH_PULL_SOURCE_GIT_BRANCH}
