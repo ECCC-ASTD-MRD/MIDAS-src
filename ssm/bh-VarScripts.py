@@ -3,8 +3,9 @@
 
 from os import environ
 import sys
-from bh import bhlib, actions
 import os
+from bh import bhlib
+from bh.actions import package as actions
 
 
 def _init(b):
