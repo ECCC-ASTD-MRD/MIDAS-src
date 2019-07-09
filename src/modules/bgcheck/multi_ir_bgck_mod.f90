@@ -506,7 +506,9 @@ contains
           end do HEADER
           if (idata2 == -1) then
             Write(*,*) "datyp ",idatyp," not found in input file !"
-            call utl_abort("hir_cldprm_to_brp")
+            Write(*,*) "Nothing to do here ! Exiting ..."
+            call  cleanup()
+            return
           end if
           idata3 = idata2
         end if
@@ -889,13 +891,20 @@ contains
           
     end if !! End of 'if ( count > 0 )'
 
-    deallocate(address)
-
-    call BURP_Free(File_in,IOSTAT=error)
-    call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
-    call BURP_Free(Block_in,IOSTAT=error)
+    call  cleanup()
 
   contains
+
+
+    !------------------------------------- CLEANUP -----
+  
+    subroutine cleanup()
+      implicit none
+      if (allocated(address)) deallocate(address)
+      call BURP_Free(File_in)
+      call BURP_Free(Rpt_in,Cp_rpt)
+      call BURP_Free(Block_in)
+    end subroutine cleanup
 
     !------------------------------------- HANDLE_ERROR -----
   
@@ -905,10 +914,7 @@ contains
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
       call BURP_STR_ERROR_HISTORY()
-      if (allocated(address)) deallocate(address)
-      call BURP_Free(File_in)
-      call BURP_Free(Rpt_in,Cp_rpt)
-      call BURP_Free(Block_in)
+      call cleanup()
       call utl_abort(trim(errormessage))
     end subroutine handle_error
 
