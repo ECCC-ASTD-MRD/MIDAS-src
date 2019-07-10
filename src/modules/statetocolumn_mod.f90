@@ -39,7 +39,9 @@ module stateToColumn_mod
   use varNameList_mod
   use physicsFunctions_mod
   use timeCoord_mod
-  
+  use slantprofilelatlon_mod
+  use tovs_nl_mod
+
   implicit none
   save
   private
@@ -407,7 +409,7 @@ contains
     ! locals
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step, stateVector_Tiles_1Step, stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
-    integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
+    integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex, bodyIndex, kIndex, kIndexCount, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
@@ -416,14 +418,21 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: footprintRadius_r4 ! (metres)
     integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
+    real(8), allocatable :: lat_send_r8(:,:), lat_recv_r8(:,:), lon_send_r8(:,:), lon_recv_r8(:,:)
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: gdllfxy
     logical :: obsOutsideGrid, doSlantPath
     character(len=4), pointer :: varNames(:)
+    character(len=4)          :: varLevel
+    real(8), allocatable :: latSlantKIndex(:,:), lonSlantKIndex(:,:)
+    real(8), allocatable :: latSlantLev_T(:), lonSlantLev_T(:), latSlantLev_M(:), lonSlantLev_M(:)
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:), height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
-    integer :: nlev_T, nlev_M
+    logical :: thisProcIsAsender(mpi_nprocs)
+    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
+    integer :: codtyp, nlev_T, nlev_M, levIndex 
+    integer :: maxkcount, numkToSend 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -438,6 +447,10 @@ contains
     else
       mykBeg = stateVector%mykBeg
     end if   
+
+    call rpn_comm_allgather(mykBeg, 1,'mpi_integer',       &
+                            allkBeg,1,'mpi_integer','grid',ierr)
+
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( stateVector%hco%grtyp == 'G' ) then
       niP1 = stateVector%ni + 1
@@ -523,7 +536,7 @@ contains
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
 
-      write(*,*) 's2c_setupInterpInfo: doing slant-path for ', inputStateVectorType 
+      write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType 
 
       if ( inputStateVectorType == 'nl' ) then
         nullify(varNames)
@@ -594,7 +607,7 @@ contains
         allocate(height3D_M_r4(stateVector%ni,stateVector%nj,nlev_M))
       end if
 
-      ! now bring all the heights to precessor 0
+      ! now bring all the heights to processor 0
       call gsv_transposeTilesToStep(stateVector_1Step, stateVector_Tiles_1Step, 1)
 
       ! broadcast 3D height field (single precision) to all the processors
@@ -664,102 +677,152 @@ contains
 
       end do header_loop2
 
-!      if ( doSlantPath ) then
-!        ! calculate lat/lon along the line of sight 
-!        ! lonVecAllLev_M(numHeaderUsed,1:nLev_M) = real(latVec_r4,8)
-!        call slp_calcLatLonTovs( obsSpaceData, headerIndex,      & ! IN
-!                                 height3D_T, height3D_M,         & ! IN
-!                                 lonVecAllLev_T, lonVecAllLev_M, & ! OUT       
-!                                 latVecAllLev_T, latVecAllLev_M )  ! OUT
-!
-!        ! put the lat/lon from TH/MM levels to kIndex
-!        do kIndex = mykBeg, stateVector%mykEnd ! or 1, stateVector%nk
-!
-!          levIndex = gsv_getLevFromK(stateVector,kIndex)
-!          varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
-!
-!          if ( varLevel == 'TH' ) then
-!            latVecAllkIndex(:,kIndex) = latVecAllLev_T(:,levIndex)
-!            lonVecAllkIndex(:,kIndex) = lonVecAllLev_T(:,levIndex)
-!          else if ( varLevel == 'MM' ) then
-!            latVecAllkIndex(:,kIndex) = latVecAllLev_M(:,levIndex)
-!            lonVecAllkIndex(:,kIndex) = lonVecAllLev_M(:,levIndex)
-!          else if ( varLevel == 'SF' ) then
-!            latVecAllkIndex(:,kIndex) = latVecAllSfc
-!            lonVecAllkIndex(:,kIndex) = lonVecAllSfc
-!          end if
-!
-!        end do
-!
-!        ! alltoallv MPI communication for the slant-path lat/lon
-!        ! determine which tasks have something to send and let everyone know
-!        do procIndex = 1, mpi_nprocs
-!          thisProcIsAsender(procIndex) = .false.
-!          if ( mpi_myid == (procIndex-1) .and. stateVector%allocated ) then
-!            thisProcIsAsender(procIndex) = .true.
-!          end if
-!          call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-!                              'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
-!        end do
-!
-!        maxkCount = maxval(stateVector%allkCount(:))
-!        numkToSend = min(mpi_nprocs,stateVector%nk)
-!        nsizeSend = numHeaderUsedMax * stateVector%allkCount
-!        nsizeRecv = numHeaderUsedMax * stateVector%mykCount
-!
-!        ! only send the data from tasks with data, same amount to all
-!        sendsizes(:) = 0
-!        if ( stateVector%allocated ) then
-!          do procIndex = 1, numkToSend
-!            sendsizes(procIndex) = nsizeSend
-!          end do
-!        end if
-!        senddispls(1) = 0
-!        do procIndex = 2, mpi_nprocs
-!          senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
-!        end do
-!
-!        ! all tasks recv only from those with data
-!        recvsizes(:) = 0
-!        if ( (1+mpi_myid) <= numkToSend ) then
-!          do procIndex = 1, mpi_nprocs
-!            if ( thisProcIsAsender(procIndex) ) then
-!              recvsizes(procIndex) = nsizeRecv
-!            end if
-!          end do
-!        end if
-!        recvdispls(1) = 0
-!        do procIndex = 2, mpi_nprocs
-!          recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
-!        end do
-!
-!        ! loop to send (at most) 1 level to (at most) all other mpi tasks
-!        do kIndex = 1, maxkCount
-!
-!          ! prepare the complete 1 timestep for sending on all tasks that read something
-!          if ( stateVector%allocated ) then
-!
-!            !$OMP PARALLEL DO PRIVATE(procIndex,kIndex2)
-!            do procIndex = 1, mpi_nprocs
-!              ! compute kIndex value being sent
-!              kIndex2 = kIndex + stateVector%allkBeg(procIndex) - 1
-!              if ( kIndex2 <= stateVector%allkEnd(procIndex) ) then
-!                if( procIndex > numkToSend ) then
-!                  write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
-!                  call utl_abort('ERROR: with numkToSend?')
-!                end if
-!                gd_send_r4(:,kIndex2,procIndex) = latVecAllkIndex(:,kIndex)
-!              end if
-!            end do
-!            !$OMP END PARALLEL DO
-!
-!          end if
-!
-!          call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mpi_datyp_real4,  &
-!                             gd_recv_r4, recvsizes, recvdispls, mpi_datyp_real4, mpi_comm_grid, ierr)
-!          interpInfo%allLat(:,:,stepIndex,:) = gd_recv_r4
-!
-!      else
+
+      if ( doSlantPath ) then
+
+        allocate(latSlantKIndex(numHeaderUsed,allkBeg(1):stateVector%nk))
+        allocate(lonSlantKIndex(numHeaderUsed,allkBeg(1):stateVector%nk))
+        allocate(latSlantLev_T(nlev_T))
+        allocate(lonSlantLev_T(nlev_T))
+        allocate(latSlantLev_M(nlev_M))
+        allocate(lonSlantLev_M(nlev_M))
+        latSlantKIndex(:,:) = 0.0d0
+        lonSlantKIndex(:,:) = 0.0d0
+        latSlantLev_T(:) = 0.0d0
+        lonSlantLev_T(:) = 0.0d0
+        latSlantLev_M(:) = 0.0d0
+        lonSlantLev_M(:) = 0.0d0
+
+        header_loop3: do headerUsedIndex = 1, numHeaderUsed
+
+          if ( .not. tvs_isIdBurpTovs(codtyp) ) then
+            latSlantKIndex(headerUsedIndex,:) = real(latVec_r4(headerUsedIndex),8)
+            lonSlantKIndex(headerUsedIndex,:) = real(lonVec_r4(headerUsedIndex),8)
+
+          else
+            headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
+
+            ! calculate lat/lon along the line of sight
+            call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                     height3D_T_r4, height3D_M_r4,               & ! IN
+                                     latSlantLev_T, lonSlantLev_T,               & ! OUT
+                                     latSlantLev_M, lonSlantLev_M )                ! OUT
+
+            ! put the lat/lon from TH/MM levels to kIndex
+            do kIndex = allkBeg(1), stateVector%nk
+              if ( kIndex == 0 ) then
+                varLevel = 'SF'
+              else
+                levIndex = gsv_getLevFromK(stateVector,kIndex)
+                varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+              end if
+
+              if ( varLevel == 'TH' ) then
+                latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_T(levIndex)
+                lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_T(levIndex)
+              else if ( varLevel == 'MM' ) then
+                latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_M(levIndex)
+                lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_M(levIndex)
+              else if ( varLevel == 'SF' ) then
+                latSlantKIndex(headerUsedIndex,kIndex) = latVec_r4(headerUsedIndex)
+                lonSlantKIndex(headerUsedIndex,kIndex) = lonVec_r4(headerUsedIndex)
+              end if
+
+            end do
+
+          end if !tvs_isIdBurpTovs
+
+        end do header_loop3
+
+        ! MPI communication for the slant-path lat/lon
+        ! all tasks are senders
+        do procIndex = 1, mpi_nprocs
+          thisProcIsAsender(procIndex) = .true.
+        end do
+
+        maxkCount = maxval(stateVector%allkCount(:))
+        numkToSend = min(mpi_nprocs,stateVector%nk)
+
+        allocate(lat_recv_r8(numHeaderUsedMax,mpi_nprocs))
+        lat_recv_r8(:,:) = 0.0d0
+        allocate(lat_send_r8(numHeaderUsedMax,mpi_nprocs))
+        lat_send_r8(:,:) = 0.0d0
+        allocate(lon_recv_r8(numHeaderUsedMax,mpi_nprocs))
+        lon_recv_r8(:,:) = 0.0d0
+        allocate(lon_send_r8(numHeaderUsedMax,mpi_nprocs))
+        lon_send_r8(:,:) = 0.0d0
+
+        ! only send the data from tasks with data, same amount to all
+        sendsizes(:) = 0
+        do procIndex = 1, numkToSend
+          sendsizes(procIndex) = numHeaderUsedMax
+        end do
+        senddispls(1) = 0
+        do procIndex = 2, mpi_nprocs
+          senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+        end do
+
+        ! all tasks recv only from those with data
+        recvsizes(:) = 0
+        if ( (1+mpi_myid) <= numkToSend ) then
+          do procIndex = 1, mpi_nprocs
+            if ( thisProcIsAsender(procIndex) ) then
+              recvsizes(procIndex) = numHeaderUsedMax
+            end if
+          end do
+        end if
+        recvdispls(1) = 0
+        do procIndex = 2, mpi_nprocs
+          recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+        end do
+
+        ! loop to send (at most) 1 level to (at most) all other mpi tasks
+        do kIndexCount = 1, maxkCount
+          !!!$OMP PARALLEL DO PRIVATE(procIndex,kIndex)
+          do procIndex = 1, mpi_nprocs
+            ! compute kIndex value being sent
+            kIndex = kIndexCount + allkBeg(procIndex) - 1
+            if ( kIndex <= stateVector%allkEnd(procIndex) ) then
+              if( procIndex > numkToSend ) then
+                write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
+                call utl_abort('ERROR: with numkToSend?')
+              end if
+
+              lat_send_r8(1:numHeaderUsed,procIndex) = latSlantKIndex(:,kIndex)
+              lon_send_r8(1:numHeaderUsed,procIndex) = lonSlantKIndex(:,kIndex)
+            end if
+          end do
+          !!!$OMP END PARALLEL DO
+
+          call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
+                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+          call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
+                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
+
+          do procIndex = 1, mpi_nprocs
+            ! all tasks copy the received step data into correct slot
+            kIndex = kIndexCount + mykBeg - 1
+            if ( kIndex <= stateVector%mykEnd ) then
+              interpInfo%allLat(:,kIndex,stepIndex,procIndex) = lat_recv_r8(:,procIndex)
+              interpInfo%allLon(:,kIndex,stepIndex,procIndex) = lon_recv_r8(:,procIndex)
+            end if
+          end do
+
+        end do ! kIndexCount
+
+        deallocate(lon_send_r8)
+        deallocate(lon_recv_r8)
+        deallocate(lat_send_r8)
+        deallocate(lat_recv_r8)
+
+        deallocate(latSlantKIndex)
+        deallocate(lonSlantKIndex)
+        deallocate(latSlantLev_T)
+        deallocate(lonSlantLev_T)
+        deallocate(latSlantLev_M)
+        deallocate(lonSlantLev_M)
+
+      else
 
         ! gather geographical lat, lon positions of observations from all processors
         call rpn_comm_allgather(real(latVec_r4,8), numHeaderUsedMax, 'MPI_REAL8', &
@@ -774,7 +837,7 @@ contains
           interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
         end do k_loop
 
-!      end if ! doSlantPath 
+      end if ! doSlantPath 
 
     end do step_loop2
 
