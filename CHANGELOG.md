@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Skip update instead of abort in the case where one of the BURP input files contains no valid data (#244 and !231)
 
 ### Removed
 
