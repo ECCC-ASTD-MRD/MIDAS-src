@@ -815,8 +815,12 @@ contains
     integer :: isat, ichn, iplatf, instr, iplatform, instrum, ivnm
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev
+
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
+    real(8) :: obsValue, obsStdDevError
+
     logical :: ifirst, llok
+
     character(len=2)  :: cfam
     character(len=12) :: cstnid
     character(len=*), parameter  :: myName = 'oer_fillObsErrors'
@@ -1250,7 +1254,10 @@ contains
             if ( obs_bodyElem_i(lobsSpaceData, OBS_VNM, bodyIndex) /= bufr_riverFlow ) cycle BODY
 
             if (codeType == 12) then ! pseudo-SYNOP
-              call obs_bodySet_r(lobsSpaceData, OBS_OER, bodyIndex, xstd_hydro(1))
+              obsValue = obs_bodyElem_r(lobsSpaceData, OBS_VAR, bodyIndex)
+              obsStdDevError = obsValue * xstd_hydro(1)
+              write(*,*) 'Hydro observation std dev error: ', bodyIndex, obsValue, xstd_hydro(1), obsStdDevError
+              call obs_bodySet_r(lobsSpaceData, OBS_OER, bodyIndex, obsStdDevError)
             else
               write(*,*) myName//': unsupported codeType for hydro data found in the observations: ', codeType 
               call utl_abort( myName//": unsupported codeType" )

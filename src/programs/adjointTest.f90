@@ -35,6 +35,8 @@ program midas_adjointTest
   use randomNumber_mod
   use advection_mod
   use ensembleStateVector_mod
+  use localization_mod
+  use lamBMatrixHI_mod
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()
@@ -113,11 +115,7 @@ program midas_adjointTest
   !- 2.1 Bhi
   !write(*,*)
   !write(*,*) '> midas-adjointTest: Bhi'
-  !if (hco_anl%global) then
-  !  call check_bhi_global
-  !!else
-  !  ! call check_bhi_lam
-  !end if
+  !call check_bhi
 
   !- 2.2 Bens
   write(*,*)
@@ -134,6 +132,16 @@ program midas_adjointTest
   !write(*,*) '> midas-adjointTest: AdvectionGSV'
   !call check_advectionGSV
 
+  !- 2.5 Localization
+  !write(*,*)
+  !write(*,*) '> midas-adjointTest: Localization'
+  !call check_loc
+
+  !- 2.6 Localization
+  !write(*,*)
+  !write(*,*) '> midas-adjointTest: Addmem'
+  !call check_addmem
+
   !
   !- 3.  Ending
   !
@@ -146,14 +154,21 @@ program midas_adjointTest
 
 contains
 
-  !
-  !- check Bhi global
-  !
-  subroutine check_bhi_global ()
+  !--------------------------------------------------------------------------
+  !- check Bhi
+  !--------------------------------------------------------------------------
+  subroutine check_bhi()
     implicit none
 
-    call bhi_Setup( hco_anl, vco_anl, & ! IN
-                  cvdim )             ! OUT
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex, cvIndex
+
+    if (hco_anl%global) then
+      call bhi_Setup( hco_anl, vco_anl, & ! IN
+                      cvdim )             ! OUT
+    else
+      call lbhi_Setup( hco_anl, vco_anl, & ! IN
+                      cvdim )             ! OUT
+    end if
 
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
                       mpi_local_opt=.true., &
@@ -164,17 +179,47 @@ contains
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     allocate ( controlVector1(cvDim) )
-
-    ! y
-    controlVector1(:) = 2.4d0
     
     ! x
-    statevector_x%gd3d_r8(:,:,:) = 13.3d0
-    
+    !statevector_x%gd3d_r8(:,:,:) = 13.3d0
+    seed=1
+    call rng_setup(abs(seed+mpi_myid))
+    do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
+      do stepIndex = 1, statevector_x%numStep
+        do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
+          do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
+            statevector_x%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+          end do
+        end do
+      end do
+    end do
+
+    ! y
+    !controlVector1(:) = 2.4d0
+    do cvIndex = 1, cvDim
+      controlVector1(cvIndex) = rng_gaussian()
+    end do
+
+    ! y
+    !controlVector1 = 0.d0
+    !if (hco_anl%global) then
+    !  call bhi_bSqrtAd( statevector_x, &  ! IN
+    !                    controlVector1)  ! OUT
+    !else
+    !  call lbhi_bSqrtAdj( statevector_x, &  ! IN
+    !                      controlVector1)  ! OUT
+    !end if
+
     ! Ly
-    call bhi_bSqrt( controlVector1, & ! IN
-         statevector_Ly )  ! OUT
-    
+    if (hco_anl%global) then
+      call bhi_bSqrt( controlVector1, & ! IN
+                      statevector_Ly )  ! OUT
+    else
+      call lbhi_bSqrt( controlVector1, & ! IN
+                       statevector_Ly )  ! OUT
+    end if
+
+
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
     call euclid(innerProduct1_local, &
@@ -188,9 +233,14 @@ contains
     ! L_T(x)
     allocate ( controlVector2(cvDim) )
     controlVector2 = 0.d0
-    call bhi_bSqrtAd( statevector_x, &  ! IN
-         controlVector2 ) ! OUT
-    
+    if (hco_anl%global) then
+      call bhi_bSqrtAd( statevector_x, &  ! IN
+                        controlVector2 ) ! OUT
+    else
+      call lbhi_bSqrtAdj( statevector_x, &  ! IN
+                         controlVector2 ) ! OUT
+    end if
+
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
     call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
@@ -199,7 +249,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Bhi-global')
+    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Bhi')
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -207,11 +257,11 @@ contains
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
 
-  end subroutine check_bhi_global
+  end subroutine check_bhi
 
-  !
+  !--------------------------------------------------------------------------
   !- check Bens
-  !
+  !--------------------------------------------------------------------------
   subroutine check_bens()
     implicit none
 
@@ -273,7 +323,7 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Bens')
     
@@ -285,9 +335,284 @@ contains
 
   end subroutine check_bens
 
-  !
+  !--------------------------------------------------------------------------
+  !- check Loc
+  !--------------------------------------------------------------------------
+  subroutine check_loc()
+    implicit none
+
+    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+    integer :: numStepAmplitude, amp3dStepIndex, memberIndex
+
+    type(struct_ens) :: ensAmplitude_x
+    type(struct_ens) :: ensAmplitude_Ly
+
+    type(struct_loc), pointer :: loc => null()
+
+    real(8), pointer     :: ens_oneLev(:,:,:,:)
+
+    character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
+    character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
+    character(len=4)             :: varNameALFA(1)
+
+    integer,allocatable :: dateStampList(:)
+
+    allocate(dateStampList(tim_nstepobsinc))
+    call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
+
+    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
+    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+
+    call ben_Setup( hco_anl, vco_anl, & ! IN
+                    cvdim )             ! OUT
+
+    write(*,*) 'JFC ben_Setup done '
+    
+    
+    loc => ben_getLoc(1)
+    if ( cvDim /= loc%cvDim ) then
+      call utl_abort('check_loc: cvDim /= loc%cvDim')
+    end if
+    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
+    if ( numStepAmplitude /= 1 ) then
+      call utl_abort('check_loc: not yet adapted for localization advection')
+    end if
+    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
+
+    if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
+      varNameALFA(:) = varNameALFAatm(:)
+    else ! vco_anl%Vcode == -1
+      varNameALFA(:) = varNameALFAsfc(:)
+    end if
+
+    call gsv_allocate(statevector_x  , numStepAmplitude, loc%hco, loc%vco, &
+                      mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
+    call gsv_allocate(statevector_Ly , numStepAmplitude, loc%hco, loc%vco, &
+                      mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
+
+    call ens_allocate(ensAmplitude_x, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+    call ens_allocate(ensAmplitude_Ly, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
+
+    allocate ( controlVector1(cvDim) )
+
+    ! x
+    seed=1
+    call rng_setup(abs(seed+mpi_myid))
+    do kIndex = 1, ens_getNumK(ensAmplitude_x)
+      ens_oneLev => ens_getOneLev_r8(ensAmplitude_x,kIndex)
+      do memberIndex = 1, loc%nEnsOverDimension
+        do stepIndex = 1,numStepAmplitude
+          do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
+            do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
+              ens_oneLev(memberIndex,stepIndex,lonIndex,latIndex) = rng_gaussian()
+            end do
+          end do
+        end do
+      end do
+    end do
+
+    ! y
+    controlVector1 = 0.d0
+    call loc_LsqrtAd(loc,             & ! IN
+                     ensAmplitude_x,  & ! IN
+                     controlVector1,  & ! OUT
+                     amp3dStepIndex)    ! IN
+
+    ! Ly
+    call loc_Lsqrt  (loc,           & ! IN
+                     controlVector1, & ! IN
+                     ensAmplitude_Ly,  & ! OUT
+                     amp3dStepIndex)  ! IN
+
+    ! <x ,L(y)>
+    innerProduct1_local = 0.d0
+    do memberIndex = 1, loc%nEnsOverDimension
+      call ens_copyMember(ensAmplitude_x , statevector_x , memberIndex)
+      call ens_copyMember(ensAmplitude_Ly, statevector_Ly, memberIndex)
+      call euclid(innerProduct1_local, &
+           statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+           statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+    end do
+    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
+    call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
+    
+    ! L_T(x)
+    allocate ( controlVector2(cvDim) )
+    controlVector2 = 0.d0
+    call loc_LsqrtAd(loc,             & ! IN
+                     ensAmplitude_x,  & ! IN
+                     controlVector2,  & ! OUT
+                     amp3dStepIndex)    ! IN
+
+    ! <L_T(x),y>
+    innerProduct2_local = 0.d0
+    call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
+    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
+    call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
+    
+    ! Results
+    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'Loc')
+    
+    deallocate(controlVector2)
+    deallocate(controlVector1)
+
+    call gsv_deallocate(statevector_x)
+    call gsv_deallocate(statevector_Ly)
+
+    call ens_deallocate(ensAmplitude_x)
+    call ens_deallocate(ensAmplitude_Ly)
+
+  end subroutine check_loc
+
+!!$  !--------------------------------------------------------------------------
+!!$  !- check addMem
+!!$  !--------------------------------------------------------------------------
+!!$  subroutine check_addmem()
+!!$    implicit none
+!!$
+!!$    integer :: seed, kIndex, stepIndex, latIndex, lonIndex
+!!$    integer :: numStepAmplitude, amp3dStepIndex, memberIndex
+!!$
+!!$    type(struct_ens) :: ensAmplitude_LTx
+!!$    type(struct_ens) :: ensAmplitude_y
+!!$
+!!$    type(struct_loc), pointer :: loc => null()
+!!$
+!!$    real(8), pointer     :: ens_oneLev(:,:,:,:)
+!!$
+!!$    character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
+!!$    character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
+!!$    character(len=4)             :: varNameALFA(1)
+!!$
+!!$    integer,allocatable :: dateStampList(:)
+!!$
+!!$    allocate(dateStampList(tim_nstepobsinc))
+!!$    call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
+!!$
+!!$    write(*,*) 'JFC tim_getDatestamp = ', tim_getDatestamp()
+!!$    write(*,*) 'JFC dateStampList = ', dateStampList(:)
+!!$
+!!$    call ben_Setup( hco_anl, vco_anl, & ! IN
+!!$                    cvdim )             ! OUT
+!!$
+!!$    write(*,*) 'JFC ben_Setup done '
+!!$    
+!!$    
+!!$    loc => ben_getLoc(1)
+!!$    if ( cvDim /= loc%cvDim ) then
+!!$      call utl_abort('check_loc: cvDim /= loc%cvDim')
+!!$    end if
+!!$    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
+!!$    if ( numStepAmplitude /= 1 ) then
+!!$      call utl_abort('check_loc: not yet adapted for localization advection')
+!!$    end if
+!!$    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
+!!$
+!!$    if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
+!!$      varNameALFA(:) = varNameALFAatm(:)
+!!$    else ! vco_anl%Vcode == -1
+!!$      varNameALFA(:) = varNameALFAsfc(:)
+!!$    end if
+!!$
+!!$    call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
+!!$                      mpi_local_opt=.true., &
+!!$                      allocHeight_opt=.false., allocPressure_opt=.false.)
+!!$    call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
+!!$                      mpi_local_opt=.true., &
+!!$                      allocHeight_opt=.false., allocPressure_opt=.false.)
+!!$
+!!$    call gsv_allocate(statevector_LTx  , numStepAmplitude, loc%hco, loc%vco, &
+!!$                      mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
+!!$    call gsv_allocate(statevector_y , numStepAmplitude, loc%hco, loc%vco, &
+!!$                      mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
+!!$
+!!$    call ens_allocate(ensAmplitude_LTx, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+!!$                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+!!$    call ens_allocate(ensAmplitude_y, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+!!$                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
+!!$
+!!$    ! x
+!!$    seed=1
+!!$    call rng_setup(abs(seed+mpi_myid))
+!!$    do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
+!!$      do stepIndex = 1, statevector_x%numStep
+!!$        do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
+!!$          do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
+!!$            statevector_x%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = rng_gaussian()
+!!$          end do
+!!$        end do
+!!$      end do
+!!$    end do
+!!$
+!!$    ! y
+!!$    do kIndex = 1, ens_getNumK(ensAmplitude_y)
+!!$      ens_oneLev => ens_getOneLev_r8(ensAmplitude_y,kIndex)
+!!$      do memberIndex = 1, loc%nEnsOverDimension
+!!$        do stepIndex = 1,tim_nstepobsinc
+!!$          do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
+!!$            do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
+!!$              ens_oneLev(memberIndex,stepIndex,lonIndex,latIndex) = rng_gaussian()
+!!$            end do
+!!$          end do
+!!$        end do
+!!$      end do
+!!$    end do
+!!$
+!!$    ! Ly
+!!$    call addEnsMember( ensAmplitude_y,    & ! IN
+!!$                       statevector_Ly,    & ! OUT 
+!!$                       1, .false. )         ! IN
+!!$
+!!$    ! <x ,L(y)>
+!!$    innerProduct1_local = 0.d0
+!!$    call euclid(innerProduct1_local, &
+!!$         statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+!!$         statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+!!$         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+!!$    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
+!!$    call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+!!$    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
+!!$    
+!!$    ! L_T(x)
+!!$    call addEnsMemberad( statevector_x,   & ! IN 
+!!$                         ensAmplitude_LTx,  & ! OUT
+!!$                         1, .false. )       ! IN
+!!$
+!!$    ! <L_T(x),y>
+!!$    innerProduct2_local = 0.d0
+!!$    do memberIndex = 1, loc%nEnsOverDimension
+!!$      call ens_copyMember(ensAmplitude_LTx, statevector_LTx, memberIndex)
+!!$      call ens_copyMember(ensAmplitude_y  , statevector_y  , memberIndex)
+!!$      call euclid(innerProduct2_local, &
+!!$           statevector_LTx %gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+!!$           statevector_y%gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+!!$           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
+!!$    end do
+!!$    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
+!!$    call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+!!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
+!!$    
+!!$    ! Results
+!!$    call checkInnerProd (innerProduct1_global, innerProduct2_global, 'addMem')
+!!$    
+!!$    call gsv_deallocate(statevector_LTx)
+!!$    call gsv_deallocate(statevector_y)
+!!$    call gsv_deallocate(statevector_x)
+!!$    call gsv_deallocate(statevector_Ly)
+!!$
+!!$    call ens_deallocate(ensAmplitude_LTx)
+!!$    call ens_deallocate(ensAmplitude_y)
+!!$
+!!$  end subroutine check_addmem
+
+  !--------------------------------------------------------------------------
   !- check AdvectionENS
-  !
+  !--------------------------------------------------------------------------
   subroutine check_advectionENS()
     implicit none
 
@@ -375,19 +700,6 @@ contains
                   ens_y)  ! OUT
     call adv_ensemble_ad( ens_y, & ! INOUT
                           adv_analInc, nEns )      ! IN
-    !do kIndex = 1, ens_getNumK(ens_x)
-    !  ens_oneLev => ens_getOneLev_r8(ens_y,kIndex)
-    !  do memberIndex = 1, nEns
-    !    do stepIndex = 1, tim_nstepobsinc
-    !      do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
-    !        do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
-    !          ens_oneLev(memberIndex,stepIndex,lonIndex,latIndex) = rng_gaussian()
-    !        end do
-    !      end do
-    !    end do
-    !  end do
-    !end do
-
     ! Ly
     call ens_copy(ens_y, ens_Ly)
     call adv_ensemble_tl( ens_Ly, & ! INOUT
@@ -442,9 +754,9 @@ contains
 
   end subroutine check_advectionENS
 
-  !
+  !--------------------------------------------------------------------------
   !- check AdvectionGSV
-  !
+  !--------------------------------------------------------------------------
   subroutine check_advectionGSV()
     implicit none
 
@@ -560,9 +872,9 @@ contains
 
   end subroutine check_advectionGSV
   
-  !
+  !--------------------------------------------------------------------------
   !- Inner product computation
-  !
+  !--------------------------------------------------------------------------
   subroutine euclid (pvalue,px,py,nis,nie,njs,nje,nk,nStep)
     implicit none
     integer ::  nis,nie,njs,nje,nk,nStep
@@ -583,9 +895,9 @@ contains
 
   end subroutine euclid
 
-  !
+  !--------------------------------------------------------------------------
   !- Inner product comparison
-  !
+  !--------------------------------------------------------------------------
   subroutine checkInnerProd (innerProduct1, innerProduct2, testName)
     implicit none
     real(8) ::  innerProduct1, innerProduct2

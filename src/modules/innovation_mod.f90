@@ -481,8 +481,6 @@ contains
     call oop_ice_nl  (columnhr, obsSpaceData, ZJOSFCGL, 'GL')
     call oop_hydro_nl(columnhr, obsSpaceData, ZJOSFCHY, 'HY')
 
-    write(*,*) 'ZJOSURFC = ', ZJOSFCUA , ZJOSFCSF , ZJOSFCSC , ZJOSFCGP , ZJOSFCTM , ZJOSFCGL , ZJOSFCHY
-
     ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL + ZJOSFCHY
 
     !

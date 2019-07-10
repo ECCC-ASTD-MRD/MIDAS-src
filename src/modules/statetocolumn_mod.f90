@@ -912,7 +912,6 @@ contains
                                    ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
                                    interpInfo_tlad, kIndex, stepIndex, procIndex )
               else
-                write(*,*) 'JFC myezsint tl'
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, stepIndex, procIndex )
               end if
@@ -1360,7 +1359,6 @@ contains
                 call myezuvint_nl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
                                    field2d_UV, field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               else
-                write(*,*) 'JFC myezsint nl'
                 call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                                field2d, interpInfo_nl, kindex, stepIndex, procIndex )
               end if
@@ -1440,7 +1438,6 @@ contains
             yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
-              write(*,*) 'JFC myezsint sfc'
               call myezsint( cols_hint(1:yourNumHeader,stepIndex,procIndex), varName,  &
                              ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
 
@@ -1564,8 +1561,6 @@ contains
       ! Interpolate the model state to the obs point
       interpValue = 0.0d0
 
-      write(*,*) 'JFC in myezsint , headerIndex = ', headerIndex, interpInfo%hco%numSubGrid, varName
-
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
@@ -1577,8 +1572,6 @@ contains
           weight = interpInfo%interpWeightDepot(gridptIndex)
 
           interpValue = interpValue + weight * field_in(lonIndex, latIndex)
-
-          write(*,*) 'JFC in myezsint ', gridptIndex, lonIndex, latIndex, field_in(lonIndex, latIndex), interpValue 
 
         end do
 
@@ -2983,8 +2976,6 @@ contains
     latIndex = nint(ypos_r4)
     lonIndex = nint(xpos_r4)
 
-    write(*,*) 'JFC in setupNearestNeighbor', headerIndex, lon_deg_r4, lat_deg_r4, xpos_r4, ypos_r4, lonIndex, latIndex
-
     ! Handle periodicity in longitude
     if ( lonIndex == statevector%ni+1 .and. stateVector%hco%grtyp == 'G' ) lonIndex = 1
 
@@ -3013,8 +3004,6 @@ contains
     if ( allocated(interpInfo%interpWeightDepot) ) then
       
       depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, kIndex, stepIndex, procIndex)
-      
-      write(*,*) 'JFC in setupNearestNeighbor, depotIndex = ', depotIndex
 
       interpInfo%interpWeightDepot(depotIndex) = 1.d0
       interpInfo%latIndexDepot    (depotIndex) = latIndex

@@ -3,6 +3,7 @@
    WRITEANALYSIS = .TRUE.
 /
  &NAMBHI
+   NTRUNC      = 250,
    SCALEFACTOR = 100*0.0D0
 /
  &NAMBEN
@@ -12,11 +13,11 @@
    hLocalize   = 100.d0
 /
  &NAMMIN
-   NVAMAJ   = 2,
-   NITERMAX = 15,
-   NSIMMAX  = 30,
+   NVAMAJ   = 20,
+   NITERMAX = 10,
+   NSIMMAX  = 50,
    REPSG    = 1.0D-5,
-   LGRTEST  = .TRUE.,
+   LGRTEST  = .FALSE.,
    LWRTHESS = .FALSE.,
    LVARQC   = .FALSE.,
    NWOQCV   = 5,
@@ -43,6 +44,8 @@
  &NAMSTATE
   addHeightSfcOffset = .false.
   ANLVAR(1)   ='QO1'
+  ANLVAR(2)   ='QI1'
+  ANLVAR(3)   ='STOR'
 /
  &NAMTOV   
 /

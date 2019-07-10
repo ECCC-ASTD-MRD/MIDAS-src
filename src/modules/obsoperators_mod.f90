@@ -846,16 +846,12 @@ contains
       headerIndex = obs_getHeaderIndex( obsSpaceData )
       if ( headerIndex < 0 ) exit HEADER
 
-      write(*,*) 'oop_hydro_nl, headerIndex = ', headerIndex
-
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list( obsSpaceData, headerIndex )
 
       BODY: do
         bodyIndex = obs_getBodyIndex( obsSpaceData )
         if ( bodyIndex < 0 ) exit BODY
-
-        write(*,*) 'oop_hydro_nl, bodyIndex = ', bodyIndex, obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ), obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex ), bufr_riverFlow
 
         ! only process observations flagged to be assimilated
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
@@ -874,8 +870,6 @@ contains
                         obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
                       ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
                         obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
-
-        write(*,*) 'oop_hydro_nl, Jo Contribution = ', obsValue, col_getElem(columnhr,1,headerIndex, varName_opt = varName), obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ), obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
 
       end do BODY
 

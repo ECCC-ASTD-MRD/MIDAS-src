@@ -1995,7 +1995,7 @@ CONTAINS
     ! set output ensemble Amplitude to zero
     call tmg_start(69,'ADDMEMAD_ZERO')
     !$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_M_oneLev)
-    do levIndex = 1, nLevEns_M
+    do levIndex = 1, ens_getNumLev(ensAmplitude_M,vnl_varLevelFromVarname(varNameALFA(1)))
       ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
       ensAmplitude_M_oneLev(:,:,:,:) = 0.0d0
     end do
@@ -2115,7 +2115,7 @@ CONTAINS
             ! surface variable
             if (vco_anl%Vcode == 5002 .or. vco_anl%Vcode == 5005) then
               ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
-            else
+            else ! vco_anl%Vcode == 0
               ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
             end if
             ensAmplitude_M_oneLev (1:nEns,:,lonIndex,latIndex) = &
