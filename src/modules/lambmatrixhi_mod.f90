@@ -464,14 +464,23 @@ contains
     implicit none
 
     character(len=4), pointer :: anlVar(:)
+    character(len=4)          :: varName
 
     !
     !- 1.  Get horizontal grid parameters
     !
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
+    if      ( anlVar(1) == ControlVariable(UWindID)%nomvar(cv_model) ) then
+      varName = ControlVariable(UWindID)%nomvar(cv_bhi)
+    else if ( anlVar(1) == ControlVariable(VWindID)%nomvar(cv_model) ) then
+      varName = ControlVariable(VWindID)%nomvar(cv_bhi)
+    else
+      varName = anlVar(1)
+    end if
+
     call hco_setupFromFile(hco_bstats, BStatsFilename, ' ', 'bstats', &  ! IN
-                           varName_opt=anlVar(1))                        ! IN
+                           varName_opt=varName)                          ! IN
 
     !- 1.3 Regridding needed ?
     if ( hco_equal(hco_bstats,hco_bhi) ) then
