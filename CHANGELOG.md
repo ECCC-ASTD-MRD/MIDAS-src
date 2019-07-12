@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added a test 'var/EnVar/geps' to check the configuration used in the Operational ENKF (#241 and !229)
+ * (Nothing yet)
 
 ### Changed
 
@@ -16,11 +16,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Skip update instead of abort in the case where one of the BURP input files contains no valid data (#244 and !231)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.3.5]
+
+### Added
+
+ * Added a test 'var/EnVar/geps' to check the configuration used in the Operational ENKF (#241 and !229)
+
+### Fixed
+
+ * Skip update instead of abort in the case where one of the BURP input files contains no valid data (#244 and !231)
 
 ## [3.3.4]
 
@@ -264,7 +274,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...HEAD
+[3.3.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...v_3.3.5
 [3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
 [3.3.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...v_3.3.3
 [3.3.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.1...v_3.3.2
