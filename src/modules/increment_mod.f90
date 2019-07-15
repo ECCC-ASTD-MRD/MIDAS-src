@@ -258,9 +258,6 @@ CONTAINS
       HeightSfc_increment => gsv_getHeightSfc(statevector_Psfc)
       HeightSfc_trial     => gsv_getHeightSfc(statevector_trial)
       HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
-!      allocHeightSfc = .true.
-!    else
-!      allocHeightSfc = .false.
     end if
     writeHeightSfc = allocHeightSfc
 

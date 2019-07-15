@@ -611,8 +611,6 @@ contains
 
       end do DATA  ! END OF DATA LOOP
 
-      !if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
-
       if ( obsNlv > 0 ) then
 
         if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
