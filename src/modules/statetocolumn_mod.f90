@@ -86,6 +86,9 @@ module stateToColumn_mod
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, external    :: get_max_rss
+  logical, save :: check_kIndex1 = .false.
+  logical, save :: check_kIndex2 = .false.
+
 
 contains 
 
@@ -424,7 +427,7 @@ contains
     integer :: gdllfxy
     logical :: obsOutsideGrid, doSlantPath
     character(len=4), pointer :: varNames(:)
-    character(len=4)          :: varLevel
+    character(len=4)          :: varLevel, varName
     real(8), allocatable :: latSlantKIndex(:,:), lonSlantKIndex(:,:)
     real(8), allocatable :: latSlantLev_T(:), lonSlantLev_T(:), latSlantLev_M(:), lonSlantLev_M(:)
     real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:), height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
@@ -433,9 +436,13 @@ contains
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
     integer :: codtyp, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
+    integer :: firstHeaderIndexUsed(mpi_nprocs)
+    logical :: firstHeaderBatchSlantPath, firstHeaderSlantPath 
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    doSlantPath = .true.
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -531,7 +538,6 @@ contains
     interpInfo%depotIndexEnd(:,:,:,:,:) = -1
 
     ! prepare for extrating the 3D height for slant-path calculation
-    doSlantPath = .true.
     if ( doSlantPath .and. &
          stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
          stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
@@ -623,6 +629,7 @@ contains
     end if ! doSlantPath 
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
+    firstHeaderBatchSlantPath = .true.
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
 
@@ -693,46 +700,84 @@ contains
         latSlantLev_M(:) = 0.0d0
         lonSlantLev_M(:) = 0.0d0
 
+        firstHeaderSlantPath  = .true.
         header_loop3: do headerUsedIndex = 1, numHeaderUsed
+          headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
+          codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
           if ( .not. tvs_isIdBurpTovs(codtyp) ) then
             latSlantKIndex(headerUsedIndex,:) = real(latVec_r4(headerUsedIndex),8)
             lonSlantKIndex(headerUsedIndex,:) = real(lonVec_r4(headerUsedIndex),8)
 
           else
-            headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
-
-            ! calculate lat/lon along the line of sight
-            call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
-                                     height3D_T_r4, height3D_M_r4,               & ! IN
-                                     latSlantLev_T, lonSlantLev_T,               & ! OUT
-                                     latSlantLev_M, lonSlantLev_M )                ! OUT
-
-            ! put the lat/lon from TH/MM levels to kIndex
-            do kIndex = allkBeg(1), stateVector%nk
-              if ( kIndex == 0 ) then
-                varLevel = 'SF'
-              else
-                levIndex = gsv_getLevFromK(stateVector,kIndex)
-                varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+            if ( firstHeaderBatchSlantPath ) then
+              if ( firstHeaderSlantPath ) then
+                write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
+                firstHeaderSlantPath = .false.
               end if
 
-              if ( varLevel == 'TH' ) then
-                latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_T(levIndex)
-                lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_T(levIndex)
-              else if ( varLevel == 'MM' ) then
-                latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_M(levIndex)
-                lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_M(levIndex)
-              else if ( varLevel == 'SF' ) then
-                latSlantKIndex(headerUsedIndex,kIndex) = latVec_r4(headerUsedIndex)
-                lonSlantKIndex(headerUsedIndex,kIndex) = lonVec_r4(headerUsedIndex)
-              end if
+              ! calculate lat/lon along the line of sight
+              call tmg_start(195,'slp_calcLatLonTovs')
+              call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                       height3D_T_r4, height3D_M_r4,               & ! IN
+                                       latSlantLev_T, lonSlantLev_T,               & ! OUT
+                                       latSlantLev_M, lonSlantLev_M )                ! OUT
 
-            end do
+              call tmg_stop(195)
 
+              ! put the lat/lon from TH/MM levels to kIndex
+              do kIndex = allkBeg(1), stateVector%nk
+                if ( kIndex == 0 ) then
+                  varLevel = 'SF'
+                else
+                  levIndex = gsv_getLevFromK(stateVector,kIndex)
+                  varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+                end if
+
+                if ( varLevel == 'TH' ) then
+                  latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_T(levIndex)
+                  lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_T(levIndex)
+                else if ( varLevel == 'MM' ) then
+                  latSlantKIndex(headerUsedIndex,kIndex) = latSlantLev_M(levIndex)
+                  lonSlantKIndex(headerUsedIndex,kIndex) = lonSlantLev_M(levIndex)
+                else if ( varLevel == 'SF' ) then
+                  latSlantKIndex(headerUsedIndex,kIndex) = latVec_r4(headerUsedIndex)
+                  lonSlantKIndex(headerUsedIndex,kIndex) = lonVec_r4(headerUsedIndex)
+                end if
+
+              end do
+
+              ! check consistency of kIndex values (before MPI comm)
+              if ( check_kIndex1 ) then
+                check_kIndex1 = .false.
+
+                ! gather the first header from all the processors
+                call rpn_comm_allgather(headerUsedIndex, 1,'mpi_integer',       &
+                                firstHeaderIndexUsed,1,'mpi_integer','grid',ierr)
+
+                write(*,*) 'before MPI comm, firstHeaderIndexUsed=', firstHeaderIndexUsed(mpi_myid+1)
+                write(*,'(a15,2(a8),2(a10))') ' ', 'kIndex', 'varName', 'lat', 'lon'
+                do kIndex = allkBeg(1), stateVector%nk
+                  if ( kIndex == 0 ) then
+                    varName = 'ZSfc'
+                  else
+                    varName = gsv_getVarNameFromK(stateVector,kIndex)
+                  end if
+                  write(*,'(a,i8,a8,2(f10.4))') 'check_kIndex1, ', kIndex, varName, latSlantKIndex(firstHeaderIndexUsed(mpi_myid+1),kIndex), lonSlantKIndex(firstHeaderIndexUsed(mpi_myid+1),kIndex)
+                end do
+              end if ! check_kIndex1 
+
+            else
+              latSlantKIndex(headerUsedIndex,:) = real(latVec_r4(headerUsedIndex),8)
+              lonSlantKIndex(headerUsedIndex,:) = real(lonVec_r4(headerUsedIndex),8)
+
+            end if ! firstHeaderBatchSlantPath 
           end if !tvs_isIdBurpTovs
 
         end do header_loop3
+
+        !firstHeaderBatchSlantPath = .false.
+        firstHeaderBatchSlantPath = .true.
 
         ! MPI communication for the slant-path lat/lon
         ! all tasks are senders
@@ -740,7 +785,7 @@ contains
           thisProcIsAsender(procIndex) = .true.
         end do
 
-        maxkCount = maxval(stateVector%allkCount(:))
+        maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
         numkToSend = min(mpi_nprocs,stateVector%nk)
 
         allocate(lat_recv_r8(numHeaderUsedMax,mpi_nprocs))
@@ -809,6 +854,19 @@ contains
           end do
 
         end do ! kIndexCount
+
+        ! check consistency of kIndex values (after MPI comm)
+        if ( check_kIndex2 .and. .not.check_kIndex1 ) then
+          check_kIndex2 = .false.
+          write(*,*) 'after MPI comm'
+          write(*,'(a15,2(a8),2(a10))') ' ', 'ProcIndex', 'kIndex', 'lat', 'lon'
+          do procIndex = 1, mpi_nprocs
+            write(*,*) 'check_kIndex2, ','firstHeaderIndexUsed=', firstHeaderIndexUsed(procIndex)
+            do kIndex = mykBeg, stateVector%mykEnd
+              write(*,'(a,2(i8),2(f10.4))') 'check_kIndex2, ', procIndex, kIndex, interpInfo%allLat(firstHeaderIndexUsed(procIndex),kIndex,stepIndex,procIndex), interpInfo%allLon(firstHeaderIndexUsed(procIndex),kIndex,stepIndex,procIndex)
+            end do
+          end do
+        end if
 
         deallocate(lon_send_r8)
         deallocate(lon_recv_r8)
@@ -931,20 +989,6 @@ contains
                      real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
                 interpInfo%allLat(headerIndex,kIndex, stepIndex, procIndex) =  &
                      real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-              else
-                write(*,*) 's2c_setupInterpInfo: Moving OBS that is outside the stateVector domain, ', headerIndex
-                write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-                write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
-
-                ! if obs above or below domain
-                if( ypos_r4 < 1.0 ) ypos_r4 = 1.0
-                if( ypos_r4 > real(statevector%nj) ) ypos_r4 = real(statevector%nj)
-
-                ! if obs left or right longitude band, move it to the edge of this longitude band
-                if( xpos_r4 < 1.0 ) xpos_r4 = 1.0
-                if( xpos_r4 > real(statevector%ni) ) xpos_r4 = real(statevector%ni)
-                write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
-
               end if
 
             end if
@@ -2734,6 +2778,25 @@ contains
       niP1 = statevector%ni
     end if
 
+    ! Check if the obs is outside the stateVector domain
+    if ( xpos_r4 < 1.0 .or. xpos_r4 > real(niP1) .or.  &
+         ypos_r4 < 1.0 .or. ypos_r4 > real(stateVector%nj) ) then
+
+      write(*,*) 's2c_setupBilinearInterp: OBS is outside the stateVector domain, ', headerIndex
+      write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
+      write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+
+      ! if obs above or below domain
+      if( ypos_r4 < 1.0 ) ypos_r4 = 1.0
+      if( ypos_r4 > real(stateVector%nj) ) ypos_r4 = real(stateVector%nj)
+
+      ! if obs left or right longitude band, move it to the edge of this longitude band
+      if( xpos_r4 < 1.0 ) xpos_r4 = 1.0
+      if( xpos_r4 > real(stateVector%ni) ) xpos_r4 = real(stateVector%ni)
+      write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+
+    end if
+
     ! Find the lower-left grid point next to the observation
     if ( xpos_r4 /= real(niP1) ) then
       lonIndex = floor(xpos_r4)
@@ -2886,6 +2949,28 @@ contains
         depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, kIndex, stepIndex, procIndex)
 
         do ipoint=1,gridptCount
+
+          if ( latIndexVec(ipoint) > stateVector%hco%nj ) then
+            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) > stateVector%hco%nj: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
+            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
+          end if
+          if ( latIndexVec(ipoint) < 1 ) then
+            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) < 1: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
+            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
+          end if
+
+          if ( lonIndexVec(ipoint) > stateVector%hco%ni ) then
+            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) > stateVector%hco%ni: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
+            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
+          end if
+          if ( lonIndexVec(ipoint) < 1 ) then
+            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) < 1: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
+            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
+          end if
 
           interpInfo%interpWeightDepot(depotIndex) = WeightVec(ipoint)
           interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)

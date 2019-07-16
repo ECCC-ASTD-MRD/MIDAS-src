@@ -59,7 +59,7 @@ contains
 
     ! Locals:
     real(4), allocatable :: height2D_r4(:,:)
-    real(4) :: heightInterp, heightIntersect, toleranceHeightDiff 
+    real(4) :: heightInterp, heightIntersect, toleranceHeightDiff, heightDiff 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: lat, lon, latSlant, lonSlant
     integer :: ierr, subGridIndex, lonIndex, latIndex
@@ -67,8 +67,8 @@ contains
     integer :: numIteration, maxNumIteration
     logical :: doIteration
 
-    toleranceHeightDiff = 1.0
-    maxNumIteration = 10
+    toleranceHeightDiff = 10.0
+    maxNumIteration = 1
 
     allocate(height2D_r4(hco%ni,hco%nj))
     nlev_M = size(height3D_M_r4,3)
@@ -79,23 +79,29 @@ contains
 
     ! loop through thermo levels
     do lev_T = 1, nlev_T
-      height2D_r4 = height3D_T_r4(:,:,lev_T)
+      height2D_r4(:,:) = height3D_T_r4(:,:,lev_T)
+
       ! find the interpolated height 
+      call tmg_start(197,'heightBilinearInterp')
       call heightBilinearInterp(lat, lon, hco, height2D_r4, heightInterp)
+      call tmg_stop(197)
 
       doIteration = .true.
       numIteration = 0
       while_doIteration: do while (doIteration)
 
+        call tmg_start(196,'findInsectionLatlon')
         call findInsectionLatlon(obsSpaceData, headerIndex, heightInterp, latSlant, lonSlant)
+        call tmg_stop(196)
 
         ! find the interpolated height 
+        call tmg_start(197,'heightBilinearInterp')
         call heightBilinearInterp(latSlant, lonSlant, hco, height2D_r4, heightIntersect)
+        call tmg_stop(197)
 
-        if ( abs(heightInterp-heightIntersect) > toleranceHeightDiff .or. &
-             numIteration >= maxNumIteration) then
-          doIteration = .false.
-        end if
+        heightDiff = real(abs(heightInterp-heightIntersect),4)
+        if ( heightDiff > toleranceHeightDiff .or. &
+             numIteration >= maxNumIteration ) doIteration = .false.
 
         numIteration = numIteration + 1
 
@@ -107,24 +113,29 @@ contains
 
     ! loop through momentum levels
     do lev_M = 1, nlev_M
-      height2D_r4 = height3D_M_r4(:,:,lev_M)
+      height2D_r4(:,:) = height3D_M_r4(:,:,lev_M)
 
       ! find the interpolated height 
+      call tmg_start(197,'heightBilinearInterp')
       call heightBilinearInterp(lat, lon, hco, height2D_r4, heightInterp)
+      call tmg_stop(197)
 
       doIteration = .true.
       numIteration = 0
       while_doIteration2: do while (doIteration)
 
+        call tmg_start(196,'findInsectionLatlon')
         call findInsectionLatlon(obsSpaceData, headerIndex, heightInterp, latSlant, lonSlant)
+        call tmg_stop(196)
 
         ! find the interpolated height 
+        call tmg_start(197,'heightBilinearInterp')
         call heightBilinearInterp(latSlant, lonSlant, hco, height2D_r4, heightIntersect)
+        call tmg_stop(197)
 
-        if ( abs(heightInterp-heightIntersect) > toleranceHeightDiff .or. &
-             numIteration >= maxNumIteration) then
-          doIteration = .false.
-        end if
+        heightDiff = real(abs(heightInterp-heightIntersect),4)
+        if ( heightDiff > toleranceHeightDiff .or. &
+             numIteration >= maxNumIteration ) doIteration = .false.
 
         numIteration = numIteration + 1
 
@@ -345,11 +356,15 @@ contains
 
     end if
 
+    !write(*,*) 'shape(height_r4)=', shape(height_r4)
     ! perform the bi-linear interpolation
     heightInterp_r4 = 0.0
     do ipoint = 1, gridptCount
+      if ( latIndexVec(ipoint) > hco%nj ) latIndexVec(ipoint) = hco%nj
+      if ( lonIndexVec(ipoint) > hco%ni ) lonIndexVec(ipoint) = hco%ni
+      !write(*,*) 'onIndexVec(ipoint), latIndexVec(ipoint)=', lonIndexVec(ipoint), latIndexVec(ipoint)
       heightInterp_r4 = heightInterp_r4 + &
-                    real(WeightVec(ipoint)) * &
+                    real(WeightVec(ipoint),4) * &
                     height_r4(lonIndexVec(ipoint), latIndexVec(ipoint))
     end do
 
