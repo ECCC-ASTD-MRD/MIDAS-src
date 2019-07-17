@@ -193,6 +193,8 @@ module varNameList_mod
         varname='LVIS'
       case ( bufr_gust )
         varname='WGE'
+      case ( bufr_riverFlow )
+        varname='QO1'
       case default
         !
         ! Search for constituents. Identification depends on value and presence of second parameter.

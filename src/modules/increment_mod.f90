@@ -103,6 +103,7 @@ CONTAINS
 
     character(len=256)  :: trialFileName, incFileName, anlFileName
     character(len=4)    :: coffset
+    character(len=4), pointer :: anlVar(:)
 
     real(8)             :: deltaHours
     real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
@@ -129,11 +130,21 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) ''
     if (mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: Set hco parameters for trial grid'
     trialFileName = './trlm_01'
-    call hco_setupFromFile( hco_trl, trim(trialFileName), ' ')
+
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+    call hco_setupFromFile( hco_trl, trim(trialFileName), ' ', varName_opt=anlVar(1))
+
     if ( mpi_myid == 0 ) then
       call vco_setupFromFile( vco_trl, trim(trialFileName) )
     end if
     call vco_mpiBcast(vco_trl)
+
+    if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
+      allocHeightSfc = .false.
+    else
+      allocHeightSfc = .true.
+    end if
 
     !- Do we need to read all the vertical levels from the trial fields?
     if (present(statevector_incLowRes_opt)) then
@@ -178,7 +189,7 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'inc_computeAndWriteAnalysis: reading background state for all time steps'
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_trl, vco_trl,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeightSfc_opt=.true., hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     call tmg_start(180,'INC_READTRIALS')
@@ -191,7 +202,7 @@ CONTAINS
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0'/), allocHeightSfc_opt=.true., &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
 
       if (present(statevector_incLowRes_opt)) then
@@ -247,9 +258,6 @@ CONTAINS
       HeightSfc_increment => gsv_getHeightSfc(statevector_Psfc)
       HeightSfc_trial     => gsv_getHeightSfc(statevector_trial)
       HeightSfc_increment(:,:) = HeightSfc_trial(:,:)
-      allocHeightSfc = .true.
-    else
-      allocHeightSfc = .false.
     end if
     writeHeightSfc = allocHeightSfc
 
@@ -385,7 +393,7 @@ CONTAINS
                            allocHeight_opt=.false., allocPressure_opt=.false. )
         call gsv_allocate( stateVector_Psfc_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           varNames_opt=(/'P0'/), allocHeightSfc_opt=.true. )
+                           varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc )
         if ( gsv_varExist(statevector_analysis,'LVIS') ) then
           call gsv_allocate( stateVector_vis_1step_r4, 1, stateVector_analysis%hco, stateVector_analysis%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
@@ -443,7 +451,7 @@ CONTAINS
             write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
             incFileName = './rehm_' // trim(coffset) // 'm'
             call gsv_writeToFile( statevector_Psfc_1step_r4, trim(incFileName), etiket_rehm,  &
-                                  typvar_opt='A', writeHeightSfc_opt=.true., &
+                                  typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                                   numBits_opt=writeNumBits, containsFullField_opt=.true. )
           end if
 

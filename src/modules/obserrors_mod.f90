@@ -38,20 +38,14 @@ module obsErrors_mod
   private
 
   ! public procedures
-  ! -----------------
-
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_sw
   public :: oer_setInterchanCorr
 
   ! TOVS OBS ERRORS
-  ! ---------------
-
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  !
-  ! CONVENTIONAL OBS ERRORS
-  ! -----------------------
 
+  ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,6)
   real(8) :: xstd_pr(2)
@@ -59,11 +53,13 @@ module obsErrors_mod
   real(8) :: LVLVALUE(9), HGT_ERR(200,9)
 
   ! Sea Ice Concentration obs-error standard deviation
-
   real(8) :: xstd_sic(9)
 
   ! SST
   real(8) :: xstd_sst(5,2)
+
+  ! Hydrology
+  real(8) :: xstd_hydro(1)
 
   integer :: n_sat_type, n_categorie
   integer :: tbl_m(200), tbl_h(200), tbl_t(200), tbl_g(200)
@@ -78,21 +74,17 @@ module obsErrors_mod
 
 contains
 
-!-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! oer_setInterchanCorr
+  !--------------------------------------------------------------------------
   subroutine oer_setInterchanCorr()
     !
     !  :Purpose: Setup of interchannel observation errors correlations
     !    
     use rmatrix_mod
-
     IMPLICIT NONE
 
     INTEGER ::  ISENS
-
-!-----------------------------------------------------------------------
 
     if (tvs_nsensors == 0) then
       write(*,*) 'oer_setInterchanCorr: tvs_nsensors is zero, skipping setup'
@@ -109,31 +101,33 @@ contains
 
   END SUBROUTINE oer_setInterchanCorr
 
+  !--------------------------------------------------------------------------
+  ! oer_setObsErrors
+  !--------------------------------------------------------------------------
   subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in )
     !
     ! :Purpose: read and set observation errors (from former sucovo subroutine).
     !
-
     type(struct_obs)             :: lobsSpaceData
     character(len=*), intent(in) :: obserrorMode_in
 
     !
-    ! Setup Mode
+    !- 1.  Setup Mode
     !
     obserrorMode = obserrorMode_in
 
     !
-    ! Read in the observation stddev errors for radiance data
+    !- 2.  Read in the observation std dev errors
     !
+
+    !- 2.1 Radiance data
     if (obs_famexist(lobsSpaceData,'TO')) then
       call oer_readObsErrorsTOVS
     else 
       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
     end if
-
-    !
-    ! Read in the observation stddev errors for conventional data
-    !
+    
+    !- 2.2 Conventional data
     if ( obs_famExist( lobsSpaceData, 'UA' ) .or. obs_famExist( lobsSpaceData, 'AI' ) .or. obs_famExist( lobsSpaceData, 'SW' ) .or. &
          obs_famExist( lobsSpaceData, 'SF' ) .or. obs_famExist( lobsSpaceData, 'GP' ) .or. obs_famExist( lobsSpaceData, 'SC' ) .or. &
          obs_famExist( lobsSpaceData, 'PR' ) ) then
@@ -146,46 +140,49 @@ contains
 
     end if
 
-    !
-    ! Read in the observation stddev error for constituent data
-    !
+    !- 2.3 Constituent data
     if (obs_famexist(lobsSpaceData,'CH')) then
       call chm_read_obs_err_stddev
     else
       write(*,*) "oer_setObsErrors: No CH observations found."
     end if
 
-    !
-    ! Read in the observation-error stddev for sea ice concentration
-    !
+    !- 2.4 Sea ice concentration
     if (obs_famexist(lobsSpaceData,'GL')) then
       call oer_readObsErrorsICE
     else
       write(*,*) "oer_setObsErrors: No GL observations found."
     end if
 
+    !- 2.5 SST
     if (obs_famexist(lobsSpaceData,'TM')) then
       call oer_readObsErrorsSST
     else
       write(*,*) "oer_setObsErrors: No TM observations found."
     end if
 
+    !- 2.6 Hydrology
+    if (obs_famexist(lobsSpaceData,'HY')) then
+      call oer_readObsErrorsHydro
+    else
+      write(*,*) "oer_setObsErrors: No HY observations found."
+    end if
 
     !
-    ! Set obs error information in obsSpaceData object
+    !- 3.  Set obs error information in obsSpaceData object
     !
     call oer_fillObsErrors(lobsSpaceData)
 
     !
-    ! Deallocate temporary storage
+    !- 4.  Deallocate temporary storage
     !
-    if ( obs_famExist( lobsspaceData, 'CH' )) call chm_dealloc_obs_err_stddev
+    if (obs_famExist(lobsspaceData,'CH')) call chm_dealloc_obs_err_stddev
 
   end subroutine oer_setObsErrors
 
-  !-----------------------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! oer_readObsErrorsTOVS
+  !--------------------------------------------------------------------------
   subroutine oer_readObsErrorsTOVS
     !
     ! :Purpose: Read the observation error statistics and
@@ -476,14 +473,13 @@ contains
 
   end subroutine oer_readObsErrorsTOVS
 
-  !-----------------------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! oer_readObsErrorsCONV
+  !--------------------------------------------------------------------------
   subroutine oer_readObsErrorsCONV ( lobsSpaceData )
     ! 
     ! :Purpose: read observation errors (modification of former readcovo subroutine) of conventional data 
     !
-
     implicit none
     ! argument
     type(struct_obs) :: lobsSpaceData
@@ -638,13 +634,13 @@ contains
 
   end subroutine oer_readObsErrorsCONV
 
-  !-----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! oer_readObsErrorsICE
+  !--------------------------------------------------------------------------
   subroutine oer_readObsErrorsICE
     !
     ! :Purpose: read observation errors for sea ice concentration analysis
     !
-
     implicit none
 
     external fnom, fclos
@@ -700,6 +696,9 @@ contains
 
   end subroutine oer_readObsErrorsICE
 
+  !--------------------------------------------------------------------------
+  ! oer_readObsErrorsSST
+  !--------------------------------------------------------------------------
   subroutine oer_readObsErrorsSST
     !
     ! :Purpose: read observation errors for SST data
@@ -758,9 +757,50 @@ contains
 
   end subroutine oer_readObsErrorsSST
 
-  !-----------------------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! oer_readObsErrorsHydro
+  !--------------------------------------------------------------------------
+  subroutine oer_readObsErrorsHydro
+    implicit none
 
+    external fnom, fclos
+
+    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, timeIndex, nulstat
+    logical                      :: fileExists
+    character(len=128)           :: ligne
+    character(len=15), parameter :: fileName = 'obserr_hydro'    
+    character(len=*) , parameter :: myName   = 'oer_readObsErrorsHydro'
+
+    inquire( file = fileName, exist = fileExists )
+    if ( fileExists ) then
+      write(*,*) '--------------------------------------------------------'
+      write(*,*) myName//': reads observation errors in ', fileName
+      write(*,*) '--------------------------------------------------------'
+    else
+      call utl_abort( myName//': NO OBSERVATION STAT FILE FOUND!!')     
+    end if
+
+    nulstat=0
+    ierr=fnom( nulstat, fileName, 'SEQ', 0 )
+    if ( ierr == 0 ) then
+      write(*,*) myName//': File = ./',fileName
+      write(*,*) myName//' opened as unit file ',nulstat
+      open(unit=nulstat, file=fileName, status='OLD')
+    else
+      call utl_abort( myName//': COULD NOT OPEN FILE '//fileName//'!!!')
+    end if
+
+    read(nulstat, * )    xstd_hydro(1)
+    write(*, '(f8.3)' )  xstd_hydro(1)
+
+    close( unit = nulstat )
+    ierr = fclos( nulstat )
+
+  end subroutine oer_readObsErrorsHydro
+
+  !--------------------------------------------------------------------------
+  ! oer_fillObsErrors
+  !--------------------------------------------------------------------------
   subroutine oer_fillObsErrors(lobsSpaceData)
     !
     ! :Purpose: fill observation errors in lobsSpaceData
@@ -775,8 +815,12 @@ contains
     integer :: isat, ichn, iplatf, instr, iplatform, instrum, ivnm
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev
+
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
+    real(8) :: obsValue, obsStdDevError
+
     logical :: ifirst, llok
+
     character(len=2)  :: cfam
     character(len=12) :: cstnid
     character(len=*), parameter  :: myName = 'oer_fillObsErrors'
@@ -1201,6 +1245,23 @@ contains
             else
               call utl_abort( myName//': UNKNOWN station id: '//cstnid)
             end if
+            
+            !***********************************************************************
+            !               Hydrology
+            !***********************************************************************
+          else if ( cfam == 'HY' ) then
+
+            if ( obs_bodyElem_i(lobsSpaceData, OBS_VNM, bodyIndex) /= bufr_riverFlow ) cycle BODY
+
+            if (codeType == 12) then ! pseudo-SYNOP
+              obsValue = obs_bodyElem_r(lobsSpaceData, OBS_VAR, bodyIndex)
+              obsStdDevError = obsValue * xstd_hydro(1)
+              write(*,*) 'Hydro observation std dev error: ', bodyIndex, obsValue, xstd_hydro(1), obsStdDevError
+              call obs_bodySet_r(lobsSpaceData, OBS_OER, bodyIndex, obsStdDevError)
+            else
+              write(*,*) myName//': unsupported codeType for hydro data found in the observations: ', codeType 
+              call utl_abort( myName//": unsupported codeType" )
+            end if  
 
           else
 
@@ -1243,7 +1304,9 @@ contains
 
   end subroutine oer_fillObsErrors
 
-
+  !--------------------------------------------------------------------------
+  ! oer_sw
+  !--------------------------------------------------------------------------
   subroutine oer_sw(columnhr,obsSpaceData)
     !
     ! :Purpose: Calculate observation errors for AMVs according to the Met-Office 
@@ -1364,9 +1427,10 @@ contains
 
   end subroutine oer_sw
 
-
+  !--------------------------------------------------------------------------
+  ! get_height_error
+  !--------------------------------------------------------------------------
   subroutine get_height_error( stnid, methode, terrain, htasmet, zlat, zlon, zlev, E_HEIGHT, J_SAT )
-
     character(len=9), intent(in)     :: stnid
     integer,          intent(in)     :: methode
     integer,          intent(in)     :: terrain
@@ -1445,7 +1509,9 @@ contains
 
   end subroutine get_height_error
 
-
+  !--------------------------------------------------------------------------
+  ! oer_SETERRGPSRO
+  !--------------------------------------------------------------------------
   SUBROUTINE oer_SETERRGPSRO( lcolumnhr, lobsSpaceData )
     !
     ! :Purpose: Compute estimated errors for GPSRO observations
@@ -1731,6 +1797,9 @@ contains
 
   END SUBROUTINE OER_SETERRGPSRO
 
+  !--------------------------------------------------------------------------
+  ! oer_SETERRGPSGB
+  !--------------------------------------------------------------------------
   SUBROUTINE oer_SETERRGPSGB( columnhr, lobsSpaceData, ldata, analysisMode )
     !
     ! :Purpose:
@@ -1972,7 +2041,5 @@ contains
     write(*,*) 'EXIT SETERRGPSGB'
 
   END SUBROUTINE OER_SETERRGPSGB
-
-!-----------------------------------------------------------------------------------------
 
 end module obsErrors_mod

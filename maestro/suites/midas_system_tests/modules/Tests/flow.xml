@@ -52,6 +52,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="hydrology"/>
+      <FAMILY  name="hydrology">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="Var3D"/>
     <FAMILY  name="Var3D">

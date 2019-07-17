@@ -5229,12 +5229,13 @@ module gridStateVector_mod
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
     integer              :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
     integer, parameter   :: maxNumTrials = 100
-    integer              :: ni_file, nj_file, nk_file, dateStamp
+    integer              :: ni_file, nj_file, nk_file, dateStamp, varNameIndex
     integer              :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
     character(len=2)     :: fileNumber
     character(len=512)   :: fileName
     logical              :: fileExists, allocHeightSfc
     character(len=4), pointer :: varNamesToRead(:)
+    character(len=4)     :: varNameForDateStampSearch
 
     call tmg_start(150,'gsv_readTrials')
 
@@ -5246,6 +5247,17 @@ module gridStateVector_mod
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, stateVector_trial)
+
+    varNameForDateStampSearch = ' '
+    do varNameIndex = 1, size(varNamesToRead)
+      select case (trim(varNamesToRead(varNameIndex)))
+      case ('Z_T','Z_M','P_T','P_M')
+        cycle
+      case default
+        varNameForDateStampSearch = varNamesToRead(varNameIndex)
+        exit
+      end select
+    end do
 
     ! warn if not enough mpi tasks
     if ( mpi_nprocs < stateVector_trial%numStep ) then
@@ -5291,7 +5303,7 @@ module gridStateVector_mod
           ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
           ierr = fstouv(nulTrial,'RND+OLD')
           ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
-                 dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+                        dateStamp, ' ', -1, -1, -1, ' ', varNameForDateStampSearch)
           ierr = fstfrm(nulTrial)
           ierr = fclos(nulTrial)
           if ( ikey > 0 ) exit
@@ -5306,7 +5318,7 @@ module gridStateVector_mod
         if ( batchIndex == 1 ) then
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                             allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,                &
+                             allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
                              hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )

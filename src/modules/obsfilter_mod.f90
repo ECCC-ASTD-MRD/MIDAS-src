@@ -1244,7 +1244,7 @@ end subroutine filt_topoAISW
        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) == obs_assimilated) IKOUNTT=IKOUNTT+1
     END DO
     if ( .not.beSilent ) WRITE(*, &
-         '(1X," NUMBER OF DATA ASSIMILATED BY 3D","-VAR AFTER ADJUSTMENTS: ",i10)') &
+         '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
          IKOUNTT
     if ( .not.beSilent ) WRITE(*,* ) ' '
 

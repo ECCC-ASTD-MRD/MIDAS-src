@@ -108,7 +108,7 @@ contains
     integer  :: iu_bstats = 0
     integer  :: iu_flnml = 0
 
-    integer  :: ier, fnom, fstouv, fstfrm, fclos, k
+    integer  :: ier, fnom, fstouv, fstfrm, fclos, levIndex, nLev
 
     logical  :: FileExist
 
@@ -133,16 +133,18 @@ contains
     write(*,nml=nambhi)
     ier = fclos(iu_flnml)
 
-    do k = 1, max(vco_anl_in%nlev_M,vco_anl_in%nlev_T)
-      if ( scaleFactor(k) > 0.0d0 ) then 
-        scaleFactor(k) = sqrt(scaleFactor(k))
+    nLev = max(max(vco_anl_in%nlev_M,vco_anl_in%nlev_T),1)
+
+    do levIndex = 1, nLev
+      if ( scaleFactor(levIndex) > 0.0d0 ) then 
+        scaleFactor(levIndex) = sqrt(scaleFactor(levIndex))
       else
-        scaleFactor(k) = 0.0d0
+        scaleFactor(levIndex) = 0.0d0
       end if
     end do
 
-    write(*,*) ' sum(scaleFactor) : ',sum(scaleFactor(1:max(vco_anl_in%nlev_M,vco_anl_in%nlev_T)))
-    if ( sum(scaleFactor(1:max(vco_anl_in%nlev_M,vco_anl_in%nlev_T))) == 0.0d0 ) then
+    write(*,*) ' sum(scaleFactor) : ',sum(scaleFactor(1:nLev))
+    if ( sum(scaleFactor(1:nLev)) == 0.0d0 ) then
       write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
       cvDim_out   = 0
       return
@@ -461,10 +463,24 @@ contains
   subroutine lbhi_GetHorizGridInfo()
     implicit none
 
+    character(len=4), pointer :: anlVar(:)
+    character(len=4)          :: varName
+
     !
     !- 1.  Get horizontal grid parameters
     !
-    call hco_setupFromFile(hco_bstats, BStatsFilename, ' ', 'bstats' ) ! IN
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+    if      ( anlVar(1) == ControlVariable(UWindID)%nomvar(cv_model) ) then
+      varName = ControlVariable(UWindID)%nomvar(cv_bhi)
+    else if ( anlVar(1) == ControlVariable(VWindID)%nomvar(cv_model) ) then
+      varName = ControlVariable(VWindID)%nomvar(cv_bhi)
+    else
+      varName = anlVar(1)
+    end if
+
+    call hco_setupFromFile(hco_bstats, BStatsFilename, ' ', 'bstats', &  ! IN
+                           varName_opt=varName)                          ! IN
 
     !- 1.3 Regridding needed ?
     if ( hco_equal(hco_bstats,hco_bhi) ) then
@@ -752,8 +768,10 @@ contains
     !
     !-  4. Convert LQ_inc to HU_inc
     !
-    call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_tlm' ) ! IN
+    if ( gsv_varExist(varName='HU') ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'LQtoHU_tlm' ) ! IN
+    end if
 
     write(*,*)
     write(*,*) 'lbhi_bSqrt: Done'
@@ -783,8 +801,10 @@ contains
     !
     !-  4. Convert LQ_inc to HU_inc
     !
-    call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_ad' )  ! IN
+    if ( gsv_varExist(varName='HU') ) then
+      call vtr_transform( statevector, & ! INOUT
+                          'LQtoHU_ad' )  ! IN
+    end if
 
     !
     !-  3.  Extract data from the StateVector

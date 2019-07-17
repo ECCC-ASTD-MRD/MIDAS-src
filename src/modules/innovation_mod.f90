@@ -211,6 +211,8 @@ contains
     logical                   :: deallocInterpInfo, allocHeightSfc
     real(8), pointer          :: onecolumn(:)
 
+    character(len=4), pointer :: anlVar(:)
+
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     NAMELIST /NAMINN/timeInterpType_nl
 
@@ -228,12 +230,21 @@ contains
 
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
-    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
-    call vco_SetupFromFile( vco_trl, './trlm_01' )
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
+
+    call vco_SetupFromFile(vco_trl, './trlm_01')
+
     call col_setVco(columnhr,vco_trl)
     call col_allocate(columnhr,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
 
-    allocHeightSfc = .true.
+    if (vco_trl%Vcode == 0) then
+      allocHeightSfc = .false.
+    else
+      allocHeightSfc = .true.
+    end if
+
     deallocInterpInfo = .true.
 
     call gsv_allocate( stateVector_trial, tim_nstepobs, hco_trl, vco_trl,  &
@@ -409,7 +420,7 @@ contains
     ! Locals:
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
     real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjoaladin,zjosfctm
-    real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl
+    real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl,zjosfchy
     integer :: ierr, get_max_rss
     logical :: lgpdata, beSilent
 
@@ -462,14 +473,16 @@ contains
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
-    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCSF, 'SF' )
-    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCUA, 'UA' )
-    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCSC, 'SC' )
-    call oop_sfc_nl( columnhr, obsSpaceData, ZJOSFCGP, 'GP' )
-    call oop_sst_nl( columnhr, obsSpaceData, ZJOSFCTM, 'TM' )
-    call oop_ice_nl( columnhr, obsSpaceData, ZJOSFCGL, 'GL' )
+    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCSF, 'SF')
+    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCUA, 'UA')
+    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCSC, 'SC')
+    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCGP, 'GP')
+    call oop_sst_nl  (columnhr, obsSpaceData, ZJOSFCTM, 'TM')
+    call oop_ice_nl  (columnhr, obsSpaceData, ZJOSFCGL, 'GL')
+    call oop_hydro_nl(columnhr, obsSpaceData, ZJOSFCHY, 'HY')
 
-    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL
+    ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL + ZJOSFCHY
+
     !
     !        TOVS - RADIANCE
     !-------------------------------

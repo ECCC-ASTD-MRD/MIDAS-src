@@ -1,0 +1,87 @@
+ &NAMCT0
+   NCONF         = 141,
+   WRITEANALYSIS = .TRUE.
+/
+ &NAMBHI
+   NTRUNC      = 250,
+   SCALEFACTOR = 100*0.0D0
+/
+ &NAMBEN
+   NTRUNC      = 240,
+   NENS        = 24,
+   SCALEFACTOR = 100*1.0D0,
+   hLocalize   = 100.d0
+/
+ &NAMMIN
+   NVAMAJ   = 20,
+   NITERMAX = 10,
+   NSIMMAX  = 50,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC   = .FALSE.,
+   NWOQCV   = 5,
+/
+ &NAMSPECTRAL
+/
+ &NAMDIMO
+   NMXOBS  = 3000,
+   NDATAMX = 30000,
+/
+ &NAMTIME
+  DSTEPOBS    = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=23040,
+  NFLAGS=0,
+  !NLISTFLG(1)=1,
+  list_topoFilt(:)= '  '
+/
+ &NAMRMAT
+/
+ &NAMSTATE
+  addHeightSfcOffset = .false.
+  ANLVAR(1)   ='QO1'
+  ANLVAR(2)   ='QI1'
+  ANLVAR(3)   ='STOR'
+/
+ &NAMTOV   
+/
+ &NAMSAT
+/
+ &NAMINST
+/ 
+ &NAMCHANOFFSET
+/
+ &NAMTOVSINST
+/
+ &NAMHYPER
+/
+ &NAMGEO
+/
+ &NAMCODTYP
+/
+ &NAMGPSRO
+/
+ &NAMGPSGB
+/
+ &NAMSQLsfc
+   numberElem=1
+   listElem="23040"
+   sqlExtraDat=" order by id_obs "
+   sqlNull=" and obsvalue is not null "  
+/
+ &namSQLUpdate
+  numberUpdateItems=4
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='OMA'
+  itemUpdateList(3)='OER'
+  itemUpdateList(4)='FGE'
+/
+ &namSQLInsert
+/
+ &NAMINC
+  etiket_rebm ='ENVAR',
+/

@@ -44,7 +44,7 @@ module obsOperators_mod
 
   ! public procedures
   public :: oop_setup
-  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
+  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
@@ -54,6 +54,9 @@ module obsOperators_mod
 
 contains
 
+  !--------------------------------------------------------------------------
+  ! oop_setup
+  !--------------------------------------------------------------------------
   subroutine oop_setup(obsoperMode_in)
     character(len=*), intent(in) :: obsoperMode_in
 
@@ -61,12 +64,14 @@ contains
 
   end subroutine oop_setup
 
+  !--------------------------------------------------------------------------
+  ! oop_vobslyrs
+  !--------------------------------------------------------------------------
   subroutine oop_vobslyrs( columnghr, obsSpaceData )
     !
     ! :Purpose:
     !      Find which model levels to use for the vertical interpolation
-    !      of model fields to CMA data.
-    !
+    !      of model fields to obs data.
     IMPLICIT NONE
     type(struct_columnData) :: columnghr
     type(struct_obs) :: obsSpaceData
@@ -255,7 +260,9 @@ contains
     !
   end subroutine oop_vobslyrs
 
-
+  !--------------------------------------------------------------------------
+  ! oop_ppp_nl
+  !--------------------------------------------------------------------------
   subroutine oop_ppp_nl( columnhr, obsSpaceData, jobs, cdfam )
     !
     ! :Purpose: Computation of Jobs and y - H(x)
@@ -380,17 +387,9 @@ contains
 
   end subroutine oop_ppp_nl
 
-
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Computation of Jobs and y - H(x) for geometric-height observations
-!!
-!!            Interpolate vertically columnhr to the geometric heights (in
-!!            meters) of the observations.
-!!            Then compute Jobs.
-!!            A linear interpolation in z is performed.
-!!
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! oop_zzz_nl
+  !--------------------------------------------------------------------------
   subroutine oop_zzz_nl( columnhr, obsSpaceData, jobsOut, cdfam)
     !
     ! :Purpose: Computation of Jobs and y - H(x) for geometric-height observations
@@ -600,7 +599,9 @@ contains
 
   end subroutine oop_zzz_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_sfc_nl
+  !--------------------------------------------------------------------------
   subroutine oop_sfc_nl( columnhr, obsSpaceData, jobs, cdfam )
     !
     ! :Purpose:  Computation of Jo and the residuals to the observations
@@ -614,7 +615,6 @@ contains
     !           :jobs:  contribution to Jo
     !           :cdfam: family of observation
     !
-
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -747,7 +747,9 @@ contains
 
   end subroutine oop_sfc_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_sst_nl
+  !--------------------------------------------------------------------------
   subroutine oop_sst_nl( columnhr, obsSpaceData, jobs, cdfam)
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
@@ -816,12 +818,77 @@ contains
 
   end subroutine oop_sst_nl
 
+  !--------------------------------------------------------------------------
+  ! oop_hydro_nl
+  !--------------------------------------------------------------------------
+  subroutine oop_hydro_nl(columnhr, obsSpaceData, jobs, cdfam)
+    !
+    ! :Purpose: To computate Jo and the residuals to the observations
+    !           for hydrological data
+    !
+    implicit none
+    ! arguments
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: obsSpaceData
+    real(8)                 :: jobs         ! contribution to Jo
+    character(len=*)        :: cdfam        ! family of observation
+    ! locals
+    integer          :: ivnm, headerIndex, bodyIndex
+    real(8)          :: obsValue
+    character(len=4) :: varName
 
+    write(*,*) "Entering subroutine oop_hydro_nl, family: ", trim(cdfam)
+
+    jobs = 0.d0
+
+    ! loop over all header indices of the specified family with surface obs
+    call obs_set_current_header_list( obsSpaceData, cdfam )
+
+    HEADER: do
+      headerIndex = obs_getHeaderIndex( obsSpaceData )
+      if ( headerIndex < 0 ) exit HEADER
+
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list( obsSpaceData, headerIndex )
+
+      BODY: do
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if ( bodyIndex < 0 ) exit BODY
+
+        ! only process observations flagged to be assimilated
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
+
+        ivnm = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if( ivnm /= bufr_riverFlow ) cycle BODY
+
+        obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+        varName = vnl_varNameFromVarNum(ivnm)
+        call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+                            obsValue - col_getElem(columnhr,1,headerIndex, varName_opt = varName) )
+
+        ! contribution to jobs
+        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+                      ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
+
+      end do BODY
+
+    end do HEADER
+
+    jobs = 0.5d0 * jobs
+
+  end subroutine oop_hydro_nl
+
+  !--------------------------------------------------------------------------
+  ! oop_ice_nl
+  !--------------------------------------------------------------------------
   subroutine oop_ice_nl( columnhr, obsSpaceData, jobs, cdfam )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
-
+    !
     implicit none
 
     ! arguments
@@ -879,7 +946,9 @@ contains
 
   end subroutine oop_ice_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_gpsro_nl
+  !--------------------------------------------------------------------------
   subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
     !
     ! :Purpose: Computation of Jo and the residuals to the GPSRO observations
@@ -1146,7 +1215,9 @@ contains
 
   end subroutine oop_gpsro_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_gpsgb_nl
+  !--------------------------------------------------------------------------
   subroutine oop_gpsgb_nl( columnhr, obsSpaceData, beSilent, jobs, analysisMode_opt )
     !
     ! :Purpose: Computation of Jo and the residuals to the GB-GPS ZTD observations
@@ -1517,7 +1588,9 @@ contains
 
   end subroutine oop_gpsgb_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_tovs_nl
+  !--------------------------------------------------------------------------
   subroutine oop_tovs_nl( columnghr, obsSpaceData, datestamp, limlvhu, beSilent,  &
                           jobs, bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
     !
@@ -1613,7 +1686,9 @@ contains
 
   end subroutine oop_tovs_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_chm_nl
+  !--------------------------------------------------------------------------
   subroutine oop_chm_nl( columnhr, obsSpaceData, jobs )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
@@ -1641,7 +1716,9 @@ contains
 
   end subroutine oop_chm_nl
 
-
+  !--------------------------------------------------------------------------
+  ! oop_Htl
+  !--------------------------------------------------------------------------
   subroutine oop_Htl( column, columng, obsSpaceData, min_nsim )
     !
     ! :Purpose: Compute simulated observations from profiled model increments.
@@ -1708,7 +1785,9 @@ contains
     call oop_Hice()          ! fill in OBS_WORK : Hdx
     call tmg_stop (49)
 
-
+    call tmg_start(195,'OBS_HYDRO_TLAD')
+    call oop_Hhydro()        ! fill in OBS_WORK : Hdx
+    call tmg_stop (195)
 
   CONTAINS
 
@@ -1957,7 +2036,6 @@ contains
 
     END subroutine oop_Hsf
 
-
     subroutine oop_Hsst()
       !
       ! :Purpose: Compute simulated sea surface temperature observations 
@@ -1998,6 +2076,39 @@ contains
 
     end subroutine oop_Hsst
 
+    subroutine oop_Hhydro()
+      !
+      ! :Purpose: Compute simulated hydrological observations 
+      !           from profiled model increments.
+      !           It returns Hdx in OBS_WORK
+      !
+      implicit none
+
+      integer :: headerIndex, bodyIndex, ityp
+      real(8) :: columnVarB
+      character(len=4) :: varName
+
+      call obs_set_current_body_list( obsSpaceData, 'HY' )
+
+      BODY: do
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if (bodyIndex < 0) exit BODY
+
+        ! Process all data within the domain of the model
+        ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if ( ityp /= bufr_riverFlow ) cycle BODY
+
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+          varName     = vnl_varNameFromVarNum(ityp)
+          columnVarB  = col_getElem(column, 1, headerIndex,varName_opt = varName)
+          call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
+        end if
+
+      end do BODY
+
+    end subroutine oop_Hhydro
 
     subroutine oop_Hice()
       !
@@ -2043,7 +2154,6 @@ contains
 
     end subroutine oop_Hice
 
-
     subroutine oop_Hto()
       !
       ! :Purpose: Compute simulated radiances observations from profiled model
@@ -2077,12 +2187,10 @@ contains
 
     end subroutine oop_Hto
 
-
     SUBROUTINE oop_Hro()
       !
       ! :Purpose: Compute the tangent operator for GPSRO observations.
       !
-
       implicit none
 
       REAL*8 ZMHXL
@@ -2180,7 +2288,6 @@ contains
 
       RETURN
     END subroutine oop_Hro
-
 
     SUBROUTINE oop_Hzp()
       !
@@ -2468,12 +2575,15 @@ contains
 
     call tmg_start(191,'OBS_SST_TLAD')
     call oop_HTsst
-    call tmg_stop (191)      !
+    call tmg_stop (191)
 
     call tmg_start(49,'OBS_ICE_TLAD')
     call oop_HTice
     call tmg_stop (49)
 
+    call tmg_start(195,'OBS_HYDRO_TLAD')
+    call oop_HThydro()
+    call tmg_stop (195)
 
   CONTAINS
 
@@ -2701,7 +2811,6 @@ contains
       RETURN
     END subroutine oop_HTsf
 
-
     subroutine oop_HTsst
       !
       ! :Purpose: Adjoint of the "vertical" interpolation for SST data
@@ -2743,6 +2852,40 @@ contains
 
     end subroutine oop_HTsst
 
+    subroutine oop_HThydro
+      !
+      ! :Purpose: Adjoint of the "vertical" interpolation for Hydrological data
+      !
+      implicit none
+      real(8) :: residual
+      integer :: headerIndex, bodyIndex, ityp 
+      real(8), pointer :: columnHY(:)
+      character(len=4) :: varName
+
+      call obs_set_current_body_list( obsSpaceData, 'HY' )
+
+      BODY: do
+
+        bodyIndex = obs_getBodyIndex( obsSpaceData )
+        if (bodyIndex < 0) exit BODY
+
+        ! Process all data within the domain of the model
+        ityp = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+        if ( ityp /= bufr_riverFlow ) cycle BODY
+
+        if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+
+          headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+          residual = obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
+          varName = vnl_varNameFromVarNum(ityp)
+          columnHY => col_getColumn( column, headerIndex, varName_opt = varName ) 
+          columnHY(1) = columnHY(1) + residual
+        end if
+
+      end do BODY
+
+    end subroutine oop_HThydro
 
     subroutine oop_HTice
       !
@@ -2779,6 +2922,7 @@ contains
           residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
           varName = vnl_varNameFromVarNum(ityp)
           columnGL => col_getColumn( column, headerIndex, varName_opt = varName )
+          
           columnGL(1) = columnGL(1) + residual
         end if
 
