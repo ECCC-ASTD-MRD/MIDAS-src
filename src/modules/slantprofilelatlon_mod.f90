@@ -33,6 +33,8 @@ module slantprofilelatlon_mod
   ! public procedures
   public :: slp_calcLatLonTovs
 
+  ! private module variables and derived types
+  real(4), parameter :: positionOffsetXY = 1e-4
 
 contains 
 
@@ -244,12 +246,12 @@ contains
       write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
 
       ! if above or below domain
-      if( ypos_r4 < 1.0 ) ypos_r4 = 1.0
-      if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj)
+      if( ypos_r4 < 1.0 ) ypos_r4 = 1.0 + positionOffsetXY 
+      if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj) - positionOffsetXY 
 
       ! if on the left or right longitude band, move it to the edge of this longitude band
-      if( xpos_r4 < 1.0 ) xpos_r4 = 1.0
-      if( xpos_r4 > real(hco%ni) ) xpos_r4 = real(hco%ni)
+      if( xpos_r4 < 1.0 ) xpos_r4 = 1.0 + positionOffsetXY 
+      if( xpos_r4 > real(hco%ni) ) xpos_r4 = real(hco%ni) - positionOffsetXY 
       write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
 
     end if
