@@ -822,8 +822,10 @@ contains
   ! oop_hydro_nl
   !--------------------------------------------------------------------------
   subroutine oop_hydro_nl(columnhr, obsSpaceData, jobs, cdfam)
-    !! purpose: To computate Jo and the residuals to the observations
-    !!          for hydrological data
+    !
+    ! :Purpose: To computate Jo and the residuals to the observations
+    !           for hydrological data
+    !
     implicit none
     ! arguments
     type(struct_columnData) :: columnhr
@@ -886,6 +888,7 @@ contains
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
+    !
     implicit none
 
     ! arguments
@@ -2074,11 +2077,11 @@ contains
     end subroutine oop_Hsst
 
     subroutine oop_Hhydro()
-      !*
-      !* Purpose: Compute simulated hydrological observations 
-      !*          from profiled model increments.
-      !*          It returns Hdx in OBS_WORK
-      !*
+      !
+      ! :Purpose: Compute simulated hydrological observations 
+      !           from profiled model increments.
+      !           It returns Hdx in OBS_WORK
+      !
       implicit none
 
       integer :: headerIndex, bodyIndex, ityp
@@ -2100,7 +2103,6 @@ contains
           headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
           varName     = vnl_varNameFromVarNum(ityp)
           columnVarB  = col_getElem(column, 1, headerIndex,varName_opt = varName)
-          write(*,*) 'oop_Hhydro : ', bodyIndex, headerIndex, ityp, varName, columnVarB 
           call obs_bodySet_r( obsSpaceData, OBS_WORK, bodyIndex, columnVarB )
         end if
 
@@ -2851,9 +2853,9 @@ contains
     end subroutine oop_HTsst
 
     subroutine oop_HThydro
-      !*
-      !*** Adjoint of the "vertical" interpolation for Hydrological data
-      !*
+      !
+      ! :Purpose: Adjoint of the "vertical" interpolation for Hydrological data
+      !
       implicit none
       real(8) :: residual
       integer :: headerIndex, bodyIndex, ityp 
@@ -2879,7 +2881,6 @@ contains
           varName = vnl_varNameFromVarNum(ityp)
           columnHY => col_getColumn( column, headerIndex, varName_opt = varName ) 
           columnHY(1) = columnHY(1) + residual
-          write(*,*) 'oop_HThydro : ', bodyIndex, headerIndex, ityp, varName, residual, size(columnHY)
         end if
 
       end do BODY
