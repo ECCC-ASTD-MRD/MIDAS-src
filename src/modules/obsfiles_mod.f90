@@ -162,14 +162,13 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt, asciDumpObs_opt )
-
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt )
   implicit none
 
   ! arguments
-  type(struct_obs)                       :: obsSpaceData
-  real(8),             pointer, optional :: HXensT_mpiglobal_opt(:,:)
-  logical,                      optional :: asciDumpObs_opt
+  type(struct_obs)  :: obsSpaceData
+  real(8), optional :: HXens_mpiglobal_opt(:,:)
+  logical, optional :: asciDumpObs_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
@@ -212,14 +211,14 @@ contains
 
     end do
 
-    if ( present(HXensT_mpiglobal_opt) .and. mpi_myid == 0 ) then
-      call obsf_writeHX(obsSpaceData, HXensT_mpiglobal_opt)
+    if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then
+      call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
     end if
 
   else if ( obsFileType == 'CMA' ) then
 
     ! only 1 mpi task should do the writing
-    if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXensT_mpiglobal_opt )
+    if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
 
   end if
 
@@ -271,13 +270,12 @@ contains
   end subroutine obsf_thinFiles
 
 
-  subroutine obsf_writeHX( obsSpaceData, HXensT_mpiglobal )
-
+  subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)
     implicit none
 
     ! arguments
     type(struct_obs) :: obsSpaceData
-    real(8), pointer :: HXensT_mpiglobal(:,:)
+    real(8)          :: HXens_mpiglobal(:,:)
 
     ! locals
     integer :: unitHX, ierr, headerIndex, fnom, fclos
@@ -291,7 +289,7 @@ contains
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
-      call obs_write_hx(obsSpaceData, HXensT_mpiglobal, headerIndex, unitHX)
+      call obs_write_hx(obsSpaceData, HXens_mpiglobal, headerIndex, unitHX)
 
     enddo
  

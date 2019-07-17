@@ -88,7 +88,7 @@ program midas_calcstats
   !- 2.3 Initialize variables of the model states
   call gsv_setup
 
-  call fln_ensfileName(ensFileName, ensPathName, 1)
+  call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
 
   !- 1.3 Initialize the horizontal grid
   nullify(anlVar)

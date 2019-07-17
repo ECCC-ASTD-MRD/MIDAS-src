@@ -1512,7 +1512,7 @@ contains
   !--------------------------------------------------------------------------
   ! oer_SETERRGPSRO
   !--------------------------------------------------------------------------
-  SUBROUTINE oer_SETERRGPSRO( lcolumnhr, lobsSpaceData )
+  SUBROUTINE oer_SETERRGPSRO( lcolumnhr, lobsSpaceData, beSilent )
     !
     ! :Purpose: Compute estimated errors for GPSRO observations
     !
@@ -1520,6 +1520,7 @@ contains
     !
     type(struct_columnData) :: lcolumnhr
     type(struct_obs)        :: lobsSpaceData
+    logical                 :: beSilent
     !
     integer headerIndex, IDATYP, bodyIndex, iProfile
     REAL*8 zLat, Lat, sLat
@@ -1545,7 +1546,7 @@ contains
     REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
     TYPE(GPS_DIFF), allocatable :: RSTV(:)
 
-    write(*,*)'ENTER SETERRGPSRO'
+    if (.not. beSilent) write(*,*)'ENTER SETERRGPSRO'
     !
     !     * 1.  Initializations
     !     *     ---------------
@@ -1793,14 +1794,14 @@ contains
     deallocate(zTT)
     deallocate(zPP)
 
-    write(*,*)'EXIT SETERRGPSRO'
+    if (.not.beSilent) write(*,*)'oer_setErrGPSRO: done'
 
   END SUBROUTINE OER_SETERRGPSRO
 
   !--------------------------------------------------------------------------
   ! oer_SETERRGPSGB
   !--------------------------------------------------------------------------
-  SUBROUTINE oer_SETERRGPSGB( columnhr, lobsSpaceData, ldata, analysisMode )
+  SUBROUTINE oer_SETERRGPSGB( columnhr, lobsSpaceData, beSilent, ldata, analysisMode )
     !
     ! :Purpose:
     !
@@ -1818,6 +1819,7 @@ contains
     !!
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: lobsSpaceData
+    logical                 :: beSilent
     logical                 :: ldata
     logical                 :: analysisMode
 
@@ -1870,7 +1872,7 @@ contains
     DATA  ZRCOEFF2 /42.6D0/
     !
     !
-    write(*,*) 'ENTER SETERRGPSGB'
+    if (.not.beSilent) write(*,*) 'ENTER SETERRGPSGB'
     !
     DEBUG = .FALSE.
 
@@ -2036,9 +2038,9 @@ contains
 
     IF (.not.ldata) numGPSZTD = 0
 
-    IF (ldata) write(*,*) ' numGPSZTD = ', ICOUNT
+    IF (ldata .and. .not.beSilent) write(*,*) ' numGPSZTD = ', ICOUNT
 
-    write(*,*) 'EXIT SETERRGPSGB'
+    if (.not.beSilent) write(*,*) 'EXIT SETERRGPSGB'
 
   END SUBROUTINE OER_SETERRGPSGB
 

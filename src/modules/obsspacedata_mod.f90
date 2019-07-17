@@ -1322,6 +1322,10 @@ module ObsSpaceData_mod
    public obs_enkf_prntbdy! print all data records associated with an observation
    public obs_enkf_prnthdr! print the header of an observation record
    public obs_expandToMpiGlobal ! restore data for the mpi-global context
+   public obs_extractObsRealBodyColumn    ! return entire selected column (real/body)
+   public obs_extractObsIntBodyColumn     ! return entire selected column (int/body)
+   public obs_extractObsRealHeaderColumn  ! return entire selected column (real/header)
+   public obs_extractObsIntHeaderColumn   ! return entire selected column (int/header)
    public obs_finalize   ! object clean-up
    public obs_generate_header ! fill in observation-data header, from burp files
                          ! find the index into the variable types list of the
@@ -3548,6 +3552,96 @@ contains
       write(*,*) 'Leaving obs_expandToMpiGlobal'
       return
    end subroutine obs_expandToMpiGlobal
+
+
+   subroutine obs_extractObsRealBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+     implicit none
+
+     ! arguments
+     real(8)          :: outputVector(:)
+     type(struct_obs) :: obsSpaceData
+     integer          :: obsColumnIndex
+
+     ! locals
+     integer :: bodyIndex
+
+     do bodyIndex = 1, obs_numBody(obsSpaceData)
+       outputVector(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
+     end do
+
+   end subroutine obs_extractObsRealBodyColumn
+
+
+   subroutine obs_extractObsIntBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+     implicit none
+
+     ! arguments
+     integer          :: outputVector(:)
+     type(struct_obs) :: obsSpaceData
+     integer          :: obsColumnIndex
+
+     ! locals
+     integer :: bodyIndex
+
+     do bodyIndex = 1, obs_numBody(obsSpaceData)
+       outputVector(bodyIndex) = obs_bodyElem_i(obsSpaceData,obsColumnIndex,bodyIndex)
+     end do
+
+   end subroutine obs_extractObsIntBodyColumn
+
+
+   subroutine obs_extractObsRealHeaderColumn(outputVector, obsSpaceData, obsColumnIndex)
+     implicit none
+
+     ! arguments
+     real(8)          :: outputVector(:)
+     type(struct_obs) :: obsSpaceData
+     integer          :: obsColumnIndex
+
+     ! locals
+     integer :: bodyIndex, headerIndex
+
+     if (size(outputVector) == obs_numBody(obsSpaceData)) then
+       do bodyIndex = 1, obs_numBody(obsSpaceData)
+         headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+         outputVector(bodyIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
+       end do
+     else if(size(outputVector) == obs_numHeader(obsSpaceData)) then
+       do headerIndex = 1, obs_numHeader(obsSpaceData)
+         outputVector(headerIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
+       end do
+     else
+       call obs_abort('extractObsRealHeaderColumn: size of output vector invalid')
+     end if
+
+   end subroutine obs_extractObsRealHeaderColumn
+
+
+   subroutine obs_extractObsIntHeaderColumn(outputVector, obsSpaceData, obsColumnIndex)
+     implicit none
+
+     ! arguments
+     integer          :: outputVector(:)
+     type(struct_obs) :: obsSpaceData
+     integer          :: obsColumnIndex
+
+     ! locals
+     integer :: bodyIndex, headerIndex
+
+     if (size(outputVector) == obs_numBody(obsSpaceData)) then
+       do bodyIndex = 1, obs_numBody(obsSpaceData)
+         headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+         outputVector(bodyIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
+       end do
+     else if(size(outputVector) == obs_numHeader(obsSpaceData)) then
+       do headerIndex = 1, obs_numHeader(obsSpaceData)
+         outputVector(headerIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
+       end do
+     else
+       call obs_abort('extractObsIntHeaderColumn: size of output vector invalid')
+     end if
+
+   end subroutine obs_extractObsIntHeaderColumn
 
 
    subroutine obs_finalize(obsdat)

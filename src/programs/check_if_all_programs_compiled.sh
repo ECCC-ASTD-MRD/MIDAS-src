@@ -25,7 +25,7 @@ for file in *.f90; do
             echo "The program '${absdir}/${midasAbs}' exists"
         fi
     else
-        echo "The program '${absdir}/${midasAbs}' does not exists" >&2
+        echo "The program '${absdir}/${midasAbs}' does not exist" >&2
         program_missing=1
     fi
 done

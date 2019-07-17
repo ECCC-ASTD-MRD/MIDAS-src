@@ -322,7 +322,7 @@ CONTAINS
     vco_anl => vco_anl_in
 
     if ( mpi_myid == 0 ) then
-      call fln_ensfileName(ensFileName, ensPathName, 1)
+      call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
       call vco_SetupFromFile(vco_file, ensFileName)
     end if
     call vco_mpiBcast(vco_file)

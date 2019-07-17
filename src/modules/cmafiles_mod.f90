@@ -60,19 +60,19 @@ contains
   end subroutine cma_readFiles
 
 
-  subroutine cma_writeFiles(obsSpaceData,HXensT_mpiglobal)
+  subroutine cma_writeFiles(obsSpaceData,HXens_mpiglobal)
     implicit none
 
     ! arguments
     type(struct_obs)  :: obsSpaceData
-    real(8),pointer   :: HXensT_mpiglobal(:,:)
+    real(8)           :: HXens_mpiglobal(:,:)
 
     ! locals
     character(len=20) :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim
     integer           :: ierr, unitObsHdr, unitObsBdy, unitHX, unitDim, nEns
     integer           :: fnom, fclos
 
-    nEns     = size(HXensT_mpiglobal,1)
+    nEns     = size(HXens_mpiglobal,1)
 
     ! open the output files
     fileNameObsHdr = 'cmaheaderout'
@@ -92,7 +92,7 @@ contains
     ierr = fnom(unitDim, fileNameDim, 'FTN+SEQ+R/W', 0)
 
     ! write out obsSpaceData and HX files
-    call obs_write(obsSpaceData, HXensT_mpiglobal, nEns, unitObsHdr, unitObsBdy, unitHX, unitDim)
+    call obs_write(obsSpaceData, HXens_mpiglobal, nEns, unitObsHdr, unitObsBdy, unitHX, unitDim)
 
     ierr = fclos(unitObsHdr)
     ierr = fclos(unitObsBdy)

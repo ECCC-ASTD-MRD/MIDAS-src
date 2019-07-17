@@ -25,13 +25,14 @@ module utilities_mod
 
   ! public procedures
   public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir, utl_fstecr
-  public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt
+  public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id
   public :: utl_readFstField
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
+  public :: utl_heapsort2d
 
   ! module interfaces
   ! -----------------
@@ -708,7 +709,128 @@ contains
 
   end subroutine utl_matsqrt
 
+  !--------------------------------------------------------------------------
+  ! utl_matInverse
+  !--------------------------------------------------------------------------
+  subroutine utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt)
+    !
+    ! :Purpose: Calculate the inverse of a covariance matrix 
+    !           and, optionally, also the inverse square-root.
+    !
+    implicit none
 
+    ! Arguments
+    integer, intent(in)              :: rank                 ! order of the matrix
+    real(8), intent(inout)           :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8), intent(inout), optional :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
+    logical, intent(in), optional    :: printInformation_opt ! switch to print be more verbose
+
+    ! Local variables
+    integer :: index1, index2, info, sizework
+    real(8) :: sizework_r8
+    real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
+    logical :: printInformation
+
+    if (present(printInformation_opt)) then
+      printInformation = printInformation_opt
+    else
+      printInformation = .false.
+    end if
+
+    if (printInformation) then
+      write(*,*)' utl_matInvers: Inverse matrix of a symmetric matrix'
+    end if
+
+    !     1. Computation of eigenvalues and eigenvectors
+
+    allocate(eigenVectors(rank,rank))
+    allocate(eigenValues(rank))
+
+    do index2=1,rank
+      do index1=1,rank
+        eigenVectors(index1,index2)=matrix(index1,index2)
+      end do
+    end do
+
+    ! query the size of the 'work' vector by calling 'DSYEV' with 'sizework=-1'
+    sizework = -1
+    info = -1
+    call dsyev('V','U',rank, eigenVectors, rank, eigenValues, sizework_r8, sizework, info)
+
+    ! compute the eigenvalues
+    sizework=int(sizework_r8)
+    allocate(work(sizework))
+    call dsyev('V','U',rank, eigenVectors,rank, eigenValues,work, sizework, info)
+    deallocate(work)
+
+    if (printInformation) then
+      write(*,'(1x,"Original eigen values: ")')
+      write(*,'(1x,10f7.3)') (eigenValues(index1),index1=1,rank)
+
+      if(minval(eigenValues) > 1.0d-10) then
+        write(*,'(A,1x,e14.6)') "Condition number:", &
+             maxval(eigenValues)/minval(eigenValues)
+      end if
+    end if
+
+    !     2.  Take inverse of eigenvalues
+
+    do index1=1,rank
+      if(eigenValues(index1) > 1.0d-10) then
+        eigenValues(index1)= 1.0d0/eigenValues(index1)
+      else
+        write(*,*) 'utl_matInverse: WARNING eigenvalue is too small = ', index1, eigenValues(index1)
+        eigenValues(index1) = 0.0d0
+      end if
+    end do
+
+    if (printInformation) then
+      write(*,'(1x,"Inverse of original eigen values: ")')
+      write(*,'(1x,10f7.3)') (eigenValues(index1),index1=1,rank)
+    end if
+
+    !     3.  Compute the inverse matrix
+
+    do index2 = 1, rank
+      do index1 = 1, rank
+        matrix(index1,index2) = sum ( eigenVectors (index1,1:rank)   &
+                                    * eigenVectors (index2,1:rank)   &
+                                    * eigenValues(1:rank) )
+      end do
+    end do
+
+    !     4.  If requested, computed the inverse square-root also
+
+    if (present(inverseSqrt_opt)) then
+      do index1=1,rank
+        if(eigenValues(index1) > 1.0d-10) then
+          eigenValues(index1)= sqrt(eigenValues(index1))
+        else
+          eigenValues(index1) = 0.0d0
+        end if
+      end do
+      do index2 = 1, rank
+        do index1 = 1, rank
+          inverseSqrt_opt(index1,index2) = sum ( eigenVectors (index1,1:rank)   &
+                                               * eigenVectors (index2,1:rank)   &
+                                               * eigenValues(1:rank) )
+        end do
+      end do
+    end if
+
+    !     5. Deallocate local arrays
+    deallocate(eigenVectors,eigenValues)
+
+    if (printInformation) then
+      write(*,*) 'utl_matInverse: done'
+      write(*,*) ' '
+    end if
+
+  end subroutine utl_matInverse
+
+  !--------------------------------------------------------------------------
+  ! utl_writeStatus
+  !--------------------------------------------------------------------------
   subroutine utl_writeStatus(cmsg)
     implicit none
     INTEGER :: iulstatus,fnom,fclos, ierr
@@ -1691,5 +1813,56 @@ contains
     array(:,:,:,:,:) = 0.0d0
 
   end subroutine utl_reAllocate_r8_5d
+
+
+  subroutine utl_heapsort2d(array)
+    !
+    ! :Purpose: Sort a real 2D array in ascending order according
+    !           to the first column
+    ! 
+    implicit none
+    real(4), intent(inout) :: array(:,:)
+
+    real(4) :: values(2) ! temporary value
+    integer :: i,j,nsize
+    integer :: ileft,iright
+
+    nsize = size(array,1)
+    ileft=nsize/2+1
+    iright=nsize
+
+    if (nsize == 1) return                  
+
+    do 
+      if(ileft > 1)then
+        ileft=ileft-1
+        values(:) = array(ileft,:)
+      else
+        values(:) = array(iright,:)
+        array(iright,:) = array(1,:)
+        iright = iright-1
+        if (iright == 1) then
+          array(1,:) = values(:)
+          return
+        end if
+      end if
+      i = ileft
+      j = 2*ileft
+      do while (j <= iright) 
+        if (j < iright) then
+          if (array(j,1) < array(j+1,1)) j=j+1
+        endif
+        if (values(1) < array(j,1)) then
+          array(i,:) = array(j,:)
+          i = j
+          j = j+j
+        else
+          j = iright+1
+        end if
+      end do
+      array(i,:) = values(:)
+    end do
+
+  end subroutine utl_heapsort2d
 
 end module utilities_mod

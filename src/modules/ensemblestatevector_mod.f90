@@ -38,8 +38,8 @@ module ensembleStateVector_mod
   private
 
   ! public procedures
-  public :: struct_ens, ens_allocate, ens_deallocate
-  public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
+  public :: struct_ens, ens_allocate, ens_deallocate, ens_zero
+  public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers
   public :: ens_computeMean, ens_removeMean, ens_recenter, ens_recenterState
@@ -313,7 +313,7 @@ CONTAINS
  
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
-!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
       do jk = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -326,11 +326,11 @@ CONTAINS
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
 
-!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
       do jk = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -343,13 +343,179 @@ CONTAINS
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     else
       call utl_abort('ens_copy: Data type must be the same for both ensembleStatevectors')
     end if
 
   end subroutine ens_copy
+
+  !--------------------------------------------------------------------------
+  ! ens_copy4Dto3D
+  !--------------------------------------------------------------------------
+  subroutine ens_copy4Dto3D(ens_in,ens_out)
+    implicit none
+
+    ! Arguments:
+    type(struct_ens)  :: ens_in, ens_out
+
+    ! Locals:
+    integer           :: lon1, lon2, lat1, lat2, k1, k2
+    integer           :: jk, latIndex, lonIndex, memberIndex
+    integer           :: numStepIn, numStepOut, middleStepIndex
+
+    if (.not.ens_in%allocated) then
+      call utl_abort('ens_copy4Dto3D: ens_in not yet allocated')
+    end if
+    if (.not.ens_out%allocated) then
+      call utl_abort('ens_copy4Dto3D: ens_out not yet allocated')
+    end if
+
+    lon1 = ens_out%statevector_work%myLonBeg
+    lon2 = ens_out%statevector_work%myLonEnd
+    lat1 = ens_out%statevector_work%myLatBeg
+    lat2 = ens_out%statevector_work%myLatEnd
+    k1   = ens_out%statevector_work%mykBeg
+    k2   = ens_out%statevector_work%mykEnd
+    numStepIn  =  ens_in%statevector_work%numStep
+    numStepOut =  ens_out%statevector_work%numStep
+
+    if (numStepOut /= 1) call utl_abort('ens_copy4Dto3D: output ensemble must have only 1 timestep')
+    if (numStepIn == 1) then
+      write(*,*) 'ens_copy4Dto3D: WARNING: input ensemble only has 1 timestep, will simply copy.'
+    end if
+    middleStepIndex = (numStepIn + 1) / 2
+
+    if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
+
+      !$OMP PARALLEL DO PRIVATE (jk,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do memberIndex = 1, ens_out%numMembers
+              ens_out%allLev_r8(jk)%onelevel(memberIndex,1,lonIndex,latIndex) = &
+                   ens_in %allLev_r8(jk)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
+
+      !$OMP PARALLEL DO PRIVATE (jk,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do memberIndex = 1, ens_out%numMembers
+              ens_out%allLev_r4(jk)%onelevel(memberIndex,1,lonIndex,latIndex) = &
+                   ens_in %allLev_r4(jk)%onelevel(memberIndex,middleStepIndex,lonIndex,latIndex)
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else
+      call utl_abort('ens_copy4Dto3D: Data type must be the same for both ensembleStatevectors')
+    end if
+
+  end subroutine ens_copy4Dto3D
+
+  !--------------------------------------------------------------------------
+  ! ens_add
+  !--------------------------------------------------------------------------
+  subroutine ens_add(ens_in, ens_inOut, scaleFactorIn_opt, scaleFactorInOut_opt)
+    implicit none
+    ! arguments
+    type(struct_ens)  :: ens_in, ens_inOut
+    real(8), optional :: scaleFactorIn_opt
+    real(8), optional :: scaleFactorInOut_opt
+
+    ! locals
+    integer           :: lon1, lon2, lat1, lat2, k1, k2
+    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+    real(4)           :: scaleFactorIn_r4, scaleFactorInOut_r4
+    real(8)           :: scaleFactorIn, scaleFactorInOut
+
+    if (.not.ens_in%allocated) then
+      call utl_abort('ens_add: ens_in not yet allocated')
+    end if
+    if (.not.ens_inOut%allocated) then
+      call utl_abort('ens_add: ens_inOut not yet allocated')
+    end if
+
+    lon1 = ens_inOut%statevector_work%myLonBeg
+    lon2 = ens_inOut%statevector_work%myLonEnd
+    lat1 = ens_inOut%statevector_work%myLatBeg
+    lat2 = ens_inOut%statevector_work%myLatEnd
+    k1   = ens_inOut%statevector_work%mykBeg
+    k2   = ens_inOut%statevector_work%mykEnd
+ 
+    if ( ens_inOut%dataKind == 8 .and. ens_in%dataKind == 8 ) then
+
+      if (present(scaleFactorIn_opt)) then
+        scaleFactorIn = scaleFactorIn_opt
+      else
+        scaleFactorIn = 1.0d0
+      end if
+      if (present(scaleFactorInOut_opt)) then
+        scaleFactorInOut = scaleFactorInOut_opt
+      else
+        scaleFactorInOut = 1.0d0
+      end if
+
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens_inOut%statevector_work%numStep
+              do memberIndex = 1, ens_inOut%numMembers
+                ens_inOut%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     scaleFactorInOut * ens_inOut%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     scaleFactorIn    * ens_in%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+              end do
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else if ( ens_inOut%dataKind == 4 .and. ens_in%dataKind == 4 ) then
+
+      if (present(scaleFactorIn_opt)) then
+        scaleFactorIn_r4 = real(scaleFactorIn_opt,4)
+      else
+        scaleFactorIn_r4 = 1.0
+      end if
+      if (present(scaleFactorInOut_opt)) then
+        scaleFactorInOut_r4 = real(scaleFactorInOut_opt,4)
+      else
+        scaleFactorInOut_r4 = 1.0
+      end if
+
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens_inOut%statevector_work%numStep
+              do memberIndex = 1, ens_inOut%numMembers
+                ens_inOut%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     scaleFactorInOut_r4 * ens_inOut%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) + &
+                     scaleFactorIn_r4    * ens_in%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+              end do
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else
+      call utl_abort('ens_add: Data type must be the same for both ensembleStatevectors')
+    end if
+
+  end subroutine ens_add
 
   !--------------------------------------------------------------------------
   ! ens_zero
@@ -377,7 +543,7 @@ CONTAINS
  
     if ( ens%dataKind == 8 ) then
 
-!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
       do jk = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -389,11 +555,11 @@ CONTAINS
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     else if ( ens%dataKind == 4 ) then
 
-!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
       do jk = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -405,7 +571,7 @@ CONTAINS
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     end if
 
@@ -632,6 +798,7 @@ CONTAINS
     integer, optional :: subEnsIndex_opt
 
     ! Locals:
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
     character(len=4), pointer :: varNamesInEns(:)
@@ -656,12 +823,21 @@ CONTAINS
       deallocate(varNamesInEns)
     end if
 
-    ptr4d_r8 => gsv_getField_r8(statevector)
-    do stepIndex = 1, numStep
-      do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+    if (statevector%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+        end do
       end do
-    end do
+    else
+      ptr4d_r4 => gsv_getField_r4(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:),4)
+        end do
+      end do
+    end if
 
   end subroutine ens_copyEnsMean
 
@@ -676,6 +852,7 @@ CONTAINS
     type(struct_gsv)  :: statevector
 
     ! Locals:
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
     character(len=4), pointer :: varNamesInEns(:)
@@ -694,12 +871,21 @@ CONTAINS
       deallocate(varNamesInEns)
     end if
 
-    ptr4d_r8 => gsv_getField_r8(statevector)
-    do stepIndex = 1, numStep
-      do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
+    if (statevector%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
+        end do
       end do
-    end do
+    else
+      ptr4d_r4 => gsv_getField_r4(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r4(:,:,jk,stepIndex) = real(ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:),4)
+        end do
+      end do
+    end if
 
   end subroutine ens_copyEnsStdDev
 
@@ -733,7 +919,7 @@ CONTAINS
       call gsv_allocate( statevector, numStep,  &
                          ens%statevector_work%hco, ens%statevector_work%vco,  &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                         varNames_opt=varNamesInEns , dataKind_opt=8)
+                         varNames_opt=varNamesInEns, dataKind_opt=8)
       varNamesInGsv => varNamesInEns
     else
       nullify(varNamesInGsv)
@@ -781,6 +967,7 @@ CONTAINS
 
       do varIndex = 1, size(varNamesInGsv)
         varName = varNamesInGsv(varIndex)
+        if (.not. ens_varExist(ens,varName)) cycle
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName))
         if (ens%dataKind == 8) then
           ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
@@ -1172,7 +1359,9 @@ CONTAINS
     end if
 
     ! Read sub-ensemble index list from file, if it exists
-    allocate(ens%subEnsIndexList(ens%numMembers))
+    if (.not. allocated(ens%subEnsIndexList)) then
+      allocate(ens%subEnsIndexList(ens%numMembers))
+    end if
     if ( computeSubEnsMeans ) then
       write(*,*) 'ens_computeMean: checking in ensemble directory if file with sub-ensemble index list exists: ',subEnsIndexFileName
       inquire(file=trim(ens%enspathname) // trim(subEnsIndexFileName),exist=lExists)
@@ -1191,16 +1380,15 @@ CONTAINS
       ens%subEnsIndexList(:) = 1
     end if
     ens%numSubEns = maxval(ens%subEnsIndexList(:))
-    allocate(ens%nEnsSubEns(ens%numSubEns))
+    if (.not. allocated(ens%nEnsSubEns)) then
+      allocate(ens%nEnsSubEns(ens%numSubEns))
+    end if
     ens%nEnsSubEns(:) = 0
     do memberIndex = 1, ens%numMembers
       ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) = ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) + 1
     end do
     write(*,*) 'ens_computeMean: number of sub-ensembles = ', ens%numSubEns
     write(*,*) 'ens_computeMean: number of members in each sub-ensemble = ', ens%nensSubEns(:)
-
-    call ens_allocateMean(ens)
-    ens%meanIsComputed = .true.
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -1209,6 +1397,16 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
+
+    if (.not. allocated(ens%allLev_ensMean_r8)) then
+      call ens_allocateMean(ens)
+    else
+      do jk = k1, k2
+        ens%allLev_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      end do
+    end if
+    ens%meanIsComputed = .true.
+
     ! Compute ensemble mean(s)
     !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
     do jk = k1, k2
@@ -1276,9 +1474,6 @@ CONTAINS
     write(*,*) 'ens_computeStdDev: number of sub-ensembles = ', ens%numSubEns
     write(*,*) 'ens_computeStdDev: number of members in each sub-ensemble = ', ens%nensSubEns(:)
 
-    call ens_allocateStdDev(ens)
-    ens%StdDevIsComputed = .true.
-
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
@@ -1286,6 +1481,15 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
+
+    if (.not. allocated(ens%allLev_ensStdDev_r8)) then
+      call ens_allocateStdDev(ens)
+    else
+      do jk = k1, k2
+        ens%allLev_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      end do
+    end if
+    ens%StdDevIsComputed = .true.
 
     if (containsScaledPerts) then
 
@@ -1841,7 +2045,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call fln_ensFileName(ensFileName, ensPathName, 1, copyToRamDisk_opt=.false.)
+    call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, copyToRamDisk_opt=.false.)
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
@@ -1944,7 +2148,7 @@ CONTAINS
 
           !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call fln_ensFileName(ensFileName, ensPathName, fileMemberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=fileMemberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -2244,8 +2448,15 @@ CONTAINS
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, &
-                                shouldExist_opt = .false., ensembleFileExtLength_opt = ensFileExtLength )
+          if ( typvar == 'A' .or. typvar == 'R' ) then
+            call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
+                                     ensFileNamePrefix_opt=ensFileNamePrefix )
+            if ( typvar == 'R' ) ensFileName = trim(ensFileName) // '_inc'
+            ensFileExtLength = 4
+          else
+            call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, &
+                                  shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength )
+          end if
 
           etiketStr = etiket
           !  Write the file

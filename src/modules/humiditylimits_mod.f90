@@ -232,6 +232,7 @@ contains
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
     character(len=256) :: fileName
     integer :: fnom, fclos, ierr, nulfile
+    logical, save :: firstTime=.true.
 
     write(*,*) 'qlim_gsvRttovLimit: STARTING'
 
@@ -263,11 +264,14 @@ contains
     qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
     qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
 
-    write(*,*) ' '
-    do levIndex = 1, numLev_rttov
-      if ( mpi_myid == 0 ) write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-           levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
-    end do
+    if (firstTime) then
+      write(*,*) ' '
+      do levIndex = 1, numLev_rttov
+        if ( mpi_myid == 0 ) write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+             levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
+      end do
+      firstTime = .false.
+    end if
 
     if ( statevector%dataKind == 8 ) then
       call qlim_gsvRttovLimit_r8(statevector, press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)

@@ -356,23 +356,33 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! vtr_getStateVectorTrial
   !--------------------------------------------------------------------------
-  function vtr_getStateVectorTrial(varName) result(statevector_ptr)
+  function vtr_getStateVectorTrial(varName, doTrialSetup_opt) result(statevector_ptr)
     implicit none
 
     ! arguments
     character(len=*), intent(in) :: varName
+    logical, optional            :: doTrialSetup_opt
 
     ! local
     type(struct_gsv), pointer  :: statevector_ptr
+    logical                    :: doTrialSetup
+
+    if (present(doTrialSetup_opt)) then
+      doTrialSetup = doTrialSetup_opt
+    else
+      doTrialSetup = .true.
+    end if
 
     select case ( trim(varName) )
     case ('HU')
-      if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+      if ( .not. huTrialsInitialized .and. doTrialSetup ) call vtr_setupTrials('HU')
       statevector_ptr => stateVectorTrialHU
+      huTrialsInitialized = .true.
 
     case ('height')
-      if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
+      if ( .not. heightTrialsInitialized  .and. doTrialSetup ) call vtr_setupTrials('height')
       statevector_ptr => stateVectorTrialHeight
+      heightTrialsInitialized = .true.
 
     case default
       call utl_abort('vtr_getStateVectorTrial: unknown variable ='//trim(varName))
@@ -1013,7 +1023,7 @@ CONTAINS
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
-      beSilent = .false.
+      beSilent = .true.
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r8: computing pressure on staggered or UNstaggered levels'
@@ -1100,7 +1110,7 @@ CONTAINS
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
-      beSilent = .false.
+      beSilent = .true.
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_nl_r4: computing pressure on staggered or UNstaggered levels'
@@ -1188,7 +1198,7 @@ CONTAINS
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
-      beSilent = .false.
+      beSilent = .true.
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_tl: computing delP_T/delP_M on the gridstatevector'
@@ -1285,7 +1295,7 @@ CONTAINS
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
-      beSilent = .false.
+      beSilent = .true.
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_ad: computing delP_T/delP_M on the gridstatevector'

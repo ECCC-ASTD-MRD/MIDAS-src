@@ -102,7 +102,7 @@ module tovs_nl_mod
   public :: tvs_radiance, tvs_surfaceParameters
 
   ! public procedures
-  public :: tvs_fillProfiles, tvs_rttov, tvs_calc_jo
+  public :: tvs_fillProfiles, tvs_rttov, tvs_calc_jo, tvs_allocTransmission
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpInst
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
@@ -416,6 +416,28 @@ contains
     write(*,*) "Leaving tvs_setupAlloc"
 
   end subroutine tvs_setupAlloc
+
+
+  subroutine tvs_allocTransmission
+    implicit none
+
+    integer :: alloc_status(2), jo, isens, nc, nl
+
+    alloc_status(:) = 0
+    allocate( tvs_transmission(tvs_nobtov), stat=alloc_status(1))
+    call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup tvs_transmission")
+
+    do jo = 1, tvs_nobtov
+      isens = tvs_lsensor(jo)
+      nc = tvs_nchan(isens)
+      nl = tvs_coefs(isens) % coef % nlevels
+      ! allocate transmittance from surface and from pressure levels
+      allocate( tvs_transmission(jo) % tau_total ( nc ), stat= alloc_status(1))
+      allocate( tvs_transmission(jo) % tau_levels(nl,nc), stat= alloc_status(2))
+      call utl_checkAllocationStatus(alloc_status, " irbg_setup")
+    end do
+
+  end subroutine tvs_allocTransmission
 
 
   subroutine tvs_setup
@@ -2131,6 +2153,8 @@ contains
             tvs_radiance(obs_index) % overcast(level_index,ichn) =   &
                  radiancedata_d % overcast(level_index,tb_index)
           end do
+        end if
+        if ( allocated(tvs_transmission) ) then
           do level_index = 1, nlevels
             tvs_transmission(obs_index) % tau_levels(level_index,ichn) = &
                  transmission % tau_levels(level_index,tb_index)
@@ -2138,10 +2162,11 @@ contains
           
           tvs_transmission(obs_index) % tau_total(ichn) = &
                transmission % tau_total(tb_index)
-          tvs_emissivity(ichn,obs_index) = emissivity_local(tb_index)%emis_out
-          
         end if
-        
+        if ( allocated(tvs_emissivity) ) then
+          tvs_emissivity(ichn,obs_index) = emissivity_local(tb_index)%emis_out
+        end if
+          
       end do
 
       !     de-allocate memory
