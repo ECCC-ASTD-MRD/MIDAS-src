@@ -224,10 +224,13 @@ contains
     !- Initialize observation file names and set datestamp
     !
     call obsf_setup( dateStamp, varMode )
+
+    dateStamp = tim_getDatestampFromFile("./trlm_01")
+
     if ( dateStamp > 0 ) then
       call tim_setDatestamp(datestamp)     ! IN
     else
-      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+      call utl_abort('var_setup: Problem getting dateStamp from observation first trial field')
     end if
 
     !

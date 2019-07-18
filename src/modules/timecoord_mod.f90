@@ -29,13 +29,14 @@ module timeCoord_mod
   
   ! public variables
   public :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
-  public :: tim_nstepobs, tim_nstepobsinc
+  public :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile
 
   character(len=4) :: varNameForDate = 'P0'
+  character(len=6) ::  tim_referencetime
   real(8)   :: tim_dstepobs
   real(8)   :: tim_dstepobsinc
   real(8)   :: tim_windowsize
@@ -77,8 +78,9 @@ contains
     ! locals
     integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime, date
     real(8) :: dstepobs,dstepobsinc,dwindowsize
+    character(len=6) :: dreferencetime
 
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date,dreferencetime
 
     if ( initialized ) then
       write(*,*) 'tim_setup: already initialized, just return'
@@ -90,6 +92,7 @@ contains
     dstepobsinc    = 6.0d0      
     dwindowsize    = 6.0d0     
     date           = 0
+    dreferenceTime = 'middle'
 
     ! Read the namelist
     nulnam = 0
@@ -103,6 +106,7 @@ contains
     tim_dstepobs    = dstepobs
     tim_dstepobsinc = dstepobsinc
     tim_windowsize  = dwindowsize
+    tim_referencetime = dreferenceTime
     if (dstepobs > dwindowsize) then
       if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobs = tim_windowsize 
@@ -110,9 +114,17 @@ contains
     if (dstepobsinc > dwindowsize) then
       if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
-    end if      
-    tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
-    tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
+    end if 
+    if ( tim_referencetime == "middle" ) then
+      tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
+      tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
+    end if
+
+    if ( trim(tim_referencetime) == "start" ) then
+      tim_nstepobs = max(nint(tim_windowsize/tim_dstepobs), 1)
+      tim_nstepobsinc = max(nint(tim_windowsize/tim_dstepobsinc), 1)
+    end if
+
 
     ! Possibly set the datestamp (except when set later from burp files)
     if ( present(fileNameForDate_opt) ) then
@@ -143,6 +155,7 @@ contains
     if (mpi_myid == 0) write(*,*) 'tim_setup: nstepobs       =',tim_nstepobs
     if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc    =',tim_dstepobsinc
     if (mpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc    =',tim_nstepobsinc
+    if (mpi_myid == 0) write(*,*) 'tim_setup: tim_referencetime   =',tim_referencetime
 
     initialized = .true.
 
@@ -289,7 +302,8 @@ contains
   end function tim_getDatestamp
 
 
-  subroutine tim_getStampList(datestamplist, numStep, middleDateStamp)
+  subroutine tim_getStampList(datestamplist, numStep, referenceDateStamp)
+    implicit none
     !
     ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
     !           implicit none
@@ -298,7 +312,7 @@ contains
 
     ! arguments
     integer, intent(in)  :: numStep ! number of step obs
-    integer, intent(in)  :: middleDateStamp ! Synoptic time
+    integer, intent(in)  :: referenceDateStamp ! Synoptic time
     integer, intent(out) :: datestamplist(numStep) 
 
     ! locals
@@ -308,21 +322,36 @@ contains
 
     if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
 
-    if (numStep > 1) then
-      dtstep = tim_windowsize/(real(numStep-1,8))
-    else
-      dtstep = tim_windowsize
+    if (tim_referencetime == "middle") then
+      if (numStep > 1) then
+        dtstep = tim_windowsize/(real(numStep-1,8))
+      else
+        dtstep = tim_windowsize
+      end if
+
+      do stepIndex = 1, numStep
+        dldelt = (stepIndex - ((numStep-1)/2 + 1)) * dtstep
+        call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+      end do
     end if
 
-    do stepIndex = 1, numStep
-      dldelt = (stepIndex - ((numStep-1)/2 + 1)) * dtstep
-      call incdatr(datestamplist(stepIndex), middleDateStamp, dldelt)
-    end do
+    if (trim(tim_referencetime) == "start") then
+     
+      dtstep = tim_windowsize/( real(numStep,8) )
+     
+      do stepIndex = 1, numStep
+        dldelt = (stepIndex - 1) * dtstep
+        call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+      end do
+
+    end if
 
   end subroutine tim_getStampList
 
 
-  subroutine tim_getStepObsIndex(dnstepobs, middleDateStamp, obsYYYMMDD, obsHHMM, numStep)
+  subroutine tim_getStepObsIndex(dnstepobs, referenceDateStamp, obsYYYMMDD, obsHHMM, numStep)
+    implicit none
+    ! Author : Mark Buehner (based on stepobs.ftn90)
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
@@ -351,15 +380,23 @@ contains
     istat = newdate(istobs, obsYYYMMDD, itobs, imode)
 
     ! Difference (in hours) between obs time and reference time
-    call difdatr(istobs, middleDateStamp, dlhours)
+    call difdatr(istobs, referenceDateStamp, dlhours)
 
     if (numStep > 1) then
       ! FGAT: more than 1 trial field in time window
-      dddt = tim_windowsize / (real(numStep-1,8))
+      if (tim_referencetime == "middle") then
+        dddt = tim_windowsize / (real(numStep-1,8))
+      else
+        dddt = tim_windowsize / (real(numStep,8))
+      end if
       dnstepobs = dlhours / dddt ! number of step obs from reference (e.g. synoptic)
-      dnstepobs = dnstepobs + real((numStep+1)/2,8)
+      if (tim_referencetime == "middle") then
+        dnstepobs = dnstepobs + real((numStep+1)/2,8)
+      end if
+      if (trim(tim_referencetime) == "start") then
+        dnstepobs = dnstepobs + 1.d0
+      end if
       if (dnstepobs < 0.5d0.or.dnstepobs > (0.5d0+real(numStep,8))) dnstepobs = -1.0d0
-
     else
       ! 3D: only 1 trial field in time window
       if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then
