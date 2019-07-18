@@ -76,6 +76,8 @@ contains
 
     lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+    if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
+    if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
 
     ! loop through thermo levels
     do lev_T = 1, nlev_T
@@ -231,64 +233,66 @@ contains
                           lat_deg_r4, lon_deg_r4, subGridIndex )
 
     ! Allow for periodicity in Longitude for global Gaussian grid
-    if ( hco%grtyp == 'G' ) then
+    if ( hco%grtyp == 'G' .or. (hco%grtyp == 'Z' .and. hco%global) ) then
       niP1 = hco%ni + 1
     else
       niP1 = hco%ni
     end if
 
     ! Check if the interpolated lat/lon is outside the hco domain
-    if ( xpos_r4 < 1.0 .or. xpos_r4 > real(niP1) .or.  &
-         ypos_r4 < 1.0 .or. ypos_r4 > real(hco%nj) ) then
+    if ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+         xpos_r4 > real(niP1) - positionOffsetXY .or. &
+         ypos_r4 < 1.0 + positionOffsetXY .or. &
+         ypos_r4 > real(hco%nj) - positionOffsetXY ) then
 
       write(*,*) 'heightBilinearInterp: interpolated lat/lon outside the hco domain.'
       write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
       write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
 
       ! if above or below domain
-      if( ypos_r4 < 1.0 ) ypos_r4 = 1.0 + positionOffsetXY 
-      if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj) - positionOffsetXY 
+      if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
+      if( ypos_r4 > real(hco%nj) - positionOffsetXY ) ypos_r4 = real(hco%nj) - positionOffsetXY 
 
       ! if on the left or right longitude band, move it to the edge of this longitude band
-      if( xpos_r4 < 1.0 ) xpos_r4 = 1.0 + positionOffsetXY 
-      if( xpos_r4 > real(hco%ni) ) xpos_r4 = real(hco%ni) - positionOffsetXY 
+      if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
+      if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
       write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
 
     end if
 
     ! Find the lower-left grid point next to the observation
-    if ( xpos_r4 /= real(niP1) ) then
-      lonIndex = floor(xpos_r4)
-    else
+    if ( xpos_r4 == real(niP1) ) then
       lonIndex = floor(xpos_r4) - 1
-    end if
-    if ( xpos2_r4 /= real(niP1) ) then
-      lonIndex2 = floor(xpos2_r4)
     else
+      lonIndex = floor(xpos_r4)
+    end if
+    if ( xpos2_r4 == real(niP1) ) then
       lonIndex2 = floor(xpos2_r4) - 1
+    else
+      lonIndex2 = floor(xpos2_r4)
     end if
 
-    if ( ypos_r4 /= real(hco%nj) ) then
-      latIndex = floor(ypos_r4)
-    else
+    if ( ypos_r4 == real(hco%nj) ) then
       latIndex = floor(ypos_r4) - 1
-    end if
-    if ( ypos2_r4 /= real(hco%nj) ) then
-      latIndex2 = floor(ypos2_r4)
     else
+      latIndex = floor(ypos_r4)
+    end if
+    if ( ypos2_r4 == real(hco%nj) ) then
       latIndex2 = floor(ypos2_r4) - 1
+    else
+      latIndex2 = floor(ypos2_r4)
     end if
 
     if ( hco%grtyp == 'U' ) then
-      if ( ypos_r4 /= real(hco%nj/2) ) then
-        latIndex = floor(ypos_r4)
-      else
+      if ( ypos_r4 == real(hco%nj/2) ) then
         latIndex = floor(ypos_r4) - 1
-      end if
-      if ( ypos2_r4 /= real(hco%nj/2) ) then
-        latIndex2 = floor(ypos2_r4)
       else
+        latIndex = floor(ypos_r4)
+      end if
+      if ( ypos2_r4 == real(hco%nj/2) ) then
         latIndex2 = floor(ypos2_r4) - 1
+      else
+        latIndex2 = floor(ypos2_r4)
       end if
     end if
 

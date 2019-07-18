@@ -94,9 +94,9 @@ module stateToColumn_mod
 contains 
 
   !---------------------------------------------------------
-  ! s2c_latLonChecks
+  ! latlonChecksAnlGrid
   !---------------------------------------------------------
-  subroutine s2c_latLonChecks(obsSpaceData, moveObsAtPole)
+  subroutine latlonChecksAnlGrid(obsSpaceData, moveObsAtPole)
     !
     ! :Purpose: Check the lat/lon of observations and modify if necessary
     !
@@ -119,7 +119,7 @@ contains
     integer :: gdllfxy
 
     write(*,*) ' '
-    write(*,*) 's2c_latLonChecks: STARTING'
+    write(*,*) 'latlonChecksAnlGrid: STARTING'
     write(*,*) ' '
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -167,7 +167,7 @@ contains
           if ( moveObsAtPole ) then
             ! Modify latitude if we have an observation at or near the poles
             write(*,*) ''
-            write(*,*) 's2c_latLonChecks: Moving OBS inside the GLOBAL ANALYSIS grid, ', headerIndex
+            write(*,*) 'latlonChecksAnlGrid: Moving OBS inside the GLOBAL ANALYSIS grid, ', headerIndex
             write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
             !- Move the observation to the nearest grid point
@@ -186,13 +186,13 @@ contains
             call obs_headSet_r(obsSpaceData,OBS_LON,headerIndex, lon_r8) ! IN
           else
             write(*,*)
-            write(*,*) 's2c_latLonChecks: OBS outside the GLOBAL ANALYSIS grid, but NOT moved, ', headerIndex
+            write(*,*) 'latlonChecksAnlGrid: OBS outside the GLOBAL ANALYSIS grid, but NOT moved, ', headerIndex
           end if
 
         else
           ! The observation is outside the domain
           ! In LAM Analysis mode we must discard this observation
-          write(*,*) 's2c_latLonChecks: Rejecting OBS outside the LAM ANALYSIS grid domain, ', headerIndex
+          write(*,*) 'latlonChecksAnlGrid: Rejecting OBS outside the LAM ANALYSIS grid domain, ', headerIndex
           write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
           idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
@@ -208,9 +208,9 @@ contains
 
     end do header_loop
 
-    write(*,*) 's2c_latLonChecks: END'
+    write(*,*) 'latlonChecksAnlGrid: END'
 
-  end subroutine s2c_latLonChecks
+  end subroutine latlonChecksAnlGrid
 
   !---------------------------------------------------------
   ! s2c_setupInterpInfo
@@ -281,7 +281,8 @@ contains
                             allkBeg,1,'mpi_integer','grid',ierr)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
-    if ( stateVector%hco%grtyp == 'G' ) then
+    if ( stateVector%hco%grtyp == 'G' .or. &
+         (stateVector%hco%grtyp == 'Z' .and. stateVector%hco%global) ) then
       niP1 = stateVector%ni + 1
     else
       niP1 = stateVector%ni
@@ -513,11 +514,11 @@ contains
             call tmg_stop(195)
 
             ! check if the slanted lat/lon is inside the domain
-            call tmg_start(198,'checkLatlonObs')
-            call checkLatlonObs ( obsSpaceData, stateVector%hco, & ! IN
-                                  headerIndex, rejectOutsideObs, & ! IN
-                                  latLev_T, lonLev_T,            & ! IN/OUT
-                                  latLev_M, lonLev_M )             ! IN/OUT 
+            call tmg_start(198,'latlonChecks')
+            call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
+                                headerIndex, rejectOutsideObs, & ! IN
+                                latLev_T, lonLev_T,            & ! IN/OUT
+                                latLev_M, lonLev_M )             ! IN/OUT 
             call tmg_stop(198)
 
             ! put the lat/lon from TH/MM levels to kIndex
@@ -697,7 +698,7 @@ contains
     end if
     deallocate(footprintRadiusVec_r4)
 
-    write(*,*) 's2c_setupInterpInfo: checkLatlonObs and lat/lon MPI comm finished.'
+    write(*,*) 's2c_setupInterpInfo: latlonChecks and lat/lon MPI comm finished.'
 
     ! gather the headerIndexVec arrays onto all processors
     call rpn_comm_allgather(headerIndexVec,            numHeaderUsedMax*numStep, 'MPI_INTEGER', &
@@ -1337,7 +1338,7 @@ contains
       call tmg_start(165,'S2CNL_SETUPS')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
-      call s2c_latLonChecks( obsSpaceData, moveObsAtPole )
+      call latlonChecksAnlGrid( obsSpaceData, moveObsAtPole )
 
       ! compute and collect all obs grids onto all mpi tasks
       call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
@@ -2179,16 +2180,16 @@ contains
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
-      if ( xpos /= real(statevector%ni + extraLongitude,8) ) then
-        lonIndex = floor(xpos)
-      else
+      if ( xpos == real(statevector%ni + extraLongitude,8) ) then
         lonIndex = floor(xpos) - 1
+      else
+        lonIndex = floor(xpos)
       end if
 
-      if ( ypos /= real(statevector%nj,8) ) then
-        ILA = floor(ypos)
-      else
+      if ( ypos == real(statevector%nj,8) ) then
         ILA = floor(ypos) - 1
+      else
+        ILA = floor(ypos)
       end if
 
       !- 2.3 Compute the 4 weights of the bilinear interpolation
@@ -2552,45 +2553,46 @@ contains
                           lat_deg_r4, lon_deg_r4, subGridIndex )
 
     ! Allow for periodicity in Longitude for global Gaussian grid
-    if ( stateVector%hco%grtyp == 'G' ) then
+    if ( stateVector%hco%grtyp == 'G' .or. &
+         (stateVector%hco%grtyp == 'Z' .and. stateVector%hco%global) ) then
       niP1 = statevector%ni + 1
     else
       niP1 = statevector%ni
     end if
 
     ! Find the lower-left grid point next to the observation
-    if ( xpos_r4 /= real(niP1) ) then
-      lonIndex = floor(xpos_r4)
-    else
+    if ( xpos_r4 == real(niP1) ) then
       lonIndex = floor(xpos_r4) - 1
-    end if
-    if ( xpos2_r4 /= real(niP1) ) then
-      lonIndex2 = floor(xpos2_r4)
     else
+      lonIndex = floor(xpos_r4)
+    end if
+    if ( xpos2_r4 == real(niP1) ) then
       lonIndex2 = floor(xpos2_r4) - 1
+    else
+      lonIndex2 = floor(xpos2_r4)
     end if
 
-    if ( ypos_r4 /= real(statevector%nj) ) then
-      latIndex = floor(ypos_r4)
-    else
+    if ( ypos_r4 == real(statevector%nj) ) then
       latIndex = floor(ypos_r4) - 1
-    end if
-    if ( ypos2_r4 /= real(statevector%nj) ) then
-      latIndex2 = floor(ypos2_r4)
     else
+      latIndex = floor(ypos_r4)
+    end if
+    if ( ypos2_r4 == real(statevector%nj) ) then
       latIndex2 = floor(ypos2_r4) - 1
+    else
+      latIndex2 = floor(ypos2_r4)
     end if
 
     if ( stateVector%hco%grtyp == 'U' ) then
-      if ( ypos_r4 /= real(stateVector%nj/2) ) then
-        latIndex = floor(ypos_r4)
-      else
+      if ( ypos_r4 == real(stateVector%nj/2) ) then
         latIndex = floor(ypos_r4) - 1
-      end if
-      if ( ypos2_r4 /= real(stateVector%nj/2) ) then
-        latIndex2 = floor(ypos2_r4)
       else
+        latIndex = floor(ypos_r4)
+      end if
+      if ( ypos2_r4 == real(stateVector%nj/2) ) then
         latIndex2 = floor(ypos2_r4) - 1
+      else
+        latIndex2 = floor(ypos2_r4)
       end if
     end if
 
@@ -2711,8 +2713,8 @@ contains
 
         do ipoint=1,gridptCount
 
-          if ( latIndexVec(ipoint) > stateVector%hco%nj ) then
-            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) > stateVector%hco%nj: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+          if ( latIndexVec(ipoint) > stateVector%nj ) then
+            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) > stateVector%nj: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
             write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
             write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
           end if
@@ -2722,8 +2724,8 @@ contains
             write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
           end if
 
-          if ( lonIndexVec(ipoint) > stateVector%hco%ni ) then
-            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) > stateVector%hco%ni: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
+          if ( lonIndexVec(ipoint) > stateVector%ni ) then
+            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) > stateVector%ni: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
             write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
             write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
           end if
@@ -3117,9 +3119,9 @@ contains
   end subroutine checkColumnStatevectorMatch
 
   !--------------------------------------------------------------------------
-  ! checkLatlonObs
+  ! latlonChecks
   !--------------------------------------------------------------------------
-  subroutine checkLatlonObs( obsSpaceData, hco, headerIndex, rejectOutsideObs, latLev_T, lonLev_T, latLev_M, lonLev_M )
+  subroutine latlonChecks( obsSpaceData, hco, headerIndex, rejectOutsideObs, latLev_T, lonLev_T, latLev_M, lonLev_M )
     !
     !:Purpose: To check if the obs are inside the domain.
     !
@@ -3147,7 +3149,7 @@ contains
     integer :: gdllfxy
 
     ! Allow for periodicity in Longitude for global Gaussian grid
-    if ( hco%grtyp == 'G' ) then
+    if ( hco%grtyp == 'G' .or. (hco%grtyp == 'Z' .and. hco%global) ) then
       niP1 = hco%ni + 1
     else
       niP1 = hco%ni
@@ -3156,11 +3158,30 @@ contains
     nlev_T = size(latLev_T)
     nlev_M = size(latLev_M)
 
-    ! Loop through termo levels and check if lat/lon is outside domain.
+    ! check if lat/lon of last termo level is outside domain.
     rejectHeader = .false.
-    lev_T_loop: do lev_T = 1, nlev_T
-      lat_r4 = real(latLev_T(lev_T),4)
-      lon_r4 = real(lonLev_T(lev_T),4)
+    lat_r4 = real(latLev_T(nlev_T),4)
+    lon_r4 = real(lonLev_T(nlev_T),4)
+
+    lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+    lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+    ierr = getPositionXY( hco%EZscintID,   &
+                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                          lat_deg_r4, lon_deg_r4, subGridIndex )
+
+    latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+                          xpos_r4 > real(niP1) - positionOffsetXY .or. &
+                          ypos_r4 < 1.0 + positionOffsetXY .or. &
+                          ypos_r4 > real(hco%nj) - positionOffsetXY )
+
+    if ( latlonOutsideGrid .and. rejectOutsideObs ) then
+      rejectHeader = .true.
+    end if
+
+    !  check if lat/lon of last momentum level is outside domain.
+    if ( .not. rejectHeader ) then
+      lat_r4 = real(latLev_M(nlev_M),4)
+      lon_r4 = real(lonLev_M(nlev_M),4)
 
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
@@ -3168,87 +3189,20 @@ contains
                             xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                             lat_deg_r4, lon_deg_r4, subGridIndex )
 
-      latlonOutsideGrid = ( xpos_r4 < 1.0 .or. xpos_r4 > real(niP1) .or.  &
-                            ypos_r4 < 1.0 .or. ypos_r4 > real(hco%nj) )
+      latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+                            xpos_r4 > real(niP1) - positionOffsetXY .or. &
+                            ypos_r4 < 1.0 + positionOffsetXY .or. &
+                            ypos_r4 > real(hco%nj) - positionOffsetXY )
 
       if ( latlonOutsideGrid .and. rejectOutsideObs ) then
-        rejectHeader = latlonOutsideGrid 
-        exit lev_T_loop
+        rejectHeader = .true.
       end if
-
-      ! Move the lat/lon to the edge of domain
-      if ( latlonOutsideGrid ) then
-        write(*,*) 'checkLatlonObs: Moving lat/lon to the edge of domain at lev_T=', lev_T, ', for header=', headerIndex
-        write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-        write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
-
-        ! if lat/lon above or below latitude band
-        if( ypos_r4 < 1.0 ) ypos_r4 = 1.0 + positionOffsetXY 
-        if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj) - positionOffsetXY 
-
-        ! if lat/lon left or right longitude band
-        if( xpos_r4 < 1.0 ) xpos_r4 = 1.0 + positionOffsetXY 
-        if( xpos_r4 > real(hco%ni) ) xpos_r4 = real(hco%ni) - positionOffsetXY 
-        write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
-
-        ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
-                       xpos_r4, ypos_r4, 1)
-
-        lonLev_T(lev_T) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-        latLev_T(lev_T) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-      end if
-
-    end do lev_T_loop
-
-    ! Loop through momentum levels and check if lat/lon is outside domain.
-    if ( .not. rejectHeader ) then
-      lev_M_loop: do lev_M = 1, nlev_M
-        lat_r4 = real(latLev_M(lev_M),4)
-        lon_r4 = real(lonLev_M(lev_M),4)
-
-        lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-        lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
-        ierr = getPositionXY( hco%EZscintID,   &
-                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
-
-        latlonOutsideGrid = ( xpos_r4 < 1.0 .or. xpos_r4 > real(niP1) .or.  &
-                              ypos_r4 < 1.0 .or. ypos_r4 > real(hco%nj) )
-
-        if ( latlonOutsideGrid .and. rejectOutsideObs ) then
-          rejectHeader = latlonOutsideGrid 
-          exit lev_M_loop
-        end if
-
-        ! Move the lat/lon to the edge of domain
-        if ( latlonOutsideGrid ) then
-          write(*,*) 'checkLatlonObs: Moving lat/lon to the edge of domain at lev_M=', lev_M, ', for header=', headerIndex
-          write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-          write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
-
-          ! if lat/lon above or below latitude band
-          if( ypos_r4 < 1.0 ) ypos_r4 = 1.0 + positionOffsetXY 
-          if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj) - positionOffsetXY 
-
-          ! if lat/lon left or right longitude band
-          if( xpos_r4 < 1.0 ) xpos_r4 = 1.0 + positionOffsetXY 
-          if( xpos_r4 > real(hco%ni) ) xpos_r4 = real(hco%ni) - positionOffsetXY 
-          write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
-
-          ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
-                         xpos_r4, ypos_r4, 1)
-
-          lonLev_M(lev_M) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-          latLev_M(lev_M) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-        end if
-
-      end do lev_M_loop
     end if
 
     if ( rejectHeader ) then
       ! The observation is outside the domain.
       ! With a LAM trial field we must discard this observation
-      write(*,*) 'checkLatlonObs: Rejecting OBS outside the hco domain, ', headerIndex
+      write(*,*) 'latlonChecks: Rejecting OBS outside the hco domain, ', headerIndex
       write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
       bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -3270,8 +3224,88 @@ contains
       lonLev_M(:) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       latLev_M(:) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
 
-    end if ! latlonOutsideGrid 
+    else
+      ! loop through thermo levels and move lat/lon to the edge of domain if outside
+      lev_T_loop: do lev_T = 1, nlev_T
+        lat_r4 = real(latLev_T(lev_T),4)
+        lon_r4 = real(lonLev_T(lev_T),4)
 
-  end subroutine checkLatlonObs
+        lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+        lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+        ierr = getPositionXY( hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
+
+        latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+                              xpos_r4 > real(niP1) - positionOffsetXY .or. &
+                              ypos_r4 < 1.0 + positionOffsetXY .or. &
+                              ypos_r4 > real(hco%nj) - positionOffsetXY )
+
+        if ( latlonOutsideGrid ) then
+          write(*,*) 'latlonChecks: Moving lat/lon to the edge of domain at lev_T=', lev_T, ', for header=', headerIndex
+          write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
+          write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+
+          ! if lat/lon above or below latitude band
+          if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
+          if( ypos_r4 > real(hco%nj) - positionOffsetXY ) ypos_r4 = real(hco%nj) - positionOffsetXY 
+
+          ! if lat/lon left or right longitude band
+          if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
+          if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
+          write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+
+          ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
+                         xpos_r4, ypos_r4, 1)
+
+          lonLev_T(lev_T) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+          latLev_T(lev_T) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+        end if
+
+      end do lev_T_loop
+
+      ! loop through momentum levels and move lat/lon to the edge of domain if outside
+      lev_M_loop: do lev_M = 1, nlev_M
+        lat_r4 = real(latLev_M(lev_M),4)
+        lon_r4 = real(lonLev_M(lev_M),4)
+
+        lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+        lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+        ierr = getPositionXY( hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
+
+        latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+                              xpos_r4 > real(niP1) - positionOffsetXY .or. &
+                              ypos_r4 < 1.0 + positionOffsetXY .or. &
+                              ypos_r4 > real(hco%nj) - positionOffsetXY )
+
+        ! Move the lat/lon to the edge of domain
+        if ( latlonOutsideGrid ) then
+          write(*,*) 'latlonChecks: Moving lat/lon to the edge of domain at lev_M=', lev_M, ', for header=', headerIndex
+          write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
+          write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+
+          ! if lat/lon above or below latitude band
+          if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
+          if( ypos_r4 > real(hco%nj) - positionOffsetXY ) ypos_r4 = real(hco%nj) - positionOffsetXY 
+
+          ! if lat/lon left or right longitude band
+          if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
+          if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
+          write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+
+          ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
+                         xpos_r4, ypos_r4, 1)
+
+          lonLev_M(lev_M) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+          latLev_M(lev_M) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+        end if
+
+      end do lev_M_loop
+
+    end if ! rejectHeader
+
+  end subroutine latlonChecks
 
 end module stateToColumn_mod
