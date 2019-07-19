@@ -513,6 +513,39 @@ contains
 
             call tmg_stop(195)
 
+            ! debugging to TOVS
+            if ( stepIndex == 13 .and. headerIndex == 3132 .and. mpi_myid+1 == 48 ) then
+              write(*,*) 'debug_latlon_TOVS before latlonChecks: for headerIndex=3132, proc=48'
+              write(*,'(a37,a8,4(a10))') 'debug_latlon_TOVS before latlonChecks:', 'lev_T', 'latLev_T', 'lonLev_T', 'yposLev_T', 'xposLev_T'
+              do levIndex = 1, nlev_T
+                lat_r4 = real(latLev_T(levIndex),4)
+                lon_r4 = real(lonLev_T(levIndex),4)
+
+                lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+                lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+                ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+
+                write(*,'(a37,i8,4(f10.4))') 'debug_latlon_TOVS before latlonChecks:', levIndex, lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4 
+              end do
+
+              write(*,'(a37,a8,4(a10))') 'debug_latlon_TOVS before latlonChecks:', 'lev_M', 'latLev_M', 'lonLev_M', 'yposLev_M', 'xposLev_M'
+              do levIndex = 1, nlev_M
+                lat_r4 = real(latLev_M(levIndex),4)
+                lon_r4 = real(lonLev_M(levIndex),4)
+
+                lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+                lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+                ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+
+                write(*,'(a37,i8,4(f10.4))') 'debug_latlon_TOVS before latlonChecks:', levIndex, lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4 
+              end do
+
+            end if
+
             ! check if the slanted lat/lon is inside the domain
             call tmg_start(198,'latlonChecks')
             call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
@@ -520,6 +553,39 @@ contains
                                 latLev_T, lonLev_T,            & ! IN/OUT
                                 latLev_M, lonLev_M )             ! IN/OUT 
             call tmg_stop(198)
+
+            ! debugging to TOVS
+            if ( stepIndex == 13 .and. headerIndex == 3132 .and. mpi_myid+1 == 48 ) then
+              write(*,*) 'debug_latlon_TOVS after latlonChecks: for headerIndex=3132, proc=48'
+              write(*,'(a37,a8,4(a10))') 'debug_latlon_TOVS after latlonChecks:', 'lev_T', 'latLev_T', 'lonLev_T', 'yposLev_T', 'xposLev_T'
+              do levIndex = 1, nlev_T
+                lat_r4 = real(latLev_T(levIndex),4)
+                lon_r4 = real(lonLev_T(levIndex),4)
+
+                lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+                lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+                ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+
+                write(*,'(a37,i8,4(f10.4))') 'debug_latlon_TOVS after latlonChecks:', levIndex, lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4 
+              end do
+
+              write(*,'(a37,a8,4(a10))') 'debug_latlon_TOVS after latlonChecks:', 'lev_M', 'latLev_M', 'lonLev_M', 'yposLev_M', 'xposLev_M'
+              do levIndex = 1, nlev_M
+                lat_r4 = real(latLev_M(levIndex),4)
+                lon_r4 = real(lonLev_M(levIndex),4)
+
+                lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+                lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+                ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+
+                write(*,'(a37,i8,4(f10.4))') 'debug_latlon_TOVS after latlonChecks:', levIndex, lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4 
+              end do
+
+            end if
 
             ! put the lat/lon from TH/MM levels to kIndex
             do kIndex = allkBeg(1), stateVector%nk
@@ -704,6 +770,40 @@ contains
     call rpn_comm_allgather(headerIndexVec,            numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
+
+    ! begin debugging for TOVS
+    stepIndex = 13
+    procIndex = 48
+
+    ! get the headerUsedIndex
+    do headerUsedIndex = 1, interpInfo%allNumHeaderUsed(stepIndex,procIndex)
+      if ( interpInfo%allHeaderIndex(headerUsedIndex,stepIndex,procIndex) == 3132 ) exit
+    end do
+    if ( interpInfo%allHeaderIndex(headerUsedIndex,stepIndex,procIndex) /= 3132 ) call utl_abort('ERROR: headerIndex 3132 is not found')
+
+    write(*,*) 'debug_latlon_TOVS after MPI comm: for headerIndex=3132, headerUsedIndex=', headerUsedIndex, ' , procIndex=', procIndex
+    write(*,'(a33,3(a8),4(a10))') 'debug_latlon_TOVS after MPI comm:', 'kIndex', 'levIndex', 'varName', 'lat', 'lon', 'ypos', 'xpos'
+    do kIndex = mykBeg, statevector%mykEnd
+      if ( kIndex == 0 ) then
+        varName = 'ZSfc'
+        levIndex = 0
+      else
+        varName = gsv_getVarNameFromK(stateVector,kIndex)
+        levIndex = gsv_getLevFromK(stateVector,kIndex)
+      end if
+
+      lat_r4 = real(interpInfo%allLat(headerUsedIndex,kIndex,stepIndex,procIndex),4)
+      lon_r4 = real(interpInfo%allLon(headerUsedIndex,kIndex,stepIndex,procIndex),4)
+
+      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
+      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ierr = getPositionXY( stateVector%hco%EZscintID,   &
+                            xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                            lat_deg_r4, lon_deg_r4, subGridIndex )
+
+      write(*,'(a33,2(i8),a8,4(f10.4))') 'debug_latlon_TOVS after MPI comm:', kIndex, levIndex, varName, lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4 
+    end do
+    ! end debugging for TOVS
 
     ! Compute the rotated lat/lon for the winds
     step_loop3: do stepIndex = 1, numStep
