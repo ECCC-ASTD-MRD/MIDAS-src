@@ -34,7 +34,7 @@ module slantprofilelatlon_mod
   public :: slp_calcLatLonTovs
 
   ! private module variables and derived types
-  real(4), parameter :: positionOffsetXY = 1e-4
+  real(4), parameter :: positionOffsetXY = 1e-2
 
 contains 
 
@@ -225,6 +225,7 @@ contains
     real(8) :: weightsSum
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    logical :: latlonOutsideGrid
 
     lat_deg_r4 = real(lat * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon * MPC_DEGREES_PER_RADIAN_R8)
@@ -240,14 +241,15 @@ contains
     end if
 
     ! Check if the interpolated lat/lon is outside the hco domain
-    if ( xpos_r4 < 1.0 + positionOffsetXY .or. &
-         xpos_r4 > real(niP1) - positionOffsetXY .or. &
-         ypos_r4 < 1.0 + positionOffsetXY .or. &
-         ypos_r4 > real(hco%nj) - positionOffsetXY ) then
+    latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
+                          xpos_r4 > real(niP1) - positionOffsetXY .or. &
+                          ypos_r4 < 1.0 + positionOffsetXY .or. &
+                          ypos_r4 > real(hco%nj) - positionOffsetXY )
 
+    if ( latlonOutsideGrid ) then
       write(*,*) 'heightBilinearInterp: interpolated lat/lon outside the hco domain.'
-      write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-      write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+      write(*,*) '  position   lon,       lat = ', lon_deg_r4, lat_deg_r4
+      write(*,*) '  position     x,       y   = ', xpos_r4, ypos_r4
 
       ! if above or below domain
       if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
@@ -256,7 +258,7 @@ contains
       ! if on the left or right longitude band, move it to the edge of this longitude band
       if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
       if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
-      write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+      write(*,*) '  new position x,       y   = ', xpos_r4, ypos_r4
 
     end if
 
@@ -400,6 +402,14 @@ contains
         write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
         write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
       end if
+
+      latlonOutsideGrid = ( latIndexVec(ipoint) < 1 .or. &
+                            latIndexVec(ipoint) > hco%nj .or. &
+                            lonIndexVec(ipoint) < 1 .or. &
+                            lonIndexVec(ipoint) > hco%ni )
+
+      if ( latlonOutsideGrid ) &
+        call utl_abort('heightBilinearInterp: lat/lon outside the domain.')
 
       heightInterp_r4 = heightInterp_r4 + &
                     real(WeightVec(ipoint),4) * &

@@ -86,7 +86,7 @@ module stateToColumn_mod
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, external    :: get_max_rss
-  real(4), parameter :: positionOffsetXY = 1e-4
+  real(4), parameter :: positionOffsetXY = 1e-2
   logical, save :: check_kIndex1 = .false.
   logical, save :: check_kIndex2 = .false.
 
@@ -448,6 +448,8 @@ contains
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if ! doSlantPath 
+
+    write(*,*) 's2c_setupInterpInfo, positionOffsetXY=', positionOffsetXY
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
@@ -2813,28 +2815,6 @@ contains
 
         do ipoint=1,gridptCount
 
-          if ( latIndexVec(ipoint) > stateVector%nj ) then
-            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) > stateVector%nj: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
-            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
-            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
-          end if
-          if ( latIndexVec(ipoint) < 1 ) then
-            write(*,*) 's2c_setupBilinearInterp: latIndexVec(ipoint) < 1: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
-            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
-            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
-          end if
-
-          if ( lonIndexVec(ipoint) > stateVector%ni ) then
-            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) > stateVector%ni: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
-            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
-            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
-          end if
-          if ( lonIndexVec(ipoint) < 1 ) then
-            write(*,*) 's2c_setupBilinearInterp: lonIndexVec(ipoint) < 1: latIndex=',latIndexVec(ipoint),', lonIndex=',lonIndexVec(ipoint)
-            write(*,*) 'lat_deg_r4=',lat_deg_r4,', lon_deg_r4=',lon_deg_r4
-            write(*,*) 'ypos_r4=',ypos_r4,', xpos_r4=',xpos_r4
-          end if
-
           interpInfo%interpWeightDepot(depotIndex) = WeightVec(ipoint)
           interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
           interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
@@ -3243,7 +3223,8 @@ contains
     integer :: nlev_T, lev_T, nlev_M, lev_M
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
-    logical :: latlonOutsideGrid, rejectHeader
+    real(4) :: xposRecalc_r4, yposRecalc_r4, xpos2Recalc_r4, ypos2Recalc_r4
+    logical :: latlonOutsideGrid, latlonRecalcOutsideGrid, rejectHeader
 
     ! external functions
     integer :: gdllfxy
@@ -3343,8 +3324,8 @@ contains
 
         if ( latlonOutsideGrid ) then
           write(*,*) 'latlonChecks: Moving lat/lon to the edge of domain at lev_T=', lev_T, ', for header=', headerIndex
-          write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-          write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+          write(*,*) '  position   lon,       lat = ', lon_deg_r4, lat_deg_r4
+          write(*,*) '  position     x,       y   = ', xpos_r4, ypos_r4
 
           ! if lat/lon above or below latitude band
           if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
@@ -3353,10 +3334,25 @@ contains
           ! if lat/lon left or right longitude band
           if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
           if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
-          write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+          write(*,*) '  new position x,       y   = ', xpos_r4, ypos_r4
 
           ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
                          xpos_r4, ypos_r4, 1)
+
+          ! re-compute the xpos/ypos to ensure they don't exceed the domain
+          ierr = getPositionXY( hco%EZscintID,   &
+                                xposRecalc_r4, yposRecalc_r4, xpos2Recalc_r4, ypos2Recalc_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
+
+          write(*,*) '  re-computed position x, y = ', xposRecalc_r4, yposRecalc_r4
+
+          latlonRecalcOutsideGrid = ( xposRecalc_r4 <= 1.0 .or. &
+                                      xposRecalc_r4 >= real(niP1) .or. &
+                                      yposRecalc_r4 <= 1.0 .or. &
+                                      yposRecalc_r4 >= real(hco%nj) )
+
+          if ( latlonRecalcOutsideGrid ) &
+                call utl_abort('latlonChecks: re-computed position outside the domain.')
 
           lonLev_T(lev_T) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
           latLev_T(lev_T) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
@@ -3383,8 +3379,8 @@ contains
         ! Move the lat/lon to the edge of domain
         if ( latlonOutsideGrid ) then
           write(*,*) 'latlonChecks: Moving lat/lon to the edge of domain at lev_M=', lev_M, ', for header=', headerIndex
-          write(*,*) '  position lon, lat = ', lon_deg_r4, lat_deg_r4
-          write(*,*) '  position x,   y   = ', xpos_r4, ypos_r4
+          write(*,*) '  position   lon,       lat = ', lon_deg_r4, lat_deg_r4
+          write(*,*) '  position     x,       y   = ', xpos_r4, ypos_r4
 
           ! if lat/lon above or below latitude band
           if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
@@ -3393,10 +3389,25 @@ contains
           ! if lat/lon left or right longitude band
           if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
           if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
-          write(*,*) '  new position x, y = ', xpos_r4, ypos_r4
+          write(*,*) '  new position x,       y   = ', xpos_r4, ypos_r4
 
           ierr = gdllfxy(hco%EZscintID, lat_deg_r4, lon_deg_r4, &
                          xpos_r4, ypos_r4, 1)
+
+          ! re-compute the xpos/ypos to ensure they don't exceed the domain
+          ierr = getPositionXY( hco%EZscintID,   &
+                                xposRecalc_r4, yposRecalc_r4, xpos2Recalc_r4, ypos2Recalc_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
+
+          write(*,*) '  re-computed position x, y = ', xposRecalc_r4, yposRecalc_r4
+
+          latlonRecalcOutsideGrid = ( xposRecalc_r4 <= 1.0 .or. &
+                                      xposRecalc_r4 >= real(niP1) .or. &
+                                      yposRecalc_r4 <= 1.0 .or. &
+                                      yposRecalc_r4 >= real(hco%nj) )
+
+          if ( latlonRecalcOutsideGrid ) &
+                call utl_abort('latlonChecks: re-computed position outside the domain.')
 
           lonLev_M(lev_M) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
           latLev_M(lev_M) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
