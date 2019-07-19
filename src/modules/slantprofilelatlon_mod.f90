@@ -33,8 +33,6 @@ module slantprofilelatlon_mod
   ! public procedures
   public :: slp_calcLatLonTovs
 
-  ! private module variables and derived types
-  real(4), parameter :: positionOffsetXY = 1e-2
 
 contains 
 
@@ -241,10 +239,10 @@ contains
     end if
 
     ! Check if the interpolated lat/lon is outside the hco domain
-    latlonOutsideGrid = ( xpos_r4 < 1.0 + positionOffsetXY .or. &
-                          xpos_r4 > real(niP1) - positionOffsetXY .or. &
-                          ypos_r4 < 1.0 + positionOffsetXY .or. &
-                          ypos_r4 > real(hco%nj) - positionOffsetXY )
+    latlonOutsideGrid = ( xpos_r4 < 1.0 .or. &
+                          xpos_r4 > real(niP1) .or. &
+                          ypos_r4 < 1.0 .or. &
+                          ypos_r4 > real(hco%nj) )
 
     if ( latlonOutsideGrid ) then
       write(*,*) 'heightBilinearInterp: interpolated lat/lon outside the hco domain.'
@@ -252,12 +250,12 @@ contains
       write(*,*) '  position     x,       y   = ', xpos_r4, ypos_r4
 
       ! if above or below domain
-      if( ypos_r4 < 1.0 + positionOffsetXY ) ypos_r4 = 1.0 + positionOffsetXY 
-      if( ypos_r4 > real(hco%nj) - positionOffsetXY ) ypos_r4 = real(hco%nj) - positionOffsetXY 
+      if( ypos_r4 < 1.0 ) ypos_r4 = 1.0
+      if( ypos_r4 > real(hco%nj) ) ypos_r4 = real(hco%nj)
 
       ! if on the left or right longitude band, move it to the edge of this longitude band
-      if( xpos_r4 < 1.0 + positionOffsetXY ) xpos_r4 = 1.0 + positionOffsetXY 
-      if( xpos_r4 > real(niP1) - positionOffsetXY ) xpos_r4 = real(niP1) - positionOffsetXY 
+      if( xpos_r4 < 1.0 ) xpos_r4 = 1.0
+      if( xpos_r4 > real(niP1) ) xpos_r4 = real(niP1)
       write(*,*) '  new position x,       y   = ', xpos_r4, ypos_r4
 
     end if

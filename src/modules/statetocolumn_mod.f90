@@ -86,7 +86,9 @@ module stateToColumn_mod
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
   integer, external    :: get_max_rss
-  real(4), parameter :: positionOffsetXY = 1e-2
+  real(4), save :: positionOffsetXY
+  logical, save :: doSlantPath
+  logical, save :: namelistS2cRead = .false.
   logical, save :: check_kIndex1 = .false.
   logical, save :: check_kIndex2 = .false.
 
@@ -236,7 +238,7 @@ contains
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step, stateVector_Tiles_1Step, stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex, bodyIndex, kIndex, kIndexCount, myKBeg
-    integer :: numStep, stepIndex, ierr
+    integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: latRot, lonRot, lat, lon
@@ -247,7 +249,7 @@ contains
     real(8), allocatable :: lat_send_r8(:,:), lat_recv_r8(:,:), lon_send_r8(:,:), lon_recv_r8(:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: gdllfxy
-    logical :: obsOutsideGrid, doSlantPath
+    logical :: obsOutsideGrid
     character(len=4), pointer :: varNames(:)
     character(len=4)          :: varLevel, varName
     real(8), allocatable :: latColumn(:,:), lonColumn(:,:)
@@ -261,10 +263,26 @@ contains
     integer :: firstHeaderIndexUsed(mpi_nprocs)
     logical :: firstHeaderSlantPath 
 
+    namelist /nams2c/ doSlantPath, positionOffsetXY
+
     write(*,*) 's2c_setupInterpInfo: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    doSlantPath = .true.
+    if ( .not. namelistS2cRead ) then
+      namelistS2cRead = .true.
+
+      ! default values
+      doSlantPath = .true.
+      positionOffsetXY = 1.0e-2
+
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=nams2c, iostat=ierr)
+      if (ierr /= 0) write(*,*) 's2c_setupInterpInfomyWarning: nams2c is missing in the namelist. The default value will be taken.'
+      if (mpi_myid == 0) write(*, nml=nams2c)
+      ierr = fclos(nulnam)
+    end if
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -449,8 +467,6 @@ contains
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if ! doSlantPath 
 
-    write(*,*) 's2c_setupInterpInfo, positionOffsetXY=', positionOffsetXY
-
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
@@ -469,16 +485,20 @@ contains
 
       end do header_loop2
 
-      if ( doSlantPath ) then
+      call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
+                              allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
+                              'GRID', ierr)
 
-        allocate(latColumn(numHeaderUsed,allkBeg(1):stateVector%nk))
-        allocate(lonColumn(numHeaderUsed,allkBeg(1):stateVector%nk))
+      allocate(latColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
+      allocate(lonColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
+      latColumn(:,:) = 0.0d0
+      lonColumn(:,:) = 0.0d0
+
+      if ( doSlantPath ) then
         allocate(latLev_T(nlev_T))
         allocate(lonLev_T(nlev_T))
         allocate(latLev_M(nlev_M))
         allocate(lonLev_M(nlev_M))
-        latColumn(:,:) = 0.0d0
-        lonColumn(:,:) = 0.0d0
         latLev_T(:) = 0.0d0
         lonLev_T(:) = 0.0d0
         latLev_M(:) = 0.0d0
@@ -690,8 +710,8 @@ contains
                 call utl_abort('ERROR: with numkToSend?')
               end if
 
-              lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(:,kIndex)
-              lon_send_r8(1:numHeaderUsed,procIndex) = lonColumn(:,kIndex)
+              lat_send_r8(:,procIndex) = latColumn(:,kIndex)
+              lon_send_r8(:,procIndex) = lonColumn(:,kIndex)
             end if
           end do
           !!!$OMP END PARALLEL DO
@@ -730,29 +750,40 @@ contains
         deallocate(lat_send_r8)
         deallocate(lat_recv_r8)
 
-        deallocate(latColumn)
-        deallocate(lonColumn)
         deallocate(latLev_T)
         deallocate(lonLev_T)
         deallocate(latLev_M)
         deallocate(lonLev_M)
 
-      else
+      else ! not doSlantPath
+        do headerUsedIndex = 1, numHeaderUsed
+          headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
+
+          !- Get LatLon of observation location
+          lat_r4 = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex), 4)
+          lon_r4 = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex), 4)
+          if (lon_r4 <  0.0          ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
+          if (lon_r4 >= 2.0*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
+
+          latColumn(headerUsedIndex,allkBeg(1)) = real(lat_r4,8)
+          lonColumn(headerUsedIndex,allkBeg(1)) = real(lon_r4,8)
+        end do
 
         ! gather geographical lat, lon positions of observations from all processors
         call rpn_comm_allgather(latColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
         call rpn_comm_allgather(lonColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-        call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
-                                allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
-                                'GRID', ierr)
+
         k_loop: do kIndex = mykBeg, statevector%mykEnd
           interpInfo%allLat(:,kIndex,stepIndex,:) = allLatOneLev(:,:)
           interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
         end do k_loop
 
       end if ! doSlantPath 
+
+      deallocate(lonColumn)
+      deallocate(latColumn)
 
     end do step_loop2
 
