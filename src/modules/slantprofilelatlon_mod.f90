@@ -20,6 +20,7 @@ module slantprofilelatlon_mod
   ! :Purpose: To calculate latitudes/longitudes on slant-path based on
   !           ColumnData.
   !
+  use mpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -32,6 +33,11 @@ module slantprofilelatlon_mod
 
   ! public procedures
   public :: slp_calcLatLonTovs
+
+  ! private module variables and derived types
+  real(4), save :: toleranceHeightDiff
+  integer, save :: maxNumIteration
+  logical, save :: namelistSlpRead = .false.
 
 
 contains 
@@ -58,16 +64,32 @@ contains
     real(8), intent(out)  :: lonSlantLev_M(:)
 
     ! Locals:
-    real(4) :: heightInterp, heightIntersect, toleranceHeightDiff, heightDiff 
+    real(4) :: heightInterp, heightIntersect, heightDiff 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: lat, lon, latSlant, lonSlant
-    integer :: ierr, subGridIndex, lonIndex, latIndex
+    integer :: subGridIndex, lonIndex, latIndex
+    integer :: ierr, fnom, fclos, nulnam
     integer :: nlev_T, lev_T, nlev_M, lev_M
-    integer :: numIteration, maxNumIteration
+    integer :: numIteration
     logical :: doIteration
 
-    toleranceHeightDiff = 10.0
-    maxNumIteration = 1
+    namelist /namslp/ toleranceHeightDiff, maxNumIteration
+
+    if ( .not. namelistSlpRead ) then
+      namelistSlpRead = .true.
+
+      ! default values
+      toleranceHeightDiff = 5.0
+      maxNumIteration = 2
+
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=namslp, iostat=ierr)
+      if (ierr /= 0) write(*,*) 'slp_calcLatLonTovs: namslp is missing in the namelist. The default value will be taken.'
+      if (mpi_myid == 0) write(*, nml=namslp)
+      ierr = fclos(nulnam)
+    end if
 
     nlev_M = size(height3D_M_r4,3)
     nlev_T = size(height3D_T_r4,3)

@@ -2129,10 +2129,6 @@ contains
       if ( .not. beSilent ) write(*,*) 'after rttov_parallel_direct...'
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
-      write(*,*) 'tvs_rttov: for profile number 41, headerIndex=', tvs_lobsno(iptobs(41))
-      write(*,*) '  lat=', tvs_profiles(iptobs(41))%latitude, ' and lon=', tvs_profiles(iptobs(41))%longitude
-      write(*,*) '  temp=', tvs_profiles(iptobs(41))%t(:)
-
       if (rttov_err_stat /= 0) then
         write(*,*) "Error in rttov_parallel_direct",rttov_err_stat
         call utl_abort('tvs_rttov')
