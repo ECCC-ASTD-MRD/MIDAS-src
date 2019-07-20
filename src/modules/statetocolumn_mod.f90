@@ -110,7 +110,7 @@ contains
     type(struct_hco), pointer :: hco_anl
     integer :: headerIndex, ierr
     integer :: idata, idatend, jdata, subGridIndex
-    real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4
+    real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, lon_deg_org_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
@@ -174,9 +174,12 @@ contains
             if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
             if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
 
+            lon_deg_org_r4 = lon_deg_r4
             ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
                             lat_deg_r4, lon_deg_r4, & ! OUT
                             xpos_r4, ypos_r4, 1)      ! IN
+            lon_deg_r4 = lon_deg_org_r4
+            write(*,*) '  lon is forced to be the original value:', lon_deg_r4
 
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
@@ -492,7 +495,10 @@ contains
       latColumn(:,:) = 0.0d0
       lonColumn(:,:) = 0.0d0
 
-      if ( doSlantPath ) then
+      if ( doSlantPath .and. &
+           stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
+           stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
+
         allocate(latLev_T(nlev_T))
         allocate(lonLev_T(nlev_T))
         allocate(latLev_M(nlev_M))
@@ -685,7 +691,9 @@ contains
 
     end do step_loop2
 
-    if ( doSlantPath ) then
+    if ( doSlantPath .and. &
+         stateVector%varExistList(vnl_varListIndex('Z_T')) .and. &
+         stateVector%varExistList(vnl_varListIndex('Z_M')) ) then
       if ( mpi_myid == 0 ) then
         call gsv_deallocate(stateVector_1Step)
       else

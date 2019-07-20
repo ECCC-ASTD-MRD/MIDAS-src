@@ -79,8 +79,8 @@ contains
       namelistSlpRead = .true.
 
       ! default values
-      toleranceHeightDiff = 5.0
-      maxNumIteration = 2
+      toleranceHeightDiff = 10.0
+      maxNumIteration = 1
 
       ! reading namelist variables
       nulnam = 0
