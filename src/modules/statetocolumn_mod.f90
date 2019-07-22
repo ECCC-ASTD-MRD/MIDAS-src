@@ -110,7 +110,7 @@ contains
     type(struct_hco), pointer :: hco_anl
     integer :: headerIndex, ierr
     integer :: idata, idatend, jdata, subGridIndex
-    real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, lon_deg_org_r4
+    real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
@@ -174,12 +174,9 @@ contains
             if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
             if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
 
-            lon_deg_org_r4 = lon_deg_r4
             ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
                             lat_deg_r4, lon_deg_r4, & ! OUT
                             xpos_r4, ypos_r4, 1)      ! IN
-            lon_deg_r4 = lon_deg_org_r4
-            write(*,*) '  lon is forced to be the original value:', lon_deg_r4
 
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
@@ -520,56 +517,57 @@ contains
 
           codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if ( .not. tvs_isIdBurpTovs(codtyp) ) then
-            latColumn(headerUsedIndex,:) = real(lat_r4,8)
-            lonColumn(headerUsedIndex,:) = real(lon_r4,8)
-
-          else
+          if ( tvs_isIdBurpTovs(codtyp) ) then
             if ( firstHeaderSlantPath ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPath = .false.
             end if
 
             ! calculate lat/lon along the line of sight
-            call tmg_start(195,'slp_calcLatLonTovs')
+            call tmg_start(199,'slp_calcLatLonTovs')
             call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,               & ! IN
                                      latLev_T, lonLev_T,                         & ! OUT
                                      latLev_M, lonLev_M )                          ! OUT
+            call tmg_stop(199)
 
-            call tmg_stop(195)
-
-            ! check if the slanted lat/lon is inside the domain
-            call tmg_start(198,'latlonChecks')
-            call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
-                                headerIndex, rejectOutsideObs, & ! IN
-                                latLev_T, lonLev_T,            & ! IN/OUT
-                                latLev_M, lonLev_M )             ! IN/OUT 
-            call tmg_stop(198)
-
-            ! put the lat/lon from TH/MM levels to kIndex
-            do kIndex = allkBeg(1), stateVector%nk
-              if ( kIndex == 0 ) then
-                varLevel = 'SF'
-              else
-                levIndex = gsv_getLevFromK(stateVector,kIndex)
-                varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
-              end if
-
-              if ( varLevel == 'TH' ) then
-                latColumn(headerUsedIndex,kIndex) = latLev_T(levIndex)
-                lonColumn(headerUsedIndex,kIndex) = lonLev_T(levIndex)
-              else if ( varLevel == 'MM' ) then
-                latColumn(headerUsedIndex,kIndex) = latLev_M(levIndex)
-                lonColumn(headerUsedIndex,kIndex) = lonLev_M(levIndex)
-              else if ( varLevel == 'SF' ) then
-                latColumn(headerUsedIndex,kIndex) = real(lat_r4,8)
-                lonColumn(headerUsedIndex,kIndex) = real(lon_r4,8)
-              end if
-
-            end do
+          else
+            latLev_T(:) = real(lat_r4,8)
+            lonLev_T(:) = real(lon_r4,8)
+            latLev_M(:) = real(lat_r4,8)
+            lonLev_M(:) = real(lon_r4,8)
 
           end if !tvs_isIdBurpTovs
+
+          ! check if the slanted lat/lon is inside the domain
+          call tmg_start(198,'latlonChecks')
+          call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
+                              headerIndex, rejectOutsideObs, & ! IN
+                              latLev_T, lonLev_T,            & ! IN/OUT
+                              latLev_M, lonLev_M )             ! IN/OUT 
+          call tmg_stop(198)
+
+          ! put the lat/lon from TH/MM levels to kIndex
+          do kIndex = allkBeg(1), stateVector%nk
+            if ( kIndex == 0 ) then
+              varLevel = 'SF'
+            else
+              levIndex = gsv_getLevFromK(stateVector,kIndex)
+              varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+            end if
+
+            if ( varLevel == 'TH' ) then
+              latColumn(headerUsedIndex,kIndex) = latLev_T(levIndex)
+              lonColumn(headerUsedIndex,kIndex) = lonLev_T(levIndex)
+            else if ( varLevel == 'MM' ) then
+              latColumn(headerUsedIndex,kIndex) = latLev_M(levIndex)
+              lonColumn(headerUsedIndex,kIndex) = lonLev_M(levIndex)
+            else if ( varLevel == 'SF' ) then
+              latColumn(headerUsedIndex,kIndex) = real(lat_r4,8)
+              lonColumn(headerUsedIndex,kIndex) = real(lon_r4,8)
+            end if
+
+          end do
 
         end do header_loop3
 
@@ -660,6 +658,16 @@ contains
         deallocate(lonLev_M)
 
       else ! not doSlantPath
+
+        allocate(latLev_T(1))
+        allocate(lonLev_T(1))
+        allocate(latLev_M(1))
+        allocate(lonLev_M(1))
+        latLev_T(:) = 0.0d0
+        lonLev_T(:) = 0.0d0
+        latLev_M(:) = 0.0d0
+        lonLev_M(:) = 0.0d0
+
         do headerUsedIndex = 1, numHeaderUsed
           headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
 
@@ -669,8 +677,21 @@ contains
           if (lon_r4 <  0.0          ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
           if (lon_r4 >= 2.0*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
-          latColumn(headerUsedIndex,allkBeg(1)) = real(lat_r4,8)
-          lonColumn(headerUsedIndex,allkBeg(1)) = real(lon_r4,8)
+          latLev_T(:) = real(lat_r4,8)
+          lonLev_T(:) = real(lon_r4,8)
+          latLev_M(:) = real(lat_r4,8)
+          lonLev_M(:) = real(lon_r4,8)
+
+          ! check if the lat/lon is inside the domain
+          call tmg_start(198,'latlonChecks')
+          call latlonChecks ( obsSpaceData, stateVector%hco, & ! IN
+                              headerIndex, rejectOutsideObs, & ! IN
+                              latLev_T, lonLev_T,            & ! IN/OUT
+                              latLev_M, lonLev_M )             ! IN/OUT 
+          call tmg_stop(198)
+
+          latColumn(headerUsedIndex,allkBeg(1)) = latLev_T(1)
+          lonColumn(headerUsedIndex,allkBeg(1)) = lonLev_T(1)
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
@@ -683,6 +704,11 @@ contains
           interpInfo%allLat(:,kIndex,stepIndex,:) = allLatOneLev(:,:)
           interpInfo%allLon(:,kIndex,stepIndex,:) = allLonOneLev(:,:)
         end do k_loop
+
+        deallocate(latLev_T)
+        deallocate(lonLev_T)
+        deallocate(latLev_M)
+        deallocate(lonLev_M)
 
       end if ! doSlantPath 
 
@@ -869,6 +895,7 @@ contains
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
+    logical              :: rejectOutsideObs
     character(len=4)     :: varName
     character(len=4), pointer :: varNames(:)
 
@@ -915,8 +942,9 @@ contains
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     if ( .not. interpInfo_tlad%initialized ) then
+      rejectOutsideObs = .false.
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad,  rejectOutsideObs=.false., &
+                                timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
     end if
 
@@ -1075,6 +1103,7 @@ contains
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
+    logical              :: rejectOutsideObs
     character(len=4), pointer :: varNames(:)
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
@@ -1098,8 +1127,9 @@ contains
     call gsv_zero( statevector_VarsLevs )
 
     if ( .not. interpInfo_tlad%initialized ) then
+      rejectOutsideObs = .false.
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType_tlad, rejectOutsideObs=.false., &
+                                timeInterpType_tlad, rejectOutsideObs, &
                                 inputStateVectorType='ad' )
     end if
 
@@ -1279,7 +1309,7 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
-    logical              :: dealloc, moveObsAtPole
+    logical              :: dealloc, moveObsAtPole, rejectOutsideObs
     character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
@@ -1345,9 +1375,13 @@ contains
       ! numerical pole to first/last analysis grid latitude
       call latlonChecksAnlGrid( obsSpaceData, moveObsAtPole )
 
+      ! Do not reject obs for global domain
+      rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
+      write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
+
       ! compute and collect all obs grids onto all mpi tasks
       call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
-                                timeInterpType, rejectOutsideObs=.true., &
+                                timeInterpType, rejectOutsideObs, &
                                 inputStateVectorType='nl' )
       if ( mpi_myid == 0 ) then
         do stepIndex = 1, numStep
@@ -3142,7 +3176,7 @@ contains
     nlev_T = size(latLev_T)
     nlev_M = size(latLev_M)
 
-    ! check if lat/lon of last termo level is outside domain.
+    ! check if lat/lon of last thermo level is outside domain.
     rejectHeader = .false.
     lat_r4 = real(latLev_T(nlev_T),4)
     lon_r4 = real(lonLev_T(nlev_T),4)
