@@ -5,7 +5,7 @@ set -e
 export MAKE_LINKS_MACHINE_LIST="eccc-ppp4 daley"
 
 MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.2"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
