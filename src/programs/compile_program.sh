@@ -58,7 +58,7 @@ modulesDir=$PWD/../modules
 depotDir=$PWD/..
 
 # Get revision number
-revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $modulesDir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp4 "cd $modulesDir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 

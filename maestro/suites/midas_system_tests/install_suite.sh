@@ -139,7 +139,7 @@ export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 
 echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-$(dirname $(dirname $(dirname ${PWD})))/compiledir}/midas_abs" > abs.dot
-echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unknown revision)" >> abs.dot
+echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp4 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unknown revision)" >> abs.dot
 
 ## Ajouter la creation pour chaque usager de repertoires de reference pour les tests
 ##    test_results
