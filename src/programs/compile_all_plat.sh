@@ -88,9 +88,9 @@ done
 
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
-./check_if_all_programs_compiled.sh ${ORDENV_PLAT}            ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform 'sles-11-broadwell-64-xc40'"
-./check_if_all_programs_compiled.sh sles-11-broadwell-64-xc40 ${MIDAS_ABS} || status=1
+./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
+echo "Checking if all programs have been compiled on 'daley' for platform 'sles-15-skylake-64-xc50'"
+./check_if_all_programs_compiled.sh sles-15-skylake-64-xc50 ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
     echo "All programs have been compiled correctly!"
