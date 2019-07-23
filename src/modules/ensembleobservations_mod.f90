@@ -154,9 +154,9 @@ CONTAINS
     end do
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
-
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
 
+    obsCleanIndex = 0
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) then
         obsCleanIndex = obsCleanIndex + 1
@@ -363,7 +363,7 @@ CONTAINS
       distance = abs( logPres - ensObs%logPres(searchResults(localObsIndex)%idx) )
       if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
         numLocalObsFound = numLocalObsFound + 1
-        if (numLocalObs <= maxNumLocalObs) then
+        if (numLocalObs < maxNumLocalObs) then
           numLocalObs = numLocalObs + 1
           localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
           distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)

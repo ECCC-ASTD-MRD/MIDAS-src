@@ -70,7 +70,7 @@ contains
   !--------------------------------------------------------------------------
   ! enkf_setupInterpInfo
   !--------------------------------------------------------------------------
-  subroutine enkf_setupInterpInfo(wInterpInfo, weightLatLonStep, ni, nj,  &
+  subroutine enkf_setupInterpInfo(wInterpInfo, hco, weightLatLonStep,  &
                                   myLonBegHalo,myLonEndHalo,myLatBegHalo,myLatEndHalo)
     ! :Purpose: Setup the weights and lat/lon indices needed to bilinearly
     !           interpolate the LETKF weights from a coarse grid to the full
@@ -80,17 +80,23 @@ contains
 
     ! Arguments
     type(struct_enkfInterpInfo) :: wInterpInfo
+    type(struct_hco) :: hco
     integer :: weightLatLonStep
-    integer :: ni
-    integer :: nj
     integer :: myLonBegHalo
     integer :: myLonEndHalo
     integer :: myLatBegHalo
     integer :: myLatEndHalo
 
     ! Locals
-    integer :: lonIndex, latIndex
+    integer :: lonIndex, latIndex, ni, nj
     real(8) :: interpWeightLon, interpWeightLat
+
+    if (hco%grtyp == 'U') then
+      call utl_abort('enkf_setupInterpInfo: Yin-Yang grid (U) not yet supported.')
+    end if
+
+    ni = hco%ni
+    nj = hco%nj
 
     wInterpInfo%myLonBegHalo = myLonBegHalo
     wInterpInfo%myLonEndHalo = myLonEndHalo
@@ -118,13 +124,12 @@ contains
         wInterpInfo%numIndexes(myLonEndHalo,myLatEndHalo) = 0
       end if
       if (myLonEndHalo == ni) then
-        do latIndex = myLatBegHalo, myLatEndHalo
-          if (wInterpInfo%numIndexes(myLonBegHalo,latIndex) == 0) cycle
+        do latIndex = myLatBegHalo, myLatEndHalo, weightLatLonStep
           wInterpInfo%numIndexes(myLonEndHalo,latIndex) = 0
         end do
       end if
       if (myLatEndHalo == nj) then
-        do lonIndex = myLonBegHalo, myLonEndHalo
+        do lonIndex = myLonBegHalo, myLonEndHalo, weightLatLonStep
           wInterpInfo%numIndexes(lonIndex,myLatEndHalo) = 0
         end do
       end if
@@ -412,7 +417,10 @@ contains
 
     do memberIndex = 1, nEns
 
-      if( mpi_myid == 0 ) write(*,*) 'Computing random perturbation number= ', memberIndex
+      if( mpi_myid == 0 ) then
+        write(*,*) 
+        write(*,*) 'Computing random perturbation number= ', memberIndex
+      end if
 
       ! global vector random control vector (independent of mpi topology)
       do cvIndex = 1, cvm_nvadim_mpiglobal
@@ -430,7 +438,7 @@ contains
       ! scale the perturbation by the specified factor
       call gsv_scale(stateVectorPerturbationInterp, alphaRandomPert)
 
-      write(*,*) 'enkf_addRandomPert: perturbation min/maxval = ',  &
+      write(*,*) 'enkf_addRandomPert: member ', memberIndex, ', perturbation min/maxval = ',  &
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
       do kIndex = 1, numK

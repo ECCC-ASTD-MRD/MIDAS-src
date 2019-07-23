@@ -20,6 +20,7 @@ program midas_letkf
   !           subroutine letkf_computeAnalyses, *contained* in this program.
   !           Many aspects of this program are controlled throught the namelist
   !           block NAMLETKF.
+  use mpi, only : mpi_statuses_ignore ! this is the mpi library module
   use mpi_mod
   use mathPhysConstants_mod
   use fileNames_mod
@@ -74,7 +75,7 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, procIndex, nLev_M, nLev_T
+  integer :: memberIndex, stepIndex, nLev_M, nLev_T
   integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
   integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numK
   integer :: nulnam, nulFile, dateStamp, ierr, nsize
@@ -109,11 +110,13 @@ program midas_letkf
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
+  character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/nEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      updateMembers, writeIncrements,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert,  &
-                     imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType
+                     imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
+                     mpiDistribution
 
 
   write(*,'(/,' //  &
@@ -164,6 +167,7 @@ program midas_letkf
   imposeSaturationLimit = .false.
   imposeRttovHuLimits   = .false.
   obsTimeInterpType     = 'LINEAR'
+  mpiDistribution       = 'ROUNDROBIN'
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -297,7 +301,7 @@ program midas_letkf
   call gsv_copy(stateVectorMeanTrl, stateVectorMeanAnl)
 
   !- 2.12 If deterministic background exists, do allocation and then read it
-  call fln_ensFileName( deterFileName, ensPathName )
+  call fln_ensFileName( deterFileName, ensPathName, shouldExist_opt=.false. )
   inquire(file=deterFileName, exist=deterExists)
   if (deterExists) then
     write(*,*)
@@ -440,6 +444,9 @@ program midas_letkf
              myLonBeg, myLonEnd, myLatBeg, myLatEnd
   write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
              myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
+  write(*,*) 'midas-letkf: number of local gridpts where weights computed = ',  &
+             ( 1 + ceiling(real(myLonEndHalo - myLonBegHalo) / real(weightLatLonStep)) ) *  &
+             ( 1 + ceiling(real(myLatEndHalo - myLatBegHalo) / real(weightLatLonStep)) )
 
   !- 4.2 Copy trial ensemble to nstepobsinc time steps
   if (tim_nstepobsinc < tim_nstepobs) then
@@ -481,8 +488,8 @@ program midas_letkf
 
   !- 4.5 Setup for interpolating weights from coarse to full resolution
   call tmg_start(92,'LETKF-interpolateWeights')
-  call enkf_setupInterpInfo(wInterpInfo, weightLatLonStep, stateVectorMeanInc%ni,  &
-                            stateVectorMeanInc%nj, myLonBegHalo, myLonEndHalo,  &
+  call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanInc%hco, weightLatLonStep,  &
+                            myLonBegHalo, myLonEndHalo,  &
                             myLatBegHalo, myLatEndHalo)
   call tmg_stop(92)
 
@@ -659,25 +666,47 @@ subroutine letkf_computeAnalyses
   !           mean and (if present) a deterministic state.
   implicit none
 
-  integer :: memberIndex, memberIndex1, memberIndex2
+  integer :: memberIndex, memberIndex1, memberIndex2, procIndex, procIndexSend
   integer :: latIndex, lonIndex, stepIndex, kIndex, levIndex, levIndex2
   integer :: bodyIndex, localObsIndex, numLocalObs, numLocalObsFound
   integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
+  integer :: myNumLatLonRecv, myNumLatLonSend, numLatLonRecvMax
+  integer :: numLatLonTotalUnique, latLonIndex
+  integer :: sendTag, recvTag, nsize, numRecv, numSend
   real(8) :: anlLat, anlLon, anlLogPres, distance
   real(8) :: localization
   real(4) :: secondsBeg, secondsEnd, secondsTotal=0.0
 
   integer, allocatable :: localBodyIndices(:)
+  integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
+  integer, allocatable :: myLatIndexesSend(:), myLonIndexesSend(:)
+  integer, allocatable :: myNumProcIndexesSend(:)
+  integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
+  integer, allocatable :: requestIdRecv(:), requestIdSend(:)
+
   real(8), allocatable :: distances(:)
   real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:)
-  real(8), allocatable :: weightsTemp(:), weightsMembers(:,:,:,:)
-  real(8), allocatable :: weightsMean(:,:,:,:), weightsDeter(:,:,:,:)
+  real(8), allocatable :: weightsTemp(:)
+  real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
+  real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
+  real(8), allocatable :: weightsDeter(:,:,:,:), weightsDeterLatLon(:,:,:)
   real(8), allocatable :: memberAnlPert(:)
   real(4), allocatable :: allSecondsTotal(:,:)
 
   real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
   real(4), pointer     :: deterTrl_ptr_r4(:,:,:,:), deterAnl_ptr_r4(:,:,:,:), deterInc_ptr_r4(:,:,:,:)
   real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
+
+  !
+  ! Set things up for the redistribution of work across mpi tasks
+  !
+  call setupMpiDistribution(myNumLatLonRecv, myNumLatLonSend,   &
+                            myLatIndexesRecv, myLonIndexesRecv,   &
+                            myLatIndexesSend, myLonIndexesSend,   &
+                            myProcIndexesRecv, myProcIndexesSend, &
+                            myNumProcIndexesSend)
+  allocate(requestIdSend(3*myNumLatLonSend*maxval(myNumProcIndexesSend)))
+  allocate(requestIdRecv(3*myNumLatLonRecv))
 
   !
   ! Compute gridded 3D ensemble weights
@@ -690,9 +719,24 @@ subroutine letkf_computeAnalyses
   allocate(Pa(nEns,nEns))
   allocate(memberAnlPert(nEns))
   allocate(weightsTemp(nEns))
+  weightsTemp(:) = 0.0d0
+  ! Weights for mean analysis
   allocate(weightsMean(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+  weightsMean(:,:,:,:) = 0.0d0
+  allocate(weightsMeanLatLon(nEns,1,myNumLatLonSend))
+  weightsMeanLatLon(:,:,:) = 0.0d0
+  ! Weights for member analyses
   allocate(weightsMembers(nEns,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
-  if (deterExists) allocate(weightsDeter(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+  weightsMembers(:,:,:,:) = 0.0d0
+  allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
+  weightsMembersLatLon(:,:,:) = 0.0d0
+  ! Weights for deterministic analysis
+  if (deterExists) then
+    allocate(weightsDeter(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    weightsDeter(:,:,:,:) = 0.0d0
+    allocate(weightsDeterLatLon(nEns,1,myNumLatLonSend))
+    weightsDeterLatLon(:,:,:) = 0.0d0
+  end if
   call lfn_Setup(LocFunctionWanted='FifthOrder')
 
   ! Compute the weights for ensemble mean and members
@@ -701,80 +745,137 @@ subroutine letkf_computeAnalyses
   numGridPointWeights = 0
   LEV_LOOP: do levIndex = 1, nLev_M
     write(*,*) 'computing ensemble updates for vertical level = ', levIndex
-    LAT_LOOP: do latIndex = myLatBegHalo, myLatEndHalo
-      LON_LOOP: do lonIndex = myLonBegHalo, myLonEndHalo
-        ! If this lat-lon is to be interpolated, then skip calculation
-        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP
-        numGridPointWeights = numGridPointWeights + 1
 
-        ! lat-lon of the grid point for which we are doing the analysis
-        anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
-        anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-        anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+    !
+    ! First post all recv instructions for communication of weights
+    !
+    call tmg_start(103,'LETKF-commWeights')
+    numSend = 0
+    numRecv = 0
+    do latLonIndex = 1, myNumLatLonRecv
+      latIndex = myLatIndexesRecv(latLonIndex)
+      lonIndex = myLonIndexesRecv(latLonIndex)
+      procIndex = myProcIndexesRecv(latLonIndex)
+      recvTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
 
-        ! Get list of nearby observations and distances to gridpoint
-        call tmg_start(9,'LETKF-getLocalBodyIndices')
-        numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                              distances, anlLat, anlLon, anlLogPres,  &
-                                              hLocalize, vLocalize, numLocalObsFound)
-        if (numLocalObsFound > maxNumLocalObs) then
-          countMaxExceeded = countMaxExceeded + 1
-          maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
+      nsize = nEns
+      numRecv = numRecv + 1
+      call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
+                      nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
+                      mpi_comm_grid, requestIdRecv(numRecv), ierr )
+      if (deterExists) then
+        numRecv = numRecv + 1
+        recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+        call mpi_irecv( weightsDeter(:,1,lonIndex,latIndex),  &
+                        nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
+                        mpi_comm_grid, requestIdRecv(numRecv), ierr )
+      end if
+      if (updateMembers) then
+        nsize = nEns*nEns
+        numRecv = numRecv + 1
+        recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+        call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
+                        nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
+                        mpi_comm_grid, requestIdRecv(numRecv), ierr )
+      end if
+    end do
+    call tmg_stop(103)
+
+    LATLON_LOOP: do latLonIndex = 1, myNumLatLonSend
+      latIndex = myLatIndexesSend(latLonIndex)
+      lonIndex = myLonIndexesSend(latLonIndex)
+
+      numGridPointWeights = numGridPointWeights + 1
+
+      ! lat-lon of the grid point for which we are doing the analysis
+      anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
+      anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
+      anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
+
+      ! Get list of nearby observations and distances to gridpoint
+      call tmg_start(9,'LETKF-getLocalBodyIndices')
+      numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
+                                            distances, anlLat, anlLon, anlLogPres,  &
+                                            hLocalize, vLocalize, numLocalObsFound)
+      if (numLocalObsFound > maxNumLocalObs) then
+        countMaxExceeded = countMaxExceeded + 1
+        maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
+      end if
+      call tmg_stop(9)
+
+      call tmg_start(91,'LETKF-calcWeights')
+      call cpu_time(secondsBeg)
+
+      ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
+      do localObsIndex = 1, numLocalObs
+        bodyIndex = localBodyIndices(localObsIndex)
+
+        ! Compute value of localization function
+        call tmg_start(18,'LETKF-locFunction')
+        ! Horizontal
+        localization = lfn_Response(distances(localObsIndex),hLocalize)
+        ! Vertical - use pressures at the grid point (not obs) location
+        if (vLocalize > 0) then
+          distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
+          localization = localization * lfn_Response(distance,vLocalize)
         end if
-        call tmg_stop(9)
+        call tmg_stop(18)
 
-        call tmg_start(91,'LETKF-calcWeights')
-        call cpu_time(secondsBeg)
+        do memberIndex = 1, nEns
+          YbTinvR(memberIndex,localObsIndex) = ensObs_mpiglobal%Yb(memberIndex, bodyIndex) * &
+                                               localization * ensObs_mpiglobal%varObsInv(bodyIndex)
+        end do
 
-        ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
+        if (localObsIndex == 1) PaInv(:,:) = 0.0D0
+        do memberIndex2 = 1, nEns
+          do memberIndex1 = 1, nEns
+            PaInv(memberIndex1,memberIndex2) = PaInv(memberIndex1,memberIndex2) +  &
+                 YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb(memberIndex2, bodyIndex)
+          end do
+        end do
+
+      end do ! localObsIndex
+
+      ! Rest of the computation of local weights for this grid point
+      if (numLocalObs > 0) then
+
+        ! Add second term of PaInv
+        do memberIndex = 1, nEns
+          PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
+        end do
+
+        ! Compute Pa and sqrt(Pa) matrices from PaInv
+        Pa(:,:) = PaInv(:,:)
+        call tmg_start(90,'LETKF-matInverse')
+        if (updateMembers) then
+          call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
+        else
+          call utl_matInverse(Pa, nEns)
+        end if
+        call tmg_stop(90)
+
+        ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
+        weightsTemp(:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
-
-          ! Compute value of localization function
-          call tmg_start(18,'LETKF-locFunction')
-          ! Horizontal
-          localization = lfn_Response(distances(localObsIndex),hLocalize)
-          ! Vertical - use pressures at the grid point (not obs) location
-          if (vLocalize > 0) then
-            distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
-            localization = localization * lfn_Response(distance,vLocalize)
-          end if
-          call tmg_stop(18)
-
           do memberIndex = 1, nEns
-            YbTinvR(memberIndex,localObsIndex) = ensObs_mpiglobal%Yb(memberIndex, bodyIndex) * &
-                                                 localization * ensObs_mpiglobal%varObsInv(bodyIndex)
+            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                       YbTinvR(memberIndex,localObsIndex) *  &
+                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                         ensObs_mpiglobal%meanYb(bodyIndex) )
           end do
+        end do
 
-          if (localObsIndex == 1) PaInv(:,:) = 0.0D0
-          do memberIndex2 = 1, nEns
-            do memberIndex1 = 1, nEns
-              PaInv(memberIndex1,memberIndex2) = PaInv(memberIndex1,memberIndex2) +  &
-                   YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb(memberIndex2, bodyIndex)
-            end do
+        weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+        do memberIndex2 = 1, nEns
+          do memberIndex1 = 1, nEns
+            weightsMeanLatLon(memberIndex1,1,latLonIndex) = weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
+                 Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
           end do
+        end do
 
-        end do ! localObsIndex
-
-        ! Rest of the computation of local weights for this grid point
-        if (numLocalObs > 0) then
-
-          ! Add second term of PaInv
-          do memberIndex = 1, nEns
-            PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
-          end do
-
-          ! Compute Pa and sqrt(Pa) matrices from PaInv
-          Pa(:,:) = PaInv(:,:)
-          call tmg_start(90,'LETKF-matInverse')
-          if (updateMembers) then
-            call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
-          else
-            call utl_matInverse(Pa, nEns)
-          end if
-          call tmg_stop(90)
-
-          ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
+        if (deterExists) then
+          ! Compute deterministic analysis local weights as Pa * YbTinvR * (obs - deterYb)
           weightsTemp(:) = 0.0d0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
@@ -782,63 +883,93 @@ subroutine letkf_computeAnalyses
               weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                          YbTinvR(memberIndex,localObsIndex) *  &
                                          ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                           ensObs_mpiglobal%meanYb(bodyIndex) )
+                                           ensObs_mpiglobal%deterYb(bodyIndex) )
             end do
           end do
 
-          weightsMean(:,1,lonIndex,latIndex) = 0.0d0
+          weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEns
-              weightsMean(memberIndex1,1,lonIndex,latIndex) = weightsMean(memberIndex1,1,lonIndex,latIndex) +  &
-                                          Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+              weightsDeterLatLon(memberIndex1,1,latLonIndex) = weightsDeterLatLon(memberIndex1,1,latLonIndex) +  &
+                   Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
             end do
           end do
+        end if
 
-          if (deterExists) then
-            ! Compute deterministic analysis local weights as Pa * YbTinvR * (obs - deterYb)
-            weightsTemp(:) = 0.0d0
-            do localObsIndex = 1, numLocalObs
-              bodyIndex = localBodyIndices(localObsIndex)
-              do memberIndex = 1, nEns
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                             ensObs_mpiglobal%deterYb(bodyIndex) )
-              end do
-            end do
+        ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
+        if (updateMembers) then
+          weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
+          do memberIndex = 1, nEns
+            weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
+                 weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
+          end do
+        end if
 
-            weightsDeter(:,1,lonIndex,latIndex) = 0.0d0
-            do memberIndex2 = 1, nEns
-              do memberIndex1 = 1, nEns
-                weightsDeter(memberIndex1,1,lonIndex,latIndex) = weightsDeter(memberIndex1,1,lonIndex,latIndex) +  &
-                                            Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
-              end do
-            end do
-          end if
+      else
+        ! no observations near this grid point, set weights to zero
+        weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+        if (deterExists) weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
+      end if ! numLocalObs > 0
 
-          ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
-          if (updateMembers) then
-            weightsMembers(:,:,lonIndex,latIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
-            do memberIndex = 1, nEns
-              weightsMembers(memberIndex,memberIndex,lonIndex,latIndex) = alphaRTPP +  &
-                   weightsMembers(memberIndex,memberIndex,lonIndex,latIndex)
-            end do
-          end if
+      call cpu_time(secondsEnd)
+      secondsTotal = secondsTotal + (secondsEnd-secondsBeg)
+      call tmg_stop(91)
 
-        else
-          ! no observations near this grid point, set weights to zero
-          weightsMean(:,1,lonIndex,latIndex) = 0.0d0
-          if (deterExists) weightsDeter(:,1,lonIndex,latIndex) = 0.0d0
-        end if ! numLocalObs > 0
+      !
+      ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
+      !
+      call tmg_start(103,'LETKF-commWeights')
+      latIndex = myLatIndexesSend(latLonIndex)
+      lonIndex = myLonIndexesSend(latLonIndex)
+      do procIndex = 1, myNumProcIndexesSend(latLonIndex)
+        sendTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
+        procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
-        call cpu_time(secondsEnd)
-        secondsTotal = secondsTotal + (secondsEnd-secondsBeg)
-        call tmg_stop(91)
+        nsize = nEns
+        numSend = numSend + 1
+        call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
+                        nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
+                        mpi_comm_grid, requestIdSend(numSend), ierr )
+        if (deterExists) then
+          numSend = numSend + 1
+          sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          call mpi_isend( weightsDeterLatLon(:,1,latLonIndex),  &
+                          nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
+                          mpi_comm_grid, requestIdSend(numSend), ierr )
+        end if
+        if (updateMembers) then
+          nsize = nEns*nEns
+          numSend = numSend + 1
+          sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
+                          nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
+                          mpi_comm_grid, requestIdSend(numSend), ierr )
+        end if
+      end do
+      call tmg_stop(103)
 
-      end do LON_LOOP
-    end do LAT_LOOP
+    end do LATLON_LOOP
 
+    !
+    ! Wait for communiations to finish before continuing
+    !
+    call tmg_start(103,'LETKF-commWeights')
+    write(*,*) 'numSend/Recv = ', numSend, numRecv
+
+    if ( numRecv > 0 ) then
+      call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+    end if
+
+    if ( numSend > 0 ) then
+      call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+    end if
+
+    call tmg_stop(103)
+    write(*,*) 'done communication'
+
+    !
     ! Interpolate weights from coarse to full resolution
+    !
     call tmg_start(92,'LETKF-interpolateWeights')
     if (weightLatLonStep > 1) then
 
@@ -853,7 +984,9 @@ subroutine letkf_computeAnalyses
 
     call tmg_start(100,'LETKF-applyWeights')
 
+    !
     ! Apply the weights to compute the ensemble mean and members
+    !
     meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
     meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
     meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
@@ -862,11 +995,11 @@ subroutine letkf_computeAnalyses
       deterTrl_ptr_r4 => gsv_getField_r4(stateVectorDeterTrl)
       deterAnl_ptr_r4 => gsv_getField_r4(stateVectorDeterAnl)
     end if
-    LAT_LOOP2: do latIndex = myLatBeg, myLatEnd
-      LON_LOOP2: do lonIndex = myLonBeg, myLonEnd
+    do latIndex = myLatBeg, myLatEnd
+      LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
         ! skip this grid point if all weights zero (no nearby obs)
-        if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP2
+        if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
 
         ! Compute the ensemble mean increment and analysis
         do kIndex = 1, numK
@@ -946,12 +1079,13 @@ subroutine letkf_computeAnalyses
           end do ! kIndex
         end if ! updateMembers
 
-      end do LON_LOOP2
-    end do LAT_LOOP2
+      end do LON_LOOP5
+    end do
 
     call tmg_stop(100)
 
   end do LEV_LOOP
+
   if (countMaxExceeded > 0) then
     write(*,*) 'midas-letkf: WARNING: Found more local obs than specified max number at ', &
                real(100*countMaxExceeded)/real(numGridPointWeights), '% of grid points.'
@@ -982,6 +1116,242 @@ subroutine letkf_computeAnalyses
   end if
 
 end subroutine letkf_computeAnalyses
+
+
+subroutine setupMpiDistribution(myNumLatLonRecv, myNumLatLonSend, &
+                                myLatIndexesRecv, myLonIndexesRecv, &
+                                myLatIndexesSend, myLonIndexesSend, &
+                                myProcIndexesRecv, myProcIndexesSend, &
+                                myNumProcIndexesSend)
+
+  ! :Purpose: Setup for distribution of grid points over mpi tasks.
+
+  implicit none
+
+  ! Arguments
+  integer              :: myNumLatLonRecv, myNumLatLonSend
+  integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
+  integer, allocatable :: myLatIndexesSend(:), myLonIndexesSend(:)
+  integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
+  integer, allocatable :: myNumProcIndexesSend(:)
+
+  ! Locals
+  integer :: latIndex, lonIndex, procIndex, procIndexSend, latLonIndex
+  integer :: numLatLonRecvMax, numLatLonTotalUnique
+  integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
+  integer, allocatable :: allLatIndexesSend(:,:), allLonIndexesSend(:,:)
+  integer, allocatable :: allNumLatLonRecv(:), allNumLatLonSend(:)
+
+  if (trim(mpiDistribution) == 'TILES') then
+
+    ! First, determine number of grid points needed locally (for recv-ing)
+    myNumLatLonRecv = 0
+    do latIndex = myLatBegHalo, myLatEndHalo
+      LON_LOOP0: do lonIndex = myLonBegHalo, myLonEndHalo
+        ! If this lat-lon is to be interpolated, then skip calculation
+        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP0
+        myNumLatLonRecv = myNumLatLonRecv + 1
+      end do LON_LOOP0
+    end do
+
+    write(*,*) 'midas-letkf: myNumLatLonRecv =', myNumLatLonRecv
+
+    ! Determine list of grid point indexes where weights needed locally (for recv-ing)
+    allocate(myLatIndexesRecv(myNumLatLonRecv))
+    allocate(myLonIndexesRecv(myNumLatLonRecv))
+    allocate(myProcIndexesRecv(myNumLatLonRecv))
+    myNumLatLonRecv = 0
+    do latIndex = myLatBegHalo, myLatEndHalo
+      LON_LOOP1: do lonIndex = myLonBegHalo, myLonEndHalo
+        ! If this lat-lon is to be interpolated, then skip calculation
+        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP1
+        myNumLatLonRecv = myNumLatLonRecv + 1
+
+        myLatIndexesRecv(myNumLatLonRecv) = latIndex
+        myLonIndexesRecv(myNumLatLonRecv) = lonIndex
+        myProcIndexesRecv(myNumLatLonRecv) = mpi_myid+1
+      end do LON_LOOP1
+    end do
+
+    ! No communication, so send info equals recv info
+    myNumLatLonSend = myNumLatLonRecv
+    allocate(myLatIndexesSend(myNumLatLonSend))
+    allocate(myLonIndexesSend(myNumLatLonSend))
+    allocate(myProcIndexesSend(myNumLatLonSend,1))
+    allocate(myNumProcIndexesSend(myNumLatLonSend))
+
+    myLatIndexesSend(:) = myLatIndexesRecv(:)
+    myLonIndexesSend(:) = myLonIndexesRecv(:)
+    myProcIndexesSend(:,1) = myProcIndexesRecv(:)
+    myNumProcIndexesSend(:) = 1
+
+  else if (trim(mpiDistribution) == 'ROUNDROBIN') then
+
+    ! First, determine number of grid points needed locally (for recv-ing)
+    myNumLatLonRecv = 0
+    do latIndex = myLatBegHalo, myLatEndHalo
+      LON_LOOP2: do lonIndex = myLonBegHalo, myLonEndHalo
+        ! If this lat-lon is to be interpolated, then skip calculation
+        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP2
+        myNumLatLonRecv = myNumLatLonRecv + 1
+      end do LON_LOOP2
+    end do
+
+    ! Communicate to all mpi tasks
+    allocate(allNumLatLonRecv(mpi_nprocs))
+    call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
+                            allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
+    numLatLonRecvMax = maxval(allNumLatLonRecv)
+    write(*,*) 'midas-letkf: allNumLatLonRecv =', allNumLatLonRecv(:)
+    write(*,*) 'midas-letkf: numLatLonRecvSum =', sum(allNumLatLonRecv)
+    write(*,*) 'midas-letkf: numLatLonRecvMax =', numLatLonRecvMax
+
+    ! Determine list of grid point indexes where weights needed locally (for recv-ing)
+    allocate(myLatIndexesRecv(numLatLonRecvMax))
+    allocate(myLonIndexesRecv(numLatLonRecvMax))
+    allocate(myProcIndexesRecv(numLatLonRecvMax))
+    myLatIndexesRecv(:) = -1
+    myLonIndexesRecv(:) = -1
+    myProcIndexesRecv(:) = -1
+    myNumLatLonRecv = 0
+    do latIndex = myLatBegHalo, myLatEndHalo
+      LON_LOOP3: do lonIndex = myLonBegHalo, myLonEndHalo
+        ! If this lat-lon is to be interpolated, then skip calculation
+        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP3
+        myNumLatLonRecv = myNumLatLonRecv + 1
+
+        myLatIndexesRecv(myNumLatLonRecv) = latIndex
+        myLonIndexesRecv(myNumLatLonRecv) = lonIndex
+      end do LON_LOOP3
+    end do
+
+    ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+    allocate(allLatIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+    allocate(allLonIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+    call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+    call rpn_comm_allgather(myLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+
+    ! From these lat-lon lists, create unique master list of all grid points where weights computed
+    ! and assign to mpi tasks for doing the calculation and for send-ing
+    allocate(myLatIndexesSend(numLatLonRecvMax))
+    allocate(myLonIndexesSend(numLatLonRecvMax))
+    myLatIndexesSend(:) = -1
+    myLonIndexesSend(:) = -1
+    numLatLonTotalUnique = 0
+    myNumLatLonSend = 0
+    do procIndex = 1, mpi_nprocs
+      WEIGHTS1LEV_LOOP: do latLonIndex = 1, allNumLatLonRecv(procIndex)
+        if (alreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex)) &
+             cycle WEIGHTS1LEV_LOOP
+        ! Count the total number of weights
+        numLatLonTotalUnique = numLatLonTotalUnique + 1
+
+        ! Round-robin distribution of master list across mpi tasks
+        procIndexSend = 1 + mod(numLatLonTotalUnique-1, mpi_nprocs)
+
+        ! Store the lat-lon indexes of the weights I am responsible for
+        if (procIndexSend == (mpi_myid+1)) then
+          myNumLatLonSend = myNumLatLonSend + 1
+          myLatIndexesSend(myNumLatLonSend) =  &
+               allLatIndexesRecv(latLonIndex, procIndex)
+          myLonIndexesSend(myNumLatLonSend) =  &
+               allLonIndexesRecv(latLonIndex, procIndex)
+        end if
+      end do WEIGHTS1LEV_LOOP
+    end do
+    write(*,*) 'midas-letkf: number of lat/lon points where weights to be computed =',  &
+               numLatLonTotalUnique
+
+    ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+    allocate(allNumLatLonSend(mpi_nprocs))
+    call rpn_comm_allgather(myNumLatLonSend, 1, "mpi_integer",  &
+                            allNumLatLonSend, 1,"mpi_integer", "GRID", ierr)
+    allocate(allLatIndexesSend(numLatLonRecvMax, mpi_nprocs))
+    allocate(allLonIndexesSend(numLatLonRecvMax, mpi_nprocs))
+    call rpn_comm_allgather(myLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                            allLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+    call rpn_comm_allgather(myLonIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                            allLonIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                            "GRID", ierr)
+
+    ! Figure out which mpi tasks I will need to send my results to
+    allocate(myProcIndexesSend(myNumLatLonSend,mpi_nprocs))
+    allocate(myNumProcIndexesSend(myNumLatLonSend))
+    myProcIndexesSend(:,:) = -1
+    myNumProcIndexesSend(:) = 0
+    do latLonIndex = 1, myNumLatLonSend
+      do procIndex = 1, mpi_nprocs
+        if ( any( (myLatIndexesSend(latLonIndex) == allLatIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) .and.  &
+                  (myLonIndexesSend(latLonIndex) == allLonIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) ) ) then
+          myNumProcIndexesSend(latLonIndex) = myNumProcIndexesSend(latLonIndex) + 1
+          myProcIndexesSend(latLonIndex,myNumProcIndexesSend(latLonIndex)) = procIndex
+        end if
+      end do
+    end do
+
+    ! Figure out which mpi tasks I will receive the results from
+    do latLonIndex = 1, myNumLatLonRecv
+      do procIndex = 1, mpi_nprocs
+        if ( any( (myLatIndexesRecv(latLonIndex) == allLatIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) .and.  &
+                  (myLonIndexesRecv(latLonIndex) == allLonIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) ) ) then
+          myProcIndexesRecv(latLonIndex) = procIndex
+        end if
+      end do
+    end do
+
+  else
+    call utl_abort('midas-letkf: unknown MPI distribution selected')
+  end if
+
+  write(*,*) 'midas-letkf: lat/lon/proc indexes I need to receive:'
+  do latLonIndex = 1, myNumLatLonRecv
+    write(*,*) myLatIndexesRecv(latLonIndex), myLonIndexesRecv(latLonIndex),  &
+               myProcIndexesRecv(latLonIndex)
+  end do
+
+  write(*,*) 'midas-letkf: number of lat/lon indexes I am responsible for =', myNumLatLonSend
+  write(*,*) 'midas-letkf: the lat/lon/proc indexes I am responsible for:'
+  do latLonIndex = 1, myNumLatLonSend
+    write(*,*) myLatIndexesSend(latLonIndex), myLonIndexesSend(latLonIndex),  &
+               myProcIndexesSend(latLonIndex,1:myNumProcIndexesSend(latLonIndex))
+  end do
+
+end subroutine setupMpiDistribution
+
+
+function alreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex) result(found)
+  implicit none
+  ! Arguments:
+  integer :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
+  integer :: latLonIndex, procIndex
+  logical :: found
+
+  ! Locals:
+  integer :: latLonIndex2, procIndex2, numLatLonRecvMax
+
+  numLatLonRecvMax = size(allLatIndexesRecv, 1)
+
+  ! check on all previous mpi tasks if this lat/lon has already been encountered
+  found = .false.
+  do procIndex2 = 1, procIndex-1
+    WEIGHTS1LEV_LOOP2: do latLonIndex2 = 1, numLatLonRecvMax
+      if (allLatIndexesRecv(latLonIndex2, procIndex2) < 0) cycle WEIGHTS1LEV_LOOP2
+      if ( (allLatIndexesRecv(latLonIndex, procIndex) ==  &
+            allLatIndexesRecv(latLonIndex2, procIndex2)) .and.  &
+           (allLonIndexesRecv(latLonIndex, procIndex) ==  &
+            allLonIndexesRecv(latLonIndex2, procIndex2)) ) then
+        found = .true.
+        exit WEIGHTS1LEV_LOOP2
+      end if
+    end do WEIGHTS1LEV_LOOP2
+  end do
+
+end function alreadyFound
 
 
 end program midas_letkf
