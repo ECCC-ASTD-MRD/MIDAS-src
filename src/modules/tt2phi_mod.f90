@@ -94,12 +94,12 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
   if ( present(beSilent_opt) ) then
     beSilent = beSilent_opt
   else
-    beSilent = .false.
+    beSilent = .true.
   end if
 
   call tmg_start(192,'tt2phi')
 
-  write(*,*) 'tt2phi: START'
+  if (.not.beSilent) write(*,*) 'tt2phi: START'
 
   vco_ghr => gsv_getVco(statevector_trial)
   Vcode = vco_ghr%vcode
@@ -364,20 +364,22 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
   deallocate(height_T)
   deallocate(tv)
 
-  if ( statevector_trial%dataKind == 4 ) then
-    write(*,*) 'tt2phi, Z_T='
-    write(*,*) height_T_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-    write(*,*) 'tt2phi, Z_M='
-    write(*,*) height_M_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-  else
-    write(*,*) 'tt2phi, Z_T='
-    write(*,*) height_T_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
-    write(*,*) 'tt2phi, Z_M='
-    write(*,*) height_M_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+  if ( .not.beSilent ) then
+    if ( statevector_trial%dataKind == 4 ) then
+      write(*,*) 'tt2phi, Z_T='
+      write(*,*) height_T_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+      write(*,*) 'tt2phi, Z_M='
+      write(*,*) height_M_ptr_r4(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+    else
+      write(*,*) 'tt2phi, Z_T='
+      write(*,*) height_T_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+      write(*,*) 'tt2phi, Z_M='
+      write(*,*) height_M_ptr_r8(statevector_trial%myLonBeg,statevector_trial%myLatBeg,:,1)
+    end if
+    write(*,*) 'tt2phi: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
   end if
 
-  write(*,*) 'tt2phi: statevector_trial%addHeightSfcOffset=', statevector_trial%addHeightSfcOffset 
-  write(*,*) 'tt2phi: END'
+  if (.not.beSilent) write(*,*) 'tt2phi: END'
 
   call tmg_stop(192)
 

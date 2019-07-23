@@ -7,6 +7,7 @@
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
+  <SUBMITS sub_name="letkf"/>
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
@@ -213,6 +214,11 @@
   </FAMILY>
 
   <FAMILY  name="ensembleH">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="letkf">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

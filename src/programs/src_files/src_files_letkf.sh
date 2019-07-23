@@ -11,5 +11,5 @@ SRC_FILES="$SRC_FILES localizationfunction_mod.f90 obsfiles_mod.f90 ozoneclim_mo
 SRC_FILES="$SRC_FILES chem_setup_mod.f90 gps_mod.f90 localizationspectral_mod.f90 randomnumber_mod.f90 tovs_nl_mod.f90"
 SRC_FILES="$SRC_FILES advection_mod.f90 bmatrixchem_mod.f90 diffusion_mod.f90 gridBinning_mod.ftn90 localization_mod.f90 obsfilter_mod.f90 spectralfilter_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 chem_obserrors_mod.f90 chem_obsoperators_mod.f90 controlvector_mod.f90 lambmatrixhi_mod.f90 tovs_lin_mod.f90"
-SRC_FILES="$SRC_FILES bmatrix_mod.f90 multi_ir_bgck_mod.f90 obserrors_mod.f90 obsoperators_mod.f90"
-SRC_FILES="$SRC_FILES enkf_mod.f90 innovation_mod.f90"
+SRC_FILES="$SRC_FILES bmatrix_mod.f90 kdtree2_mod.f90 multi_ir_bgck_mod.f90 obserrors_mod.f90 obsoperators_mod.f90"
+SRC_FILES="$SRC_FILES enkf_mod.f90 ensembleobservations_mod.f90 innovation_mod.f90"

@@ -1253,6 +1253,7 @@ contains
     ! check the column and statevector have same nk/varNameList
     call checkColumnStatevectorMatch(column,statevector)
 
+    call tmg_start(171,'s2c_nl_calcPandZ')
     ! calculate P_T/P_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
@@ -1266,6 +1267,7 @@ contains
       call vtr_transform( stateVector, & ! INOUT
                           'TTHUtoHeight_nl') ! IN
     end if
+    call tmg_stop(171)
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
@@ -1399,6 +1401,7 @@ contains
       call tmg_stop(160)
 
       ! mpi communication: alltoall for one level/variable
+      call tmg_start(172,'s2c_nl_allToAll')
       nsize = numHeaderMax
       if(mpi_nprocs > 1) then
         call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
@@ -1406,6 +1409,7 @@ contains
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
+      call tmg_stop(172)
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex)
@@ -1901,15 +1905,15 @@ contains
     implicit none
 
     ! arguments
-    integer :: ierr
-    integer :: gdid
-    integer :: subGridIndex
-    real(4) :: xpos_r4
-    real(4) :: ypos_r4
-    real(4) :: xpos2_r4
-    real(4) :: ypos2_r4
-    real(4) :: lat_deg_r4
-    real(4) :: lon_deg_r4
+    integer :: ierr  ! returned value of function
+    integer, intent(in) :: gdid
+    integer, intent(out) :: subGridIndex
+    real(4), intent(out) :: xpos_r4
+    real(4), intent(out) :: ypos_r4
+    real(4), intent(out) :: xpos2_r4
+    real(4), intent(out) :: ypos2_r4
+    real(4), intent(in) :: lat_deg_r4
+    real(4), intent(in) :: lon_deg_r4
 
     ! locals
     integer :: numSubGrids
@@ -3038,8 +3042,6 @@ contains
     do kIndex = 1, column%nk
       if ( gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex) ) call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
     end do
-
-    write(*,*) 'checkColumnStatevectorMatch: column and statevector match.'
 
   end subroutine checkColumnStatevectorMatch
 

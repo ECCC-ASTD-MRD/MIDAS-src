@@ -250,7 +250,7 @@ module computeHBHT_mod
 !
 !     Set the value of OBS_LYR required by setfge routines
 !
-      call oop_vobslyrs(lcolumng,lobsSpaceData)
+      call oop_vobslyrs(lcolumng,lobsSpaceData,beSilent=.false.)
 
 !
 !     1. Opening the statistics file

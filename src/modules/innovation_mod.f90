@@ -450,7 +450,7 @@ contains
     !
     !     Find interpolation layer in model profiles
     !
-    if ( col_getNumLev(columnhr,'MM') > 1 ) call oop_vobslyrs(columnhr,obsSpaceData)
+    if ( col_getNumLev(columnhr,'MM') > 1 ) call oop_vobslyrs(columnhr, obsSpaceData, beSilent)
     !
     !
     !------ Calculate the innovations Y - H(Xb) and place
@@ -460,29 +460,28 @@ contains
     !------------------------------
     !
     call tmg_start(48,'NL_OBS_OPER')
-    call oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJORAOB, 'UA')
     !
     !        AIREPS
     !--------------------------------
-    call oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOAIREP, 'AI')
     !
     !        SATWINDS
     !--------------------------------
     call oer_sw(columnhr,obsSpaceData)
-    call oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOSATWIND, 'SW')
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
-    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCSF, 'SF')
-    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCUA, 'UA')
-    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCSC, 'SC')
-    call oop_sfc_nl  (columnhr, obsSpaceData, ZJOSFCGP, 'GP')
-    call oop_sst_nl  (columnhr, obsSpaceData, ZJOSFCTM, 'TM')
-    call oop_ice_nl  (columnhr, obsSpaceData, ZJOSFCGL, 'GL')
-    call oop_hydro_nl(columnhr, obsSpaceData, ZJOSFCHY, 'HY')
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSF, 'SF')
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCUA, 'UA')
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSC, 'SC')
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGP, 'GP')
+    call oop_sst_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCTM, 'TM')
+    call oop_ice_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGL, 'GL')
+    call oop_hydro_nl(columnhr, obsSpaceData, beSilent, ZJOSFCHY, 'HY')
 
     ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL + ZJOSFCHY
-
     !
     !        TOVS - RADIANCE
     !-------------------------------
@@ -494,24 +493,24 @@ contains
     !
     !        PROFILER
     !------------------------------
-    call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'PR')
+    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOPROF, 'PR')
     !
     !        GEOMETRIC HEIGHT - ALADIN WINDS
     !------------------------------
-    call oop_zzz_nl(columnhr,obsSpaceData,ZJOALADIN,'AL')
+    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOALADIN, 'AL')
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
     ZJOGPSRO=0.0D0
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
-       CALL filt_gpsro(columnhr,obsSpaceData)
-       CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
-       call oop_gpsro_nl(columnhr,obsSpaceData,beSilent,ZJOGPSRO)
+       CALL filt_gpsro(columnhr, obsSpaceData, beSilent)
+       CALL oer_SETERRGPSRO(columnhr, obsSpaceData, beSilent)
+       call oop_gpsro_nl(columnhr, obsSpaceData, beSilent, ZJOGPSRO)
     end if
     !
     !        CH - CHEMICAL CONSTITUENTS
     !-------------------------------
-    call oop_chm_nl(columnhr,obsSpaceData,zjochm)
+    call oop_chm_nl(columnhr, obsSpaceData, beSilent, zjochm)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------
@@ -519,11 +518,11 @@ contains
     ZJOGPSGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.true.)
+        call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .true.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB, .true.)
       else
-        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.false.)
+        call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .false.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB, .false.)
       end if
     end if
 

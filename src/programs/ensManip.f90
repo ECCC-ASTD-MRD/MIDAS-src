@@ -187,7 +187,7 @@ program midas_ensManip
   !- 2.1 Initialize the dates
 
   ! Setup timeCoord module
-  call fln_ensFileName(ensFileName, ensPathName, 1, ensFileBaseName_opt=ensFileBaseName)
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, ensFileBaseName_opt=ensFileBaseName)
   call tim_setup(fileNameForDate_opt=ensFileName)
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))
@@ -341,8 +341,8 @@ program midas_ensManip
     call tmg_stop(10)
 
     if (recenterEnsembleControlMember) then
-      call fln_ensFileName( controlMemberFileNameIn, ensPathName, memberIndex = 0, shouldExist_opt = .true.)
-      call fln_ensFileName( controlMemberFileNameout, '.', memberIndex = 0, ensFileNamePrefix_opt = 'recentered_', &
+      call fln_ensFileName( controlMemberFileNameIn, ensPathName, memberIndex_opt = 0, shouldExist_opt = .true.)
+      call fln_ensFileName( controlMemberFileNameout, '.', memberIndex_opt = 0, ensFileNamePrefix_opt = 'recentered_', &
                             shouldExist_opt = .false. )
     endif
 

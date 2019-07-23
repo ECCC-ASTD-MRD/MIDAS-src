@@ -48,7 +48,7 @@ program midas_ensembleH
 
   real(8), allocatable :: HXmean(:)
   real(8), allocatable :: HXens(:,:)
-  real(8), pointer     :: HXensT_mpiglobal(:,:)
+  real(8), allocatable :: HXens_mpiglobal(:,:)
   real(8), allocatable :: obsVal(:)
 
   type(struct_vco), pointer :: vco_ens => null()
@@ -125,7 +125,7 @@ program midas_ensembleH
   call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
 
   ! Use the first ensemble member to initialize datestamp and grid
-  call fln_ensFileName( ensFileName, ensPathName, 1 )
+  call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
 
   ! Setup timeCoord module, get datestamp from ensemble member
   call tim_setup( fileNameForDate_opt = ensFileName )
@@ -199,7 +199,7 @@ program midas_ensembleH
   do memberIndex = 1, nEns
     write(*,*) ''
     write(*,*) 'midas-ensembleH: read member ', memberIndex
-    call fln_ensFileName( ensFileName, ensPathName, memberIndex, copyToRamDisk_opt=.false.  )
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call tmg_start(3,'READ_ENSEMBLE')
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
@@ -232,7 +232,7 @@ program midas_ensembleH
   allocate(obsVal(numBody))
 
   ! extract observation value, Y
-  call enkf_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
+  call obs_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
 
   ! ------------------------------------------------------------
   ! Compute H(X) for all members either with TLM or nonlinear H()
@@ -251,7 +251,7 @@ program midas_ensembleH
     call tmg_stop(7)
 
     ! extract observation-minus-HXmean value, Y-HXmean
-    call enkf_extractObsRealBodyColumn(HXmean, obsSpaceData, OBS_OMP)
+    call obs_extractObsRealBodyColumn(HXmean, obsSpaceData, OBS_OMP)
     ! compute HXmean = Y - (Y-HXmean)
     HXmean(:) = obsVal(:) - HXmean(:)
 
@@ -267,7 +267,7 @@ program midas_ensembleH
       call tmg_stop(7)
 
       ! extract HXpert value
-      call enkf_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_WORK)
+      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_WORK)
       ! Recombine mean and perturbation to get total HX values
       HXens(:,memberIndex) = HXmean(:) + HXens(:,memberIndex)
     end do
@@ -288,7 +288,7 @@ program midas_ensembleH
       call tmg_stop(7)
 
       ! extract observation-minus-HX value, Y-HX
-      call enkf_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
+      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
       ! compute HX = Y - (Y-HX)
       HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
 
@@ -314,12 +314,12 @@ program midas_ensembleH
   if ( .not. obsf_filesSplit() ) then 
     call obs_expandToMpiGlobal(obsSpaceData)
   end if
-  call enkf_gatherHX(HXens,HXensT_mpiglobal)
+  call enkf_gatherHX(HXens,HXens_mpiglobal)
   call tmg_stop(8)
 
   ! Output mpiglobal H(X) and obsSpaceData files
   call tmg_start(9,'WRITEHXOBS')
-  call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal_opt = HXensT_mpiglobal, &
+  call obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt = HXens_mpiglobal, &
                         asciDumpObs_opt = asciDumpObs )
   call tmg_stop(9)
 

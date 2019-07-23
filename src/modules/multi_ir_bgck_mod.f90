@@ -202,19 +202,7 @@ contains
 
 !___ transmission by profile
 
-    alloc_status(:) = 0
-    allocate( tvs_transmission(tvs_nobtov), stat=alloc_status(1))
-    call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup tvs_transmission")
-
-    do jo = 1, tvs_nobtov
-      isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      nl = tvs_coefs(isens) % coef % nlevels
-      ! allocate transmittance from surface and from pressure levels
-      allocate( tvs_transmission(jo) % tau_total ( nc ), stat= alloc_status(1))
-      allocate( tvs_transmission(jo) % tau_levels(nl,nc), stat= alloc_status(2))
-      call utl_checkAllocationStatus(alloc_status, " irbg_setup")
-    end do
+    call tvs_allocTransmission
 
 !___ emissivity by profile
 

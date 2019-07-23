@@ -322,7 +322,7 @@ CONTAINS
     vco_anl => vco_anl_in
 
     if ( mpi_myid == 0 ) then
-      call fln_ensfileName(ensFileName, ensPathName, 1)
+      call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
       call vco_SetupFromFile(vco_file, ensFileName)
     end if
     call vco_mpiBcast(vco_file)
@@ -1505,16 +1505,19 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_BSqrt
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_BSqrt(controlVector_in,statevector,useFSOFcst_opt)
+  SUBROUTINE ben_BSqrt(controlVector_in, statevector,  &
+                       useFSOFcst_opt, stateVectorRef_opt)
     implicit none
 
+    ! Arguments
     real(8)          :: controlVector_in(cvDim_mpilocal) 
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
+    type(struct_gsv), optional :: statevectorRef_opt
 
+    ! Locals
     type(struct_ens), target  :: ensAmplitude_M
     type(struct_ens), pointer :: ensAmplitude_M_ptr
-
     integer   :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
@@ -1627,8 +1630,9 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
-       call vtr_transform( statevector, & ! INOUT
-                           'LQtoHU_tlm' ) ! IN
+       call vtr_transform( statevector,   &                        ! INOUT
+                           'LQtoHU_tlm',  &                        ! IN
+                           stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
 
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1639,16 +1643,19 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_BSqrtAd
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_BSqrtAd(statevector,controlVector_out,useFSOFcst_opt)
+  SUBROUTINE ben_BSqrtAd(statevector, controlVector_out,  &
+                         useFSOFcst_opt, stateVectorRef_opt)
     implicit none
 
-    real(8)           :: controlVector_out(cvDim_mpilocal) 
-    type(struct_gsv)  :: statevector
-    logical, optional :: useFSOFcst_opt
+    ! Arguments
+    real(8)                    :: controlVector_out(cvDim_mpilocal) 
+    type(struct_gsv)           :: statevector
+    logical, optional          :: useFSOFcst_opt
+    type(struct_gsv), optional :: statevectorRef_opt
 
+    ! Locals
     type(struct_ens), target  :: ensAmplitude_M
     type(struct_ens), pointer :: ensAmplitude_M_ptr
-
     integer           :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
     logical           :: useFSOFcst
@@ -1683,8 +1690,9 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector, & ! INOUT
-                          'LQtoHU_ad' )  ! IN
+      call vtr_transform( statevector,  &                         ! INOUT
+                          'LQtoHU_ad',  &                         ! IN
+                          stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
 
     !

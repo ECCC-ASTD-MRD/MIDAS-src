@@ -54,9 +54,12 @@ module verticalCoord_mod
 
 contains
   
-  subroutine vco_allocate(vco)
+  !--------------------------------------------------------------------------
+  ! vco_allocateIp1
+  !--------------------------------------------------------------------------
+  subroutine vco_allocateIp1(vco)
     !
-    ! :Purpose: Allocate a vertical coordinate object
+    ! :Purpose: Allocate the ip1 arrays of a vertical coordinate object.
     !
     implicit none
 
@@ -77,15 +80,18 @@ contains
     stat = stat + nl_stat
 
     if( stat /= 0 ) then
-       call utl_abort('vco_allocate: problem with allocate in vco ')
+      call utl_abort('vco_allocateIp1: problem with allocate in vco ')
     endif
 
-  end subroutine vco_allocate
+  end subroutine vco_allocateIp1
 
-
+  !--------------------------------------------------------------------------
+  ! vco_SetupFromFile
+  !--------------------------------------------------------------------------
   subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
     ! 
-    ! :Purpose: Initialize structure for a standard file using vgrid_descriptors library.
+    ! :Purpose: Initialize vertical coordinate object with information from 
+    !           a standard file.
     !
     implicit none
     type(struct_vco),pointer   :: vco          ! Vertical coordinate object 
@@ -102,12 +108,11 @@ contains
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     integer :: ip1_sfc
-    real    :: hyb_r4
-    real*8  :: zterm
     character(len=10) :: blk_S
     logical :: isExist_L, ip1_found, sfcFieldFound
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
+
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
@@ -187,7 +192,7 @@ contains
           sfcFieldFound = .true.
           cycle record_loop
         end if
-        
+
         ! something else was found, abort
         write(*,*) 'vco_setupFromFile: found non-surface record'
         write(*,*) 'varName = ', trim(nomvar), ' typvar = ', typvar, ' ip1 = ', ip1
@@ -312,7 +317,7 @@ contains
       write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     endif
     
-    call vco_allocate(vco)
+    call vco_allocateIp1(vco)
 
     !==========================================================================
     ! Define levels ip1 for momentum levels
@@ -555,7 +560,7 @@ contains
     type(struct_vco), pointer :: vco_destGrid   ! vertical coordinate destination grid
 
     ! internal
-    integer :: status, nAbove
+    integer :: status, nAbove, numLevSource, numLevDest
     real(kind=8) :: sourceModelTop
     real(kind=8), dimension(1,1) :: pSfc
     real(kind=8), pointer, dimension(:,:,:) :: sourcePressureLevels
@@ -563,6 +568,13 @@ contains
 
     nullify(sourcePressureLevels)
     nullify(destPressureLevels)
+
+    numLevSource = vco_getNumLev(vco_sourceGrid,'MM')
+    numLevDest   = vco_getNumLev(vco_destGrid,'MM')
+    if (numLevSource == 1 .and. numLevDest == 1) then
+      write(*,*) 'vco_ensureCompatibleTops: both grids only have 1 level, skip the test'
+      return
+    end if
 
     !dummy pressure value
     pSfc(1,1) = 100.0D3 !100 kPa

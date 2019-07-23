@@ -879,7 +879,6 @@ CONTAINS
     call bmat_sqrtB(cv_pert_mpilocal,cvm_nvadim,statevector_randpert)
 
     if(ntrunc_pert.gt.0) then
-    !  call gsv_scaleVertical(statevector_randpert,scaleFactorTrunc)
       write(*,*) 'WARNING: No scaleFactor applied to truncated perturbation!!!'
     endif
 

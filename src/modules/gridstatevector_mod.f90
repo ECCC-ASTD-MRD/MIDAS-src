@@ -49,7 +49,7 @@ module gridStateVector_mod
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
   public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
-  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copyHeightSfc
+  public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D, gsv_copyHeightSfc
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -98,6 +98,7 @@ module gridStateVector_mod
     integer             :: horizSubSample
     logical             :: varExistList(vnl_numVarMax)
     character(len=12)   :: hInterpolateDegree='UNSPECIFIED' ! or 'LINEAR' or 'CUBIC' or 'NEAREST'
+    character(len=12)   :: hExtrapolateDegree='MAXIMUM' ! or 'MINIMUM' or 'NEUTRAL'
     logical             :: addHeightSfcOffset = .false.
   end type struct_gsv  
 
@@ -170,7 +171,7 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       if ( statevector%varExistList(varIndex) ) then
         if ( (kIndex >= (statevector%varOffset(varIndex) + 1)) .and.  &
-            (kIndex <= (statevector%varOffset(varIndex) + statevector%varNumLev(varIndex))) ) then
+             (kIndex <= (statevector%varOffset(varIndex) + statevector%varNumLev(varIndex))) ) then
           levIndex = kIndex - statevector%varOffset(varIndex)
           return
         end if
@@ -430,7 +431,7 @@ module gridStateVector_mod
   subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp_opt, dateStampList_opt,  &
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
                           varNames_opt, dataKind_opt, allocHeightSfc_opt, hInterpolateDegree_opt,        &
-                          allocHeight_opt, allocPressure_opt, beSilent_opt)
+                          hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt, beSilent_opt)
     implicit none
 
     ! arguments
@@ -447,6 +448,7 @@ module gridStateVector_mod
     integer, optional          :: dataKind_opt
     logical, optional          :: allocHeightSfc_opt,allocHeight_opt,allocPressure_opt,beSilent_opt
     character(len=*), optional :: hInterpolateDegree_opt
+    character(len=*), optional :: hExtrapolateDegree_opt
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
@@ -538,6 +540,11 @@ module gridStateVector_mod
     if ( present(hInterpolateDegree_opt) ) then
       ! set the horizontal interpolation degree (intentionally no default value)
       statevector%hInterpolateDegree = trim(hInterpolateDegree_opt)
+    end if
+
+    if ( present(hExtrapolateDegree_opt) ) then
+      ! set the horizontal extrapolation degree (intentionally no default value)
+      statevector%hExtrapolateDegree = trim(hExtrapolateDegree_opt)
     end if
 
     ! compute the number of global grid points for a given subSample level
@@ -811,7 +818,6 @@ module gridStateVector_mod
         statevector%heightSfcPresent = .true.
         if ( ( statevector%mpi_distribution == 'VarsLevs' .and. mpi_myid == 0 ) .or. &
              statevector%mpi_distribution /= 'VarsLevs' ) then
-          write(*,*) 'gsv_allocate: allocating HeightSfc on this mpi task'
           allocate(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd))
           statevector%HeightSfc(:,:) = 0.0d0
@@ -1033,9 +1039,10 @@ module gridStateVector_mod
                       statevector_inout%hco, statevector_inout%vco,                             &
                       mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                       dataKind_opt=statevector_inout%dataKind,                                  &
-                      allocHeightSfc_opt=statevector_inout%heightSfcPresent,                            &
+                      allocHeightSfc_opt=statevector_inout%heightSfcPresent,                    &
                       varNames_opt=varNamesToInterpolate,                                       &
-                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree )
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
+                      hExtrapolateDegree_opt=statevector_inout%hExtrapolateDegree )
 
     call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
 
@@ -1088,7 +1095,8 @@ module gridStateVector_mod
                       dataKind_opt=statevector_in%dataKind,                                     &
                       allocHeightSfc_opt=statevector_in%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
     call gsv_transposeTilesToVarsLevs( statevector_in, statevector_in_VarsLevs )
 
@@ -1098,7 +1106,8 @@ module gridStateVector_mod
                       dataKind_opt=statevector_out%dataKind,                                    &
                       allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
     if (statevector_in_VarsLevs%dataKind == 4) then
       call gsv_hInterpolate_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
@@ -1321,7 +1330,7 @@ module gridStateVector_mod
     call gsv_varNamesList(varNamesList_in,statevector_in)
     call gsv_varNamesList(varNamesList_out,statevector_out)
 
-    if ( len(varNamesList_in(:)) /= len(varNamesList_out(:)) ) then
+    if ( size(varNamesList_in(:)) /= size(varNamesList_out(:)) ) then
       mismatch = .true.
     else 
       if ( all(varNamesList_in(:) == varNamesList_out(:)) ) then
@@ -1570,6 +1579,81 @@ module gridStateVector_mod
     deallocate(varNameListCommon)
 
   end subroutine gsv_copy
+
+  !--------------------------------------------------------------------------
+  ! gsv_copy4Dto3D
+  !--------------------------------------------------------------------------
+  subroutine gsv_copy4Dto3D(statevector_in,statevector_out)
+    ! :Purpose: Copy contents of a 4D statevector into a 3D statevector
+    !           object by extracting the middle time step.
+    !
+    implicit none
+    ! arguments
+    type(struct_gsv)  :: statevector_in, statevector_out
+
+    ! locals
+    real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
+    real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
+    integer :: middleStepIndex, lonIndex, latIndex, kIndex
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStepIn, numStepOut
+
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_copy4Dto3D: gridStateVector_in not yet allocated')
+    end if
+    if (.not.statevector_out%allocated) then
+      call utl_abort('gsv_copy4Dto3D: gridStateVector_out not yet allocated')
+    end if
+
+    lon1 = statevector_in%myLonBeg
+    lon2 = statevector_in%myLonEnd
+    lat1 = statevector_in%myLatBeg
+    lat2 = statevector_in%myLatEnd
+    k1 = statevector_in%mykBeg
+    k2 = statevector_in%mykEnd
+    numStepIn  =  statevector_in%numStep
+    numStepOut =  statevector_out%numStep
+
+    if (numStepOut /= 1) call utl_abort('gsv_copy4Dto3D: output statevector must have only 1 timestep')
+    if (numStepIn == 1) then
+      write(*,*) 'gsv_copy4Dto3D: WARNING: input statevector only has 1 timestep, will simply copy.'
+    end if
+    middleStepIndex = (numStepIn + 1) / 2
+
+    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
+    end if
+
+    if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
+
+      !$OMP PARALLEL DO PRIVATE (kIndex,latIndex,lonIndex)
+      do kIndex = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            statevector_out%gd_r8(lonIndex,latIndex,kIndex,1) =  &
+              statevector_in%gd_r8(lonIndex,latIndex,kIndex,middleStepIndex)
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else if ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+
+      !$OMP PARALLEL DO PRIVATE (kIndex,latIndex,lonIndex)
+      do kIndex = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            statevector_out%gd_r4(lonIndex,latIndex,kIndex,1) =  &
+              statevector_in%gd_r4(lonIndex,latIndex,kIndex,middleStepIndex)
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else
+      call utl_abort('gsv_copy4Dto3D: Data type must be the same for both statevectors')
+    end if
+
+  end subroutine gsv_copy4Dto3D
 
   !--------------------------------------------------------------------------
   ! gsv_copyHeightSfc
@@ -1837,9 +1921,11 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_scaleVertical(statevector_inout,scaleFactor)
     implicit none
+    ! arguments
     type(struct_gsv) :: statevector_inout
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
     real(8)          :: scaleFactor(:)
+    ! locals
+    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2,levIndex
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated')
@@ -1854,13 +1940,19 @@ module gridStateVector_mod
 
     if ( statevector_inout%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,levIndex)
       do kIndex = k1, k2
+        if (vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, kIndex)) == 'SF') then
+          ! use lowest momentum level for surface variables
+          levIndex = gsv_getNumLev(statevector_inout, 'MM')
+        else
+          levIndex = gsv_getLevFromK(statevector_inout, kIndex)
+        end if
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
-                   scaleFactor(kIndex) * statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+                   scaleFactor(levIndex) * statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -1869,13 +1961,19 @@ module gridStateVector_mod
 
     else
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,levIndex)
       do kIndex = k1, k2
+        if (vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, kIndex)) == 'SF') then
+          ! use lowest momentum level for surface variables
+          levIndex = gsv_getNumLev(statevector_inout, 'MM')
+        else
+          levIndex = gsv_getLevFromK(statevector_inout, kIndex)
+        end if
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
-                   real(scaleFactor(kIndex),4) * statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
+                   real(scaleFactor(levIndex),4) * statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -2557,12 +2655,13 @@ module gridStateVector_mod
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
     ! initialize single precision 3D working copy of statevector for reading file
-    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,             &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex), &
-                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
-                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,               &
-                      varNames_opt=varNamesToRead,                            &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
+    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                &
+                      dateStamp_opt=statevector_out%datestamplist(stepIndex),    &
+                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',     &
+                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,          &
+                      varNames_opt=varNamesToRead,                               &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readHeightSfc_opt=readHeightSfc)
@@ -2570,12 +2669,13 @@ module gridStateVector_mod
     !-- 2.0 Horizontal Interpolation
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
-    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file, &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex),   &
-                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',    &
-                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,                 &
-                      varNames_opt=varNamesToRead,                              &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree )
+    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file,  &
+                      dateStamp_opt=statevector_out%datestamplist(stepIndex),    &
+                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',     &
+                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,          &
+                      varNames_opt=varNamesToRead,                               &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
+                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -2748,11 +2848,12 @@ module gridStateVector_mod
     !-- 1.0 Read the file
 
     ! initialize single precision 3D working copy of statevector for reading file
-    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                &
-                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex), &
-                      mpi_local_opt=.false., dataKind_opt=4,                     &
-                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead,     &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
+    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                    &
+                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),     &
+                      mpi_local_opt=.false., dataKind_opt=4,                         &
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead, &
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
+                      hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
 
     call gsv_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readHeightSfc_opt=readHeightSfc)
@@ -2760,11 +2861,12 @@ module gridStateVector_mod
     !-- 2.0 Horizontal Interpolation
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
-    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file, &
-                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),   &
-                      mpi_local_opt=.false., dataKind_opt=4,                       &
-                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead,       &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree)
+    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file,   &
+                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),     &
+                      mpi_local_opt=.false., dataKind_opt=4,                         &
+                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead, &
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
+                      hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
 
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
@@ -3234,6 +3336,8 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeVarsLevsToTiles: out statevector must have Tiles mpi distribution')
     end if
 
+    call tmg_start(151,'gsv_varsLevsToTiles')
+
     inKind = statevector_in%dataKind
     outKind = statevector_out%dataKind
     if ( inKind == 4 .or. outKind == 4 ) then
@@ -3431,6 +3535,8 @@ module gridStateVector_mod
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if
+
+    call tmg_stop(151)
 
   end subroutine gsv_transposeVarsLevsToTiles
 
@@ -4107,7 +4213,7 @@ module gridStateVector_mod
     real(8), pointer :: fieldUV_in_r8_ptr(:,:,:), fieldUV_out_r8_ptr(:,:,:)
 
     character(len=4) :: varName
-    character(len=12):: interpolationDegree
+    character(len=12):: interpolationDegree, extrapolationDegree
 
     integer :: ezdefset
 
@@ -4127,6 +4233,7 @@ module gridStateVector_mod
 
     ! set the interpolation degree
     interpolationDegree = statevector_out%hInterpolateDegree
+    extrapolationDegree = statevector_out%hExtrapolateDegree
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
@@ -4153,7 +4260,7 @@ module gridStateVector_mod
             do levIndex = 1, nlev
               ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
                                   fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
-                                  interpDegree=trim(interpolationDegree) ) 
+                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           else
             ! interpolate scalar variable
@@ -4161,7 +4268,7 @@ module gridStateVector_mod
             field_out_r8_ptr => gsv_getField_r8(statevector_out, varName)
             do levIndex = 1, nlev
               ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(interpolationDegree) )
+                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           end if
         end do var_loop
@@ -4193,7 +4300,7 @@ module gridStateVector_mod
             fieldUV_out_r8_ptr => gsv_getFieldUV_r8(statevector_out,kIndex)
             ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), fieldUV_out_r8_ptr(:,:,stepIndex), &
                                 fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r8_ptr(:,:,stepIndex), &
-                                interpDegree=trim(interpolationDegree) ) 
+                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV in main vector
             fieldUV_in_r8_ptr  => gsv_getFieldUV_r8(statevector_in,kIndex)
@@ -4202,13 +4309,13 @@ module gridStateVector_mod
             fieldVV_out_r8_ptr => gsv_getField_r8(statevector_out)
             ierr = utl_ezuvint( fieldUV_out_r8_ptr(:,:,stepIndex), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex), &
                                 fieldUV_in_r8_ptr(:,:,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
-                                interpDegree=trim(interpolationDegree) ) 
+                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else
             ! interpolate scalar variable
             field_in_r8_ptr => gsv_getField_r8(statevector_in)
             field_out_r8_ptr => gsv_getField_r8(statevector_out)
             ierr = utl_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
-                               interpDegree=trim(interpolationDegree) )
+                               interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
 
@@ -4220,7 +4327,7 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:), &
-                         interpDegree=trim(interpolationDegree) )
+                         interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
   end subroutine gsv_hInterpolate
@@ -4246,7 +4353,7 @@ module gridStateVector_mod
     real(4), pointer :: fieldUV_in_r4_ptr(:,:,:), fieldUV_out_r4_ptr(:,:,:)
 
     character(len=4) :: varName
-    character(len=12):: interpolationDegree
+    character(len=12):: interpolationDegree, extrapolationDegree
     integer :: ezdefset
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
@@ -4265,6 +4372,7 @@ module gridStateVector_mod
 
     ! set the interpolation degree
     interpolationDegree = statevector_out%hInterpolateDegree
+    extrapolationDegree = statevector_out%hExtrapolateDegree
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
@@ -4291,7 +4399,7 @@ module gridStateVector_mod
             do levIndex = 1, nlev
               ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
                                   fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
-                                  interpDegree=trim(InterpolationDegree) ) 
+                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           else
             ! interpolate scalar variable
@@ -4299,7 +4407,7 @@ module gridStateVector_mod
             field_out_r4_ptr => gsv_getField_r4(statevector_out, varName)
             do levIndex = 1, nlev
               ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(InterpolationDegree) )
+                                 interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           end if
         end do var_loop
@@ -4331,7 +4439,7 @@ module gridStateVector_mod
             fieldUV_out_r4_ptr => gsv_getFieldUV_r4(statevector_out,kIndex)
             ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), fieldUV_out_r4_ptr(:,:,stepIndex),   &
                                 fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r4_ptr(:,:,stepIndex), &
-                                interpDegree=trim(InterpolationDegree) ) 
+                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
             fieldUV_in_r4_ptr  => gsv_getFieldUV_r4(statevector_in,kIndex)
@@ -4340,13 +4448,13 @@ module gridStateVector_mod
             fieldVV_out_r4_ptr => gsv_getField_r4(statevector_out)
             ierr = utl_ezuvint( fieldUV_out_r4_ptr(:,:,stepIndex), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex),   &
                                 fieldUV_in_r4_ptr(:,:,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                                interpDegree=trim(InterpolationDegree) ) 
+                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else
             ! interpolate scalar variable
             field_in_r4_ptr => gsv_getField_r4(statevector_in)
             field_out_r4_ptr => gsv_getField_r4(statevector_out)
             ierr = utl_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                               interpDegree=trim(InterpolationDegree) )
+                               interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
 
@@ -4358,7 +4466,7 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:),  &
-                         interpDegree=trim(InterpolationDegree) )
+                         interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
   end subroutine gsv_hInterpolate_r4
@@ -4417,7 +4525,6 @@ module gridStateVector_mod
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      write(*,*) 'gsv_vInterpolate: Checking that that the top of the destination grid is not higher than the top of the source grid.'
       call vco_ensureCompatibleTops(vco_in, vco_out)
     end if
 
@@ -4806,7 +4913,7 @@ module gridStateVector_mod
       if ( ierr >= 0 ) then
         ierr  =  fstouv(nulfile,'RND')
       else
-        call utl_abort('gsv_writeToFile: problem opening output filen')
+        call utl_abort('gsv_writeToFile: problem opening output file')
       end if
 
       if (nulfile == 0 ) then
@@ -5319,7 +5426,8 @@ module gridStateVector_mod
           call gsv_allocate( stateVector_1step_r4, 1, stateVector_trial%hco, stateVector_trial%vco, &
                              dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
                              allocHeightSfc_opt=allocHeightSfc, varNames_opt=varNamesToRead,        &
-                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree)
+                             hInterpolateDegree_opt=stateVector_trial%hInterpolateDegree,           &
+                             hExtrapolateDegree_opt=stateVector_trial%hExtrapolateDegree)
         else
           call gsv_modifyDate( stateVector_1step_r4, dateStamp )
         end if
@@ -6664,12 +6772,12 @@ module gridStateVector_mod
               smoothedField(lonIndex,latIndex) =  &
                    smoothedField(lonIndex,latIndex) / real(count,8)
             else
-              if (maskNegatives) smoothedField(lonIndex,latIndex) = -0.001D0
+              if (maskNegatives) smoothedField(lonIndex,latIndex) = MPC_missingValue_R8
             end if
           end do
         end do
         if (stateVector%dataKind == 8) then
-          stateVector%gd_r8(:,:,kIndex,stepIndex) = real(smoothedField(:,:),4)
+          stateVector%gd_r8(:,:,kIndex,stepIndex) = smoothedField(:,:)
         else
           stateVector%gd_r4(:,:,kIndex,stepIndex) = real(smoothedField(:,:),4)
         end if

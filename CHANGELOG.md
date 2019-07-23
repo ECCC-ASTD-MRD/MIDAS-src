@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * Add first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245, !233)
  * Footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197, !222)
  * The environment variable `MIDAS_MAKE_LINKS_MACHINE_LIST` can be
    used to control the hosts on which links will be created by

@@ -1253,7 +1253,7 @@ end subroutine filt_topoAISW
   !--------------------------------------------------------------------------
   ! filt_gpsro
   !--------------------------------------------------------------------------
-  SUBROUTINE FILT_GPSRO( lcolumnhr, lobsSpaceData )
+  SUBROUTINE FILT_GPSRO( lcolumnhr, lobsSpaceData, beSilent )
     !
     ! :Purpose: Filter GPSRO observations
     !           Guarantee that altitude and observation values are
@@ -1269,6 +1269,7 @@ end subroutine filt_topoAISW
     !
     type(struct_columnData) :: lcolumnhr
     type(struct_obs)        :: lobsSpaceData
+    logical                 :: beSilent
     !
     INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
     INTEGER JL, ISAT, ICLF, iProfile, NH, I
@@ -1276,8 +1277,10 @@ end subroutine filt_topoAISW
     REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
     LOGICAL LLEV, LOBS, LNOM, LSAT
     !
-    write(*,*)
-    write(*,*) 'filt_gpsro: begin'
+    if (.not.beSilent) then
+      write(*,*)
+      write(*,*) 'filt_gpsro: begin'
+    end if
     !
     !     Loop over all header indices of the 'RO' family:
     !
@@ -1409,7 +1412,7 @@ end subroutine filt_topoAISW
 
     END IF
 
-    write(*,*) 'filt_gpsro: end'
+    if (.not.beSilent) write(*,*) 'filt_gpsro: end'
 
   END SUBROUTINE FILT_GPSRO
 

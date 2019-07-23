@@ -27,23 +27,28 @@ module fileNames_mod
   private
 
   ! public procedures
-  public :: fln_ensFileName
+  public :: fln_ensFileName, fln_ensAnlFileName
 
 contains
 
  !--------------------------------------------------------------------------
  ! fln_ensFileName
  !--------------------------------------------------------------------------
-  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, &
-                             ensFileNamePrefix_opt, ensFileBaseName_opt, &
-                             shouldExist_opt, ensembleFileExtLength_opt, &
-                             copyToRamDisk_opt)
+  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
+                             ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
+                             copyToRamDisk_opt )
+    ! :Purpose: Return the filename of an ensemble member. Will also call routine in 
+    !           ramdisk_mod module that will copy the file (if shouldExist_opt is true)
+    !           to the ram disk. If the memberIndex_opt is not specified, the filename
+    !           is returned without the member index extension (used to read deterministic
+    !           background state that is stored in the ensemble directory for LETKF).
+    !
     implicit none
 
     ! Arguments:
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
-    integer           :: memberIndex
+    integer, optional :: memberIndex_opt
     character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
     logical, optional :: shouldExist_opt
     integer, optional :: ensembleFileExtLength_opt
@@ -114,13 +119,24 @@ contains
       firstTime = .false.
     end if
 
-    write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
-    write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex
+    if (present(memberIndex_opt)) then
+      write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
+      write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex_opt
+    end if
 
-    if (present(ensFileNamePrefix_opt)) then
-      ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName) // '_' // trim(ensNumber)
+    if (present(memberIndex_opt)) then
+      if (present(ensFileNamePrefix_opt)) then
+        ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) //  &
+                      trim(ensFileBaseName) // '_' // trim(ensNumber)
+      else
+        ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+      end if
     else
-      ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+      if (present(ensFileNamePrefix_opt)) then
+        ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName)
+      else
+        ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName)
+      end if
     end if
 
     write(*,*) 'fln_ensFileName: ensFileName = ', trim(ensFileName)
@@ -131,5 +147,58 @@ contains
     if (present(ensembleFileExtLength_opt)) ensembleFileExtLength_opt = ensembleFileExtLength
 
   end subroutine fln_ensFileName
+
+ !--------------------------------------------------------------------------
+ ! fln_ensAnlFileName
+ !--------------------------------------------------------------------------
+  subroutine fln_ensAnlFileName( ensFileName, ensPathName, dateStamp,  &
+                                 memberIndex_opt, ensFileNamePrefix_opt )
+    ! :Purpose: Return the filename for an analysis state, including for
+    !           ensemble members (by specifying memberIndex_opt). The member
+    !           index extension is assumed to be 4 digits.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*)  :: ensFileName
+    character(len=*)  :: ensPathName
+    integer           :: dateStamp
+    integer, optional :: memberIndex_opt
+    character(len=*), optional :: ensFileNamePrefix_opt
+
+    ! locals
+    integer :: imode, ierr, hours, prntdate, prnttime, newdate
+    character(len=4)  :: ensNumber
+    character(len=10) :: dateStrAnl
+
+    ! Set the printable date for analysis related file names
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr = newdate(dateStamp, prntdate, prnttime, imode)
+    hours = prnttime/1000000
+    write(dateStrAnl,'(i10.10)') prntdate*100 + hours
+
+    if (present(memberIndex_opt)) then
+      write(ensNumber,'(i4.4)') memberIndex_opt
+    end if
+
+    if (present(memberIndex_opt)) then
+      if (present(ensFileNamePrefix_opt)) then
+        ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                      dateStrAnl // '_000_' // trim(ensNumber)
+      else
+        ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000_' // trim(ensNumber)
+      end if
+    else
+      if (present(ensFileNamePrefix_opt)) then
+        ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                      dateStrAnl // '_000'
+      else
+        ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000'
+      end if
+    end if
+
+    write(*,*) 'fln_ensAnlFileName: ensFileName = ', trim(ensFileName)
+
+  end subroutine fln_ensAnlFileName
 
 end module fileNames_mod

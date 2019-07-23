@@ -154,7 +154,8 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_sqrtB
   !-------------------------------------------------------------------------- 
-  subroutine bmat_sqrtB(controlVector,cvdim,statevector,useFSOFcst_opt)
+  subroutine bmat_sqrtB(controlVector, cvdim, statevector,  &
+                        useFSOFcst_opt, stateVectorRef_opt)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
     !          space.
@@ -163,10 +164,11 @@ contains
     implicit none
 
     ! arguments
-    integer         :: cvdim
-    real(8)         :: controlVector(cvdim)
-    type(struct_gsv) :: statevector
-    logical,optional :: useFSOFcst_opt
+    integer                    :: cvdim
+    real(8)                    :: controlVector(cvdim)
+    type(struct_gsv)           :: statevector
+    logical, optional          :: useFSOFcst_opt
+    type(struct_gsv), optional :: stateVectorRef_opt
 
     ! locals
     integer :: bmatIndex
@@ -182,6 +184,7 @@ contains
     call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
+                       dateStampList_opt=statevector%dateStampList,      &
                        mpi_local_opt=.true., varNames_opt=varNames )
     deallocate(varNames)
 
@@ -201,11 +204,13 @@ contains
         !- 2.1 Time-Mean Homogeneous and Isotropic...
         call tmg_start(50,'B_HI')
         if ( globalGrid ) then
-          call bhi_bsqrt( subVector,       & ! IN
-                          statevector_temp ) ! OUT
+          call bhi_bsqrt( subVector,        &  ! IN
+                          statevector_temp, &  ! OUT
+                          stateVectorRef_opt ) ! IN
         else
-          call lbhi_bSqrt( subVector,       & ! IN
-                           statevector_temp ) ! OUT
+          call lbhi_bSqrt( subVector,        &  ! IN
+                           statevector_temp, &  ! OUT
+                           stateVectorRef_opt ) ! IN
         end if
         call tmg_stop(50)
 
@@ -241,7 +246,8 @@ contains
         call tmg_start(60,'B_ENS')
         call ben_bsqrt( subVector,         & ! IN
                         statevector_temp,  & ! OUT
-                        useFSOFcst_opt )     ! IN
+                        useFSOFcst_opt,    & ! IN
+                        stateVectorRef_opt ) ! IN
         call tmg_stop(60)
 
       end select
@@ -261,20 +267,22 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_sqrtBT
   !--------------------------------------------------------------------------
-  subroutine bmat_sqrtBT(controlVector,cvdim,statevector,useFSOFcst_opt)
+  subroutine bmat_sqrtBT(controlVector, cvdim, statevector,  &
+                         useFSOFcst_opt, stateVectorRef_opt)
     !
     !:Purpose: To transform model state from grid-point space to
     !          error-covariance space.
     !
     implicit none
 
-    ! arguments
+    ! Arguments
     integer :: cvdim
     real(8) :: controlVector(cvdim)
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
+    type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! locals
+    ! Locals
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
@@ -284,6 +292,7 @@ contains
     call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
                        gsv_getHco(statevector), gsv_getVco(statevector), &
+                       dateStampList_opt=statevector%dateStampList,      &
                        mpi_local_opt=.true., varNames_opt=varNames )
     deallocate(varNames)
 
@@ -305,9 +314,10 @@ contains
         !- 2.1 Flow-dependent Ensemble-Based
 
         call tmg_start(61,'B_ENS_T')
-        call ben_bsqrtad( statevector_temp, & ! IN
-                          subVector,        & ! OUT
-                          useFSOFcst_opt)     ! IN
+        call ben_bsqrtad( statevector_temp, &  ! IN
+                          subVector,        &  ! OUT
+                          useFSOFcst_opt,   &  ! IN
+                          stateVectorRef_opt ) ! IN
         call tmg_stop(61)
 
 
@@ -342,11 +352,13 @@ contains
         !- 2.5 Time-Mean Homogeneous and Isotropic...
         call tmg_start(51,'B_HI_T')
         if ( globalGrid ) then
-          call bhi_bsqrtad( statevector_temp, & ! IN
-                            subVector )         ! OUT
+          call bhi_bsqrtad( statevector_temp, &  ! IN
+                            subVector,        &  ! OUT
+                            stateVectorRef_opt ) ! IN
         else
-          call lbhi_bSqrtAdj( statevector_temp, & ! IN
-                              subVector )         ! OUT
+          call lbhi_bSqrtAdj( statevector_temp, &  ! IN
+                              subVector,        &  ! OUT
+                              stateVectorRef_opt ) ! IN
         end if
         call tmg_stop(51)
 

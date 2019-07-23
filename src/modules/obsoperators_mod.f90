@@ -67,14 +67,16 @@ contains
   !--------------------------------------------------------------------------
   ! oop_vobslyrs
   !--------------------------------------------------------------------------
-  subroutine oop_vobslyrs( columnghr, obsSpaceData )
+  subroutine oop_vobslyrs( columnghr, obsSpaceData, beSilent )
     !
     ! :Purpose:
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to obs data.
-    IMPLICIT NONE
+    !
+    implicit none
     type(struct_columnData) :: columnghr
     type(struct_obs) :: obsSpaceData
+    logical beSilent
 
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
@@ -82,7 +84,7 @@ contains
     CHARACTER(len=2) :: varLevel
     integer :: headerIndex, bodyIndex
 
-    Write(*,*) "Entering subroutine OOP_VOBSLYRS"
+    if (.not.beSilent) write(*,*) "Entering subroutine OOP_VOBSLYRS"
 
     ! 2D mode patch
     if ( col_getNumLev(columnghr,'MM') <= 1 ) then 
@@ -263,7 +265,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ppp_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ppp_nl( columnhr, obsSpaceData, jobs, cdfam )
+  subroutine oop_ppp_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
     !
     ! :Purpose: Computation of Jobs and y - H(x)
     !           for pressure-level observations.
@@ -278,6 +280,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
     real(8)                 :: jobs
     character(len=*)        :: cdfam
 
@@ -295,7 +298,7 @@ contains
     !
     ! Temperature lapse rate for extrapolation of height below model surface
     !
-    Write(*,*) "Entering subroutine oop_ppp_nl"
+    if (.not.beSilent) write(*,*) 'Entering subroutine oop_ppp_nl'
 
     zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
@@ -390,7 +393,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_zzz_nl
   !--------------------------------------------------------------------------
-  subroutine oop_zzz_nl( columnhr, obsSpaceData, jobsOut, cdfam)
+  subroutine oop_zzz_nl( columnhr, obsSpaceData, beSilent, jobsOut, cdfam)
     !
     ! :Purpose: Computation of Jobs and y - H(x) for geometric-height observations
     !           Interpolate vertically columnhr to the geometric heights (in
@@ -416,6 +419,7 @@ contains
     implicit none
     type(struct_columnData),    intent(in)    :: columnhr
     type(struct_obs),           intent(inout) :: obsSpaceData
+    logical,                    intent(in)    :: beSilent
     real(8),          optional, intent(out)   :: jobsOut
     character(len=*), optional, intent(in)    :: cdfam
 
@@ -446,12 +450,12 @@ contains
 
     namelist /NAMALADIN_OBS/do_adjust_aladin
 
-    Write(*,*) "Entering subroutine oop_zzz_nl"
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_zzz_nl"
 
     if(present(cdfam)) then
       call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
     else
-      write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
+      if (.not.beSilent) write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
       call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
     endif
 
@@ -467,7 +471,7 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namaladin_obs,iostat=ierr)
     if(ierr.ne.0) call utl_abort('oop_zzz_nl: Error reading namelist')
-    write(*,nml=namaladin_obs)
+    if (.not.beSilent) write(*,nml=namaladin_obs)
     ierr=fclos(nulnam)
 
     jobs=0.d0
@@ -602,7 +606,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sfc_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sfc_nl( columnhr, obsSpaceData, jobs, cdfam )
+  subroutine oop_sfc_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
     !
     ! :Purpose:  Computation of Jo and the residuals to the observations
     !            FOR SURFACE DATA (except ground-based GPS zenith delay).
@@ -619,6 +623,7 @@ contains
 
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
     real(8)                 :: jobs
     character(len=*)        :: cdfam
 
@@ -631,7 +636,7 @@ contains
     ! Temperature lapse rate for extrapolation of height below model surface
     !
 
-    Write(*,*) "Entering subroutine oop_sfc_nl"
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_sfc_nl"
 
     zgamma = 0.0065d0
     zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
@@ -750,7 +755,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sst_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sst_nl( columnhr, obsSpaceData, jobs, cdfam)
+  subroutine oop_sst_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam)
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for Sea Surface Temperature (SST) data.
@@ -760,6 +765,7 @@ contains
     ! arguments
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
 
@@ -768,7 +774,7 @@ contains
     real(8)          :: obsValue
     character(len=4) :: varName
 
-    write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_sst_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -821,7 +827,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_hydro_nl
   !--------------------------------------------------------------------------
-  subroutine oop_hydro_nl(columnhr, obsSpaceData, jobs, cdfam)
+  subroutine oop_hydro_nl(columnhr, obsSpaceData, beSilent, jobs, cdfam)
     !
     ! :Purpose: To computate Jo and the residuals to the observations
     !           for hydrological data
@@ -830,6 +836,7 @@ contains
     ! arguments
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
     ! locals
@@ -837,7 +844,7 @@ contains
     real(8)          :: obsValue
     character(len=4) :: varName
 
-    write(*,*) "Entering subroutine oop_hydro_nl, family: ", trim(cdfam)
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_hydro_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -884,7 +891,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ice_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ice_nl( columnhr, obsSpaceData, jobs, cdfam )
+  subroutine oop_ice_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
@@ -894,6 +901,7 @@ contains
     ! arguments
     type(struct_columnData), intent(in)    :: columnhr
     type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
     real(8)                , intent(  out) :: jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
 
@@ -902,7 +910,7 @@ contains
     real(8) :: obsValue, scaling
     character(len=4) :: varName
 
-    write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_ice_nl, family: ", trim(cdfam)
 
     jobs = 0.d0
 
@@ -949,7 +957,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_gpsro_nl
   !--------------------------------------------------------------------------
-  subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
+  subroutine oop_gpsro_nl(columnhr, obsSpaceData, beSilent, jobs)
     !
     ! :Purpose: Computation of Jo and the residuals to the GPSRO observations
     !
@@ -988,7 +996,7 @@ contains
     type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
     integer :: Vcode
 
-    write(*,*)'ENTER oop_gpsro_nl'
+    if (.not.beSilent) write(*,*)'ENTER oop_gpsro_nl'
 
     vco_hr => col_getVco(columnhr)
     vcode = vco_hr%vcode
@@ -1211,7 +1219,7 @@ contains
     deallocate(ztt)
     deallocate(zpp)
 
-    write(*,*)'EXIT oop_gpsro_nl'
+    if (.not.beSilent) write(*,*)'EXIT oop_gpsro_nl'
 
   end subroutine oop_gpsro_nl
 
@@ -1270,7 +1278,7 @@ contains
     real(8) :: xdzmax
     data xdzmax    / 400.0d0 /
 
-    write(*,*)'ENTER oop_gpsgb_nl'
+    if (.not.beSilent) write(*,*)'ENTER oop_gpsgb_nl'
 
     if(present(analysisMode_opt)) then
        analysisMode = analysisMode_opt
@@ -1584,7 +1592,7 @@ contains
 
     end if
 
-    write(*,*)'EXIT oop_gpsgb_nl'
+    if (.not.beSilent) write(*,*)'EXIT oop_gpsgb_nl'
 
   end subroutine oop_gpsgb_nl
 
@@ -1629,7 +1637,7 @@ contains
     ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
 
-    Write(*,*) "Entering subroutine oop_tovs_nl"
+    if (.not.beSilent) write(*,*) "Entering subroutine oop_tovs_nl"
 
     if(present(bgckMode_opt)) then
        bgckMode = bgckMode_opt
@@ -1689,7 +1697,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_chm_nl
   !--------------------------------------------------------------------------
-  subroutine oop_chm_nl( columnhr, obsSpaceData, jobs )
+  subroutine oop_chm_nl( columnhr, obsSpaceData, beSilent, jobs )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for all observations of the CH (chemical constituents) family.
@@ -1705,6 +1713,7 @@ contains
     
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical                 :: beSilent
     real(8)                 :: jobs
     
     if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) then
@@ -1741,7 +1750,7 @@ contains
 
     if ( firstTime ) then
       !     Find interpolation layer in model profiles (used by several operators)
-      if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng,obsSpaceData)
+      if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng, obsSpaceData, beSilent=.false.)
 
       !     Initialize some operators needed by linearized H
       call subasic_obs(columng)
@@ -2541,7 +2550,7 @@ contains
 
     !     Find interpolation layer in model profiles (used by several operators)
     if ( firstTime ) then
-      if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng,obsSpaceData)
+      if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng, obsSpaceData, beSilent=.false.)
       firstTime = .false.
     end if
 
