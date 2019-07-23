@@ -84,6 +84,8 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     . r.load.dot eccc/mrd/rpn/libs/19.1
     echo "... loading cray-hdf5"
     module load cray-hdf5
+    echo "... loading hpco/exp/sqlite/3.29.0"
+    . ssmuse-sh -d hpco/exp/sqlite/3.29.0
 fi
 
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
