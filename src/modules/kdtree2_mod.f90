@@ -122,38 +122,6 @@ contains
     return
   end function pq_create
 
-  !
-  ! operations for getting parents and left + right children
-  ! of elements in a binary heap.
-  !
-
-!
-! These are written inline for speed.
-!    
-!  integer function parent(i)
-!    integer, intent(in) :: i
-!    parent = (i/2)
-!    return
-!  end function parent
-
-!  integer function left(i)
-!    integer, intent(in) ::i
-!    left = (2*i)
-!    return
-!  end function left
-
-!  integer function right(i)
-!    integer, intent(in) :: i
-!    right = (2*i)+1
-!    return
-!  end function right
-
-!  logical function compare_priority(p1,p2)
-!    real(kdkind), intent(in) :: p1, p2
-!
-!    compare_priority = (p1 .gt. p2)
-!    return
-!  end function compare_priority
 
   subroutine heapify(a,i_in)
     ! :Purpose: take a heap rooted at 'i' and force it to be in the
@@ -714,18 +682,6 @@ contains
       logical :: recompute
       real(kdkind)    :: average
 
-!!$      If (.False.) Then 
-!!$         If ((l .Lt. 1) .Or. (l .Gt. tp%n)) Then
-!!$            Stop 'illegal L value in build_tree_for_range'
-!!$         End If
-!!$         If ((u .Lt. 1) .Or. (u .Gt. tp%n)) Then
-!!$            Stop 'illegal u value in build_tree_for_range'
-!!$         End If
-!!$         If (u .Lt. l) Then
-!!$            Stop 'U is less than L, thats illegal.'
-!!$         End If
-!!$      Endif
-!!$      
       ! first compute min and max
       dimen = tp%dimen
       allocate (res)

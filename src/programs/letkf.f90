@@ -129,7 +129,7 @@ program midas_letkf
   obsMpiStrategy = 'LIKESPLITFILES'
 
   !
-  ! MPI, TMG initialization
+  !- 0. MPI, TMG and misc. initialization
   !
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_LETKF' )
@@ -144,7 +144,11 @@ program midas_letkf
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
-  ! Setting default namelist variable values
+  !
+  !- 1. Set/Read values for the namelist NAMLETKF
+  !
+
+  !- 1.1 Setting default namelist variable values
   nEns                  = 10
   maxNumLocalObs        = 1000
   weightLatLonStep      = 1
@@ -161,7 +165,7 @@ program midas_letkf
   imposeRttovHuLimits   = .false.
   obsTimeInterpType     = 'LINEAR'
 
-  ! Read the namelist
+  !- 1.2 Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namletkf, iostat=ierr)
@@ -169,13 +173,20 @@ program midas_letkf
   if ( mpi_myid == 0 ) write(*,nml=namletkf)
   ierr = fclos(nulnam)
 
+  !- 1.3 Some minor modifications of namelist values
   hLocalize = hLocalize * 1000.0D0 ! convert from km to m
   if (alphaRTPP < 0.0D0) alphaRTPP = 0.0D0
   if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
   if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
 
-  ! Read the observations
+  !
+  !- 2.  Initialization
+  !
+
+  !- 2.1 Read the observations
   call obsf_setup( dateStamp, midasMode )
+
+  !- 2.2 Initialize date/time-related info
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
@@ -191,10 +202,10 @@ program midas_letkf
 
   write(*,*) 'midas-letkf: analysis dateStamp = ',tim_getDatestamp()
 
-  ! Initialize variables of the model states
+  !- 2.3 Initialize variables of the model states
   call gsv_setup
 
-  ! Initialize the Ensemble grid
+  !- 2.4 Initialize the Ensemble grid
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
@@ -213,10 +224,13 @@ program midas_letkf
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  ! Read in the observations
+  !- 2.5 Read in the observations and other obs-related set up
+
+  ! Read the observations
   call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
                      obsClean_opt = .false. )
-  ! Set up the observation operators
+
+  ! Set up the obs operators
   call oop_setup(midasMode)
 
   ! Initialize the observation error covariances
@@ -225,7 +239,7 @@ program midas_letkf
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
 
-  ! Initialize a single columnData object
+  !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call col_setup
   call col_setVco(column, vco_ens)
@@ -233,14 +247,14 @@ program midas_letkf
                     mpiLocal_opt=.true., setToZero_opt=.true.)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  ! Read the sfc height from ensemble member 1
+  !- 2.7 Read the sfc height from ensemble member 1
   call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
   call gsv_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                          containsFullField_opt=.true., readHeightSfc_opt=.true. )
 
-  ! Allocate various statevectors related to ensemble mean
+  !- 2.8 Allocate various statevectors related to ensemble mean
   call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -262,17 +276,17 @@ program midas_letkf
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanAnl)
 
-  ! Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
+  !- 2.9 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
   call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
 
-  ! Allocate ensembles, read the Trl ensemble
+  !- 2.10 Allocate ensembles, read the Trl ensemble
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
 
-  ! Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
+  !- 2.11 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   if (tim_nstepobsinc < tim_nstepobs) then
@@ -282,7 +296,7 @@ program midas_letkf
   end if
   call gsv_copy(stateVectorMeanTrl, stateVectorMeanAnl)
 
-  ! If deterministic background exists, do allocation and then read it
+  !- 2.12 If deterministic background exists, do allocation and then read it
   call fln_ensFileName( deterFileName, ensPathName )
   inquire(file=deterFileName, exist=deterExists)
   if (deterExists) then
@@ -327,8 +341,10 @@ program midas_letkf
   end if
 
   !
-  ! If it exists, compute HX for deterministic background
+  !- 3. Compute HX values with results in ensObs
   !
+
+  !- 3.1 If it exists, compute HX for deterministic background
   if (deterExists) then
 
     write(*,*) ''
@@ -351,9 +367,8 @@ program midas_letkf
     call eob_setDeterYb(ensObs)
 
   end if
-  ! 
-  ! Loop over all members and compute HX for each
-  !
+
+  !- 3.2 Loop over all members and compute HX for each
   do memberIndex = 1, nEns
 
     write(*,*) ''
@@ -380,10 +395,12 @@ program midas_letkf
 
   end do
 
+  !- 3.3 Set some additional information in ensObs and then communicate globally
+
   ! Set assimilation flag in ensObs using value after applying H to all members
   call eob_setAssFlag(ensObs)
 
-  ! Compute and remove the mean of Yb
+  !  Compute and remove the mean of Yb
   call eob_calcRemoveMeanYb(ensObs)
 
   ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
@@ -405,7 +422,11 @@ program midas_letkf
 
   call tmg_stop(2)
 
-  ! Adjust tile limits for weight calculation to include interpolation halo
+  !
+  !- 4. Final preparations for computing analyses
+  !
+
+  !- 4.1 Adjust tile limits for weight calculation to include interpolation halo
   numK = stateVectorMeanInc%nk
   myLonBeg = stateVectorMeanInc%myLonBeg
   myLonEnd = stateVectorMeanInc%myLonEnd
@@ -420,7 +441,7 @@ program midas_letkf
   write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
              myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
 
-  ! Copy trial ensemble to nstepobsinc time steps
+  !- 4.2 Copy trial ensemble to nstepobsinc time steps
   if (tim_nstepobsinc < tim_nstepobs) then
     allocate(ensembleTrl)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
@@ -431,13 +452,11 @@ program midas_letkf
     ensembleTrl => ensembleTrl4D
   end if
 
-  ! Copy trl ensemble to anl ensemble
+  !- 4.3 Copy trl ensemble to anl ensemble
   call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
   call ens_copy(ensembleTrl,ensembleAnl)
 
-  !
-  ! Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
-  !
+  !- 4.4 Compute background ens mean 3D log pressure and make mpiglobal for vertical localization
   call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
@@ -460,9 +479,7 @@ program midas_letkf
   nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
   call rpn_comm_bcast(logPres_M_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
 
-  !
-  ! Setup for interpolating weights from coarse to full resolution
-  !
+  !- 4.5 Setup for interpolating weights from coarse to full resolution
   call tmg_start(92,'LETKF-interpolateWeights')
   call enkf_setupInterpInfo(wInterpInfo, weightLatLonStep, stateVectorMeanInc%ni,  &
                             stateVectorMeanInc%nj, myLonBegHalo, myLonEndHalo,  &
@@ -470,15 +487,15 @@ program midas_letkf
   call tmg_stop(92)
 
   !
-  ! Main calculation of ensemble and deterministic analyses
+  !- 5. Main calculation of ensemble and deterministic analyses
   !
+
+  !- 5.1 Do actual analysis calculations in internal subroutine
   call tmg_start(3,'LETKF-doAnalysis')
   call letkf_computeAnalyses
   call tmg_stop(3)
 
-  !
-  ! Compute ensemble spread stddev Trl and Anl
-  !
+  !- 5.2 Compute ensemble spread stddev Trl and Anl
   call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
@@ -493,24 +510,22 @@ program midas_letkf
   call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
   !
-  ! Apply RTPS, if requested
+  !- 6. Post processing of analysis results
   !
+
+  !- 6.1 Apply RTPS, if requested
   if (alphaRTPS > 0.0D0) then
     call enkf_RTPS(ensembleAnl, ensembleTrl, stateVectorStdDevAnl, stateVectorStdDevTrl, stateVectorMeanAnl, alphaRTPS)
   end if
 
-  !
-  ! Apply random additive inflation, if requested
-  !
+  !- 6.2 Apply random additive inflation, if requested
   if (alphaRandomPert > 0.0D0) then
     call tmg_start(101,'LETKF-randomPert')
     call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeed)
     call tmg_stop(101)
   end if
 
-  !
-  ! Impose limits on humidity, if requested
-  !
+  !- 6.3 Impose limits on humidity, if requested
   if (imposeSaturationLimit .or. imposeRttovHuLimits) then 
     call tmg_start(102,'LETKF-imposeHulimits')
     ! impose limits on analysis ensemble
@@ -533,20 +548,18 @@ program midas_letkf
     call tmg_stop(102)
   end if
 
-  !
-  ! Recompute the analysis spread stddev after inflation and humidity limits
-  !
+  !- 6.4 Recompute the analysis spread stddev after inflation and humidity limits
   if (alphaRTPS > 0.0D0 .or. alphaRandomPert > 0.0D0) then
     call ens_computeStdDev(ensembleAnl)
     call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
   end if
 
   !
-  ! Output everything
+  !- 7. Output everything
   !
   call tmg_start(4,'LETKF-writeOutput')
 
-  ! Output the ensemble spread stddev Trl and Anl
+  !- 7.1 Output the ensemble spread stddev Trl and Anl
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
   outFileName = trim(outFileName) // '_stddev'
   do stepIndex = 1, tim_nstepobsinc
@@ -560,7 +573,7 @@ program midas_letkf
                          stepIndex_opt=stepIndex, containsFullField_opt=.false.)
   end do
 
-  ! Output the ensemble mean increment
+  !- 7.2 Output the ensemble mean increment
   if (writeIncrements) then
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
     outFileName = trim(outFileName) // '_inc'
@@ -571,7 +584,7 @@ program midas_letkf
     end do
   end if
 
-  ! Output the ensemble mean analysis state
+  !- 7.3 Output the ensemble mean analysis state
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
   !if (gsv_varExist(stateVectorMeanAnl,'LPR')) call vtr_transform(stateVectorMeanAnl, 'LPRtoPR')
   do stepIndex = 1, tim_nstepobsinc
@@ -581,7 +594,7 @@ program midas_letkf
   end do
 
   if (deterExists) then
-    ! Output the deterministic increment
+    !- 7.4 Output the deterministic increment
     if (writeIncrements) then
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
       outFileName = trim(outFileName) // '_inc'
@@ -592,7 +605,7 @@ program midas_letkf
       end do
     end if
 
-    ! Output the deterministic analysis state
+    !- 7.5 Output the deterministic analysis state
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
     !if (gsv_varExist(stateVectorDeterAnl,'LPR')) call vtr_transform(stateVectorDeterAnl, 'LPRtoPR')
     do stepIndex = 1, tim_nstepobsinc
@@ -602,7 +615,7 @@ program midas_letkf
     end do
   end if
 
-  ! Output all ensemble member analyses
+  !- 7.6 Output all ensemble member analyses
   if (updateMembers) then
     !if (gsv_varExist(varName='LPR')) call vtr_transform(ensembleAnl, 'LPRtoPR')
     call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
@@ -610,7 +623,7 @@ program midas_letkf
                            containsFullField_opt=.true.)
   end if
 
-  ! Output all ensemble member increments
+  !- 7.7 Output all ensemble member increments
   if (writeIncrements) then
     ! WARNING: Increment put in ensembleTrl for output
     call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
@@ -619,11 +632,11 @@ program midas_letkf
                            containsFullField_opt=.false.)
   end if
 
-  ! Output obs files with mean OMP
+  !- 7.8 Output obs files with mean OMP
   call obsf_writeFiles( obsSpaceData )
 
   !
-  ! MPI, tmg finalize
+  !- 8. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(4)
@@ -634,9 +647,6 @@ program midas_letkf
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !
-  ! Ending
-  !
   if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
   if ( mpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
   if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
@@ -704,8 +714,9 @@ subroutine letkf_computeAnalyses
 
         ! Get list of nearby observations and distances to gridpoint
         call tmg_start(9,'LETKF-getLocalBodyIndices')
-        numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal,localBodyIndices,distances,  &
-                      anlLat,anlLon,anlLogPres,hLocalize,vLocalize,numLocalObsFound)
+        numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
+                                              distances, anlLat, anlLon, anlLogPres,  &
+                                              hLocalize, vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1
           maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
@@ -723,14 +734,10 @@ subroutine letkf_computeAnalyses
           call tmg_start(18,'LETKF-locFunction')
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize)
-          if (localization < 0.0D0) localization = 0.0D0
-          if (localization > 1.0D0) localization = 1.0D0
           ! Vertical - use pressures at the grid point (not obs) location
           if (vLocalize > 0) then
             distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
-            if (localization < 0.0D0) localization = 0.0D0
-            if (localization > 1.0D0) localization = 1.0D0
           end if
           call tmg_stop(18)
 
@@ -967,7 +974,7 @@ subroutine letkf_computeAnalyses
     end do
     call utl_heapsort2d(allSecondsTotal)
     nulFile = 0
-    ierr = fnom(nulFile, './procOrder.dat', 'FTN+SEQ+R/W', 0)
+    ierr = fnom(nulFile, './procOrder.txt', 'FTN+SEQ+R/W', 0)
     do procIndex = 1, mpi_nprocs
       write(nulFile,*) allSecondsTotal(procIndex,:)
     end do

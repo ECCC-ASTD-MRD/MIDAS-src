@@ -1584,6 +1584,9 @@ module gridStateVector_mod
   ! gsv_copy4Dto3D
   !--------------------------------------------------------------------------
   subroutine gsv_copy4Dto3D(statevector_in,statevector_out)
+    ! :Purpose: Copy contents of a 4D statevector into a 3D statevector
+    !           object by extracting the middle time step.
+    !
     implicit none
     ! arguments
     type(struct_gsv)  :: statevector_in, statevector_out

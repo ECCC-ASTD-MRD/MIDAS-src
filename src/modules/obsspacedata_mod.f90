@@ -3554,61 +3554,69 @@ contains
    end subroutine obs_expandToMpiGlobal
 
 
-   subroutine obs_extractObsRealBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+   subroutine obs_extractObsRealBodyColumn(realBodyColumn, obsSpaceData, obsColumnIndex)
+     ! :Purpose: Extract contents of a real body column into a vector.
+     !
      implicit none
 
      ! arguments
-     real(8)          :: outputVector(:)
-     type(struct_obs) :: obsSpaceData
-     integer          :: obsColumnIndex
+     real(8), intent(out) :: realBodyColumn(:)
+     type(struct_obs)     :: obsSpaceData
+     integer              :: obsColumnIndex
 
      ! locals
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
-       outputVector(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
+       realBodyColumn(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
      end do
 
    end subroutine obs_extractObsRealBodyColumn
 
 
-   subroutine obs_extractObsIntBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
+   subroutine obs_extractObsIntBodyColumn(intBodyColumn, obsSpaceData, obsColumnIndex)
+     ! :Purpose: Extract contents of an integer body column into a vector.
+     !
      implicit none
 
      ! arguments
-     integer          :: outputVector(:)
-     type(struct_obs) :: obsSpaceData
-     integer          :: obsColumnIndex
+     integer, intent(out) :: intBodyColumn(:)
+     type(struct_obs)     :: obsSpaceData
+     integer              :: obsColumnIndex
 
      ! locals
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
-       outputVector(bodyIndex) = obs_bodyElem_i(obsSpaceData,obsColumnIndex,bodyIndex)
+       intBodyColumn(bodyIndex) = obs_bodyElem_i(obsSpaceData,obsColumnIndex,bodyIndex)
      end do
 
    end subroutine obs_extractObsIntBodyColumn
 
 
-   subroutine obs_extractObsRealHeaderColumn(outputVector, obsSpaceData, obsColumnIndex)
+   subroutine obs_extractObsRealHeaderColumn(realHeaderColumn, obsSpaceData, obsColumnIndex)
+     ! :Purpose: Extract contents of a real header column into a vector. Note
+     !           that the output can be either in the form of a vector with
+     !           length equal to the number of rows in the body OR header table.
+     !
      implicit none
 
      ! arguments
-     real(8)          :: outputVector(:)
-     type(struct_obs) :: obsSpaceData
-     integer          :: obsColumnIndex
+     real(8), intent(out) :: realHeaderColumn(:)
+     type(struct_obs)     :: obsSpaceData
+     integer              :: obsColumnIndex
 
      ! locals
      integer :: bodyIndex, headerIndex
 
-     if (size(outputVector) == obs_numBody(obsSpaceData)) then
+     if (size(realHeaderColumn) == obs_numBody(obsSpaceData)) then
        do bodyIndex = 1, obs_numBody(obsSpaceData)
          headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-         outputVector(bodyIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
+         realHeaderColumn(bodyIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
        end do
-     else if(size(outputVector) == obs_numHeader(obsSpaceData)) then
+     else if(size(realHeaderColumn) == obs_numHeader(obsSpaceData)) then
        do headerIndex = 1, obs_numHeader(obsSpaceData)
-         outputVector(headerIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
+         realHeaderColumn(headerIndex) = obs_headElem_r(obsSpaceData,obsColumnIndex,headerIndex)
        end do
      else
        call obs_abort('extractObsRealHeaderColumn: size of output vector invalid')
@@ -3617,25 +3625,29 @@ contains
    end subroutine obs_extractObsRealHeaderColumn
 
 
-   subroutine obs_extractObsIntHeaderColumn(outputVector, obsSpaceData, obsColumnIndex)
+   subroutine obs_extractObsIntHeaderColumn(intHeaderColumn, obsSpaceData, obsColumnIndex)
+     ! :Purpose: Extract contents of an integer header column into a vector. Note
+     !           that the output can be either in the form of a vector with
+     !           length equal to the number of rows in the body OR header table.
+     !
      implicit none
 
      ! arguments
-     integer          :: outputVector(:)
-     type(struct_obs) :: obsSpaceData
-     integer          :: obsColumnIndex
+     integer, intent(out) :: intHeaderColumn(:)
+     type(struct_obs)     :: obsSpaceData
+     integer              :: obsColumnIndex
 
      ! locals
      integer :: bodyIndex, headerIndex
 
-     if (size(outputVector) == obs_numBody(obsSpaceData)) then
+     if (size(intHeaderColumn) == obs_numBody(obsSpaceData)) then
        do bodyIndex = 1, obs_numBody(obsSpaceData)
          headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-         outputVector(bodyIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
+         intHeaderColumn(bodyIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
        end do
-     else if(size(outputVector) == obs_numHeader(obsSpaceData)) then
+     else if(size(intHeaderColumn) == obs_numHeader(obsSpaceData)) then
        do headerIndex = 1, obs_numHeader(obsSpaceData)
-         outputVector(headerIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
+         intHeaderColumn(headerIndex) = obs_headElem_i(obsSpaceData,obsColumnIndex,headerIndex)
        end do
      else
        call obs_abort('extractObsIntHeaderColumn: size of output vector invalid')

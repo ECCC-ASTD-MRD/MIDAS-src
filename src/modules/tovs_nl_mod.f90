@@ -419,6 +419,11 @@ contains
 
 
   subroutine tvs_allocTransmission
+    ! :Purpose: Allocate the global rttov transmission structure used
+    !           when this is needed for some purpose (e.g. used in 
+    !           LETKF to determine peak pressure level of each radiance
+    !           channel for vertical localization).
+    !
     implicit none
 
     integer :: alloc_status(2), jo, isens, nc, nl

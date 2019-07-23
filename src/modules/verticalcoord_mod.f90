@@ -31,7 +31,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_ensureCompatibleTops
   public :: vco_subsetOrNot, vco_levelMatchingList
 
@@ -86,54 +86,6 @@ contains
   end subroutine vco_allocateIp1
 
   !--------------------------------------------------------------------------
-  ! vco_setupManual
-  !--------------------------------------------------------------------------
-  subroutine vco_setupManual(vco,ip1,numLev)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with minimal information
-    !           supplied through arguments.
-    !
-    implicit none
-    type(struct_vco), pointer :: vco
-    integer, intent(in) :: numLev
-    integer, intent(in) :: ip1(numlev)
-
-    integer :: ip1_sfc
-    character(len=10) :: blk_S
-
-    write(*,*) 
-    write(*,*) 'vco_setupManual: Creating an adhoc verticalgrid using'
-    write(*,*) '                   number of level = ', numLev
-    write(*,*) '                   ip1             = ', ip1
-
-    if ( associated(vco) ) then
-      call utl_abort('vco_setupManual: the supplied vco pointer is not null!')
-    endif
-
-    allocate(vco)
-
-    vco%nlev_T       = numLev
-    vco%nlev_M       = numLev
-    vco%Vcode        = -1
-    vco%vgridPresent = .false.
-
-    call vco_allocateIp1(vco)
-
-    vco%ip1_T(:)  = ip1(:)
-    vco%ip1_M(:)  = ip1(:)
-
-    ! determine IP1 of sfc (hyb=1.0)
-    call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
-    vco%ip1_sfc   = ip1_sfc
-
-    ! determine IP1s of 2m and 10m levels
-    call set_2m_10m_levels(vco)
-
-    vco%initialized=.true.
-
-  end subroutine vco_SetupManual
-
-  !--------------------------------------------------------------------------
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
   subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
@@ -161,9 +113,9 @@ contains
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
 
-    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &
-               ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc,   &
-               iextra1, iextra2, iextra3
+    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
+    integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
+    integer :: iextra1, iextra2, iextra3
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
     character(len=1)  :: grtyp

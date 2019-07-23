@@ -346,7 +346,7 @@ contains
     type(struct_gsv)         :: stateVectorPerturbation
     type(struct_gsv)         :: stateVectorPerturbationInterp
     type(struct_gsv)         :: statevectorTrlHU
-    type(struct_gsv), pointer :: stateVectorVtr_ptr
+    type(struct_gsv)         :: stateVectorVtr
     type(struct_vco), pointer :: vco_randomPert, vco_ens
     type(struct_hco), pointer :: hco_randomPert, hco_ens
     character(len=12)  :: etiket
@@ -404,13 +404,12 @@ contains
                       hExtrapolateDegree_opt='MINIMUM', &
                       varNames_opt=(/'HU','P0'/) )
     call gsv_copy(stateVectorMeanTrl, stateVectorTrlHU, allowMismatch_opt=.true.)
-    stateVectorVtr_ptr => vtr_getStateVectorTrial('HU', doTrialSetup_opt=.false.)
-    call gsv_allocate(stateVectorVtr_ptr, 1, hco_randomPert, vco_randomPert,   &
+    call gsv_allocate(stateVectorVtr, 1, hco_randomPert, vco_randomPert,   &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                       hExtrapolateDegree_opt='MINIMUM', &
                       varNames_opt=(/'HU','P0'/) )
-    call gsv_interpolate(stateVectorTrlHU, stateVectorVtr_ptr)
+    call gsv_interpolate(stateVectorTrlHU, stateVectorVtr)
 
     do memberIndex = 1, nEns
 
@@ -422,8 +421,9 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
-      call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN
-                      stateVectorPerturbation)  ! OUT
+      call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
+                      stateVectorPerturbation,   &       ! OUT
+                      stateVectorRef_opt=stateVectorVtr) ! IN
 
       call gsv_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
                            PsfcReference_opt=PsfcReference)

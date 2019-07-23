@@ -2276,11 +2276,15 @@ CONTAINS
   END SUBROUTINE BHI_truncateCV
 
 
-  SUBROUTINE BHI_bSqrt(controlVector_in,statevector)
+  SUBROUTINE BHI_bSqrt(controlVector_in, statevector, stateVectorRef_opt)
     implicit none
 
-    real(8)   :: controlVector_in(cvDim_mpilocal)
-    type(struct_gsv) :: statevector
+    ! Arguments
+    real(8)                    :: controlVector_in(cvDim_mpilocal)
+    type(struct_gsv)           :: statevector
+    type(struct_gsv), optional :: statevectorRef_opt
+
+    ! Locals
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
     integer   :: jvar, ilev1, ilev2
@@ -2300,8 +2304,9 @@ CONTAINS
 
     call copyToStatevector(statevector,gd_out)
 
-    call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_tlm' ) ! IN
+    call vtr_transform( statevector,  &                         ! INOUT
+                        'LQtoHU_tlm', &                         ! IN
+                        stateVectorRef_opt=stateVectorRef_opt ) ! IN
 
     deallocate(gd_out)
 
@@ -2311,11 +2316,15 @@ CONTAINS
   END SUBROUTINE BHI_bSqrt
 
 
-  SUBROUTINE BHI_bSqrtAd(statevector,controlVector_out)
+  SUBROUTINE BHI_bSqrtAd(statevector, controlVector_out, stateVectorRef_opt)
     implicit none
 
-    real(8)   :: controlVector_out(cvDim_mpilocal)
-    type(struct_gsv) :: statevector
+    ! Arguments
+    real(8)                    :: controlVector_out(cvDim_mpilocal)
+    type(struct_gsv)           :: statevector
+    type(struct_gsv), optional :: statevectorRef_opt
+
+    ! Locals
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
     integer   :: jvar, ilev1, ilev2
@@ -2330,8 +2339,10 @@ CONTAINS
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
-    call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_ad' )  ! IN
+    call vtr_transform( statevector, &                          ! INOUT
+                        'LQtoHU_ad', &                          ! IN
+                        stateVectorRef_opt=stateVectorRef_opt ) ! IN
+
 
     call copyFromStatevector(statevector,gd_in)
 

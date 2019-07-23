@@ -719,15 +719,17 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_bSqrt
 !--------------------------------------------------------------------------
-  subroutine lbhi_bSqrt(controlVector_in, statevector)
+  subroutine lbhi_bSqrt(controlVector_in, statevector, stateVectorRef_opt)
     implicit none
 
-    real(8),          intent(in)    :: controlVector_in(cvDim)
-    type(struct_gsv), intent(inout) :: statevector
+    ! Arguments
+    real(8),          intent(in)           :: controlVector_in(cvDim)
+    type(struct_gsv), intent(inout)        :: statevector
+    type(struct_gsv), intent(in), optional :: statevectorRef_opt
 
+    ! Locals
     real(8), allocatable :: gd_out(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
-
     integer :: ier, k, fstouv, fnom, fstfrm, fclos, fstecr, ila
     integer :: iu_out = 90
 
@@ -769,8 +771,9 @@ contains
     !-  4. Convert LQ_inc to HU_inc
     !
     if ( gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector, & ! INOUT
-                          'LQtoHU_tlm' ) ! IN
+      call vtr_transform( statevector,   &                        ! INOUT
+                          'LQtoHU_tlm',  &                        ! IN
+                          stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
 
     write(*,*)
@@ -781,12 +784,15 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_bSqrtAdj
 !--------------------------------------------------------------------------
-  subroutine lbhi_bSqrtAdj(statevector, controlVector_out)
+  subroutine lbhi_bSqrtAdj(statevector, controlVector_out, stateVectorRef_opt)
     implicit none
 
-    real(8),          intent(out)   :: controlVector_out(cvDim)
-    type(struct_gsv), intent(inout) :: statevector
+    ! Arguments
+    real(8),          intent(out)          :: controlVector_out(cvDim)
+    type(struct_gsv), intent(inout)        :: statevector
+    type(struct_gsv), intent(in), optional :: statevectorRef_opt
 
+    ! Locals
     real(8), allocatable :: gd_in(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
 
@@ -802,8 +808,9 @@ contains
     !-  4. Convert LQ_inc to HU_inc
     !
     if ( gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector, & ! INOUT
-                          'LQtoHU_ad' )  ! IN
+      call vtr_transform( statevector,  &                         ! INOUT
+                          'LQtoHU_ad',  &                         ! IN
+                          stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
 
     !

@@ -52,12 +52,17 @@ MODULE ensembleObservations_mod
 
   type struct_eob
     logical                       :: allocated = .false.
-    integer                       :: numMembers
-    integer                       :: numObs
-    type(struct_obs), pointer     :: obsSpaceData
-    real(8), allocatable          :: lat(:), lon(:), logPres(:), varObsInv(:)
-    real(8), allocatable          :: Yb(:,:), meanYb(:), deterYb(:), obsValue(:)
-    integer, allocatable          :: assFlag(:)
+    integer                       :: numMembers     ! number of ensemble members
+    integer                       :: numObs         ! number of observations
+    type(struct_obs), pointer     :: obsSpaceData   ! pointer to obsSpaceData object
+    real(8), allocatable          :: lat(:), lon(:) ! lat/lon of observation
+    real(8), allocatable          :: logPres(:)     ! ln(pres) of obs, used for localization
+    real(8), allocatable          :: varObsInv(:)   ! inverse of obs error variances
+    real(8), allocatable          :: Yb(:,:)        ! background ensemble perturbation in obs space
+    real(8), allocatable          :: meanYb(:)      ! ensemble mean background state in obs space
+    real(8), allocatable          :: deterYb(:)     ! deterministic background state in obs space
+    real(8), allocatable          :: obsValue(:)    ! the observed value
+    integer, allocatable          :: assFlag(:)     ! assimilation flag
   end type struct_eob
 
   type(kdtree2), pointer :: tree => null()
@@ -432,7 +437,7 @@ CONTAINS
           varNumber(obsIndex) == BUFR_NEUS .or. varNumber(obsIndex) == BUFR_NEVS .or.  &
           varNumber(obsIndex) == BUFR_NESS .or. varNumber(obsIndex) == BUFR_NEPN .or. &
           varNumber(obsIndex) == BUFR_VIS  .or. varNumber(obsIndex) == BUFR_GUST .or. &
-          varNumber(obsIndex) == BUFR_RDPR ) then
+          varNumber(obsIndex) == BUFR_radarPrecip ) then
 
         ! all surface observations
         ensObs%logPres(obsIndex) = log(sfcPres_ptr(1,headerIndex))

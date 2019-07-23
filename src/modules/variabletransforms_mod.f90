@@ -137,14 +137,17 @@ CONTAINS
   end subroutine vtr_setupTrials
 
 
-  subroutine vtr_transform_gsv(statevector,transform, statevectorOut_opt)
+  subroutine vtr_transform_gsv(statevector, transform, statevectorOut_opt,  &
+                               stateVectorRef_opt)
     implicit none
    
-    type(struct_gsv) :: statevector
-    type(struct_gsv), optional :: statevectorOut_opt
- 
+    ! Arguments
+    type(struct_gsv)           :: statevector
     character(len=*), intent(in) :: transform
+    type(struct_gsv), optional :: statevectorOut_opt
+    type(struct_gsv), optional :: statevectorRef_opt
 
+    ! Locals
     integer :: stepIndex
 
     select case(trim(transform))
@@ -193,7 +196,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
       end if
-      call LQtoHU_tlm(statevector)
+      call LQtoHU_tlm(statevector, stateVectorRef_opt)
     case ('HUtoLQ_tlm')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
@@ -201,7 +204,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
-      call HUtoLQ_tlm(statevector)
+      call HUtoLQ_tlm(statevector, stateVectorRef_opt)
     case ('LQtoHU_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
@@ -209,7 +212,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for LQtoHU_ad, the option statevectorOut_opt is not yet available')
       end if
-      call LQtoHU_tlm(statevector) ! self-adjoint
+      call LQtoHU_tlm(statevector, stateVectorRef_opt) ! self-adjoint
     case ('HUtoLQ_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('vtr_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
@@ -217,7 +220,7 @@ CONTAINS
       if (present(statevectorOut_opt)) then
         call utl_abort('vtr_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
-      call HUtoLQ_tlm(statevector) ! self-adjoint
+      call HUtoLQ_tlm(statevector, stateVectorRef_opt) ! self-adjoint
 
     case ('LVIStoVIS')
       if (present(statevectorOut_opt)) then
@@ -356,31 +359,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! vtr_getStateVectorTrial
   !--------------------------------------------------------------------------
-  function vtr_getStateVectorTrial(varName, doTrialSetup_opt) result(statevector_ptr)
+  function vtr_getStateVectorTrial(varName) result(statevector_ptr)
     implicit none
 
     ! arguments
     character(len=*), intent(in) :: varName
-    logical, optional            :: doTrialSetup_opt
 
     ! local
     type(struct_gsv), pointer  :: statevector_ptr
-    logical                    :: doTrialSetup
-
-    if (present(doTrialSetup_opt)) then
-      doTrialSetup = doTrialSetup_opt
-    else
-      doTrialSetup = .true.
-    end if
 
     select case ( trim(varName) )
     case ('HU')
-      if ( .not. huTrialsInitialized .and. doTrialSetup ) call vtr_setupTrials('HU')
+      if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
       statevector_ptr => stateVectorTrialHU
       huTrialsInitialized = .true.
 
     case ('height')
-      if ( .not. heightTrialsInitialized  .and. doTrialSetup ) call vtr_setupTrials('height')
+      if ( .not. heightTrialsInitialized ) call vtr_setupTrials('height')
       statevector_ptr => stateVectorTrialHeight
       heightTrialsInitialized = .true.
 
@@ -503,17 +498,24 @@ CONTAINS
   end subroutine HUtoLQ_ens
 
 
-  subroutine LQtoHU_tlm(statevector)
+  subroutine LQtoHU_tlm(statevector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
-    integer :: lonIndex,latIndex,levIndex,stepIndex
+    ! Arguments
+    type(struct_gsv)           :: statevector
+    type(struct_gsv), optional :: statevectorRef_opt
 
+    ! Locals
+    integer :: lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
-    if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+    if (present(statevectorRef_opt)) then
+      hu_trial => gsv_getField_r8(stateVectorRef_opt,'HU')
+    else
+      if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+      hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
+    end if
 
-    hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
@@ -532,17 +534,24 @@ CONTAINS
   end subroutine LQtoHU_tlm
 
 
-  subroutine HUtoLQ_tlm(statevector)
+  subroutine HUtoLQ_tlm(statevector, stateVectorRef_opt)
     implicit none
 
-    type(struct_gsv)    :: statevector
-    integer :: lonIndex,latIndex,levIndex,stepIndex
+    ! Arguments
+    type(struct_gsv)           :: statevector
+    type(struct_gsv), optional :: statevectorRef_opt
 
+    ! Locals
+    integer :: lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
-    if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+    if (present(statevectorRef_opt)) then
+      hu_trial => gsv_getField_r8(stateVectorRef_opt,'HU')
+    else
+      if ( .not. huTrialsInitialized ) call vtr_setupTrials('HU')
+      hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
+    end if
 
-    hu_trial => gsv_getField_r8(stateVectorTrialHU,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 

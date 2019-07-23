@@ -37,6 +37,12 @@ contains
   subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
                              ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
                              copyToRamDisk_opt )
+    ! :Purpose: Return the filename of an ensemble member. Will also call routine in 
+    !           ramdisk_mod module that will copy the file (if shouldExist_opt is true)
+    !           to the ram disk. If the memberIndex_opt is not specified, the filename
+    !           is returned without the member index extension (used to read deterministic
+    !           background state that is stored in the ensemble directory for LETKF).
+    !
     implicit none
 
     ! Arguments:
@@ -147,6 +153,10 @@ contains
  !--------------------------------------------------------------------------
   subroutine fln_ensAnlFileName( ensFileName, ensPathName, dateStamp,  &
                                  memberIndex_opt, ensFileNamePrefix_opt )
+    ! :Purpose: Return the filename for an analysis state, including for
+    !           ensemble members (by specifying memberIndex_opt). The member
+    !           index extension is assumed to be 4 digits.
+    !
     implicit none
 
     ! arguments

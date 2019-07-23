@@ -355,6 +355,9 @@ CONTAINS
   ! ens_copy4Dto3D
   !--------------------------------------------------------------------------
   subroutine ens_copy4Dto3D(ens_in,ens_out)
+    ! :Purpose: Copy contents of a 4D ensemble into a 3D ensemble object by
+    !           extracting the middle time step.
+    !
     implicit none
 
     ! Arguments:
@@ -427,6 +430,8 @@ CONTAINS
   ! ens_add
   !--------------------------------------------------------------------------
   subroutine ens_add(ens_in, ens_inOut, scaleFactorIn_opt, scaleFactorInOut_opt)
+    ! :Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
+    !
     implicit none
     ! arguments
     type(struct_ens)  :: ens_in, ens_inOut
