@@ -33,20 +33,20 @@ yes '' | head -n ${number_of_programs} | ./compile_all.sh
 EOF
 
 #pbs_extra1='-Wblock=true'
-#ord_soumet compile_job -jn ${jobname} -mach brooks    -listing ${PWD} -w 60 -cpus 36
+#ord_soumet compile_job -jn ${jobname} -mach daley    -listing ${PWD} -w 60 -cpus 36
 
 ## Using as many cpus as there are programs to compile
-jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp1 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
+jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp4 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
-## On evite d'attendre en queue en faisant un 'ssh' directement sur 'brooks'
-cat compile_job | ssh brooks bash --login
+## On evite d'attendre en queue en faisant un 'ssh' directement sur 'daley'
+cat compile_job | ssh daley bash --login
 rm compile_job
 
 function is_compilation_done {
     set -e
     __is_compilation_done_host__=${1}
 
-    if [ "${__is_compilation_done_host__}" = brooks -o "${__is_compilation_done_host__}" = eccc-ppp1 ]; then
+    if [ "${__is_compilation_done_host__}" = daley -o "${__is_compilation_done_host__}" = eccc-ppp4 ]; then
         # the jobname is cut with 15 characters by 'jobst'
         jobstname=$(echo ${jobname} | cut -c-15)
     else
@@ -69,7 +69,7 @@ function is_compilation_done {
     unset __is_compilation_done_host__
 }
 
-for host in eccc-ppp1; do
+for host in eccc-ppp4; do
     is_compilation_done ${host}
 done
 

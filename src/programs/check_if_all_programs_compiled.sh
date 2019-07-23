@@ -8,7 +8,7 @@ midas_abs=${2}
 
 compiledir_main=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}
 absdir=${compiledir_main}/midas_abs
-revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $PWD; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp4 "cd $PWD; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 
 program_missing=0
 

@@ -12,7 +12,7 @@ gitworkdir=$(dirname $(true_path ${SEQ_EXP_HOME}))/../..
 
 if [ -z "${version}" ]; then
     gitdescribe="cd ${gitworkdir}; git describe --always --abbrev=7 --dirty=_M 2>/dev/null"
-    version=$( eval ${gitdescribe}  || ssh eccc-ppp1 "${gitdescribe}" || echo unkown revision)
+    version=$( eval ${gitdescribe}  || ssh eccc-ppp4 "${gitdescribe}" || echo unkown revision)
 fi
 
 if [ "${version}" = 'unkown revision' ]; then
