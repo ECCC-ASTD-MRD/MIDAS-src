@@ -12,7 +12,7 @@ SRC_FILES="$SRC_FILES obsfiles_mod.f90 statetocolumn_mod.f90"
 SRC_FILES="$SRC_FILES chem_setup_mod.f90 gps_mod.f90 localizationfunction_mod.f90"
 =======
 SRC_FILES="$SRC_FILES analysisgrid_mod.f90 filenames_mod.f90 humiditylimits_mod.f90 obsUtil_mod.f90"
-SRC_FILES="$SRC_FILES burpread_mod.f90 ensemblestatevector_mod.f90 globalspectraltransform_mod.f90 lamspectraltransform_mod.f90 obssubspacedata_mod.f90 sqlite_read_mod.f90 tt2phi_mod.f90"
+SRC_FILES="$SRC_FILES burpread_mod.f90 ensemblestatevector_mod.f90 globalspectraltransform_mod.f90 lamspectraltransform_mod.f90 obssubspacedata_mod.f90 obsVariableTransforms_mod.f90 sqlite_read_mod.f90 tt2phi_mod.f90"
 SRC_FILES="$SRC_FILES burpfiles_mod.f90 cmafiles_mod.f90 columndata_mod.f90 gridVariableTransforms_mod.f90 obstimeinterp_mod.f90 presprofileoperators_mod.f90 rttov_interfaces_mod.ftn90 sqlitefiles_mod.f90 windrotation_mod.f90"
 SRC_FILES="$SRC_FILES obsfiles_mod.f90 ozoneclim_mod.f90 rmatrix_mod.f90 statetocolumn_mod.f90 tovs_extrap_mod.f90"
 SRC_FILES="$SRC_FILES chem_setup_mod.f90 gps_mod.f90 localizationfunction_mod.f90 tovs_nl_mod.f90"
