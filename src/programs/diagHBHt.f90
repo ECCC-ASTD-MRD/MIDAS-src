@@ -42,7 +42,7 @@ program midas_diagHBHt
   use bmatrix_mod
   use tovs_nl_mod
   use obsErrors_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use obsOperators_mod
   implicit none
 
@@ -244,7 +244,7 @@ contains
     ! - Initialize the gridded variable transform module
     !
    
-    call vtr_setup(hco_anl,vco_anl)
+    call gvt_setup(hco_anl,vco_anl)
     
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

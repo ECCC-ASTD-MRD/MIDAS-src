@@ -33,7 +33,7 @@ program midas_randomPert
   use timeCoord_mod
   use randomNumber_mod
   use utilities_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   implicit none
 
   type(struct_gsv) :: statevector
@@ -172,7 +172,7 @@ program midas_randomPert
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.6 Initialize the gridded variable transform module
-  call vtr_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,vco_anl)
 
   !
   !- 3. Memory allocations

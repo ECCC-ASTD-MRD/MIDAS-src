@@ -22,7 +22,7 @@ program midas_diagBmatrix
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use varNameList_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
@@ -185,7 +185,7 @@ program midas_diagBmatrix
   call bmat_setup(hco_anl,vco_anl)
 
   !- Initialize the gridded variable transform module
-  call vtr_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,vco_anl)
 
   ! Setup of the L matrix done in bmat_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -470,7 +470,7 @@ program midas_diagBmatrix
       !- Transform to control variables in physical space
       call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
 
-      if ( writePsiChiStddev ) call vtr_transform(statevector,'UVtoPsiChi')
+      if ( writePsiChiStddev ) call gvt_transform(statevector,'UVtoPsiChi')
 
       !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
       do kIndex = 1, nkgdim

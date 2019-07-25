@@ -28,7 +28,7 @@ module increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use BMatrix_mod
   use chem_postproc_mod
   use varNamelist_mod
@@ -397,7 +397,7 @@ CONTAINS
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt=hInterpolationDegree, &
                         varNames_opt=(/'VIS'/))
-      call vtr_transform( statevector_analysis,               & ! IN
+      call gvt_transform( statevector_analysis,               & ! IN
                           'LVIStoVIS', &                        ! IN
                           statevectorOut_opt=statevector_vis)   ! OUT
 
@@ -542,12 +542,12 @@ CONTAINS
     if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
        write(*,*)
        write(*,*) 'User is asking for Vort-Div analysis increment'
-       call vtr_transform( statevector_incr, & ! INOUT
+       call gvt_transform( statevector_incr, & ! INOUT
                            'UVtoVortDiv' )     ! IN
        if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
           write(*,*)
           write(*,*) 'User is asking for Psi-Chi analysis increment'
-          call vtr_transform( statevector_incr, & ! INOUT
+          call gvt_transform( statevector_incr, & ! INOUT
                               'VortDivToPsiChi')  ! IN
        end if
     end if

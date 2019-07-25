@@ -29,7 +29,7 @@ program midas_adjointTest
   use timeCoord_mod
   use gridStateVector_mod
   use analysisGrid_mod
-  use variabletransforms_mod
+  use gridVariableTransforms_mod
   use bmatrixhi_mod
   use bmatrixensemble_mod
   use randomNumber_mod
@@ -106,7 +106,7 @@ program midas_adjointTest
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !- 1.11 Variable transforms
-  call vtr_Setup(hco_anl, vco_anl)
+  call gvt_Setup(hco_anl, vco_anl)
 
   !
   !- 2.  The tests

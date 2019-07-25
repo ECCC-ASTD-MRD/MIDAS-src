@@ -41,7 +41,7 @@ program midas_var
   use bmatrix_mod
   use tovs_nl_mod
   use obsErrors_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use obsOperators_mod
   use statetocolumn_mod
   use multi_ir_bgck_mod
@@ -217,7 +217,7 @@ program midas_var
     !
     ! - Initialize the gridded variable transform module
     !
-    call vtr_setup(hco_anl,vco_anl)
+    call gvt_setup(hco_anl,vco_anl)
 
     !
     !- Set up the minimization module, now that the required parameters are known

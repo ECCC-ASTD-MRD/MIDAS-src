@@ -35,7 +35,7 @@ module stateToColumn_mod
   use tt2phi_mod
   use windRotation_mod
   use utilities_mod
-  use variabletransforms_mod
+  use gridVariableTransforms_mod
   use varNameList_mod
   use physicsFunctions_mod
   use timeCoord_mod
@@ -923,14 +923,14 @@ contains
     ! calculate delP_T/delP_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call vtr_transform( statevector, & ! INOUT
+      call gvt_transform( statevector, & ! INOUT
                           'PsfcToP_tl')  ! IN
     end if
 
     ! calculate del Z_T/Z_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
          statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call vtr_transform( statevector, & ! INOUT
+      call gvt_transform( statevector, & ! INOUT
                           'TTHUtoHeight_tl') ! IN
     end if
 
@@ -1263,14 +1263,14 @@ contains
 
     if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
          statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call vtr_transform( statevector, & ! INOUT
+      call gvt_transform( statevector, & ! INOUT
                           'TTHUtoHeight_ad') ! IN
     end if
 
     ! Adjoint of calculate delP_T/delP_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call vtr_transform( statevector, & ! INOUT
+      call gvt_transform( statevector, & ! INOUT
                           'PsfcToP_ad')  ! IN
     end if
 
@@ -1350,14 +1350,14 @@ contains
     ! calculate P_T/P_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('P_T')) .and. &
          statevector%varExistList(vnl_varListIndex('P_M')) ) then
-      call vtr_transform( stateVector, & ! INOUT
+      call gvt_transform( stateVector, & ! INOUT
                           'PsfcToP_nl')  ! IN
     end if
 
     ! calculate Z_T/Z_M on the grid
     if ( statevector%varExistList(vnl_varListIndex('Z_T')) .and. &
          statevector%varExistList(vnl_varListIndex('Z_M')) ) then
-      call vtr_transform( stateVector, & ! INOUT
+      call gvt_transform( stateVector, & ! INOUT
                           'TTHUtoHeight_nl') ! IN
     end if
     call tmg_stop(171)

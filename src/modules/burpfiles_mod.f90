@@ -34,6 +34,7 @@ module burpFiles_mod
   use burp_module
   use mpi_mod
   use obsUtil_mod
+  use obsVariableTransforms_mod
 
   implicit none
   save
@@ -182,9 +183,9 @@ contains
 
     if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
 
-      call obsu_windDirectionToUV       (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
-      call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
-      call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
+      call ovt_transform               (obsdat, 'windSpeedDirectionToUV', headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
+      call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
 
     end if  
 

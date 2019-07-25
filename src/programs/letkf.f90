@@ -41,7 +41,7 @@ program midas_letkf
   use obsErrors_mod
   use obsOperators_mod
   use innovation_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use physicsFunctions_mod
   use varNameList_mod
   use enkf_mod
@@ -462,7 +462,7 @@ program midas_letkf
                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
   call gsv_zero(stateVectorMeanTrlPressure)
   call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowMismatch_opt=.true.)
-  call vtr_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
+  call gvt_transform(stateVectorMeanTrlPressure,'PsfcToP_nl')
   if (mpi_myid == 0) then
     call gsv_allocate( stateVectorMeanTrlPressure_1step, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.false., &
@@ -586,7 +586,7 @@ program midas_letkf
 
   !- 7.3 Output the ensemble mean analysis state
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
-  !if (gsv_varExist(stateVectorMeanAnl,'LPR')) call vtr_transform(stateVectorMeanAnl, 'LPRtoPR')
+  !if (gsv_varExist(stateVectorMeanAnl,'LPR')) call gvt_transform(stateVectorMeanAnl, 'LPRtoPR')
   do stepIndex = 1, tim_nstepobsinc
     call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
                          typvar_opt='A', writeHeightSfc_opt=.false., &
@@ -607,7 +607,7 @@ program midas_letkf
 
     !- 7.5 Output the deterministic analysis state
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
-    !if (gsv_varExist(stateVectorDeterAnl,'LPR')) call vtr_transform(stateVectorDeterAnl, 'LPRtoPR')
+    !if (gsv_varExist(stateVectorDeterAnl,'LPR')) call gvt_transform(stateVectorDeterAnl, 'LPRtoPR')
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorDeterAnl, outFileName, 'DETER_ANL',  &
                            typvar_opt='A', writeHeightSfc_opt=.false., &
@@ -617,7 +617,7 @@ program midas_letkf
 
   !- 7.6 Output all ensemble member analyses
   if (updateMembers) then
-    !if (gsv_varExist(varName='LPR')) call vtr_transform(ensembleAnl, 'LPRtoPR')
+    !if (gsv_varExist(varName='LPR')) call gvt_transform(ensembleAnl, 'LPRtoPR')
     call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)

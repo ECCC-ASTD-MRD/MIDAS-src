@@ -37,6 +37,7 @@ module obsFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
   use obsUtil_mod
+  use obsVariableTransforms_mod
 
   implicit none
   save
@@ -194,8 +195,8 @@ contains
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
-    if (trim(obsFileMode) == 'analysis') call obsu_computeDirectionSpeedResiduals(obs_oma,obsSpaceData)
-    call obsu_computeDirectionSpeedResiduals(obs_omp,obsSpaceData)
+    if (trim(obsFileMode) == 'analysis') call ovt_residual(obsSpaceData, 'UVtoWindSpeedDirection', obs_oma)
+    call ovt_residual(obsSpaceData, 'UVtoWindSpeedDirection', obs_omp)
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
     call obsu_updateFlagWindDirectionSpeed(obsSpaceData)
     ! Put the scale factor for FSO
