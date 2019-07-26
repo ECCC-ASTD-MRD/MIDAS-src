@@ -168,7 +168,7 @@ contains
   end subroutine slp_calcLatLonTovs
 
 
-  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height, latSlant, lonSlant)
+  subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, latSlant, lonSlant)
     !
     !**s/r findIntersectLatlon - Computation of lat/lon on the slant path
     !                 for radiance observations.
@@ -176,7 +176,7 @@ contains
     implicit none
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
-    real(4), intent(in)  :: height
+    real(4), intent(in)  :: height_r4
     integer, intent(in)  :: headerIndex
     real(8), intent(out) :: latSlant
     real(8), intent(out) :: lonSlant 
@@ -208,7 +208,7 @@ contains
     unitSatGlb = unitSatLoc(1) * unitx + unitSatLoc(2) * unity + unitSatLoc(3) * unitz
 
     ! Geometric altitude
-    geometricHeight = RA * height / (RA - height)
+    geometricHeight = real(height_r4,8)
 
     ! distance along line of sight
     distAlongPath = geometricHeight / cos(zenithAngle_rad)
