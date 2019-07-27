@@ -99,8 +99,12 @@ contains
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
 
-    ! loop through thermo levels
-    do lev_T = 1, nlev_T
+    ! put the last lat/lon at the surface
+    latSlantLev_T(nlev_T) = lat
+    lonSlantLev_T(nlev_T) = lon
+
+    ! loop through rest of thermo levels
+    do lev_T = 1, nlev_T-1
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
@@ -132,8 +136,12 @@ contains
       lonSlantLev_T(lev_T) = lonSlant
     end do
 
-    ! loop through momentum levels
-    do lev_M = 1, nlev_M
+    ! put the last lat/lon at the surface
+    latSlantLev_M(nlev_M) = lat
+    lonSlantLev_M(nlev_M) = lon
+
+    ! loop through rest of momentum levels
+    do lev_M = 1, nlev_M-1
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
@@ -189,6 +197,8 @@ contains
     ! read lat/lon/angles from obsSpaceData
     lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+    if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
+    if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
     azimuthAngle = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
     zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
@@ -217,6 +227,8 @@ contains
 
     latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
     lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
+    if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
+    if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
 
   end subroutine findIntersectLatlon
 
