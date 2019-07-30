@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Add new variables to varnamelist_mod useful for ensManip to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236, !240)
  * Implementation of the slant-path radiative transfer for the radiance observations, on background and analysis increment states (#243, !238).
    * Two new namelists are added: nams2c activates the slant-path calculation for background and/or analysis increment states, namSlantPath defines the parameters for iterations to resolve the slant line-of-sight.
- * Add first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245, !233)
+ * Added first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245, !233)
  * Footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197, !222)
  * The environment variable `MIDAS_MAKE_LINKS_MACHINE_LIST` can be
    used to control the hosts on which links will be created by

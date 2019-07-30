@@ -2449,9 +2449,13 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
-            call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
-                                     ensFileNamePrefix_opt=ensFileNamePrefix )
-            if ( typvar == 'R' ) ensFileName = trim(ensFileName) // '_inc'
+            if ( typvar == 'R' ) then
+              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
+                                       ensFileNamePrefix_opt=ensFileNamePrefix, ensFileNameSuffix_opt='inc' )
+            else
+              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), memberIndex_opt=memberIndex,  &
+                                       ensFileNamePrefix_opt=ensFileNamePrefix )
+            end if
             ensFileExtLength = 4
           else
             call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, &

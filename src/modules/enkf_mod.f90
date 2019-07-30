@@ -372,7 +372,7 @@ contains
     ! Define the horiz/vertical coordinate for perturbation calculation
     nullify(vco_randomPert)
     nullify(hco_randomPert)
-    call hco_setupFromFile(hco_randomPert, './analysisgrid_forRandPert', 'ANALYSIS', 'Analysis' ) ! IN
+    call hco_setupFromFile(hco_randomPert, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
     if ( hco_randomPert % global ) then
       etiket = 'BGCK_STDDEV'
     else

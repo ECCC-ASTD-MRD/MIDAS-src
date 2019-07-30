@@ -252,7 +252,7 @@ contains
     end if
 
     read(nulfile,*) numLev_rttov
-    if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
+    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
     allocate(press_rttov(numLev_rttov))
     allocate(qmin_rttov(numLev_rttov))
     allocate(qmax_rttov(numLev_rttov))

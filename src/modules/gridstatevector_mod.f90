@@ -1367,13 +1367,18 @@ module gridStateVector_mod
           field_in_r8  => gsv_getField_r8(statevector_in ,varName)
           field_out_r8 => gsv_getField_r8(statevector_out,varName)
 
-          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex,stepIn)
           do stepIndex = step1, step2
+            if (present(stepIndexOut_opt)) then
+              stepIn = 1
+            else
+              stepIn = stepIndex
+            end if
             do levIndex = 1, nlev_in
               do latIndex = lat1, lat2
                 do lonIndex = lon1, lon2
                   field_out_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
-                    field_in_r8(lonIndex,latIndex,levIndex,stepIndex)
+                    field_in_r8(lonIndex,latIndex,levIndex,stepIn)
                 end do
               end do
             end do
@@ -1413,13 +1418,18 @@ module gridStateVector_mod
           field_in_r4  => gsv_getField_r4(statevector_in ,varName)
           field_out_r4 => gsv_getField_r4(statevector_out,varName)
 
-          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex,stepIn)
           do stepIndex = step1, step2
+            if (present(stepIndexOut_opt)) then
+              stepIn = 1
+            else
+              stepIn = stepIndex
+            end if
             do levIndex = 1, nlev_in
               do latIndex = lat1, lat2
                 do lonIndex = lon1, lon2
                   field_out_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                    field_in_r4(lonIndex,latIndex,levIndex,stepIndex)
+                    field_in_r4(lonIndex,latIndex,levIndex,stepIn)
                 end do
               end do
             end do
@@ -1458,13 +1468,18 @@ module gridStateVector_mod
           field_in_r8  => gsv_getField_r8(statevector_in ,varName)
           field_out_r4 => gsv_getField_r4(statevector_out,varName)
 
-          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex,stepIn)
           do stepIndex = step1, step2
+            if (present(stepIndexOut_opt)) then
+              stepIn = 1
+            else
+              stepIn = stepIndex
+            end if
             do levIndex = 1, nlev_in
               do latIndex = lat1, lat2
                 do lonIndex = lon1, lon2
                   field_out_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                    real(field_in_r8(lonIndex,latIndex,levIndex,stepIndex),4)
+                    real(field_in_r8(lonIndex,latIndex,levIndex,stepIn),4)
                 end do
               end do
             end do
@@ -1504,13 +1519,18 @@ module gridStateVector_mod
           field_in_r4  => gsv_getField_r4(statevector_in ,varName)
           field_out_r8 => gsv_getField_r8(statevector_out,varName)
 
-          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex)
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,levIndex,lonIndex,stepIn)
           do stepIndex = step1, step2
+            if (present(stepIndexOut_opt)) then
+              stepIn = 1
+            else
+              stepIn = stepIndex
+            end if
             do levIndex = 1, nlev_in
               do latIndex = lat1, lat2
                 do lonIndex = lon1, lon2
                   field_out_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
-                    real(field_in_r4(lonIndex,latIndex,levIndex,stepIndex),8)
+                    real(field_in_r4(lonIndex,latIndex,levIndex,stepIn),8)
                 end do
               end do
             end do

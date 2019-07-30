@@ -265,7 +265,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ppp_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ppp_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
+  subroutine oop_ppp_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam, destObsColumn )
     !
     ! :Purpose: Computation of Jobs and y - H(x)
     !           for pressure-level observations.
@@ -283,6 +283,7 @@ contains
     logical                 :: beSilent
     real(8)                 :: jobs
     character(len=*)        :: cdfam
+    integer                 :: destObsColumn
 
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,ivnm,nlev_T
@@ -355,7 +356,7 @@ contains
          end if
          zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
          jobs = jobs + zomp*zomp/(zoer*zoer)
-         call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+         call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
        else if (ixtr == 2) then
 
@@ -377,7 +378,7 @@ contains
            zomp = (  zvar - geopotentialSfc(1) -  &
                 ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
            jobs = jobs + zomp*zomp/(zoer*zoer)
-           call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+           call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
          end if
 
        end if
@@ -393,7 +394,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_zzz_nl
   !--------------------------------------------------------------------------
-  subroutine oop_zzz_nl( columnhr, obsSpaceData, beSilent, jobsOut, cdfam)
+  subroutine oop_zzz_nl( columnhr, obsSpaceData, beSilent, jobsOut, cdfam,  &
+                         destObsColumn )
     !
     ! :Purpose: Computation of Jobs and y - H(x) for geometric-height observations
     !           Interpolate vertically columnhr to the geometric heights (in
@@ -422,6 +424,7 @@ contains
     logical,                    intent(in)    :: beSilent
     real(8),          optional, intent(out)   :: jobsOut
     character(len=*), optional, intent(in)    :: cdfam
+    integer,                    intent(in)    :: destObsColumn
 
     integer :: headerIndex,bodyIndex,ilyr,ivnm,ipt,ipb
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
@@ -595,7 +598,7 @@ contains
 
       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
       jobs = jobs + zomp*zomp/(zoer*zoer)
-      call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+      call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
     enddo BODY
 
@@ -606,7 +609,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sfc_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sfc_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
+  subroutine oop_sfc_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam,  &
+                         destObsColumn )
     !
     ! :Purpose:  Computation of Jo and the residuals to the observations
     !            FOR SURFACE DATA (except ground-based GPS zenith delay).
@@ -626,6 +630,7 @@ contains
     logical                 :: beSilent
     real(8)                 :: jobs
     character(len=*)        :: cdfam
+    integer                 :: destObsColumn
 
     integer :: ipb,ipt,ivnm,headerIndex,bodyIndex
     real(8) :: zvar,zcon,zexp,zgamma,ztvg
@@ -698,7 +703,7 @@ contains
              end if
              heighthr=col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)
 
-             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+             call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,  &
                   (zvar-columnVarB + zslope*(zhhh-heighthr)) )
 
           else if ( ivnm == BUFR_NEPS .or. ivnm == BUFR_NEPN ) then
@@ -724,7 +729,7 @@ contains
 
             ! 4) O-P, where P = P0 * zcon ** zexp (page 12 of the U.S. Standard Atmosphere, 1976, 
             !                                      U.S. Government Printing Office, Washington, D.C., 1976*)
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,  &
                                zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
@@ -732,8 +737,8 @@ contains
           end if
 
           ! contribution to jobs
-          jobs = jobs +(obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
-               obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)) / &
+          jobs = jobs +(obs_bodyElem_r(obsSpaceData,destObsColumn,bodyIndex)*   &
+               obs_bodyElem_r(obsSpaceData,destObsColumn,bodyIndex)) / &
                (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
                obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
 
@@ -748,7 +753,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_sst_nl
   !--------------------------------------------------------------------------
-  subroutine oop_sst_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam)
+  subroutine oop_sst_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam,  &
+                         destObsColumn )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for Sea Surface Temperature (SST) data.
@@ -761,6 +767,7 @@ contains
     logical                 :: beSilent
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
+    integer                 :: destObsColumn
 
     ! locals
     integer          :: ivnm, headerIndex, bodyIndex
@@ -801,12 +808,12 @@ contains
         end if
 
         obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-        call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+        call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, &
                             obsValue - ( col_getElem( columnhr, 1, headerIndex, varName ) ))
 
         ! contribution to jobs
-        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) ) / &
                       ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
                         obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
       end do BODY
@@ -820,7 +827,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_hydro_nl
   !--------------------------------------------------------------------------
-  subroutine oop_hydro_nl(columnhr, obsSpaceData, beSilent, jobs, cdfam)
+  subroutine oop_hydro_nl(columnhr, obsSpaceData, beSilent, jobs, cdfam,  &
+                          destObsColumn)
     !
     ! :Purpose: To computate Jo and the residuals to the observations
     !           for hydrological data
@@ -832,6 +840,8 @@ contains
     logical                 :: beSilent
     real(8)                 :: jobs         ! contribution to Jo
     character(len=*)        :: cdfam        ! family of observation
+    integer                 :: destObsColumn
+
     ! locals
     integer          :: ivnm, headerIndex, bodyIndex
     real(8)          :: obsValue
@@ -864,12 +874,12 @@ contains
 
         obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
         varName = vnl_varNameFromVarNum(ivnm)
-        call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+        call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, &
                             obsValue - col_getElem(columnhr,1,headerIndex, varName_opt = varName) )
 
         ! contribution to jobs
-        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
-                        obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+        jobs = jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
+                        obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) ) / &
                       ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
                         obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
 
@@ -884,7 +894,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_ice_nl
   !--------------------------------------------------------------------------
-  subroutine oop_ice_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam )
+  subroutine oop_ice_nl( columnhr, obsSpaceData, beSilent, jobs, cdfam,  &
+                         destObsColumn )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           FOR SEA ICE CONCENTRATION DATA
@@ -897,6 +908,7 @@ contains
     logical                , intent(in)    :: beSilent
     real(8)                , intent(  out) :: jobs         ! contribution to Jo
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    integer                , intent(in)    :: destObsColumn
 
     ! locals
     integer :: ivnm, headerIndex, bodyIndex
@@ -932,12 +944,12 @@ contains
       obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
       varName = vnl_varNameFromVarNum(ivnm)
-      call obs_bodySet_r( obsSpaceData, OBS_OMP, bodyIndex, &
+      call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, &
                           obsValue - scaling*col_getElem( columnhr, 1, headerIndex, varName ) )
 
       ! contribution to jobs
-      jobs = jobs + ( obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) *   &
-                      obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex ) ) / &
+      jobs = jobs + ( obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) *   &
+                      obs_bodyElem_r( obsSpaceData, destObsColumn, bodyIndex ) ) / &
                     ( obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) *   &
                       obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex ) )
 
@@ -950,7 +962,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_gpsro_nl
   !--------------------------------------------------------------------------
-  subroutine oop_gpsro_nl(columnhr, obsSpaceData, beSilent, jobs)
+  subroutine oop_gpsro_nl(columnhr, obsSpaceData, beSilent, jobs, destObsColumn)
     !
     ! :Purpose: Computation of Jo and the residuals to the GPSRO observations
     !
@@ -960,12 +972,15 @@ contains
     !
     implicit none
 
+    ! Arguments
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     type(struct_vco), pointer :: vco_hr
     logical                 :: beSilent
     real(8)                 :: jobs         ! total value of Jobs for GPSRO
+    integer                 :: destObsColumn
 
+    ! Locals
     real(8) :: pjob, pjo1
     real(8) :: zlat, lat
     real(8) :: zlon, lon
@@ -1188,7 +1203,7 @@ contains
                      headerIndex,lat,lon,azm,hnh1,zobs,zoer,  &
                      zmhx,zinc,pjob,prf%gst(ngpslev)%var  
              end if
-             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex, zobs - zmhx)
+             call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, zobs - zmhx)
           end if
        end do BODY_3
 
@@ -1219,7 +1234,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_gpsgb_nl
   !--------------------------------------------------------------------------
-  subroutine oop_gpsgb_nl( columnhr, obsSpaceData, beSilent, jobs, analysisMode_opt )
+  subroutine oop_gpsgb_nl( columnhr, obsSpaceData, beSilent, jobs,  &
+                           destObsColumn, analysisMode_opt )
     !
     ! :Purpose: Computation of Jo and the residuals to the GB-GPS ZTD observations
     !
@@ -1228,12 +1244,15 @@ contains
     !
     implicit none
 
+    ! Arguments
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
     logical           :: beSilent
     real(8)           :: jobs
+    integer           :: destObsColumn
     logical, optional :: analysisMode_opt
 
+    ! Locals
     real(8), allocatable :: zpp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
@@ -1351,7 +1370,7 @@ contains
           if ( ityp == bufr_neps ) then
              if ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) .or. llblmet ) then
                 zpsobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-                zpomps = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                zpomps = obs_bodyElem_r(obsSpaceData,destObsColumn,bodyIndex)
              end if
           end if
        end do BODY
@@ -1450,7 +1469,7 @@ contains
              !
              ztdomp(icountp) = zobs - zhx
              zinc  = (zhx - zobs) / zoer
-             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex, zobs - zhx)
+             call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, zobs - zhx)
 
              jobs = jobs + 0.5d0 * zinc * zinc
              !
@@ -1690,7 +1709,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_chm_nl
   !--------------------------------------------------------------------------
-  subroutine oop_chm_nl( columnhr, obsSpaceData, beSilent, jobs )
+  subroutine oop_chm_nl( columnhr, obsSpaceData, beSilent, jobs,  &
+                         destObsColumn )
     !
     ! :Purpose: Computation of Jo and the residuals to the observations
     !           for all observations of the CH (chemical constituents) family.
@@ -1708,10 +1728,15 @@ contains
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     real(8)                 :: jobs
+    integer                 :: destObsColumn
     
     if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) then
        jobs = 0.0d0
        return
+    end if
+
+    if (destObsColumn /= obs_omp) then
+      call utl_abort('oop_chm_nl: the ability to store results in an obs column other than OBS_OMP is not yet implemented.')
     end if
 
     call chm_observation_operators(columnhr,obsSpaceData,kmode=0,jobs_opt=jobs) ! kmode=0 for general operator

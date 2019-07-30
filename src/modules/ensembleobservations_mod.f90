@@ -444,7 +444,7 @@ CONTAINS
 
       else if (varNumber(obsIndex) == BUFR_NEZD) then
 
-        ! ZTD observation, try 0.8*Psfc (i.e. ~700hPa when Psfc=1000hPa)
+        ! ZTD observation, try 0.7*Psfc (i.e. ~700hPa when Psfc=1000hPa)
         ensObs%logPres(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
 
       else if (obsPPP(obsIndex) > 0.0d0 .and. obsVcoCode(obsIndex)==2) then

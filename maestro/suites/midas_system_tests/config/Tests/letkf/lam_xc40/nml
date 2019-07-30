@@ -1,18 +1,18 @@
  &NAMLETKF
-   NENS = 40
+   NENS                  = 128
    MAXNUMLOCALOBS        = 10000
-   WEIGHTLATLONSTEP      = 3
-   HLOCALIZE             = 200.0D0
+   WEIGHTLATLONSTEP      = 10
+   HLOCALIZE             = 1500.0D0
    VLOCALIZE             = 2.0D0
    alphaRTPP             = 0.40D0
    alphaRTPS             = 0.80D0
-   alphaRandomPert       = 0.10D0
+   alphaRandomPert       = 0.25D0
    UPDATEMEMBERS         = .true.
    WRITEINCREMENTS       = .true.
    imposeSaturationLimit = .true.
    imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'TILES'
+   mpiDistribution       = 'ROUNDROBIN'
 /
  &NAMBHI
    NTRUNC  =          42,
@@ -25,7 +25,8 @@
    NDATAMX=1000000
 /
  &NAMTIME
-   DSTEPOBS = 3.0d0
+   DSTEPOBS    = 1.0d0
+   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
   NELEMS = 17,
