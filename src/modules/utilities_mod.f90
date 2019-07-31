@@ -32,8 +32,8 @@ module utilities_mod
   public :: utl_readFstField
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
-  public :: utl_heapsort2d
   public :: utl_getPositionXY
+  public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray
 
   ! module interfaces
   ! -----------------
@@ -1864,6 +1864,7 @@ contains
 
   end subroutine utl_heapsort2d
 
+<<<<<<< HEAD
 
   function utl_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
@@ -2007,5 +2008,44 @@ contains
     end if
 
   end function utl_getPositionXY
+=======
+  subroutine utl_splitString(string,separator,stringArray)
+    implicit none
+    character(len=*), intent(in) :: string
+    character(len=*), intent(in) :: separator
+    character(len=256), allocatable :: stringArray(:)
+
+    integer :: stringArraySize
+
+    stringArraySize = count(transfer(string, 'a', len(string)) == separator) + 1
+
+    allocate(stringArray(stringArraySize))
+
+    read(string, *) stringArray(1:stringArraySize)
+
+    write(*,*)  'utl_splitString: stringArraySize = ', stringArraySize
+    write(*,*)  'utl_splitString: stringArray     = ', stringArray(:)
+    
+  end subroutine utl_splitString
+
+  subroutine utl_stringArrayToIntegerArray(stringArray,integerArray)
+    implicit none
+    character(len=256) :: stringArray(:)
+    integer, allocatable :: integerArray(:)
+
+    integer :: arraySize, arrayIndex
+
+    arraySize = size(stringArray)
+
+    allocate(integerArray(arraySize))
+
+    do arrayIndex = 1, arraySize
+      read(stringArray(arrayIndex),'(i5)')  integerArray(arrayIndex)
+    end do
+
+    write(*,*)  'utl_stringArrayToIntegerArray: integerArray = ', integerArray(:)
+
+  end subroutine utl_stringArrayToIntegerArray
+>>>>>>> Issue #247: Generalization of the observation transform - part 1
 
 end module utilities_mod

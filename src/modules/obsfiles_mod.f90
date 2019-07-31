@@ -195,10 +195,10 @@ contains
 
   if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
 
-    if (trim(obsFileMode) == 'analysis') call ovt_residual(obsSpaceData, 'UVtoWindSpeedDirection', obs_oma)
-    call ovt_residual(obsSpaceData, 'UVtoWindSpeedDirection', obs_omp)
+    if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
+    call ovt_transformResiduals(obsSpaceData, obs_omp)
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
-    call obsu_updateFlagWindDirectionSpeed(obsSpaceData)
+    call obsu_updateFlagWindDirectionSpeed(obsSpaceData) ! JFC: doit etre modifie !!!!
     ! Put the scale factor for FSO
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 

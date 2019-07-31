@@ -25,59 +25,279 @@ module obsVariableTransforms_mod
   use bufr_mod
   use mathPhysConstants_mod
   use codePrecision_mod
-  use earthConstants_mod, only:  grav
+  use earthConstants_mod, only: grav
   use codtyp_mod
   use utilities_mod
+  use obsFilter_mod
 
   implicit none
   save
   private
-  !public :: ovt_computeDirectionSpeedResiduals, ovt_windDirectionToUV, ovt_adjustHumGZ
-  public :: ovt_transform, ovt_residual, ovt_adjustHumGZ
+
+  public :: ovt_setup, ovt_getDestinationElement, ovt_elementSkipped, ovt_isWindObs
+  public :: ovt_transformObsValues, ovt_transformResiduals, ovt_adjustHumGZ
+
+  integer  , parameter   :: nTransformSupported = 1
+  integer  , parameter   :: nElementMax         = 2
+
+  type :: struct_ovt
+    character(len=48) :: transformName          (nTransformSupported)
+    integer           :: sourceElement          (nTransformSupported,nElementMax)
+    integer           :: destinationElement     (nTransformSupported,nElementMax)
+    integer           :: destinationElementExtra(nTransformSupported,nElementMax)
+    logical           :: wind                   (nTransformSupported) = .false.
+    logical           :: activeTransform        (nTransformSupported) = .false.
+    logical           :: setup = .false.
+    integer           :: nSkippedElements    = 0
+    integer           :: skippedElements(50) = -999
+  end type struct_ovt
+
+  ! Module's internal data
+  type(struct_ovt) :: ovt
 
 contains
 
   !--------------------------------------------------------------------------
-  ! ovt_transform
+  ! ovt_initStructure
   !--------------------------------------------------------------------------
-  subroutine ovt_transform(obsSpaceData, transform, headerIndexStart, headerIndexEnd, missingValue)
+  subroutine ovt_initStructure
+    implicit none
+
+    ! Upper and surface winds
+    ovt%transformName(1)   = 'windSpeedDirectionToUV'
+    ovt%sourceElement          (1,:) = (/bufr_nedd, bufr_neds/) ! directions only (because we still want
+                                                                ! to be able to assimilate wind speed obs
+                                                                ! alone)
+    ovt%destinationElement     (1,:) = (/bufr_neuu, bufr_neus/)
+    ovt%destinationElementExtra(1,:) = (/bufr_nevv, bufr_nevs/)
+    ovt%nSkippedElements   = 2
+    ovt%skippedElements(1) = bufr_neff ! Upper-air wind speed
+    ovt%skippedElements(2) = bufr_nefs ! 10m       wind speed
+    ovt%wind = .true.
+
+  end subroutine ovt_initStructure
+
+  !--------------------------------------------------------------------------
+  ! ovt_setup
+  !--------------------------------------------------------------------------
+  subroutine ovt_setup(elementReaded)
+    implicit none
+
+    integer, intent(in) :: elementReaded(:)
+
+    integer, allocatable :: elementAssimilated(:)
+
+    integer :: nElementReaded, nElementAssimilated
+    integer :: readElementIndex, transformIndex, assimElementIndex
+
+    logical :: variableTransformNeeded, foundTransformation
+    logical, save :: firstTime = .true.
+
+    if (firstTime) then
+      call ovt_initStructure
+      firstTime = .false.
+    end if
+
+    nElementAssimilated = filt_nElementAssimilated()
+    nElementReaded = size(elementReaded)
+    variableTransformNeeded = .false.
+
+    allocate(elementAssimilated(nElementAssimilated))
+    call filt_getElementAssimilated(elementAssimilated)
+
+    do readElementIndex = 1, nElementReaded
+    
+      ! Check if a transform is neeeded
+      if (filt_elementAssimilated(elementReaded(readElementIndex)) .or. &
+          elementReaded(readElementIndex) == bufr_neff             .or. &
+          elementReaded(readElementIndex) == bufr_nefs ) then
+        cycle ! No transformation needed. Move on.
+      end if
+
+      ! Find and activate the appropriate transform
+      foundTransformation = .false.
+
+      transformLoop : do transformIndex = 1, nTransformSupported
+        assimElementLoop : do assimElementIndex = 1, nElementAssimilated
+          if (any(ovt%sourceElement     (transformIndex,:) == elementReaded(readElementIndex))        .and. &
+              any(ovt%destinationElement(transformIndex,:) == elementAssimilated(assimElementIndex)) )  then
+            if (.not. ovt%activeTransform(transformIndex)) then
+              write(*,*) 'ovt_setup: transform activated : ', trim(ovt%transformName(transformIndex))
+              ovt%activeTransform(transformIndex) = .true.
+            end if
+            foundTransformation = .true.
+            exit transformLoop
+          end if
+        end do assimElementLoop
+      end do transformLoop
+
+      if (.not. foundTransformation) then
+        write(*,*)
+        write(*,*) 'ovt_setup: !WARNING! No transform found for the readed element = ', elementReaded(readElementIndex)
+        write(*,*) '           We are assuming that this observation is readed but not assimilated.'
+        write(*,*) '           Please consider removing this element from the readed observation list.'
+        ovt%nSkippedElements = ovt%nSkippedElements + 1
+        ovt%skippedElements(ovt%nSkippedElements) = elementReaded(readElementIndex)
+      end if
+
+    end do
+
+    ovt%setup = .true.
+
+    deallocate(elementAssimilated)
+
+  end subroutine ovt_setup
+
+  !--------------------------------------------------------------------------
+  ! ovt_elementSkipped
+  !--------------------------------------------------------------------------
+  function ovt_elementSkipped(sourceElement) result(skip)
+    implicit none
+
+    integer, intent(in) :: sourceElement
+    logical :: skip
+    
+    integer :: transformIndex, elementIndex
+
+    skip = .false.
+    do elementIndex = 1, ovt%nSkippedElements
+      if (ovt%skippedElements(elementIndex) == sourceElement) then
+        skip = .true.
+        exit
+      end if
+    end do
+
+  end function ovt_elementSkipped
+
+  !--------------------------------------------------------------------------
+  ! ovt_getDestinationElement
+  !--------------------------------------------------------------------------
+  function ovt_getDestinationElement(sourceElement,extra_opt) result(destinationElement)
+    implicit none
+
+    integer, intent(in) :: sourceElement
+    integer :: destinationElement
+    logical, optional :: extra_opt
+    
+    logical :: extra
+    integer :: transformIndex, elementIndex
+
+    if (present(extra_opt)) then
+      extra = extra_opt
+    else
+      extra = .false. ! default
+    end if
+
+    destinationElement = -1
+
+    transformLoop : do transformIndex = 1, nTransformSupported
+      elementLoop : do elementIndex = 1, nElementMax
+        if (ovt%sourceElement(transformIndex,elementIndex) == sourceElement) then
+          if (extra) then
+            destinationElement = ovt%destinationElementExtra(transformIndex,elementIndex)
+          else
+            destinationElement = ovt%destinationElement(transformIndex,elementIndex)
+          end if
+          exit transformLoop
+        end if
+      end do elementLoop
+    end do transformLoop
+
+    if (destinationElement == -1) then
+      write(*,*)
+      write(*,*) 'ovt_getDestinationElement: source element = ', sourceElement
+      call utl_abort('ovt_getDestinationElement: found no associated element for the above source element (bufr code)')
+    end if
+
+  end function ovt_getDestinationElement
+
+  !--------------------------------------------------------------------------
+  ! ovt_isWindObs
+  !--------------------------------------------------------------------------
+  function ovt_isWindObs(sourceElement) result(windOrNot)
+    implicit none
+
+    integer, intent(in) :: sourceElement
+    logical :: windOrNot
+
+    integer :: transformIndex, elementIndex
+
+    transformLoop : do transformIndex = 1, nTransformSupported
+      elementLoop : do elementIndex = 1, nElementMax
+        if (ovt%sourceElement(transformIndex,elementIndex) == sourceElement) then
+          windOrNot = ovt%wind(transformIndex)
+          exit transformLoop
+        end if
+      end do elementLoop
+    end do transformLoop
+
+  end function ovt_isWindObs
+
+  !--------------------------------------------------------------------------
+  ! ovt_transformObsValues
+  !--------------------------------------------------------------------------
+  subroutine ovt_transformObsValues(obsSpaceData, headerIndexStart, headerIndexEnd)
     implicit none
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*) , intent(in)    :: transform
     integer          , intent(in)    :: headerIndexStart 
     integer          , intent(in)    :: headerIndexEnd
-    real(4)          , intent(in)    :: missingValue
 
-    select case(trim(transform))
-    case ('windSpeedDirectionToUV')
-      call ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd, missingValue )
-    case default
-      call utl_abort('ovt_transform: Unsupported function ' // trim(transform))
-    end select
+    real(4), parameter  :: missingValue = MPC_missingValue_R4
+    integer             :: transformIndex
 
-  end subroutine ovt_transform
+    if (.not. ovt%setup) then
+      call utl_abort('ovt_transformObsValues: this module has not been setup')
+    end if
+
+    do transformIndex = 1, nTransformSupported
+
+      if (ovt%activeTransform(transformIndex)) then
+        select case(trim(ovt%transformName(transformIndex)))
+        case ('windSpeedDirectionToUV')
+          call ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd, missingValue)
+        case default
+          call utl_abort('ovt_transformObsValues: Unsupported function ' // trim(ovt%transformName(transformIndex)))
+        end select
+      end if
+
+    end do
+
+  end subroutine ovt_transformObsValues
 
   !--------------------------------------------------------------------------
-  ! ovt_residual
+  ! ovt_TransformResiduals
   !--------------------------------------------------------------------------
-  subroutine ovt_residual(obsSpaceData, transform, elementID)
+  subroutine ovt_transformResiduals(obsSpaceData, residualTypeID)
     implicit none
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*) , intent(in)    :: transform
-    integer          , intent(in)    :: elementID
+    integer          , intent(in)    :: residualTypeID
 
-    select case(trim(transform))
-    case ('UVtoWindSpeedDirection')
-      call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, elementID)
-    case default
-      call utl_abort('ovt_residual: Unsupported function ' // trim(transform))
-    end select
+    integer :: transformIndex
 
-  end subroutine ovt_residual
+    if (.not. ovt%setup) then
+      call utl_abort('ovt_transformResiduals: this module has not been setup')
+    end if
+
+    do transformIndex = 1, nTransformSupported
+
+      if (ovt%activeTransform(transformIndex)) then
+        select case(trim(ovt%transformName(transformIndex)))
+        case ('windSpeedDirectionToUV')
+          if (ovt%activeTransform(transformIndex)) then
+            call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
+          end if
+        case default
+          call utl_abort('ovt_transformResiduals: Unsupported function ' // trim(ovt%transformName(transformIndex)))
+        end select
+      end if
+
+    end do
+    
+  end subroutine ovt_transformResiduals
 
   !--------------------------------------------------------------------------
   ! ovt_UVtoWindSpeedDirection_residual
@@ -244,7 +464,7 @@ contains
         llv_present = .false.
         indum = -1
         indvm = -1
-      
+
         ! FIND IF  U AND V ARE ALREADY IN CMA
         UVINOBSSPACEDATA: do bodyIndex2 = bodyIndex, bodyIndexEnd
 
@@ -317,17 +537,13 @@ contains
               vv = ff * cos(dd)
 
               if ( llmisdd == .true. .or. llmisff == .true. ) then
-
                 llmis = .true.
                 if ( indu_misg > 0 .or. indv_misg > 0 ) then
                   call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
                   call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
                 end if
-
               else
-
                 llmis = .false.
-
               end if
 
             end if

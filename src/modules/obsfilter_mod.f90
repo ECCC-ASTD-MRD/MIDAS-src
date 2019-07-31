@@ -31,7 +31,6 @@ module obsFilter_mod
   use gps_mod
   use utilities_mod
   use varNameList_mod
-  use chem_setup_mod
   use physicsFunctions_mod
   implicit none
   save
@@ -42,11 +41,13 @@ module obsFilter_mod
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
+  public :: filt_elementAssimilated, filt_getElementAssimilated, filt_nElementAssimilated
 
-  integer filt_nelems, filt_nlist(30)
-  integer filt_nflags, filt_nlistflg(15)
+  integer :: filt_nelems, filt_nflags
+  integer, target :: filt_nlist(30)
+  integer :: filt_nlistflg(15)
 
-  logical discardlandsfcwind
+  logical :: discardlandsfcwind
 
   real(8) :: filt_rlimlvhu
 
@@ -1564,16 +1565,16 @@ end subroutine filt_topoAISW
 
       end do BODY
 
-      if (warn_suspicious) then
-         call utl_open_asciifile(chm_setup_get_str('message'),unit)
-         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
-         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
-              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
-         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
-              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-         write(unit,*)
-         ier = fclos(unit)
-      end if
+!!$      if (warn_suspicious) then
+!!$         call utl_open_asciifile(chm_setup_get_str('message'),unit)
+!!$         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
+!!$         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
+!!$              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+!!$         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+!!$              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+!!$         write(unit,*)
+!!$         ier = fclos(unit)
+!!$      end if
 
     end do HEADER
 
@@ -1606,5 +1607,49 @@ end subroutine filt_topoAISW
 224 format(2x,a29,100(2x,i6))
 
   END SUBROUTINE filt_topoChemistry
+
+  !--------------------------------------------------------------------------
+  ! filt_elementAssimilated
+  !------------------------------------------------------------------------- 
+  function filt_elementAssimilated(elementID) result(assimilated)
+    implicit none
+    integer :: elementID
+    logical :: assimilated
+    integer :: elemIndex
+
+    assimilated = .false.
+
+    do elemIndex = 1, filt_nelems
+      if (filt_nlist(elemIndex) == elementID) then
+        assimilated = .true.
+        return
+      end if
+    end do
+
+  end function filt_elementAssimilated
+
+  !--------------------------------------------------------------------------
+  ! filt_getElementAssimilated
+  !------------------------------------------------------------------------- 
+  subroutine filt_getElementAssimilated(elementList)
+    implicit none
+
+    integer :: elementList(filt_nelems)
+
+    elementList(:) = filt_nlist(1:filt_nelems)
+
+  end subroutine filt_getElementAssimilated
+
+  !--------------------------------------------------------------------------
+  ! filt_nElementAssimilated
+  !------------------------------------------------------------------------- 
+  function filt_nElementAssimilated() result(nElement)
+    implicit none
+
+    integer :: nElement
+
+    nElement = filt_nelems
+
+  end function filt_nElementAssimilated
 
 end module obsFilter_mod

@@ -175,7 +175,8 @@ contains
     
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call brpr_readBurp(obsdat,familyType,fileName,fileIndex)
+    call brpr_readBurp(obsdat,                         & ! INOUT
+                       familyType, fileName, fileIndex)  ! IN
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
  
@@ -183,7 +184,7 @@ contains
 
     if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
 
-      call ovt_transform               (obsdat, 'windSpeedDirectionToUV', headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
+      call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
       call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
       call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
 

@@ -132,9 +132,9 @@ module sqliteFiles_mod
     headerIndexEnd = obs_numheader(obsdat)
 
     if ( trim(familyType) /= 'TO' ) then
-      call ovt_transform               (obsdat, 'windSpeedDirectionToUV', headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
+      call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
       call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
-      call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
     end if
 
     do headerIndex = headerIndexBegin, headerIndexEnd
