@@ -46,14 +46,16 @@ public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudPara
 !
 !   These variables are set during object initialization (variational_init) and
 !   are not changed thereafter.
-! bits to verify in Quality Control Flag:
 
-
+!
+! Namelist variables:
 INTEGER*4              :: NELEMS,NELEMS_SFC,BLISTELEMENTS(20),BLISTELEMENTS_SFC(20)
+INTEGER*4              :: NELEMS_SF,NELEMS_GP,BLISTELEMENTS_SF(20),BLISTELEMENTS_GP(20)
 INTEGER*4              :: BN_ITEMS
 CHARACTER *3           :: BITEMLIST(20)
 CHARACTER *7           :: TYPE_RESUME
 
+! bits to verify in Quality Control Flag:
 INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
 
@@ -116,7 +118,8 @@ CONTAINS
                               drnd,date_h,hhmm_h,oars,runn
     INTEGER                :: IND055200
 
-    INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO
+    INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
+    INTEGER                :: NELE_SF, NELE_GP
     INTEGER                :: bit_alt,btyp_offset,btyp_offset_uni
     INTEGER                :: BKNAT,BKTYP,BKSTP
     character(len = 5)     :: BURP_TYP
@@ -135,8 +138,9 @@ CONTAINS
     INTEGER                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    INTEGER                :: LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
-    INTEGER                :: ADDSIZE
+    INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
+    INTEGER                :: LISTE_ELE_SF(20), LISTE_ELE_GP(20)
+    INTEGER                :: ADDSIZE,SIZE_DATA_BK
 
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
@@ -161,15 +165,18 @@ CONTAINS
     LNMX=100000
     LISTE_ELE_SFC(:)=-1
     LISTE_ELE(:)=-1
+    LISTE_ELE_SF(:)=-1
+    LISTE_ELE_GP(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
 
         LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
-        NELE_SFC=6
+        NELE_SF=6
         CALL BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
+        NELE_SFC = NELEMS_SF 
+        BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_SF(1:NELE_SFC)
 
         FAMILYTYPE2= 'UA'
         LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
@@ -215,12 +222,19 @@ CONTAINS
       CASE('SF','GP')
         BURP_TYP='uni'
         vcord_type(1)=0
-        NELE_SFC=7
-        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
-
+        BLISTELEMENTS_SFC(:) = -1
+        NELE_SF=7
+        LISTE_ELE_SF(1:7) = (/12004,11011,11012,10051,10004,12203,12006/)
+        NELE_GP=7
+        LISTE_ELE_GP(1:7) = (/10004,12004,12006,13220,15031,15032,15035/)        
         CALL BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
-
+        if (trim(FAMILYTYPE) == 'GP') then 
+          NELE_SFC = NELEMS_GP
+          BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_GP(1:NELE_SFC)
+        else 
+          NELE_SFC = NELEMS_SF 
+          BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_SF(1:NELE_SFC)
+        endif
         FAMILYTYPE2= 'SFC'
         WINDS=.TRUE.
         IF (trim(FAMILYTYPE) == 'GP') WINDS=.FALSE.
@@ -1407,8 +1421,8 @@ CONTAINS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
 
-    NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON,ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
-    NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_CONV/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON,ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
+    NAMELIST /NAMBURP_FILTER_SFC/NELEMS_SF,BLISTELEMENTS_SF,NELEMS_GP,BLISTELEMENTS_GP,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
@@ -1505,8 +1519,8 @@ CONTAINS
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
-    INTEGER                :: LISTE_INFO(19),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
+    INTEGER                :: LISTE_INFO(19),LISTE_ELE(20),LISTE_ELE_SFC(20)
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
@@ -1521,6 +1535,7 @@ CONTAINS
                                drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
 
     INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
+    INTEGER                :: NELE_SF, NELE_GP
     INTEGER                :: bit_alt,btyp_offset,btyp_offset_uni
     character(len = 5)     :: BURP_TYP
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
@@ -1550,15 +1565,18 @@ CONTAINS
     UNI_FAMILYTYPE = 'SF'
     LISTE_ELE_SFC(:)=-1
     LISTE_ELE(:)=-1
+    LISTE_ELE_SF(:)=-1
+    LISTE_ELE_GP(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
 
         LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
-        NELE_SFC=6
+        NELE_SF=6
         CALL BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
+        NELE_SFC = NELEMS_SF 
+        BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_SF(1:NELE_SFC)        
 
         FAMILYTYPE2= 'UA'
         LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
@@ -1593,11 +1611,20 @@ CONTAINS
       CASE('SF','GP')
         BURP_TYP='uni'
         vcord_type(1)=0
-        NELE_SFC=7
-        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
-
+        BLISTELEMENTS_SFC(:) = -1
+        NELE_SF=7
+        LISTE_ELE_SF(1:7) = (/12004,11011,11012,10051,10004,12203,12006/)
+        NELE_GP=6
+        LISTE_ELE_GP(1:6) = (/10004,12004,12006,15031,15032,15035/) 
         CALL BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
+        if (trim(FAMILYTYPE) == 'GP') then 
+          NELE_SFC = NELEMS_GP
+          BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_GP(1:NELE_SFC)
+          UNI_FAMILYTYPE = 'GP'
+        else 
+          NELE_SFC = NELEMS_SF 
+          BLISTELEMENTS_SFC(1:NELE_SFC) = BLISTELEMENTS_SF(1:NELE_SFC)
+        endif
 
         FAMILYTYPE2= 'SFC'
       CASE('SC')
@@ -2695,15 +2722,32 @@ CONTAINS
 
     id_obs=NOBS
 
+! Special test for GB-GPS 
+! Reports with missing ZTD cause problems with output of subsequent reports (missing OMP, OER, FLAG bits)
+! Since July 2019, reports with missing ZTD are removed in the GB-GPS dbase files.
+    if ( trim(FAMTYP) == trim('GP') )  then
+      DO il = 1, NELE
+         varno = LISTE_ELE(il)
+         DO j = 1, NVAL
+            obsv = obsvalue(il,j)
+            if ( varno == 15031 .and.  obsv == MISG  ) then
+               print * , 'write body: report rejected no ZTD'
+               WRITE_BODY = NLV
+               return
+            endif
+         END DO
+      END DO
+    endif
+! Special test for GB-GPS
 
-    if (  trim(FAMTYP) == trim('PR') .OR. trim(FAMTYP) == trim('SF') ) then
+    if (  trim(FAMTYP) == trim('PR') .OR. trim(FAMTYP) == trim('SF') .OR. trim(FAMTYP) == trim('GP') ) then
       ELEVFACT=1.
     else
       ELEVFACT=0.
     end if
     if (  trim(FAMTYP) == trim('TO') ) then
       !ELEV=0.
-    END IF
+    end if
 
     SELECT CASE(FAMTYP)
       CASE ( 'UA' , 'SW' , 'AI')
