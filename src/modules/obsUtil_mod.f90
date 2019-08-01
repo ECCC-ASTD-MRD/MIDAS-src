@@ -26,88 +26,119 @@ module obsUtil_mod
   use codePrecision_mod
   use earthConstants_mod, only:  grav
   use codtyp_mod
+  use obsVariableTransforms_mod
+  use utilities_mod
 
   implicit none
   save
   private
-  public :: obsu_setassflg, obsu_updateFlagWindDirectionSpeed
+  public :: obsu_setassflg, obsu_updateSourceVariablesFlag
   public :: obsu_computeVertCoordSurfObs, obsu_setGbgpsError, obsu_cvt_obs_instrum
   public :: obsu_scaleFSO
-  contains
+  
+contains
 
-  subroutine obsu_updateFlagWindDirectionSpeed(obsSpaceData)
+  !--------------------------------------------------------------------------
+  ! obsu_updateSourceVariablesFlag
+  !--------------------------------------------------------------------------
+  subroutine obsu_updateSourceVariablesFlag(obsSpaceData)
     implicit none
     ! argument
     type(struct_obs) :: obsSpaceData
 
     ! locals
-    integer          :: iuu, ivv, iff, idd, flagu, flagv, newflag
-    integer          :: headerIndex, headerIndexStart, headerIndexEnd, jWindType, bodyIndex, bodyIndex2
-    real(obs_real)   :: zlevu
-    logical          :: llok
-    character(len=9) :: stid
+    integer          :: transformVariableBufrCode, transformVariableBufrCodeExtra
+    integer          :: flag, flagExtra, mergedFlag
+    integer          :: sourceVariableBufrCode, sourceVariableBufrCodeExtra
+    integer          :: headerIndex, bodyIndexStart, bodyIndexEnd, bodyIndex, bodyIndex2
+    real(obs_real)   :: levType
 
-    WIND_TYPE: do jWindType = 1, 2
-      if (jWindType == 1 ) then
-        iuu=bufr_neuu
-        ivv=bufr_nevv
-        idd=bufr_nedd
-        iff=bufr_neff
-      else
-        iuu=bufr_neus
-        ivv=bufr_nevs
-        idd=bufr_neds
-        iff=bufr_nefs
+    integer :: transformIndex, transformedVariableBufrCodeIndex
+
+    body : do bodyIndex = 1, obs_numBody(obsSpaceData) 
+
+      if (ovt_isTransformedVariable(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex))) then
+
+        ! We have found a transformed variable
+        transformVariableBufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+
+        ! We will assign his assimilation flag to its source variable
+        sourceVariableBufrCode = ovt_getSourceVariableBufrCode(transformVariableBufrCode)
+
+        write(*,*) 'JFC: We have found a transformed variable', transformVariableBufrCode, sourceVariableBufrCode
+
+        headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex   )
+        bodyIndexStart   = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
+        bodyIndexEnd     = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
+        levType          = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex   )
+        flag             = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex   )
+
+        if (ovt_isWindObs(sourceVariableBufrCode)) then
+
+           ! Get the flag of the companion transformed variable
+          transformVariableBufrCodeExtra = ovt_getTransformVariableBufrCode(sourceVariableBufrCode, &
+                                                                   extra_opt=.true.)
+
+          write(*,*) '        it is a wind variable with companion bufr code = ',  transformVariableBufrCodeExtra
+
+          flagExtra = -999
+          do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == transformVariableBufrCodeExtra .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+              flagExtra = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex2)
+            end if
+          end do
+
+          ! Combine flags
+          if (flagExtra /= -999) then
+            mergedFlag = ior(flag,flagExtra)
+          else
+            call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
+          end if
+          
+          write(*,*) '        flags = ',  mergedFlag, flag, flagExtra
+
+
+          ! Find sourceVariableBufrCode and sourceVariableBufrCodeExtra and update their flag
+          sourceVariableBufrCodeExtra = ovt_getSourceVariableBufrCode(transformVariableBufrCode,&
+                                                                      extra_opt=.true.)
+          do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+              write(*,*) '        set flag for source variable 1 = ',  sourceVariableBufrCode
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
+            end if
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCodeExtra .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+              write(*,*) '        set flag for source variable 2 = ',  sourceVariableBufrCodeExtra
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
+            end if
+          end do
+          
+        else
+          
+           write(*,*) '        it is NOT wind variable'
+
+          ! Find sourceVariableBufrCode and update its flag
+          do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+              write(*,*) '        set flag for source variable = ',  sourceVariableBufrCode
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag ) 
+            end if
+          end do
+
+        end if
+        
       end if
+      
+    end do body
 
-      BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
+  end subroutine obsu_updateSourceVariablesFlag
 
-        llok = ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == iuu )
-        flagu=-1
-        if ( llok ) then
-          headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex   )
-          headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
-          headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + headerIndexStart - 1
-          stid             = obs_elem_c    (obsSpaceData, 'STID'  , headerIndex )
-          zlevu            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex   )
-          flagu            = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex   ) !  GET FLAG OF U COMPONENT
-
-          BODY2: do bodyIndex2 = headerIndexStart, headerIndexEnd
-
-            if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == ivv .and. &
-                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              flagv = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 ) !  GET FLAG OF V COMPONENT
-              newflag = ior(flagu, flagv)
-            end if
-
-          end do BODY2
-
-          ! UPDATE FLAGS OF DIRECTION AN SPEED
-          BODY2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
-
-            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == idd .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              newflag =IOR(flagu,flagv)
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, newflag ) 
-            end if
-
-            if  ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex2) == iff   .and. &
-                  obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex2) == zlevu ) then
-              newflag =IOR(flagu,flagv)
-              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex2, newflag)
-            end if
-
-          end do BODY2_2
-
-        end if ! llok
-
-      end do BODY
-
-    end do WIND_TYPE
-
-  end subroutine obsu_updateFlagWindDirectionSpeed
-
-
+  !--------------------------------------------------------------------------
+  ! obsu_setassflg
+  !--------------------------------------------------------------------------
   subroutine obsu_setassflg(obsSpaceData)
     !
     ! :Purpose: Set banco quality control bit #12 for all data assimilated
@@ -130,7 +161,9 @@ module obsUtil_mod
 
   end subroutine obsu_setassflg
 
-
+  !--------------------------------------------------------------------------
+  ! surfvcord
+  !--------------------------------------------------------------------------
   real function surfvcord( varno, codtyp )
 
     implicit none
@@ -181,6 +214,9 @@ module obsUtil_mod
 
   end function  surfvcord
 
+  !--------------------------------------------------------------------------
+  ! codtypfam
+  !--------------------------------------------------------------------------
   function codtypfam(codtyp) result(family)
     implicit none
     integer          :: codtyp
@@ -212,6 +248,9 @@ module obsUtil_mod
 
   end function codtypfam
 
+  !--------------------------------------------------------------------------
+  ! obsu_computeVertCoordSurfObs
+  !--------------------------------------------------------------------------
   subroutine  obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
     !
     implicit none
@@ -258,7 +297,9 @@ module obsUtil_mod
 
   end subroutine obsu_computeVertCoordSurfObs
 
-
+  !--------------------------------------------------------------------------
+  ! obsu_setGbgpsError
+  !--------------------------------------------------------------------------
   subroutine  obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd )
     !
     implicit none
@@ -306,7 +347,9 @@ module obsUtil_mod
 
   end subroutine obsu_setGbgpsError
 
-  
+  !--------------------------------------------------------------------------
+  ! obsu_cvt_obs_instrum
+  !--------------------------------------------------------------------------
   integer function obsu_cvt_obs_instrum(sensor)
     !
     ! :Purpose: Map burp satellite sensor indicator (element #2048) to
@@ -352,6 +395,9 @@ module obsUtil_mod
 
   end function obsu_cvt_obs_instrum
 
+  !--------------------------------------------------------------------------
+  ! obsu_scaleFSO
+  !--------------------------------------------------------------------------
   subroutine obsu_scaleFSO(obsdat)
     !
     implicit none

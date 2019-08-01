@@ -198,7 +198,7 @@ contains
     if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
     call ovt_transformResiduals(obsSpaceData, obs_omp)
     if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
-    call obsu_updateFlagWindDirectionSpeed(obsSpaceData) ! JFC: doit etre modifie !!!!
+    call obsu_updateSourceVariablesFlag(obsSpaceData)
     ! Put the scale factor for FSO
     if (trim(obsFileMode) == 'FSO') call obsu_scaleFSO(obsSpaceData)
 

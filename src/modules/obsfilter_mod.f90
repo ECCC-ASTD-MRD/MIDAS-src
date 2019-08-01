@@ -41,7 +41,7 @@ module obsFilter_mod
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
-  public :: filt_elementAssimilated, filt_getElementAssimilated, filt_nElementAssimilated
+  public :: filt_variableBufrCodeAssimilated, filt_getvariableBufrCodeAssimilated, filt_nVariableBufrCodeAssimilated
 
   integer :: filt_nelems, filt_nflags
   integer, target :: filt_nlist(30)
@@ -1609,47 +1609,47 @@ end subroutine filt_topoAISW
   END SUBROUTINE filt_topoChemistry
 
   !--------------------------------------------------------------------------
-  ! filt_elementAssimilated
+  ! filt_variableBufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  function filt_elementAssimilated(elementID) result(assimilated)
+  function filt_variableBufrCodeAssimilated(variableBufrCode) result(assimilated)
     implicit none
-    integer :: elementID
+    integer :: variableBufrCode
     logical :: assimilated
     integer :: elemIndex
 
     assimilated = .false.
 
     do elemIndex = 1, filt_nelems
-      if (filt_nlist(elemIndex) == elementID) then
+      if (filt_nlist(elemIndex) == variableBufrCode) then
         assimilated = .true.
         return
       end if
     end do
 
-  end function filt_elementAssimilated
+  end function filt_variableBufrCodeAssimilated
 
   !--------------------------------------------------------------------------
-  ! filt_getElementAssimilated
+  ! filt_getVariableBufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  subroutine filt_getElementAssimilated(elementList)
+  subroutine filt_getVariableBufrCodeAssimilated(variableBufrCodeList)
     implicit none
 
-    integer :: elementList(filt_nelems)
+    integer :: variableBufrCodeList(filt_nelems)
 
-    elementList(:) = filt_nlist(1:filt_nelems)
+    variableBufrCodeList(:) = filt_nlist(1:filt_nelems)
 
-  end subroutine filt_getElementAssimilated
+  end subroutine filt_getVariableBufrCodeAssimilated
 
   !--------------------------------------------------------------------------
-  ! filt_nElementAssimilated
+  ! filt_nVariableBufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  function filt_nElementAssimilated() result(nElement)
+  function filt_nVariableBufrCodeAssimilated() result(nVariableBufrCode)
     implicit none
 
-    integer :: nElement
+    integer :: nVariableBufrCode
 
-    nElement = filt_nelems
+    nVariableBufrCode = filt_nelems
 
-  end function filt_nElementAssimilated
+  end function filt_nVariableBufrCodeAssimilated
 
 end module obsFilter_mod

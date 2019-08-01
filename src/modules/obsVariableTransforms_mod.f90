@@ -34,22 +34,25 @@ module obsVariableTransforms_mod
   save
   private
 
-  public :: ovt_setup, ovt_getDestinationElement, ovt_elementSkipped, ovt_isWindObs
-  public :: ovt_transformObsValues, ovt_transformResiduals, ovt_adjustHumGZ
+  public :: ovt_setup, ovt_transformObsValues, ovt_transformResiduals
+  public :: ovt_getTransformVariableBufrCode, ovt_getSourceVariableBufrCode, ovt_variableBufrCodeSkipped
+  public :: ovt_isWindObs, ovt_isTransformedVariable, ovt_adjustHumGZ
 
   integer  , parameter   :: nTransformSupported = 1
-  integer  , parameter   :: nElementMax         = 2
+  integer  , parameter   :: nVariableBufrCodeMax= 2
 
   type :: struct_ovt
-    character(len=48) :: transformName          (nTransformSupported)
-    integer           :: sourceElement          (nTransformSupported,nElementMax)
-    integer           :: destinationElement     (nTransformSupported,nElementMax)
-    integer           :: destinationElementExtra(nTransformSupported,nElementMax)
-    logical           :: wind                   (nTransformSupported) = .false.
-    logical           :: activeTransform        (nTransformSupported) = .false.
+    character(len=48) :: transformName                 (nTransformSupported)
+    integer           :: nVariableBufrCode             (nTransformSupported)
+    integer           :: sourceVariableBufrCode        (nTransformSupported,nVariableBufrCodeMax)
+    integer           :: sourceVariableBufrCodeExtra   (nTransformSupported,nVariableBufrCodeMax)
+    integer           :: transformVariableBufrCode     (nTransformSupported,nVariableBufrCodeMax)
+    integer           :: transformVariableBufrCodeExtra(nTransformSupported,nVariableBufrCodeMax)
+    logical           :: wind                          (nTransformSupported) = .false.
+    logical           :: activeTransform               (nTransformSupported) = .false.
+    integer           :: nSkippedVariableBufrCodes    = 0
+    integer           :: skippedVariableBufrCodes(50) = -999
     logical           :: setup = .false.
-    integer           :: nSkippedElements    = 0
-    integer           :: skippedElements(50) = -999
   end type struct_ovt
 
   ! Module's internal data
@@ -65,14 +68,14 @@ contains
 
     ! Upper and surface winds
     ovt%transformName(1)   = 'windSpeedDirectionToUV'
-    ovt%sourceElement          (1,:) = (/bufr_nedd, bufr_neds/) ! directions only (because we still want
-                                                                ! to be able to assimilate wind speed obs
-                                                                ! alone)
-    ovt%destinationElement     (1,:) = (/bufr_neuu, bufr_neus/)
-    ovt%destinationElementExtra(1,:) = (/bufr_nevv, bufr_nevs/)
-    ovt%nSkippedElements   = 2
-    ovt%skippedElements(1) = bufr_neff ! Upper-air wind speed
-    ovt%skippedElements(2) = bufr_nefs ! 10m       wind speed
+    ovt%nVariableBufrCode(1)        = 2
+    ovt%sourceVariableBufrCode        (1,:) = (/bufr_nedd, bufr_neds/) ! direction
+    ovt%sourceVariableBufrCodeExtra   (1,:) = (/bufr_neff, bufr_nefs/) ! speed
+    ovt%transformVariableBufrCode     (1,:) = (/bufr_neuu, bufr_neus/) ! u-wind
+    ovt%transformVariableBufrCodeExtra(1,:) = (/bufr_nevv, bufr_nevs/) ! v-wind
+    ovt%nSkippedVariableBufrCodes   = 2
+    ovt%skippedVariableBufrCodes(1) = bufr_neff  ! because we still want to be able ...
+    ovt%skippedVariableBufrCodes(2) = bufr_nefs  ! ... to assimilate wind speed obs alone
     ovt%wind = .true.
 
   end subroutine ovt_initStructure
@@ -80,15 +83,15 @@ contains
   !--------------------------------------------------------------------------
   ! ovt_setup
   !--------------------------------------------------------------------------
-  subroutine ovt_setup(elementReaded)
+  subroutine ovt_setup(variableBufrCodeReaded)
     implicit none
 
-    integer, intent(in) :: elementReaded(:)
+    integer, intent(in) :: variableBufrCodeReaded(:)
 
-    integer, allocatable :: elementAssimilated(:)
+    integer, allocatable :: variableBufrCodeAssimilated(:)
 
-    integer :: nElementReaded, nElementAssimilated
-    integer :: readElementIndex, transformIndex, assimElementIndex
+    integer :: nVariableBufrCodeReaded, nVariableBufrCodeAssimilated
+    integer :: readVariableBufrCodeIndex, transformIndex, assimVariableBufrCodeIndex
 
     logical :: variableTransformNeeded, foundTransformation
     logical, save :: firstTime = .true.
@@ -98,19 +101,19 @@ contains
       firstTime = .false.
     end if
 
-    nElementAssimilated = filt_nElementAssimilated()
-    nElementReaded = size(elementReaded)
+    nVariableBufrCodeAssimilated = filt_nVariableBufrCodeAssimilated()
+    nVariableBufrCodeReaded = size(variableBufrCodeReaded)
     variableTransformNeeded = .false.
 
-    allocate(elementAssimilated(nElementAssimilated))
-    call filt_getElementAssimilated(elementAssimilated)
+    allocate(variableBufrCodeAssimilated(nVariableBufrCodeAssimilated))
+    call filt_getVariableBufrCodeAssimilated(variableBufrCodeAssimilated)
 
-    do readElementIndex = 1, nElementReaded
+    do readVariableBufrCodeIndex = 1, nVariableBufrCodeReaded
     
       ! Check if a transform is neeeded
-      if (filt_elementAssimilated(elementReaded(readElementIndex)) .or. &
-          elementReaded(readElementIndex) == bufr_neff             .or. &
-          elementReaded(readElementIndex) == bufr_nefs ) then
+      if (filt_variableBufrCodeAssimilated(variableBufrCodeReaded(readVariableBufrCodeIndex)) .or. &
+          variableBufrCodeReaded(readVariableBufrCodeIndex) == bufr_neff             .or. &
+          variableBufrCodeReaded(readVariableBufrCodeIndex) == bufr_nefs ) then
         cycle ! No transformation needed. Move on.
       end if
 
@@ -118,9 +121,9 @@ contains
       foundTransformation = .false.
 
       transformLoop : do transformIndex = 1, nTransformSupported
-        assimElementLoop : do assimElementIndex = 1, nElementAssimilated
-          if (any(ovt%sourceElement     (transformIndex,:) == elementReaded(readElementIndex))        .and. &
-              any(ovt%destinationElement(transformIndex,:) == elementAssimilated(assimElementIndex)) )  then
+        assimVariableBufrCodeLoop : do assimVariableBufrCodeIndex = 1, nVariableBufrCodeAssimilated
+          if (any(ovt%sourceVariableBufrCode     (transformIndex,:) == variableBufrCodeReaded(readVariableBufrCodeIndex))        .and. &
+              any(ovt%transformVariableBufrCode(transformIndex,:) == variableBufrCodeAssimilated(assimVariableBufrCodeIndex)) )  then
             if (.not. ovt%activeTransform(transformIndex)) then
               write(*,*) 'ovt_setup: transform activated : ', trim(ovt%transformName(transformIndex))
               ovt%activeTransform(transformIndex) = .true.
@@ -128,59 +131,59 @@ contains
             foundTransformation = .true.
             exit transformLoop
           end if
-        end do assimElementLoop
+        end do assimVariableBufrCodeLoop
       end do transformLoop
 
       if (.not. foundTransformation) then
         write(*,*)
-        write(*,*) 'ovt_setup: !WARNING! No transform found for the readed element = ', elementReaded(readElementIndex)
+        write(*,*) 'ovt_setup: !WARNING! No transform found for the readed bufr code = ', variableBufrCodeReaded(readVariableBufrCodeIndex)
         write(*,*) '           We are assuming that this observation is readed but not assimilated.'
-        write(*,*) '           Please consider removing this element from the readed observation list.'
-        ovt%nSkippedElements = ovt%nSkippedElements + 1
-        ovt%skippedElements(ovt%nSkippedElements) = elementReaded(readElementIndex)
+        write(*,*) '           Please consider removing this bufr code from the readed observation list.'
+        ovt%nSkippedVariableBufrCodes = ovt%nSkippedVariableBufrCodes + 1
+        ovt%skippedVariableBufrCodes(ovt%nSkippedVariableBufrCodes) = variableBufrCodeReaded(readVariableBufrCodeIndex)
       end if
 
     end do
 
     ovt%setup = .true.
 
-    deallocate(elementAssimilated)
+    deallocate(variableBufrCodeAssimilated)
 
   end subroutine ovt_setup
 
   !--------------------------------------------------------------------------
-  ! ovt_elementSkipped
+  ! ovt_variableBufrCodeSkipped
   !--------------------------------------------------------------------------
-  function ovt_elementSkipped(sourceElement) result(skip)
+  function ovt_variableBufrCodeSkipped(sourceVariableBufrCode) result(skip)
     implicit none
 
-    integer, intent(in) :: sourceElement
+    integer, intent(in) :: sourceVariableBufrCode
     logical :: skip
     
-    integer :: transformIndex, elementIndex
+    integer :: transformIndex, variableBufrCodeIndex
 
     skip = .false.
-    do elementIndex = 1, ovt%nSkippedElements
-      if (ovt%skippedElements(elementIndex) == sourceElement) then
+    do variableBufrCodeIndex = 1, ovt%nSkippedVariableBufrCodes
+      if (ovt%skippedVariableBufrCodes(variableBufrCodeIndex) == sourceVariableBufrCode) then
         skip = .true.
         exit
       end if
     end do
 
-  end function ovt_elementSkipped
+  end function ovt_variableBufrCodeSkipped
 
   !--------------------------------------------------------------------------
-  ! ovt_getDestinationElement
+  ! ovt_getTransformVariableBufrCode
   !--------------------------------------------------------------------------
-  function ovt_getDestinationElement(sourceElement,extra_opt) result(destinationElement)
+  function ovt_getTransformVariableBufrCode(sourceVariableBufrCode,extra_opt) result(transformVariableBufrCode)
     implicit none
 
-    integer, intent(in) :: sourceElement
-    integer :: destinationElement
+    integer, intent(in) :: sourceVariableBufrCode
+    integer :: transformVariableBufrCode
     logical, optional :: extra_opt
     
     logical :: extra
-    integer :: transformIndex, elementIndex
+    integer :: transformIndex, variableBufrCodeIndex
 
     if (present(extra_opt)) then
       extra = extra_opt
@@ -188,50 +191,118 @@ contains
       extra = .false. ! default
     end if
 
-    destinationElement = -1
+    transformVariableBufrCode = -1
 
     transformLoop : do transformIndex = 1, nTransformSupported
-      elementLoop : do elementIndex = 1, nElementMax
-        if (ovt%sourceElement(transformIndex,elementIndex) == sourceElement) then
+      variableBufrCodeLoop : do variableBufrCodeIndex = 1, ovt%nVariableBufrCode(transformIndex)
+        if (ovt%sourceVariableBufrCode(transformIndex,variableBufrCodeIndex) == sourceVariableBufrCode) then
           if (extra) then
-            destinationElement = ovt%destinationElementExtra(transformIndex,elementIndex)
+            transformVariableBufrCode = ovt%transformVariableBufrCodeExtra(transformIndex,variableBufrCodeIndex)
           else
-            destinationElement = ovt%destinationElement(transformIndex,elementIndex)
+            transformVariableBufrCode = ovt%transformVariableBufrCode(transformIndex,variableBufrCodeIndex)
           end if
           exit transformLoop
         end if
-      end do elementLoop
+      end do variableBufrCodeLoop
     end do transformLoop
 
-    if (destinationElement == -1) then
+    if (transformVariableBufrCode == -1) then
       write(*,*)
-      write(*,*) 'ovt_getDestinationElement: source element = ', sourceElement
-      call utl_abort('ovt_getDestinationElement: found no associated element for the above source element (bufr code)')
+      write(*,*) 'ovt_getTransformVariableBufrCode: source variableBufrCode = ', sourceVariableBufrCode
+      call utl_abort('ovt_getTransformVariableBufrCode: found no associated variableBufrCode for the above source variable bufr code')
     end if
 
-  end function ovt_getDestinationElement
+  end function ovt_getTransformVariableBufrCode
+
+  !--------------------------------------------------------------------------
+  ! ovt_getSourceVariableBufrCode
+  !--------------------------------------------------------------------------
+  function ovt_getSourceVariableBufrCode(transformVariableBufrCode,extra_opt) result(sourceVariableBufrCode)
+    implicit none
+
+    integer, intent(in) :: transformVariableBufrCode
+    integer :: sourceVariableBufrCode
+    logical, optional :: extra_opt
+    
+    logical :: extra
+    integer :: transformIndex, transformVariableBufrCodeIndex
+
+    if (present(extra_opt)) then
+      extra = extra_opt
+    else
+      extra = .false. ! default
+    end if
+
+    sourceVariableBufrCode = -1
+
+    transformLoop : do transformIndex = 1, nTransformSupported
+      transformVariableBufrCodeLoop : do transformVariableBufrCodeIndex = 1, ovt%nVariableBufrCode(transformIndex)
+        if (ovt%transformVariableBufrCode(transformIndex,transformVariableBufrCodeIndex) == transformVariableBufrCode) then
+          if (extra) then
+            sourceVariableBufrCode = ovt%sourceVariableBufrCodeExtra(transformIndex,transformVariableBufrCodeIndex)
+          else
+            sourceVariableBufrCode = ovt%sourceVariableBufrCode(transformIndex,transformVariableBufrCodeIndex)
+          end if
+          exit transformLoop
+        end if
+      end do transformVariableBufrCodeLoop
+    end do transformLoop
+
+    if (sourceVariableBufrCode == -1) then
+      write(*,*)
+      write(*,*) 'ovt_getSourceVariableBufrCode: tranform variable bufr code = ', transformVariableBufrCode
+      call utl_abort('ovt_getSourceVariableBufrCode: found no associated variable bufr code for the above transform variable bufr code')
+    end if
+
+  end function ovt_getSourceVariableBufrCode
 
   !--------------------------------------------------------------------------
   ! ovt_isWindObs
   !--------------------------------------------------------------------------
-  function ovt_isWindObs(sourceElement) result(windOrNot)
+  function ovt_isWindObs(sourceVariableBufrCode) result(wind)
     implicit none
 
-    integer, intent(in) :: sourceElement
-    logical :: windOrNot
+    integer, intent(in) :: sourceVariableBufrCode
+    logical :: wind
 
-    integer :: transformIndex, elementIndex
+    integer :: transformIndex, variableBufrCodeIndex
 
     transformLoop : do transformIndex = 1, nTransformSupported
-      elementLoop : do elementIndex = 1, nElementMax
-        if (ovt%sourceElement(transformIndex,elementIndex) == sourceElement) then
-          windOrNot = ovt%wind(transformIndex)
+      variableBufrCodeLoop : do variableBufrCodeIndex = 1, ovt%nVariableBufrCode(transformIndex)
+        if (ovt%sourceVariableBufrCode(transformIndex,variableBufrCodeIndex) == sourceVariableBufrCode) then
+          wind = ovt%wind(transformIndex)
           exit transformLoop
         end if
-      end do elementLoop
+      end do variableBufrCodeLoop
     end do transformLoop
 
   end function ovt_isWindObs
+
+  !--------------------------------------------------------------------------
+  ! ovt_isTransformedVariable
+  !--------------------------------------------------------------------------
+  function ovt_isTransformedVariable(variableBufrCode) result(transformed)
+    implicit none
+
+    integer, intent(in) :: variableBufrCode
+    logical :: transformed
+
+    integer :: transformIndex, variableBufrCodeIndex
+
+    transformed = .false.
+
+    transformLoop : do transformIndex = 1, nTransformSupported
+      if (ovt%activeTransform(transformIndex)) then
+        variableBufrCodeLoop : do variableBufrCodeIndex = 1, ovt%nVariableBufrCode(transformIndex)
+          if (ovt%transformVariableBufrCode(transformIndex,variableBufrCodeIndex) == variableBufrCode) then
+            transformed = .true.
+            exit transformLoop
+          end if
+        end do variableBufrCodeLoop
+      end if
+    end do transformLoop
+
+  end function ovt_isTransformedVariable
 
   !--------------------------------------------------------------------------
   ! ovt_transformObsValues

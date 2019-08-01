@@ -598,11 +598,11 @@ contains
            call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                 obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
-           if (.not. filt_elementAssimilated(obsVarno) .and. &
-               .not. ovt_elementSkipped(obsVarno)) then
+           if (.not. filt_variableBufrCodeAssimilated(obsVarno) .and. &
+               .not. ovt_variableBufrCodeSkipped(obsVarno)) then
              call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
              call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                 real(MPC_missingValue_R8,OBS_REAL), ovt_getDestinationElement(obsVarno), &
+                                 real(MPC_missingValue_R8,OBS_REAL), ovt_getTransformVariableBufrCode(obsVarno), &
                                  0, vertCoordType, bodyIndex + 1 )
              bodyIndex = bodyIndex + 1
              obsNlv = obsNlv + 1
@@ -610,7 +610,7 @@ contains
                ! Add an extra row for the other wind component
                call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                   real(MPC_missingValue_R8,OBS_REAL), ovt_getdestinationElement(obsVarno,extra_opt=.true.), &
+                                   real(MPC_missingValue_R8,OBS_REAL), ovt_getTransformVariableBufrCode(obsVarno,extra_opt=.true.), &
                                    0, vertCoordType, bodyIndex + 1 )
                bodyIndex = bodyIndex + 1
                obsNlv = obsNlv + 1
