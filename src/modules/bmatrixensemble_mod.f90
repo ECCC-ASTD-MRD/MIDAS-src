@@ -192,15 +192,13 @@ CONTAINS
     real(8), pointer :: HeightSfc(:,:)
 
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
-    integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
+    integer        :: levIndex,jvar,status
     integer        :: fnom,fclos,ierr,nulnam
     integer        :: waveBandIndex, stepIndex
-    integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
     integer        :: dateStampFSO
 
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
-    logical        :: lExists
 
     !namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &
@@ -864,7 +862,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE ben_finalize()
     implicit none
-    integer :: memberIndex, waveBandIndex, subEnsIndex
+    integer :: waveBandIndex
 
     if (verbose) write(*,*) 'Entering ben_Finalize'
 
@@ -920,10 +918,8 @@ CONTAINS
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: multFactor
     integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex
-    integer :: ierr,varIndex
     logical :: makeBiPeriodic
     character(len=4) :: varName
-    character(len=256) :: ensFileName
 
     write(*,*) 'setupEnsemble: Start'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1518,7 +1514,8 @@ CONTAINS
     ! Locals
     type(struct_ens), target  :: ensAmplitude_M
     type(struct_ens), pointer :: ensAmplitude_M_ptr
-    integer   :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
+
+    integer   :: ierr, waveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
     logical   :: useFSOFcst
@@ -1656,7 +1653,8 @@ CONTAINS
     ! Locals
     type(struct_ens), target  :: ensAmplitude_M
     type(struct_ens), pointer :: ensAmplitude_M_ptr
-    integer           :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
+
+    integer           :: ierr, waveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
     logical           :: useFSOFcst
 
@@ -1781,7 +1779,7 @@ CONTAINS
     real(8), pointer     :: increment_out(:,:,:,:)
     real(8), allocatable :: increment_out2(:,:,:)
     real(4), pointer     :: ensMemberAll_r4(:,:,:,:)
-    integer     :: lev, lev2, levIndex, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, numLev, memberIndex
+    integer     :: lev, lev2, levIndex, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
     character(len=4)     :: varName
 
     logical             :: useFSOFcst
@@ -1968,7 +1966,7 @@ CONTAINS
     real(8), pointer :: increment_in(:,:,:,:)
     real(8), allocatable :: increment_in2(:,:,:)
     real(4), pointer :: ensMemberAll_r4(:,:,:,:)
-    integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, numLev, memberIndex
+    integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
     character(len=4)     :: varName
     integer     ::  stepBeg, stepEnd, stepIndex2, numStepAmplitude
     logical          :: useFSOFcst
@@ -2159,7 +2157,7 @@ CONTAINS
 
     real(8) :: dnens2
 
-    character(len=12):: etiket, modeEtiket
+    character(len=12):: etiket
     character(len=2) :: wbnum
 
     if ( trim(mode) == 'FullPerturbations') then

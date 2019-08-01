@@ -71,7 +71,7 @@ subroutine tt2phi(statevector_trial,beSilent_opt)
   logical, optional :: beSilent_opt
 
   integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode,numStep,stepIndex,latIndex,lonIndex
-  real(8) :: hu, tt, Pr, cmp, delThick, tvm, ratioP, ScaleFactorBottom, ScaleFactorTop
+  real(8) :: hu, tt, Pr, cmp, delThick, ratioP, ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: tv(:), height_T(:), height_M(:) 
   real(8), pointer     :: height_T_ptr_r8(:,:,:,:),height_M_ptr_r8(:,:,:,:)
   real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
@@ -395,7 +395,7 @@ subroutine tt2phi_tl(statevector,statevector_trial)
 
   type(struct_gsv) :: statevector,statevector_trial
 
-  integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl,numStep,stepIndex,latIndex,lonIndex
+  integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numStep,stepIndex,latIndex,lonIndex
   real(8) :: ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:,:,:,:)
   real(8), pointer     :: delHeight_M_ptr(:,:,:,:),delHeight_T_ptr(:,:,:,:),delTT(:,:,:,:),delHU(:,:,:,:),delP0(:,:,:,:)
@@ -581,7 +581,7 @@ subroutine tt2phi_ad(statevector,statevector_trial)
 
   type(struct_gsv) :: statevector,statevector_trial
 
-  integer :: lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl,numStep,stepIndex,latIndex,lonIndex
+  integer :: lev_M,lev_T,nlev_M,nlev_T,Vcode_anl,numStep,stepIndex,latIndex,lonIndex
   real(8) :: ScaleFactorBottom, ScaleFactorTop
   real(8), allocatable :: delThick(:,:,:,:)
   real(8), pointer     :: delHeight_M_ptr(:,:,:,:),delHeight_T_ptr(:,:,:,:),delTT(:,:,:,:),delHU(:,:,:,:),delP0(:,:,:,:)
@@ -808,7 +808,7 @@ subroutine calcHeightCoeff_gsv(statevector_trial)
 
   type(struct_gsv) :: statevector_trial
 
-  integer :: lev_M,lev_T,nlev_M,nlev_T,status,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
+  integer :: lev_T,nlev_M,nlev_T,numStep,stepIndex,latIndex,lonIndex,Vcode_anl
   real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
   real(4) :: lat_4
   real(8) :: Rgh, sLat, lat_8

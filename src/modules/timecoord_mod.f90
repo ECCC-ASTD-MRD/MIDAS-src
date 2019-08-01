@@ -169,12 +169,11 @@ contains
     integer :: dateStamp_out
 
     ! locals
-    integer :: middleStep, nulFile, ierr
+    integer :: nulFile, ierr
     integer, parameter :: maxNumDates = 100
     integer :: numDates, ikeys(maxNumDates)
     integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
     integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
-    character(len=2) :: fileNumber
     logical :: fileExists, foundWindow
     real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &

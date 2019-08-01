@@ -122,7 +122,7 @@ module rMatrix_mod
     real(8), intent (in) :: sigma(:)
 
     ! locals
-    integer :: i,nchn,j,ii,jj,nsigma
+    integer :: i,j,ii,jj,nsigma
     real (8) :: product
 
     write(*,*) "rmat_setFullRMatrix: "

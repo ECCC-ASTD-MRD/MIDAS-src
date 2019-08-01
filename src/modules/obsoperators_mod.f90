@@ -82,7 +82,7 @@ contains
     REAL(8) :: ZLEV,ZPT,ZPB
     INTEGER :: IOBS,IK,ITYP
     CHARACTER(len=2) :: varLevel
-    integer :: headerIndex, bodyIndex
+    integer :: bodyIndex
 
     if (.not.beSilent) write(*,*) "Entering subroutine OOP_VOBSLYRS"
 
@@ -974,11 +974,11 @@ contains
     real(8)                 :: jobs         ! total value of Jobs for GPSRO
 
     real(8) :: pjob, pjo1
-    real(8) :: zlat, lat, slat
+    real(8) :: zlat, lat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
     integer :: isat, iclf, jj
-    real(8) :: rad, geo, rad1, wfgps
+    real(8) :: rad, geo, wfgps
     real(8), allocatable :: zpp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
@@ -988,12 +988,12 @@ contains
     real(8) :: zp0, zmt
     real(8) :: hnh1, zobs, zmhx, zoer, zinc
     integer headerIndex, idatyp, bodyIndex
-    integer jl, ngpslev, nwndlev, stat
+    integer jl, ngpslev, nwndlev
     logical  assim, firstheader, ldsc
     integer :: nh, nh1
     type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
-    type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
+    type(gps_diff), allocatable :: rstv(:)
     integer :: Vcode
 
     if (.not.beSilent) write(*,*)'ENTER oop_gpsro_nl'
@@ -1252,7 +1252,7 @@ contains
     real(8) :: ztdomp(max_gps_data)
     real(8) :: bias, std
     integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
-    integer :: jl, nlev_T, nobs2p, stat
+    integer :: jl, nlev_T, nobs2p
     integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode, lfsl
     character(9) :: cstnid
@@ -1666,12 +1666,12 @@ contains
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode,beSilent)
+    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,beSilent)
     if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 2.   Compute radiance
     ! .    ----------------
-    call tvs_rttov(columnghr,obsSpaceData,bgckMode,beSilent)
+    call tvs_rttov(obsSpaceData,bgckMode,beSilent)
     if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 3.   Compute Jobs and the residuals
@@ -2179,12 +2179,8 @@ contains
       !     .    -----------------------------------------------------------------------------
       !
       if (min_nsim == 1) then
-         datestamp = tim_getDatestamp()
-         if ( trim(obsoperMode) == 'bgckIR') then
-           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.true.,.false.)
-         else
-           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.false.,.false.)
-         end if
+        datestamp = tim_getDatestamp()
+        call tvs_fillProfiles(columng, obsSpaceData, datestamp, filt_rlimlvhu, .false.)
       end if
 
 
@@ -3435,15 +3431,15 @@ contains
     type(struct_columnData) :: columng
     type(struct_obs)        :: obsSpaceData
 
-    real(8) :: zlat, lat, slat
+    real(8) :: zlat, lat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
     integer :: isat
     real(8) :: rad, geo, wfgps, zp0
     REAL(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
-    real(8) :: zmt,radw
+    real(8) :: zmt
     integer :: IDATYP
-    integer :: jl, jv, ngpslev, nwndlev, jj
+    integer :: jl, ngpslev, nwndlev, jj
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
     logical, save :: lfirst = .true.
@@ -3623,11 +3619,9 @@ contains
     REAL*8 JAC(ngpscvmx)
 
     INTEGER headerIndex, bodyIndex
-    INTEGER JL, NFLEV, status, iztd, icount, stat, vcode
+    INTEGER JL, NFLEV, iztd, icount, stat, vcode
 
     LOGICAL      ASSIM
-
-    real*8, dimension(:), pointer :: dpdp0 => null()
 
     TYPE(gps_profilezd)   :: PRF, PRF2
     TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2

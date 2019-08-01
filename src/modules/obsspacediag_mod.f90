@@ -233,7 +233,6 @@ contains
     type(struct_vco), pointer :: vco_anl
     real*8, allocatable,target :: controlVector(:)
 
-    logical :: nmlExists
     integer :: familyIndex,elementIndex,bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
     integer :: maxLat,maxLon,maxVertical
     real*8, allocatable  :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
@@ -743,8 +742,6 @@ contains
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
 
-    integer :: ierr,nrep_modified,varno(1)
-
     ! If needed, add effective temperature values in CH family obs file 
     ! for total column measurements
 
@@ -895,18 +892,18 @@ contains
     logical, intent(in)     :: save_diagn
 
     type(struct_osd_diagn) :: obs_diagn
-    integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
+    integer :: headerIndex,bodyIndex,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
 
     integer, parameter :: nmax=100
     integer :: varno,varno_elemID(nmax)
-    integer :: elemID,i,num_elemID,nset,iass
+    integer :: elemID,num_elemID,nset,iass
     character(len=9) :: stnid_elemID(nmax)
     logical :: unilev_elemID(nmax),unilevel,diagn_only,assim_obs,status_hpht
     character(len=256) :: label
     real(8) :: lat,lon
     character(len=12) :: stnid
 
-    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:)
+    real(8), allocatable :: lev(:), omp(:), oma(:), obs(:)
     real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)
     integer, allocatable :: status(:)
@@ -1144,7 +1141,7 @@ contains
     character(len=*), intent(in) :: obsfam
     integer :: codtyplist(:)
 
-    integer :: bodyIndex,headerIndex,ierr,rln,nlv,kk
+    integer :: bodyIndex,headerIndex,rln,nlv,kk
     integer :: stat,varno,icodtyp
     integer, parameter :: max_nlev=500
     integer, parameter :: ndim=1
@@ -1550,7 +1547,6 @@ contains
     integer, allocatable :: ncounts(:), ncounts_assim(:)
     real(8), allocatable :: press_bins(:)
     logical :: fileout_exist,multilevel,unilevel
-    character(len=20) :: mode
     
     select case(trim(print_type))
     case('stats','STATS')

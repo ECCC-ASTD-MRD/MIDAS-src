@@ -49,13 +49,13 @@ module varqc_mod
 
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
-    integer jdata, kindic, iter, jjo, idata, idatend, idburp
-    integer ityp, iass, ifld, iother, jj, istyp, ilev
+    integer jdata, jjo, idata, idatend, idburp
+    integer ityp, iass, iother, jj, istyp, ilev
 
     real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice
     real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice
     real(8) zattra, zauvra, zattsym, zdvis, zavis
-    real(8) zslev, zlev, zjo, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
+    real(8) zslev, zlev, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
     real(8) zfcst, zlat, zlon, zprior
 
     logical llok
@@ -319,7 +319,7 @@ module varqc_mod
 
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
-    integer :: index_body,istyp,jj,index_header,ityp,index_body_start,ierr,index_family
+    integer :: index_body,istyp,jj,index_header,ityp,index_body_start
     real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
     logical :: lluv
     logical :: includeFlag

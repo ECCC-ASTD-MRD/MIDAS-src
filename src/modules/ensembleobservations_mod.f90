@@ -484,7 +484,7 @@ CONTAINS
 
       else if(tvs_isIdBurpTovs(codType(obsIndex))) then
 
-        tovsIndex = tvs_ltovsno(headerIndex)
+        tovsIndex = tvs_tovsIndex(headerIndex)
         nosensor = tvs_lsensor(tovsIndex)
         numTovsLevels   = size(tvs_transmission(tovsIndex)%tau_levels,1)
         channelIndex = nint(obsPPP(obsIndex))

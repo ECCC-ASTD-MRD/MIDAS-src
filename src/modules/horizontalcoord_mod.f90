@@ -90,8 +90,8 @@ module HorizontalCoord_mod
     integer :: iu_template, numSubGrid
     integer :: fnom, fstlir, fstouv, fstfrm, fclos, fstluk
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
-    integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
+    integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+    integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3

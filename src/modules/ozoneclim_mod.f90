@@ -107,7 +107,7 @@ contains
     IMPLICIT NONE
     integer            :: datestamp
 
-    INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
+    INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IER
     CHARACTER(len=100) :: CFILE
     INTEGER            :: NIOZO,NJOZO,NKOZO
     INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE

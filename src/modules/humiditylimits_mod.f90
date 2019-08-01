@@ -491,7 +491,6 @@ contains
 
     ! Locals:
     integer :: ji, jk, jo, ii, jj, ik, iorder
-    integer :: ilen, ierr
     real(8) :: zpo(numLev_dest)
     integer :: il(numLev_dest)
     real(8) :: zpi(0:numLev_src+1)

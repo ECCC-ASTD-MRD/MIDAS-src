@@ -72,7 +72,7 @@ module oMinusF_mod
       character(len=3)  :: obsColumnMode
       character(len=10) :: trialFileName
 
-      integer :: datestamp, get_max_rss, headerIndex, ierr
+      integer :: datestamp, get_max_rss
 
       write(*,*) " ---------------------------------------"
       write(*,*) " ---  START OF SUBROUTINE oMinusF    ---"

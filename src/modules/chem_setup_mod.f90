@@ -443,10 +443,9 @@ contains
 
     ! Locals:
   integer :: FNOM, FCLOS
-  integer :: IERR, JELM, nulstat, ios, isize, nulnam, i
+  integer :: IERR, ios, nulnam, i
   integer :: genoper(0:chm_constituents_size)
-  
-  character(len=128) :: ligne  
+    
   character(len=10)  :: namfile 
 
   EXTERNAL FNOM,FCLOS
@@ -1032,7 +1031,7 @@ contains
     integer, external :: newdate
    
     integer, external :: FNOM, FCLOS
-    integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount, iend
+    integer :: IERR, nulstat, ios
     logical :: LExists
     
     logical, parameter :: linterp=.true.
@@ -1530,7 +1529,7 @@ contains
     logical, intent(in), optional :: l_reverse_opt ! Reverse/inverse transformation if .true. (default value .false.)
 
     ! Locals:
-    integer :: i,j,ier,unit,icount
+    integer :: j,icount
     real(4) :: valmin
     real(4), parameter :: valmin_ref=1.0E-20
     integer, external :: fclos
@@ -1785,7 +1784,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: ierr,nrep_modified,varno(1)
+    integer :: nrep_modified,varno(1)
 
 !   If needed, add effective temperature values in obs file for total column measurements
 

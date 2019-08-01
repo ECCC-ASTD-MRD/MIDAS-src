@@ -92,7 +92,6 @@ CONTAINS
     type(struct_gsv) :: statevector_incHighRes
     type(struct_gsv) :: statevector_trial, statevector_analysis
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
-    type(struct_gsv) :: statevector_PsfcLowRes_varsLevs, statevector_Psfc_varsLevs
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
     type(struct_gsv) :: statevector_vis, statevector_vis_1step_r4
     type(struct_gsv) :: statevector_mask
@@ -569,7 +568,6 @@ CONTAINS
     integer              :: stepIndex, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
-    character(len=2)     :: flnum
     character(len=30)    :: fileName
 
     if(mpi_myid == 0) write(*,*) 'inc_writeIncrement: STARTING'

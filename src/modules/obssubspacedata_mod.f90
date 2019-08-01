@@ -517,7 +517,6 @@ contains
     integer, intent(in) :: ilon,ilat,date,time
     character(len=*), intent(in) :: stnid
     character(len=oss_code_len) :: code
-    integer :: len_stnid
 
     write(code(1:5),'(I5.5)') ilat
 
@@ -651,7 +650,7 @@ contains
     integer, allocatable :: nrep(:)
     character(len=oss_code_len), allocatable :: code_local(:),code_global(:,:)
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
-    integer :: i,j,k,ierr,nproc,nrep_total,nrep_max,irep,array_size
+    integer :: i,ierr,nproc,nrep_total,nrep_max,irep,array_size
 
     write(*,*) 'Begin oss_obsdata_MPIallgather'
       

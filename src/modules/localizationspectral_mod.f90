@@ -245,9 +245,9 @@ CONTAINS
     real(8), intent(in) :: pressureProfile(lsp%nLev)
     character(len=*), intent(in) :: localizationMode
 
-    real(8)  :: zr,zpole,zcorr
+    real(8)  :: zr,zcorr
 
-    integer :: ilen,nIndex,latIndex,jla,lonIndex,levIndex,levIndex1,levIndex2,nsize,ierr
+    integer :: levIndex,levIndex1,levIndex2,ierr
 
     real(8) :: horizLengthScaleAll(lsp%nLev)
 
@@ -342,7 +342,7 @@ CONTAINS
     real(8) :: sp_mympiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: zgd_gst(lsp%myLonBeg:lsp%myLonEnd,lsp%myLatBeg:lsp%myLatEnd,lsp%nLev)
 
-    integer :: ilen,nIndex,latIndex,jla,lonIndex,levIndex,levIndex1,levIndex2,nsize,ierr
+    integer :: nIndex,latIndex,lonIndex,levIndex,nsize,ierr
     integer :: ila_mpiglobal,jla_mpilocal,gstID2
 
     if (local_length(1).gt.0.0d0) then
@@ -590,7 +590,7 @@ CONTAINS
     type(struct_ens)     :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,p,memberIndex
-    integer :: ierr, levIndex, latIndex
+    integer :: levIndex, latIndex
     character(len=19) :: kind
 
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:) 
@@ -783,7 +783,7 @@ CONTAINS
     type(struct_ens)      :: ensAmplitude
 
     integer :: levIndex1,levIndex2,jla,memberIndex,p
-    integer :: ierr, levIndex, latIndex
+    integer :: levIndex
     character(len=19) :: kind
 
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:)

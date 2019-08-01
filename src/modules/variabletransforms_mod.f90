@@ -147,8 +147,6 @@ CONTAINS
     type(struct_gsv), optional :: statevectorOut_opt
     type(struct_gsv), optional :: statevectorRef_opt
 
-    ! Locals
-    integer :: stepIndex
 
     select case(trim(transform))
 
@@ -1022,9 +1020,8 @@ CONTAINS
     ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:) 
-    real(kind=8), pointer       :: dP_dPsfc_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: jobs, status, stepIndex, numStep
+    integer                     :: status, stepIndex, numStep
     logical                     :: beSilent
     real(8), pointer            :: P_T(:,:,:,:)
     real(8), pointer            :: P_M(:,:,:,:)
@@ -1109,9 +1106,8 @@ CONTAINS
     ! Locals:
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:) 
-    real(kind=4), pointer       :: dP_dPsfc_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: jobs, status, stepIndex, numStep
+    integer                     :: status, stepIndex, numStep
     logical                     :: beSilent
     real(4), pointer            :: P_T(:,:,:,:)
     real(4), pointer            :: P_M(:,:,:,:)
@@ -1200,7 +1196,7 @@ CONTAINS
     real(8), pointer      :: delP_M(:,:,:,:)
     real(8), pointer      :: dP_dPsfc_T(:,:,:)
     real(8), pointer      :: dP_dPsfc_M(:,:,:)
-    integer               :: jobs, status, stepIndex,lonIndex,latIndex
+    integer               :: status, stepIndex,lonIndex,latIndex
     integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical               :: beSilent
 
@@ -1297,7 +1293,7 @@ CONTAINS
     real(8), pointer            :: delP_M(:,:,:,:)
     real(8), pointer            :: dP_dPsfc_T(:,:,:)
     real(8), pointer            :: dP_dPsfc_M(:,:,:)
-    integer                     :: jobs, status, stepIndex,lonIndex,latIndex
+    integer                     :: status, stepIndex,lonIndex,latIndex
     integer                     :: lev_M, lev_T, nlev_T, nlev_M, numStep
     logical                     :: beSilent
 

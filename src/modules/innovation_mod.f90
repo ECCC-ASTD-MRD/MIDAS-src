@@ -187,7 +187,7 @@ contains
     !
     if (obs_famExist(obsSpaceData,'TO')) then
       call tvs_setupAlloc(obsSpaceData)
-      if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
+      if (trim(innovationMode) == 'bgckIR' ) call irbg_setup()
       ! Initialize non diagonal observation error matrices
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
@@ -206,8 +206,7 @@ contains
     type(struct_gsv)          :: stateVector_trial
     type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
-    integer                   :: varIndex, ierr, nulnam, fnom, fclos
-    character(len=4)          :: varNamesToRead(1), lastVarNameToRead
+    integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfo, allocHeightSfc
     real(8), pointer          :: onecolumn(:)
 
@@ -421,7 +420,7 @@ contains
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
     real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjoaladin,zjosfctm
     real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl,zjosfchy
-    integer :: ierr, get_max_rss
+    integer :: get_max_rss
     logical :: lgpdata, beSilent
 
     write(*,*) '--Starting subroutine inn_computeInnovation--'
@@ -625,7 +624,7 @@ contains
 
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
-    integer :: gdxyfll, get_max_rss
+    integer :: gdxyfll
     !
     !- 1.  Get some info
     !

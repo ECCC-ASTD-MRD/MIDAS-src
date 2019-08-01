@@ -414,7 +414,6 @@ contains
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
 
-    logical :: llok
     real(8) :: zdiff
     integer :: headerIndex, bodyIndex, familyIndex, elemIndex
     integer :: ivnm,countAssim
@@ -531,7 +530,7 @@ contains
     logical :: beSilent
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
-    integer :: ivnm, iass, countAssim
+    integer :: ivnm, countAssim
     integer :: itotacc(numElem), itotrej(numElem), isblrej(numElem)
     integer :: igzacc(numElem), igzrej(numElem), ibndrej(numElem)
     real(8) :: zval, zlev, zdiff, zdifalt
@@ -810,7 +809,7 @@ end subroutine filt_topoAISW
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: itotrej(numElem), isblrej(numElem), ibndrej(numElem)
-    real(8) :: zval,zlev
+    real(8) :: zlev
     real(8) :: zStnAlt,zModAlt,zpb,zpt
     logical :: llok, list_is_empty
 
@@ -1050,7 +1049,7 @@ end subroutine filt_topoAISW
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
-    integer :: headerIndex, bodyIndex, elemIndex
+    integer :: headerIndex, bodyIndex
     integer :: idatyp, countAssim, countRej
     real(8), parameter :: minSfcPressure = 80000.d0
 
@@ -1272,9 +1271,9 @@ end subroutine filt_topoAISW
     logical                 :: beSilent
     !
     INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER JL, ISAT, ICLF, iProfile, NH, I
+    INTEGER JL, ISAT, ICLF, iProfile, I
     REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
-    REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
+    REAL*8 HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF
     LOGICAL LLEV, LOBS, LNOM, LSAT
     !
     if (.not.beSilent) then
@@ -1440,7 +1439,7 @@ end subroutine filt_topoAISW
     logical :: list_is_empty,warn_suspicious
 
     integer, parameter :: Nmax=100
-    integer :: Num_stnid_chm,nobslev,Num_chm,iconstituentid
+    integer :: Num_stnid_chm,nobslev,Num_chm
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)

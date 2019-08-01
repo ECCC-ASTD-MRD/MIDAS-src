@@ -82,7 +82,7 @@ contains
 
         if ( count > 0 .and. tvs_ltovsno( headerIndex ) > 0 ) then
 
-          call rmat_sqrtRm1( tvs_lsensor( tvs_ltovsno( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_ltovsno(headerIndex) )
+          call rmat_sqrtRm1( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_tovsIndex(headerIndex) )
 
           count = 0
           do bodyIndex = idata, idatend
@@ -161,7 +161,6 @@ contains
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro
     real(8) :: dljotov_sensors( tvs_nsensors )
-    integer :: ierr
 
     call tmg_start(81,'SUMJO')
 
@@ -222,7 +221,7 @@ contains
     enddo
 
     do itvs = 1, tvs_nobtov
-      headerIndex = tvs_lobsno( itvs )
+      headerIndex = tvs_headerIndex( itvs )
       if ( headerIndex > 0 ) then
         idata   = obs_headElem_i( lobsSpaceData, OBS_RLN, headerIndex )
         idatend = obs_headElem_i( lobsSpaceData, OBS_NLV, headerIndex ) + idata - 1

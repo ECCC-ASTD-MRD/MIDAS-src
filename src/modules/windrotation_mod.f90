@@ -112,11 +112,10 @@ module windRotation_mod
     real(8), intent(in)       :: grd_xlat2    ! Horizontal grid xlat2_yan
 
     ! locals
-    integer :: ierr, ji, jj, j1, j2
-    integer :: ii0, ij0, Idum, Imargin
+    integer :: j1, j2
     real(8) :: zxlon1_8,zxlat1_8,zxlon2_8,zxlat2_8
     real(8) :: a_8, b_8, c_8, d_8, xyz1_8(msize), xyz2_8(msize)
-    real(8) :: zrot_t(msize,msize), zunit(msize,msize)
+    real(8) :: zunit(msize,msize)
 
     zxlon1_8 = grd_xlon1
     zxlat1_8 = grd_xlat1

@@ -183,8 +183,8 @@ module computeHBHT_mod
       CHARACTER*4 CLNOMVAR
 
       INTEGER IULSSF,IDATEO
-      INTEGER FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
-      INTEGER IKEY,ILEN,IERR,IDATE
+      INTEGER FSTPRM,FNOM,FSTOUV
+      INTEGER IKEY,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
       real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
@@ -196,8 +196,6 @@ module computeHBHT_mod
       integer :: nLev_M,nLev_T,status,shift_level,Vcode_anl,cvdim
 
       real(8), allocatable  :: scaleFactor(:)
-      
-      integer :: bodyIndex
 
       !- Get the appropriate Horizontal and Vertical Coordinate
       hco_anl => agd_getHco('ComputationalGrid')
@@ -904,8 +902,8 @@ module computeHBHT_mod
 
     ! Locals:
       INTEGER IPB,IPT
-      INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
-      INTEGER J,INDEX_BODY
+      INTEGER INDEX_HEADER,ITYP,IK
+      INTEGER INDEX_BODY
       integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
@@ -1010,8 +1008,8 @@ module computeHBHT_mod
 
     ! Locals:
       INTEGER IPB,IPT
-      INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
-      INTEGER J,INDEX_BODY
+      INTEGER INDEX_HEADER,ITYP,IK
+      INTEGER INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
       character(len=2) :: varLevel
@@ -1200,10 +1198,10 @@ module computeHBHT_mod
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER stat, status
+      INTEGER status
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
-      REAL*8 HNH1, ZFGE, ZERR
+      REAL*8 ZFGE, ZERR
       INTEGER JV, NGPSLEV, NWNDLEV
       LOGICAL  ASSIM, LFIRST, FIRSTHEADER
 
@@ -1213,7 +1211,7 @@ module computeHBHT_mod
       REAL*8 DV (ngpscvmx)
       TYPE(GPS_PROFILE)           :: PRF
       REAL*8       , allocatable :: H   (:),AZMV(:)
-      TYPE(GPS_DIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
+      TYPE(GPS_DIFF), allocatable :: RSTV(:)
       type(struct_vco), pointer  :: vco_anl
       real*8, dimension(:), pointer :: dPdPs
 
@@ -1482,7 +1480,6 @@ module computeHBHT_mod
       REAL*8, allocatable :: ZTTB_P(:)
       REAL*8, allocatable :: ZQQB_P(:)
       REAL*8, allocatable :: zHeight_P(:)
-      REAL*8, allocatable :: RZHUB_P(:)
       REAL*8, allocatable :: ZPP_P(:)
       
       REAL*8 ZP0
@@ -1492,8 +1489,8 @@ module computeHBHT_mod
       REAL*8 JAC(ngpscvmx)
       REAL*8 DX (ngpscvmx)
 
-      REAL*8 ZOER, ZLEV, ZTDOBS, ZVAR, ZPSMOD
-      REAL*8 ZJP0, ZLSUM
+      REAL*8 ZLEV, ZTDOBS, ZPSMOD
+      REAL*8 ZLSUM
       REAL*8 DELTAH_NL, DELTAH_TL
       REAL*8 PERTFAC, ZTDM
       REAL*8 ZDZMIN, ZSUMTEST
@@ -1501,7 +1498,7 @@ module computeHBHT_mod
       INTEGER INDEX_HEADER, FIRST_HEADER
       INTEGER IDATYP, ITYP
       INTEGER IDATA, IDATEND, INDEX_BODY
-      INTEGER JL, JK, NFLEV_T, ILYR, IOBS
+      INTEGER JL, NFLEV_T, ILYR, IOBS
       INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
 
       LOGICAL  ASSIM, OK, LSTAG

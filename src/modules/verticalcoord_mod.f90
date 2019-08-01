@@ -101,7 +101,7 @@ contains
 
     logical           :: beSilent
     character(len=12) :: etiket
-    integer :: Vcode,kind,jlev,nlevMatched,stat,sigdigits,nultemplate,ierr,ikey
+    integer :: Vcode,jlev,nlevMatched,stat,nultemplate,ierr,ikey
     integer, parameter :: maxnumRecords = 500
     integer :: recordIndex, numRecords, ikeys(maxnumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm,fstinl
@@ -689,16 +689,6 @@ contains
     logical :: subset
 
     integer, allocatable :: THlevelWanted(:), MMlevelWanted(:)
-
-    real(8) :: ptop_template, ptop_full
-
-    real(8), pointer :: coefA_template(:), coefA_full(:)
-    real(8), pointer :: coefB_template(:), coefB_full(:)
-
-    real :: coefR1_template, coefR1_full
-    real :: coefR2_template, coefR2_full
-
-    integer :: stat, levIndex
 
     !
     !- Compare the vCode

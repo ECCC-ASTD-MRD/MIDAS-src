@@ -627,7 +627,6 @@ module obsUtil_mod
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno
     real(obs_real)    :: zesmax,gz,obsv
-    real              :: rmin
 
     zesmax = 30.0
 

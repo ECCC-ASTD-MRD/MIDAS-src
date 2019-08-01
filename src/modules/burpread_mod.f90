@@ -94,7 +94,7 @@ CONTAINS
 
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
-    INTEGER                :: BTYP,BFAM,BTYP10,BTYP10_uni,BTYP10FLG_uni,BTYP10obs_uni 
+    INTEGER                :: BTYP,BFAM,BTYP10,BTYP10FLG_uni,BTYP10obs_uni 
     INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
 
     INTEGER                :: NB_RPTS,REF_RPT,REF_BLK,COUNT
@@ -102,28 +102,27 @@ CONTAINS
     REAL                   :: VCOORD
 
     INTEGER                :: NBELE,NVALE,NTE
-    INTEGER                :: I,J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM,IER
-    INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG
+    INTEGER                :: J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM
+    INTEGER                :: IND_ELE,IND_VCOORD
     INTEGER                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat,IND_ELE_tth,IND_ELE_esh
     INTEGER                :: IND_LAT,IND_LON,IND_TIME
 
-    INTEGER                :: vcord_type(10),FLAG,SUM
-    REAL                   :: RELEV,ELEVFACT
-    REAL                   :: XLAT,XLON,XTIME
+    INTEGER                :: vcord_type(10),SUM
+    REAL                   :: ELEVFACT
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
-                              drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM
-    INTEGER                :: IND055200,IND5002, IND6002,IND4208,IND4197
+                              drnd,date_h,hhmm_h,oars,runn
+    INTEGER                :: IND055200
 
-    INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
+    INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO
     INTEGER                :: bit_alt,btyp_offset,btyp_offset_uni
     INTEGER                :: BKNAT,BKTYP,BKSTP
     character(len = 5)     :: BURP_TYP
     CHARACTER(LEN=9)       :: STNID,STN_RESUME,STID
     LOGICAL                :: HIRES,HIPCS
-    INTEGER                :: NDATA,NDATA_SF
+    INTEGER                :: NDATA_SF
     INTEGER                :: IFLAG,BITSflagoff
 
-    INTEGER                :: OBS_START,SAVE_OBS,OBS_HIRES,ASSIM
+    INTEGER                :: OBS_START,SAVE_OBS,ASSIM
     INTEGER                :: IL_INDEX,IRLN,INLV,LK,VNM
     REAL                   :: PPP,OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT
     INTEGER                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS
@@ -133,16 +132,12 @@ CONTAINS
     INTEGER                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
-    INTEGER                :: ADDSIZE,SIZE_DATA_BK
+    INTEGER                :: LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
+    INTEGER                :: ADDSIZE
 
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
     logical                :: FSOFound
-
-    DATA LISTE_INFO  &
-       /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
-        33062,33039,10035,10036,08046,5043/
 
     STATUS_HIRES = 0
     FAMILYTYPE2= 'SCRAP'
@@ -1476,7 +1471,7 @@ CONTAINS
     
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
-    INTEGER                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10_uni,BTYP10FLG_uni,BTYP10obs_uni 
+    INTEGER                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10FLG_uni,BTYP10obs_uni 
     INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
 
     INTEGER                :: NB_RPTS,REF_RPT,REF_BLK,COUNT
@@ -1510,15 +1505,15 @@ CONTAINS
     INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
     INTEGER                :: NBELE,NVALE,NTE
-    INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
+    INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
     INTEGER                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al
     INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
-    INTEGER                :: vcord_type(10),FLAG,SUM,vcoord_type
+    INTEGER                :: vcord_type(10),SUM,vcoord_type
     REAL(OBS_REAL)         :: RELEV,XLAT,XLON,RELEV2
-    REAL                   :: XTIME,SECONDS
+    REAL                   :: XTIME
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
                                drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
 
@@ -1528,7 +1523,7 @@ CONTAINS
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
     LOGICAL                :: HIRES,HIRES_SFC,HIPCS
     INTEGER                :: NDATA,NDATA_SF
-    INTEGER                :: IER,date2,DATE3,time2,time_sonde,NEWDATE
+    INTEGER                :: IER,date2,time2,time_sonde,NEWDATE
     REAL                   :: RAD_MOY,RAD_STD
     INTEGER                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     INTEGER                :: infot
@@ -2640,7 +2635,7 @@ CONTAINS
     REAL   , allocatable          ::  VERTCOORD(:)
 
     CHARACTER*2 ::   FAMTYP
-    REAL        ::   ELEVFACT,VCOORD,ZFACT,INFOV
+    REAL        ::   ELEVFACT,VCOORD
     INTEGER     ::   NELE,NVAL
     integer     ::   LISTE_ELE(:)
 
@@ -2650,7 +2645,7 @@ CONTAINS
     INTEGER     ::   VARNO,IL,J,COUNT,NLV
 
 
-    INTEGER     ::   IFLAG,LN,BITSflagoff,BITSflagon
+    INTEGER     ::   IFLAG,BITSflagoff,BITSflagon
     REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
@@ -2841,7 +2836,7 @@ CONTAINS
     INTEGER     ::   DATE,TIME,CODTYP,STATUS,FILENUMB
     REAL(OBS_REAL)  :: ELEV,LAT,LON
 
-    INTEGER     ::   LN,NOBS
+    INTEGER     ::   NOBS
 
     NOBS=obs_numHeader(obsdat) 
 
@@ -2870,7 +2865,7 @@ CONTAINS
     INTEGER     ::    FILENUMB
     REAL(OBS_REAL) :: ELEV,LAT,LON
 
-    INTEGER     ::   LN,NOBS
+    INTEGER     ::   NOBS
 
     NOBS=obs_numHeader(obsdat)  +1
 
@@ -2940,10 +2935,10 @@ CONTAINS
 
     INTEGER     ::   CODTYP
 
-    INTEGER     ::   IL,J,NOBS
+    INTEGER     ::   IL,NOBS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE
-    INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
+    INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
     INTEGER     ::   IFOV
 
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT

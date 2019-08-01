@@ -93,7 +93,7 @@ contains
 
     real(8) :: dlon_test, dlat_test, dlon_ref, dlat_ref
 
-    integer :: i, j, njper
+    integer :: i, j
 
     write(*,*)
     write(*,*) 'agd_SetupFromHCO: Starting...'
@@ -667,7 +667,7 @@ contains
 
     real(8), allocatable :: field_8(:,:,:)
 
-    integer :: i,j,k,ni,nj
+    integer :: ni,nj
 
     ni = iEnd-iBeg+1
     nj = jEnd-jBeg+1

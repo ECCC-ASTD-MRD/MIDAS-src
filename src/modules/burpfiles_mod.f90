@@ -165,7 +165,6 @@ contains
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     logical :: burp_chem
-    integer :: jo
     real(obs_real)  :: missingValue
 
     write(*,*) ' '

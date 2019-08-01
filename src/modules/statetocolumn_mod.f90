@@ -105,12 +105,12 @@ contains
     integer :: stepIndex
 
     ! Locals:
-    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagRecv, mpiTagSend
-    integer :: sendrecvKind, kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
+    integer :: nsize, ierr, mpiTagRecv, mpiTagSend
+    integer :: kIndexRecv, kIndexSend, MpiIdRecv, MpiIdSend
     integer :: levVar, kIndex, numSend, numRecv, numHeightSfcRecv, numHeightSfcSend
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
     integer :: requestIdHeightSfcSend(10), requestIdHeightSfcRecv(10)
-    integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
+    integer :: mpiStatuses(mpi_status_size,stateVector_in%nk)
     real(8), allocatable :: heightSend(:,:,:), heightRecv(:,:,:), HeightSfcSend(:,:)
     character(len=4)    :: varName
 
@@ -410,7 +410,6 @@ contains
     integer :: numHeader, numHeaderUsedMax, headerIndex, bodyIndex, kIndex, myKBeg
     integer :: numStep, stepIndex, ierr
     integer :: bodyIndexBeg, bodyIndexEnd, procIndex, niP1, numGridptTotal, numHeaderUsed
-    integer :: latIndex, lonIndex, latIndex2, lonIndex2, lonIndexP1
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
@@ -420,7 +419,7 @@ contains
     real(4), allocatable :: lonVec_r4(:), latVec_r4(:)
     real(8), allocatable :: height(:,:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
-    integer :: ezgdef, gdllfxy
+    integer :: gdllfxy
     logical :: obsOutsideGrid
     character(len=4), pointer :: varNames(:)
 
@@ -1016,7 +1015,6 @@ contains
     real(8), allocatable :: cols_hint(:,:,:)
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
-    real(8), pointer :: field_out(:,:,:,:)
     character(len=4), pointer :: varNames(:)
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
@@ -1207,12 +1205,10 @@ contains
 
     ! locals
     type(struct_gsv) :: stateVector_VarsLevs 
-    integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
+    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, iset, headerUsedIndex, varIndex
-    integer :: ezdefset, ezqkdef
-    integer :: s1, s2, s3, s4, index1, index2, index3, index4, kIndexHeightSfc
-    real(8) :: HeightSfc_col
+    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: kIndexHeightSfc
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1223,7 +1219,7 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
-    logical              :: beSilent, dealloc, moveObsAtPole
+    logical              :: dealloc, moveObsAtPole
     character(len=4), pointer :: varNames(:)
 
     call tmg_start(169,'S2C_NL')
@@ -2053,7 +2049,7 @@ contains
     type(struct_obs) :: obsSpaceData
 
     ! locals
-    integer :: jlev, jk, jk2, jgl, jlon, headerIndex
+    integer :: jk, jk2, jgl, headerIndex
     integer :: lonIndex, ila, ierr, subGridIndex
     integer :: extraLongitude
     real(8) :: lat, lon
@@ -2061,9 +2057,9 @@ contains
     real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
     real(8), allocatable ::zgd(:,:,:)
     real(8), pointer :: uu_column(:),vv_column(:),hu_column(:)
-    real(8), pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
+    real(8), pointer :: tt_column(:),ps_column(:),tg_column(:)
     real(8), pointer :: vis_column(:),gust_column(:)
-    real(8), pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
+    real(8), pointer :: field_ptr(:,:,:)
 
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid by suprep
@@ -2957,8 +2953,7 @@ contains
     integer :: ierr
     integer :: bodyIndexBeg, bodyIndexEnd
     integer :: latIndex, lonIndex
-    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
-    integer :: ipoint, gridptCount
+    integer :: subGridIndex
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
 

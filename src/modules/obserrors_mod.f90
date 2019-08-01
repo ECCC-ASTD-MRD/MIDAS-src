@@ -192,7 +192,7 @@ contains
     implicit none
 
     integer,external  :: FNOM, FCLOS
-    integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
+    integer  :: IER, ILUTOV, JI, JJ, JL, JM, INUMSAT, ISAT, IPLF
     integer, dimension(tvs_maxNumberOfSensors)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
     integer, dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: IUTILST, ICHN, ICHNIN
 
@@ -706,7 +706,7 @@ contains
     implicit none
 
     external fnom, fclos
-    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, timeIndex, nulstat
+    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, nulstat
     logical                      :: fileExists
     character(len=128)           :: ligne
     character(len=15), parameter :: fileName = 'obserr_sst'    
@@ -765,9 +765,8 @@ contains
 
     external fnom, fclos
 
-    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, timeIndex, nulstat
+    integer                      :: fnom, fclos, ierr, nulstat
     logical                      :: fileExists
-    character(len=128)           :: ligne
     character(len=15), parameter :: fileName = 'obserr_hydro'    
     character(len=*) , parameter :: myName   = 'oer_readObsErrorsHydro'
 
@@ -812,7 +811,7 @@ contains
 
     !  locals
     integer :: jn, JI, bodyIndex, bodyIndex2, headerIndex, ityp, iass, idata, idatend, codeType
-    integer :: isat, ichn, iplatf, instr, iplatform, instrum, ivnm
+    integer :: isat, ichn, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev
 
@@ -1320,15 +1319,14 @@ contains
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,imet,ilsv,igav,ihav,itrn,IOTP,J_SAT
     real(8) :: zvar,zoer
-    real(8) :: zwb,zwt,zexp,ZOTR,ZMOD
-    real(8) :: zlat,zlon,zlev,zpt,zpb,zpc,zomp
-    real(8) :: columnVarB,columnVarT
+    real(8) :: zwb,zwt,ZOTR,ZMOD
+    real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
     real(8) :: SP_WGH,TO_WGH,TO_DSP,E_VHGT,E_DRIFT,E_HEIGHT
     character(4) :: varName
     character(2) :: varLevel
     character(9) :: cstnid
 
-    real(8), pointer :: col_ptr(:),col_ptr_uv(:)
+    real(8), pointer :: col_ptr_uv(:)
 
     logical :: passe_once, valeurs_defaut, print_debug
 
@@ -1443,7 +1441,7 @@ contains
 
     integer, parameter :: NLVLVALUE=9
 
-    integer :: i_lyr, I_HGT, jelm, jlev, jcat, i_typ, hemisphere
+    integer :: I_HGT, jelm, jlev, jcat, i_typ, hemisphere
     real(8) :: zlev_hpa, ZWB, ZWT
 
     logical :: interpole
@@ -1824,7 +1822,7 @@ contains
     logical                 :: analysisMode
 
     integer bodyIndex, headerIndex, ityp, iass, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
-    integer ielem, nlev_T
+    integer nlev_T
 
     LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
     LOGICAL LLZWD

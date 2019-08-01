@@ -66,7 +66,7 @@ contains
 
     !Locals:
     type(struct_gsv) :: statevector_trial
-    integer :: jvar,unit,ier
+    integer :: jvar
     character(len=4) :: varName
 
     integer, external :: fclos
