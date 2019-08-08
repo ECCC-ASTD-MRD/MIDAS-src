@@ -23,7 +23,7 @@ module tovs_lin_mod
   use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance
-  use rttov_const ,only : gas_unit_specconc
+  use rttov_const, only : gas_unit_specconc
   use parkind1, only : jpim, jprb
   use verticalCoord_mod
   use tovs_nl_mod
@@ -51,7 +51,7 @@ contains
   !--------------------------------------------------------------------------
   !  lexthum4
   !--------------------------------------------------------------------------
-  subroutine lexthum4(pressure, humidityTl, humidity)
+  subroutine lexthum4(pressure, humidity_tl, humidity)
     !
     ! :Purpose: tangent linear of extrapolaation of upper level humidity profile
     !           (adapted from exthumtl by J. Eyre).
@@ -68,8 +68,8 @@ contains
 
     !Arguments
     real(8),intent(in)    :: pressure(:)        ! Pressure levels of atm. profiles.
-    real(8),intent(inout) :: humidityTl(:,:) ! Tl of humidity profiles.
-    real(8),intent(in)    :: humidity(:,:)   ! Humidity profiles.
+    real(8),intent(inout) :: hu_tl(:,:) ! Tl of humidity profiles.
+    real(8),intent(in)    :: hu(:,:)   ! Humidity profiles.
 
     !Locals:
     integer :: nlevels
@@ -82,7 +82,7 @@ contains
     integer :: topIndex, profileIndex, levelIndex
 
     nlevels = size( pressure )
-    nprofiles = size( humidity, dim =2)
+    nprofiles = size( hu, dim =2)
 
 
     !    extrapolate humidity profile.
@@ -101,21 +101,21 @@ contains
     allocate ( zpres3( nlevels ) )
 
     ! Constants defining p**3 fall off around tropopause
-    do levelIndex=1, topINdex
+    do levelIndex = 1, topINdex
       zpres3(levelIndex) = ( pressure(levelIndex) / pressure(topIndex + 1) ) ** 3
     end do
 
     do profileIndex = 1, nprofiles
-      zwb = humidityTl (topIndex + 1, profileIndex)
-      zwb5 = humidity(topIndex + 1, profileIndex)
+      zwb = hu_tl (topIndex + 1, profileIndex)
+      zwb5 = hu(topIndex + 1, profileIndex)
       do levelIndex = 1, topIndex
         if (pressure(levelIndex) < pressureLimit) then
-          humidityTl(levelIndex,profileIndex) = 0.d0
+          hu_tl(levelIndex,profileIndex) = 0.d0
         else
           if ( zwb5 * zpres3(levelIndex) <= MPC_MINIMUM_HU_R8 ) then
-            humidityTl(levelIndex,profileIndex) = 0.d0
+            hu_tl(levelIndex,profileIndex) = 0.d0
           else
-            humidityTl(levelIndex,profileIndex) = zwb * zpres3(levelIndex)
+            hu_tl(levelIndex,profileIndex) = zwb * zpres3(levelIndex)
           end if
         end if
       end do
@@ -136,7 +136,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData ! obsSpaceData structure
+    type(struct_obs)        :: obsSpaceData  ! obsSpaceData structure
     type(struct_columnData) :: column        ! column structure for pertubation profile
     type(struct_columnData) :: columng       ! column structure for background profile
 
@@ -153,23 +153,23 @@ contains
     integer :: status, Vcode
     integer :: modelTopIndex, levelsBelowModelTop
 
-    real(8), allocatable :: interpolatedTemperature(:,:)
-    real(8), allocatable :: interpolatedHumidityTl(:,:)
-    real(8), allocatable :: loginterpolatedHumidityTl(:,:)
-    real(8), allocatable :: extrapolatedTemperatureTl(:,:)
-    real(8), allocatable :: extrapolatedHumidityTl(:,:)
-    real(8), allocatable :: modelPressureLevels(:,:)
+    real(8), allocatable :: ttInterpolated(:,:)
+    real(8), allocatable :: huInterpolated_tl(:,:)
+    real(8), allocatable :: logHuInterpolated_tl(:,:)
+    real(8), allocatable :: ttExtrapolated_tl(:,:)
+    real(8), allocatable :: huExtrapolated_tl(:,:)
+    real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: dPdPs(:,:)
-    real(8), allocatable :: modelTemperatureTl(:,:)
-    real(8), allocatable :: modelHumidityTl(:,:)
-    real(8), allocatable :: logModelHumidityTl(:,:)
-    real(8), allocatable :: modelTemperature(:,:)
-    real(8), allocatable :: modelHumidity(:,:)
-    real(8), allocatable :: logModelHumidity(:,:)
-    real(8), allocatable :: extrapolatedHumidity(:,:)
-    real(8), allocatable :: modelPressureTl(:,:)
-    real(8), allocatable :: rttovPressureLevels(:)
-    real(8) :: modelTopPressure
+    real(8), allocatable :: tt_tl(:,:)
+    real(8), allocatable :: hu_tl(:,:)
+    real(8), allocatable :: logHu_tl(:,:)
+    real(8), allocatable :: tt(:,:)
+    real(8), allocatable :: hu(:,:)
+    real(8), allocatable :: logHu(:,:)
+    real(8), allocatable :: huExtrapolated(:,:)
+    real(8), allocatable :: pressure_tl(:,:)
+    real(8), allocatable :: rttovPressure(:)
+    real(8) :: TopPressure
     real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
     integer :: nRttovLevels
     integer :: btCount
@@ -182,12 +182,12 @@ contains
     integer,allocatable :: sensorBodyIndexes(:)
     real(8), allocatable :: surfem1(:) 
     type(rttov_emissivity), pointer :: emissivity_local(:)
-    type(rttov_emissivity), pointer :: emissivityTl(:)
+    type(rttov_emissivity), pointer :: emissivity_tl(:)
     type(rttov_radiance) :: radiancedata_d   ! radiances full structure buffer used in rttov calls
-    type(rttov_radiance) :: radiancedataTl  ! tl radiances full structure buffer used in rttov calls
+    type(rttov_radiance) :: radiancedata_tl  ! tl radiances full structure buffer used in rttov calls
     type(rttov_transmission) :: transmission       ! transmission
-    type(rttov_transmission) :: transmissionTl    ! transmission tl
-    type(rttov_profile), pointer :: profilesdataTl(:) ! tl profiles buffer used in rttov calls
+    type(rttov_transmission) :: transmission_tl    ! transmission tl
+    type(rttov_profile), pointer :: profilesdata_tl(:) ! tl profiles buffer used in rttov calls
     type(rttov_chanprof), pointer :: chanprof(:)
     logical, pointer :: calcemis(:)
     integer ::  asw
@@ -253,12 +253,12 @@ contains
            assim_flag_val_opt=obs_assimilated)
       if ( btCount == 0 ) cycle  sensor_loop
    
-      allocate (rttovPressureLevels(nRttovLevels))
-      rttovPressureLevels = tvs_coefs(sensorIndex)% coef % ref_prfl_p
+      allocate (rttovPressure(nRttovLevels))
+      rttovPressure = tvs_coefs(sensorIndex)% coef % ref_prfl_p
       modelTopIndex = 1
       do levelIndex = 2, nRttovLevels
-        if ( modelTopPressure >= rttovPressureLevels(levelIndex - 1).and. &
-             modelTopPressure < rttovPressureLevels(levelIndex)       ) then
+        if ( modelTopPressure >= rttovPressure(levelIndex - 1).and. &
+             modelTopPressure < rttovPressure(levelIndex)       ) then
           modelTopIndex = levelIndex
           exit
         end if
@@ -266,57 +266,57 @@ contains
       levelsBelowModelTop = (nRttovLevels - modelTopIndex + 1)
 
       allocate (sensorHeaderIndexes (profileCount),      stat= allocStatus(1) )
-      allocate (interpolatedTemperature     (levelsBelowModelTop,profileCount),  stat= allocStatus(2) )
-      allocate (interpolatedHumidityTl    (levelsBelowModelTop,profileCount),  stat= allocStatus(3) )
-      allocate (loginterpolatedHumidityTl (levelsBelowModelTop,profileCount),  stat= allocStatus(4) )
-      allocate (extrapolatedTemperatureTl  (nRttovLevels  ,profileCount),stat= allocStatus(5) )
-      allocate (extrapolatedHumidityTl  (nRttovLevels  ,profileCount),stat= allocStatus(6) )
-      allocate (modelPressureLevels     (nlv_T,profileCount),    stat= allocStatus(7) )
+      allocate (ttInterpolated     (levelsBelowModelTop,profileCount),  stat= allocStatus(2) )
+      allocate (huInterpolated_tl    (levelsBelowModelTop,profileCount),  stat= allocStatus(3) )
+      allocate (logHuInterpolated_tl (levelsBelowModelTop,profileCount),  stat= allocStatus(4) )
+      allocate (ttExtrapolated_tl  (nRttovLevels  ,profileCount),stat= allocStatus(5) )
+      allocate (huExtrapolated_tl  (nRttovLevels  ,profileCount),stat= allocStatus(6) )
+      allocate (pressure     (nlv_T,profileCount),    stat= allocStatus(7) )
       allocate (dPdPs     (nlv_T,profileCount),    stat= allocStatus(8) )
-      allocate (modelTemperatureTl     (nlv_T,profileCount),    stat= allocStatus(9) )
-      allocate (modelHumidityTl    (nlv_T,profileCount),    stat= allocStatus(10))
-      allocate (logModelHumidityTl (nlv_T,profileCount),    stat= allocStatus(11))
-      allocate (modelTemperature        (nlv_T,profileCount),    stat= allocStatus(12))
-      allocate (modelHumidity       (nlv_T,profileCount),    stat= allocStatus(13))
-      allocate (logModelHumidity    (nlv_T,profileCount),    stat= allocStatus(14))
-      allocate (extrapolatedHumidity     (nRttovLevels,profileCount),  stat= allocStatus(15))
-      allocate (modelPressureTl     (nlv_T,profileCount),    stat= allocStatus(16))
-      allocate (profilesdataTl(profileCount),     stat= allocStatus(17))
+      allocate (tt_tl     (nlv_T,profileCount),    stat= allocStatus(9) )
+      allocate (hu_tl    (nlv_T,profileCount),    stat= allocStatus(10))
+      allocate (logHu_tl (nlv_T,profileCount),    stat= allocStatus(11))
+      allocate (tt        (nlv_T,profileCount),    stat= allocStatus(12))
+      allocate (hu       (nlv_T,profileCount),    stat= allocStatus(13))
+      allocate (logHu    (nlv_T,profileCount),    stat= allocStatus(14))
+      allocate (huExtrapolated     (nRttovLevels,profileCount),  stat= allocStatus(15))
+      allocate (pressure_tl     (nlv_T,profileCount),    stat= allocStatus(16))
+      allocate (profilesdata_tl(profileCount),     stat= allocStatus(17))
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_tl")
  
       sensorHeaderIndexes(:) = 0 
-      extrapolatedTemperatureTl(:,:) = 0.0d0
-      modelPressureLevels(:,:) = 0.0d0
+      ttExtrapolated_tl(:,:) = 0.0d0
+      pressure(:,:) = 0.0d0
       dPdPs(:,:) = 0.0d0
-      modelTemperatureTl(:,:) = 0.0d0
-      modelHumidityTl(:,:) = 0.0d0
-      modelTemperature(:,:) = 0.0d0
-      modelHumidity(:,:) = 0.0d0
-      extrapolatedHumidity(:,:) = 0.0d0
-      modelPressureTl(:,:) = 0.0d0
-      interpolatedTemperature(:,:) = 0.0d0
-      interpolatedHumidityTl(:,:) = 0.0d0
+      tt_tl(:,:) = 0.0d0
+      hu_tl(:,:) = 0.0d0
+      tt(:,:) = 0.0d0
+      hu(:,:) = 0.0d0
+      huExtrapolated(:,:) = 0.0d0
+      pressure_tl(:,:) = 0.0d0
+      ttInterpolated(:,:) = 0.0d0
+      huInterpolated_tl(:,:) = 0.0d0
 
-      ! allocate profiledataTl structures
+      ! allocate profiledata_tl structures
       asw = 1 ! 1 to allocate
       call rttov_alloc_tl(                  &
               allocStatus(1),               &
               asw,                          &
               nprofiles=profileCount,       &
               nchanprof=btCount,            &
-              nlevels=nRttovLevels,              &
+              nlevels=nRttovLevels,         &
               chanprof=chanprof,            &
               opts=tvs_opts(sensorIndex),   &
-              profiles_tl=profilesdataTl,  &
+              profiles_tl=profilesdata_tl,  &
               coefs=tvs_coefs(sensorIndex), &
               transmission=transmission,    &
-              transmission_tl=transmissionTl, &
+              transmission_tl=transmission_tl, &
               radiance=radiancedata_d,      &
-              radiance_tl=radiancedataTl,  &
+              radiance_tl=radiancedata_tl,  &
               calcemis=calcemis,            &
               emissivity=emissivity_local,  &
-              emissivity_tl=emissivityTl,  &
+              emissivity_tl=emissivity_tl,  &
               init=.true.)
 
       call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rtttov_tl rttov_alloc_tl 1")
@@ -336,12 +336,12 @@ contains
         HUb => col_getColumn(columng,headerIndex,'HU')
         Pres => col_getColumn(columng,headerIndex,'P_T')
         do levelIndex = 1, nlv_T
-          modelPressureTl(levelIndex,profileCount) = delP(levelIndex) * MPC_MBAR_PER_PA_R8
-          modelTemperatureTl(levelIndex,profileCount) = delTT(levelIndex)
-          modelHumidityTl(levelIndex,profileCount) = delHU(levelIndex)
-          modelTemperature(levelIndex,profileCount)  = TTb(levelIndex)
-          modelHumidity(levelIndex,profileCount)  = HUb(levelIndex)
-          modelPressureLevels(levelIndex,profileCount)  = Pres(levelIndex) *MPC_MBAR_PER_PA_R8
+          pressure_tl(levelIndex,profileCount) = delP(levelIndex) * MPC_MBAR_PER_PA_R8
+          tt_tl(levelIndex,profileCount) = delTT(levelIndex)
+          hu_tl(levelIndex,profileCount) = delHU(levelIndex)
+          tt(levelIndex,profileCount)  = TTb(levelIndex)
+          hu(levelIndex,profileCount)  = HUb(levelIndex)
+          pressure(levelIndex,profileCount)  = Pres(levelIndex) *MPC_MBAR_PER_PA_R8
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
         
@@ -349,12 +349,12 @@ contains
         ! (grosse varibilite temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
         if ( diagTtop ) then
-          modelTemperatureTl(1,profileCount) =  0.d0
-          modelHumidityTl(1,profileCount) =  0.d0
-          modelTemperature(1,profileCount) =  modelTemperature(2,profileCount) + tvs_mesosphereLapseRate *  &
+          tt_tl(1,profileCount) =  0.d0
+          hu_tl(1,profileCount) =  0.d0
+          tt(1,profileCount) =  tt(2,profileCount) + tvs_mesosphereLapseRate *  &
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
-          modelHumidity(1,profileCount) =  modelHumidity(2,profileCount)
+          hu(1,profileCount) =  hu(2,profileCount)
         end if
         
         sensorHeaderIndexes(profileCount) = headerIndex
@@ -365,40 +365,40 @@ contains
       !       specific humidity to pressure levels required by tovs rt model
 
       do profileIndex = 1, profileCount
-        extrapolatedHumidity(1:nRttovLevels,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(1:nRttovLevels)
+        huExtrapolated(1:nRttovLevels,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(1:nRttovLevels)
       end do
       
-      interpolatedTemperature (:,:) = 0.0d0
-      interpolatedHumidityTl(:,:) = 0.0d0
+      ttInterpolated(:,:) = 0.0d0
+      huInterpolated_tl(:,:) = 0.0d0
       
       !$omp parallel do private(profileIndex)
       do profileIndex=1, profileCount
 
-        call ppo_IntAvgTl_v2(modelPressureLevels(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),modelTemperatureTl(:,profileIndex:profileIndex), &
-             modelTemperature(:,profileIndex:profileIndex),modelPressureTl(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressureLevels(modelTopIndex:nRttovLevels),interpolatedTemperature(:,profileIndex:profileIndex))
+        call ppo_IntAvg_tl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),tt_tl(:,profileIndex:profileIndex), &
+             tt(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
 
-        logModelHumidity(:,profileIndex) = log( modelHumidity(:,profileIndex) )
-        logModelHumidityTl(:,profileIndex) = modelHumidityTl(:,profileIndex) / modelHumidity(:,profileIndex)
-        call ppo_IntAvgTl_v2(modelPressureLevels(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logModelHumidityTl(:,profileIndex:profileIndex), &
-             logModelHumidity(:,profileIndex:profileIndex),modelPressureTl(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressureLevels(modelTopIndex:nRttovLevels),loginterpolatedHumidityTl(:,profileIndex:profileIndex))
+        logHu(:,profileIndex) = log( hu(:,profileIndex) )
+        logHu_tl(:,profileIndex) = hu_tl(:,profileIndex) / hu(:,profileIndex)
+        call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logHu_tl(:,profileIndex:profileIndex), &
+             logHu(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logHuInterpolated_tl(:,profileIndex:profileIndex))
 
-        interpolatedHumidityTl(:,profileIndex) = loginterpolatedHumidityTl(:,profileIndex) * extrapolatedHumidity(modelTopIndex:nRttovLevels,profileIndex)
+       huInterpolated_tl(:,profileIndex) = logHuInterpolated_tl(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
 
 
       end do
       !$omp end parallel do
       
       !  2.2  Extrapolation of temperature profile above 10mb
-      extrapolatedTemperatureTl(:,:) = 0.0d0
+      ttExtrapolated_tl(:,:) = 0.0d0
       if ( .not. TopAt10hPa ) then
         do profileIndex = 1, profileCount
-          extrapolatedTemperatureTl(modelTopIndex:nRttovLevels,profileIndex) = interpolatedTemperature(1:levelsBelowModelTop,profileIndex)
-          extrapolatedTemperatureTl(1:modelTopIndex-1,profileIndex) = 0.d0
+          ttExtrapolated_tl(modelTopIndex:nRttovLevels,profileIndex) = ttInterpolated(1:levelsBelowModelTop,profileIndex)
+          ttExtrapolated_tl(1:modelTopIndex-1,profileIndex) = 0.d0
         end do
       else
-        call lextrap (interpolatedTemperature,extrapolatedTemperatureTl,levelsBelowModelTop,nRttovLevels,profileCount)
+        call lextrap (ttInterpolated,ttExtrapolated_tl,levelsBelowModelTop,nRttovLevels,profileCount)
       end if
       
       !   2.3  Extrapolation of humidity profile (kg/kg)
@@ -406,76 +406,76 @@ contains
       
       do profileIndex = 1, profileCount
         do levelIndex = 1, modelTopIndex - 1
-          extrapolatedHumidityTl(levelIndex,profileIndex) = 0.d0
+          huExtrapolated_tl(levelIndex,profileIndex) = 0.d0
         end do
         do levelIndex = 1, levelsBelowModelTop
-          extrapolatedHumidityTl(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = interpolatedHumidityTl(levelIndex,profileIndex)
+          huExtrapolated_tl(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) =huInterpolated_tl(levelIndex,profileIndex)
         end do
       end do
       
       if ( TopAt10hPa ) then
         if ( tvs_debug ) then
           do profileIndex = 1, profileCount
-            write(*,*)'extrapolatedHumidity_tl*1000 avant exthum4    = '
-            write(*,'(1x,10f8.4)')(extrapolatedHumidityTl(levelIndex,profileIndex) * 1000.d0,levelIndex=1,nRttovLevels)
+            write(*,*)'huExtrapolated_tl*1000 avant exthum4    = '
+            write(*,'(1x,10f8.4)')(huExtrapolated_tl(levelIndex,profileIndex) * 1000.d0,levelIndex=1,nRttovLevels)
             write(*,*)' '
           end do
         end if
-        call lexthum4 (rttovPressureLevels(1:nRttovLevels),extrapolatedHumidityTl,extrapolatedHumidity)
+        call lexthum4 (rttovPressure(1:nRttovLevels),huExtrapolated_tl,huExtrapolated)
         if ( tvs_debug ) then
           do profileIndex = 1, profileCount
-            write(*,*)'extrapolatedHumidityTl*1000 apres exthum4    = '
-            write(*,'(1x,10f8.4)')(extrapolatedHumidityTl(levelIndex,profileIndex) * 1000.d0,levelIndex=1,nRttovLevels)
+            write(*,*)'huExtrapolated_tl*1000 apres exthum4    = '
+            write(*,'(1x,10f8.4)')(huExtrapolated_tl(levelIndex,profileIndex) * 1000.d0,levelIndex=1,nRttovLevels)
             write(*,*)' '
           end do
         end if
       end if
 
       do  profileIndex = 1 , profileCount
-        profilesdataTl(profileIndex) % gas_units       = gas_unit_specconc ! all gas profiles should be provided in kg/kg
-        profilesdataTl(profileIndex) % nlevels         =  nRttovLevels
-        profilesdataTl(profileIndex) % nlayers         =  nRttovLevels - 1
-        if (tvs_coefs(sensorIndex)%coef%nozone > 0) profilesdataTl(profileIndex) % o3(:) =  0.d0
+        profilesdata_tl(profileIndex) % gas_units       = gas_unit_specconc ! all gas profiles should be provided in kg/kg
+        profilesdata_tl(profileIndex) % nlevels         =  nRttovLevels
+        profilesdata_tl(profileIndex) % nlayers         =  nRttovLevels - 1
+        if (tvs_coefs(sensorIndex)%coef%nozone > 0) profilesdata_tl(profileIndex) % o3(:) =  0.d0
         
-        profilesdataTl(profileIndex) % ctp             = 0.0d0
-        profilesdataTl(profileIndex) % cfraction       = 0.0d0
-        profilesdataTl(profileIndex) % zenangle        = 0.0d0
-        profilesdataTl(profileIndex) % azangle         = 0.0d0
-        profilesdataTl(profileIndex) % skin % surftype = 0
-        profilesdataTl(profileIndex) % skin % t        = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'TG')
-        profilesdataTl(profileIndex) % skin % fastem(:)= 0.0d0
-        profilesdataTl(profileIndex) % skin % salinity = 0.0d0
-        profilesdataTl(profileIndex) % s2m % t         = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TT')
+        profilesdata_tl(profileIndex) % ctp             = 0.0d0
+        profilesdata_tl(profileIndex) % cfraction       = 0.0d0
+        profilesdata_tl(profileIndex) % zenangle        = 0.0d0
+        profilesdata_tl(profileIndex) % azangle         = 0.0d0
+        profilesdata_tl(profileIndex) % skin % surftype = 0
+        profilesdata_tl(profileIndex) % skin % t        = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'TG')
+        profilesdata_tl(profileIndex) % skin % fastem(:)= 0.0d0
+        profilesdata_tl(profileIndex) % skin % salinity = 0.0d0
+        profilesdata_tl(profileIndex) % s2m % t         = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TT')
 
         
-        profilesdataTl(profileIndex) % s2m % q         = 0.d0
+        profilesdata_tl(profileIndex) % s2m % q         = 0.d0
 
-        profilesdataTl(profileIndex) % s2m % p         = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'P0')*MPC_MBAR_PER_PA_R8
-        profilesdataTl(profileIndex) % s2m % u         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'UU')
-        profilesdataTl(profileIndex) % s2m % v         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'VV')
+        profilesdata_tl(profileIndex) % s2m % p         = col_getElem(column,1,sensorHeaderIndexes(profileIndex),'P0')*MPC_MBAR_PER_PA_R8
+        profilesdata_tl(profileIndex) % s2m % u         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'UU')
+        profilesdata_tl(profileIndex) % s2m % v         = col_getElem(column,ilowlvl_M,sensorHeaderIndexes(profileIndex),'VV')
         
-        profilesdataTl(profileIndex) % p(1:nRttovLevels)    = 0.d0
-        profilesdataTl(profileIndex) % t(1:nRttovLevels)    = extrapolatedTemperatureTl(1:nRttovLevels,profileIndex)
-        profilesdataTl(profileIndex) % q(1:nRttovLevels)    = extrapolatedHumidityTl(1:nRttovLevels,profileIndex)
+        profilesdata_tl(profileIndex) % p(1:nRttovLevels)    = 0.d0
+        profilesdata_tl(profileIndex) % t(1:nRttovLevels)    = ttExtrapolated_tl(1:nRttovLevels,profileIndex)
+        profilesdata_tl(profileIndex) % q(1:nRttovLevels)    = huExtrapolated_tl(1:nRttovLevels,profileIndex)
       end do
 
       deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
-      deallocate (interpolatedTemperature,         stat= allocStatus(2) )
-      deallocate (interpolatedHumidityTl,        stat= allocStatus(3) )
-      deallocate (loginterpolatedHumidityTl,     stat= allocStatus(4) )
-      deallocate (extrapolatedTemperatureTl,      stat= allocStatus(5) )
-      deallocate (extrapolatedHumidityTl,      stat= allocStatus(6) )
-      deallocate (modelPressureLevels,         stat= allocStatus(7) )
-      deallocate (dPdPs,         stat= allocStatus(8) )
-      deallocate (modelTemperatureTl,         stat= allocStatus(9) )
-      deallocate (modelHumidityTl,        stat= allocStatus(10))
-      deallocate (logModelHumidityTl,     stat= allocStatus(11))
-      deallocate (modelTemperature,            stat= allocStatus(12))
-      deallocate (modelHumidity,           stat= allocStatus(13))
-      deallocate (logModelHumidity,        stat= allocStatus(14))
-      deallocate (extrapolatedHumidity,         stat= allocStatus(15))
-      deallocate (modelPressureTl,         stat= allocStatus(16))
-      deallocate (rttovPressureLevels,         stat= allocStatus(17))
+      deallocate (ttInterpolated,      stat= allocStatus(2) )
+      deallocate (huInterpolated_tl,   stat= allocStatus(3) )
+      deallocate (logHuInterpolated_tl,stat= allocStatus(4) )
+      deallocate (ttExtrapolated_tl,   stat= allocStatus(5) )
+      deallocate (huExtrapolated_tl,   stat= allocStatus(6) )
+      deallocate (pressure,            stat= allocStatus(7) )
+      deallocate (dPdPs,               stat= allocStatus(8) )
+      deallocate (tt_tl,               stat= allocStatus(9) )
+      deallocate (hu_tl,               stat= allocStatus(10))
+      deallocate (logHu_tl,            stat= allocStatus(11))
+      deallocate (tt,                  stat= allocStatus(12))
+      deallocate (hu,                  stat= allocStatus(13))
+      deallocate (logHu,               stat= allocStatus(14))
+      deallocate (huExtrapolated,      stat= allocStatus(15))
+      deallocate (pressure_tl,         stat= allocStatus(16))
+      deallocate (rttovPressure,       stat= allocStatus(17))
       call utl_checkAllocationStatus(allocStatus, "tvslin_rttov_tl", .false.)
 
       !     set nthreads to actual number of threads which will be used.
@@ -484,8 +484,8 @@ contains
 
       !   2.2  Prepare all input variables required by rttov.
      
-      allocate ( surfem1      (btCount)       ,stat=allocStatus(1))
-      allocate ( sensorBodyIndexes   (btCount)      ,stat=allocStatus(2))
+      allocate ( surfem1(btCount)           ,stat=allocStatus(1))
+      allocate ( sensorBodyIndexes(btCount) ,stat=allocStatus(2))
       call utl_checkAllocationStatus(allocStatus(1:2), " tovs_rtttov_tl")
     
       !    get Hyperspecral IR emissivities
@@ -503,28 +503,28 @@ contains
       !  2.3  Compute tl radiance with rttov_tl
       
       errorstatus   = 0
-      emissivityTl(:)%emis_in = 0.0d0
+      emissivity_tl(:)%emis_in = 0.0d0
       call tmg_start(87,'rttov_tl')
       call rttov_parallel_tl(         &
            errorstatus,               & ! out
            chanprof,                  & ! in
            tvs_opts(sensorIndex),     & ! in
            tvs_profiles(sensorTovsIndexes(1:profileCount)),  & ! in
-           profilesdataTl,           & ! inout
+           profilesdata_tl,           & ! inout
            tvs_coefs(sensorIndex),    & ! in
            transmission,              & ! inout
-           transmissionTl,           & ! inout
+           transmission_tl,           & ! inout
            radiancedata_d,            & ! inout
-           radiancedataTl,           & ! inout
+           radiancedata_tl,           & ! inout
            calcemis,                  & ! in
            emissivity_local,          & ! in
-           emissivityTl,             & ! inout
+           emissivity_tl,             & ! inout
            nthreads=nthreads )          ! in
                
       if (errorstatus /= 0) then
         Write(*,*) "Error in rttov_parallel_tl",errorstatus
         write(*,*) 'temperature           profile=',tvs_profiles(sensorTovsIndexes(1)) % t(:)
-        write(*,*) 'temperature increment profile=',profilesdataTl(1) % t(:)
+        write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
         call utl_abort('tovs_rttov_tl')
       end if
 
@@ -536,10 +536,10 @@ contains
         
         bodyIndex = sensorBodyIndexes(btIndex)
         call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, &
-             radiancedataTl % bt(btIndex) )
+             radiancedata_tl % bt(btIndex) )
         if ( tvs_debug ) then
           write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
-               chanprof(btIndex)%chan,   radiancedataTl % bt(btIndex), &
+               chanprof(btIndex)%chan,   radiancedata_tl % bt(btIndex), &
                obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
         end if
         
@@ -554,20 +554,20 @@ contains
            asw,                              &
            nprofiles=profileCount,           &
            nchanprof=btCount,                &
-           nlevels=nRttovLevels,                  &
+           nlevels=nRttovLevels,             &
            chanprof=chanprof,                &
            opts=tvs_opts(sensorIndex),       &
-           profiles_tl=profilesdataTl,      &
+           profiles_tl=profilesdata_tl,      &
            coefs=tvs_coefs(sensorIndex),     &
            transmission=transmission,        &
-           transmission_tl=transmissionTl,  &
+           transmission_tl=transmission_tl,  &
            radiance=radiancedata_d,          &
-           radiance_tl=radiancedataTl,      &
+           radiance_tl=radiancedata_tl,      &
            calcemis=calcemis,                &
            emissivity=emissivity_local,      &
-           emissivity_tl=emissivityTl )
+           emissivity_tl=emissivity_tl )
 
-      deallocate ( surfem1,    stat=allocStatus(2) )
+      deallocate ( surfem1,          stat=allocStatus(2) )
       deallocate ( sensorBodyIndexes,stat=allocStatus(3) )
       call utl_checkAllocationStatus(allocStatus(1:3), " tvslin_rtttov_tl", .false.)
       
@@ -608,22 +608,22 @@ contains
     integer :: status, Vcode
     integer :: modelTopIndex, levelsBelowModelTop
     
-    real(8), allocatable :: interpolatedTemperatureAd    (:,:)
-    real(8), allocatable :: interpolatedHumidityAd   (:,:)
-    real(8), allocatable :: loginterpolatedHumidityAd(:,:)
-    real(8), allocatable :: extrapolatedTemperatureAd (:,:)
-    real(8), allocatable :: extrapolatedHumidityAd (:,:)
-    real(8), allocatable :: modelPressureLevels    (:,:)
-    real(8), allocatable :: dPdPs    (:,:)
-    real(8), allocatable :: modelTemperatureAd    (:,:)
-    real(8), allocatable :: modelHumidityAd   (:,:)
-    real(8), allocatable :: logModelHumidityAd(:,:)
-    real(8), allocatable :: modelTemperature       (:,:)
-    real(8), allocatable :: modelHumidity      (:,:)
-    real(8), allocatable :: logModelHumidity   (:,:)
-    real(8), allocatable :: extrapolatedHumidity    (:,:)
-    real(8), allocatable :: modelPressureAd    (:,:)
-    real(8), allocatable :: rttovPressureLevels    (:)
+    real(8), allocatable :: ttInterpolated_ad(:,:)
+    real(8), allocatable ::huInterpolated_ad(:,:)
+    real(8), allocatable :: logHuInterpolated_ad(:,:)
+    real(8), allocatable :: ttExtrapolated_ad(:,:)
+    real(8), allocatable :: huExtrapolated_ad(:,:)
+    real(8), allocatable :: pressure(:,:)
+    real(8), allocatable :: dPdPs(:,:)
+    real(8), allocatable :: tt_ad(:,:)
+    real(8), allocatable :: hu_ad(:,:)
+    real(8), allocatable :: logHu_ad(:,:)
+    real(8), allocatable :: tt(:,:)
+    real(8), allocatable :: hu(:,:)
+    real(8), allocatable :: logHu(:,:)
+    real(8), allocatable :: huExtrapolated(:,:)
+    real(8), allocatable :: pressure_ad(:,:)
+    real(8), allocatable :: rttovPressure(:)
 
     real(8) :: modelTopPressure
    
@@ -640,12 +640,12 @@ contains
     integer :: errorstatus 
     
     real(8), allocatable :: surfem1(:) 
-    type(rttov_emissivity), pointer :: emissivity_local (:)
-    type(rttov_emissivity), pointer :: emissivityAd (:)
-    type(rttov_transmission) :: transmission,transmissionAd
-    type(rttov_radiance) :: radiancedataAd, radiancedata_d
+    type(rttov_emissivity), pointer :: emissivity_local(:)
+    type(rttov_emissivity), pointer :: emissivity_ad(:)
+    type(rttov_transmission) :: transmission,transmission_ad
+    type(rttov_radiance) :: radiancedata_ad, radiancedata_d
     
-    type(rttov_profile), pointer  :: profilesdataAd (:) ! ad profiles buffer used in rttov calls
+    type(rttov_profile), pointer  :: profilesdata_ad(:) ! ad profiles buffer used in rttov calls
     type(rttov_chanprof), pointer :: chanprof(:)
     integer :: asw
     logical, pointer :: calcemis  (:)
@@ -713,12 +713,12 @@ contains
       if (btCount == 0) cycle sensor_loop
 
      
-      allocate (rttovPressureLevels(nRttovLevels))
-      rttovPressureLevels = tvs_coefs(sensorIndex)% coef % ref_prfl_p
+      allocate (rttovPressure(nRttovLevels))
+      rttovPressure = tvs_coefs(sensorIndex)% coef % ref_prfl_p
       modelTopIndex = 1
       do levelIndex = 2, nRttovLevels
-        if ( modelTopPressure >= rttovPressureLevels(levelIndex - 1) .and.    &
-             modelTopPressure < rttovPressureLevels(levelIndex)        ) then
+        if ( modelTopPressure >= rttovPressure(levelIndex - 1) .and.    &
+             modelTopPressure < rttovPressure(levelIndex)        ) then
           modelTopIndex = levelIndex
           exit
         end if
@@ -727,22 +727,22 @@ contains
       levelsBelowModelTop = (nRttovLevels - modelTopIndex + 1)
      
       allocStatus(:) = 0
-      allocate (sensorHeaderIndexes(profileCount)    ,stat= allocStatus(1) )
-      allocate (interpolatedTemperatureAd    (levelsBelowModelTop,profileCount),stat= allocStatus(2) )
-      allocate (interpolatedHumidityAd   (levelsBelowModelTop,profileCount),stat= allocStatus(3) )
-      allocate (loginterpolatedHumidityAd(levelsBelowModelTop,profileCount),stat= allocStatus(4) )
-      allocate (extrapolatedTemperatureAd (nRttovLevels,profileCount),stat= allocStatus(5) )
-      allocate (extrapolatedHumidityAd (nRttovLevels,profileCount),stat= allocStatus(6) )
-      allocate (modelPressureLevels    (nlv_T,profileCount)  ,stat= allocStatus(7) )
-      allocate (dPdPs    (nlv_T,profileCount)  ,stat= allocStatus(8) )
-      allocate (modelTemperatureAd    (nlv_T,profileCount)  ,stat= allocStatus(9) )
-      allocate (modelHumidityAd   (nlv_T,profileCount)  ,stat= allocStatus(10))
-      allocate (logModelHumidityAd(nlv_T,profileCount)  ,stat= allocStatus(11))
-      allocate (modelTemperature       (nlv_T,profileCount)  ,stat= allocStatus(12))
-      allocate (modelHumidity      (nlv_T,profileCount)  ,stat= allocStatus(13))
-      allocate (logModelHumidity   (nlv_T,profileCount)  ,stat= allocStatus(14))
-      allocate (extrapolatedHumidity    (nRttovLevels,profileCount),stat= allocStatus(15))
-      allocate (modelPressureAd    (nlv_T,profileCount)  ,stat= allocStatus(16))
+      allocate (sensorHeaderIndexes(profileCount),                     stat= allocStatus(1) )
+      allocate (ttInterpolated_ad(levelsBelowModelTop,profileCount),   stat= allocStatus(2) )
+      allocate (huInterpolated_ad(levelsBelowModelTop,profileCount),   stat= allocStatus(3) )
+      allocate (logHuInterpolated_ad(levelsBelowModelTop,profileCount),stat= allocStatus(4) )
+      allocate (ttExtrapolated_ad(nRttovLevels,profileCount),          stat= allocStatus(5) )
+      allocate (huExtrapolated_ad(nRttovLevels,profileCount),          stat= allocStatus(6) )
+      allocate (pressure(nlv_T,profileCount),                          stat= allocStatus(7) )
+      allocate (dPdPs(nlv_T,profileCount),                             stat= allocStatus(8) )
+      allocate (tt_ad(nlv_T,profileCount),                             stat= allocStatus(9) )
+      allocate (hu_ad(nlv_T,profileCount),                             stat= allocStatus(10))
+      allocate (logHu_ad(nlv_T,profileCount),                          stat= allocStatus(11))
+      allocate (tt(nlv_T,profileCount),                                stat= allocStatus(12))
+      allocate (hu(nlv_T,profileCount),                                stat= allocStatus(13))
+      allocate (logHu(nlv_T,profileCount),                             stat= allocStatus(14))
+      allocate (huExtrapolated(nRttovLevels,profileCount),             stat= allocStatus(15))
+      allocate (pressure_ad(nlv_T,profileCount),                       stat= allocStatus(16))
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad")
       !  loop over all obs.
@@ -758,9 +758,9 @@ contains
         HUb => col_getColumn(columng,headerIndex,'HU')
         Pres => col_getColumn(columng,headerIndex,'P_T')
         do levelIndex = 1, nlv_T
-          modelTemperature(levelIndex,profileCount) = TTb(levelIndex)
-          modelHumidity(levelIndex,profileCount) = HUb(levelIndex)
-          modelPressureLevels(levelIndex,profileCount) = Pres(levelIndex) * MPC_MBAR_PER_PA_R8
+          tt(levelIndex,profileCount) = TTb(levelIndex)
+          hu(levelIndex,profileCount) = HUb(levelIndex)
+          pressure(levelIndex,profileCount) = Pres(levelIndex) * MPC_MBAR_PER_PA_R8
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
         
@@ -768,10 +768,10 @@ contains
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
         if (diagTtop) then
-          modelTemperature(1,profileCount) =  modelTemperature(2,profileCount) + tvs_mesosphereLapseRate *  &
+          tt(1,profileCount) =  tt(2,profileCount) + tvs_mesosphereLapseRate *  &
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
-          modelHumidity(1,profileCount) =  modelHumidity(2,profileCount)
+          hu(1,profileCount) =  hu(2,profileCount)
         end if
 
         sensorHeaderIndexes(profileCount) = headerIndex
@@ -790,18 +790,18 @@ contains
            asw,                             &
            profileCount,                    &
            btCount,                         &
-           nRttovLevels,                         &
+           nRttovLevels,                    &
            chanprof,                        &
            opts=tvs_opts(sensorIndex),      &
-           profiles_ad=profilesdataAd,     &
+           profiles_ad=profilesdata_ad,     &
            coefs=tvs_coefs(sensorIndex),    &
            transmission= transmission,      &
-           transmission_ad= transmissionAd,&
+           transmission_ad= transmission_ad,&
            radiance=radiancedata_d,         &
-           radiance_ad=radiancedataAd,     &
+           radiance_ad=radiancedata_ad,     &
            calcemis=calcemis,               &
            emissivity=emissivity_local,     &
-           emissivity_ad=emissivityAd,     &
+           emissivity_ad=emissivity_ad,     &
            init=.true.)
 
       allocate ( surfem1(btCount), stat=allocStatus(2))
@@ -822,31 +822,31 @@ contains
         
       do btIndex = 1, btCount
         bodyIndex = sensorBodyIndexes(btIndex)
-        radiancedataAd % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+        radiancedata_ad % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
       end do
 
 
       !  2.3  Compute ad radiance with rttov_ad
 
       errorstatus  = 0
-      emissivityAd(:) % emis_in = 0.0d0
-      emissivityAd(:) % emis_out = 0.0d0
+      emissivity_ad(:) % emis_in = 0.0d0
+      emissivity_ad(:) % emis_out = 0.0d0
      
       call tmg_start(84,'rttov_ad')
-      call rttov_parallel_ad(        &
-           errorstatus,              & ! out
-           chanprof,                 & ! in
-           tvs_opts(sensorIndex),    & ! in
+      call rttov_parallel_ad(                               &
+           errorstatus,                                     & ! out
+           chanprof,                                        & ! in
+           tvs_opts(sensorIndex),                           & ! in
            tvs_profiles(sensorTovsIndexes(1:profileCount)), & ! in
-           profilesdataAd,          & ! in
-           tvs_coefs(sensorIndex),   & ! in
-           transmission,             & ! inout
-           transmissionAd,          & ! inout
-           radiancedata_d,           & ! inout
-           radiancedataAd,          & ! inout
-           calcemis=calcemis,           & ! in
-           emissivity=emissivity_local, & ! inout
-           emissivity_ad=emissivityAd, & ! inout
+           profilesdata_ad,                                 & ! in
+           tvs_coefs(sensorIndex),                          & ! in
+           transmission,                                    & ! inout
+           transmission_ad,                                 & ! inout
+           radiancedata_d,                                  & ! inout
+           radiancedata_ad,                                 & ! inout
+           calcemis=calcemis,                               & ! in
+           emissivity=emissivity_local,                     & ! inout
+           emissivity_ad=emissivity_ad,                     & ! inout
            nthreads = nthreads )
 
       if (errorstatus /= 0) then
@@ -856,9 +856,9 @@ contains
 
       call tmg_stop(84)
 
-      !.. store results from rttov_ad into profilesAd
-      extrapolatedTemperatureAd(:,:) = 0.d0
-      extrapolatedHumidityAd(:,:) = 0.d0
+      !.. store results from rttov_ad into profiles_ad
+      ttExtrapolated_ad(:,:) = 0.d0
+      huExtrapolated_ad(:,:) = 0.d0
 
       do btIndex = 1, btCount
         
@@ -873,20 +873,20 @@ contains
         uu_column => col_getColumn(column,headerIndex,'UU')
         vv_column => col_getColumn(column,headerIndex,'VV')
 
-        extrapolatedTemperatureAd(:,profileIndex) =  profilesdataAd(profileIndex) % t(:)
-        extrapolatedHumidityAd(:,profileIndex) = profilesdataAd(profileIndex) % q(:)
-        tg_column(1) = profilesdataAd(profileIndex) % skin % t 
-        tt_column(ilowlvl_T) = profilesdataAd(profileIndex) % s2m % t
-        ps_column(1) = profilesdataAd(profileIndex) % s2m % p * MPC_MBAR_PER_PA_R8
+        ttExtrapolated_ad(:,profileIndex) =  profilesdata_ad(profileIndex) % t(:)
+        huExtrapolated_ad(:,profileIndex) = profilesdata_ad(profileIndex) % q(:)
+        tg_column(1) = profilesdata_ad(profileIndex) % skin % t 
+        tt_column(ilowlvl_T) = profilesdata_ad(profileIndex) % s2m % t
+        ps_column(1) = profilesdata_ad(profileIndex) % s2m % p * MPC_MBAR_PER_PA_R8
         hu_column(ilowlvl_T) = 0.d0 
-        uu_column(ilowlvl_M) = profilesdataAd(profileIndex) % s2m % u
-        vv_column(ilowlvl_M) = profilesdataAd(profileIndex) % s2m % v
+        uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
+        vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
       end do
 
 
-      !  2.4  Adjoint of filling profilesAd structure
+      !  2.4  Adjoint of filling profiles_ad structure
       do profileIndex = 1, profileCount
-        extrapolatedHumidity(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(:)
+        huExtrapolated(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(:)
       end do
 
     
@@ -895,68 +895,68 @@ contains
       if ( TopAt10hPa ) then
         if ( tvs_debug ) then
           do profileIndex = 1, profileCount
-            write(*,*)'extrapolatedHumidityAd*1000 avant aexthum4    = '
-            write(*,'(1x,10f8.4)')(extrapolatedHumidityAd(levelIndex,profileIndex)*1000.d0,levelIndex=1,nRttovLevels)
+            write(*,*)'huExtrapolated_ad*1000 avant aexthum4    = '
+            write(*,'(1x,10f8.4)')(huExtrapolated_ad(levelIndex,profileIndex)*1000.d0,levelIndex=1,nRttovLevels)
             write(*,*)' '
           end do
         end if
-        call aexthum4 (rttovPressureLevels(1:nRttovLevels),extrapolatedHumidityAd,extrapolatedHumidity)
+        call aexthum4 (rttovPressure(1:nRttovLevels),huExtrapolated_ad,huExtrapolated)
         if ( tvs_debug ) then
           do profileIndex = 1, profileCount
-            write(*,*)'extrapolatedHumidityAd*1000 apres aexthum4    = '
-            write(*,'(1x,10f8.4)')(extrapolatedHumidityAd(levelIndex,profileIndex)*1000.d0,levelIndex=1,nRttovLevels)
+            write(*,*)'huExtrapolated_ad*1000 apres aexthum4    = '
+            write(*,'(1x,10f8.4)')(huExtrapolated_ad(levelIndex,profileIndex)*1000.d0,levelIndex=1,nRttovLevels)
             write(*,*)' '
           end do
         end if
       end if
 
       ! adjoint of conversion lnq --> q
-      interpolatedHumidityAd(:,:) = 0.0d0
+     huInterpolated_ad(:,:) = 0.0d0
       do profileIndex = 1, profileCount
         do levelIndex = 1, levelsBelowModelTop
-          interpolatedHumidityAd(levelIndex,profileIndex) = extrapolatedHumidityAd(nRttovLevels-levelsBelowModelTop + levelIndex,profileIndex)
+         huInterpolated_ad(levelIndex,profileIndex) = huExtrapolated_ad(nRttovLevels-levelsBelowModelTop + levelIndex,profileIndex)
         end do
       end do
 
       !   2.2  Adjoint of extrapolation of temperature profile above 10mb
-      interpolatedTemperatureAd(:,:) = 0.0d0
+      ttInterpolated_ad(:,:) = 0.0d0
       if ( .not. TopAt10hPa ) then
         do profileIndex = 1, profileCount
-          interpolatedTemperatureAd(1:levelsBelowModelTop,profileIndex) = interpolatedTemperatureAd(1:levelsBelowModelTop,profileIndex) + &
-               extrapolatedTemperatureAd(modelTopIndex:nRttovLevels,profileIndex)
+          ttInterpolated_ad(1:levelsBelowModelTop,profileIndex) = ttInterpolated_ad(1:levelsBelowModelTop,profileIndex) + &
+               ttExtrapolated_ad(modelTopIndex:nRttovLevels,profileIndex)
         end do
       else
-        call aextrap (interpolatedTemperatureAd,extrapolatedTemperatureAd,levelsBelowModelTop,nRttovLevels,profileCount)
+        call aextrap (ttInterpolated_ad,ttExtrapolated_ad,levelsBelowModelTop,nRttovLevels,profileCount)
       end if
  
       !   2.1  Adjoint of vertical interpolation of model temperature and logarithm of
       !        specific humidity to pressure levels required by tovs rt model
       
-      modelTemperatureAd(:,:) = 0.0d0
-      modelHumidityAd(:,:) = 0.0d0
-      modelPressureAd(:,:) = 0.0d0
+      tt_ad(:,:) = 0.0d0
+      hu_ad(:,:) = 0.0d0
+      pressure_ad(:,:) = 0.0d0
 
       call tmg_start(75,'intavgad')
       !$omp parallel do private(profileIndex)
       do profileIndex = 1, profileCount
 
-        modelTemperatureAd(:, profileIndex) = 0.0d0
-        call ppo_IntAvgAd_v2(modelPressureLevels(:,profileIndex:profileIndex), dPdPs(:,profileIndex:profileIndex), &
-             modelTemperatureAd(:,profileIndex:profileIndex), modelTemperature(:,profileIndex:profileIndex), &
-             modelPressureAd(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressureLevels(modelTopIndex:nRttovLevels),interpolatedTemperatureAd(:,profileIndex:profileIndex))
+        tt_ad(:, profileIndex) = 0.0d0
+        call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex), dPdPs(:,profileIndex:profileIndex), &
+             tt_ad(:,profileIndex:profileIndex), tt(:,profileIndex:profileIndex), &
+             pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated_ad(:,profileIndex:profileIndex))
         
 
-        logModelHumidity(:,profileIndex) = log( modelHumidity(:,profileIndex) ) 
-        logModelHumidityAd(:,profileIndex) = 0.d0
-        loginterpolatedHumidityAd(:,profileIndex) = 0.d0
-        loginterpolatedHumidityAd(:,profileIndex) = loginterpolatedHumidityAd(:,profileIndex) + interpolatedHumidityAd(:,profileIndex) * extrapolatedHumidity(modelTopIndex:nRttovLevels,profileIndex)
-        call ppo_IntAvgAd_v2(modelPressureLevels(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex), &
-             logModelHumidityAd(:,profileIndex:profileIndex), logModelHumidity(:,profileIndex:profileIndex), &
-             modelPressureAd(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressureLevels(modelTopIndex:nRttovLevels), loginterpolatedHumidityAd(:,profileIndex:profileIndex))
+        logHu(:,profileIndex) = log( hu(:,profileIndex) ) 
+        logHu_ad(:,profileIndex) = 0.d0
+        logHuInterpolated_ad(:,profileIndex) = 0.d0
+        logHuInterpolated_ad(:,profileIndex) = logHuInterpolated_ad(:,profileIndex) +huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+        call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex), &
+             logHu_ad(:,profileIndex:profileIndex), logHu(:,profileIndex:profileIndex), &
+             pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels), logHuInterpolated_ad(:,profileIndex:profileIndex))
 
-        modelHumidityAd(:,profileIndex) = modelHumidityAd(:,profileIndex) + logModelHumidityAd(:,profileIndex) / modelHumidity(:,profileIndex)
+        hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logHu_ad(:,profileIndex) / hu(:,profileIndex)
 
       end do
       !$omp end parallel do
@@ -967,8 +967,8 @@ contains
       !  a l'extrapolation utilisee)
       if ( diagTtop ) then
         do profileIndex = 1, profileCount
-          modelTemperatureAd (1,profileIndex) = 0.d0
-          modelHumidityAd(1,profileIndex) = 0.d0
+          tt_ad (1,profileIndex) = 0.d0
+          hu_ad(1,profileIndex) = 0.d0
         end do
       end if
 
@@ -981,29 +981,29 @@ contains
         hu_column => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'HU')
         
         do levelIndex = 1, col_getNumLev(column,'TH')
-          p_column(levelIndex) = p_column(levelIndex)  + modelPressureAd  (levelIndex,profileIndex) * MPC_MBAR_PER_PA_R8
-          tt_column(levelIndex) = tt_column(levelIndex) + modelTemperatureAd  (levelIndex,profileIndex)
-          hu_column(levelIndex) = hu_column(levelIndex) + modelHumidityAd (levelIndex,profileIndex)
+          p_column(levelIndex) = p_column(levelIndex)  + pressure_ad  (levelIndex,profileIndex) * MPC_MBAR_PER_PA_R8
+          tt_column(levelIndex) = tt_column(levelIndex) + tt_ad  (levelIndex,profileIndex)
+          hu_column(levelIndex) = hu_column(levelIndex) + hu_ad (levelIndex,profileIndex)
         end do
       end do
 
-      deallocate (sensorHeaderIndexes,stat= allocStatus(1) )
-      deallocate (interpolatedTemperatureAd,    stat= allocStatus(2) )
-      deallocate (interpolatedHumidityAd,   stat= allocStatus(3) )
-      deallocate (loginterpolatedHumidityAd,stat= allocStatus(4) )
-      deallocate (extrapolatedTemperatureAd, stat= allocStatus(5) )
-      deallocate (extrapolatedHumidityAd, stat= allocStatus(6) )
-      deallocate (modelPressureLevels,    stat= allocStatus(7) )
-      deallocate (dPdPs,    stat= allocStatus(8) )
-      deallocate (modelTemperatureAd,    stat= allocStatus(9) )
-      deallocate (modelHumidityAd,   stat= allocStatus(10))
-      deallocate (logModelHumidityAd,stat= allocStatus(11))
-      deallocate (modelTemperature,       stat= allocStatus(12))
-      deallocate (modelHumidity,      stat= allocStatus(13))
-      deallocate (logModelHumidity,   stat= allocStatus(14))
-      deallocate (extrapolatedHumidity,    stat= allocStatus(15))
-      deallocate (modelPressureAd,    stat= allocStatus(16))
-      deallocate (rttovPressureLevels,    stat= allocStatus(17))
+      deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
+      deallocate (ttInterpolated_ad,   stat= allocStatus(2) )
+      deallocate (huInterpolated_ad,   stat= allocStatus(3) )
+      deallocate (logHuInterpolated_ad,stat= allocStatus(4) )
+      deallocate (ttExtrapolated_ad,   stat= allocStatus(5) )
+      deallocate (huExtrapolated_ad,   stat= allocStatus(6) )
+      deallocate (pressure,            stat= allocStatus(7) )
+      deallocate (dPdPs,               stat= allocStatus(8) )
+      deallocate (tt_ad,               stat= allocStatus(9) )
+      deallocate (hu_ad,               stat= allocStatus(10))
+      deallocate (logHu_ad,            stat= allocStatus(11))
+      deallocate (tt,                  stat= allocStatus(12))
+      deallocate (hu,                  stat= allocStatus(13))
+      deallocate (logHu,               stat= allocStatus(14))
+      deallocate (huExtrapolated,      stat= allocStatus(15))
+      deallocate (pressure_ad,         stat= allocStatus(16))
+      deallocate (rttovPressure,       stat= allocStatus(17))
       
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad", .false.)
     
@@ -1015,18 +1015,18 @@ contains
            asw,                             &
            profileCount,                    &
            btCount,                         &
-           nRttovLevels,                         &
+           nRttovLevels,                    &
            chanprof,                        &
            opts=tvs_opts(sensorIndex),      &
-           profiles_ad=profilesdataAd,      &
+           profiles_ad=profilesdata_ad,     &
            coefs=tvs_coefs(sensorIndex),    &
            transmission= transmission,      &
-           transmission_ad= transmissionAd, &
+           transmission_ad= transmission_ad,&
            radiance=radiancedata_d,         &
-           radiance_ad=radiancedataAd,      &
+           radiance_ad=radiancedata_ad,     &
            calcemis=calcemis,               &
            emissivity=emissivity_local,     &
-           emissivity_ad=emissivityAd )
+           emissivity_ad=emissivity_ad )
      
       
       deallocate ( surfem1,           stat=allocStatus(2))
@@ -1044,7 +1044,7 @@ contains
   !--------------------------------------------------------------------------
   !  aexthum4
   !--------------------------------------------------------------------------
-  subroutine aexthum4 (pressure, humidityAd, humidity )
+  subroutine aexthum4 (pressure, hu_ad, hu )
     !
     ! :Purpose: adjoint of extrapolation of upper level humidity profile
     !           (adapted from exthumad by J. Eyre).
@@ -1058,8 +1058,8 @@ contains
     
     ! Arguments:
     real(8),intent(in)    :: pressure(:)         ! Pressure levels of atm. profiles
-    real(8),intent(inout) :: humidityAd(:,: ) ! Adjoint of humidity profiles.
-    real(8),intent(in)    :: humidity(:,:)    ! Humidity profiles.
+    real(8),intent(inout) :: hu_ad(:,: ) ! Adjoint of humidity profiles.
+    real(8),intent(in)    :: hu(:,:)    ! Humidity profiles.
 
     ! locals:
     integer :: nlevels
@@ -1071,7 +1071,7 @@ contains
 
 
     nlevels = size( pressure )
-    nprofiles = size( humidity, dim =2)
+    nprofiles = size( hu, dim=2)
     allocate ( zpres3( nlevels ) )
     
     !  find top level of given profile
@@ -1095,15 +1095,15 @@ contains
     do profileIndex = 1, nprofiles
       zwb = 0.d0
       do levelIndex = 1, topIndex
-        zwmix = humidityAd(levelIndex,profileIndex)
-        humidityAd(levelIndex,profileIndex) = 0.d0
+        zwmix = hu_ad(levelIndex,profileIndex)
+        hu_ad(levelIndex,profileIndex) = 0.d0
         if (pressure(levelIndex) >= pressureLimit) then
-          if (humidity(levelIndex,profileIndex) > MPC_MINIMUM_HU_R8) then
+          if (hu(levelIndex,profileIndex) > MPC_MINIMUM_HU_R8) then
             zwb = zwb + zwmix * zpres3(levelIndex)
           end if
         end if
       end do
-      humidityAd(topIndex + 1,profileIndex) = humidityAd(topIndex + 1,profileIndex) + zwb
+      hu_ad(topIndex + 1,profileIndex) = hu_ad(topIndex + 1,profileIndex) + zwb
     end do
 
     deallocate ( zpres3 )
