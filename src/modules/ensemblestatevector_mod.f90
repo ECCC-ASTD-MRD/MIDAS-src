@@ -1021,7 +1021,7 @@ CONTAINS
     integer           :: memberIndex
 
     ! Locals:
-    !real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
@@ -1061,12 +1061,21 @@ CONTAINS
           end do
         end do
       else if (ens%dataKind == 4) then
-        ptr4d_r8 => gsv_getField_r8(statevector)
-        do stepIndex = 1, numStep
-          do jk = k1, k2
-            ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,jk,stepIndex),4)
+        if (gsv_getDataKind(statevector) == 8) then
+          ptr4d_r8 => gsv_getField_r8(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,jk,stepIndex),4)
+            end do
           end do
-        end do
+        else
+          ptr4d_r4 => gsv_getField_r4(statevector)
+          do stepIndex = 1, numStep
+            do jk = k1, k2
+              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,jk,stepIndex)
+            end do
+          end do
+        end if
       end if
 
     else
@@ -1083,15 +1092,25 @@ CONTAINS
             end do
           end do
         else if (ens%dataKind == 4) then
-          ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
-          do stepIndex = 1, numStep
-            do gsvLevIndex = 1, nLev
-              ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
-              ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,gsvLevIndex,stepIndex),8)
+          if (gsv_getDataKind(statevector) == 8) then
+            ptr4d_r8 => gsv_getField_r8(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = real(ptr4d_r8(:,:,gsvLevIndex,stepIndex),4)
+              end do
             end do
-          end do
+          else
+            ptr4d_r4 => gsv_getField_r4(statevector,varName_opt=varName)
+            do stepIndex = 1, numStep
+              do gsvLevIndex = 1, nLev
+                ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
+                ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:) = ptr4d_r4(:,:,gsvLevIndex,stepIndex)
+              end do
+            end do
+          end if
         end if
-      end do
+      end do ! varIndex
 
     end if
 
@@ -1702,6 +1721,7 @@ CONTAINS
     integer,parameter    :: maxNumLevels=200
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     logical :: imposeRttovHuLimits, imposeSaturationLimit
@@ -1736,7 +1756,12 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    ptr4d_r8 => gsv_getField_r8(recenteringMean)
+    nullify(ptr4d_r4, ptr4d_r8)
+    if (gsv_getDataKind(recenteringMean) == 8) then
+      ptr4d_r8 => gsv_getField_r8(recenteringMean)
+    else
+      ptr4d_r4 => gsv_getField_r4(recenteringMean)
+    end if
     if(present(alternativeEnsembleMean_opt)) then
       alternativeEnsembleMean_r8 => gsv_getField_r8(alternativeEnsembleMean_opt)
     else
@@ -1768,9 +1793,21 @@ CONTAINS
         do ji = lon1, lon2
           do stepIndex = 1, numStep
             if(present(alternativeEnsembleMean_opt)) then
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+              if (associated(ptr4d_r8)) then
+                increment = ptr4d_r8(ji,jj,jk,stepIndex) -  &
+                            thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+              else
+                increment = real(ptr4d_r4(ji,jj,jk,stepIndex),8) -  &
+                            thisScaleFactor*alternativeEnsembleMean_r8(ji,jj,jk,stepIndex)
+              end if
             else
-              increment = ptr4d_r8(ji,jj,jk,stepIndex) - thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+              if (associated(ptr4d_r8)) then
+                increment = ptr4d_r8(ji,jj,jk,stepIndex) -  &
+                            thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+              else
+                increment = real(ptr4d_r4(ji,jj,jk,stepIndex),8) -  &
+                            thisScaleFactor*ens%allLev_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+              end if
             end if
             if (present(ensembleControlMember_opt)) then
               ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
