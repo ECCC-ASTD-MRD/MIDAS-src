@@ -51,7 +51,7 @@ contains
   !--------------------------------------------------------------------------
   !  lexthum4
   !--------------------------------------------------------------------------
-  subroutine lexthum4(pressure, humidity_tl, humidity)
+  subroutine lexthum4(pressure, hu_tl, hu)
     !
     ! :Purpose: tangent linear of extrapolaation of upper level humidity profile
     !           (adapted from exthumtl by J. Eyre).
@@ -169,7 +169,7 @@ contains
     real(8), allocatable :: huExtrapolated(:,:)
     real(8), allocatable :: pressure_tl(:,:)
     real(8), allocatable :: rttovPressure(:)
-    real(8) :: TopPressure
+    real(8) :: topPressure
     real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
     integer :: nRttovLevels
     integer :: btCount
@@ -212,9 +212,9 @@ contains
     diagTtop = (Vcode==5002)
     
     ! find model level top, within 0.000001 mbs.
-    modelTopPressure = (col_getPressure(columng, 1, 1, 'TH')  * MPC_MBAR_PER_PA_R8) - 0.000001d0
+    topPressure = (col_getPressure(columng, 1, 1, 'TH')  * MPC_MBAR_PER_PA_R8) - 0.000001d0
 
-    TopAt10hPa = ( abs( modelTopPressure - 10.0d0 ) <= .1d0 )
+    TopAt10hPa = ( abs( topPressure - 10.0d0 ) <= .1d0 )
 
     !  1.  Get number of threads available and allocate memory for some variables
 
@@ -257,8 +257,8 @@ contains
       rttovPressure = tvs_coefs(sensorIndex)% coef % ref_prfl_p
       modelTopIndex = 1
       do levelIndex = 2, nRttovLevels
-        if ( modelTopPressure >= rttovPressure(levelIndex - 1).and. &
-             modelTopPressure < rttovPressure(levelIndex)       ) then
+        if ( topPressure >= rttovPressure(levelIndex - 1).and. &
+             topPressure < rttovPressure(levelIndex)       ) then
           modelTopIndex = levelIndex
           exit
         end if
@@ -625,7 +625,7 @@ contains
     real(8), allocatable :: pressure_ad(:,:)
     real(8), allocatable :: rttovPressure(:)
 
-    real(8) :: modelTopPressure
+    real(8) :: topPressure
    
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:),p_column(:)
     real(8), pointer :: TTb(:), HUb(:), Pres(:)
@@ -671,9 +671,9 @@ contains
     diagTtop = (Vcode == 5002)
 
     ! find model level top, within 0.000001 mbs.
-    modelTopPressure = ( col_getPressure(columng, 1, 1, 'TH')  * MPC_MBAR_PER_PA_R8) - 0.000001d0
+    topPressure = ( col_getPressure(columng, 1, 1, 'TH')  * MPC_MBAR_PER_PA_R8) - 0.000001d0
 
-    TopAt10hPa = ( abs( modelTopPressure - 10.0d0 ) <= .1d0 )
+    TopAt10hPa = ( abs( topPressure - 10.0d0 ) <= .1d0 )
 
 
     !     1.  Get number of threads available and allocate memory for some variables
@@ -717,8 +717,8 @@ contains
       rttovPressure = tvs_coefs(sensorIndex)% coef % ref_prfl_p
       modelTopIndex = 1
       do levelIndex = 2, nRttovLevels
-        if ( modelTopPressure >= rttovPressure(levelIndex - 1) .and.    &
-             modelTopPressure < rttovPressure(levelIndex)        ) then
+        if ( topPressure >= rttovPressure(levelIndex - 1) .and.    &
+             topPressure < rttovPressure(levelIndex)        ) then
           modelTopIndex = levelIndex
           exit
         end if

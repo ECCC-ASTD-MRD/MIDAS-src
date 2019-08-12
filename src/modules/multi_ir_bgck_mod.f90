@@ -121,24 +121,24 @@ module multi_ir_bgck_mod
   type(rttov_coefs) :: coefs_avhrr
 
   type avhrr_bgck_iasi
-     real(8)              :: radmoy(nClassAVHRR,nChanAVHRR)
-     real(8)              :: radstd(nClassAVHRR,nChanAVHRR)
-     real(8)              :: cfrac(nClassAVHRR)
-     real(8)              :: tbmoy(nClassAVHRR,NVIS+1:NVIS+NIR)
-     real(8)              :: tbstd(nClassAVHRR,NVIS+1:NVIS+NIR)
-     real(8)              :: albedmoy(nClassAVHRR,1:NVIS)
-     real(8)              :: albedstd(nClassAVHRR,1:NVIS)
-     real(8)              :: tbstd_pixelIASI(NVIS+1:NVIS+NIR)
-     real(8)              :: albstd_pixeliasi(1:NVIS)
-     real(8)              :: radclearcalc(NVIS+1:NVIS+NIR)
-     real(8)              :: tbclearcalc(NVIS+1:NVIS+NIR)
-     real(8)              :: radovcalc( tvs_nlevels-1,NVIS+1:NVIS+NIR)
-     real(8)              :: transmcalc( tvs_nlevels,NVIS+1:NVIS+NIR)
-     real(8)              :: transmsurf(NVIS+1:NVIS+NIR)
-     real(8)              :: emiss(NVIS+1:NVIS+NIR)
+     real(8) :: radmoy(nClassAVHRR,nChanAVHRR)
+     real(8) :: radstd(nClassAVHRR,nChanAVHRR)
+     real(8) :: cfrac(nClassAVHRR)
+     real(8) :: tbmoy(nClassAVHRR,NVIS+1:NVIS+NIR)
+     real(8) :: tbstd(nClassAVHRR,NVIS+1:NVIS+NIR)
+     real(8) :: albedmoy(nClassAVHRR,1:NVIS)
+     real(8) :: albedstd(nClassAVHRR,1:NVIS)
+     real(8) :: tbstd_pixelIASI(NVIS+1:NVIS+NIR)
+     real(8) :: albstd_pixeliasi(1:NVIS)
+     real(8) :: radclearcalc(NVIS+1:NVIS+NIR)
+     real(8) :: tbclearcalc(NVIS+1:NVIS+NIR)
+     real(8) :: radovcalc( tvs_nlevels-1,NVIS+1:NVIS+NIR)
+     real(8) :: transmcalc( tvs_nlevels,NVIS+1:NVIS+NIR)
+     real(8) :: transmsurf(NVIS+1:NVIS+NIR)
+     real(8) :: emiss(NVIS+1:NVIS+NIR)
   end type avhrr_bgck_iasi
 
-  type(avhrr_bgck_iasi), allocatable :: avhrr_bgck(:)      ! avhrr parameters for IASI quality control
+  type(avhrr_bgck_iasi), allocatable :: avhrr_bgck(:) ! avhrr parameters for IASI quality control
 
 contains
 
@@ -155,7 +155,7 @@ contains
     ! Locals:
     integer :: nulnam, ierr
     logical, save :: first = .true.
-    integer ,external :: fnom, fclos
+    integer, external :: fnom, fclos
 
     if (first) then
       nulnam = 0
@@ -311,13 +311,13 @@ contains
   !--------------------------------------------------------------------------
   ! add_cloudprms
   !--------------------------------------------------------------------------
-  subroutine add_cloudprms(lobsSpaceData)
+  subroutine add_cloudprms(obsSpaceData)
     !
     ! :Purpose: Loop on observation files to add cloud parameters and emissivity
     !
     implicit none
     ! Arguments:
-    type(struct_obs)  :: lobsSpaceData
+    type(struct_obs)  :: obsSpaceData
 
     ! Locals:
     integer           :: fileIndex
@@ -334,7 +334,7 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
       else
-        call hir_cldprm_to_brp( lobsspacedata, fileIndex )
+        call hir_cldprm_to_brp(obsSpaceData, fileIndex)
       end if
     end do
 
@@ -343,20 +343,21 @@ contains
   !--------------------------------------------------------------------------
   ! hir_cldprm_to_brp
   !--------------------------------------------------------------------------
-  subroutine hir_cldprm_to_brp(lobsSpaceData, fileIndex)
+
+  subroutine hir_cldprm_to_brp( obsSpaceData, fileIndex )
     !
     ! :Purpose: Add to the input BURP file number fileIndex cloud parameters and emissivity.
     !
     implicit none
 
     !Arguments:
-    type(struct_obs), intent(inout)  :: lobsSpaceData ! obsSpacedata structure
+    type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
     integer, intent(in)              :: fileIndex     ! number of the burp file to update
     
     ! Locals
-    TYPE(BURP_FILE)        :: inputFile
-    TYPE(BURP_RPT)         :: inputReport,copyReport
-    TYPE(BURP_BLOCK)       :: inputBlock
+    type(BURP_FILE)        :: inputFile
+    type(BURP_RPT)         :: inputReport,copyReport
+    type(BURP_BLOCK)       :: inputBlock
       
     character(len=9)       :: opt_missing
     character(len=128)     :: burpFile
@@ -366,7 +367,7 @@ contains
     integer                :: nb_rpts,ref_rpt,ref_blk,count
     integer, allocatable   :: address(:), goodprof(:)
     real(8), allocatable   :: btobs(:,:)
-    real(8)                  :: emisfc
+    real(8)                :: emisfc
     integer                :: nbele,nvale,nte
     integer, allocatable   :: glbflag(:)
 
@@ -400,9 +401,9 @@ contains
          REAL_OPTNAME_VALUE = val_option_r4,&
          iostat             = error )
 
-    call BURP_Init(InputFile, iostat=error)
-    call BURP_Init(InputReport,CopyReport, iostat=error)
-    call BURP_Init(InputBlock, iostat=error)
+    call BURP_Init(inputFile, iostat=error)
+    call BURP_Init(inputReport,copyReport, iostat=error)
+    call BURP_Init(inputBlock, iostat=error)
 
 
     ! Opening file
@@ -411,7 +412,7 @@ contains
 
     write(*,*) 'OPENED FILE = ', trim(burpFile)
 
-    call BURP_New(InputFile, &
+    call BURP_New(inputFile, &
          FILENAME = burpFile, &
          MODE     = FILE_ACC_APPEND, &
          iostat   = error )
@@ -419,7 +420,7 @@ contains
 
     ! Obtain input burp file number of reports
 
-    call BURP_Get_Property(InputFile, NRPTS=nb_rpts)
+    call BURP_Get_Property(inputFile, NRPTS=nb_rpts)
 
 
     ! Scan input burp file to get all reports address
@@ -430,13 +431,13 @@ contains
     ref_rpt = 0
 
     do
-      ref_rpt = BURP_Find_Report(InputFile, &
-           REPORT      = InputReport,       &
+      ref_rpt = BURP_Find_Report(inputFile, &
+           REPORT      = inputReport,       &
            SEARCH_FROM = ref_rpt,           &
            iostat      = error)
       if (ref_rpt < 0) Exit
 
-      call BURP_Get_Property(InputReport, STNID=station_id)
+      call BURP_Get_Property(inputReport, STNID=station_id)
       if (station_id(1:2)==">>") cycle
 
       count = count + 1
@@ -451,7 +452,7 @@ contains
 
       ! Create a new report
       
-      call BURP_New(CopyReport, ALLOC_SPACE=20000000, iostat=error)
+      call BURP_New(copyReport, ALLOC_SPACE=20000000, iostat=error)
       if (error/=burp_noerr) then
         Write(*,*) "Error creating new directory ",error 
         call handle_error('hir_cldprm_to_brp')
@@ -461,21 +462,21 @@ contains
 
       REPORTS: do reportIndex = 1, count
 
-        call BURP_Get_Report(InputFile,        &
-             REPORT    = InputReport,          &
+        call BURP_Get_Report(inputFile,        &
+             REPORT    = inputReport,          &
              REF       = address(reportIndex), &
              iostat    = error)
         
         if (reportIndex == 1) then
-          call BURP_Get_Property(InputReport, IDTYP=idatyp)
+          call BURP_Get_Property(inputReport, IDTYP=idatyp)
           Write(*,*) "hir_cldprm_to_brp idatyp ", idatyp
           idata2 = -1
-          call obs_set_current_header_list(lobsSpaceData, 'TO')
+          call obs_set_current_header_list(obsSpaceData, 'TO')
           HEADER: do
-            i = obs_getHeaderIndex(lobsSpaceData)
+            i = obs_getHeaderIndex(obsSpaceData)
             if (i < 0) exit HEADER  
-            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp .and.  &
-                  obs_headElem_i(lobsSpaceData,OBS_OTP,i) == fileIndex) then
+            if  ( obs_headElem_i(obsSpaceData,OBS_ITY,i) == idatyp .and.  &
+                  obs_headElem_i(obsSpaceData,OBS_OTP,i) == fileIndex) then
               idata2 = i
               exit HEADER
             end if
@@ -498,14 +499,14 @@ contains
 
         BLOCKS1: do
 
-          ref_blk = BURP_Find_Block(InputReport, &
-               BLOCK       = InputBlock,         &
+          ref_blk = BURP_Find_Block(inputReport, &
+               BLOCK       = inputBlock,         &
                SEARCH_FROM = ref_blk,            &
                iostat      = error)
 
           if (ref_blk < 0) EXIT BLOCKS1
 
-          call BURP_Get_Property(InputBlock, &
+          call BURP_Get_Property(inputBlock, &
                NELE   = nbele,               &
                NVAL   = nvale,               &
                NT     = nte,                 &
@@ -525,11 +526,11 @@ contains
             goodprof(:) = 0
             btobs(:,:)  = 0.
 
-            ind012163  = BURP_Find_Element(InputBlock, ELEMENT=012163, iostat=error)
+            ind012163  = BURP_Find_Element(inputBlock, ELEMENT=012163, iostat=error)
 
             do k=1,nte
               do j=1,nvale
-                btobs(j,k) = BURP_Get_Rval(InputBlock, &
+                btobs(j,k) = BURP_Get_Rval(inputBlock, &
                      NELE_IND = ind012163,             &
                      NVAL_IND = j,                     &
                      NT_IND   = k )
@@ -542,13 +543,13 @@ contains
         end do BLOCKS1
 
 
-        call BURP_Copy_Header(TO=CopyReport, FROM=InputReport)
+        call BURP_copy_Header(TO=copyReport, FROM=inputReport)
         IF (error /= BURP_NOERR) then
           Write(*,*) "Error= ",error
-          call handle_error("Erreur dans BURP_Copy_Header")
+          call handle_error("Erreur dans BURP_copy_Header")
         end if
 
-        call BURP_Init_Report_Write(InputFile, CopyReport, iostat=error)
+        call BURP_Init_Report_Write(inputFile, copyReport, iostat=error)
         IF (error /= BURP_NOERR) then
           Write(*,*) "Error= ",error
           call handle_error("Erreur dans BURP_Init_Report_Write")
@@ -569,14 +570,14 @@ contains
             EXIT BLOCKS2
           end if
 
-          ref_blk = BURP_Find_Block(InputReport, &
-               BLOCK       = InputBlock, &
+          ref_blk = BURP_Find_Block(inputReport, &
+               BLOCK       = inputBlock, &
                SEARCH_FROM = ref_blk, &
                iostat      = error)
           
           if (ref_blk < 0) EXIT BLOCKS2
 
-          call BURP_Get_Property(InputBlock, &
+          call BURP_Get_Property(inputBlock, &
                NELE   = nbele,               &
                NVAL   = nvale,               &
                NT     = nte,                 &
@@ -599,9 +600,9 @@ contains
 
             allocate(glbflag(nte))
 
-            ind055200  = BURP_Find_Element(InputBlock, ELEMENT=055200, iostat=error)
+            ind055200  = BURP_Find_Element(inputBlock, ELEMENT=055200, iostat=error)
             do k = 1, nte
-              glbflag(k) =  BURP_Get_Tblval(InputBlock, &
+              glbflag(k) =  BURP_Get_Tblval(inputBlock, &
                    NELE_IND = ind055200, &
                    NVAL_IND = 1, &
                    NT_IND   = k )
@@ -612,7 +613,7 @@ contains
             end do
 
             do k = 1, nte
-              call BURP_Set_Tblval(InputBlock, &
+              call BURP_Set_Tblval(inputBlock, &
                    NELE_IND = ind055200,       &
                    NVAL_IND = 1,               &
                    NT_IND   = k,               &
@@ -634,23 +635,23 @@ contains
 
             flag_passage2 = 1
 
-            call BURP_Resize_Block(InputBlock, ADD_NELE=11, iostat=error)
+            call BURP_Resize_Block(inputBlock, ADD_NELE=11, iostat=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block info")
             end if
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 1, ELEMENT=014213, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 2, ELEMENT=014214, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 3, ELEMENT=014215, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 4, ELEMENT=014216, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 5, ELEMENT=014217, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 6, ELEMENT=014218, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 7, ELEMENT=014219, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 8, ELEMENT=014220, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+ 9, ELEMENT=014221, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+10, ELEMENT=013214, iostat=error)
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+11, ELEMENT=059182, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 1, ELEMENT=014213, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 2, ELEMENT=014214, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 3, ELEMENT=014215, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 4, ELEMENT=014216, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 5, ELEMENT=014217, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 6, ELEMENT=014218, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 7, ELEMENT=014219, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 8, ELEMENT=014220, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+ 9, ELEMENT=014221, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+10, ELEMENT=013214, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+11, ELEMENT=059182, iostat=error)
             
-            ind008012 = BURP_Find_Element(InputBlock, &
+            ind008012 = BURP_Find_Element(inputBlock, &
                  ELEMENT  = 008012, &
                  iostat   = error)
             
@@ -658,35 +659,35 @@ contains
               
               if ( goodprof(k) == 1 ) then
 
-                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                  Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
+                if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency ", obs_headElem_i(obsSpaceData,OBS_OTP,idata2) , fileIndex
                   Write(*,*) "Should not happen..."
                   call utl_abort('hir_cldprm_to_brp')
                 end if
 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_VTOP,idata2),nbele+2,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_VTOP,idata2),nbele+2,1,k)
 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ECF,idata2),nbele+3,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ECF,idata2),nbele+3,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_VCF,idata2),nbele+4,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_VCF,idata2),nbele+4,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_HE,idata2),nbele+5,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_HE,idata2),nbele+5,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ZTSR,idata2),nbele+6,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTSR,idata2),nbele+6,1,k)
                 
-                call Insert_into_burp_i(obs_headElem_i(lobsSpaceData,OBS_NCO2,idata2),nbele+7,1,k)
+                call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_NCO2,idata2),nbele+7,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ZTM,idata2),nbele+8,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTM,idata2),nbele+8,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ZTGM,idata2),nbele+9,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2),nbele+9,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ZLQM,idata2),nbele+10,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2),nbele+10,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ZPS,idata2),nbele+11,1,k)
+                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2),nbele+11,1,k)
                 
-                call Insert_into_burp_i(obs_headElem_i(lobsSpaceData,OBS_STYP,idata2),ind008012,1,k)
+                call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,k)
                                 
                 idata2 = idata2 + 1
 
@@ -713,12 +714,12 @@ contains
           if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
             flag_passage3 = 1
 
-            call BURP_Resize_Block(InputBlock, ADD_NELE=1, iostat=error)
+            call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block data")
             end if
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
-            indchan  = BURP_Find_Element(InputBlock, ELEMENT=005042, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
+            indchan  = BURP_Find_Element(inputBlock, ELEMENT=005042, iostat=error)
             do k = 1, nte
               do j = 1, nvale
                 call Insert_into_burp_i(-1,nbele+1,j,k)
@@ -726,20 +727,20 @@ contains
                  
               if ( goodprof(k) == 1 ) then
 
-                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
-                  Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(obsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
                   Write(*,*) "Should not happen..."
                   call utl_abort('hir_cldprm_to_brp')
                 end if
 
-                idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,idata3)
-                idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,idata3) + idata - 1
+                idata   = obs_headElem_i(obsSpaceData,OBS_RLN,idata3)
+                idatend = obs_headElem_i(obsSpaceData,OBS_NLV,idata3) + idata - 1
                 do j = idata, idatend
-                  emisfc=100.d0*obs_bodyElem_r(lobsspacedata,OBS_SEM,j)
-                  ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,j))
+                  emisfc = 100.d0 * obs_bodyElem_r(obsspacedata,OBS_SEM,j)
+                  ICHN = NINT(obs_bodyElem_r(obsSpaceData,OBS_PPP,j))
                   ICHN = MAX(0,MIN(ICHN,tvs_maxChannelNumber+1))
                   bl: do l=1,nvale
-                    ichnb=BURP_Get_Tblval(InputBlock, &
+                    ichnb=BURP_Get_Tblval(inputBlock, &
                          NELE_IND = indchan,          &
                          NVAL_IND = l,                &
                          NT_IND   = k)
@@ -768,15 +769,15 @@ contains
           if ( btyp10 - btyp10flg == 0 ) then
             flag_passage4 = 1
             
-            call BURP_Resize_Block(InputBlock, ADD_NELE=1, iostat=error)
+            call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block marqueur")
             end if
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+1, ELEMENT=255043, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+1, ELEMENT=255043, iostat=error)
             
             do k = 1, nte
               do j = 1, nvale
-                call BURP_Set_Tblval(InputBlock, &
+                call BURP_Set_Tblval(inputBlock, &
                      NELE_IND = nbele+1, &
                      NVAL_IND = j, &
                      NT_IND   = k, &
@@ -795,11 +796,11 @@ contains
           if ( btyp10 - btyp10omp == 0 .and. bfam == 14 ) then
             flag_passage5 = 1
               
-            call BURP_Resize_Block(InputBlock, ADD_NELE=1, iostat=error)
+            call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block O-P")
             end if
-            call BURP_Set_Element(InputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
+            call BURP_Set_Element(inputBlock, NELE_IND=nbele+1, ELEMENT=055043, iostat=error)
                 
             do k = 1, nte
               do j = 1, nvale
@@ -812,11 +813,11 @@ contains
           ! Add block into new report
 
           if ( btyp == 5120 ) then
-            call BURP_Write_Block(CopyReport, InputBlock, &
+            call BURP_Write_Block(copyReport, inputBlock, &
                  ENCODE_BLOCK  = .true., &
                  iostat        = error)
           else
-            call BURP_Write_Block(CopyReport, InputBlock, &
+            call BURP_Write_Block(copyReport, inputBlock, &
                  ENCODE_BLOCK  = .true., &
                  CONVERT_BLOCK = .true., &
                  iostat        = error)
@@ -835,8 +836,8 @@ contains
 
         ! Write new report into file
         
-        call BURP_Delete_Report(InputFile, InputReport, iostat=error)
-        call BURP_Write_Report(InputFile, CopyReport, iostat=error)
+        call BURP_Delete_Report(inputFile, inputReport, iostat=error)
+        call BURP_Write_Report(inputFile, copyReport, iostat=error)
       end do REPORTS
 
       if ( flag_passage1 == 0 ) then
@@ -878,20 +879,20 @@ contains
 
     !--------- HANDLE_ERROR -----
   
-    subroutine handle_error(errormessage)
+    subroutine handle_error(errorMessage)
       !
       ! :Purpose: handle error
       !
 
       implicit none
 
-      character (len=*) :: errormessage
+      character (len=*) :: errorMessage
 
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
       call BURP_STR_ERROR_HISTORY()
       call cleanup()
-      call utl_abort(trim(errormessage))
+      call utl_abort(trim(errorMessage))
 
     end subroutine handle_error
 
@@ -908,14 +909,14 @@ contains
       integer :: error
       
       if ( r8val >= 0.d0 ) then
-        call BURP_Set_Rval(InputBlock, &
+        call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
              RVAL     = sngl(r8val), &
              iostat   = error)
       else
-        call BURP_Set_Rval(InputBlock, &
+        call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
@@ -941,18 +942,18 @@ contains
       integer :: error
       
       if ( ival >= 0 ) then
-        call BURP_Set_Rval(InputBlock, &
+        call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
-             RVAL   = real(ival), &
+             RVAL     = real(ival), &
              iostat   = error)
       else
-        call BURP_Set_Rval(InputBlock, &
+        call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
-             RVAL   = val_option_r4, &
+             RVAL     = val_option_r4, &
              iostat   = error)
       end if
       
@@ -968,12 +969,12 @@ contains
   !--------------------------------------------------------------------------
   !  bgck_get_qcid
   !--------------------------------------------------------------------------
-  subroutine bgck_get_qcid( instrumentName, qcid )
+  subroutine bgck_get_qcid(instrumentName, qcid )
     !
     implicit none
 
-    character (len=*), intent(in) :: instrumentName
-    integer, intent (out)         :: qcid
+    character(len=*), intent(in) :: instrumentName
+    integer, intent (out)        :: qcid
     ! Locals
     integer :: i 
 
@@ -996,7 +997,7 @@ contains
   !--------------------------------------------------------------------------
   ! irbg_doQualityControl
   !--------------------------------------------------------------------------
-  subroutine irbg_doQualityControl (lcolumnhr, lobsSpaceData, instrumentName, id_opt )
+  subroutine irbg_doQualityControl (columnHr, obsSpaceData, instrumentName, id_opt )
     !
     ! :Purpose: Quality control of hyperspectral infrared observations.
     !           assign assimilation flags to observations 
@@ -1004,53 +1005,54 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: lcolumnhr
-    type(struct_obs), intent(inout)     :: lobsSpaceData
-    character (len=*), intent(in)       :: instrumentName
-    integer, intent(in)   , optional    :: id_opt
+    type(struct_columnData), intent(in) :: columnHr
+    type(struct_obs), intent(inout)     :: obsSpaceData
+    character(len=*), intent(in)        :: instrumentName
+    integer, intent(in), optional       :: id_opt
 
     ! Locals:
-    integer       :: jc,nchn,jch,jl,nlev,nlevb,iextr,bitIndex,channelNumber
-    integer       :: iwindo,iwindo_alt
-    integer       :: bodyIndex,bodyStart,bodyEnd,headerIndex
+    integer       :: jc, nchn, levelIndex, nRttovLevels, levelsBelowModelTop, iextr, bitIndex, channelNumber, classIndex
+    integer       :: columnIndex
+    integer       :: iwindo, iwindo_alt
+    integer       :: bodyIndex, bodyStart, bodyEnd, headerIndex
     integer       :: idatyp
     real(8)       :: difftop_min
-    integer       :: imodtop
+    integer       :: modelTopIndex
     integer       :: count
     real(8)       :: t_effective
     integer       :: allocStatus(28)
-    real(8)       :: ztg,zps,zts,ptop_T,zlqs
-    real(8), allocatable :: zt(:),zht(:,:),pressureLevels(:)
-    real(8), allocatable :: zlevmod(:,:)
-    real(8), allocatable :: btobserr(:),btobs(:),btcalc(:),rcal_clr(:),sfctau(:)
-    real(8), allocatable :: robs(:),rcld(:,:),transm(:,:),emi_sfc(:) 
-    real(8), allocatable :: toext(:),zhoext(:,:)
-    real(8), allocatable :: ptop_bt(:),ptop_rd(:)
-    real(8), allocatable :: pmin(:),dtaudp1(:),maxwf(:)
-    real(8), allocatable :: rcld_avhrr(:,:)
+    real(8)       :: tg, p0, tskinRetrieved, ptop_T, zlqs
+    real(8), allocatable :: tt(:), height(:,:), pressureInterpolated(:)
+    real(8), allocatable :: pressure(:,:)
+    real(8), allocatable :: btObsErr(:), btObs(:), btCalc(:), rcal_clr(:), sfctau(:)
+    real(8), allocatable :: radObs(:), cloudyRadiance(:,:), transm(:,:), emi_sfc(:) 
+    real(8), allocatable :: ttInterpolated(:), heightInterpolated(:,:)
+    real(8), allocatable :: ptop_bt(:), ptop_rd(:)
+    real(8), allocatable :: pmin(:), dtaudp1(:), maxwf(:)
+    real(8), allocatable :: cloudyRadiance_avhrr(:,:)
     integer, allocatable :: rejflag(:,:) 
-    integer, allocatable :: ntop_bt(:),ntop_rd(:)
-    integer, allocatable :: minp(:),fate(:), channelIndex(:)
-    real(8), allocatable :: rttovPressureLevels(:)
+    integer, allocatable :: ntop_bt(:), ntop_rd(:)
+    integer, allocatable :: minp(:), fate(:), channelIndexes(:)
+    real(8), allocatable :: rttovPressure(:)
 
-    real(8) :: clfr,sunza,satazim,satzen,sunazim
-    real(8) :: albedo,ice,pcnt_wat,pcnt_reg
+    real(8) :: clfr, sunZenithAngle, satelliteAzimuthAngle, satelliteZenithAngle, sunAzimuthAngle
+    real(8) :: albedo, ice, pcnt_wat, pcnt_reg
     real(8) :: ptop_eq,ptop_mb
     real(8) :: ptop_co2(nco2),fcloud_co2(nco2)
     real(8) :: etop,vtop,ecf,vcf,heff
     real(8) :: tampon,cfsub
-    real(8) :: zts_avhrr(nClassAVHRR),sfctau_avhrr(NIR),emi_sfc_avhrr(NIR),rcal_clr_avhrr(NIR)
-    real(8) :: ptop_bt_avhrr(NIR,nClassAVHRR),ptop_rd_avhrr(NIR,nClassAVHRR)
-    real(8) :: btobs_avhrr(NIR,nClassAVHRR),robs_avhrr(NIR,nClassAVHRR),ptop_eq_avhrr(nClassAVHRR)
+    real(8) :: tskinRetrieved_avhrr(nClassAVHRR), sfctau_avhrr(NIR), emi_sfc_avhrr(NIR), rcal_clr_avhrr(NIR)
+    real(8) :: ptop_bt_avhrr(NIR,nClassAVHRR), ptop_rd_avhrr(NIR,nClassAVHRR)
+    real(8) :: btObs_avhrr(NIR,nClassAVHRR), radObs_avhrr(NIR,nClassAVHRR), ptop_eq_avhrr(nClassAVHRR)
     real(8) :: cfrac_avhrr
     real(8) :: avhrr_surfem1(NIR)
-    real(8) :: seuil_albed(NIR)
+    real(8) :: albedoThreshold(NIR)
 
     integer :: ksurf,ltype
-    integer :: cldflag,lev_start   
+    integer :: cldflag, lev_start   
     integer :: gncldflag
-    integer :: ichref,indx(1)
-    integer :: ntop_eq,ntop_mb
+    integer :: ichref
+    integer :: ntop_eq, ntop_mb
     integer :: ngood
     integer :: ntop_co2(nco2)
     integer :: cldflag_avhrr(nClassAVHRR),lev_start_avhrr(nClassAVHRR),ichref_avhrr(nClassAVHRR),ntop_rd_avhrr(NIR,nClassAVHRR)
@@ -1060,13 +1062,13 @@ contains
   
     integer, parameter :: nn=2
     integer, parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
-    integer :: countChannels,iclass
+    integer :: countChannels
     logical :: bad
-    real(8),parameter :: sunzenmax=87.12d0
+    real(8), parameter :: sunzenmax=87.12d0
     real(8) :: minpavhrr(2:3)
     real(8) :: anisot,zlamb,zcloud,scos,del,deltaphi
-    integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1),iobs
-    integer :: chan_indx,ilist_sun,ilist_co2(nco2),ilist_co2_pair(nco2),ilist_he(nch_he)
+    integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1)
+    integer :: channelIndex,ilist_sun,ilist_co2(nco2),ilist_co2_pair(nco2),ilist_he(nch_he)
     integer :: nlv_T,id,sensorIndex, qcid, nchannels
     logical :: liasi,lairs,lcris
 
@@ -1096,12 +1098,12 @@ contains
     count = 0
 
     ! Loop over all header indices of the 'TO' family
-    call obs_set_current_header_list(lobsSpaceData,'TO')
+    call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
-      headerIndex = obs_getHeaderIndex(lobsSpaceData)
-      if ( headerIndex < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
       if ( tvs_tovsIndex( headerIndex ) < 0) cycle HEADER
-      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(tvs_tovsIndex (headerIndex)) == id ) then
         count = count + 1
       end if
@@ -1110,13 +1112,13 @@ contains
     if ( count == 0 ) return
     ! Find number of channels and RTTOV levels
 
-    nchn = tvs_coefs(id)%coef%fmv_chn
+    nchn = tvs_coefs(id) % coef % fmv_chn
 
-    nlev = tvs_coefs(id) % coef % nlevels 
-    allocate (rttovPressureLevels(nlev))
-    rttovPressureLevels(1:nlev) = tvs_coefs(id) % coef % ref_prfl_p(1:nlev)
+    nRttovLevels = tvs_coefs(id) % coef % nlevels 
+    allocate (rttovPressure(nRttovLevels))
+    rttovPressure(1:nRttovLevels) = tvs_coefs(id) % coef % ref_prfl_p(1:nRttovLevels)
 
-    select case(nlev)
+    select case(nRttovLevels)
     case(43)
       iextr = 0
     case(44)
@@ -1128,231 +1130,230 @@ contains
     case(101)
       iextr = 4
     case default
-      Write(*,*) "Attention: modification necessaire dans irbg_doQualityControl", nlev
+      Write(*,*) "Attention: modification necessaire dans irbg_doQualityControl", nRttovLevels
       call utl_abort('irbg_doQualityControl')
     end select
    
-    nlevb = nlev - iextr
+    levelsBelowModelTop = nRttovLevels - iextr
 
     write(*,*) ' irbg_doQualityControl - nchn ', nchn
   
-    nlv_T = col_getNumLev(lcolumnhr,'TH')
+    nlv_T = col_getNumLev(columnHr,'TH')
    
 
     ! information to extract (transvidage)
     !
-    ! ztg -- guess skin temperatures (deg K)
-    ! zps -- surface pressure (hPa)
-    ! zt(nlv_T) -- temperature profiles on NWP model levels (deg K)
-    ! zht(nlv_T,1) -- height profiles on NWP model levels (m)
+    ! tg -- guess skin temperatures (deg K)
+    ! p0 -- surface pressure (hPa)
+    ! tt(nlv_T) -- temperature profiles on NWP model levels (deg K)
+    ! height(nlv_T,1) -- height profiles on NWP model levels (m)
     ! zlqs -- surface specific humidity in ln q (kg/kg)
-    ! btobserr(nchn) -- observation error standard deviation
-    ! btobs(nchn) -- observed brightness temperatures (deg K)
-    ! btcalc(nchn) -- computed brightness temperatures (deg K)
+    ! btObsErr(nchn) -- observation error standard deviation
+    ! btObs(nchn) -- observed brightness temperatures (deg K)
+    ! btCalc(nchn) -- computed brightness temperatures (deg K)
     ! rcal_clr(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
     ! sfctau(nchn) -- surface to space transmittances (0-1)
-    ! rcld(nchn,nlev) -- overcast cloudy radiances (mw/m2/sr/cm-1)
-    ! transm(nchn,nlev) -- layer to space transmittances (0-1)
+    ! cloudyRadiance(nchn,nRttovLevels) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+    ! transm(nchn,nRttovLevels) -- layer to space transmittances (0-1)
     ! emi_sfc(nchn) -- surface emissivities (0-1)
     ! ksurf -- surface type in obs file (0, 1)
     ! clfr -- cloud fraction (%)
-    ! toext(nlev) -- temperature profiles on RT model levels (deg K)
-    ! zhoext(nlev) -- height profiles on RT model levels (m)
-    ! sunza -- sun zenith angle (deg)
-    ! satazim -- satellite azimuth angle (deg)
-    ! satzen -- satellite zenith angle (deg)
+    ! ttInterpolated(levelsBelowModelTop) -- temperature profiles on RT model levels (deg K)
+    ! heightInterpolated(levelsBelowModelTop) -- height profiles on RT model levels (m)
+    ! sunZenithAngle -- sun zenith angle (deg)
+    ! satelliteAzimuthAngle -- satellite azimuth angle (deg)
+    ! satelliteZenithAngle -- satellite zenith angle (deg)
     ! albedo -- surface albedo (0-1)
     ! ice -- ice fraction (0-1)
     ! ltype -- surface type (1,...,20)
     ! pcnt_wat -- water fraction (0-1)
     ! pcnt_reg -- water fraction in the area (0-1)
-    ! robs(nchn) -- observed radiances (mW/m2/sr/cm-1)
+    ! radObs(nchn) -- observed radiances (mW/m2/sr/cm-1)
 
     allocStatus(:) = 0
  
-    allocate ( btobserr(nchn),                   stat= allocStatus(1))
-    allocate ( btobs(nchn),                      stat= allocStatus(2))
-    allocate ( btcalc(nchn),                     stat= allocStatus(3))
-    allocate ( rcal_clr(nchn),                   stat= allocStatus(4))
-    allocate ( sfctau(nchn),                     stat= allocStatus(5))
-    allocate ( rcld(nchn,nlevb),                 stat= allocStatus(6))
-    allocate ( transm(nchn,nlevb),               stat= allocStatus(7))
-    allocate ( emi_sfc(nchn),                    stat= allocStatus(8))
-    allocate ( toext(nlevb),                     stat= allocStatus(9))
-    allocate ( zhoext(nlevb,1),                  stat= allocStatus(10))
-    allocate ( robs(nchn),                       stat= allocStatus(11))
-    allocate ( rejflag(nchn,0:bitflag),          stat= allocStatus(12))
-    allocate ( ntop_bt(nchn),                    stat= allocStatus(13))
-    allocate ( ntop_rd(nchn),                    stat= allocStatus(14))
-    allocate ( ptop_bt(nchn),                    stat= allocStatus(15))
-    allocate ( ptop_rd(nchn),                    stat= allocStatus(16))
-    allocate ( minp(nchn),                       stat= allocStatus(17))
-    allocate ( pmin(nchn),                       stat= allocStatus(18))
-    allocate ( dtaudp1(nchn),                    stat= allocStatus(19))
-    allocate ( fate(nchn),                       stat= allocStatus(20))
-    if (liasi) allocate ( rcld_avhrr(NIR,nlevb), stat= allocStatus(21))
-    allocate ( maxwf(nchn),                      stat= allocStatus(22))
-    allocate ( pressureLevels(nlevb),            stat= allocStatus(23))
-    allocate ( zlevmod(nlv_T,1),                 stat= allocStatus(24))
-    allocate ( zt(nlv_T),                        stat= allocStatus(25))
-    allocate ( zht(nlv_T,1),                     stat= allocStatus(26))
-    allocate ( channelIndex(nchn),               stat= allocStatus(27))
+    allocate ( btObsErr(nchn),                           stat= allocStatus(1))
+    allocate ( btObs(nchn),                              stat= allocStatus(2))
+    allocate ( btCalc(nchn),                             stat= allocStatus(3))
+    allocate ( rcal_clr(nchn),                           stat= allocStatus(4))
+    allocate ( sfctau(nchn),                             stat= allocStatus(5))
+    allocate ( cloudyRadiance(nchn,levelsBelowModelTop), stat= allocStatus(6))
+    allocate ( transm(nchn,levelsBelowModelTop),         stat= allocStatus(7))
+    allocate ( emi_sfc(nchn),                            stat= allocStatus(8))
+    allocate ( ttInterpolated(levelsBelowModelTop),      stat= allocStatus(9))
+    allocate ( heightInterpolated(levelsBelowModelTop,1),stat= allocStatus(10))
+    allocate ( radObs(nchn),                             stat= allocStatus(11))
+    allocate ( rejflag(nchn,0:bitflag),                  stat= allocStatus(12))
+    allocate ( ntop_bt(nchn),                            stat= allocStatus(13))
+    allocate ( ntop_rd(nchn),                            stat= allocStatus(14))
+    allocate ( ptop_bt(nchn),                            stat= allocStatus(15))
+    allocate ( ptop_rd(nchn),                            stat= allocStatus(16))
+    allocate ( minp(nchn),                               stat= allocStatus(17))
+    allocate ( pmin(nchn),                               stat= allocStatus(18))
+    allocate ( dtaudp1(nchn),                            stat= allocStatus(19))
+    allocate ( fate(nchn),                               stat= allocStatus(20))
+    if (liasi) allocate ( cloudyRadiance_avhrr(NIR,levelsBelowModelTop), stat= allocStatus(21))
+    allocate ( maxwf(nchn),                              stat= allocStatus(22))
+    allocate ( pressureInterpolated(levelsBelowModelTop),stat= allocStatus(23))
+    allocate ( pressure(nlv_T,1),                        stat= allocStatus(24))
+    allocate ( tt(nlv_T),                                stat= allocStatus(25))
+    allocate ( height(nlv_T,1),                          stat= allocStatus(26))
+    allocate ( channelIndexes(nchn),                     stat= allocStatus(27))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl 1")
 
-    do jl = 1, nlevb
-      pressureLevels(jl) = rttovPressureLevels(jl + iextr)
+    do levelIndex = 1, levelsBelowModelTop
+      pressureInterpolated(levelIndex) = rttovPressure(levelIndex + iextr)
     end do
 
   
     difftop_min = 100000.d0
-    imodtop = 1
+    modelTopIndex = 1
 
-    ptop_T = col_getPressure(lcolumnhr,1,1,'TH')
-    do jl = 1, nlevb
-      if ( abs(ptop_T - 100.d0 * pressureLevels(jl)) < difftop_min ) then
-        difftop_min = abs(ptop_T - 100.d0 * pressureLevels(jl))
-        imodtop = jl
+    ptop_T = col_getPressure(columnHr,1,1,'TH')
+    do levelIndex = 1, levelsBelowModelTop
+      if ( abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex)) < difftop_min ) then
+        difftop_min = abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex))
+        modelTopIndex = levelIndex
       end if
     end do
     !  Find radiative transfer model level nearest to trial top (only compute one time)
     write(*,*) 'TOIT DU MODELE (MB)'
     write(*,*) 0.01d0 * ptop_T
     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
-    write(*,*) imodtop
+    write(*,*) modelTopIndex
 
-    co2min = minloc( abs( pressureLevels(:) - pco2min ) )
-    co2max = minloc( abs( pressureLevels(:) - pco2max ) )
+    co2min = minloc( abs( pressureInterpolated(:) - pco2min ) )
+    co2max = minloc( abs( pressureInterpolated(:) - pco2max ) )
 
     tvs_nobtov = 0
 
     ! Loop over all header indices of the 'TO' family
-    call obs_set_current_header_list(lobsSpaceData, 'TO')
+    call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER_2: do
-      headerIndex = obs_getHeaderIndex(lobsSpaceData)
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER_2
 
-      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if ( tvs_isIdBurpTovs(idatyp) ) tvs_nobtov = tvs_nobtov + 1
       if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER_2
       if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(tvs_tovsIndex (headerIndex)) == id) then
-        btobs(:)    = -1.d0
-        btcalc(:)   = -1.d0
-        btobserr(:) = -1.d0
+        btObs(:)    = -1.d0
+        btCalc(:)   = -1.d0
+        btObsErr(:) = -1.d0
         rcal_clr(:) = -1.d0
         sfctau(:)   = -1.d0
-        rcld(:,:)   = -1.d0
+        cloudyRadiance(:,:)   = -1.d0
         transm(:,:) = -1.d0
         emi_sfc(:)  = -1.d0
         rejflag(:,:) = 0
-        channelIndex(:) = -1
+        channelIndexes(:) = -1
 
         if (liasi) then
-          indx = headerIndex
-          iclass = 1
-          do iobs=OBS_CF1, OBS_CF7
-            avhrr_bgck(headerIndex)%cfrac(iclass) = obs_headElem_r(lobsSpaceData,iobs,headerIndex)
-            iclass = iclass + 1
+          classIndex = 1
+          do columnIndex = OBS_CF1, OBS_CF7
+            avhrr_bgck(headerIndex)%cfrac(classIndex) = obs_headElem_r(obsSpaceData,columnIndex,headerIndex)
+            classIndex = classIndex + 1
           end do
-          iclass = 1
+          classIndex = 1
           channelNumber = 1
-          do iobs = OBS_M1C1, OBS_M7C6
-            avhrr_bgck(headerIndex)%radmoy(iclass,channelNumber) = obs_headElem_r(lobsSpaceData,iobs,headerIndex)
+          do columnIndex = OBS_M1C1, OBS_M7C6
+            avhrr_bgck(headerIndex)%radmoy(classIndex,channelNumber) = obs_headElem_r(obsSpaceData,columnIndex,headerIndex)
             channelNumber = channelNumber + 1
             if (channelNumber > nChanAVHRR) then
               channelNumber = 1
-              iclass = iclass + 1
+              classIndex = classIndex + 1
             end if
           end do
-          iclass = 1
+          classIndex = 1
           channelNumber = 1
-          do iobs=OBS_S1C1, OBS_S7C6
-            avhrr_bgck(headerIndex)%radstd(iclass,channelNumber) = obs_headElem_r(lobsSpaceData,iobs,headerIndex)
+          do columnIndex = OBS_S1C1, OBS_S7C6
+            avhrr_bgck(headerIndex)%radstd(classIndex,channelNumber) = obs_headElem_r(obsSpaceData,columnIndex,headerIndex)
             channelNumber =channelNumber  + 1
             if (channelNumber> nChanAVHRR) then
               channelNumber = 1
-              iclass = iclass + 1
+              classIndex = classIndex + 1
             end if
           end do
-          sunazim = obs_headElem_r(lobsSpaceData,OBS_SAZ,headerIndex)
+          sunAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex)
         end if
 
-        ztg = col_getElem(lcolumnhr,1,headerIndex,'TG')
-        zps = col_getElem(lcolumnhr,1,headerIndex,'P0') * MPC_MBAR_PER_PA_R8
+        tg = col_getElem(columnHr, 1, headerIndex, 'TG')
+        p0 = col_getElem(columnHr, 1, headerIndex, 'P0') * MPC_MBAR_PER_PA_R8
 
-        do jl = 1, nlv_T
-          zt(jl) = col_getElem(lcolumnhr,jl,headerIndex,'TT')
-          zht(jl,1) = col_getHeight(lcolumnhr,jl,headerIndex,'TH')
-          zlevmod(jl,1)= col_getPressure(lcolumnhr,jl,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+        do levelIndex = 1, nlv_T
+          tt(levelIndex) = col_getElem(columnHr, levelIndex, headerIndex, 'TT')
+          height(levelIndex,1) = col_getHeight(columnHr, levelIndex, headerIndex, 'TH')
+          pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
         end do
-        zlqs = col_getElem(lcolumnhr,nlv_T,headerIndex,'HU')
+        zlqs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
 
-        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,1, &
-             nlevb,pressureLevels,zhoext(:,1:1))
+        call ppo_lintv (pressure(:,1:1),height(:,1:1),nlv_T,1, &
+             levelsBelowModelTop,pressureInterpolated,heightInterpolated(:,1:1))
 
-        bodyStart   = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
-        bodyEnd = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex) + bodyStart - 1
-        BAD = .false.
-        if (lcris) BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,headerIndex)/=0 .or. &
-             obs_headElem_i(lobsSpaceData,OBS_GQL,headerIndex) /=0)
-        if (liasi) BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,headerIndex)/=0 .or. &
-             obs_headElem_i(lobsSpaceData,OBS_GQL,headerIndex) >1) 
+        bodyStart   = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyStart - 1
+        bad = .false.
+        if (lcris) bad=( obs_headElem_i(obsSpaceData, OBS_GQF, headerIndex)/=0 .or. &
+             obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) /=0)
+        if (liasi) bad=( obs_headElem_i(obsSpaceData, OBS_GQF, headerIndex)/=0 .or. &
+             obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) >1) 
 
 
         nchannels = 0 ! number of channels available at that observation point
         do bodyIndex= bodyStart, bodyEnd
-          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max( 0,min( channelNumber,tvs_maxChannelNumber + 1 ) )
-            call tvs_getChannelIndexFromChannelNumber(id,chan_indx,channelNumber)
+            call tvs_getChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
             nchannels = nchannels + 1
-            channelIndex(nchannels) = chan_indx
-            btobserr(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
-            btobs(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex)
+            channelIndexes(nchannels) = channelIndex
+            btObsErr(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+            btObs(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
 
             !  Flag check on observed BTs ***
-            if (.not.liasi .and. btest(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),2)) rejflag(chan_indx,9) = 1
-            if (BAD) rejflag(chan_indx,9) = 1
+            if (.not.liasi .and. btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),2)) rejflag(channelIndex,9) = 1
+            if (bad) rejflag(channelIndex,9) = 1
 
             !  Gross check on observed BTs ***
-            if (btobs(chan_indx)<150.d0) rejflag(chan_indx,9) = 1
-            if (btobs(chan_indx)>350.d0) rejflag(chan_indx,9) = 1
+            if (btObs(channelIndex)<150.d0) rejflag(channelIndex,9) = 1
+            if (btObs(channelIndex)>350.d0) rejflag(channelIndex,9) = 1
           end if
         end do
 
         if (nchannels==0) cycle HEADER_2
         do jc = 1, nchannels
-          chan_indx = channelIndex(jc)
-          btcalc(chan_indx) = tvs_radiance(tvs_nobtov) % bt(chan_indx)
-          rcal_clr(chan_indx) = tvs_radiance(tvs_nobtov) % clear(chan_indx)
-          sfctau(chan_indx) = tvs_transmission(tvs_nobtov) % tau_total(chan_indx)
-          do jl = 1, nlevb
-            rcld(chan_indx,jl) = tvs_radiance(tvs_nobtov) % overcast(jl + iextr - 1,chan_indx)
-            transm(chan_indx,jl) = tvs_transmission(tvs_nobtov) % tau_levels(jl + iextr,chan_indx)
+          channelIndex = channelIndexes(jc)
+          btCalc(channelIndex) = tvs_radiance(tvs_nobtov) % bt(channelIndex)
+          rcal_clr(channelIndex) = tvs_radiance(tvs_nobtov) % clear(channelIndex)
+          sfctau(channelIndex) = tvs_transmission(tvs_nobtov) % tau_total(channelIndex)
+          do levelIndex = 1, levelsBelowModelTop
+            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex + iextr - 1,channelIndex)
+            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex + iextr,channelIndex)
           end do
-          emi_sfc(chan_indx) = tvs_emissivity(chan_indx,tvs_nobtov)
+          emi_sfc(channelIndex) = tvs_emissivity(channelIndex,tvs_nobtov)
           !  Gross check on computed BTs ***
-          if (btcalc(chan_indx) < 150.d0) rejflag(chan_indx,9) = 1
-          if (btcalc(chan_indx) > 350.d0) rejflag(chan_indx,9) = 1
+          if (btCalc(channelIndex) < 150.d0) rejflag(channelIndex,9) = 1
+          if (btCalc(channelIndex) > 350.d0) rejflag(channelIndex,9) = 1
         end do
 
         ksurf = tvs_profiles(tvs_nobtov) % skin % surftype
         !Test pour detecter l angle zenithal  manquant (-1) ou anormal
         ! (angle negatif ou superieur a 75 degres )
-        satzen= obs_headElem_r(lobsSpaceData,OBS_SZA,headerIndex)
-        if ( satzen < 0 .or. satzen > 75. ) then
+        satelliteZenithAngle= obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+        if ( satelliteZenithAngle < 0 .or. satelliteZenithAngle > 75. ) then
           rejflag(:,9) = 1
         end if
         clfr = 0.
-        if (lairs) clfr = obs_headElem_r(lobsSpaceData,OBS_CLF,headerIndex)
+        if (lairs) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
-        do jl = 1, nlevb
-          toext(jl) = tvs_profiles(tvs_nobtov)%t(jl + iextr)
+        do levelIndex = 1, levelsBelowModelTop
+          ttInterpolated(levelIndex) = tvs_profiles(tvs_nobtov)%t(levelIndex + iextr)
         end do
 
-        sunza = tvs_profiles(tvs_nobtov) % sunzenangle
+        sunZenithAngle = tvs_profiles(tvs_nobtov) % sunzenangle
         if (liasi) then
-          satazim = tvs_profiles(tvs_nobtov) % azangle 
+          satelliteAzimuthAngle = tvs_profiles(tvs_nobtov) % azangle 
         end if
         albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo
         ice =  tvs_surfaceParameters(tvs_nobtov) % ice
@@ -1363,23 +1364,23 @@ contains
            
         !  Find TOA radiances converted from observed BT's
 
-        robs(:) = -1.d0
+        radObs(:) = -1.d0
         
         channels: do jc = 1, nchannels
-          chan_indx=channelIndex(jc)
-          if ( rejflag(chan_indx,9) == 1 ) cycle channels
-          t_effective =  tvs_coefs(id) % coef % ff_bco(chan_indx) &
-               + tvs_coefs(id) % coef % ff_bcs(chan_indx) * btobs(chan_indx)
-          robs(chan_indx) =  tvs_coefs(id) % coef % planck1(chan_indx) / &
-               ( exp( tvs_coefs(id) % coef % planck2(chan_indx) / t_effective ) - 1.d0 )
+          channelIndex = channelIndexes(jc)
+          if ( rejflag(channelIndex,9) == 1 ) cycle channels
+          t_effective =  tvs_coefs(id) % coef % ff_bco(channelIndex) &
+               + tvs_coefs(id) % coef % ff_bcs(channelIndex) * btObs(channelIndex)
+          radObs(channelIndex) =  tvs_coefs(id) % coef % planck1(channelIndex) / &
+               ( exp( tvs_coefs(id) % coef % planck2(channelIndex) / t_effective ) - 1.d0 )
         end do channels
 
         !  Set height fields to 'height above ground' fields
-        do jl = 1, nlevb
-          zhoext(jl,1) = zhoext(jl,1) - zht(nlv_T,1)
+        do levelIndex = 1, levelsBelowModelTop
+          heightInterpolated(levelIndex,1) = heightInterpolated(levelIndex,1) - height(nlv_T,1)
         end do
-        do jl = 1, nlv_T
-          zht(jl,1) = zht(jl,1) - zht(nlv_T,1)
+        do levelIndex = 1, nlv_T
+          height(levelIndex,1) = height(levelIndex,1) - height(nlv_T,1)
         end do
 
         ! ///// ---------------------------------------------------- /////
@@ -1412,62 +1413,61 @@ contains
         lev_start = 0
 
         !iopt2=1 : calcul de la hauteur en hPa ptop_mb et du ntop_mb correspondant
-        call CLOUD_HEIGHT ( ptop_mb, ntop_mb, btobs, cldflag, zt, &
-             zht(:,1), zps, zlevmod(:,1),nlv_T,nchn, ichref, lev_start, iopt2 )
+        call cloud_height ( ptop_mb, ntop_mb, btObs, cldflag, tt, &
+             height(:,1), p0, pressure(:,1),nlv_T,nchn, ichref, lev_start, iopt2 )
 
         !iopt1=2 : calcul de la hauteur em metres ptop_eq et du ntop_eq correspondant
-        call CLOUD_HEIGHT ( ptop_eq, ntop_eq, btobs, cldflag, zt, &
-             zht(:,1), zps, zlevmod(:,1),nlv_T,nchn, ichref, lev_start, iopt1 )
+        call cloud_height ( ptop_eq, ntop_eq, btObs, cldflag, tt, &
+             height(:,1), p0, pressure(:,1),nlv_T,nchn, ichref, lev_start, iopt1 )
 
         if (liasi) then
           ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
            
-          call get_avhrr_emiss(emi_sfc(channelIndex(1:nchannels)),tvs_coefs(id) % coef % ff_cwn(channelIndex(1:nchannels)), &
+          call get_avhrr_emiss(emi_sfc(channelIndexes(1:nchannels)),tvs_coefs(id) % coef % ff_cwn(channelIndexes(1:nchannels)), &
                nchannels,avhrr_surfem1)
 
-          call tovs_rttov_avhrr_for_IASI(indx,avhrr_surfem1,tvs_satellites(id))
+          call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
                  
-          iobs = indx(1)
-          call convert_avhrr(sunza, avhrr_bgck(iobs) )
-          call stat_avhrr(avhrr_bgck(iobs))
+          call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
+          call stat_avhrr(avhrr_bgck(headerIndex))
           
           lev_start_avhrr(:) = 0
           cldflag_avhrr(:) = 0
-          do jc=1,nClassAVHRR
-            btobs_avhrr(:,jc) = avhrr_bgck(iobs) % tbmoy(jc,:)
-            robs_avhrr(1:NIR,jc) = avhrr_bgck(iobs) % radmoy(jc,NVIS + 1:NIR + NVIS)
-            rcal_clr_avhrr(:) = avhrr_bgck(iobs) % radclearcalc(:)
-            emi_sfc_avhrr(:) = avhrr_bgck(iobs) % emiss(:)
-            sfctau_avhrr(:) = avhrr_bgck(iobs) % transmsurf(:)
+          do classIndex = 1, nClassAVHRR
+            btObs_avhrr(:,classIndex) = avhrr_bgck(headerIndex) % tbmoy(classIndex,:)
+            radObs_avhrr(1:NIR,classIndex) = avhrr_bgck(headerIndex) % radmoy(classIndex,NVIS + 1:NIR + NVIS)
+            rcal_clr_avhrr(:) = avhrr_bgck(headerIndex) % radclearcalc(:)
+            emi_sfc_avhrr(:) = avhrr_bgck(headerIndex) % emiss(:)
+            sfctau_avhrr(:) = avhrr_bgck(headerIndex) % transmsurf(:)
             
-            do jl=1,nlevb
-              rcld_avhrr(:,jl) = avhrr_bgck(iobs) % radovcalc(jl + iextr - 1,:)
+            do levelIndex = 1, levelsBelowModelTop
+              cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex + iextr - 1,:)
             end do
            
-            if (btobs_avhrr(2,jc) > 100.d0 ) then
-              ichref_avhrr(jc) = 2
-            else if (btobs_avhrr(3,jc) > 100.d0 ) then
-              ichref_avhrr(jc) = 3
+            if (btObs_avhrr(2,classIndex) > 100.d0 ) then
+              ichref_avhrr(classIndex) = 2
+            else if (btObs_avhrr(3,classIndex) > 100.d0 ) then
+              ichref_avhrr(classIndex) = 3
             else
-              ichref_avhrr(jc) = -1
-              cldflag_avhrr(jc) = -1
+              ichref_avhrr(classIndex) = -1
+              cldflag_avhrr(classIndex) = -1
             end if
             
-            call CLOUD_HEIGHT (ptop_eq_avhrr(jc),ntop_eq_avhrr(jc), btobs_avhrr(:,jc),cldflag_avhrr(jc),zt, &
-                 zht(:,1),zps,pressureLevels,nlv_T,NIR,ichref_avhrr(jc),lev_start_avhrr(jc),iopt1)
+            call CLOUD_HEIGHT (ptop_eq_avhrr(classIndex),ntop_eq_avhrr(classIndex), btObs_avhrr(:,classIndex),cldflag_avhrr(classIndex),tt, &
+                 height(:,1),p0,pressureInterpolated,nlv_T,NIR,ichref_avhrr(classIndex),lev_start_avhrr(classIndex),iopt1)
           end do
           
         end if
 
         !  -- Clear/cloudy profile detection using the garand & nadon algorithm
 
-        call garand1998nadon (cldflag, btobs,ztg,zt, &
-             zht(:,1),nlv_T,nchn,ptop_eq,ntop_eq,ichref)
+        call garand1998nadon (cldflag, btObs,tg,tt, &
+             height(:,1),nlv_T,nchn,ptop_eq,ntop_eq,ichref)
 
         if (liasi) then
-          do jc=1,nClassAVHRR
-            call garand1998nadon (cldflag_avhrr(jC), btobs_avhrr(:,jc),ztg,zt, &
-                 zht(:,1),nlv_T,NIR,ptop_eq_avhrr(jc),ntop_eq_avhrr(jc),ichref_avhrr(jc))
+          do classIndex=1,nClassAVHRR
+            call garand1998nadon (cldflag_avhrr(classIndex), btObs_avhrr(:,classIndex),tg,tt, &
+                 height(:,1),nlv_T,NIR,ptop_eq_avhrr(classIndex),ntop_eq_avhrr(classIndex),ichref_avhrr(classIndex))
           end do
         end if
         
@@ -1476,66 +1476,66 @@ contains
         !  In daytime, set cloudy if cloud fraction over 5% 
         cfsub = -1.d0
         if (lairs) then
-          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunza < 90.d0 ) then
+          if ( cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 ) then
             cldflag = 1
             cfsub = 0.01d0 * clfr !conversion % -> 0-1
           end if
         end if
         !  Test # B 
-        !  Set cloudy if temperature difference between guess (ztg)     
-        !  and estimated true (zts) skin temperatures is over threshold 
+        !  Set cloudy if temperature difference between guess (tg)     
+        !  and estimated true (tskinRetrieved) skin temperatures is over threshold 
         
-        call estim_ts(zts, ztg, emi_sfc, rcal_clr, robs, &
+        call estim_ts(tskinRetrieved, tg, emi_sfc, rcal_clr, radObs, &
              sfctau, cldflag, ichref, nchn, tvs_coefs(id) )
 
         if ( cldflag == 0 .and. ksurf == 1 &
-             .and. abs(zts-ztg) > dtw ) cldflag = 1 
+             .and. abs(tskinRetrieved-tg) > dtw ) cldflag = 1 
 
         if ( cldflag == 0 .and. ksurf /= 1 &
-             .and. abs(zts-ztg) > dtl ) cldflag = 1
+             .and. abs(tskinRetrieved-tg) > dtl ) cldflag = 1
 
         if (liasi) then
 
-          do jc=1,nClassAVHRR
-            call estim_ts(zts_avhrr(jc), ztg,emi_sfc_avhrr,rcal_clr_avhrr,robs_avhrr(:,jc), &
-                 sfctau_avhrr,cldflag_avhrr(jc),ichref_avhrr(jc),NIR, coefs_avhrr)
+          do classIndex = 1, nClassAVHRR
+            call estim_ts(tskinRetrieved_avhrr(classIndex), tg,emi_sfc_avhrr,rcal_clr_avhrr,radObs_avhrr(:,classIndex), &
+                 sfctau_avhrr,cldflag_avhrr(classIndex),ichref_avhrr(classIndex),NIR, coefs_avhrr)
           end do
 
-          do jc=1,nClassAVHRR
-            if ( cldflag_avhrr(jc) == 0 .and. ksurf == 1 &
-                 .and. abs(zts_avhrr(jc)-ztg) > dtw ) cldflag_avhrr(jc) = 1
+          do classIndex = 1, nClassAVHRR
+            if ( cldflag_avhrr(classIndex) == 0 .and. ksurf == 1 &
+                 .and. abs(tskinRetrieved_avhrr(classIndex)-tg) > dtw ) cldflag_avhrr(classIndex) = 1
               
-            if ( cldflag_avhrr(jc) == 0 .and. ksurf /= 1 &
-                 .and. abs(zts_avhrr(jc)-ztg) > dtl ) cldflag_avhrr(jc) = 1
+            if ( cldflag_avhrr(classIndex) == 0 .and. ksurf /= 1 &
+                 .and. abs(tskinRetrieved_avhrr(classIndex)-tg) > dtl ) cldflag_avhrr(classIndex) = 1
               
           end do
 
           !criteres AVHRR utilisant les canaux visibles (de jour seulement)
-          if (sunza < sunzenmax) then 
+          if (sunZenithAngle < sunzenmax) then 
             anisot = 1.d0
-            deltaphi = abs(satazim - sunazim )
+            deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
            
             if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
             
             if (albedo < 0.17d0) then               
-              call visocn(sunza,satzen,deltaphi,anisot,zlamb,zcloud,IER)
-              seuil_albed = 10.d0 * max(1.d0,anisot) 
+              call visocn(sunZenithAngle,satelliteZenithAngle,deltaphi,anisot,zlamb,zcloud,IER)
+              albedoThreshold = 10.d0 * max(1.d0,anisot) 
             else
-              seuil_albed = 100.d0 * albedo + 10.d0
+              albedoThreshold = 100.d0 * albedo + 10.d0
             end if
               
             if (anisot < 1.5d0) then !to avoid sun glint
-              scos = cos ( sunza * MPC_DEGREES_PER_RADIAN_R8 )
-              call  cor_albedo ( del, scos )
-              seuil_albed = seuil_albed * del
-              do jc=1,nClassAVHRR
-                if (avhrr_bgck(iobs)%albedmoy(jc,1) > seuil_albed(1) ) then
-                  cldflag_avhrr(jc) = 1
+              scos = cos ( sunZenithAngle * MPC_DEGREES_PER_RADIAN_R8 )
+              call  cor_albedo (del, scos )
+              albedoThreshold = albedoThreshold * del
+              do classIndex = 1, nClassAVHRR
+                if (avhrr_bgck(headerIndex)%albedmoy(classIndex,1) > albedoThreshold(1) ) then
+                  cldflag_avhrr(classIndex) = 1
                 end if
                 !static AVHRR thresholds v3
-                do jl=1,NVIS
-                  if (avhrr_bgck(iobs)%albedmoy(jc,jl) > seuilalb_static(jl,ksurf) ) then
-                    cldflag_avhrr(jc) = 1
+                do channelIndex = 1, NVIS
+                  if (avhrr_bgck(headerIndex)%albedmoy(classIndex,channelIndex) > seuilalb_static(channelIndex,ksurf) ) then
+                    cldflag_avhrr(classIndex) = 1
                   end if
                 end do
               end do
@@ -1546,29 +1546,29 @@ contains
           ! Calcul de la pseudo fraction nuageuse AVHRR
 
           cfrac_avhrr = 0.d0
-          do jc=1,nClassAVHRR
-            if (cldflag_avhrr(jc) == 1) cfrac_avhrr = cfrac_avhrr + avhrr_bgck(iobs) % cfrac(jc)
+          do classIndex = 1, nClassAVHRR
+            if (cldflag_avhrr(classIndex) == 1) cfrac_avhrr = cfrac_avhrr + avhrr_bgck(headerIndex) % cfrac(classIndex)
           end do
 
           cfsub = -1.0d0
           if ( cldflag == 0 .and. cfrac_avhrr > 5.d0 ) then
             cldflag = 1
-            cfsub = 0.01d0 * min(cfrac_avhrr,100.d0) !conversion % -> 0-1 avec seuil car parfois cfrac_avhrr=101
+            cfsub = 0.01d0 * min(cfrac_avhrr, 100.d0) !conversion % -> 0-1 avec seuil car parfois cfrac_avhrr=101
           end if
 
           !AVHRR Homogeneity criteria
           if (cldflag == 0) then
-            IJOUR = 1
-            if (sunza < 90.d0) IJOUR=2
+            ijour = 1
+            if (sunZenithAngle < 90.d0) ijour=2
             ! 1 NUIT
             ! 2 JOUR
-            if (IJOUR == 2) then
-              do jc=1,NVIS
-                if (avhrr_bgck(iobs)%albstd_pixeliasi(jc) > seuilalb_homog(jc,ksurf) ) cldflag = 1
+            if (ijour == 2) then
+              do channelIndex=1,NVIS
+                if (avhrr_bgck(headerIndex)%albstd_pixeliasi(channelIndex) > seuilalb_homog(channelIndex,ksurf) ) cldflag = 1
               end do
             end if
-            do jc=NVIS+1,NVIS+NIR
-              if (avhrr_bgck(iobs)%tbstd_pixelIASI(jc) > seuilbt_homog(jc,ksurf,IJOUR)) cldflag = 1
+            do channelIndex=NVIS+1,NVIS+NIR
+              if (avhrr_bgck(headerIndex)%tbstd_pixelIASI(channelIndex) > seuilbt_homog(channelIndex,ksurf,ijour)) cldflag = 1
             end do
           end if
         end if
@@ -1597,41 +1597,41 @@ contains
         !     already done
 
 
-        ! -- CLOUD TOP BASED ON MATCHING 
-        ! -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (ptop_bt)
-        ! -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (ptop_rd)
-        ! -- ON RTTOV VERTICAL LEVELS
+        ! -- Cloud top based on matching 
+        ! -- observed brightness temperature with background temperature profiles (ptop_bt)
+        ! -- or computed observed radiances with background radiance profiles (ptop_rd)
+        ! -- on rttov vertical levels
 
         lev_start = 0
 
-        do jch = 1, nch_he
-          call tvs_getChannelIndexFromChannelNumber(id,ilist_HE(jch),ilist1(qcid,jch))
+        do channelIndex = 1, nch_he
+          call tvs_getChannelIndexFromChannelNumber(id,ilist_HE(channelIndex),ilist1(qcid,channelIndex))
         end do
 
         call cloud_top ( ptop_bt,ptop_rd,ntop_bt,ntop_rd, &
-             btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,pressureLevels, &
+             btObs,ttInterpolated,heightInterpolated(:,1),rcal_clr,p0,radObs,cloudyRadiance,pressureInterpolated, &
              cldflag, lev_start, iopt2, ihgt, ilist_he,rejflag_opt=rejflag,ichref_opt=ichref)
 
         if (liasi) then
           lev_start_avhrr(:) = 0
-          do jc=1,nClassAVHRR
-            call cloud_top( ptop_bt_avhrr(:,jc),ptop_rd_avhrr(:,jc),ntop_bt_avhrr(:,jc),ntop_rd_avhrr(:,jc), &
-                 btobs_avhrr(:,jc),toext,zhoext(:,1),rcal_clr_avhrr,zps,robs_avhrr(:,jc),rcld_avhrr,pressureLevels, &
-                 cldflag_avhrr(jc),lev_start_avhrr(jc),iopt2,ihgt,ilist_avhrr)
+          do classIndex=1,nClassAVHRR
+            call cloud_top( ptop_bt_avhrr(:,classIndex),ptop_rd_avhrr(:,classIndex),ntop_bt_avhrr(:,classIndex),ntop_rd_avhrr(:,classIndex), &
+                 btObs_avhrr(:,classIndex),ttInterpolated,heightInterpolated(:,1),rcal_clr_avhrr,p0,radObs_avhrr(:,classIndex),cloudyRadiance_avhrr,pressureInterpolated, &
+                 cldflag_avhrr(classIndex),lev_start_avhrr(classIndex),iopt2,ihgt,ilist_avhrr)
           end do
         end if
 
-        !  -- REFERENCE CHANNEL FOR CO2-SLICING
+        !  -- reference channel for co2-slicing
 
-        do jch = 1, nco2
-          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2(jch), ilist2(qcid,jch)  )
-          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2_pair(jch), ilist2_pair(qcid,jch)  )
+        do channelIndex = 1, nco2
+          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2(channelIndex), ilist2(qcid,channelIndex)  )
+          call tvs_getChannelIndexFromChannelNumber(id, ilist_co2_pair(channelIndex), ilist2_pair(qcid,channelIndex)  )
         end do
 
         countChannels = 0
-        do jch=1,nco2
-          if ( rejflag(ilist_co2(jch),9) == 1 .or. &
-               rejflag(ilist_co2_pair(jch),9) == 1 ) countChannels = countChannels + 1
+        do channelIndex=1,nco2
+          if ( rejflag(ilist_co2(channelIndex),9) == 1 .or. &
+               rejflag(ilist_co2_pair(channelIndex),9) == 1 ) countChannels = countChannels + 1
         end do
          
         if (countChannels == nco2) then
@@ -1644,13 +1644,13 @@ contains
         end if
 
         !   Equivalent height of selected window channel
-        call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ilist1(qcid,2))
-        heff = ptop_rd( chan_indx )
+        call tvs_getChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,2))
+        heff = ptop_rd( channelIndex )
 
               
         if (ichref == iwindo_alt) then
-          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ilist1(qcid,3))
-          heff = ptop_rd( chan_indx )
+          call tvs_getChannelIndexFromChannelNumber(id,channelIndex,ilist1(qcid,3))
+          heff = ptop_rd( channelIndex )
         end if
         !  Cloud top based on co2 slicing 
 
@@ -1658,13 +1658,13 @@ contains
         lev_start = max( min(lev_start,co2max(1)), co2min(1) )
 
         call co2_slicing ( ptop_co2,ntop_co2,fcloud_co2, &
-             rcal_clr,rcld,robs,zps,pressureLevels,nlevb,nchn,cldflag,rejflag, &
+             rcal_clr,cloudyRadiance,radObs,p0,pressureInterpolated,levelsBelowModelTop,nchn,cldflag,rejflag, &
              lev_start,ichref,ilist_co2,ilist_co2_pair)
 
         !  -- Find consensus cloud top and fraction
  
         call seltop ( etop,vtop,ecf,vcf,ngood, heff,ptop_co2,fcloud_co2, &
-             cfsub,ptop_mb,zps,cldflag,gncldflag )
+             cfsub,ptop_mb,p0,cldflag,gncldflag )
 
         if (liasi) then
           ! Correction pour les nuages trop bas:
@@ -1672,15 +1672,15 @@ contains
           ! on cherche les cas pathologiques avec Pco2>Min(Heff(AVHRR))
           minpavhrr(2:3) = 12200
           iloc(2:3) = -1      ! pour eviter les catastrophes...
-          do jc=1,nClassAVHRR
-            if (avhrr_bgck(iobs)%cfrac(jc) > 0.d0) then
-              if (ptop_rd_avhrr(2,jc) < minpavhrr(2)) then
-                iloc(2) = jc
-                minpavhrr(2) = ptop_rd_avhrr(2,jc)
+          do classIndex=1,nClassAVHRR
+            if (avhrr_bgck(headerIndex)%cfrac(classIndex) > 0.d0) then
+              if (ptop_rd_avhrr(2,classIndex) < minpavhrr(2)) then
+                iloc(2) = classIndex
+                minpavhrr(2) = ptop_rd_avhrr(2,classIndex)
               end if
-              if (ptop_rd_avhrr(3,jc) < minpavhrr(3)) then
-                iloc(3) = jc
-                minpavhrr(3) = ptop_rd_avhrr(3,jc)
+              if (ptop_rd_avhrr(3,classIndex) < minpavhrr(3)) then
+                iloc(3) = classIndex
+                minpavhrr(3) = ptop_rd_avhrr(3,classIndex)
               end if
             end if
           end do
@@ -1716,7 +1716,7 @@ contains
         end if
 
         !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds        
-        call MIN_PRES_new (maxwf, minp,pmin,dtaudp1, zps,transm,pressureLevels,cldflag,nlevb,nchn,imodtop )
+        call min_pres_new (maxwf, minp,pmin,dtaudp1, p0,transm,pressureInterpolated,cldflag,levelsBelowModelTop,nchn,modelTopIndex )
         !  -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
         ! *** Test # 3 ***
@@ -1725,10 +1725,10 @@ contains
 
         tampon = max(50.d0, 2.d0*vtop)                                                          
 
-        do jc = 1, nchn        
-          if ( rejflag(jc,11) == 1 .and. rejflag(jc,23) == 1 .and. etop - tampon > pmin(jc) ) then
-            rejflag(jc,11) = 0
-            rejflag(jc,23) = 0
+        do channelIndex = 1, nchn        
+          if ( rejflag(channelIndex,11) == 1 .and. rejflag(channelIndex,23) == 1 .and. etop - tampon > pmin(channelIndex) ) then
+            rejflag(channelIndex,11) = 0
+            rejflag(channelIndex,23) = 0
           end if
         end do
 
@@ -1739,36 +1739,36 @@ contains
 
         call  tvs_getChannelIndexFromChannelNumber(id,ilist_sun,ichn_sun(qcid))
 
-        do jc = 1, nchn
+        do channelIndex = 1, nchn
 
-          if ( fate(jc) == 0 ) then
+          if ( fate(channelIndex) == 0 ) then
 
             ! *** Test # 4 ***
             ! *** Background check, do not assimilate if O-P > 3sigma ***
 
-            if ( abs(btobs(jc) - btcalc(jc)) > 3.d0 * btobserr(jc) ) then
-              rejflag(jc,9) = 1
-              rejflag(jc,16) = 1
+            if ( abs(btObs(channelIndex) - btCalc(channelIndex)) > 3.d0 * btObsErr(channelIndex) ) then
+              rejflag(channelIndex,9) = 1
+              rejflag(channelIndex,16) = 1
             end if
 
             ! *** Test # 5 ***
             ! *** Do not assimilate shortwave channels during the day ***
 
-            if ( jc >= ilist_sun .and. sunza < night_ang ) then
-              rejflag(jc,11) = 1
-              rejflag(jc,7)  = 1
+            if ( channelIndex >= ilist_sun .and. sunZenithAngle < night_ang ) then
+              rejflag(channelIndex,11) = 1
+              rejflag(channelIndex,7)  = 1
             end if
 
             ! *** Test # 6 ***
             ! *** Do not assimilate surface channels over land ***
 
-            if ( minp(jc) == nlevb .or. zps-pmin(jc) < 100.d0 ) then
+            if ( minp(channelIndex) == levelsBelowModelTop .or. p0-pmin(channelIndex) < 100.d0 ) then
               if ( ksurf == 0 ) then
-                rejflag(jc,11) = 1    !!! comment this line if assimilation under conditions
-                rejflag(jc,19) = 1    !!! comment this line if assimilation under conditions
-                if ( pcnt_wat > 0.01d0 .or. pcnt_reg > 0.1d0 .or. emi_sfc(jc) < 0.97d0 ) then
-                  rejflag(jc,11) = 1
-                  rejflag(jc,19) = 1
+                rejflag(channelIndex,11) = 1    !!! comment this line if assimilation under conditions
+                rejflag(channelIndex,19) = 1    !!! comment this line if assimilation under conditions
+                if ( pcnt_wat > 0.01d0 .or. pcnt_reg > 0.1d0 .or. emi_sfc(channelIndex) < 0.97d0 ) then
+                  rejflag(channelIndex,11) = 1
+                  rejflag(channelIndex,19) = 1
                 end if
 
                 ! *** Test # 7 ***
@@ -1776,17 +1776,17 @@ contains
 
               else if ( ksurf == 1 ) then
                 if ( pcnt_wat < 0.99d0 .or. pcnt_reg < 0.97d0 .or. &
-                     ice > 0.001d0 .or. albedo >= 0.17d0 .or. emi_sfc(jc) < 0.9d0 ) then
-                  rejflag(jc,11) = 1   
-                  rejflag(jc,19) = 1   
+                     ice > 0.001d0 .or. albedo >= 0.17d0 .or. emi_sfc(channelIndex) < 0.9d0 ) then
+                  rejflag(channelIndex,11) = 1   
+                  rejflag(channelIndex,19) = 1   
                 end if
                 
                 ! *** Test # 8 ***
                 ! *** Do not assimilate surface channels over sea ice ***
                           
               else if ( ksurf == 2 ) then
-                rejflag(jc,11) = 1
-                rejflag(jc,19) = 1   
+                rejflag(channelIndex,11) = 1
+                rejflag(channelIndex,19) = 1   
               end if
             end if
             
@@ -1797,25 +1797,25 @@ contains
 
           ! Condition valid if model top at 10mb or lower only
           if ( nint(ptop_T) >= 1000 ) then
-            if ( rejflag(jc,9) /= 1 .and. dtaudp1(jc) > 0.50d0 ) then
-              rejflag(jc,11) = 1
-              rejflag(jc,21) = 1
+            if ( rejflag(channelIndex,9) /= 1 .and. dtaudp1(channelIndex) > 0.50d0 ) then
+              rejflag(channelIndex,11) = 1
+              rejflag(channelIndex,21) = 1
             end if
           end if
         
           ! Condition valid if model top at 10mb or lower only
           if ( nint(ptop_T) >= 1000 ) then
-            if ( rejflag(jc,9) /= 1 .and. transm(jc,1) < 0.99d0 ) then
-              rejflag(jc,11) = 1
-              rejflag(jc,21) = 1 
+            if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.99d0 ) then
+              rejflag(channelIndex,11) = 1
+              rejflag(channelIndex,21) = 1 
             end if
           end if
 
           ! Condition valid if model top is higher than 10 mb
           if ( nint(ptop_T) < 1000 ) then
-            if ( rejflag(jc,9) /= 1 .and. transm(jc,1) < 0.95d0 ) then
-              rejflag(jc,11) = 1
-              rejflag(jc,21) = 1 
+            if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.95d0 ) then
+              rejflag(channelIndex,11) = 1
+              rejflag(channelIndex,21) = 1 
             end if
           end if
 
@@ -1823,9 +1823,9 @@ contains
 
         nchannels =0 
         do bodyIndex= bodyStart, bodyEnd
-          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             nchannels =  nchannels + 1
-            if (btest(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),8)) rejflag(channelIndex(nchannels),8) = 1
+            if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),8)) rejflag(channelIndexes(nchannels),8) = 1
           end if
         end do
 
@@ -1834,9 +1834,9 @@ contains
         assim_all = .true.
         fate(:) = sum(rejflag(:,:),DIM=2)            
         
-        chn: do jc = 1, nchn
-          if ( rejflag(jc,8) == 0 ) then
-            if ( fate(jc) /= 0 ) then
+        chn: do channelIndex = 1, nchn
+          if ( rejflag(channelIndex,8) == 0 ) then
+            if ( fate(channelIndex) /= 0 ) then
               assim_all = .false.
               exit chn
             end if
@@ -1844,31 +1844,31 @@ contains
         end do chn
 
         if  (.not.assim_all) then
-          call obs_headSet_i(lobsSpaceData, OBS_ST1, headerIndex,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),6) )
+          call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,ibset(obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex),6) )
         end if
         !  -- Addition of background check parameters to burp file
 
-        call obs_headSet_r(lobsSpaceData, OBS_ETOP, headerIndex, etop )
-        call obs_headSet_r(lobsSpaceData, OBS_VTOP, headerIndex, vtop )
-        call obs_headSet_r(lobsSpaceData, OBS_ECF,  headerIndex, 100.d0 * ecf )
-        call obs_headSet_r(lobsSpaceData, OBS_VCF,  headerIndex, 100.d0 * vcf )
-        call obs_headSet_r(lobsSpaceData, OBS_HE,   headerIndex, heff )
-        call obs_headSet_r(lobsSpaceData, OBS_ZTSR, headerIndex, zts )
-        call obs_headSet_i(lobsSpaceData, OBS_NCO2, headerIndex, ngood)
-        call obs_headSet_r(lobsSpaceData, OBS_ZTM,  headerIndex, zt(nlv_T) )
-        call obs_headSet_r(lobsSpaceData, OBS_ZTGM, headerIndex, ztg )
-        call obs_headSet_r(lobsSpaceData, OBS_ZLQM, headerIndex, exp(zlqs) )
-        call obs_headSet_r(lobsSpaceData, OBS_ZPS,  headerIndex, 100.d0 * zps )
-        call obs_headSet_i(lobsSpaceData, OBS_STYP, headerIndex, ksurf )
+        call obs_headSet_r(obsSpaceData, OBS_ETOP, headerIndex, etop )
+        call obs_headSet_r(obsSpaceData, OBS_VTOP, headerIndex, vtop )
+        call obs_headSet_r(obsSpaceData, OBS_ECF,  headerIndex, 100.d0 * ecf )
+        call obs_headSet_r(obsSpaceData, OBS_VCF,  headerIndex, 100.d0 * vcf )
+        call obs_headSet_r(obsSpaceData, OBS_HE,   headerIndex, heff )
+        call obs_headSet_r(obsSpaceData, OBS_ZTSR, headerIndex, tskinRetrieved )
+        call obs_headSet_i(obsSpaceData, OBS_NCO2, headerIndex, ngood)
+        call obs_headSet_r(obsSpaceData, OBS_ZTM,  headerIndex, tt(nlv_T) )
+        call obs_headSet_r(obsSpaceData, OBS_ZTGM, headerIndex, tg )
+        call obs_headSet_r(obsSpaceData, OBS_ZLQM, headerIndex, exp(zlqs) )
+        call obs_headSet_r(obsSpaceData, OBS_ZPS,  headerIndex, 100.d0 * p0 )
+        call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, ksurf )
 
-        do bodyIndex= bodyStart, bodyEnd
-          channelNumber = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
+        do bodyIndex = bodyStart, bodyEnd
+          channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
           channelNumber = max(0, min(channelNumber, tvs_maxChannelNumber + 1))
-          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,channelNumber)
-          call obs_bodySet_r(lobsSpaceData,OBS_SEM,bodyIndex,emi_sfc(chan_indx))
+          call tvs_getChannelIndexFromChannelNumber(id,channelIndex,channelNumber)
+          call obs_bodySet_r(obsSpaceData,OBS_SEM,bodyIndex,emi_sfc(channelIndex))
           do bitIndex = 0, bitflag
-            if ( rejflag(chan_indx,bitIndex) == 1 ) &
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),bitIndex))
+            if ( rejflag(channelIndex,bitIndex) == 1 ) &
+                 call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),bitIndex))
           end do
         end do
           
@@ -1876,34 +1876,34 @@ contains
 
     end do HEADER_2
 
-    deallocate ( channelIndex, stat= allocStatus(1))
-    deallocate ( zht,       stat= allocStatus(2))
-    deallocate ( zt,        stat= allocStatus(3))
-    deallocate ( zlevmod,   stat= allocStatus(4))
-    deallocate ( pressureLevels,     stat= allocStatus(5))
-    deallocate ( maxwf,     stat= allocStatus(6))
-    if (liasi) deallocate ( rcld_avhrr , stat= allocStatus(7))
-    deallocate ( fate,      stat= allocStatus(8))
-    deallocate ( dtaudp1,   stat= allocStatus(9))
-    deallocate ( pmin,      stat= allocStatus(10))
-    deallocate ( minp,      stat= allocStatus(11))
-    deallocate ( ptop_rd,   stat= allocStatus(12))
-    deallocate ( ptop_bt,   stat= allocStatus(13))
-    deallocate ( ntop_rd,   stat= allocStatus(14))
-    deallocate ( ntop_bt,   stat= allocStatus(15))
-    deallocate ( rejflag,   stat= allocStatus(16))
-    deallocate ( robs,      stat= allocStatus(17))
-    deallocate ( zhoext,    stat= allocStatus(18))
-    deallocate ( toext,     stat= allocStatus(19))
-    deallocate ( emi_sfc,   stat= allocStatus(20))
-    deallocate ( transm,    stat= allocStatus(21))
-    deallocate ( rcld,      stat= allocStatus(22))
-    deallocate ( sfctau,    stat= allocStatus(23))
-    deallocate ( rcal_clr,  stat= allocStatus(24))
-    deallocate ( btcalc,    stat= allocStatus(25))
-    deallocate ( btobs,     stat= allocStatus(26))
-    deallocate ( btobserr,  stat= allocStatus(27))
-    deallocate ( rttovPressureLevels,     stat= allocStatus(28))
+    deallocate ( channelIndexes,           stat= allocStatus(1))
+    deallocate ( height,                   stat= allocStatus(2))
+    deallocate ( tt,                       stat= allocStatus(3))
+    deallocate ( pressure,                 stat= allocStatus(4))
+    deallocate ( pressureInterpolated,     stat= allocStatus(5))
+    deallocate ( maxwf,                    stat= allocStatus(6))
+    if (liasi) deallocate ( cloudyRadiance_avhrr , stat= allocStatus(7))
+    deallocate ( fate,                     stat= allocStatus(8))
+    deallocate ( dtaudp1,                  stat= allocStatus(9))
+    deallocate ( pmin,                     stat= allocStatus(10))
+    deallocate ( minp,                     stat= allocStatus(11))
+    deallocate ( ptop_rd,                  stat= allocStatus(12))
+    deallocate ( ptop_bt,                  stat= allocStatus(13))
+    deallocate ( ntop_rd,                  stat= allocStatus(14))
+    deallocate ( ntop_bt,                  stat= allocStatus(15))
+    deallocate ( rejflag,                  stat= allocStatus(16))
+    deallocate ( radObs,                   stat= allocStatus(17))
+    deallocate ( heightInterpolated,       stat= allocStatus(18))
+    deallocate ( ttInterpolated,           stat= allocStatus(19))
+    deallocate ( emi_sfc,                  stat= allocStatus(20))
+    deallocate ( transm,                   stat= allocStatus(21))
+    deallocate ( cloudyRadiance,           stat= allocStatus(22))
+    deallocate ( sfctau,                   stat= allocStatus(23))
+    deallocate ( rcal_clr,                 stat= allocStatus(24))
+    deallocate ( btCalc,                   stat= allocStatus(25))
+    deallocate ( btObs,                    stat= allocStatus(26))
+    deallocate ( btObsErr,                 stat= allocStatus(27))
+    deallocate ( rttovPressure,            stat= allocStatus(28))
     call utl_checkAllocationStatus(allocStatus, " irbg_doQualityControl", .false.)
         
   end subroutine irbg_doQualityControl
@@ -2048,16 +2048,16 @@ contains
     sumAlb(:) = 0.d0
     sumAlb2(:) = 0.d0
     
-    do classIndex=1,nClassAVHRR
+    do classIndex = 1, nClassAVHRR
       if (avhrr%cfrac(classIndex) > 0.d0 ) then
-        do channelIndex=1,NVIS
+        do channelIndex = 1, NVIS
           if (avhrr%albedmoy(classIndex,channelIndex) >= 0.d0 ) then
             sumFrac(channelIndex) = sumFrac(channelIndex) + avhrr%cfrac(classIndex)
             sumAlb(channelIndex) = sumAlb(channelIndex) + avhrr%cfrac(classIndex) * avhrr%albedmoy(classIndex,channelIndex)
             sumAlb2(channelIndex) = sumAlb2(channelIndex) + avhrr%cfrac(classIndex) * ( avhrr%albedmoy(classIndex,channelIndex)**2 + avhrr%albedstd(classIndex,channelIndex)**2)
           end if
         end do
-        do channelIndex=1+NVIS,NVIS+NIR
+        do channelIndex = 1+NVIS, NVIS+NIR
           if (avhrr%tbmoy(classIndex,channelIndex) > 0.d0 ) then
             sumFrac(channelIndex) = sumFrac(channelIndex) + avhrr%cfrac(classIndex)
             sumBt(channelIndex) = sumBt(channelIndex) + avhrr%cfrac(classIndex) * avhrr%tbmoy(classIndex,channelIndex)
@@ -2067,7 +2067,7 @@ contains
       end if
     end do
       
-    do channelIndex=1,NVIS
+    do channelIndex = 1, NVIS
       if (sumFrac(channelIndex) > 0.d0 ) then
         sumAlb(channelIndex) = sumAlb(channelIndex) / sumFrac(channelIndex)
         sumAlb2(channelIndex) = sumAlb2(channelIndex)/sumFrac(channelIndex) - sumAlb(channelIndex)**2
@@ -2079,7 +2079,7 @@ contains
       end if
     end do
       
-    do channelIndex=NVIS+1,NVIS+NIR
+    do channelIndex = NVIS+1, NVIS+NIR
       if (sumFrac(channelIndex) > 0.d0 ) then
         sumBt(channelIndex) = sumBt(channelIndex) / sumFrac(channelIndex)
         sumBt2(channelIndex) = sumBt2(channelIndex)/sumFrac(channelIndex) - sumBt(channelIndex)**2
@@ -2100,7 +2100,7 @@ contains
   ! co2_slicing
   !--------------------------------------------------------------------------
   subroutine co2_slicing (ptop, ntop, fcloud,                  &
-       rcal, rcld, robs, ps, plev,nlev,nchn, cldflag, rejflag, &
+       rcal, cloudyRadiance, radObs, p0, plev,nlev,nchn, cldflag, rejflag, &
        lev_start, ichref, ilist, ilist_pair)
     !
     ! :Purpose: cloud top height computation.
@@ -2109,22 +2109,22 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) , intent (in)    :: rcal(nchn)         ! computed clear radiances (mW/m2/sr/cm-1)
-    real(8) , intent (in)    :: rcld(nchn,nlev)    ! computed cloud radiances from each level (mW/m2/sr/cm-1)
-    real(8) , intent (in)    :: robs(nchn)         ! computed observed radiances (mW/m2/sr/cm-1)
-    real(8) , intent (in)    :: plev(nlev)         ! pressure levels (hPa)
-    integer , intent (in)    :: nlev               ! number of vertical levels
-    integer , intent (in)    :: nchn               ! number of channels
-    real(8) , intent (in)    :: ps                 ! surface pressure (hPa)
-    integer , intent (in)    :: ichref             ! window channel to predetermine clear
-    integer , intent (in)    :: cldflag            ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    integer , intent (in)    :: rejflag(1:,0:)     ! flags for rejected observations
-    integer , intent (in)    :: ilist( nco2 )      ! first list of channels
-    integer , intent (in)    :: ilist_pair( nco2 ) ! second list channe
-    integer , intent (inout) :: lev_start          ! Level to start iteration (ideally tropopause)
-    real(8) , intent (out)   :: ptop( nco2 )       ! Cloud top (hPa)
-    real(8) , intent (out)   :: fcloud( nco2 )     ! Cloud fraction
-    integer , intent (out)   :: ntop( nco2 )       ! Nearest pressure level corresponding to ptop (ptop <= ps)
+    real(8), intent(in)    :: rcal(nchn)                ! computed clear radiances (mW/m2/sr/cm-1)
+    real(8), intent(in)    :: cloudyRadiance(nchn,nlev) ! computed cloud radiances from each level (mW/m2/sr/cm-1)
+    real(8), intent(in)    :: radObs(nchn)              ! computed observed radiances (mW/m2/sr/cm-1)
+    real(8), intent(in)    :: plev(nlev)                ! pressure levels (hPa)
+    integer, intent(in)    :: nlev                      ! number of vertical levels
+    integer, intent(in)    :: nchn                      ! number of channels
+    real(8), intent(in)    :: p0                        ! surface pressure (hPa)
+    integer, intent(in)    :: ichref                    ! window channel to predetermine clear
+    integer, intent(in)    :: cldflag                   ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    integer, intent(in)    :: rejflag(1:,0:)            ! flags for rejected observations
+    integer, intent(in)    :: ilist(nco2)               ! first list of channels
+    integer, intent(in)    :: ilist_pair(nco2)          ! second list channe
+    integer, intent(inout) :: lev_start                 ! Level to start iteration (ideally tropopause)
+    real(8), intent(out)   :: ptop(nco2)                ! Cloud top (hPa)
+    real(8), intent(out)   :: fcloud(nco2)              ! Cloud fraction
+    integer, intent(out)   :: ntop(nco2)                ! Nearest pressure level corresponding to ptop (ptop <= p0)
 
     ! Locals
     integer            :: j,jch,jc,jpmax,jmax
@@ -2133,7 +2133,7 @@ contains
     real(8)            :: drap(nco2,nlev),a_drap(nlev)
     real(8)            :: val,val1,val2,val3,fcint
     real(8)            :: emi_ratio
-    integer            :: JC_pair
+    integer            :: jc_pair
     integer            :: iter,niter
     real(8), parameter :: eps =  1.D-12
 
@@ -2147,12 +2147,12 @@ contains
 
     if ( cldflag == -1 ) return
 
-    !  Define closest level jpmax to surface pressure ps
+    !  Define closest level jpmax to surface pressure p0
 
     jpmax = nlev
     
     do J = lev_start, nlev
-      if ( plev(J) > PS ) then
+      if ( plev(J) > p0 ) then
         jpmax = J
         exit
       end if
@@ -2167,7 +2167,7 @@ contains
     sumrej = sum(rejflag(ichref,:))
 
     if ( sumrej == 0 ) then
-      ptop(:) = PS
+      ptop(:) = p0
       ntop(:) = jpmax
       fcloud(:) = 0.d0
       return
@@ -2176,8 +2176,8 @@ contains
     channels: do jch = 1, nco2
       
       jc = ilist(jch)
-      JC_pair = ilist_pair(jch)
-      fc(JC_pair,:) = rcal(JC_pair) - rcld(JC_pair,:)
+      jc_pair = ilist_pair(jch)
+      fc(jc_pair,:) = rcal(jc_pair) - cloudyRadiance(jc_pair,:)
       niter = 1
       if ( jch > 13) niter = 2 
      
@@ -2195,22 +2195,22 @@ contains
           emi_ratio = 1.0d0
         end if
 
-        fc(jc,:) = rcal(jc) - rcld(jc,:)
+        fc(jc,:) = rcal(jc) - cloudyRadiance(jc,:)
 
         !      Gross check failure
 
         if ( rejflag(jc,9) == 1 ) cycle channels
-        if ( rejflag(JC_pair,9) == 1 ) cycle channels
+        if ( rejflag(jc_pair,9) == 1 ) cycle channels
 
-        if ( abs( rcal(JC_pair) - robs(JC_pair) ) > eps ) then
-          rapg = (rcal(jc) - robs(jc)) / (rcal(JC_pair) - robs(JC_pair))
+        if ( abs( rcal(jc_pair) - radObs(jc_pair) ) > eps ) then
+          rapg = (rcal(jc) - radObs(jc)) / (rcal(jc_pair) - radObs(jc_pair))
         else
           rapg = 0.0d0
         end if
 
         do J = lev_start, jpmax
-          if ( fc(jc,J) > 0.d0 .and. fc(JC_pair,J) > 0.d0 )  &
-               drap(jch,J) = rapg - (fc(jc,J) / fc(JC_pair,J)) * emi_ratio
+          if ( fc(jc,J) > 0.d0 .and. fc(jc_pair,J) > 0.d0 )  &
+               drap(jch,J) = rapg - (fc(jc,J) / fc(jc_pair,J)) * emi_ratio
         end do
 
         a_drap(:) = abs( drap(jch,:) )
@@ -2274,9 +2274,9 @@ contains
           cycle channels
         end if
         
-        if ( abs( rcld(jc,J) - rcal(jc) ) > 0.d0 )  &
-             fcloud(jch) = (robs(jc) - rcal(jc)) /  &
-             (rcld(jc,J) - rcal(jc))
+        if ( abs( cloudyRadiance(jc,J) - rcal(jc) ) > 0.d0 )  &
+             fcloud(jch) = (radObs(jc) - rcal(jc)) /  &
+             (cloudyRadiance(jc,J) - rcal(jc))
 
         ! *       find passage to zero if it exists and interpolate to exact pressure
 
@@ -2290,7 +2290,7 @@ contains
         ! *       find cloud fraction based on exact cloud top
 
         if ( abs(fcint) > 0.d0 )             &
-             fcloud(jch) = ( rcal(jc) - robs(jc) ) / fcint
+             fcloud(jch) = ( rcal(jc) - radObs(jc) ) / fcint
 
         fcloud(jch) = min ( fcloud(jch),  1.5d0 )
         fcloud(jch) = max ( fcloud(jch), -0.5d0 )
@@ -2306,7 +2306,7 @@ contains
   !--------------------------------------------------------------------------
   ! seltop
   !--------------------------------------------------------------------------
-  subroutine seltop (etop, vtop, ecf, vcf, ngood, he, ht, cf, cfsub, ptop_mb, ps, cldflag, gncldflag)
+  subroutine seltop (etop, vtop, ecf, vcf, ngood, he, ht, cf, cfsub, ptop_mb, p0, cldflag, gncldflag)
     !
     ! :Purpose: Select cloud top by averaging co2-slicing results
     !           judged correct. all missing values are -1.
@@ -2314,19 +2314,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent (in)  :: he       ! equivalent cloud top heights from a window channel (hPa)
-    real(8), intent (in)  :: ht(nco2) ! cloud tops from co2-slicing (hPa)
-    real(8), intent (in)  :: cf(nco2) ! effective cloud fraction for co2-slicing
-    real(8), intent (in)  :: ps       ! surface pressure in (hPa)
-    real(8), intent (in)  :: cfsub    ! visible ("subpixel") cloud fraction
-    integer, intent (in)  :: cldflag  ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    integer, intent (in)  :: gncldflag! Garand Nadon cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    real(8), intent (out) :: etop     ! consensus cloud top (hPa)
-    real(8), intent (out) :: vtop     ! corresponding variance on etop (hPa)
-    real(8), intent (out) :: ecf      ! consensus effective cloud fraction
-    real(8), intent (out) :: vcf      ! corresponding variance on ecf
-    integer, intent (out) :: ngood    ! number of good estimates
-    real(8), intent (in)  :: ptop_mb  ! height (mb) from cloud_height subroutine
+    real(8), intent(in)  :: he       ! equivalent cloud top heights from a window channel (hPa)
+    real(8), intent(in)  :: ht(nco2) ! cloud tops from co2-slicing (hPa)
+    real(8), intent(in)  :: cf(nco2) ! effective cloud fraction for co2-slicing
+    real(8), intent(in)  :: p0       ! surface pressure in (hPa)
+    real(8), intent(in)  :: cfsub    ! visible ("subpixel") cloud fraction
+    integer, intent(in)  :: cldflag  ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    integer, intent(in)  :: gncldflag! Garand Nadon cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    real(8), intent(out) :: etop     ! consensus cloud top (hPa)
+    real(8), intent(out) :: vtop     ! corresponding variance on etop (hPa)
+    real(8), intent(out) :: ecf      ! consensus effective cloud fraction
+    real(8), intent(out) :: vcf      ! corresponding variance on ecf
+    integer, intent(out) :: ngood    ! number of good estimates
+    real(8), intent(in)  :: ptop_mb  ! height (mb) from cloud_height subroutine
 
     ! Locals:
     integer    :: n,jch
@@ -2353,7 +2353,7 @@ contains
 
       if ( CF(jch) > -0.9d0 .and. CF(jch) < 1.D-6 ) then
         n = n + 1
-        H(n) = ps
+        H(n) = p0
         F(n) = 0.d0
       else
 
@@ -2383,7 +2383,7 @@ contains
 
     if ( n >= 1 ) then
 
-      call calcul_median_fast(n,nco2,H,F,etop,ecf)
+      call calcul_median_fast(n,H,F,etop,ecf)
     
       vtop = sqrt ( sum((H(1:n) - etop)**2) / n )
       vcf  = sqrt ( sum((F(1:n) - ecf)**2) / n )         
@@ -2397,26 +2397,26 @@ contains
 
       !    If no solution from co2-slicing, and not predetermined clear, 
       !    assume cloudy with top equal to effective height he;
-      !    however if he is very close to surface pressure ps, assume clear.
+      !    however if he is very close to surface pressure p0, assume clear.
 
       etop = he
       ecf  = 1.0d0
       if (cfsub >= 0.05d0) then
         ecf = cfsub
-        etop = min( min(he,ptop_mb) , ps - 50.0d0)
+        etop = min( min(he,ptop_mb) , p0 - 50.0d0)
       end if
       vtop = 50.d0
       vcf  = 0.30d0
-      if ( he > (ps - 10.d0) ) ecf = 0.d0
+      if ( he > (p0 - 10.d0) ) ecf = 0.d0
       if ( gncldflag == 0 ) then
         ecf = 0.0d0
-        etop = ps
+        etop = p0
       end if
     end if
 
     if ( ecf < 0.05d0 ) then
       ecf = 0.0d0
-      etop = ps
+      etop = p0
     end if
   
   end subroutine seltop
@@ -2424,7 +2424,7 @@ contains
   !--------------------------------------------------------------------------
   ! calcul_median_fast
   !--------------------------------------------------------------------------
-  subroutine calcul_median_fast(NN, Nmax, Hin, Fin, ctp, cfr)
+  subroutine calcul_median_fast(nEstimates, Hin, Fin, ctp, cfr)
     !
     ! :Purpose: Compute cloud fraction and height median.
     !
@@ -2432,37 +2432,30 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent (in)  :: NN
-    integer, intent (in)  :: Nmax
-    real(8), intent (in)  :: Hin(Nmax)
-    real(8), intent (in)  :: Fin(Nmax)
-    real(8), intent (out) :: ctp
-    real(8), intent (out) :: cfr
+    integer, intent(in)  :: nEstimates  ! Number of Co2 slicing estimates
+    real(8), intent(in)  :: Hin(:)      ! Array of Height estimates
+    real(8), intent(in)  :: Fin(:)      ! Array of Cloud fraction estimates
+    real(8), intent(out) :: ctp         ! Median of  cloud top pressure estimates
+    real(8), intent(out) :: cfr         ! Corresponding cloud fraction
 
     ! Locals:
-    integer   :: index(NN)
-    real (4)  :: H(NN)
+    integer   :: index(nEstimates)
+    real(4)   :: H(nEstimates)
     integer   :: i
 
-    if (NN == 1) then
-      ctp = Hin(NN)
-      cfr = Fin(NN)
+    if (nEstimates == 1) then
+      ctp = Hin(nEstimates)
+      cfr = Fin(nEstimates)
     else
-      
-      H(1:NN) = Hin(1:NN)
-        
-      call IPSORT(index,H,NN)
-
-      if (mod(NN,2) == 0) then ! N - pair
-        i = index(NN / 2)
-        ctp = Hin(i)
-        cfr = Fin(i)
-      else                     ! N - impair
-        i = index(1 + NN / 2)
-        ctp = Hin(i)
-        cfr = Fin(i)
+      H(1:nEstimates) = Hin(1:nEstimates)
+      call IPSORT(index,H,nEstimates)
+      if (mod(nEstimates,2) == 0) then ! N - pair
+        i = index(nEstimates / 2)
+      else                             ! N - impair
+        i = index(1 + nEstimates / 2)
       end if
-    
+      ctp = Hin(i)
+      cfr = Fin(i)
     end if
 
   end subroutine calcul_median_fast
@@ -2470,8 +2463,8 @@ contains
   !--------------------------------------------------------------------------
   ! min_pres_new
   !--------------------------------------------------------------------------
-  subroutine min_pres_new( maxheight, minp, pmin, dt1, ps, tau, plev, cldflag, &
-                           nlev, nchn, imodtop )
+  subroutine min_pres_new( maxheight, minp, pmin, dt1, p0, tau, plev, cldflag, &
+                           nlev, nchn, modelTopIndex )
     !
     ! :Purpose: from total transmittance array, find minimum height 
     !           level of sensitivity for a number of profiles and channels.
@@ -2485,21 +2478,21 @@ contains
 
     ! Arguments:
     real(8), intent(out)  :: maxheight(nchn)! Height (hPa) of the maximum of the weighting function
-    integer, intent (out) :: minp(nchn)     ! vertical level corresponding to pmin
+    integer, intent(out)  :: minp(nchn)     ! vertical level corresponding to pmin
     real(8), intent(out)  :: pmin(nchn)     ! minimum height of sensitivity (hPa)
     real(8), intent(out)  :: dt1(nchn)      ! value of 'dtau/dlogp' at model top
-    real(8), intent(in)   :: ps             ! surface pressure (hPa)
+    real(8), intent(in)   :: p0             ! surface pressure (hPa)
     real(8), intent(in)   :: tau(nchn,nlev) ! layer to space transmittances (0.-1.)
     real(8), intent(in)   :: plev(nlev)     ! pressure levels (hPa)
     integer, intent(in)   :: cldflag        ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
     integer, intent(in)   :: nlev           ! number of vertical levels
     integer, intent(in)   :: nchn           ! number of channels
-    integer, intent(in)   :: imodtop        ! rt model level nearest to model top
+    integer, intent(in)   :: modelTopIndex  ! rt model level nearest to model top
 
     ! Locals:   
     real(8) :: maxwf
-    integer :: J,jc,ipos(1)
-    real(8) :: wfunc(nlev-1),rap(nlev-1)
+    integer :: levelIndex, channelIndex, ipos(1)
+    real(8) :: wfunc(nlev-1), rap(nlev-1)
 
     minp(:) = -1
     pmin(:) = -1.d0
@@ -2507,60 +2500,60 @@ contains
 
     if ( cldflag == -1 ) return
 
-    do J = 1, nlev - 1
-      rap(J) = log( plev(J + 1) / plev(J) )
+    do levelIndex = 1, nlev - 1
+      rap(levelIndex) = log( plev(levelIndex + 1) / plev(levelIndex) )
     end do
 
-    channels: do jc = 1, nchn
+    channels: do channelIndex = 1, nchn
 
       !       Profile not assimilated if data from 2 windows channels bad
       !       and/or if data from 2 reference co2 channels bad
     
-      do J = 1, nlev
-        if ( tau(jc,J) < 0.d0) cycle channels
+      do levelIndex = 1, nlev
+        if ( tau(channelIndex,levelIndex) < 0.d0) cycle channels
       end do
 
-      minp(jc) = nlev
-      pmin(jc) = min(plev(nlev),PS)
+      minp(channelIndex) = nlev
+      pmin(channelIndex) = min(plev(nlev),p0)
 
       !   Compute entire array of dtau/dlog(P)
           
-      do J = 1, nlev - 1
-        wfunc(J) = (tau(jc,J) - tau(jc,J + 1)) / rap(J) 
+      do levelIndex = 1, nlev - 1
+        wfunc(levelIndex) = (tau(channelIndex,levelIndex) - tau(channelIndex,levelIndex + 1)) / rap(levelIndex) 
       end do
        
-      dt1(jc) = wfunc(imodtop)
+      dt1(channelIndex) = wfunc(modelTopIndex)
 
       !   If channel sees the surface, don't recalculate minp and pmin
 
-      if ( tau(jc,nlev) > 0.01d0 ) cycle channels
+      if ( tau(channelIndex,nlev) > 0.01d0 ) cycle channels
 
       ! Recherche du maximum
       ipos = maxloc( wfunc(:) )
       ! Calcul de la valeur du maximum
       maxwf = wfunc(ipos(1))
       ! maximum entre les 2 niveaux puisque WF calculee pour une couche finie ( discutable ?)
-      maxheight(jc)= 0.5d0 * ( plev(ipos(1)) +  plev(ipos(1) + 1)  )
+      maxheight(channelIndex)= 0.5d0 * ( plev(ipos(1)) +  plev(ipos(1) + 1)  )
 
       !      If channel doesn't see the surface, see where dtau/dlog(plev) becomes important
       !      for recomputation of minp and pmin.
 
-      do j = nlev - 1, ipos(1), -1
-        if ( ( wfunc(j)/ maxwf ) > 0.01d0) then
-          minp(jc) = j + 1
-          pmin(jc) = min(plev(j + 1),PS)
+      do levelIndex = nlev - 1, ipos(1), -1
+        if ( ( wfunc(levelIndex)/ maxwf ) > 0.01d0) then
+          minp(channelIndex) = levelIndex + 1
+          pmin(channelIndex) = min(plev(levelIndex + 1),p0)
           exit
         end if
       end do
      
     end do channels
 
-  end subroutine MIN_PRES_NEW
+  end subroutine min_pres_new
 
   !--------------------------------------------------------------------------
   ! cloud_height
   !--------------------------------------------------------------------------
-  subroutine cloud_height ( ptop, ntop, btobs, cldflag, tt, height, ps, plev, &
+  subroutine cloud_height ( ptop, ntop, btObs, cldflag, tt, height, p0, plev, &
                             nlev, nchn, ichref, lev_start, iopt )
     !
     ! :Purpose: 
@@ -2572,19 +2565,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent (out)   :: ptop        ! Chosen equivalent cloud tops  (in hpa|m with iopt = 1|2)
-    integer, intent (out)   :: ntop        ! Number of possible ptop solutions
-    real(8), intent (in)    :: btobs(nchn) ! Observed brightness temperature (deg k)
-    integer, intent (in)    :: cldflag     ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    real(8), intent (in)    :: tt(nlev)    ! Temperature profiles (deg K)
-    real(8), intent (in)    :: height(nlev)! Height profiles above ground (m)
-    real(8), intent (in)    :: ps          ! Surface pressure (hPa)
-    real(8), intent (in)    :: plev(nlev)  ! Pressure levels (hPa)
-    integer, intent (in)    :: nlev        ! Number of vertical levels
-    integer, intent (in)    :: nchn        ! Number of channels
-    integer, intent (in)    :: ichref      ! Chosen reference surface channel
-    integer, intent (inout) :: lev_start   ! Level to start iteration (ideally tropopause)
-    integer, intent (in)    :: iopt        ! Levels using plev (1) or height (2)
+    real(8), intent(out)   :: ptop        ! Chosen equivalent cloud tops  (in hpa|m with iopt = 1|2)
+    integer, intent(out)   :: ntop        ! Number of possible ptop solutions
+    real(8), intent(in)    :: btObs(nchn) ! Observed brightness temperature (deg k)
+    integer, intent(in)    :: cldflag     ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    real(8), intent(in)    :: tt(nlev)    ! Temperature profiles (deg K)
+    real(8), intent(in)    :: height(nlev)! Height profiles above ground (m)
+    real(8), intent(in)    :: p0          ! Surface pressure (hPa)
+    real(8), intent(in)    :: plev(nlev)  ! Pressure levels (hPa)
+    integer, intent(in)    :: nlev        ! Number of vertical levels
+    integer, intent(in)    :: nchn        ! Number of channels
+    integer, intent(in)    :: ichref      ! Chosen reference surface channel
+    integer, intent(inout) :: lev_start   ! Level to start iteration (ideally tropopause)
+    integer, intent(in)    :: iopt        ! Levels using plev (1) or height (2)
 
     ! Locals:
     integer :: itop
@@ -2593,16 +2586,16 @@ contains
 
     if ( iopt == 1 ) then
      
-      ptop = PS
+      ptop = p0
       ntop = 1      
 
       if ( cldflag == -1 ) return
       
-      call get_top ( ht, nht, btobs(ichref), tt, plev, lev_start, iopt ) 
+      call get_top ( ht, nht, btObs(ichref), tt, plev, lev_start, iopt ) 
 
       itop = 1
       if ( nht >= 2 ) itop = 2
-      ptop = min ( ht(itop), PS )
+      ptop = min ( ht(itop), p0 )
       ntop = nht
 
     else if ( iopt == 2 ) then
@@ -2612,7 +2605,7 @@ contains
 
       if ( cldflag == -1 ) return
 
-      call get_top ( ht,nht, btobs(ichref),tt,height,lev_start,iopt )
+      call get_top ( ht,nht, btObs(ichref),tt,height,lev_start,iopt )
 
       itop = 1
       if ( nht >= 2 ) itop = 2
@@ -2626,7 +2619,7 @@ contains
   !--------------------------------------------------------------------------
   ! garand1998nadon 
   !--------------------------------------------------------------------------
-  subroutine garand1998nadon ( cldflag, btobs, tg, tt, height, nlev, nchn, &
+  subroutine garand1998nadon ( cldflag, btObs, tg, tt, height, nlev, nchn, &
                                ptop_eq, ntop_eq, ichref )
     !
     ! :Purpose: Determine if the profiles are clear or cloudy based on
@@ -2635,16 +2628,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent (inout) :: cldflag     ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    real(8), intent (in)    :: btobs(nchn) ! Observed brightness temperatures (K)
-    real(8), intent (in)    :: tg          ! Guess skin temperatures (K)
-    real(8), intent (in)    :: tt(nlev)    ! Guess temperature profiles (K)
-    real(8), intent (in)    :: height(nlev)! Guess height profile above ground (m)
-    integer, intent (in)    :: nlev        ! Number of vertical levels
-    integer, intent (in)    :: nchn        ! Number of channels
-    real(8), intent (in)    :: ptop_eq     ! Chosen equivalent cloud tops (m)
-    integer, intent (in)    :: ntop_eq     ! Number of possible ptop_eq solutions
-    integer, intent (in)    :: ichref      ! Chosen reference surface channel
+    integer, intent(inout) :: cldflag     ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    real(8), intent(in)    :: btObs(nchn) ! Observed brightness temperatures (K)
+    real(8), intent(in)    :: tg          ! Guess skin temperatures (K)
+    real(8), intent(in)    :: tt(nlev)    ! Guess temperature profiles (K)
+    real(8), intent(in)    :: height(nlev)! Guess height profile above ground (m)
+    integer, intent(in)    :: nlev        ! Number of vertical levels
+    integer, intent(in)    :: nchn        ! Number of channels
+    real(8), intent(in)    :: ptop_eq     ! Chosen equivalent cloud tops (m)
+    integer, intent(in)    :: ntop_eq     ! Number of possible ptop_eq solutions
+    integer, intent(in)    :: ichref      ! Chosen reference surface channel
    
 
     ! Locals
@@ -2658,12 +2651,12 @@ contains
 
     if ( cldflag == -1 ) return
 
-    if ( btobs(ichref) >= tg - 3.d0 .and. btobs(ichref) <= tg + 3.d0 ) then
+    if ( btObs(ichref) >= tg - 3.d0 .and. btObs(ichref) <= tg + 3.d0 ) then
       cldflag = 0
       return
     end if
 
-    if ( btobs(ichref) >= tg - 4.d0 .and. btobs(ichref) <= tg - 3.d0 ) then
+    if ( btObs(ichref) >= tg - 4.d0 .and. btObs(ichref) <= tg - 3.d0 ) then
       if ( ptop_eq > 1100.d0 ) then
         cldflag = 1
         return
@@ -2678,7 +2671,7 @@ contains
       return
     end if
 
-    if ( tg - btobs(ichref) > 8.d0 ) then 
+    if ( tg - btObs(ichref) > 8.d0 ) then 
       if ( ntop_eq >= 3 ) then
         if ( ptop_eq > 73.d0 ) then
           cldflag=1
@@ -2704,7 +2697,7 @@ contains
       end if
     end if
     
-    if ( tg - btobs(ichref) > 5.d0 ) then
+    if ( tg - btObs(ichref) > 5.d0 ) then
       if ( ntop_eq >= 3 ) then
         if ( ptop_eq > 222.d0 ) then
           cldflag = 1
@@ -2736,7 +2729,7 @@ contains
   !--------------------------------------------------------------------------
   ! monotonic_inversion
   !--------------------------------------------------------------------------
-  subroutine monotonic_inversion ( ninvr, ptg, ptt, pheight, npr, lvl )
+  subroutine monotonic_inversion ( ninvr, tg, tt, height, npr, lvl )
     !
     ! :Purpose: Determine if there is a presence (ninvr=1) or not (ninvr=0)
     !           of a temperature inversion going from the surface up to the
@@ -2749,23 +2742,23 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent (in)  :: ptt(npr)    ! Temperature profile (K)
-    real(8), intent (in)  :: pheight(npr)! Height profile above ground (m)
-    integer, intent (in)  :: npr         ! Number of vertical lvlels
-    real(8), intent (in)  :: ptg         ! Skin temperature (K)
-    real(8), intent (in)  :: lvl         ! Height to search for temperature inversion (m)
-    integer, intent (out) :: ninvr       ! Number of inversions
+    real(8), intent(in)  :: tt(npr)    ! Temperature profile (K)
+    real(8), intent(in)  :: height(npr)! Height profile above ground (m)
+    integer, intent(in)  :: npr        ! Number of vertical lvlels
+    real(8), intent(in)  :: tg         ! Skin temperature (K)
+    real(8), intent(in)  :: lvl        ! Height to search for temperature inversion (m)
+    integer, intent(out) :: ninvr      ! Number of inversions
 
     ! Locals:
     integer   :: nl
 
-    NINVR = 0
-    if ( PTG - PTT(NPR) < 0.d0 ) then
-      NINVR = 1
-      do nl = NPR - 1, 1, -1
-        if ( Pheight(nl) > LVL ) exit
-        if ( PTT(nl+1) - PTT(nl) > 0.d0 ) then
-          NINVR = 0
+    ninvr = 0
+    if ( tg - tt(npr) < 0.d0 ) then
+      ninvr = 1
+      do nl = npr - 1, 1, -1
+        if ( height(nl) > lvl ) exit
+        if ( tt(nl+1) - tt(nl) > 0.d0 ) then
+          ninvr = 0
           exit
         end if
       end do
@@ -2852,8 +2845,8 @@ contains
   !--------------------------------------------------------------------------
   ! cloud_top
   !--------------------------------------------------------------------------
-  subroutine cloud_top ( ptop_bt, ptop_rd, ntop_bt, ntop_rd, btobs,  &
-       tt, height, rcal, ps, robs, rcld, plev, &
+  subroutine cloud_top ( ptop_bt, ptop_rd, ntop_bt, ntop_rd, btObs,  &
+       tt, height, rcal, p0, radObs, cloudyRadiance, plev, &
        cldflag, lev_start, iopt, ihgt, &
        ilist,rejflag_opt, ichref_opt )
     !
@@ -2867,25 +2860,25 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent (out)         :: ptop_bt(:)        ! Chosen equivalent cloud tops based on brightness temperatures (in hpa|m with iopt = 1|2)
-    real(8), intent (out)         :: ptop_rd(:)        ! Chosen equivalent cloud tops based on radiances (in hpa|m with iopt = 1|2)
-    integer, intent (out)         :: ntop_bt(:)        ! Number of possible ptop_bt solutions
-    integer, intent (out)         :: ntop_rd(:)        ! Number of possible ptop_rd solutions
-    real(8), intent (in)          :: btobs(:)          ! Observed brightness temperautres (K)
-    real(8), intent (in)          :: tt(:)             ! Temperature profiles (K)
-    real(8), intent (in)          :: height(:)         ! Height profiles above ground (m)
-    real(8), intent (in)          :: rcal(:)           ! Computed clear radiances (mW/m2/sr/cm-1)
-    real(8), intent (in)          :: ps                ! Surface pressure (hPa)
-    real(8), intent (in)          :: robs(:)           ! Computed observed radiances (mW/m2/sr/cm-1)
-    real(8), intent (in)          :: rcld(:,:)         ! Computed cloud radiances from each level (hPa)
-    real(8), intent (in)          :: plev(:)           ! Pressure levels (hPa)
-    integer, intent (in)          :: cldflag           ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    integer, intent (inout)       :: lev_start         ! Level to start iteration (ideally tropopause)
-    integer, intent (in)          :: iopt              ! Levels using plev (1) or height (2)
-    integer, intent (in)          :: ihgt              ! Get *_bt* only (0), *_rd* only (1), both (2)
-    integer, intent (in)          :: ilist(:)          ! List of the channel numbers (subset values)
-    integer, intent (in),optional :: rejflag_opt(1:,0:)! Flags for rejected observations
-    integer, intent (in),optional :: ichref_opt        ! Reference surface channel (subset value)
+    real(8), intent(out)         :: ptop_bt(:)        ! Chosen equivalent cloud tops based on brightness temperatures (in hpa|m with iopt = 1|2)
+    real(8), intent(out)         :: ptop_rd(:)        ! Chosen equivalent cloud tops based on radiances (in hpa|m with iopt = 1|2)
+    integer, intent(out)         :: ntop_bt(:)        ! Number of possible ptop_bt solutions
+    integer, intent(out)         :: ntop_rd(:)        ! Number of possible ptop_rd solutions
+    real(8), intent(in)          :: btObs(:)          ! Observed brightness temperautres (K)
+    real(8), intent(in)          :: tt(:)             ! Temperature profiles (K)
+    real(8), intent(in)          :: height(:)         ! Height profiles above ground (m)
+    real(8), intent(in)          :: rcal(:)           ! Computed clear radiances (mW/m2/sr/cm-1)
+    real(8), intent(in)          :: p0                ! Surface pressure (hPa)
+    real(8), intent(in)          :: radObs(:)           ! Computed observed radiances (mW/m2/sr/cm-1)
+    real(8), intent(in)          :: cloudyRadiance(:,:) ! Computed cloud radiances from each level (hPa)
+    real(8), intent(in)          :: plev(:)           ! Pressure levels (hPa)
+    integer, intent(in)          :: cldflag           ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    integer, intent(inout)       :: lev_start         ! Level to start iteration (ideally tropopause)
+    integer, intent(in)          :: iopt              ! Levels using plev (1) or height (2)
+    integer, intent(in)          :: ihgt              ! Get *_bt* only (0), *_rd* only (1), both (2)
+    integer, intent(in)          :: ilist(:)          ! List of the channel numbers (subset values)
+    integer, intent(in),optional :: rejflag_opt(1:,0:)! Flags for rejected observations
+    integer, intent(in),optional :: ichref_opt        ! Reference surface channel (subset value)
 
     ! Locals:
     integer             :: jch,jc,itop,nht,i10,i,nlev,nch
@@ -2920,8 +2913,8 @@ contains
     if ( clear ) then
       
       if ( iopt == 1 ) then
-        ptop_bt(:) = min ( plev(nlev), ps )
-        ptop_rd(:) = min ( plev(nlev), ps )
+        ptop_bt(:) = min ( plev(nlev), p0 )
+        ptop_rd(:) = min ( plev(nlev), p0 )
       else if ( iopt == 2 ) then
         ptop_bt(:) = 0.d0
         ptop_rd(:) = 0.d0
@@ -2947,15 +2940,15 @@ contains
       if ( present(rejflag_opt) )  then
         if ( rejflag_opt(jc,9) == 1 ) cycle channels
       else
-        if ( btobs(jc) < 150.d0 .or. btobs(jc) > 350.d0) cycle channels
+        if ( btObs(jc) < 150.d0 .or. btObs(jc) > 350.d0) cycle channels
       end if
       !      no clouds if observed radiance warmer than clear estimate
 
-      if ( robs(jc) > rcal(jc) ) then
+      if ( radObs(jc) > rcal(jc) ) then
 
         if ( iopt == 1 ) then
-          ptop_bt(jc) = min ( plev(nlev), ps )
-          ptop_rd(jc) = min ( plev(nlev), ps )
+          ptop_bt(jc) = min ( plev(nlev), p0 )
+          ptop_rd(jc) = min ( plev(nlev), p0 )
         else if ( iopt == 2 ) then
           ptop_bt(jc) = 0.d0
           ptop_rd(jc) = 0.d0
@@ -2981,25 +2974,25 @@ contains
         if ( iopt == 1 ) then
           
           if ( ihgt == 0 .or. ihgt == 2 ) then
-            call get_top ( ht,nht, btobs(jc), tt, plev, lev_start, iopt ) 
+            call get_top ( ht,nht, btObs(jc), tt, plev, lev_start, iopt ) 
             itop = 1
             if ( nht >= 2 ) itop = 2
-            ptop_bt(jc) = min ( ht(itop), ps )
+            ptop_bt(jc) = min ( ht(itop), p0 )
             ntop_bt(jc) = nht
           end if
           
           if ( ihgt == 1 .or. ihgt == 2 ) then
-            call get_top ( ht, nht, robs(jc), rcld(jc,:), plev, lev_start, iopt )
+            call get_top ( ht, nht, radObs(jc), cloudyRadiance(jc,:), plev, lev_start, iopt )
             itop = 1
             if ( nht >= 2 ) itop = 2
-            ptop_rd(jc) = min ( ht(itop), ps )
+            ptop_rd(jc) = min ( ht(itop), p0 )
             ntop_rd(jc) = nht
           end if
           
         else if ( iopt == 2 ) then 
           
           if ( ihgt == 0 .or. ihgt == 2 ) then
-            call get_top ( ht,nht, btobs(jc),tt,height,lev_start,iopt) 
+            call get_top ( ht,nht, btObs(jc),tt,height,lev_start,iopt) 
             itop = 1
             if ( nht >= 2 ) itop = 2
             ptop_bt(jc) = max ( ht(itop), 0.d0 )
@@ -3007,7 +3000,7 @@ contains
           end if
           
           if ( ihgt == 1 .or. ihgt == 2 ) then
-            call get_top ( ht,nht, robs(jc),rcld(jc,:),height,lev_start,iopt)
+            call get_top ( ht,nht, radObs(jc),cloudyRadiance(jc,:),height,lev_start,iopt)
             itop = 1
             if ( nht >= 2 ) itop = 2
             ptop_rd(jc) = max ( ht(itop), 0.d0 )
@@ -3033,13 +3026,13 @@ contains
     !
     implicit none
     ! Arguments:
-    real(8), intent (out)   :: ht(:)     ! Cloud top height in hpa or meters (iopt = 1 or 2)
-    integer, intent (out)   :: nht       ! Number of possible cloud height solutions 
-    real(8), intent (in)    :: bt        ! Observed brightness temperatures (deg k) or radiance (mw/m2/sr/cm-1)
-    real(8), intent (in)    :: tt(:)     ! Temperature profile (deg k) or computed cloud radiance from each level to top
-    real(8), intent (in)    :: pp(:)     ! Pressure (hpa) or heights (m) profile (iopt=1 or 2)
-    integer, intent (inout) :: lev_start ! Level to start iteration (ideally tropopause, if <= 0, search & start at coldest level)
-    integer, intent (in)    :: iopt      ! Height units in hpa (1) or in meters (2)
+    real(8), intent(out)   :: ht(:)     ! Cloud top height in hpa or meters (iopt = 1 or 2)
+    integer, intent(out)   :: nht       ! Number of possible cloud height solutions 
+    real(8), intent(in)    :: bt        ! Observed brightness temperatures (deg k) or radiance (mw/m2/sr/cm-1)
+    real(8), intent(in)    :: tt(:)     ! Temperature profile (deg k) or computed cloud radiance from each level to top
+    real(8), intent(in)    :: pp(:)     ! Pressure (hpa) or heights (m) profile (iopt=1 or 2)
+    integer, intent(inout) :: lev_start ! Level to start iteration (ideally tropopause, if <= 0, search & start at coldest level)
+    integer, intent(in)    :: iopt      ! Height units in hpa (1) or in meters (2)
 
     ! Locals:
     integer             :: i, im(1), i10, nlev
@@ -3140,10 +3133,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent (in)  :: iasi_surfem1(nchaniasi)! IASI emissivities
-    real(8), intent (in)  :: freqiasi(nchaniasi)    ! IASI wavenumbers (cm-1)
-    integer, intent (in)  :: nchaniasi              ! Number of IASI channels
-    real(8), intent (out) :: avhrr_surfem1(NIR)     ! AVHRR emissivities
+    real(8), intent(in)  :: iasi_surfem1(nchaniasi)! IASI emissivities
+    real(8), intent(in)  :: freqiasi(nchaniasi)    ! IASI wavenumbers (cm-1)
+    integer, intent(in)  :: nchaniasi              ! Number of IASI channels
+    real(8), intent(out) :: avhrr_surfem1(NIR)     ! AVHRR emissivities
 
     ! Locals:
     real(8),parameter :: freqavhrr(NIR)= (/0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03/)
@@ -3164,7 +3157,7 @@ contains
   !--------------------------------------------------------------------------
   ! tovs_rttov_avhrr_for_IASI
   !--------------------------------------------------------------------------
-  subroutine tovs_rttov_avhrr_for_IASI (iptobs, surfem1_avhrr, idiasi)
+  subroutine tovs_rttov_avhrr_for_IASI (headerIndex, surfem1_avhrr, idiasi)
     !
     ! :Purpose: Computation of forward radiance with rttov_direct
     !           (for AVHRR).
@@ -3174,7 +3167,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: iptobs(1)        ! Location of the IASI observation in the TOVS structures
+    integer, intent(in) :: headerIndex      ! Location of the IASI observation in the TOVS structures and in obSpaceData (this is the same in IR bgck mode)
     real(8), intent(in) :: surfem1_avhrr(3) ! AHVRR surface emissivities
     integer, intent(in) :: idiasi           ! iasi (in fact METOP) number
 
@@ -3189,7 +3182,7 @@ contains
     type (rttov_radiance)      :: radiancedata_d
     type (rttov_emissivity)    :: emissivity(3)
     integer :: nchannels
-    integer :: asw,nlevels,io
+    integer :: asw, nlevels, iptobs(1)
 
   
     if (idiasi_old /= idiasi) then
@@ -3252,7 +3245,7 @@ contains
     asw = 1 ! 1 to allocate,0 to deallocate
     call rttov_alloc_rad (allocStatus(1),nchannels,radiancedata_d,nlevels,asw)
     call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rttov_avhrr_for_IASI radiances")
- 
+    iptobs(1) = headerIndex
     call rttov_direct(            &
          errorstatus,             & ! out
          chanprof,                & ! in
@@ -3264,13 +3257,12 @@ contains
          calcemis=calcemis,       & ! in
          emissivity=emissivity)     ! inout
     
-    io = iptobs(1)
-    avhrr_bgck(io)% radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
-    avhrr_bgck(io)% tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
-    avhrr_bgck(io)% radovcalc(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
-    avhrr_bgck(io)% transmcalc(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
-    avhrr_bgck(io)% emiss(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
-    avhrr_bgck(io)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
+    avhrr_bgck(headerIndex)% radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
+    avhrr_bgck(headerIndex)% tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
+    avhrr_bgck(headerIndex)% radovcalc(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
+    avhrr_bgck(headerIndex)% transmcalc(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
+    avhrr_bgck(headerIndex)% emiss(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
+    avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
 
     deallocate( transmission % tau_total    ,stat= allocStatus(1))
@@ -3334,7 +3326,7 @@ contains
     !
     implicit  none
 
-    integer, intent (in) ::  iz ! Index for Sun angle bin
+    integer, intent(in) ::  iz ! Index for Sun angle bin
     
     real(8),parameter ::  drf(11)=(/1.000d0, 1.002d0, 1.042d0, 1.092d0, 1.178d0, 1.286d0, &
                                     1.420d0, 1.546d0, 1.710d0, 1.870d0, 2.050d0/) 
@@ -3667,7 +3659,7 @@ contains
     implicit none
 
     !Argument
-    integer,intent (in) ::  iz  ! index
+    integer, intent(in) ::  iz  ! index
 
     !Locals:
     real(8),parameter :: drf(11)=(/1.d0,1.0255d0,1.1197d0,1.2026d0,1.3472d0, &

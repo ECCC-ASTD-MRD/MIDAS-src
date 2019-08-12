@@ -1394,7 +1394,6 @@ contains
     real(8), allocatable :: huExtrapolated(:,:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: tt(:,:)
-    real(8), allocatable :: hu(:,:)
     real(8), allocatable :: height(:,:)
     real(8), allocatable :: rttovPressure(:)
     real(8), allocatable :: latitudes(:)
