@@ -88,7 +88,7 @@ module stateToColumn_mod
   integer, external    :: get_max_rss
   logical, save :: slantPath_nl
   logical, save :: slantPath_tlad
-  logical, save :: namelistS2cRead = .false.
+  logical, save :: nmlAlreadyRead = .false.
 
 
 contains 
@@ -152,9 +152,9 @@ contains
       !
       !- Find the position in the analysis grid
       !
-      ierr = getPositionXY( hco_anl % EZscintID,  &
-                            xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                            lat_deg_r4, lon_deg_r4, subGridIndex )
+      ierr = utl_getPositionXY( hco_anl % EZscintID,  &
+                                xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
 
       !- Test if the obs is outside the analysis grid
       if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
@@ -290,8 +290,8 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
 
-    if ( .not. namelistS2cRead ) then
-      namelistS2cRead = .true.
+    if ( .not. nmlAlreadyRead ) then
+      nmlAlreadyRead = .true.
 
       ! default values
       slantPath_nl = .false.
@@ -620,7 +620,6 @@ contains
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
         do kIndexCount = 1, maxkCount
-          !!!$OMP PARALLEL DO PRIVATE(procIndex,kIndex)
           do procIndex = 1, mpi_nprocs
             ! compute kIndex value being sent
             kIndex = kIndexCount + allkBeg(procIndex) - 1
@@ -634,7 +633,6 @@ contains
               lon_send_r8(:,procIndex) = lonColumn(:,kIndex)
             end if
           end do
-          !!!$OMP END PARALLEL DO
 
           call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
                              lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8, mpi_comm_grid, ierr)
@@ -751,9 +749,9 @@ contains
                          MPC_DEGREES_PER_RADIAN_R8)
             lon_deg_r4 = real(interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            ierr = getPositionXY( stateVector%hco%EZscintID,   &
-                                  xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                  lat_deg_r4, lon_deg_r4, subGridIndex )
+            ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
 
             if ( subGridIndex == 3 ) then
               ! both subGrids involved in interpolation, so first treat subGrid 1
@@ -805,13 +803,15 @@ contains
                          MPC_DEGREES_PER_RADIAN_R8)
             lon_deg_r4 = real(interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            ierr = getPositionXY( stateVector%hco%EZscintID,   &
-                                  xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                  lat_deg_r4, lon_deg_r4, subGridIndex )
+            ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex )
 
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
 
-            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+                                      stateVector, headerIndex, kIndex, stepIndex, &
+                                      procIndex, numGridpt)
 
             if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
               ! indices for only 1 subgrid, other will have zeros
@@ -850,7 +850,9 @@ contains
 
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
 
-            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+            call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, obsSpaceData, &
+                                      stateVector, headerIndex, kIndex, stepIndex, &
+                                      procIndex, numGridpt)
 
           end do ! headerIndex
         end do ! procIndex
@@ -1985,152 +1987,6 @@ contains
 
   end subroutine myezuvint_ad
 
-  !------------------------------------------------------------------
-  ! getPositionXY
-  !------------------------------------------------------------------
-  function getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
-                          lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
-    !
-    ! :Purpose: Compute the grid XY position from a lat-lon. This
-    !           simply calls the ezsint routine gdxyfll for simple grids. For
-    !           Yin-Yan grids it can return locations from both the Yin and Yan
-    !           subgrids when in the overlap region, depending on the logical 
-    !           variable `useSingleValueOverlap`.
-    !
-    implicit none
-
-    ! arguments
-    integer :: ierr  ! returned value of function
-    integer, intent(in) :: gdid
-    integer, intent(out) :: subGridIndex
-    real(4), intent(out) :: xpos_r4
-    real(4), intent(out) :: ypos_r4
-    real(4), intent(out) :: xpos2_r4
-    real(4), intent(out) :: ypos2_r4
-    real(4), intent(in) :: lat_deg_r4
-    real(4), intent(in) :: lon_deg_r4
-
-    ! locals
-    integer :: numSubGrids
-    integer :: ezget_nsubGrids, ezget_subGridids, gdxyfll, ezgprm, gdgaxes
-    integer, allocatable :: EZscintIDvec(:)
-    character(len=1) :: grtyp
-    integer :: ni, nj, ig1, ig2, ig3, ig4, lonIndex, latIndex
-    real :: lonrot, latrot
-    real, allocatable :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
-
-    ! this controls which approach to use for interpolation within the YIN-YAN overlap
-    logical :: useSingleValueOverlap = .true.  
-
-    numSubGrids = ezget_nsubGrids(gdid)
-    xpos2_r4 = -999.0
-    ypos2_r4 = -999.0
-
-    if ( numSubGrids == 1 ) then
-
-      ! Not a Yin-Yang grid, call the standard ezscint routine
-      ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-      subGridIndex = 1
-
-    else
-
-      ! This is a Yin-Yang grid, do something different
-
-      allocate(EZscintIDvec(numSubGrids))
-      ierr = ezget_subGridids(gdid, EZscintIDvec)   
-      ! get ni nj of subGrid, assume same for both YIN and YANG
-      ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
-
-      ! first check YIN
-      ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-
-      ! compute rotated lon and lat at obs location
-      allocate(ax_yin(ni),ay_yin(nj))
-      ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
-      lonIndex = floor(xpos_r4)
-      if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-        lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
-                 (xpos_r4 - lonIndex)
-      else
-        lonrot = -999.0
-      end if
-      latIndex = floor(ypos_r4)
-      if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-        latrot = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
-                 (ypos_r4 - latIndex)
-      else
-        latrot = -999.0
-      end if
-      deallocate(ax_yin,ay_yin)
-      subGridIndex = 1
-
-      if ( useSingleValueOverlap ) then
-
-        ! this approach is most similar to how ezsint works, preferentially take YIN
-
-        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! Outside YIN, therefore use YANG (assume it is inside YANG)
-          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 2
-        else
-          subGridIndex = 1
-        end if
-
-      else ! not useSingleValueOverlap
-
-        ! this approach returns both the YIN and YAN locations when point is inside both
-
-        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! Outside YIN, therefore use YANG (assume it is inside YANG)
-          ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-          ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 2
-        else
-          ! inside YIN, check if also inside YANG
-          allocate(ax_yan(ni),ay_yan(nj))
-          ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
-          ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
-          if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-            lonrot = ax_yan(lonIndex) + (ax_yan(lonIndex+1) - ax_yan(lonIndex)) *  &
-                     (xpos2_r4 - lonIndex)
-          else
-            lonrot = -999.0
-          end if
-          latIndex = floor(ypos2_r4)
-          if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-            latrot = ay_yan(latIndex) + (ay_yan(latIndex+1) - ay_yan(latIndex)) *  &
-                     (ypos2_r4 - latIndex)
-          else
-            latrot = -999.0
-          end if
-          deallocate(ax_yan,ay_yan)
-          if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-            ! outside YANG, only inside YIN
-            xpos2_r4 = -999.0
-            ypos2_r4 = -999.0
-            subGridIndex = 1
-          else
-            ! inside both YIN and YANG
-            ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
-            subGridIndex = 3
-          end if
-        end if
-
-      end if
-
-      deallocate(EZscintIDvec)
-
-    end if    
-
-    if ( subGridIndex /= 3 ) then
-      ! when only returning 1 position, copy values to pos2
-      xpos2_r4 = xpos_r4
-      ypos2_r4 = ypos_r4
-    end if
-
-  end function getPositionXY
-
   !---------------------------------------------------------
   ! s2c_bgcheck_bilin
   !---------------------------------------------------------
@@ -2201,9 +2057,9 @@ contains
       if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
-      ierr = getPositionXY( stateVector % hco % EZscintID,   &
-                            xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                            lat_deg_r4, lon_deg_r4, subGridIndex )
+      ierr = utl_getPositionXY( stateVector % hco % EZscintID,   &
+                                xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
       xpos = real(xpos_r4,8)
       ypos = real(ypos_r4,8)
 
@@ -2592,9 +2448,9 @@ contains
                  MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    ierr = getPositionXY( stateVector%hco%EZscintID,   &
-                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                          lat_deg_r4, lon_deg_r4, subGridIndex )
+    ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( stateVector%hco%grtyp == 'G' .or. &
@@ -2837,9 +2693,9 @@ contains
     lon_rad = interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = getPositionXY( stateVector%hco%EZscintID,   &
-                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                          lat_deg_r4, lon_deg_r4, subGridIndex )
+    ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
@@ -3080,9 +2936,9 @@ contains
     lon_deg_r4 = real(interpInfo%allLon(headerIndex, kIndex, stepIndex, procIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
-    ierr = getPositionXY( stateVector%hco%EZscintID,   &
-                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                          lat_deg_r4, lon_deg_r4, subGridIndex )
+    ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
 
     latIndex = nint(ypos_r4)
     lonIndex = nint(xpos_r4)
@@ -3200,9 +3056,9 @@ contains
 
     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
-    ierr = getPositionXY( hco%EZscintID,   &
-                          xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                          lat_deg_r4, lon_deg_r4, subGridIndex )
+    ierr = utl_getPositionXY( hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
 
     latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
                           xpos_r4 > real(niP1) .or. &
@@ -3220,9 +3076,9 @@ contains
 
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
-      ierr = getPositionXY( hco%EZscintID,   &
-                            xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                            lat_deg_r4, lon_deg_r4, subGridIndex )
+      ierr = utl_getPositionXY( hco%EZscintID,   &
+                                xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex )
 
       latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
                             xpos_r4 > real(niP1) .or. &
