@@ -70,6 +70,8 @@ module obsFilter_mod
 
   character(len=48) :: filterMode
 
+  logical :: initialized = .false.
+
 contains
 
   !--------------------------------------------------------------------------
@@ -253,6 +255,8 @@ contains
         end if
       end do
     end if
+
+    initialized = .true.
 
   end subroutine filt_setup
 
@@ -1617,6 +1621,8 @@ end subroutine filt_topoAISW
     logical :: assimilated
     integer :: elemIndex
 
+    if (.not. initialized) call filt_setup('none')
+
     assimilated = .false.
 
     do elemIndex = 1, filt_nelems
@@ -1636,6 +1642,8 @@ end subroutine filt_topoAISW
 
     integer :: variableBufrCodeList(filt_nelems)
 
+    if (.not. initialized) call filt_setup('none')
+
     variableBufrCodeList(:) = filt_nlist(1:filt_nelems)
 
   end subroutine filt_getVariableBufrCodeAssimilated
@@ -1647,6 +1655,8 @@ end subroutine filt_topoAISW
     implicit none
 
     integer :: nVariableBufrCode
+
+    if (.not. initialized) call filt_setup('none')
 
     nVariableBufrCode = filt_nelems
 
