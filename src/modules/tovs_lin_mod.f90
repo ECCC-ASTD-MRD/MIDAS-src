@@ -374,7 +374,7 @@ contains
       !$omp parallel do private(profileIndex)
       do profileIndex=1, profileCount
 
-        call ppo_IntAvg_tl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),tt_tl(:,profileIndex:profileIndex), &
+        call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),tt_tl(:,profileIndex:profileIndex), &
              tt(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
 
