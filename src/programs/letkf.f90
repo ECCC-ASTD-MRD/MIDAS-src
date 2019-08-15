@@ -77,10 +77,8 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, middleStepIndex, nLev_M, nLev_T
-  integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-  integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, randomSeed2
-  integer :: nulnam, nulFile, dateStamp, datePrint, timePrint, imode, ierr, nsize
+  integer :: memberIndex, stepIndex, middleStepIndex, randomSeed2
+  integer :: nulnam, dateStamp, datePrint, timePrint, imode, ierr
   integer :: get_max_rss, fclos, fnom, fstopc, newdate
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
@@ -96,25 +94,27 @@ program midas_letkf
   type(struct_enkfInterpInfo) :: wInterpInfo
 
   ! namelist variables
+  character(len=20)  :: algorithm ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
+  integer            :: numSubEns ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
-  integer  :: nEns             ! ensemble size
-  integer  :: maxNumLocalObs   ! maximum number of obs in each local volume to assimilate
-  integer  :: weightLatLonStep ! separation of lat-lon grid points for weight calculation
-  integer  :: randomSeed       ! seed used for random perturbation additive inflation
-  logical  :: updateMembers    ! true means compute and write out members analyses/increments
-  logical  :: writeIncrements  ! write ens of increments and mean increment
-  logical  :: writeSubSample   ! write sub-sample members for initializing medium-range fcsts
-  real(8)  :: hLocalize        ! horizontal localization radius (in km)
-  real(8)  :: vLocalize        ! vertical localization radius (in units of ln(Pressure in Pa))
-  real(8)  :: alphaRTPP        ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRTPS        ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRandomPert  ! Random perturbation additive inflation coeff (0->1)
+  integer  :: nEns               ! ensemble size
+  integer  :: maxNumLocalObs     ! maximum number of obs in each local volume to assimilate
+  integer  :: weightLatLonStep   ! separation of lat-lon grid points for weight calculation
+  integer  :: randomSeed         ! seed used for random perturbation additive inflation
+  logical  :: updateMembers      ! true means compute and write out members analyses/increments
+  logical  :: writeIncrements    ! write ens of increments and mean increment
+  logical  :: writeSubSample     ! write sub-sample members for initializing medium-range fcsts
+  real(8)  :: hLocalize          ! horizontal localization radius (in km)
+  real(8)  :: vLocalize          ! vertical localization radius (in units of ln(Pressure in Pa))
+  real(8)  :: alphaRTPP          ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRTPS          ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRandomPert    ! Random perturbation additive inflation coeff (0->1)
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-  NAMELIST /NAMLETKF/nEns, ensPathName, hLocalize, vLocalize,  &
+  NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      updateMembers, writeIncrements, writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
@@ -155,10 +155,12 @@ program midas_letkf
   !
 
   !- 1.1 Setting default namelist variable values
+  algorithm             = 'LETKF'
+  ensPathName           = 'ensemble'
   nEns                  = 10
+  numSubEns             = 2
   maxNumLocalObs        = 1000
   weightLatLonStep      = 1
-  ensPathName           = 'ensemble'
   updateMembers         = .false.
   writeIncrements       = .false.
   writeSubSample        = .false.
@@ -188,6 +190,9 @@ program midas_letkf
   if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
   if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
   if (alphaRandomPertSubSample < 0.0D0) alphaRandomPertSubSample = 0.0D0
+  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF') then
+    call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
+  end if
 
   !
   !- 2.  Initialization
@@ -221,9 +226,9 @@ program midas_letkf
   call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
-  nLev_M = vco_getNumLev(vco_ens, 'MM')
-  nLev_T = vco_getNumLev(vco_ens, 'TH')
-  if (nLev_M /= nLev_T) call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
+  if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
+    call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
+  end if
 
   if ( hco_ens % global ) then
     call agd_SetupFromHCO( hco_ens ) ! IN
@@ -442,24 +447,7 @@ program midas_letkf
   !- 4. Final preparations for computing analyses
   !
 
-  !- 4.1 Adjust tile limits for weight calculation to include interpolation halo
-  myLonBeg = stateVectorMeanInc%myLonBeg
-  myLonEnd = stateVectorMeanInc%myLonEnd
-  myLatBeg = stateVectorMeanInc%myLatBeg
-  myLatEnd = stateVectorMeanInc%myLatEnd
-  myLonBegHalo = 1 + weightLatLonStep * floor(real(myLonBeg - 1)/real(weightLatLonStep))
-  myLonEndHalo = min(stateVectorMeanInc%ni, 1 + weightLatLonStep * ceiling(real(myLonEnd - 1)/real(weightLatLonStep)))
-  myLatBegHalo = 1 + weightLatLonStep * floor(real(myLatBeg - 1)/real(weightLatLonStep))
-  myLatEndHalo = min(stateVectorMeanInc%nj, 1 + weightLatLonStep * ceiling(real(myLatEnd - 1)/real(weightLatLonStep)))
-  write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (original)  = ',  &
-             myLonBeg, myLonEnd, myLatBeg, myLatEnd
-  write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
-             myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-  write(*,*) 'midas-letkf: number of local gridpts where weights computed = ',  &
-             ( 1 + ceiling(real(myLonEndHalo - myLonBegHalo) / real(weightLatLonStep)) ) *  &
-             ( 1 + ceiling(real(myLatEndHalo - myLatBegHalo) / real(weightLatLonStep)) )
-
-  !- 4.2 Copy trial ensemble to nstepobsinc time steps
+  !- 4.1 Copy trial ensemble to nstepobsinc time steps
   if (tim_nstepobsinc < tim_nstepobs) then
     allocate(ensembleTrl)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
@@ -470,24 +458,25 @@ program midas_letkf
     ensembleTrl => ensembleTrl4D
   end if
 
-  !- 4.3 Copy trl ensemble to anl ensemble
+  !- 4.2 Copy trl ensemble to anl ensemble
   call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
   call ens_copy(ensembleTrl,ensembleAnl)
 
-  !- 4.5 Setup for interpolating weights from coarse to full resolution
+  !- 4.3 Setup for interpolating weights from coarse to full resolution
   call tmg_start(92,'LETKF-interpolateWeights')
   call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanInc%hco, weightLatLonStep,  &
-                            myLonBegHalo, myLonEndHalo,  &
-                            myLatBegHalo, myLatEndHalo)
+                            stateVectorMeanInc%myLonBeg, stateVectorMeanInc%myLonEnd,  &
+                            stateVectorMeanInc%myLatBeg, stateVectorMeanInc%myLatEnd)
   call tmg_stop(92)
 
   !
   !- 5. Main calculation of ensemble and deterministic analyses
   !
 
-  !- 5.1 Do actual analysis calculations in internal subroutine
+  !- 5.1 Do actual analysis calculations for chosen flavour of LETKF
   call tmg_start(3,'LETKF-doAnalysis')
-  call enkf_LETKFanalyses(ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
+  call enkf_LETKFanalyses(algorithm, numSubEns,  &
+                          ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                           stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
                           wInterpInfo, maxNumLocalObs,  &

@@ -25,7 +25,7 @@ module utilities_mod
 
   ! public procedures
   public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir, utl_fstecr
-  public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse
+  public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id
@@ -828,6 +828,121 @@ contains
     end if
 
   end subroutine utl_matInverse
+
+  !--------------------------------------------------------------------------
+  ! utl_eigenDecomp
+  !--------------------------------------------------------------------------
+  subroutine utl_eigenDecomp(matrix, eigenValues, eigenVectors, tolerance, numReturned, printInformation_opt)
+    !
+    ! :Purpose: Calculate eigenValues/Vectors and return only those with eigenValues
+    !           whose magnitude is greater than the specified tolerance.
+    !
+    implicit none
+
+    ! Arguments
+    real(8), intent(inout)        :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8), intent(out)          :: eigenValues(:)       ! computed eigenValues
+    real(8), intent(out)          :: eigenVectors(:,:)    ! computed eigenVectors
+    real(8), intent(in)           :: tolerance            ! threshold for eigenValue magnitude to be returned
+    integer, intent(out)          :: numReturned          ! number of eigenValues/Vectors returned
+    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+
+    ! Local variables
+    integer :: rank, index1, index2, info, sizework
+    real(8) :: sizework_r8
+    real(8), allocatable :: work(:), eigenVectorsOrig(:,:), eigenValuesOrig(:)
+    logical :: printInformation
+
+    if (present(printInformation_opt)) then
+      printInformation = printInformation_opt
+    else
+      printInformation = .false.
+    end if
+
+    if (printInformation) then
+      write(*,*)' utl_matInvers: Inverse matrix of a symmetric matrix'
+    end if
+
+    !     1. Computation of eigenvalues and eigenvectors
+
+    rank = size(matrix,1)
+    allocate(eigenVectorsOrig(rank,rank))
+    allocate(eigenValuesOrig(rank))
+
+    do index2 = 1, rank
+      do index1 = 1, rank
+        eigenVectorsOrig(index1,index2)=matrix(index1,index2)
+      end do
+    end do
+
+    ! Query the size of the 'work' vector by calling 'DSYEV' with 'sizework=-1'
+    sizework = -1
+    info = -1
+    call dsyev('V', 'U', rank, eigenVectorsOrig, rank, eigenValuesOrig,  &
+               sizework_r8, sizework, info)
+
+    ! Compute the eigenvalues/vectors
+    sizework = int(sizework_r8)
+    allocate(work(sizework))
+    call dsyev('V', 'U', rank, eigenVectorsOrig, rank, eigenValuesOrig,  &
+               work, sizework, info)
+    deallocate(work)
+
+    if (printInformation) then
+      write(*,'(1x,"Original eigen values: ")')
+      write(*,'(1x,10f7.3)') (eigenValuesOrig(index1),index1=1,rank)
+
+      if(minval(eigenValuesOrig) > tolerance) then
+        write(*,'(A,1x,e14.6)') "Condition number:", &
+             maxval(eigenValuesOrig)/minval(eigenValuesOrig)
+      end if
+    end if
+
+    !     2.  Determine which eigen values/vectors to return
+
+    numReturned = 0
+    do index1 = rank, 1, -1
+      if (eigenValuesOrig(index1) > tolerance) then
+        numReturned = numReturned + 1
+      else
+        exit
+      end if
+    end do
+
+    if (printInformation) then
+      write(*,*) 'Number of eigen values returned =', numReturned, ' out of', rank
+    end if
+
+    !     3.  Copy eigenValues/Vectors into output arrays with reversed order
+
+    do index1 = 1, numReturned
+      ! And set negative values to zero
+      eigenValues(index1) = max(0.0D0,eigenValuesOrig(rank-index1+1))
+    end do
+    do index1 = numReturned+1, rank
+      eigenValues(index1) = 0.0D0
+    end do
+
+    do index2 = 1, numReturned
+      do index1 = 1, rank
+        eigenVectors(index1,index2) = eigenVectorsOrig(index1,rank-index2+1)
+      end do
+    end do
+    do index2 = numReturned+1, rank
+      do index1 = 1, rank
+        eigenVectors(index1,index2) = 0.0D0
+      end do
+    end do
+
+    !     4. Deallocate local arrays
+    deallocate(eigenVectorsOrig,eigenValuesOrig)
+
+    if (printInformation) then
+      write(*,*) 'utl_eigenDecomp: done'
+      write(*,*) ' '
+    end if
+
+  end subroutine utl_eigenDecomp
 
   !--------------------------------------------------------------------------
   ! utl_writeStatus

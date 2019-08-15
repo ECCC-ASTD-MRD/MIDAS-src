@@ -1,14 +1,15 @@
  &NAMLETKF
+   algorithm             = 'LETKF'
    NENS                  = 40
-   MAXNUMLOCALOBS        = 10000
-   WEIGHTLATLONSTEP      = 3
-   HLOCALIZE             = 200.0D0
-   VLOCALIZE             = 2.0D0
+   maxNumLocalObs        = 10000
+   weightLatLonStep      = 3
+   hLocalize             = 200.0D0
+   vLocalize             = 2.0D0
    alphaRTPP             = 0.40D0
    alphaRTPS             = 0.80D0
    alphaRandomPert       = 0.10D0
-   UPDATEMEMBERS         = .true.
-   WRITEINCREMENTS       = .true.
+   updateMembers         = .true.
+   writeIncrements       = .true.
    imposeSaturationLimit = .true.
    imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
