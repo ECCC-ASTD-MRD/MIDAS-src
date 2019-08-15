@@ -43,8 +43,8 @@ module obsVariableTransforms_mod
   type :: struct_transform
     character(len=48)    :: name
     integer              :: nBufrCode
-    integer, allocatable :: sourceBufrCode        (:)
-    integer, allocatable :: sourceBufrCodeExtra   (:)
+    integer, allocatable :: sourceBufrCode          (:)
+    integer, allocatable :: sourceBufrCodeExtra     (:)
     integer, allocatable :: destinationBufrCode     (:)
     integer, allocatable :: destinationBufrCodeExtra(:)
     logical              :: wind   = .false.
@@ -56,7 +56,7 @@ module obsVariableTransforms_mod
   integer                :: nSkippedBufrCodes    = 0
   integer                :: skippedBufrCodes(50) = -999
 
-  logical                :: initialized                = .false.
+  logical                :: initialized = .false.
 
 contains
 
@@ -454,178 +454,144 @@ contains
     integer          , intent(in)    :: headerIndexEnd
 
     ! locals
-    integer        :: bufrCode, bufrCode2, bufrCode4
-    real(obs_real) :: obsValue
-    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2,bodyIndexFound, bufrCodeAssociated
+    integer        :: bufrCode, bufrCode2, bufrCode3
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bodyIndexFound, bufrCodeAssociated
     integer        :: directionFlag, speedFlag, combinedFlag, uWindFlag, vWindFlag
-    integer        :: bufrCodeSpeed, bufrCodeUWind, bufrCodeVWind, indu_missing, indv_missing, indum, indvm
-    logical        :: direction_missing, speed_missing, missing, uv_missing, uWind_missing, vWind_missing
-    !logical        :: uv_present, uWind_present, vWind_present
+    integer        :: speedBufrCode, uWindBufrCode, vWindBufrCode, uWindbodyIndex, vWindBodyIndex
+
+    logical        :: direction_missing, speed_missing
+    logical        :: uWind_present, vWind_present
+
+    real(obs_real) :: obsValue
     real(obs_real) :: uWind, vWind, direction, speed
-    real(obs_real) :: level_direction, level4, level, level_uWind
+    real(obs_real) :: level_direction, level3, level, level_uWind
 
     speedFlag = 0
 
-    header1: do headerIndex = headerIndexStart, headerIndexEnd
+    ! Loop through headers
+    header: do headerIndex = headerIndexStart, headerIndexEnd
       
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       
-      body1: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+      ! Find the wind direction report
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
         direction = obs_missingValue
         speed     = obs_missingValue
         bufrCode  = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         direction_missing = .true.
       
-        if ( bufrCode /= bufr_nedd .and. bufrCode /= bufr_neds ) cycle body1
+        if ( bufrCode /= bufr_nedd .and. bufrCode /= bufr_neds ) cycle body
 
         if( bufrCode == bufr_neds) then
           ! Surface obs
-          bufrCodeSpeed = bufr_nefs
-          bufrCodeUWind = bufr_neus
-          bufrCodeVWind = bufr_nevs
+          speedBufrCode = bufr_nefs
+          uWindBufrCode = bufr_neus
+          vWindBufrCode = bufr_nevs
         else
           ! Upper air obs
-          bufrCodeSpeed = bufr_neff
-          bufrCodeUWind = bufr_neuu
-          bufrCodeVWind = bufr_nevv
+          speedBufrCode = bufr_neff
+          uWindBufrCode = bufr_neuu
+          vWindBufrCode = bufr_nevv
         end if
       
         direction       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
         directionFlag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
         level_direction = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
-        uWind_missing = .true.
-        vWind_missing = .true.
-        !uWind_present = .false.
-        !vWind_present = .false.
-        indum = -1
-        indvm = -1
+        uWind_present = .false.
+        vWind_present = .false.
 
-        ! check if u and v are present in obsSpaceData
+        ! Check if u and v are present in obsSpaceData
         do bodyIndex2 = bodyIndex, bodyIndexEnd
 
-          level4 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level3 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
 
-          if (level4 == level_direction) then
-            bufrCode4 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+          if (level3 == level_direction) then
+            bufrCode3 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
             
-            select case (bufrCode4)
-            case (bufr_neuu, bufr_nevv, bufr_neff, bufr_nedd, bufr_neus, bufr_nevs, bufr_neds, bufr_nefs )
-              obsValue = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-              if ( bufrCode4 == bufrCodeUWind .and. obsValue /= obs_missingValue ) then
-                call utl_abort('ovt_windSpeedDirectionToUV: u-wind is aleady present. This should not happen!')
-                !uWind_present = .true.
-                uWind_missing = .false.
-                indum = bodyIndex2
-              else if ( bufrCode4 == bufrCodeVWind .and. obsValue /= obs_missingValue ) then
-                call utl_abort('ovt_windSpeedDirectionToUV: v-wind is aleady present. This should not happen!')
-                !vWind_present = .true.
-                vWind_missing = .false.
-                indvm = bodyIndex2
-              end if
-              if ( bufrCode4 == bufrCodeUWind .and. obsValue == obs_missingValue ) then
-                !uWind_missing = .true.
-                indu_missing = bodyIndex2
-              else if ( bufrCode4 == bufrCodeVWind .and. obsValue == obs_missingValue ) then
-                !vWind_missing = .true.
-                indv_missing = bodyIndex2
-              end if
-            end select
+            if ( bufrCode3 == uWindBufrCode ) then
+              uWind_present = .true.
+              uWindbodyIndex = bodyIndex2
+            else if ( bufrCode3 == vWindBufrCode) then
+              vWind_present = .true.
+              vWindBodyIndex = bodyIndex2
+            end if
 
           end if
 
         end do
 
-        uv_missing = (uWind_missing .and. vWind_missing)
-        !uv_present = (uWind_present .and. vWind_present)
+        if (.not. uWind_present .or. .not. vWind_present) then
+          call utl_abort('ovt_windSpeedDirectionToUV: uWind and/or vWind bodyIndex not found!')
+        end if
 
-        if ( uv_missing ) then
+        ! Find the speed report and compute uWind and vWind
+        calcuv: do bodyIndex2 = bodyIndex, bodyIndexEnd
+          speed_missing     = .true.
+          direction_missing = .true.
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
 
-          calcuv: do bodyIndex2 = bodyIndex, bodyIndexEnd
-            speed_missing = .true.
-            direction_missing = .true.
-            missing   = .true.
-            level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          if ( level /= level_direction) cycle calcuv
 
-            if ( level /= level_direction) cycle calcuv
+          bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
 
-            bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+          if ( bufrCode2 == speedBufrCode ) then
 
-            if ( bufrCode2 == bufrCodeSpeed ) then
+            speed     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+            speedFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
 
-              speed = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-              speedFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
+            if ( direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0. ) then
+              direction_missing = .true.
+              speed_missing     = .true.
+            else if ( direction == obs_missingValue .or. speed == obs_missingValue ) then
+              direction_missing = .true.
+              speed_missing     = .true.
+            else
+              direction_missing = .false.
+              speed_missing     = .false.
+            end if
 
-              if ( direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0. ) then
-                direction_missing = .true.
-                speed_missing = .true.
-              else if ( direction == obs_missingValue .or. speed == obs_missingValue ) then
-                direction_missing = .true.
-                speed_missing = .true.
-              else
-                direction_missing = .false.
-                speed_missing = .false.
-              end if
+            if ( direction_missing .or. speed_missing ) then
+
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1 )
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1 )
+
+            else
 
               if (speed == 0.d0) direction = 0.d0
               direction = direction + 180.
               if ( direction > 360.) direction = direction - 360.
               direction = direction * mpc_radians_per_degree_r8
-
+            
               ! (speed,direction) -> (u,v)
               uWind = speed * sin(direction)
               vWind = speed * cos(direction)
+          
+              combinedFlag = ior(directionFlag, speedFlag )
 
-              if ( direction_missing == .true. .or. speed_missing == .true. ) then
-                missing = .true.
-                if ( indu_missing > 0 .or. indv_missing > 0 ) then
-                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_missing, -1 )
-                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_missing, -1 )
-                end if
-              else
-                missing = .false.
-              end if
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, uWindbodyIndex, uWind )
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag )
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, vWindBodyIndex, vWind )
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag )
 
             end if
 
-            combinedFlag = ior(directionFlag, speedFlag )
+          end if
 
-            if ( indum > 0 .or. indvm > 0 ) then
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_missing, -1 )
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_missing, -1 )
-            end if
+        end do calcuv
 
-            if ( missing ) then
-              if ( indum > 0 .or. indvm > 0 ) then
-                call obs_bodySet_i(obsSpaceData, OBS_FLG, induM, combinedFlag )
-                call obs_bodySet_i(obsSpaceData, OBS_FLG, indvM, combinedFlag )
-              end if
-            else if ( .not. missing ) then
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, indu_missing, uWind )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, indu_missing, combinedFlag )
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, indv_missing, vWind )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, indv_missing, combinedFlag )
-            end if
+      end do body
 
-          end do calcuv
+    end do header
 
-        else      
- 
-          call utl_abort('ovt_windSpeedDirectionToUV: u-wind and/or v-wind are aleady present. This should not happen!')
-
-        end if
-
-      end do body1
-
-    end do header1
-
-    header: do headerIndex = headerIndexStart, headerIndexEnd
+    ! Merge uWind and vWind flags
+    header2: do headerIndex = headerIndexStart, headerIndexEnd
 
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       
-      body: do bodyIndex = bodyIndexStart, bodyIndexEnd
+      body2: do bodyIndex = bodyIndexStart, bodyIndexEnd
         direction_missing = .true.
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
         level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
@@ -636,19 +602,21 @@ contains
           case (bufr_neus)
             bufrCodeAssociated = bufr_nevs        
           case default
-            cycle body
+            cycle body2
         end select
 
         bodyIndexFound = -1
 
-        ! TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
-        body2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+        ! Unified uWind and vWind flag bits
+        body3: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
           uWind       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
           level_uWind = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
           bodyIndexFound = -1
 
-          if ( level_uWind == level .and. uWind == obs_missingValue ) call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
+          if ( level_uWind == level .and. uWind == obs_missingValue ) then
+            call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
+          end if
 
           if ( level_uWind == level .and. uWind /= obs_missingValue ) then
 
@@ -658,35 +626,33 @@ contains
             if ( bufrCodeAssociated == bufrCode2 ) then
               vWindFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
               combinedFlag = ior( uWindFlag, vWindFlag )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, combinedFlag)
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex,  combinedFlag)
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, combinedFlag)
               bodyIndexFound = bodyIndex2
-              exit body2
+              exit body3
             end if
 
           end if
 
-        end do body2
+        end do body3
 
-        ! ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UWIND OR VWIND) IS MISSING
+        ! Eleminate entries where on component of wind (u or v) is missing
         if (bodyIndexFound < 0) then
-
-          write(*,*) ' ovt_windSpeedDirectionToUV: eliminate winds for station ', obs_elem_c(obsSpaceData,'STID',headerIndex ),  &
+          write(*,*) ' ovt_windSpeedDirectionToUV: discard winds for station ', obs_elem_c(obsSpaceData,'STID',headerIndex ),  &
           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex ), obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
           call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
-
         end if
 
-      end do body
+      end do body2
 
-    end do header
+    end do header2
 
   end subroutine ovt_windSpeedDirectionToUV
 
   !--------------------------------------------------------------------------
   ! ovt_UVtoWindSpeedDirection_residual
   !--------------------------------------------------------------------------
-  subroutine ovt_UVtoWindSpeedDirection_residual(obsSpaceData, elem_i)
+  subroutine ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
     !
     ! :Purpose: To transform wind residuals in terms of u and v to speed and direction
     !
@@ -694,56 +660,57 @@ contains
 
     ! arguments
     type(struct_obs)    :: obsSpaceData
-    integer, intent(in) :: elem_i
+    integer, intent(in) :: residualTypeID
 
     ! locals
-    integer :: iuu, ivv, iff, idd
-    integer :: headerIndex, headerIndexStart, headerIndexEnd, jWindType, bodyIndex, bodyIndex2
-    real(obs_real) :: zlevu, module, ang, uu, vv
-    logical :: ok
+    integer :: uWindBufrCode, vWindBufrCode, speedBufrCode, directionBufrCode
+    integer :: headerIndex, headerIndexStart, headerIndexEnd, windTypeIndex, bodyIndex, bodyIndex2
 
-    WIND_TYPE: do jWindType = 1, 2
-      if (jWindType == 1) then
-        iuu = bufr_neuu
-        ivv = bufr_nevv
-        idd = bufr_nedd
-        iff = bufr_neff
+    real(obs_real) :: uWindLevel, speed, direction, uWind, vWind
+
+    windType: do windTypeIndex = 1, 2
+      if (windTypeIndex == 1) then
+        uWindBufrCode = bufr_neuu
+        vWindBufrCode = bufr_nevv
+        directionBufrCode = bufr_nedd
+        speedBufrCode = bufr_neff
       else
-        iuu = bufr_neus
-        ivv = bufr_nevs
-        idd = bufr_neds
-        iff = bufr_nefs
+        uWindBufrCode = bufr_neus
+        vWindBufrCode = bufr_nevs
+        directionBufrCode = bufr_neds
+        speedBufrCode = bufr_nefs
       end if
 
       ! Process all data within the domain of the model
       body: do bodyIndex = 1, obs_numBody(obsSpaceData)
 
-        ok = ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and. &
-                 obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == iuu )
+        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+             obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == uWindBufrCode ) then
 
-        if ( ok ) then
           headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
           headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
           headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + headerIndexStart - 1
-          zlevu            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
-          uu = - obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          uWindLevel            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
+          uWind = - obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
          
            body2: do bodyIndex2 = headerIndexStart, headerIndexEnd
      
-             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == ivv .and. &
-                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              vv = -obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-              ! 1-calculate angle
-              module = sqrt((uu**2)+(vv**2))
+             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == vWindBufrCode .and. &
+                   obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel ) then
+               
+              vWind = -obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
 
-              if (module == 0.) then
-                ang = 0.0d0
+              ! Calculate angle
+              speed = sqrt((uWind**2)+(vWind**2))
+
+              if (speed == 0.) then
+                direction = 0.0d0
               else
-                ang = atan2(vv,uu)
-                ang = (270.0d0 - ang  * MPC_DEGREES_PER_RADIAN_R8 )
-                ! 2-Change to meteorological definition of wind direction.
-                if (ang > 360.0d0 ) ang = ang - 360.0d0
-                if (ang <= 0.0d0  ) ang = ang + 360.0d0
+                direction = atan2(vWind,uWind)
+                direction = (270.0d0 - direction  * MPC_DEGREES_PER_RADIAN_R8 )
+                ! Change to meteorological definition of wind direction.
+                if (direction > 360.0d0 ) direction = direction - 360.0d0
+                if (direction <= 0.0d0  ) direction = direction + 360.0d0
               end if
 
             end if
@@ -753,27 +720,27 @@ contains
           ! insert resduals into obsSpaceData
           body2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
-            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) == idd .and. &
-                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - ang )
+            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2) == directionBufrCode .and. &
+                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel ) then
+              call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
+                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - direction )
               
-              if ( obs_bodyElem_r( obsSpaceData,elem_i,bodyIndex2) >  180.0d0)  &
-                call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) - real(360.0d0,OBS_REAL) )
-              if ( obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2) <= -180.0d0)  &
-                call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + real(360.0d0,OBS_REAL) )
-              call obs_bodySet_r( obsSpaceData, elem_i, bodyIndex2, &
-                                  - real(1.0d0,OBS_REAL) * obs_bodyElem_r(obsSpaceData,elem_i,bodyIndex2 ) )
+              if ( obs_bodyElem_r( obsSpaceData,residualTypeID,bodyIndex2) >  180.0d0)  &
+                call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
+                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) - real(360.0d0,OBS_REAL) )
+              if ( obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) <= -180.0d0)  &
+                call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
+                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + real(360.0d0,OBS_REAL) )
+              call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
+                                  - real(1.0d0,OBS_REAL) * obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2 ) )
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated )
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0 )
             end if
-            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) == iff .and. &
-                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              call obs_bodySet_r( obsSpaceData, elem_i,  bodyIndex2, &
-                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - module )
+            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) == speedBufrCode .and. &
+                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == uWindLevel ) then
+              call obs_bodySet_r( obsSpaceData, residualTypeID,  bodyIndex2, &
+                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - speed )
               call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,OBS_REAL) )
               call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
               call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0)
@@ -785,7 +752,7 @@ contains
 
       end do body
 
-    end do WIND_TYPE
+    end do windType
 
   end subroutine ovt_UVtoWindSpeedDirection_residual
 
