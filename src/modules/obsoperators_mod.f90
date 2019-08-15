@@ -729,13 +729,6 @@ contains
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
 
-          !!JFC else if (ivnm == bufr_vis) then
-          !!  ! For visibility, transform the observation in term logarithm and compute log(y)-Hx, where x is log(VIS)
-          !!  ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
-          !!  ipb  = ipt + 1
-          !!  columnVarB=col_getElem(columnhr,ipb,headerIndex)
-          !!  call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-          !!        log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))-columnVarB)
           end if
 
           ! contribution to jobs

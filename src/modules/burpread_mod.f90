@@ -2783,9 +2783,8 @@ CONTAINS
 
           if (.not. filt_variableBufrCodeAssimilated(varno) .and. &
               .not. ovt_variableBufrCodeSkipped(varno)) then
-            !write(*,*) 'JFC in write_body ', nobs, count, varno, ovt_getDestinationElement(varno), OBSV, MISG
             ! Add a row for the destination transform variable
-            call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getTransformVariableBufrCode(varno))
+            call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationVariableBufrCode(varno))
             call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
             ELEV_R=VCOORD + ELEV*ELEVFACT
             call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
@@ -2795,7 +2794,7 @@ CONTAINS
             NLV = NLV + 1
             if (ovt_isWindObs(varno)) then
               ! Add an extra row for the other wind component
-              call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getTransformVariableBufrCode(varno,extra_opt=.true.))
+              call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationVariableBufrCode(varno,extra_opt=.true.))
               call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
               call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
               call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)

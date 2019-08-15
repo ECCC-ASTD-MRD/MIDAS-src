@@ -65,8 +65,6 @@ contains
         ! We will assign his assimilation flag to its source variable
         sourceVariableBufrCode = ovt_getSourceVariableBufrCode(transformVariableBufrCode)
 
-        write(*,*) 'JFC: We have found a transformed variable', transformVariableBufrCode, sourceVariableBufrCode
-
         headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex   )
         bodyIndexStart   = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
         bodyIndexEnd     = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
@@ -76,10 +74,8 @@ contains
         if (ovt_isWindObs(sourceVariableBufrCode)) then
 
            ! Get the flag of the companion transformed variable
-          transformVariableBufrCodeExtra = ovt_getTransformVariableBufrCode(sourceVariableBufrCode, &
+          transformVariableBufrCodeExtra = ovt_getDestinationVariableBufrCode(sourceVariableBufrCode, &
                                                                    extra_opt=.true.)
-
-          write(*,*) '        it is a wind variable with companion bufr code = ',  transformVariableBufrCodeExtra
 
           flagExtra = -999
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
@@ -96,34 +92,26 @@ contains
             call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
           end if
           
-          write(*,*) '        flags = ',  mergedFlag, flag, flagExtra
-
-
           ! Find sourceVariableBufrCode and sourceVariableBufrCodeExtra and update their flag
           sourceVariableBufrCodeExtra = ovt_getSourceVariableBufrCode(transformVariableBufrCode,&
                                                                       extra_opt=.true.)
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
-              write(*,*) '        set flag for source variable 1 = ',  sourceVariableBufrCode
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
             end if
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCodeExtra .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
-              write(*,*) '        set flag for source variable 2 = ',  sourceVariableBufrCodeExtra
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
             end if
           end do
           
         else
           
-           write(*,*) '        it is NOT wind variable'
-
           ! Find sourceVariableBufrCode and update its flag
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
-              write(*,*) '        set flag for source variable = ',  sourceVariableBufrCode
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag ) 
             end if
           end do
