@@ -203,6 +203,7 @@ contains
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLiasi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLcris/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLcrisfsr/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLssmi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLgo/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLcsr/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -333,6 +334,12 @@ contains
         read(nulnam, nml = NAMSQLcris, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcris )
+      case( 'crisfsr' )
+        columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
+        columnsData = trim(columnsData)//", surf_emiss "
+        read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr )
@@ -488,7 +495,7 @@ contains
         end if
 
         if ( instrument == 420 ) obsSat  = 784
-
+        if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
         if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
         if ( sensor == MPC_missingValue_INT ) then
           sensor = 0

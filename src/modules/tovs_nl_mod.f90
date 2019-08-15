@@ -115,7 +115,7 @@ module tovs_nl_mod
   real(8), Parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
-  integer, parameter :: tvs_maxNumberOfChannels = 1305  ! Max. no. of channels (for one profile/spectra)
+  integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
   integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
   integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
 !**********************************************************
@@ -214,8 +214,12 @@ contains
   
     tvs_nchan(:) = 0 
     tvs_ichan(:,:) = 0
-    tvs_ltovsno(:) = 0
     tvs_isReallyPresent(:) = .true.
+
+    tvs_lsensor(:) = -1
+    tvs_lobsno (:) = -1
+    tvs_ltovsno (:) = -1
+
 
     tvs_nobtov = 0
 
@@ -263,12 +267,8 @@ contains
         tvs_lobsno (tvs_nobtov) = index_header
         tvs_ltovsno (index_header) = tvs_nobtov
       else
-        write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
-        write(*,'(A)') ' tvs_setupAlloc: Invalid Sensor'
-        do KRTID = 1, tvs_nsensors
-          print *,krtid,tvs_platforms  (KRTID),tvs_satellites (KRTID),tvs_instruments(KRTID)
-        end do
-        call utl_Abort('tvs_setupAlloc')
+        write(*,*) " tvs_setupAlloc: Warning Invalid Sensor ",IPLATFORM,ISAT,INSTRUM," skipping ..."
+        cycle HEADER
       endif
 
       ! loop over all body indices (still in the 'TO' family)
@@ -389,11 +389,13 @@ contains
 
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
-        nl = tvs_coefs(isens) % coef % nlevels
+        if (isens > -1) then
+          nl = tvs_coefs(isens) % coef % nlevels
         ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(isens),asw=1,coefs=tvs_coefs(isens),init=.false. ) ! asw =1 allocation
-        call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+          call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &    ! 1 = nprofiles un profil a la fois
+               tvs_opts(isens),asw=1,coefs=tvs_coefs(isens),init=.false. ) ! asw =1 allocation
+          call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+        end if
       end do
 
 !___ radiance by profile
@@ -404,11 +406,13 @@ contains
   
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
-        nc = tvs_nchan(isens)
-      ! allocate BT equivalent to total direct, tl and ad radiance output
-        allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
-        tvs_radiance(jo)  % bt  ( : ) = 0.d0
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 2")
+        if (isens > -1) then
+          nc = tvs_nchan(isens)
+          ! allocate BT equivalent to total direct, tl and ad radiance output
+          allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
+          tvs_radiance(jo)  % bt  ( : ) = 0.d0
+          call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 2")
+        end if
       end do
 
     end if
@@ -657,7 +661,7 @@ contains
 !     .      --------------------------------------------------------------------
 
     do J = 1, tvs_nsensors
-      if ( tvs_satelliteName(J)(1:4) == "GOES") then !cas particulier
+      if ( tvs_instrumentName(J)(1:10) == "GOESIMAGER") then !cas particulier
         tvs_instruments(J) = inst_id_goesim
       else if ( tvs_satelliteName(J)(1:5) == "MTSAT") then !autre cas particulier
         tvs_instruments(J) = inst_id_gmsim
@@ -847,13 +851,13 @@ contains
     integer ,save :: list_inst(maxsize), ninst_hir
     logical, save :: lfirst = .true.
     integer ,external :: fclos, fnom
-    character (len=6) :: name_inst(maxsize)
+    character (len=7) :: name_inst(maxsize)
     namelist /NAMHYPER/ name_inst
 
     if (lfirst) then
       nulnam = 0
       ninst_hir = 0
-      name_inst(:) = "XXXXXX"
+      name_inst(:) = "XXXXXXX"
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist')
@@ -862,7 +866,7 @@ contains
       list_inst(:) = -1
       do i=1, maxsize
         list_inst(i) = tvs_getInstrumentId( name_inst(i) )
-        if (name_inst(i) /= "XXXXXX") then
+        if (name_inst(i) /= "XXXXXXX") then
           if (list_inst(i) == -1) then
             write(*,*) i,name_inst(i)
             call utl_abort('tvs_isInstrumHyperSpectral: Unknown instrument name')
@@ -1195,26 +1199,28 @@ contains
     do profile_index = 1,  nprofiles
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
-      do body_index = istart, iend
-        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) then
-          ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
-          ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
-          ICHN = ICHN - tvs_channelOffset(sensor_id)
-          do nrank = 1, tvs_nchan(sensor_id)
-            if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
-          end do
-          if (nrank /= tvs_nchan(sensor_id)+1) then
-            count =  count + 1
-            chanprof(count)%prof = profile_index
-            chanprof(count)%chan = nrank
-            if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = body_index
-          else
-            write(*,*) "strange channel number",ichn
+      if (header_index > 0) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+        iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
+        do body_index = istart, iend
+          if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) then
+            ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
+            ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
+            ICHN = ICHN - tvs_channelOffset(sensor_id)
+            do nrank = 1, tvs_nchan(sensor_id)
+              if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
+            end do
+            if (nrank /= tvs_nchan(sensor_id)+1) then
+              count =  count + 1
+              chanprof(count)%prof = profile_index
+              chanprof(count)%chan = nrank
+              if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = body_index
+            else
+              write(*,*) "strange channel number",ichn
+            end if
           end if
-        end if
-      end do
+        end do
+      end if
     end do
   
   end subroutine TVS_getChanprof
@@ -1241,11 +1247,13 @@ contains
     do profile_index = 1, nprofiles
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
-      do body_index = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
-      end do
+      if (header_index > 0) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+        iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
+        do body_index = istart, iend
+          if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
+        end do
+      end if
     end do
 
   end function tvs_countRadiances
@@ -1267,14 +1275,16 @@ contains
     do profile_index = 1, nprofiles
       iobs = iptobs(profile_index)
       index_header = tvs_lobsno(iobs)
-      istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
-      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
-      do index_body = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
-          count = count + 1
-          surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
-        end if
-      end do
+      if (index_header > 0 ) then
+        istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
+        iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
+        do index_body = istart, iend
+          if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
+            count = count + 1
+            surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
+          end if
+        end do
+      end if
     end do
 
   end subroutine tvs_getHIREmissivities
@@ -3986,12 +3996,11 @@ contains
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
 
       indxtovs = tvs_ltovsno(index_header)
-      if ( indxtovs == 0 ) then
-        write(*,'(A)') ' tvs_calc_jo: error with indxtovs'
-        call utl_abort('tvs_calc_jo')
-      endif
-
+      if ( indxtovs == -1 ) cycle HEADER
+     
       isens = tvs_lsensor(indxtovs)
+
+!      if (isens < 0)  cycle HEADER
 
       ! Set the body list
       ! (& start at the beginning of the list)

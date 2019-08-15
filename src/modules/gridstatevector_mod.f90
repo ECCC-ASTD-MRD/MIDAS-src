@@ -51,7 +51,7 @@ module gridStateVector_mod
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D, gsv_copyHeightSfc
   public :: gsv_getVco, gsv_getHco, gsv_getDataKind, gsv_getNumK
-  public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
+  public :: gsv_horizSubSample, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
@@ -1005,59 +1005,7 @@ module gridStateVector_mod
   end subroutine gsv_zero
 
   !--------------------------------------------------------------------------
-  ! gsv_interpolateAndAdd
-  !--------------------------------------------------------------------------
-  subroutine gsv_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
-                                   PsfcReference_opt)
-    implicit none
-    type(struct_gsv)  :: statevector_in, statevector_inout
-
-    real(8), optional :: scaleFactor_opt
-    real(8), optional :: PsfcReference_opt(:,:,:)
-
-    type(struct_gsv) :: statevector_in_hvInterp
-
-    character(len=4), pointer :: varNamesToInterpolate(:)
-
-    !
-    !- Error traps
-    !
-    if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_interpolateAndAdd: gridStateVector_in not yet allocated')
-    end if
-    if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_interpolateAndAdd: gridStateVector_inout not yet allocated')
-    end if
-
-    nullify(varNamesToInterpolate)
-    call gsv_varNamesList(varNamesToInterpolate, statevector_in)
-
-    !
-    !- Do the interpolation of statevector_in onto the grid of statevector_inout
-    !
-    call gsv_allocate(statevector_in_hvInterp, statevector_inout%numstep,                       &
-                      statevector_inout%hco, statevector_inout%vco,                             &
-                      mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
-                      dataKind_opt=statevector_inout%dataKind,                                  &
-                      allocHeightSfc_opt=statevector_inout%heightSfcPresent,                    &
-                      varNames_opt=varNamesToInterpolate,                                       &
-                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
-                      hExtrapolateDegree_opt=statevector_inout%hExtrapolateDegree )
-
-    call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
-
-    !
-    !- Do the summation
-    !
-    call gsv_add(statevector_in_hvInterp,statevector_inout,scaleFactor_opt=scaleFactor_opt)
-
-    call gsv_deallocate(statevector_in_hvInterp)
-    deallocate(varNamesToInterpolate)
-
-  end subroutine gsv_interpolateAndAdd
-
-  !--------------------------------------------------------------------------
-  ! gsv_interpolate
+  ! GSV_interpolate
   !--------------------------------------------------------------------------
   subroutine gsv_interpolate(statevector_in,statevector_out, &
                              PsfcReference_opt, PsfcReference_r4_opt)
@@ -2477,7 +2425,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
                               unitConversion_opt, PsfcReference_opt, readHeightSfc_opt,   &
-                              containsFullField_opt)
+                              containsFullField_opt, vcoFileIn_opt)
     implicit none
 
     ! arguments
@@ -2490,6 +2438,7 @@ module gridStateVector_mod
     logical, optional             :: readHeightSfc_opt
     logical, optional,intent(in)  :: containsFullField_opt
     real(8), optional             :: PsfcReference_opt(:,:)
+    type(struct_vco), optional, pointer, intent(in)  :: vcoFileIn_opt
 
     ! locals
     integer :: stepIndex, varIndex
@@ -2536,17 +2485,21 @@ module gridStateVector_mod
     end if
 
     ! set up vertical and horizontal coordinate for input file
-    call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
-    readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)
-    if ( readSubsetOfLevels ) then
-      ! use the output vertical grid provided to read only a subset of the verical levels
-      write(*,*)
-      write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels'
-      call vco_deallocate(vco_file)
-      vco_file => statevector_out%vco
+    if ( present(vcoFileIn_opt)) then
+      vco_file => vcoFileIn_opt
     else
-      write(*,*)
-      write(*,*) 'gsv_readFromFile: all the vertical levels will be read'
+      call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
+      readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)
+      if ( readSubsetOfLevels ) then
+        ! use the output vertical grid provided to read only a subset of the verical levels
+        write(*,*)
+        write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels'
+        call vco_deallocate(vco_file)
+        vco_file => statevector_out%vco
+      else
+        write(*,*)
+        write(*,*) 'gsv_readFromFile: all the vertical levels will be read'
+      end if
     end if
 
     foundVarNameInFile = .false.

@@ -3090,6 +3090,11 @@ CONTAINS
     ! AIRS
     IF ( INSTRUMENT == 420 ) ID_SAT = 784
 
+!CrIS FSR
+    if (codtyp == 202 .and. INSTRUMENT == 620) then
+      INSTRUMENT = 2046 
+    end if
+
     if (  trim(FAMTYP) == trim('GO') ) then
       LAND_SEA=0
       RZENITH=90.

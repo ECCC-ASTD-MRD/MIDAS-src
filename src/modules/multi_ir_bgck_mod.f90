@@ -46,7 +46,7 @@ module multi_ir_bgck_mod
   integer ,parameter :: nChanAVHRR = NIR + NVIS
   integer ,parameter :: NMAXINST = 10
 
-  character(len=6) :: INST(NMAXINST)
+  character(len=7) :: INST(NMAXINST)
   integer :: NINST
   ! Reference (and alternate) window channel for clear / cloudy profile detection
   ! (subroutine cloud_height)
@@ -188,15 +188,17 @@ contains
 !___ radiance by profile
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      nl = tvs_coefs(isens) % coef % nlevels
+      if (isens > 0) then
+        nc = tvs_nchan(isens)
+        nl = tvs_coefs(isens) % coef % nlevels
  ! allocate clear sky radiance output
-      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
-      tvs_radiance(jo)  % clear  ( : ) = 0.d0
+        allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
+        tvs_radiance(jo)  % clear  ( : ) = 0.d0
  !  allocate overcast black cloud sky radiance output
-      allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
-      call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
-      tvs_radiance(jo)  % overcast  (:,:) = 0.d0
+        allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
+        call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
+        tvs_radiance(jo)  % overcast  (:,:) = 0.d0
+      end if
     end do
 
 
@@ -209,8 +211,10 @@ contains
     ncmax = 1
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      if (nc > ncmax) ncmax=nc
+      if ( isens > 0) then
+        nc = tvs_nchan(isens)
+        if (nc > ncmax) ncmax=nc
+      end if
     end do
 
     allocate( tvs_emissivity (ncmax,tvs_nobtov), stat=alloc_status(1))
@@ -326,24 +330,25 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
       else
-        call hir_cldprm_to_brp( lobsspacedata, obsf_cfilnam(fileIndex) )
+        call hir_cldprm_to_brp( lobsspacedata, fileIndex )
       end if
     end do
 
   end subroutine add_cloudprms
 
 
-  subroutine hir_cldprm_to_brp( lobsspacedata, brp_file )
+  subroutine hir_cldprm_to_brp(lobsspacedata,fileIndex)
     IMPLICIT NONE
 
-    CHARACTER(LEN=128),intent(in)     :: BRP_FILE
     type(struct_obs),intent(inout)    :: lobsSpaceData
-
+    integer ,intent(in)               :: fileIndex
+    
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN
       
     CHARACTER(LEN=9)       :: OPT_MISSING
+    CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: NEW_BTYP
     INTEGER                :: BTYP10
     INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG,BTYP10OMP
@@ -393,6 +398,8 @@ contains
 
     ! opening file
     ! ------------
+
+    BRP_FILE = obsf_cfilnam(fileIndex) 
 
     write(*,*) 'OPENED FILE = ', trim(brp_file)
 
@@ -464,14 +471,17 @@ contains
           HEADER: do
             i = obs_getHeaderIndex(lobsSpaceData)
             if (i < 0) exit HEADER  
-            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp) then
+            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp .and.  &
+                  obs_headElem_i(lobsSpaceData,OBS_OTP,i) == fileIndex) then
               idata2 = i
               exit HEADER
             end if
           end do HEADER
           if (idata2 == -1) then
             Write(*,*) "datyp ",idatyp," not found in input file !"
-            call utl_abort("hir_cldprm_to_brp")
+            Write(*,*) "Nothing to do here ! Exiting ..."
+            call  cleanup()
+            return
           end if
           idata3 = idata2
         end if
@@ -648,6 +658,12 @@ contains
               
               if ( goodprof(k) == 1 ) then
 
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
+
                 call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
 
                 call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_VTOP,idata2),nbele+2,1,k)
@@ -709,6 +725,12 @@ contains
               end do
                  
               if ( goodprof(k) == 1 ) then
+
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
 
                 IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,idata3)
                 IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,idata3) + IDATA - 1
@@ -842,14 +864,21 @@ contains
           
     end if !! End of 'if ( count > 0 )'
 
-    deallocate(address)
-
-    call BURP_Free(File_in,IOSTAT=error)
-    call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
-    call BURP_Free(Block_in,IOSTAT=error)
+    call  cleanup()
 
   contains
 
+    !------------------------------------- CLEANUP -----
+  
+    subroutine cleanup()
+      implicit none
+      if (allocated(address)) deallocate(address)
+      call BURP_Free(File_in)
+      call BURP_Free(Rpt_in,Cp_rpt)
+      call BURP_Free(Block_in)
+    end subroutine cleanup
+
+    !------------------------------------- HANDLE_ERROR -----
   
     subroutine handle_error(errormessage)
       !
@@ -863,10 +892,7 @@ contains
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
       call BURP_STR_ERROR_HISTORY()
-      if (allocated(address)) deallocate(address)
-      call BURP_Free(File_in)
-      call BURP_Free(Rpt_in,Cp_rpt)
-      call BURP_Free(Block_in)
+      call cleanup()
       call utl_abort(trim(errormessage))
 
     end subroutine handle_error
@@ -1048,7 +1074,7 @@ contains
 
     liasi= ( trim(cinst) == "IASI" .or.  trim(cinst) == "iasi")
     lairs= ( trim(cinst) == "AIRS" .or.  trim(cinst) == "airs")
-    lcris= ( trim(cinst) == "CRIS" .or.  trim(cinst) == "cris")
+    lcris= ( trim(cinst) == "CRIS" .or.  trim(cinst) == "cris" .or. trim(cinst) == "CRISFSR" .or.  trim(cinst) == "crisfsr")
 
     call BGCK_GET_QCID(cinst,QCID)
     
@@ -1074,7 +1100,7 @@ contains
     HEADER: do
       index_header = obs_getHeaderIndex(lobsSpaceData)
       if (index_header < 0) exit HEADER
-       
+      if (tvs_ltovsno (index_header) < 0) cycle HEADER
       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id ) then
         count = count + 1
@@ -1209,7 +1235,7 @@ contains
       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
       if ( tvs_isIdBurpTovs(idatyp) ) tvs_nobtov = tvs_nobtov + 1
-
+      if ( tvs_ltovsno (index_header) < 0) cycle HEADER_2
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id) then
         BTOBS(:)    = -1.d0
         BTCALC(:)   = -1.d0
@@ -1282,7 +1308,6 @@ contains
             call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
             nchannels = nchannels + 1
             channelIndex(nchannels) = chan_indx
-!            channelNumber(nchannels) = ICHN
             BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
             BTOBS(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 

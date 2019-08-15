@@ -28,6 +28,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="geps"/>
+      <FAMILY  name="geps">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="rdps"/>
       <FAMILY  name="rdps">
         <SUBMITS sub_name="UnitTest"/>

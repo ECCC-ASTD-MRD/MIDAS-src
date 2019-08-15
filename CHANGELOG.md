@@ -83,6 +83,48 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.3.5]
+
+### Added
+
+ * Added a test 'var/EnVar/geps' to check the configuration used in the Operational ENKF (#241 and !229)
+
+### Fixed
+
+ * Skip update instead of abort in the case where one of the BURP input files contains no valid data (#244 and !231)
+
+## [3.3.4]
+
+### Fixed
+
+ * Reject unknown satellites instead of aborting (#221 et !221)
+ * Correction of a bug in the update of cloud parameters and
+   emissivity in IR bgcheck mode that was affecting CrIS FSR. (#240 and !223)
+ * Adding two files for instrument CrIS FSR for observations inputs in
+   case we receive more than 2 satellites.  We already introduced:
+    * `obscrisfsr1` and `obscrisfsr2` recently and we add
+    * `obscrisfsr3` and `obscrisfsr4`.
+ * Bug fix for the BURP cloud parameters and emissivity update bugfix
+   above to handle properly missing data cases (#240 and !225)
+
+## [3.3.3]
+
+### Added
+
+ * The analysis increment can now be masked in the blending zone like in the former program `addAnalInc` (#213 and !200)
+ * Adding support for CrIS FSR radiances (#205 and !193)
+   * It needs a modified version of RTTOV-12.
+   * New input files were added to work around the file size limit of
+     BURP:
+     * `brpcrisfsr`, `brpcrisfsr1`, `brpcrisfsr2`
+     * `obscrisfsr`, `obscrisfsr1`, `obscrisfsr2`
+ * With GOES-R, it will be ABI instrument instead of `goesimager`.
+   The code was modified to account for that. (#211 and !196)
+
+### Removed
+
+ * A quality control test specific to CrIS was forgottten for CrIS FSR (#232 and !219)
+
 ## [3.3.2]:
 
 ### Changed
@@ -285,7 +327,10 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...HEAD
+[3.3.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...v_3.3.5
+[3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
+[3.3.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...v_3.3.3
 [3.3.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.1...v_3.3.2
 [3.3.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.0...v_3.3.1
 [3.3.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.2.2...v_3.3.0

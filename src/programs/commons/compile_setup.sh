@@ -70,8 +70,8 @@ echo "... loading eccc/cmd/cmda/libs/16.2-6/${COMP_ARCH}"
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-echo "... loading eccc/mrd/rpn/anl/rttov/12v1.1"
-. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.1/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/anl/rttov/12v1.2"
+. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
 
 ## for 'random_tools'
 echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0"

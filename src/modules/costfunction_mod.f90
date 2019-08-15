@@ -80,7 +80,7 @@ contains
         
         end do
 
-        if ( count > 0 ) then
+        if ( count > 0 .and. tvs_ltovsno( headerIndex ) > 0 ) then
 
           call rmat_sqrtRm1( tvs_lsensor( tvs_ltovsno( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_ltovsno(headerIndex) )
 

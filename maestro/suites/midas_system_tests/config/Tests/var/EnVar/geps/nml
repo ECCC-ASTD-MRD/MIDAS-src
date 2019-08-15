@@ -4,35 +4,34 @@
 /
  &NAMBHI
    NTRUNC  = 270,
-   SCALEFACTOR   = 11*1.00D0,0.95D0,0.90D0,0.85D0,0.80D0,0.75D0,0.70D0,0.65D0,0.60D0,0.55D0,100*0.5D0
+   SCALEFACTOR   = 100*0.375D0
    READWRITE_SQRT = .true.
 /
  &NAMBEN
    NTRUNC  = 31,
    NENS = 256
-   SCALEFACTOR=4*0.00D0,0.05D0,0.10D0,0.15D0,0.20D0,0.25D0,0.30D0,0.35D0,0.40D0,0.45D0,100*0.5D0
+   SCALEFACTOR=3*0.00D0,0.075D0,0.15D0,0.225D0,0.30D0,0.375D0,0.45D0,0.525D0,0.60D0,0.675D0,100*0.75D0
+   ENSPATHNAME='./ensemble/'
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 50,
-   NSIMMAX  = 100,
+   NITERMAX = 70,
+   NSIMMAX  = 110,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
-   LWRTHESS = .FALSE.,
+   LWRTHESS = .TRUE.,
    LVARQC=.TRUE.,
    NWOQCV=5
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
-   etiket_rebm = 'XXXXXX'
-   useAnalIncMask = .true.
 /
  &NAMDIMO
-   NMXOBS=500000,
-   NDATAMX=30000000,
+   NMXOBS=100000,
+   NDATAMX=8000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
+  DSTEPOBS = 1.0d0
   DSTEPOBSINC = 1.0d0
 /
  &NAMFILT
@@ -60,7 +59,7 @@
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
   list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
+  list_topoFilt(2) = 'UA'
   list_topoFilt(3) = 'AI'
   list_topoFilt(4) = 'SW'
   list_topoFilt(5) = 'PR'
@@ -72,7 +71,6 @@
 /
  &NAMSTATE
    addHeightSfcOffset = .false.
-   ANLTIME_BIN = 'MIDDLE'
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
@@ -82,7 +80,7 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV   
-   NSENSORS =  30,
+   NSENSORS =  33,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',
@@ -143,6 +141,12 @@
    CINSTRUMENTID(29) = 'CRIS',
    CSATID(30)        = 'HMWARI-8',
    CINSTRUMENTID(30) = 'AHI',
+   CSATID(31)        = 'MSG1',
+   CINSTRUMENTID(31) = 'SEVIRI',
+   CSATID(32)        = 'MSG4',
+   CINSTRUMENTID(32) = 'SEVIRI',
+   CSATID(33)        = 'HMWARI-9',
+   CINSTRUMENTID(33) = 'AHI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
 /
@@ -231,6 +235,12 @@
    LISTBURP(28)=173,! HMWARI-8
    LISTPLAT(28)="hmwari",
    LISTSAT(28)=008,
+   LISTBURP(29)=055,! METEOSAT 8
+   LISTPLAT(29)="msg",
+   LISTSAT(29)=001,
+   LISTBURP(30)=174,! HMWARI-9
+   LISTPLAT(30)="hmwari",
+   LISTSAT(30)=009,
 /
  &NAMINST
    LISTBURP(1)=050
@@ -364,6 +374,8 @@
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
 /
  &NAMBURP_FILTER_CONV
+  UA_HIGH_PRECISION_TT_ES=.true.,
+  READ_QI_GA_MT_SW=.true.,
   BNBITSOFF=0,
   BBITOFF(1)=2,
   BBITOFF(2)=4,
@@ -383,6 +395,15 @@
   NELEMS=1
   BLISTELEMENTS=12163
 /
+ &NAMPHY
+  NEW_TETENS_COEFS=.true.
+/
+ &NAMOER
+  NEW_OER_SW=.true.
+/
+ &NAMBGCKCONV
+  NEW_BGCK_SW=.true.
+/
  &NAMBURP_UPDATE
   BN_ITEMS=3,
   BITEMLIST(1)='OMA',
@@ -390,15 +411,4 @@
   BITEMLIST(3)='OER',
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
-/
- &NAMaai_control
-   s_nomvars='UU','VV','TT','HU','ES'
-   l_writeHighResDelxa=.true.,
-   n_nbits=16,
-   l_useAnalyzedPSurf = .true.,
-   l_huIncFromLq=.false.,
-   l_icePhaseEs=.false.
-/
- &NAMSHARED_AAI_3DV
-   CVCORD='GEMHYB'
 /

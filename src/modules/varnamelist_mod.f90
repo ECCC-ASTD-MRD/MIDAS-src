@@ -37,7 +37,7 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 34, vnl_numvarmax2D = 18
+  integer, parameter          :: vnl_numvarmax3D = 34, vnl_numvarmax2D = 19
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -61,16 +61,19 @@ module varNameList_mod
                                  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
-                                 'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2', 'EHCH', 'ESO2', 'ENH3' , &
-                                 'GL  ','WGE ','BIN ','MG  ','TM  ', 'QI1 ', 'QO1 ', 'STOR', 'ALFS'/)
+                                 'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2', 'EHCH', 'ESO2', 'ENH3', &
+                                 'GL  ','WGE ','BIN ','MG  ','TM  ', 'QI1 ', 'QO1 ', 'STOR', 'ALFS', &
+                                 'MSKC'/)
 
   character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF'/)
+                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
+                                 'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', &
-                                 'MT', 'MT', 'MT', 'MT', 'OC', 'HY', 'HY', 'HY', 'HY'/)
+                                 'MT', 'MT', 'MT', 'MT', 'OC', 'HY', 'HY', 'HY', 'HY', &
+                                 'MT'/)
 
   integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
 
