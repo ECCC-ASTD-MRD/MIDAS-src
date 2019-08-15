@@ -594,7 +594,7 @@ end subroutine bgck_bgcheck_conv
 
       ! Locals:
       real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3),zalcrit(3)
-      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3),zviscrit(3)
+      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3),zLogViscrit(3)
       real*8 zchcrit(3)
 
       isetflag=0
@@ -648,9 +648,9 @@ end subroutine bgck_bgcheck_conv
          zchcrit(2) = 16.00D0
          zchcrit(3) = 25.00D0
 
-         zviscrit(1) = 10.00D0
-         zviscrit(2) = 20.00D0
-         zviscrit(3) = 30.00D0
+         zLogViscrit(1) = 10.00D0
+         zLogViscrit(2) = 20.00D0
+         zLogViscrit(3) = 30.00D0
 
          if ( kodtyp .eq. 37 ) then
            zuvcrit(2)=25.D0
@@ -792,12 +792,12 @@ end subroutine bgck_bgcheck_conv
 !C
 !C     SET FLAG FOR VISIBILITY
 !C
-      if ( kvnam .eq. bufr_vis ) then
-         if (      zbgchk .gt. zviscrit(1) .and. zbgchk .lt. zviscrit(2) ) then
+      if ( kvnam .eq. bufr_logVis ) then
+         if (      zbgchk .gt. zLogViscrit(1) .and. zbgchk .lt. zLogViscrit(2) ) then
            isetflag=1
-         else if ( zbgchk .gt. zviscrit(2) .and. zbgchk .lt. zviscrit(3) ) then
+         else if ( zbgchk .gt. zLogViscrit(2) .and. zbgchk .lt. zLogViscrit(3) ) then
            isetflag=2
-         else if ( zbgchk .ge. zviscrit(3) )then
+         else if ( zbgchk .ge. zLogViscrit(3) )then
            isetflag =3
          endif
       endif

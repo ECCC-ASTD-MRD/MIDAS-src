@@ -192,6 +192,8 @@ module varNameList_mod
       case ( BUFR_ICEC, BUFR_ICEP, BUFR_ICEV )
         varname='GL'
       case ( bufr_vis )
+        varname='VIS'
+      case ( bufr_logVis )
         varname='LVIS'
       case ( bufr_gust )
         varname='WGE'
@@ -312,6 +314,8 @@ module varNameList_mod
       case('WGE')
         varNumber=bufr_gust
       case('LVIS')
+        varNumber=bufr_logVis
+      case('VIS')
         varNumber=bufr_vis
 
       ! Atmospheric constituents other than HU

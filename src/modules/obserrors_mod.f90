@@ -1024,7 +1024,7 @@ contains
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 2 ))
             else if ( ityp == BUFR_NEES ) then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 3 ))
-            else if ( ityp == bufr_vis ) then
+            else if ( ityp == bufr_vis .or. ityp == bufr_logVis ) then
               if (surfaceObsTypeNumber >= 5) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sf( icodtyp, 5 ))
               else

@@ -181,28 +181,28 @@ contains
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 10.0
-          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis, bufr_logVis)
             surfvcord = 1.5
         end select
       case ('ship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 20.0
-          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis)
+          case (bufr_nets, bufr_nees, bufr_ness, bufr_vis, bufr_logVis)
             surfvcord = 11.5
         end select
       case ('upairland')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 10.0
-          case (bufr_nets, bufr_ness, bufr_vis)
+          case (bufr_nets, bufr_ness, bufr_vis, bufr_logVis)
             surfvcord = 1.5
         end select
       case ('upairship')
         select case(varno)
           case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_gust)
             surfvcord = 20.0
-          case (bufr_nets, bufr_ness, bufr_vis)
+          case (bufr_nets, bufr_ness, bufr_vis, bufr_logVis)
             surfvcord = 1.5
         end select
       case ('scatwinds')
@@ -278,7 +278,7 @@ contains
 
         select case(varno)
           case(bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, bufr_ness, bufr_nepn, bufr_neps, bufr_nehs, &
-               bufr_nezd, bufr_vis, bufr_gust )
+               bufr_nezd, bufr_vis, bufr_logVis, bufr_gust )
             sfc_vco = surfvcord(varno, codtyp )
             if ( varno /= bufr_nepn) then
               ppp = elev + sfc_vco

@@ -23,8 +23,8 @@ module obsVariableTransforms_mod
   
   use obsSpaceData_mod
   use bufr_mod
-  use mathPhysConstants_mod
   use codePrecision_mod
+  use mathPhysConstants_mod
   use earthConstants_mod, only: grav
   use codtyp_mod
   use utilities_mod
@@ -38,7 +38,7 @@ module obsVariableTransforms_mod
   public :: ovt_getTransformVariableBufrCode, ovt_getSourceVariableBufrCode, ovt_variableBufrCodeSkipped
   public :: ovt_isWindObs, ovt_isTransformedVariable, ovt_adjustHumGZ
 
-  integer  , parameter   :: nTransformSupported = 1
+  integer  , parameter   :: nTransformSupported = 2
   integer  , parameter   :: nVariableBufrCodeMax= 2
 
   type :: struct_ovt
@@ -66,17 +66,30 @@ contains
   subroutine ovt_initStructure
     implicit none
 
+    integer :: transformIndex
+
     ! Upper and surface winds
-    ovt%transformName(1)   = 'windSpeedDirectionToUV'
-    ovt%nVariableBufrCode(1)        = 2
-    ovt%sourceVariableBufrCode        (1,:) = (/bufr_nedd, bufr_neds/) ! direction
-    ovt%sourceVariableBufrCodeExtra   (1,:) = (/bufr_neff, bufr_nefs/) ! speed
-    ovt%transformVariableBufrCode     (1,:) = (/bufr_neuu, bufr_neus/) ! u-wind
-    ovt%transformVariableBufrCodeExtra(1,:) = (/bufr_nevv, bufr_nevs/) ! v-wind
+    transformIndex = 1
+    ovt%transformName                 (transformIndex)   = 'windSpeedDirectionToUV'
+    ovt%nVariableBufrCode             (transformIndex)   = 2
+    ovt%sourceVariableBufrCode        (transformIndex,:) = (/bufr_nedd, bufr_neds/) ! direction
+    ovt%sourceVariableBufrCodeExtra   (transformIndex,:) = (/bufr_neff, bufr_nefs/) ! speed
+    ovt%transformVariableBufrCode     (transformIndex,:) = (/bufr_neuu, bufr_neus/) ! u-wind
+    ovt%transformVariableBufrCodeExtra(transformIndex,:) = (/bufr_nevv, bufr_nevs/) ! v-wind
+    ovt%wind                          (transformIndex)   = .true.
+
+    ! log of visibility
+    transformIndex = 2
+    ovt%transformName            (transformIndex)   = 'visToLogVis'
+    ovt%nVariableBufrCode        (transformIndex)   = 1
+    ovt%sourceVariableBufrCode   (transformIndex,:) = (/bufr_vis   , -1/) ! visibility
+    ovt%transformVariableBufrCode(transformIndex,:) = (/bufr_logVis, -1/) ! log(visibility)
+    ovt%wind                     (transformIndex)   = .false.
+
+    ! Common
     ovt%nSkippedVariableBufrCodes   = 2
     ovt%skippedVariableBufrCodes(1) = bufr_neff  ! because we still want to be able ...
     ovt%skippedVariableBufrCodes(2) = bufr_nefs  ! ... to assimilate wind speed obs alone
-    ovt%wind = .true.
 
   end subroutine ovt_initStructure
 
@@ -315,8 +328,7 @@ contains
     integer          , intent(in)    :: headerIndexStart 
     integer          , intent(in)    :: headerIndexEnd
 
-    real(4), parameter  :: missingValue = MPC_missingValue_R4
-    integer             :: transformIndex
+    integer :: transformIndex
 
     if (.not. ovt%setup) then
       call utl_abort('ovt_transformObsValues: this module has not been setup')
@@ -327,7 +339,9 @@ contains
       if (ovt%activeTransform(transformIndex)) then
         select case(trim(ovt%transformName(transformIndex)))
         case ('windSpeedDirectionToUV')
-          call ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd, missingValue)
+          call ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd)
+        case ('visToLogVis')
+          call ovt_visToLogVis           (obsSpaceData, headerIndexStart, headerIndexEnd)
         case default
           call utl_abort('ovt_transformObsValues: Unsupported function ' // trim(ovt%transformName(transformIndex)))
         end select
@@ -358,9 +372,9 @@ contains
       if (ovt%activeTransform(transformIndex)) then
         select case(trim(ovt%transformName(transformIndex)))
         case ('windSpeedDirectionToUV')
-          if (ovt%activeTransform(transformIndex)) then
             call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
-          end if
+          case ('visToLogVis') 
+            call ovt_visToLogVis_residual           (obsSpaceData, residualTypeID)
         case default
           call utl_abort('ovt_transformResiduals: Unsupported function ' // trim(ovt%transformName(transformIndex)))
         end select
@@ -369,6 +383,252 @@ contains
     end do
     
   end subroutine ovt_transformResiduals
+
+  !--------------------------------------------------------------------------
+  ! ovt_windSpeedDirectionToUV
+  !--------------------------------------------------------------------------
+  subroutine ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd)
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData
+    integer          , intent(in)    :: headerIndexStart 
+    integer          , intent(in)    :: headerIndexEnd
+
+    ! locals
+    integer        :: varno, varno2, varno4
+    real           :: obsuv
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2,jpos, ilem
+    integer        :: ddflag, ffflag, newflag, uuflag, vvflag
+    integer        :: ilemf, ilemu, ilemv, indu_misg, indv_misg, indum, indvm
+    logical        :: llmisdd, llmisff, llmis, lluv_misg, llu_misg, llv_misg
+    logical        :: lluv_present, llu_present, llv_present
+    real(obs_real) :: uu, vv, dd, ff
+    real(obs_real) :: level_dd, level4, level, level_uu
+
+    ffflag = 0
+
+    HEADER1: do headerIndex = headerIndexStart, headerIndexEnd
+      
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      BODY1: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+
+        dd = obs_missingValue
+        ff = obs_missingValue
+        varno = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+        llmisdd = .true.
+      
+        if ( varno /= bufr_nedd .and. varno /= bufr_neds ) cycle BODY1
+
+        if( varno == bufr_neds) then
+          ilemf = bufr_nefs
+          ilemu = bufr_neus
+          ilemv = bufr_nevs
+        else
+          ilemf = bufr_neff
+          ilemu = bufr_neuu
+          ilemv = bufr_nevv
+        end if
+      
+        dd       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        ddflag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+        level_dd = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+        llu_misg = .false.
+        llv_misg = .false.
+        llu_present = .false.
+        llv_present = .false.
+        indum = -1
+        indvm = -1
+
+        ! FIND IF  U AND V ARE ALREADY IN CMA
+        UVINOBSSPACEDATA: do bodyIndex2 = bodyIndex, bodyIndexEnd
+
+          level4 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+
+          if (level4 == level_dd) then
+            varno4 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+            
+            select case (varno4)
+            case (bufr_neuu, bufr_nevv, bufr_neff, bufr_nedd, bufr_neus, bufr_nevs, bufr_neds, bufr_nefs )
+              obsuv = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+              if ( varno4 == ilemu .and. obsuv /= obs_missingValue ) then
+                llu_present = .true.
+                indum = bodyIndex2
+              else if ( varno4 == ilemv .and. obsuv /= obs_missingValue ) then
+                llv_present = .true.
+                indvm = bodyIndex2
+              end if
+              if ( varno4 == ilemu .and. obsuv == obs_missingValue ) then
+                llu_misg = .true.
+                indu_misg = bodyIndex2
+              else if ( varno4 == ilemv .and. obsuv == obs_missingValue ) then
+                llv_misg = .true.
+                indv_misg = bodyIndex2
+              end if
+            end select
+
+          end if
+
+        end do UVINOBSSPACEDATA
+
+        lluv_misg = (llu_misg .and. llv_misg)
+        lluv_present = (llu_present .and. llv_present)
+
+        if ( lluv_misg ) then
+
+          CALCUV: do bodyIndex2 = bodyIndex, bodyIndexEnd
+            llmisff = .true.
+            llmisdd = .true.
+            llmis   = .true.
+            level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+
+            if ( level /= level_dd) cycle CALCUV
+
+            varno2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+
+            if ( varno2 == ilemf ) then
+
+              ff = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+              ffflag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
+
+              if ( dd == 0.d0 .and. ff > 0. .or. dd > 360. .or. dd < 0. ) then
+                llmisdd = .true.
+                llmisff = .true.
+              else if ( dd == obs_missingValue .or. ff == obs_missingValue ) then
+                llmisdd = .true.
+                llmisff = .true.
+              else
+                llmisdd = .false.
+                llmisff = .false.
+              end if
+
+              ! IF SPEED = 0 CALM WIND IS ASSUMED.
+              if (ff == 0.d0) dd = 0.d0
+              dd = dd + 180.
+              if ( dd > 360.) dd = dd - 360.
+              dd = dd * mpc_radians_per_degree_r8
+              ! U,V COMPONENTS ARE
+              uu = ff * sin(dd)
+              vv = ff * cos(dd)
+
+              if ( llmisdd == .true. .or. llmisff == .true. ) then
+                llmis = .true.
+                if ( indu_misg > 0 .or. indv_misg > 0 ) then
+                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
+                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
+                end if
+              else
+                llmis = .false.
+              end if
+
+            end if
+
+            newflag = ior(ddflag, ffflag )
+
+            if ( indum > 0 .or. indvm > 0 ) then
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
+            end if
+
+            if ( llmis ) then
+              if ( indum > 0 .or. indvm > 0 ) then
+                call obs_bodySet_i(obsSpaceData, OBS_FLG, induM, newflag )
+                call obs_bodySet_i(obsSpaceData, OBS_FLG, indvM, newflag )
+              end if
+            else if ( .not. llmis ) then
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, indu_misg, uu )
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, indu_misg, newflag )
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, indv_misg, vv )
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, indv_misg, newflag )
+            end if
+
+          end do CALCUV
+
+        else      
+                 
+          if ( lluv_present ) then
+            call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
+            call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
+          else
+            if ( indum > 0 ) then
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, indum, -1 )
+            end if
+            if ( indvm > 0 ) then
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, indvm, -1 )
+            end if
+
+          end if
+
+        end if
+
+      end do BODY1
+
+    end do HEADER1
+
+    HEADER: do headerIndex = headerIndexStart, headerIndexEnd
+
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd
+        llmisdd = .true.
+        varno = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
+        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+
+        select case (varno)
+          case (bufr_neuu)
+            ilem = bufr_nevv
+          case (bufr_neus)
+            ilem = bufr_nevs        
+          case default
+            cycle BODY
+        end select
+
+        Jpos = -1
+
+        ! TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
+        BODY2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+
+          uu       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+          level_uu = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          Jpos = -1
+
+          if ( level_uu == level .and. uu == obs_missingValue ) call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
+
+          if ( level_uu == level .and. uu /= obs_missingValue ) then
+
+            uuflag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
+            varno2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+
+            if ( ilem == varno2 ) then
+              vvflag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+              newflag = ior( uuflag, vvflag )
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, newflag)
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, newflag)
+              jpos = bodyIndex2
+              exit BODY2
+            end if
+
+          end if
+
+        end do BODY2
+
+        ! ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
+        if (jpos < 0) then
+
+          write(*,*) ' eliminate winds for station : ', obs_elem_c(obsSpaceData,'STID',headerIndex ),  &
+          obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex ), obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+          call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
+
+        end if
+
+      end do BODY
+
+    end do HEADER
+
+  end subroutine ovt_windSpeedDirectionToUV
 
   !--------------------------------------------------------------------------
   ! ovt_UVtoWindSpeedDirection_residual
@@ -472,258 +732,123 @@ contains
   end subroutine ovt_UVtoWindSpeedDirection_residual
 
   !--------------------------------------------------------------------------
-  ! ovt_windSpeedDirectionToUV
+  ! ovt_visToLogVis
   !--------------------------------------------------------------------------
-  subroutine ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd, missingValue)
+  subroutine ovt_visToLogVis(obsSpaceData, headerIndexStart, headerIndexEnd)
     implicit none
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
     integer          , intent(in)    :: headerIndexStart 
     integer          , intent(in)    :: headerIndexEnd
-    real             , intent(in)    :: missingValue
 
     ! locals
-    integer        :: varno, varno2, varno4
-    real           :: obsuv
-    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2,jpos, ilem
-    integer        :: ddflag, ffflag, newflag, uuflag, vvflag
-    integer        :: ilemf, ilemu, ilemv, indu_misg, indv_misg, indum, indvm
-    logical        :: llmisdd, llmisff, llmis, lluv_misg, llu_misg, llv_misg
-    logical        :: lluv_present, llu_present, llv_present
-    real(obs_real) :: uu, vv, dd, ff
-    real(obs_real) :: level_dd, level4, level, level_uu
-    character(len=*), parameter :: my_name = 'ovt_windDirectionToUV'
-    character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
-    character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
+    integer        :: visFlag, logVisFlag
+    real(obs_real) :: visObs, visLevel, logVisObs, level
 
-    ffflag = 0  ! bhe 
-    write(*,'(a,2i8)')   my_name//': first and last observations: ', headerIndexStart, headerIndexEnd
-    write(*,'(a,f12.4)') my_name//': missing value: ', missingValue
-    write(*,*)'****************************************************' 
-
-    HEADER1: do headerIndex = headerIndexStart, headerIndexEnd
+    ! Loop through headers
+    header: do headerIndex = headerIndexStart, headerIndexEnd
       
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       
-      BODY1: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+      ! Find each visibily report
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
-        dd = missingValue
-        ff = missingValue
-        varno = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-        llmisdd = .true.
-      
-        if ( varno /= bufr_nedd .and. varno /= bufr_neds ) cycle BODY1
+        if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_vis) cycle body
 
-        if( varno == bufr_neds) then
-          ilemf = bufr_nefs
-          ilemu = bufr_neus
-          ilemv = bufr_nevs
-        else
-          ilemf = bufr_neff
-          ilemu = bufr_neuu
-          ilemv = bufr_nevv
-        end if
-      
-        dd       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-        ddflag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-        level_dd = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
-        llu_misg = .false.
-        llv_misg = .false.
-        llu_present = .false.
-        llv_present = .false.
-        indum = -1
-        indvm = -1
+        visObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        visFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+        visLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
 
-        ! FIND IF  U AND V ARE ALREADY IN CMA
-        UVINOBSSPACEDATA: do bodyIndex2 = bodyIndex, bodyIndexEnd
+        ! Find the associated logVis body created earlier in the proper reading routine
+        body2: do bodyIndex2 = bodyIndex, bodyIndexEnd
 
-          level4 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
 
-          if (level4 == level_dd) then
-            varno4 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
-            
-            select case (varno4)
-            case (bufr_neuu, bufr_nevv, bufr_neff, bufr_nedd, bufr_neus, bufr_nevs, bufr_neds, bufr_nefs )
-              obsuv = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-              if ( varno4 == ilemu .and. obsuv /= missingValue ) then
-                llu_present = .true.
-                indum = bodyIndex2
-              else if ( varno4 == ilemv .and. obsuv /= missingValue ) then
-                llv_present = .true.
-                indvm = bodyIndex2
-              end if
-              if ( varno4 == ilemu .and. obsuv == missingValue ) then
-                llu_misg = .true.
-                indu_misg = bodyIndex2
-              else if ( varno4 == ilemv .and. obsuv == missingValue ) then
-                llv_misg = .true.
-                indv_misg = bodyIndex2
-              end if
-            end select
+          if ( level /= visLevel   ) cycle body2
 
-          end if
+          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_logVis) cycle body2
 
-        end do UVINOBSSPACEDATA
-
-        lluv_misg = (llu_misg .and. llv_misg)
-        lluv_present = (llu_present .and. llv_present)
-
-        if ( lluv_misg ) then
-
-          CALCUV: do bodyIndex2 = bodyIndex, bodyIndexEnd
-            llmisff = .true.
-            llmisdd = .true.
-            llmis   = .true.
-            level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
-
-            if ( level /= level_dd) cycle CALCUV
-
-            varno2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
-
-            if ( varno2 == ilemf ) then
-
-              ff = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-              ffflag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
-
-              if ( dd == 0.d0 .and. ff > 0. .or. dd > 360. .or. dd < 0. ) then
-                llmisdd = .true.
-                llmisff = .true.
-              else if ( dd == missingValue .or. ff == missingValue ) then
-                llmisdd = .true.
-                llmisff = .true.
-              else
-                llmisdd = .false.
-                llmisff = .false.
-              end if
-
-              ! IF SPEED = 0 CALM WIND IS ASSUMED.
-              if (ff == 0.d0) dd = 0.d0
-              dd = dd + 180.
-              if ( dd > 360.) dd = dd - 360.
-              dd = dd * mpc_radians_per_degree_r8
-              ! U,V COMPONENTS ARE
-              uu = ff * sin(dd)
-              vv = ff * cos(dd)
-
-              if ( llmisdd == .true. .or. llmisff == .true. ) then
-                llmis = .true.
-                if ( indu_misg > 0 .or. indv_misg > 0 ) then
-                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
-                  call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
-                end if
-              else
-                llmis = .false.
-              end if
-
-            end if
-
-            newflag = ior(ddflag, ffflag )
-
-            if ( indum > 0 .or. indvm > 0 ) then
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
-            end if
-
-            if ( llmis ) then
-              if ( indum > 0 .or. indvm > 0 ) then
-                call obs_bodySet_i(obsSpaceData, OBS_FLG, induM, newflag )
-                call obs_bodySet_i(obsSpaceData, OBS_FLG, indvM, newflag )
-              end if
-            else if ( .not. llmis ) then
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, indu_misg, uu )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, indu_misg, newflag )
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, indv_misg, vv )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, indv_misg, newflag )
-            end if
-
-          end do CALCUV
-
-        else      
-                 
-          if ( lluv_present ) then
-            call obs_bodySet_i(obsSpaceData, OBS_VNM, indu_misg, -1 )
-            call obs_bodySet_i(obsSpaceData, OBS_VNM, indv_misg, -1 )
+          if (visObs == obs_missingValue) then
+            logVisObs = visObs
           else
-            if ( indum > 0 ) then
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indum, -1 )
-            end if
-            if ( indvm > 0 ) then
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, indvm, -1 )
-            end if
-
+            ! vis -> log(vis)
+            logVisObs = log(max(min(visObs,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
           end if
+          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex2, logVisObs)
 
-        end if
+          logVisFlag  = visFlag
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logVisFlag )
 
-      end do BODY1
+          exit body2
 
-    end do HEADER1
+        end do body2
 
-    HEADER: do headerIndex = headerIndexStart, headerIndexEnd
+      end do body
 
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+    end do header
+
+  end subroutine ovt_visToLogVis
+
+  !--------------------------------------------------------------------------
+  ! ovt_visToLogVis_redidual
+  !--------------------------------------------------------------------------
+  subroutine ovt_visToLogVis_residual(obsSpaceData, residualTypeID)
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData
+    integer          , intent(in)    :: residualTypeID
+
+    ! locals
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
+    real(obs_real) :: visObs, logVisLevel, logVisObs, level
+    real(obs_real) :: visResidual, logVisResidual
+
+    ! Find each log of visibily assimilated observations
+    body: do bodyIndex = 1, obs_numBody(obsSpaceData)
       
-      BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd
-        llmisdd = .true.
-        varno = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
-        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+      if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
+           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logVis ) cycle
 
-        select case (varno)
-          case (bufr_neuu)
-            ilem = bufr_nevv
-          case (bufr_neus)
-            ilem = bufr_nevs        
-          case default
-            cycle BODY
-        end select
+      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
+      logVisLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
 
-        Jpos = -1
+      logVisObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+      logVisResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex )
 
-        ! TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
-        BODY2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+      ! Find the associated vis body
+      body2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
-          uu       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-          level_uu = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
-          Jpos = -1
+        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
 
-          if ( level_uu == level .and. uu == missingValue ) call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
+        if (level /= logVisLevel) cycle body2
+        if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_vis) cycle body2
 
-          if ( level_uu == level .and. uu /= missingValue ) then
+        ! log(vis) -> vis
+        visObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+        visResidual = visObs - exp(logVisObs-logVisResidual) ! o-p or o-a
+        call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, visResidual)
 
-            uuflag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
-            varno2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+        ! Set the obs error to missing
+        call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, obs_missingValue)
 
-            if ( ilem == varno2 ) then
-              vvflag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-              newflag = ior( uuflag, vvflag )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, newflag)
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, newflag)
-              jpos = bodyIndex2
-              exit BODY2
-            end if
+        ! Set flags
+        call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
+        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, 0)
 
-          end if
+        exit body2
 
-        end do BODY2
+      end do body2
+      
+    end do body
 
-        ! ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
-        if (jpos < 0) then
+  end subroutine ovt_visToLogVis_residual
 
-          write(*,*) ' eliminate winds for station : ', obs_elem_c(obsSpaceData,'STID',headerIndex ),  &
-          obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex ), obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
-          call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
-
-        end if
-
-      end do BODY
-
-    end do HEADER
-
-  end subroutine ovt_windSpeedDirectionToUV
-  
   !--------------------------------------------------------------------------
   ! ovt_adjustHumGZ
   !--------------------------------------------------------------------------
@@ -739,7 +864,6 @@ contains
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno
     real(obs_real)    :: ESmax,gz,obsValue
-    real              :: rmin
 
     ESmax = 30.0
 
