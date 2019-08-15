@@ -122,10 +122,14 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
     . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.3/${COMP_ARCH}
 fi
 
+## for 'random_tools'
+echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
+. ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
+
 COMPF_GLOBAL="-openmp -mpi"
-OPTF="=-check =noarg_temp_created =-no-wrap-margin"
+OPTF="-check noarg_temp_created -no-wrap-margin"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ];then
-    OPTF="=-mkl ${OPTF}"
+    OPTF="-mkl ${OPTF}"
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
     OPTF="${OPTF}"
 else
