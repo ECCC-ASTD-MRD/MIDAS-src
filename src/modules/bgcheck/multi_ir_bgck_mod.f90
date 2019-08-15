@@ -356,24 +356,26 @@ contains
         write(*,*) 'obsFileType = ',obsFileType
         call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
       else
-        call hir_cldprm_to_brp( lobsspacedata, obsf_cfilnam(fileIndex) )
+        call hir_cldprm_to_brp( lobsspacedata, fileIndex )
       end if
     end do
 
   end subroutine add_cloudprms
 
 
-  subroutine hir_cldprm_to_brp(lobsspacedata,brp_file)
+  subroutine hir_cldprm_to_brp(lobsspacedata,fileIndex)
     IMPLICIT NONE
     !implicits
-    CHARACTER(LEN=128),intent(in)     :: BRP_FILE
+   
     type(struct_obs),intent(inout)    :: lobsSpaceData
-
+    integer ,intent(in)               :: fileIndex
+    
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
     TYPE(BURP_BLOCK)       :: BLOCK_IN
       
     CHARACTER(LEN=9)       :: OPT_MISSING
+    CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: NEW_BTYP
     INTEGER                :: BTYP10
     INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG,BTYP10OMP
@@ -423,6 +425,8 @@ contains
 
     ! opening file
     ! ------------
+
+    BRP_FILE = obsf_cfilnam(fileIndex) 
 
     write(*,*) 'OPENED FILE = ', trim(brp_file)
 
@@ -494,14 +498,17 @@ contains
           HEADER: do
             i = obs_getHeaderIndex(lobsSpaceData)
             if (i < 0) exit HEADER  
-            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp) then
+            if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp .and.  &
+                  obs_headElem_i(lobsSpaceData,OBS_OTP,i) == fileIndex) then
               idata2 = i
               exit HEADER
             end if
           end do HEADER
           if (idata2 == -1) then
             Write(*,*) "datyp ",idatyp," not found in input file !"
-            call utl_abort("hir_cldprm_to_brp")
+            Write(*,*) "Nothing to do here ! Exiting ..."
+            call  cleanup()
+            return
           end if
           idata3 = idata2
         end if
@@ -678,6 +685,12 @@ contains
               
               if ( goodprof(k) == 1 ) then
 
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency ", obs_headElem_i(lobsSpaceData,OBS_OTP,idata2) , fileIndex
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
+
                 call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
 
                 call Insert_into_burp_r8(obs_headElem_r(lobsSpaceData,OBS_VTOP,idata2),nbele+2,1,k)
@@ -739,6 +752,12 @@ contains
               end do
                  
               if ( goodprof(k) == 1 ) then
+
+                if ( obs_headElem_i(lobsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
+                  Write(*,*) "File Inconsistency emissivity block", obs_headElem_i(lobsSpaceData,OBS_OTP,idata3) , fileIndex, idata3
+                  Write(*,*) "Should not happen..."
+                  call utl_abort('hir_cldprm_to_brp')
+                end if
 
                 IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,idata3)
                 IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,idata3) + IDATA - 1
@@ -872,13 +891,20 @@ contains
           
     end if !! End of 'if ( count > 0 )'
 
-    deallocate(address)
-
-    call BURP_Free(File_in,IOSTAT=error)
-    call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
-    call BURP_Free(Block_in,IOSTAT=error)
+    call  cleanup()
 
   contains
+
+
+    !------------------------------------- CLEANUP -----
+  
+    subroutine cleanup()
+      implicit none
+      if (allocated(address)) deallocate(address)
+      call BURP_Free(File_in)
+      call BURP_Free(Rpt_in,Cp_rpt)
+      call BURP_Free(Block_in)
+    end subroutine cleanup
 
     !------------------------------------- HANDLE_ERROR -----
   
@@ -888,10 +914,7 @@ contains
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
       call BURP_STR_ERROR_HISTORY()
-      if (allocated(address)) deallocate(address)
-      call BURP_Free(File_in)
-      call BURP_Free(Rpt_in,Cp_rpt)
-      call BURP_Free(Block_in)
+      call cleanup()
       call utl_abort(trim(errormessage))
     end subroutine handle_error
 
@@ -1309,7 +1332,6 @@ contains
             call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
             nchannels = nchannels + 1
             channelIndex(nchannels) = chan_indx
-!            channelNumber(nchannels) = ICHN
             BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
             BTOBS(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 
