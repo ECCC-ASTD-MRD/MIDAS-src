@@ -97,7 +97,7 @@ LIBRMN=rmnMP
 . ${programsDir}/src_files/src_files_${program}.sh
 
 LINK_LIBS=
-for thislib in ${LIBAPPL} ${LIBSYS} ${LIBRMN}; do
+for thislib in ${LIBAPPL} ${LIBSYS} ${LIBRMN} ${LIBIRC}; do
     LINK_LIBS="${LINK_LIBS} -l${thislib}"
 done
 

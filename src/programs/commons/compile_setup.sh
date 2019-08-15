@@ -37,6 +37,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+    LIBIRC=irc
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
     ## for s.compile, s.f90
     echo "... loading hpco/tmp/eccc/201402/06/base"
