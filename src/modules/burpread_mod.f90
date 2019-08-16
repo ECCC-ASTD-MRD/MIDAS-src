@@ -53,7 +53,7 @@ INTEGER*4              :: NELEMS,NELEMS_SFC,BLISTELEMENTS(20),BLISTELEMENTS_SFC(
 INTEGER*4              :: NELEMS_GPS,LISTE_ELE_GPS(20)
 INTEGER*4              :: BN_ITEMS
 CHARACTER *3           :: BITEMLIST(20)
-CHARACTER *7           :: TYPE_RESUME
+CHARACTER *7           :: TYPE_RESUME = 'UNKNOWN'
 
 INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
@@ -445,6 +445,7 @@ CONTAINS
     count      = 0
     ref_rpt    = 0
     bit_alt    = 0
+    stn_resume='NOT_FOUND'
 
     do
       ref_rpt = BURP_Find_Report(File_in, &
@@ -470,6 +471,30 @@ CONTAINS
       count = count + 1
       address(count) = ref_rpt
     end do
+
+    if (stn_resume == 'NOT_FOUND') then
+      write(*,*) 'brpr_updateBurp: WARNING: No RESUME record found in this file, ' //  &
+                 'check if found during reading of all files'
+      ! try to get value from previously read file
+      if ( type_resume /= 'UNKNOWN' ) then
+        stn_resume = '>>' // type_resume
+        SELECT CASE(stn_resume)
+          CASE(">>BGCKALT", ">>POSTALT")
+            bit_alt=1
+          CASE(">>DERIALT")
+            bit_alt=2
+          CASE DEFAULT
+            write(*,*) 'brpr_updateBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
+            stn_resume = '>>BGCKALT'
+            bit_alt=1
+        END SELECT 
+      else
+        write(*,*) 'brpr_updateBurp: WARNING: No file read has RESUME record, assume BGCKALT'
+        stn_resume = '>>BGCKALT'
+        bit_alt=1
+      end if
+    end if
+
     write(*,'(a9,1x,a16,1x,i2)' )STN_RESUME,' bit_alt==== >  ',bit_alt
 
     BTYP10obs     = 291 -btyp_offset
@@ -1790,6 +1815,7 @@ CONTAINS
     count = 0
     ref_rpt = 0
     bit_alt = 0
+    stn_resume='NOT_FOUND'
 
     do
       ref_rpt = BURP_Find_Report(File_in, &
@@ -1805,6 +1831,9 @@ CONTAINS
             bit_alt=1
           CASE(">>DERIALT")
             bit_alt=2
+          CASE DEFAULT
+            write(*,*) 'brpr_readBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
+            bit_alt=1
         END SELECT 
       END IF
 
@@ -1819,8 +1848,30 @@ CONTAINS
       address(count) = ref_rpt
     end do
 
-    !pik  write(*,'(a9,1x,a16,1x,i2)' )STN_RESUME,' bit_alt==== >  ',bit_alt
-    write(*, *)STN_RESUME,' bit_alt==== >  ',bit_alt
+    if (stn_resume == 'NOT_FOUND') then
+      write(*,*) 'brpr_readBurp: WARNING: No RESUME record found in this file, ' //  &
+                 'check if already read in another file'
+      ! try to get value from previously read file
+      if ( type_resume /= 'UNKNOWN' ) then
+        stn_resume = '>>' // type_resume
+        SELECT CASE(stn_resume)
+          CASE(">>BGCKALT", ">>POSTALT")
+            bit_alt=1
+          CASE(">>DERIALT")
+            bit_alt=2
+          CASE DEFAULT
+            write(*,*) 'brpr_readBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
+            stn_resume = '>>BGCKALT'
+            bit_alt=1
+        END SELECT 
+      else
+        write(*,*) 'brpr_readBurp: WARNING: No file read has RESUME record, assume BGCKALT'
+        stn_resume = '>>BGCKALT'
+        bit_alt=1
+      end if
+    end if
+
+    write(*,*) STN_RESUME,' bit_alt==== >  ',bit_alt
 
     BTYP10obs     = 291 -btyp_offset
     BTYP10obs_uni = 291 -btyp_offset_uni
