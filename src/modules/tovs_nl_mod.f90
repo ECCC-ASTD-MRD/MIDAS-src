@@ -1387,6 +1387,7 @@ contains
     type(struct_vco), pointer :: vco
 
     real(8), allocatable :: ttInterpolated(:,:)
+    real(8), allocatable :: huInterpolated(:,:)
     real(8), allocatable :: hu(:,:)
     real(8), allocatable :: logHuInterpolated(:,:)
     real(8), allocatable :: logHu(:,:)
@@ -1482,7 +1483,7 @@ contains
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
       allocate (ozone(nRttovLevels,profileCount),                    stat = allocStatus(4) ) 
       allocate (ttInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(5) )
-      allocate (hu(levelsBelowModelTop,profileCount),                stat = allocStatus(6) )
+      allocate (huInterpolated(levelsBelowModelTop,profileCount),                stat = allocStatus(6) )
       allocate (logHuInterpolated(levelsBelowModelTop,profileCount), stat = allocStatus(7) )	
       allocate (ttExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(8) )
       allocate (huExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(9) )
@@ -1564,7 +1565,7 @@ contains
         logHu(:,profileIndex) = log( hu(:,profileIndex) )
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logHu(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logHuInterpolated(:,profileIndex:profileIndex))
-        hu(:,profileIndex) = exp ( logHuInterpolated(:,profileIndex) )
+        huInterpolated(:,profileIndex) = exp ( logHuInterpolated(:,profileIndex) )
       end do
       !$omp end parallel do
 
@@ -1593,7 +1594,7 @@ contains
       
       do profileIndex = 1, profileCount
         do levelIndex = 1, levelsBelowModelTop
-          huExtrapolated(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = hu(levelIndex,profileIndex)
+          huExtrapolated(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = huInterpolated(levelIndex,profileIndex)
         end do
       end do
 
@@ -1617,20 +1618,18 @@ contains
         end if
       end if
 
-
       !    2.5  Get ozone profiles (ppmv)
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
         allocate ( toto3obs(profileCount) )     
         toto3obs(:) = 0.d0
-        allocate( PP(nRttovLevels,profileCount) )
+        allocate( pp(nRttovLevels,profileCount) )
         do profileIndex=1,profileCount
-          PP(1:nRttovLevels,profileIndex)=rttovPressure(1:nRttovLevels)
+          pp(1:nRttovLevels,profileIndex)=rttovPressure(1:nRttovLevels)
         end do
-        call ozo_get_profile (ozone,toto3obs,latitudes,pp,nRttovLevels,profileCount,datestamp)
+        call ozo_get_profile (ozone, toto3obs, latitudes, pp, nRttovLevels, profileCount, datestamp)
         deallocate( PP )
         deallocate ( toto3obs )
       end if
-
 
       !    2.6  Fill profiles structure
 
@@ -1668,8 +1667,7 @@ contains
              tvs_profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
-        tvs_profiles(tovsIndex) % cfraction = 0.d0
-        
+        tvs_profiles(tovsIndex) % cfraction = 0.d0        
       end do
 
       deallocate (rttovPressure,       stat = allocStatus(1))
