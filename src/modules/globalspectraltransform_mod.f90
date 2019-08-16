@@ -408,7 +408,7 @@ contains
     integer          :: mynBeg, mynEnd, mynSkip
 
     ! Locals:
-    integer          :: jm, jn, ierr, myNla
+    integer          :: jm, jn, myNla
 
     ! assume mpiglobal value of nla already set in gst structure
     allocate(ilaList(gst(gstID_in)%nla))
@@ -440,7 +440,7 @@ contains
     integer          :: mynBeg, mynEnd, mynSkip
 
     ! Locals:
-    integer          :: jm, jn, ierr, myNla
+    integer          :: jm, jn, myNla
 
     ! compute mpilocal value of nla
     myNla = 0
@@ -1190,7 +1190,7 @@ contains
                        gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    integer :: youridP1,nsize,ierr,yourNumLev
+    integer :: nsize,ierr
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
@@ -1227,7 +1227,7 @@ contains
                               gst(gstID)%latPerPEmax, mpi_npex)
     real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                               gst(gstID)%latPerPEmax, mpi_npex)
-    integer :: youridP1, nsize, ierr, myNumLev, yourNumLev
+    integer :: youridP1, nsize, ierr, yourNumLev
 
     call tmg_start(117,'GST_LEVTOLON_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
@@ -1376,7 +1376,7 @@ contains
                               gst(gstID)%latPerPEmax, mpi_npex)
     real(gst_real) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                               gst(gstID)%latPerPEmax, mpi_npex)
-    integer :: youridP1,nsize,ierr,jlev,jlev2,myNumLev,yourNumLev
+    integer :: youridP1,nsize,ierr,jlev,jlev2,yourNumLev
 
     call tmg_start(118,'GST_LONTOLEV_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
@@ -1623,7 +1623,6 @@ contains
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
-    integer :: jlat, jk, jlon
 
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
@@ -1968,7 +1967,6 @@ contains
                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
-    integer :: jk, jlon, jlat
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
     ! check if this mpi task will deal with winds during Legendre transform
@@ -2389,7 +2387,6 @@ contains
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
-    integer :: jlat, jk, jlon
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(2*gst(gstID)%maxmcount, gst(gstID)%nj, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
@@ -2430,7 +2427,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
-    integer :: jlat, jk, jlon, ierr
+    integer :: ierr
 
     call tmg_start(107,'BARR_REESPE_KIJ_START')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
@@ -2699,7 +2696,7 @@ contains
                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    integer :: ilen,jj,jj2,jk,ilonr, iloni
+    integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
 
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
@@ -2794,7 +2791,7 @@ contains
                     gst(gstID)%nj)
 
     ! Locals:
-    integer :: ilen,jj,jj2,jk,ilonr, iloni
+    integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
 
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
@@ -2896,7 +2893,7 @@ contains
     real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
+    integer :: jk, jlat, jn, inm, itrunc, inmp1
 
     itrunc = ktrunc
     if(mod(ktrunc-km+1,2).eq.1) itrunc = ktrunc-1
@@ -2943,7 +2940,7 @@ contains
     real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
     ! Locals:
-    integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
+    integer :: jk, jlat, jn, inm, itrunc, inmp1
 
     itrunc = ktrunc
     if(mod(ktrunc-km+1,2).eq.1) itrunc = ktrunc-1
@@ -2992,7 +2989,7 @@ contains
     real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
-    integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
+    integer :: jk, jlat, jn, inm, itrunc, inmp1
 
     itrunc = ktrunc
     if(mod(ktrunc-km+1,2).eq.1) itrunc = ktrunc-1
@@ -3051,7 +3048,7 @@ contains
     real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
     ! Locals:
-    integer :: jk, jlat, jn, inm, itrunc, inmp1, omp_get_thread_num
+    integer :: jk, jlat, jn, inm, itrunc, inmp1
 
     itrunc = ktrunc
     if(mod(ktrunc-km+1,2).eq.1) itrunc = ktrunc-1
@@ -3351,7 +3348,7 @@ contains
 
     ! Locals:
     integer :: jj,jlat,jm,jn,ilat
-    integer :: ilarh,ila,ilatbd,ierr
+    integer :: ilarh,ila,ilatbd
     real(8) :: dlalp(gst(gstID)%nlarh,nlatbd)
     real(8) :: dldalp(gst(gstID)%nlarh,nlatbd)
     !     
@@ -3549,7 +3546,7 @@ contains
     integer :: gstID_in
 
     ! Loclas:
-    integer :: jn, jlat, ierr
+    integer :: jn, jlat
     real(8) :: dlfact1, dlfact2, dln
     real(8) :: dlnorm(0:gst(gstID)%ntrunc)
 

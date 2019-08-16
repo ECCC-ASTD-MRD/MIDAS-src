@@ -1540,8 +1540,6 @@ module gridStateVector_mod
     type(struct_gsv)  :: statevector_in, statevector_out
 
     ! locals
-    real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
-    real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
     integer :: middleStepIndex, lonIndex, latIndex, kIndex
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStepIn, numStepOut
 
@@ -2590,11 +2588,7 @@ module gridStateVector_mod
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
     real(8), allocatable :: PsfcReference3D(:,:,:)
-    real(4) :: factor_r4
 
-    integer :: kIndex, lonIndex, latIndex, varIndex, levIndex
-
-    character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
 
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
@@ -2708,11 +2702,7 @@ module gridStateVector_mod
 
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
-    real(4) :: factor_r4
 
-    integer :: kIndex, lonIndex, latIndex, varIndex, levIndex
-
-    character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
 
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
@@ -2783,11 +2773,7 @@ module gridStateVector_mod
     type(struct_gsv) :: statevector_file_r4, statevector_hinterp_r4, statevector_vinterp_r4
 
     real(4), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
-    real(4) :: factor_r4
 
-    integer :: kIndex, lonIndex, latIndex, varIndex, levIndex
-
-    character(len=4) :: varName
     character(len=4), pointer :: varNamesToRead(:)
 
     nullify(field_in_ptr, field_out_ptr)
@@ -2923,7 +2909,6 @@ module gridStateVector_mod
     character(len=12) :: etiket_var
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldUV_r4_ptr(:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
 
@@ -3193,7 +3178,7 @@ module gridStateVector_mod
     integer, optional           :: stepIndex_opt
 
     ! Locals:
-    real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:,:)
+    real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(8) :: multFactor
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
     character(len=4) :: varName
@@ -3510,7 +3495,7 @@ module gridStateVector_mod
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, MpiIdUU, MpiIdVV
     integer :: levUV, kIndex, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_out%nk), requestIdRecv(stateVector_out%nk)
-    integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_out%nk)
+    integer :: mpiStatuses(mpi_status_size,stateVector_out%nk)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
@@ -3835,7 +3820,7 @@ module gridStateVector_mod
     integer :: sendrecvKind, inKind, outKind, kIndexUU, kIndexVV, kIndex
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
-    integer :: mpiStatus(mpi_status_size), mpiStatuses(mpi_status_size,stateVector_in%nk)
+    integer :: mpiStatuses(mpi_status_size,stateVector_in%nk)
     integer, allocatable :: displs(:), nsizes(:)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
@@ -4748,12 +4733,11 @@ module gridStateVector_mod
     real(4), allocatable :: work2d_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(4)   :: factor_r4, work_r4
     integer   :: ierr, fstecr
-    integer   :: var, k, kgdim, numVar
     integer :: ni, nj, nk
-    integer :: dateo, npak, ji, jj, levIndex, levIndex_last, nlev, varIndex, varIndex2
+    integer :: dateo, npak, levIndex, nlev, varIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-    integer :: batchnum, levIndex2, yourid, nsize, youridy, youridx
+    integer :: yourid, nsize, youridy, youridx
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -5435,9 +5419,8 @@ module gridStateVector_mod
     ! locals
     integer :: ierr, maxkCount, numStepInput, numkToSend, stepIndexInput
     integer :: nsize
-    integer :: displs(mpi_nprocs), nsizes(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
-    integer :: kIndexUU, kIndexVV, kIndex, kIndex2, levUV, procIndex, stepIndex
+    integer :: kIndex, kIndex2, levUV, procIndex, stepIndex
     logical :: thisProcIsAsender(mpi_nprocs)
     real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
@@ -6591,20 +6574,18 @@ module gridStateVector_mod
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: stateVector_varsLevs
 
-    integer :: latIndex, lonIndex, stepIndex, kIndex, ierr
+    integer :: latIndex, lonIndex, stepIndex, kIndex
     integer :: latIndex2, lonIndex2, maxDeltaIndex, count
     integer :: latBeg, latEnd, lonBeg, lonEnd
     integer :: myBinInteger
 
     real(8), allocatable :: smoothedField(:,:)
-    real(4) :: lat_deg_r4, lon_deg_r4
     real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance
     real(8) :: binRealThreshold, myBinReal
 
     real(4), pointer :: binInteger(:,:,:)
     real(8), pointer :: binReal(:,:)
 
-    integer :: gdllfxy
     logical :: maskNegatives, binIntegerTest, binRealTest
 
     if (horizontalScale <= 0.0d0) then

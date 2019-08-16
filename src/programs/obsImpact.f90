@@ -602,7 +602,7 @@ contains
     end do
 
     do itvs = 1, tvs_nobtov
-      headerIndex  = tvs_lobsno(itvs)
+      headerIndex  = tvs_headerIndex(itvs)
       if (headerIndex > 0 ) then
         bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1

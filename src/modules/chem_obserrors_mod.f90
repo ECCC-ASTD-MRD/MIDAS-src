@@ -318,7 +318,7 @@ contains
     integer, intent(in)           :: NLEV,VARNO
     real(8), intent(in)           :: ZLAT
     integer, intent(out)          :: ISTNID,JINT
-    integer                       :: JN,ilen1,ilen2,ji,ibegin
+    integer                       :: JN,ibegin
     real(8)                       :: lat
 
  !  Important: Combination of STNID, BUFR element and number of vertical levels

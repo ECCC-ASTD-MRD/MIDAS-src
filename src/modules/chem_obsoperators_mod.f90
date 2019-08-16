@@ -150,7 +150,7 @@ contains
 
     ! Local variables
     real(8) :: zomp,zinc
-    integer :: unit,ier
+    integer :: ier
     integer, external :: fclos
 
     ! Obs space local variables
@@ -1424,7 +1424,7 @@ contains
     integer, intent(in) :: kmode
 
     ! Locals:
-    integer :: ij,iobslev,tropo_mode
+    integer :: iobslev,tropo_mode
     real(8) :: vlayertop_ref,vlayerbottom_ref,imodlev_bot_ref
 
     ! Conduct initial setup for vertical integration components
@@ -2305,7 +2305,6 @@ contains
       real(8), intent(in), optional :: rsig_opt(ndim2,2) ! background error std. dev. at obs locations (must be provided when lrgsig=.true.)
 
     ! Locals:
-      integer :: nsize
       real(8) :: rsig(ndim2,2)
       
       rmat_out(:,:)=0.0D0

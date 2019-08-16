@@ -100,8 +100,6 @@ contains
     type(struct_vco), pointer, intent(in)    :: vco_anl_in
     integer,          intent(out)   :: cvDim_out
 
-    integer  :: numvar3d
-    integer  :: numvar2d
     integer  :: var
     integer  :: ntrunc
 
@@ -274,11 +272,11 @@ contains
 
     integer, intent(in) :: iu_bstats
 
-    integer :: key, fstinf, ier, fstlir, fstlir_s
+    integer :: key, fstinf, fstlir, fstlir_s
     integer :: ni, nj, nlev
-    integer :: dateo, deet, npas, nk, nbits, datyp
+    integer :: dateo, nk
     integer :: ip1, ip2, ip3
-    integer :: var, varvnl
+    integer :: var
 
     character(len=4 )      :: nomvar
     character(len=2 )      :: typvar
@@ -288,8 +286,6 @@ contains
     character(len=4), allocatable :: ControlBhiVarnameList  (:)
     character(len=2), allocatable :: ControlVarGridTypeList (:)
     integer, allocatable          :: ControlVarNlevList     (:)
-
-    logical :: found
 
     !
     !- 1.  How Many Control Variables do we have?
@@ -634,7 +630,7 @@ contains
     integer :: dateo, ip1,ip2,ip3
 
     character(len=4 )      :: nomvar
-    character(len=2 )      :: typvar, grtyp
+    character(len=2 )      :: typvar
     character(len=12)      :: etiket
 
     real(8) :: UnitConv
@@ -730,8 +726,6 @@ contains
     ! Locals
     real(8), allocatable :: gd_out(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
-    integer :: ier, k, fstouv, fnom, fstfrm, fclos, fstecr, ila
-    integer :: iu_out = 90
 
     if ( .not. initialized ) then
       if(mpi_myid == 0) write(*,*) 'lbhi_bSqrt: LAM_bMatrixHI not initialized'
@@ -1179,7 +1173,7 @@ contains
     real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nksdim)
     character(len=*), intent(in)    :: Direction
 
-    integer :: var,varID
+    integer :: var
     integer :: kgdStart, kgdEnd, i, j, k, kgd, nlev
 
     real(8), pointer :: field(:,:,:)

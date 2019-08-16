@@ -66,7 +66,7 @@ contains
 
   subroutine col_setup
     implicit none
-    integer :: jvar, ipos
+    integer :: jvar
     integer :: fnom,fclos,nulnam,ierr
     integer :: numVar3D, numVar2D
     character(len=4) :: anlvar(vnl_numvarmax)

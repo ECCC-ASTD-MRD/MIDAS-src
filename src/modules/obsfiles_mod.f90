@@ -595,8 +595,7 @@ contains
     character(len=*)                       :: obsFileType
 
     ! locals
-    integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
-    integer :: fnom, fclos
+    integer :: ierr, procID, all_nfiles(0:(mpi_nprocs-1))
     logical :: fileExists
 
     call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &

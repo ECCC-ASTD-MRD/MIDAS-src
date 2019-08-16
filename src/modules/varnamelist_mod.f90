@@ -168,7 +168,6 @@ module varNameList_mod
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=4)    :: varName
-      integer             :: i
       
       varName='    '
       select case (varNumber)

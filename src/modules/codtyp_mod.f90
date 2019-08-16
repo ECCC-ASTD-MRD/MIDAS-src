@@ -349,7 +349,7 @@ contains
     implicit none
     Integer,intent(in) :: codtyp
     
-    integer :: i, ilen
+    integer :: i
     
     if (.not.initialized) call codtyp_initialize()
 

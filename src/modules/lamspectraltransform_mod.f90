@@ -758,10 +758,8 @@ contains
     real(8),          intent(inout) :: SpectralStateVar(:,:,:)
                                      ! 3D spectral coefficients
 
-    integer                         :: m, n, k, ni_l, nj_l, nip_l, njp_l
+    integer                         :: ni_l, nj_l, nip_l, njp_l
     integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
-
-    integer                         :: i, j
 
     real(8), allocatable            :: Step0(:,:,:)
     real(8), allocatable            :: Step1(:,:,:)
@@ -999,10 +997,8 @@ contains
     real(8),          intent(inout) :: SpectralStateVar(:,:,:)
                                      ! 3D spectral coefficients
 
-    integer                         :: m, n, k, ni_l, nj_l, nip_l, njp_l
+    integer                         :: ni_l, nj_l, nip_l, njp_l
     integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
-
-    integer                         :: i, j
 
     real(8), allocatable            :: Step0(:,:,:)
     real(8), allocatable            :: Step1(:,:,:)
@@ -1252,9 +1248,7 @@ contains
     real(8),          intent(inout)     :: Field3d(1:ni_l+nip_l,1:nj_l+njp_l,kStart:kEnd)  
                                          ! InOut 3D field
 
-    integer :: nit, njt
-    integer :: way, type
-    integer :: maxsize
+    integer :: way
     integer :: axe, n, nlot, nfact, np, lot, nk
 
     !
@@ -1358,9 +1352,7 @@ contains
     real(8),          intent(inout)     :: Field3d(kStart:kEnd,1:ni_l+nip_l,1:nj_l+njp_l)  
                                          ! InOut 3D field
 
-    integer :: nit, njt
-    integer :: way, type
-    integer :: maxsize
+    integer :: way
     integer :: axe, n, nlot, nfact, np, lot, nk, k
 
     !

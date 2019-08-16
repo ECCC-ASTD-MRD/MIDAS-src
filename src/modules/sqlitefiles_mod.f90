@@ -48,7 +48,7 @@ module sqliteFiles_mod
     ! locals
     logical             :: fileExists 
     integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
-    integer             :: inrecs, mrfopc, dateSqlite , timeSqlite
+    integer             :: mrfopc, dateSqlite , timeSqlite
     real(8)             :: delhh
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
@@ -112,7 +112,6 @@ module sqliteFiles_mod
     integer                          :: fileINdex
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
-    logical :: obsFull
     character(len=*), parameter :: my_name = 'sqlf_readFile'
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
     character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
@@ -175,7 +174,6 @@ module sqliteFiles_mod
     character(len=*)                 :: familyType
     integer                          :: fileIndex
     ! locals
-    integer :: headerIndex
     character(len=*), parameter :: myName = 'sqlf_updateFile'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '

@@ -100,7 +100,6 @@ CONTAINS
     character(len=*), optional :: hInterpolateDegree_opt
 
     ! Locals:
-    integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
     character(len=4), pointer :: varNames(:)
 
@@ -170,7 +169,7 @@ CONTAINS
     type(struct_ens) :: ens
 
     ! Locals:
-    integer :: subEnsIndex, ierr, lon1, lon2, lat1, lat2, k1, k2, jk, numStep
+    integer :: lon1, lon2, lat1, lat2, k1, k2, jk, numStep
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -230,7 +229,7 @@ CONTAINS
     type(struct_ens) :: ens
 
     ! Locals:
-    integer :: memberIndex, subEnsIndex, k1, k2, jk
+    integer :: k1, k2, jk
 
     if ( .not. ens%allocated ) return
 
@@ -803,8 +802,8 @@ CONTAINS
     integer, optional :: subEnsIndex_opt
 
     ! Locals:
-    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
     character(len=4), pointer :: varNamesInEns(:)
 
@@ -857,8 +856,8 @@ CONTAINS
     type(struct_gsv)  :: statevector
 
     ! Locals:
-    real(4), pointer :: ptr4d_r4(:,:,:,:)
     real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
     character(len=4), pointer :: varNamesInEns(:)
 
@@ -1345,8 +1344,6 @@ CONTAINS
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     integer           :: fnom, fclos
 
-    real(8), pointer  :: ptr4d_r8(:,:,:,:)
-
     if (present(computeSubEnsMeans_opt)) then
       computeSubEnsMeans = computeSubEnsMeans_opt
     else
@@ -1459,7 +1456,7 @@ CONTAINS
     logical, intent(in), optional :: containsScaledPerts_opt
 
     ! Locals:
-    integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
+    integer           :: memberIndex, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     real(8), allocatable :: subEnsStdDev(:)
     logical           :: containsScaledPerts
@@ -1845,7 +1842,7 @@ CONTAINS
     ! Locals:
     integer,parameter:: maxNumLevels=200
     type(struct_gsv) :: statevector_ensembleControlMember
-    integer          :: stepIndex, numStep, ensFileExtLength
+    integer          :: stepIndex, numStep
     real(8) :: scaleFactor(maxNumLevels)
     logical :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
     logical :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
@@ -1977,7 +1974,6 @@ CONTAINS
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
-    character(len=4)   :: varName
     character(len=4), pointer :: anlVar(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop
@@ -2304,14 +2300,13 @@ CONTAINS
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
-    integer :: batchnum, nsize, status, ierr
+    integer :: batchnum, nsize, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
-    character(len=6) :: memberIndexStrFormat  !  will contain the character string '(I0.4)' to have 4 characters in the member extension
     !! The two next declarations are sufficient until we reach 10^10 members
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'

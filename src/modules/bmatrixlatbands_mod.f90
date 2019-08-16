@@ -441,9 +441,9 @@ contains
     implicit none
 
     real(8) :: eigenval(nkgdim), eigenvec(nkgdim,nkgdim), result(nkgdim,nkgdim)
-    real(8) :: eigenvalsqrt(nkgdim), eigenvec2(nkgdim,nkgdim), eigenvalsqrt2(nkgdim)
+    real(8) :: eigenvalsqrt(nkgdim)
 
-    integer :: jlat,mynIndex,jk1,jk2,jk3,jLatBand
+    integer :: mynIndex,jk1,jk2,jk3,jLatBand
     integer :: ilwork
     integer :: iulcorvert, ikey, nsize
 
@@ -830,7 +830,7 @@ contains
     implicit none
 
     logical :: llpb
-    integer :: ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
+    integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
     integer :: ezdefset
     integer :: ip1style,ip1kind
@@ -838,7 +838,7 @@ contains
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
     real(8) :: cortgg(nla_mpiglobal,2)
     real(8) :: rcscltg_vec(nkgdim)
-    real(8) :: zabs, zpole, dlfac, dlcorr
+    real(8) :: zabs, zpole, dlfac
     real(8) :: zsp_mpilocal(nla_mpilocal,2,nkgdim)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
@@ -849,15 +849,15 @@ contains
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
 
     ! standard file variables
-    integer :: ni_file,nj_file,nk_file, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: ni_file,nj_file,nk_file
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,idatyp
+    integer :: ierr,ntrials
+    integer :: idateo
     integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
     integer :: ip1s(1), nulbgsts(1)
 
     integer :: TrlmNumberWanted
-    integer :: fstlir, key, fstinl, nultrl, ni_trial, nj_trial
+    integer :: fstlir, key, nultrl, ni_trial, nj_trial
     integer :: deet, npas, nbits, datyp
     integer :: swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
@@ -1244,15 +1244,9 @@ contains
 
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
-    integer ilen,jn,jlat,jk,jLatBand
+    integer jn,jlat,jk,jLatBand
     real(8) zsp(0:ntrunc,nkgdim),zgr(nj,nkgdim)
     real(8) dlwti(nj),zrmu(nj)
-
-    integer inracp
-    real(8) zpg(nj),zsia(nj),zrad(nj),zpgssin2(nj)
-    real(8) zsinm1(nj),zsinm2(nj),zsin2(nj),zsinlat(nj)
-    real(8) dlfact1, dln
-    real(8) dlnorm(0:ntrunc)
 
     real(8)         :: RPORVO   = 6000.D3
     real(8)         :: RPORDI   = 6000.D3
@@ -1411,20 +1405,17 @@ contains
     implicit none
 
     integer :: jn, istdkey,icornskey
-    integer :: iksdim,jcol,jrow,jblock,jlevo,jlevi,jLatBand
-    real(8) :: zwork
+    integer :: iksdim,jcol,jrow,jLatBand
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
 
     ! standard file variables
-    integer :: ni_file,nj_file,nk_file, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength
-    integer :: iubc,iextr1,iextr2,iextr3
+    integer :: ni_file,nj_file,nk_file
+    integer :: ip1,ip2,ip3
     integer :: idateo
     character(len=2)  :: cltypvar
     character(len=4)  :: varName
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
 
     iksdim = 2*nlev_M+2*nlev_T+1    ! assume 4 3d variables and 1 2d variable (TG not included)
     allocate(zcornssrc(iksdim,iksdim))
@@ -1517,7 +1508,7 @@ contains
 
     integer, parameter  :: inbrvar3d=4
     integer, parameter  :: inbrvar2d=1
-    integer :: jvar,jn,jfilt,count
+    integer :: jvar,jfilt,count
     integer :: ikey, jlev, jlat, jlat_file
     real(8), allocatable :: zgr(:,:)
     real(8) :: zgr_interp(nj,max(nlev_M,nlev_T))
@@ -1526,14 +1517,13 @@ contains
     real(8) :: globalmean
 
     ! standard file variables
-    integer :: ni_file,nj_file,nk_file, inpas, inbits, idatyp, ideet  
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength
-    integer :: iubc,iextr1,iextr2,iextr3
+    integer :: ni_file,nj_file,nk_file  
+    integer :: ip1,ip2,ip3
     integer :: idate,nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: varName
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
 
     data varName3d/'PP  ','CC  ','TT  ','LQ  '/   
     data varName2d/'P0  '/
@@ -1664,7 +1654,7 @@ contains
     implicit none
 
     integer, parameter  :: inbrvar=5
-    integer :: varIndex, jn, jfilt, count
+    integer :: varIndex, jfilt, count
     integer :: ikey, ierr, levIndex, jlat
     real(8) :: zgr(ni,nj)
     character(len=4) :: varNames(inbrvar)
@@ -1673,14 +1663,13 @@ contains
     character(len=2) :: varLevel
 
     ! standard file variables
-    integer :: ni_file,nj_file,nk_file, inpas, inbits, idatyp, ideet  
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength
-    integer :: iubc,iextr1,iextr2,iextr3
+    integer :: ni_file,nj_file,nk_file  
+    integer :: ip1,ip2,ip3
     integer :: idate,nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: varName
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
 
     data varNames/'PP  ','CC  ','TT  ','LQ  ','P0  '/   
 
@@ -1989,7 +1978,7 @@ contains
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,jlatBand,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2141,7 +2130,7 @@ contains
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,jlatBand,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2624,7 +2613,7 @@ contains
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim,numLatBand)
     real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal, jLatBand, jn, jm
+    integer :: jlev, jlon, jlat, jla_mpilocal, jLatBand, jn, jm
     integer :: ila_mpiglobal, ila_mpilocal, icount
     real(8) :: sq2, dl1sa2, dla2
     real(8) :: sp(nla_mpilocal,2,nkgdim)

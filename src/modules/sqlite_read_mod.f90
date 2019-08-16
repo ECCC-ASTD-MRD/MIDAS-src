@@ -193,7 +193,7 @@ contains
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
-    character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit, namelistFileName
+    character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
     character(len=*), parameter :: myName = 'sqlr_readSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -710,10 +710,9 @@ contains
     type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
     type(fSQL_STATUS)                :: stat ! type error status
     integer                          :: obsRln, obsNlv, obsIdf, obsIdd, obsFlag
-    integer                          :: iobs, obsIdo, obsStatus, last_question
-    integer                          :: ibegin, ilast, ibeginob, ilastob, itemId
+    integer                          :: obsIdo, obsStatus, last_question
+    integer                          :: itemId
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
-    character(len =  10)             :: timeCharacter
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
     character(len =   9)             :: item2
@@ -864,11 +863,10 @@ contains
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
-    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
-    integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
+    real                   :: obsValue, OMA, OMP, OER, FGE, PPP
+    integer                :: numberInsert, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, obsIdf, insertItem
     character(len = 256)   :: query
-    logical                :: llok
-    character(len= 12 )    :: idStation    
+    logical                :: llok    
     character(len=*), parameter :: myName = 'sqlr_insertSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
@@ -1076,9 +1074,8 @@ contains
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    integer                :: familyIndex, headerIndex, codeType, fileNameIndex, codeTypeIndex, fileIndex
+    integer                :: familyIndex, headerIndex, codeType, codeTypeIndex, fileIndex
     character(len=2)       :: currentObsFamily, obsFamilyList(50)
-    character(len=30)      :: codeTypeName
     integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
     character(len=5)       :: fileName
 
@@ -1195,19 +1192,17 @@ contains
     type(fSQL_DATABASE)    :: db                   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                 ! type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr, codeType, date, time, idObs, idData 
+    integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
-    integer                :: numberInsertions, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
-    character(len = 512)   :: queryData, queryHeader, queryUpdate, queryCreate 
+    integer                :: numberInsertions, headerIndex, bodyIndex, obsNlv, obsRln
+    character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
     character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
-    integer                :: codeTypeIndex
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
-    character(len=9)       :: cmyid
 
     fileNameDir = trim(ram_getRamDiskDir())
     if ( fileNameDir == ' ' ) &

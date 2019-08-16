@@ -53,8 +53,8 @@ module presProfileOperators_mod
       INTEGER, intent(in) ::  KNPROF           ! Number of profiles
 
       INTEGER  JO, JN
-      REAL*8  ZLNPI (KNI),ZPZ(KNI),ZPG(KNI),ZPS(KNI)
-      REAL*8  ZLNPO (KNO),ZPZPS,PSS
+      REAL*8  ZLNPI (KNI)
+      REAL*8  ZLNPO (KNO)
 
 ! --- Apply weighted averaging 
 
@@ -98,7 +98,7 @@ module presProfileOperators_mod
 
       ! Locals:
       REAL(8)  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
-      REAL(8)  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
+      REAL(8)  ZLNPO (KNO),ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
 
 ! --- Apply weighted averaging 
 
@@ -394,7 +394,7 @@ module presProfileOperators_mod
       ! Locals:
       real(8)            ::  pzp(kni)
       REAL(8) Z1,Z2,Z3,ZW1,ZW2,zp1,zp2
-      REAL(8) zsum, zsum2
+      REAL(8) zsum
       INTEGER J,jo,jn
       logical test,skip
 ! --- Identify boundary points

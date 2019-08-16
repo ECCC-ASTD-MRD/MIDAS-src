@@ -85,7 +85,7 @@ CONTAINS
     character(len=15) :: bdiff_mode
 
     integer :: nulnam, ierr, fnom, fclos
-    integer :: status, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
     integer :: jvar
 
     type(struct_vco), pointer :: vco_anl
@@ -316,7 +316,7 @@ CONTAINS
     !
     implicit none
 
-    integer :: jvar, in
+    integer :: jvar
     integer :: ikey
     real(8), allocatable :: rgsig2d(:,:)
 

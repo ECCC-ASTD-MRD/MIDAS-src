@@ -128,19 +128,16 @@ CONTAINS
 
     type(struct_gsv), optional :: statevector_steeringFlow_opt
 
-    integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, jsubStep, stepIndexSF, stepIndexAF, ierr
+    integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, stepIndexSF, stepIndexAF, ierr
     integer :: levIndexBelow, levIndexAbove
     integer :: gdxyfll, gdllfxy
-    integer :: nsize, latIndex_mpiglobal, lonIndex_mpiglobal
-    integer :: alfa, nLevType
+    integer :: nLevType
 
     integer, allocatable :: dateStampListSteeringFlow(:)
     integer, allocatable :: advectedFieldAssociatedStepIndexSF(:)
     integer, allocatable :: advectionSteeringFlowStartingStepIndex(:)
     integer, allocatable :: advectionSteeringFlowEndingStepIndex  (:)
 
-    real(8) :: uu, vv, subDelT, lonAdvect, latAdvect, delx, dely, sumWeight
-    real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
     real(8) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
     real(8), allocatable :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
     real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
@@ -150,13 +147,12 @@ CONTAINS
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
 
     character(len=64) :: filename
-    character(len=3)  :: filenumber
 
     type(struct_gsv) :: statevector_steeringFlow
 
     logical :: AdvectFileExists
 
-    integer :: nLev, kIndex, levTypeIndex, stepIndexSF_start, stepIndexSF_end 
+    integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end 
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
 
@@ -992,7 +988,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
 
-    integer :: memberIndex, stepIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1099,7 +1095,7 @@ CONTAINS
     real(4), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal(:,:,:)
 
-    integer :: memberIndex, stepIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1207,7 +1203,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles2(:,:,:,:)
 
-    integer :: memberIndex, stepIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1342,7 +1338,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal_tiles(:,:,:)
     real(8), allocatable :: field2D_mpiglobal(:,:)
 
-    integer :: stepIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1465,7 +1461,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal_tiles (:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles2(:,:,:)
 
-    integer :: stepIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF

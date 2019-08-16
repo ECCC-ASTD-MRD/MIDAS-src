@@ -427,7 +427,7 @@ CONTAINS
     real(8) :: eigenval(nkgdim2), eigenvec(nkgdim2,nkgdim2), result(nkgdim2,nkgdim2)
     real(8) :: eigenvalsqrt(nkgdim2), eigenvec2(nkgdim2,nkgdim2), eigenvalsqrt2(nkgdim2)
 
-    integer :: jlat,jn,jk1,jk2,jk3,jr
+    integer :: jlat,jn,jk1,jk2,jk3
     integer :: ilwork,info,klatPtoT
     integer :: iulcorvert, ikey, nsize
 
@@ -443,8 +443,8 @@ CONTAINS
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet 
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: iubc,iextr1,iextr2,iextr3,ierr
+    integer :: idateo
     character(len=2)  :: cltypvar
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
@@ -862,13 +862,8 @@ CONTAINS
     integer :: jn, nulcorns_sqrt, ierr
 
     ! standard file variables
-    integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
-    character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
     integer :: fnom, fstouv,  fstfrm, fclos
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
@@ -910,7 +905,6 @@ CONTAINS
     integer :: ip1,ip2,ip3
     integer :: idateo
     character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
 
@@ -1037,7 +1031,7 @@ CONTAINS
     implicit none
 
     logical :: llpb
-    integer :: ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
+    integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
     integer :: ezdefset
     integer :: ip1style,ip1kind
@@ -1045,7 +1039,7 @@ CONTAINS
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
     real(8) :: cortgg(nla_mpiglobal,2)
     real(8) :: rcscltg_vec(nlev_T_even)
-    real(8) :: zabs, zpole, dlfac, dlcorr
+    real(8) :: zabs, zpole, dlfac
     real(8) :: zsp_mpilocal(nla_mpilocal,2,nlev_T_even)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
@@ -1056,17 +1050,17 @@ CONTAINS
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: ini,inj,ink, idatyp
+    integer :: ip1,ip2,ip3
+    integer :: ierr,ntrials
+    integer :: idateo
     integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
     integer :: ip1s(1), nulbgsts(1)
 
     integer :: TrlmNumberWanted
-    integer :: fstlir, key, fstinl, nultrl, ni_trial, nj_trial
+    integer :: fstlir, key, nultrl, ni_trial, nj_trial
     integer :: deet, npas, nbits, datyp
-    integer :: swa, lng, dltf, ubc
+    integer :: ig1,ig2,ig3,ig4,swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
     
     integer :: TrialGridID
@@ -1452,15 +1446,9 @@ CONTAINS
 
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
-    integer ilen,jn,jlat,jk
+    integer jn,jlat,jk
     real(8) zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) dlwti(nj_l),zrmu(nj_l)
-
-    integer inracp
-    real(8) zpg(nj_l),zsia(nj_l),zrad(nj_l),zpgssin2(nj_l)
-    real(8) zsinm1(nj_l),zsinm2(nj_l),zsin2(nj_l),zsinlat(nj_l)
-    real(8) dlfact1, dln
-    real(8) dlnorm(0:ntrunc)
 
     real(8)         :: RPORVO   = 6000.D3
     real(8)         :: RPORDI   = 6000.D3
@@ -1612,21 +1600,17 @@ CONTAINS
 
     integer :: kip1
     integer :: jn, istdkey,icornskey
-    integer :: iksdim,jcol,jrow,jblock,jlevo,jlevi
-    real(8) :: zwork
+    integer :: iksdim,jcol,jrow
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idateo
     character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
 
     iksdim = 2*nlev_M+2*nlev_T+1    ! assume 4 3d variables and 1 2d variable (TG not included)
     allocate(zcornssrc(iksdim,iksdim))
@@ -1726,20 +1710,18 @@ CONTAINS
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx
     integer :: ikey, jlevo, jlat,firstn,lastn
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T))
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet  
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1875,21 +1857,19 @@ CONTAINS
 
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
-    integer :: jvar,jn,inix,injx,inkx
-    integer :: ikey, jlevo, jlat,firstn,lastn
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    integer :: jvar,inix,injx,inkx
+    integer :: ikey
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet  
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink  
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1976,21 +1956,19 @@ CONTAINS
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,jlevo,jlat
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zwork
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T))
     real(8), allocatable :: zspbuf(:)
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -2132,26 +2110,22 @@ CONTAINS
   SUBROUTINE BHI_RDSPPTOT
     IMPLICIT NONE
 
-    integer :: jn, jk1, jk2, ikey, ilen,jlat,jcol,inix,injx,inkx
+    integer :: jn, jk1, jk2, ikey, ilen,jlat,inix,injx,inkx
     real(8) :: zsptheta(0:ntrunc,nlev_M)
     real(8) :: zgrtheta(nj_l,nlev_M)
-    real(8) :: zwork
     real(8) :: zPtoTsrc(nlev_T+1,nlev_M)
     real(8) :: zspPtoT(0:ntrunc,nlev_T+1,nlev_M)
     real(8) :: zgrPtoT(nj_l,nlev_T+1,nlev_M)
     real(8) :: ztheta(nlev_M)
-    real(8) :: zPtoTecr(nlev_T+1,nlev_M,nj_l)
     
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idateo
     character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
+    integer :: fstinf
     
     ip1 = -1
     ip3 = -1
@@ -2287,7 +2261,6 @@ CONTAINS
     ! Locals
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
-    integer   :: jvar, ilev1, ilev2
 
     if(mpi_myid == 0) write(*,*) 'bhi_bsqrt: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2327,7 +2300,6 @@ CONTAINS
     ! Locals
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
-    integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
       if(mpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
@@ -2458,7 +2430,7 @@ CONTAINS
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2606,7 +2578,7 @@ CONTAINS
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -3081,7 +3053,7 @@ CONTAINS
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
+    integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8), pointer :: zgdpsi(:,:,:),zgdchi(:,:,:)
     real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     real(8) :: dla2, dl1sa2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
@@ -3303,7 +3275,7 @@ CONTAINS
     real(8) :: sq2, zp
     real(8) ,allocatable :: zsp(:,:,:), zsp2(:,:,:)
 
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
+    integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8) :: dl1sa2, dla2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
     real(8),pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
     real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)

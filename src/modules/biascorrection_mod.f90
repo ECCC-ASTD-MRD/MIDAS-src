@@ -74,7 +74,6 @@ CONTAINS
 
     integer  :: cvdim
     integer  :: iSensor,iPredictor
-    integer  :: jPredictor
     integer  :: ierr,nulnam
     integer  :: fnom,fclos
     integer  :: jPred 
@@ -202,7 +201,7 @@ CONTAINS
     type(struct_columnData) :: columnhr
 
     integer  :: index_header,index_body,iobs, indxtovs, idatyp
-    integer  :: iSensor,iChannel,iPredictor,index_cv
+    integer  :: iSensor,iChannel,iPredictor
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
     real(8),pointer  :: cv_bias(:)
@@ -241,14 +240,16 @@ CONTAINS
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-      indxtovs = tvs_ltovsno(index_header)
+      indxtovs = tvs_tovsIndex(index_header)
       if ( indxtovs == 0 ) then
         call utl_abort('bias_calcBias_tl')
       end if
 
       iobs = iobs + 1
-      if  ( tvs_ltovsno(index_header) < 0) cycle HEADER
-      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+
+      if  ( tvs_tovsIndex(index_header) < 0) cycle HEADER
+      iSensor = tvs_lsensor(tvs_tovsIndex(index_header))
+
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
 
       call obs_set_current_body_list(obsSpaceData, index_header)
@@ -463,10 +464,9 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
 
     integer  :: iSensor,iPredictor
-    integer  :: activePredictors(tvs_nSensors)
 
     predictor(:) = 0.0d0
-    iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+    iSensor = tvs_lsensor(tvs_tovsIndex(index_header))
 
     do iPredictor = 1, NumPredictors
 
@@ -538,8 +538,8 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
 
       iobs = iobs + 1
-      if ( tvs_ltovsno(index_header) < 0) cycle HEADER
-      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+      if ( tvs_tovsIndex(index_header) < 0) cycle HEADER
+      iSensor = tvs_lsensor(tvs_tovsIndex(index_header))
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
 
       do iPredictor = 2, bias(iSensor)%NumActivePredictors
@@ -578,7 +578,7 @@ CONTAINS
     type(struct_obs)  :: obsSpaceData
 
     integer  :: index_header,index_body,iobs, idatyp
-    integer  :: iSensor,iChannel,iPredictor,index_cv,nsize,ierr
+    integer  :: iSensor,iChannel,iPredictor
     integer  :: iScan, iFOV, jPred
     real(8)  :: predictor(NumPredictors)
     real(8),pointer  :: cv_bias(:)
@@ -612,8 +612,8 @@ CONTAINS
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
 
       iobs = iobs + 1
-      if ( tvs_ltovsno(index_header) < 0) cycle HEADER
-      iSensor = tvs_lsensor(tvs_ltovsno(index_header))
+      if ( tvs_tovsIndex(index_header) < 0) cycle HEADER
+      iSensor = tvs_lsensor(tvs_tovsIndex(index_header))
       call bias_getPredictors(predictor,index_header,iobs,obsSpaceData)
       call obs_set_current_body_list(obsSpaceData, index_header)
       iFov = obs_headElem_i(obsSpaceData,OBS_FOV,index_header)
@@ -725,18 +725,17 @@ CONTAINS
     real(8)  :: cv_in(cv_dim)
 
     integer  :: iSensor,iChannel,iPredictor
-    integer  :: jSensor,jChannel
+    integer  :: jSensor
     integer  :: fnom,fclos,nulfile_inc,nulfile_fov,ierr
     real(8),pointer   :: cv_bias(:)
     character(len=80) :: BgFileName
     real(8)           :: biasCoeff_bg(tvs_nSensors,maxNumChannels,NumPredictors)
-    logical           :: fileExists
 
     !for background coeff and write out
-    integer             :: iInstr, iuncoef
+    integer             :: iInstr
     real(8)             :: fovbias_bg(tvs_nSensors,maxNumChannels,maxfov)
     integer             :: numCoefFile,jCoef,kCoef
-    character(len=10)   :: coefInstrName(tvs_nSensors), temp_instrName, instrName
+    character(len=10)   :: coefInstrName(tvs_nSensors), temp_instrName
     character(len=25)   :: filecoeff
     logical             :: coeffExists
     ! these variables are not used

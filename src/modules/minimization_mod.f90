@@ -242,20 +242,16 @@ CONTAINS
       real*8,allocatable :: vazg(:)
 
       real*8 :: dlds(1)
-      logical :: lltest, llvarqc, lldf1, lrdvatra, llxbar
+      logical :: llvarqc, lldf1, lrdvatra, llxbar
 
-      integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc, jj
+      integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc
       integer :: ierr, isimdone, jdata, isimnovqc
-      integer :: ibrpstamp, isim3d, ilen
+      integer :: ibrpstamp, isim3d
       real*8 :: zjsp, zxmin, zeps0
-      real*8 :: dlgnorm, dlxnorm, zjotov
-
-      integer remove_c
+      real*8 :: dlgnorm, dlxnorm
 
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
-      character(len=128) :: clfname
-      character(len=9) :: clmsg
 
       if (lvarqc) call vqc_setup(obsSpaceData)
 
@@ -558,7 +554,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: incr_cv(:)
     real(8)           :: scalefactor
-    integer :: indexAnalysis,stepIndex,cvdim_mpilocal
+    integer :: indexAnalysis,stepIndex
     character(len=80) :: fileName
     character(len=4)  :: censnumber
     character(len=8)   :: datestr_last
@@ -808,10 +804,8 @@ CONTAINS
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
     real(8), pointer :: cv_pert_bchm_mpilocal(:)
-    real(8), allocatable :: scaleFactorBhi(:), stddev_orig(:), stddev_trunc(:),scaleFactorBchm(:,:)
-    integer, allocatable :: countTrunc(:)
+    real(8), allocatable :: scaleFactorBhi(:),scaleFactorBchm(:,:)
     logical, save :: firstTime = .true.
-    real(8), allocatable, save :: scaleFactorTrunc(:)
     real(8), allocatable, save :: cv_pert_mean_mpilocal(:)
     integer :: lon1, lon2, lat1, lat2, icount, nlev, nlevmax
 
@@ -1144,10 +1138,7 @@ CONTAINS
     real*8  :: ddsc     ! result of the inner product
 
     ! Locals:
-    INTEGER J, RR, IERR
-    REAL*8 partialsum(128)
-    INTEGER mythread,numthreads,jstart,jend
-    INTEGER omp_get_thread_num,omp_get_num_threads
+    INTEGER J
 
     call tmg_start(71,'QN_PRSCAL')
     DDSC = 0.D0
@@ -1269,14 +1260,13 @@ CONTAINS
     ! Locals:
     real*4, allocatable :: vatravec_r4_mpiglobal(:)
     real*4, allocatable :: vatra_r4(:)
-    real*8, allocatable :: vatravec_r8_mpiglobal(:)
     real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
 
     integer :: ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
     integer :: ivadim, itrunc
-    integer :: imtra,ivamaj
-    integer :: jvec, i1gc,ictrlvec,ii,jproc
+    integer :: ivamaj
+    integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl_io
 
     character(len=3) :: cl_version

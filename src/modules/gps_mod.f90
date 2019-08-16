@@ -1062,11 +1062,9 @@ contains
     real(dp) , parameter           :: delta = 0.6077686814144_dp
 
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                       :: h0,dh,Rgh, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
-    type(gps_diff)                 :: tr, z
-    type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
-    type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+    type(gps_diff)                 :: tr
+    type(gps_diff)                 :: mold, dd, dw, n0, nd1, nw1
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -1458,11 +1456,11 @@ contains
 
     real(dp)             :: a0,a1,a2,b0,b1,c0,c1,d,e
     type(gps_diff)       :: tc, pt, tc2, x2, tr
-    type(gps_diff)       :: mold, dd, dw, dx, n0, nd1, nw1
+    type(gps_diff)       :: mold, dd, dw, n0, nd1, nw1
     integer(i4)         :: i
     real(dp)             :: k1, k2, k3, k2p
-    real(dp)             :: h0, dh, Rgh, sLat, ptop
-    type(gps_diff)       :: p, t, q, x, na, tvm, z
+    real(dp)             :: sLat, ptop
+    type(gps_diff)       :: p, t, q, x, na, z
     type(gps_diff)       :: tv(ngpssize), cmp(ngpssize), N(ngpssize) 
 
     prf%ngpslev = ngpslev
@@ -3062,7 +3060,6 @@ contains
     implicit none
 
     ! Locals:
-    INTEGER J
     integer :: nulnam,ierr,fnom,fclos
 
 !*  .  1.1 Default values

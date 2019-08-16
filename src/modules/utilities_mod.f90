@@ -348,7 +348,7 @@ contains
     character(len=*), optional :: extrapDegree_opt
 
     ! locals
-    integer :: iun, nio, nii
+    integer :: nio, nii
     integer :: ierr, jk1
     real, allocatable :: bufuuout4(:), bufvvout4(:)
     real, allocatable :: bufuuin4(:), bufvvin4(:)
@@ -394,7 +394,7 @@ contains
     character(len=*), optional :: extrapDegree_opt
 
     ! locals
-    integer :: iun, nio, njo, nii, nji
+    integer :: nio, njo, nii, nji
     integer :: ierr, jk1, jk2
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
@@ -446,7 +446,7 @@ contains
     real(8) :: ax(*), ay(*)
     character(len=*) :: grtyp, grtypref
 
-    integer :: ier1,ier2,jk,ilenx,ileny
+    integer :: ier2,jk,ilenx,ileny
     real, allocatable :: bufax4(:), bufay4(:)
 
     integer :: ezgdef
@@ -512,7 +512,7 @@ contains
     character(len=*) :: nomvar
     character(len=*) :: typvar
 
-    integer :: key1,key2, ierr, ilen, jk1, jk2, jk3, la
+    integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer4(:)
 
     integer :: fstluk, fstinf
@@ -555,7 +555,7 @@ contains
     real(4) :: work
     integer, intent(in) :: ni,nj,nk
     real(8) :: fld8(ni,nj,nk)
-    integer :: iun, datev, ip1, ip2, ip3, ig1, ig2, ig3, ig4
+    integer :: iun, ip1, ip2, ip3, ig1, ig2, ig3, ig4
     integer :: npak, dateo, deet, npas, datyp
     logical :: rewrit  
     character(len=*) :: etiket 
@@ -563,7 +563,7 @@ contains
     character(len=*) :: grtyp 
     character(len=*) :: nomvar            
 
-    integer :: ikey, ierr, jk1, jk2, jk3
+    integer :: ikey, jk1, jk2, jk3
     real(4), allocatable :: buffer4(:,:,:)
 
     integer :: fstecr
@@ -1051,7 +1051,6 @@ contains
     integer, intent(out) :: unit
     logical :: file_exists
     integer :: ier
-    integer :: fnom
     character(len=20) :: mode
     
     inquire(file=trim(filename), exist=file_exists)
@@ -1064,7 +1063,6 @@ contains
 
     unit=0
     
-    !ier = fnom(unit,trim(filename),trim(mode),0)
     ier = utl_open_file(unit,trim(filename),trim(mode))
 
     if (ier.ne.0) call utl_abort('utl_open_messagefile: Error associating unit number')
@@ -1484,7 +1482,7 @@ contains
     
     real(4) :: lvl_r4
     
-    logical :: Exists,levels
+    logical :: Exists
     character(len=1) :: string
      
     integer, parameter :: iun=0

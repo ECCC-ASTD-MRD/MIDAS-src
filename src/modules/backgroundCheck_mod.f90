@@ -50,7 +50,7 @@ subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
   type(struct_columnData) :: columng       !
   type(struct_columnData) :: columnhr      ! 
 
-  integer :: j, jdata
+  integer :: j
   real(8) :: zjo
 
   integer            :: nulNam, ier, fnom, fclos
@@ -130,8 +130,8 @@ end subroutine bgck_bgcheck_conv
       CHARACTER*2 CDFAM
       LOGICAL :: new_bgck_sw
       INTEGER IFLAG,INAM,INDEX_HEADER,IDBURP
-      INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
-      INTEGER J,J2,JJ,JD,INDEX_BODY,icoun
+      INTEGER ITYP
+      INTEGER J,INDEX_BODY,icoun
       INTEGER INOBS, INREJ, INZOBS, INZREJ
       INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
@@ -476,11 +476,11 @@ end subroutine bgck_bgcheck_conv
       type(struct_vco), pointer :: vco_trl
       REAL*8 HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
 
-      INTEGER INDEX_HEADER, JD
+      INTEGER INDEX_HEADER
       INTEGER IDATYP
       INTEGER IDATA   , IDATEND, INDEX_BODY
-      INTEGER JL, JH,  NGPSLEV
-      INTEGER NH, NH1, stat, iversion
+      INTEGER NGPSLEV
+      INTEGER stat, iversion
 
       LOGICAL  LSTAG
 

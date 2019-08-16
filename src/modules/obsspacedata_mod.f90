@@ -1516,7 +1516,6 @@ contains
 !#endif
       implicit none
       character(len=*), intent(in) :: cdmessage
-      integer :: initialized
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
       call flush(6)
@@ -1806,9 +1805,9 @@ contains
       INTEGER ILEM,IND,IIND,IP,IK
       INTEGER IBAD,IFLAG
       INTEGER ielement,ilevel
-      INTEGER ZESMAX,ZES
+      INTEGER ZESMAX
 
-      REAL(kind=8) ZFACT,padd,pmul,ZEMFACT,pvalue
+      REAL(kind=8) ZFACT,ZEMFACT,pvalue
 
       !***********************************************************************
       !     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
@@ -2061,8 +2060,6 @@ contains
 
       ! The 'save' makes this a CLASS-CONSTANT variable
       character(len=12), save :: obsColumnMode_class = '            '
-
-      integer :: column_index
 
       INITIALIZED: if(.not. obs_class_initialized) then
          obs_class_initialized = .true.
@@ -2482,7 +2479,7 @@ contains
       integer :: active_index
       integer       , pointer :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
       real(OBS_REAL), pointer :: realHeaders_tmp(:,:),realBodies_tmp(:,:)
-      integer :: ier,master,mxstn,ncomm,nobs
+      integer :: ier,master,ncomm,nobs
       character(len=100) :: message
 
       ! broadcast relevant integers from master to all processes 
@@ -2913,10 +2910,10 @@ contains
       integer                       , intent(in)    :: nvcordtyp
       real        , dimension(:,:)                  :: vcordsf
 
-      integer :: ichn,ik,ilem,ind,ip,ielement,ilevel,n_elements_in_block
+      integer :: ik,ilem,ind,ip,ielement,ilevel,n_elements_in_block
       integer :: n_levels_in_block,zesmax
 
-      real(kind=4) :: pdum,pvalue,zemfact,ztorad
+      real(kind=4) :: pvalue,zemfact,ztorad
 
       ! -n_elements_in_block    : NUMBER OF ELEMENTS IN DATA BLOCK
       ! -n_levels_in_block      : NUMBER OF  LEVELS  IN DATA BLOCK
@@ -4178,8 +4175,7 @@ contains
       integer :: headerIndex_mpiglobal,headerIndex_mpilocal
       integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
-      integer :: my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
-      character(len=100) :: message
+      integer :: my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
 
@@ -4708,9 +4704,8 @@ contains
       integer          , intent(in)    :: nobshx
       real(8)          , intent(out)   :: hx(:,:)
 
-      integer  :: i,ifirst,ilast,iobscur,istn,j,k,myip,nens
+      integer  :: i,ifirst,ilast,iobscur,istn,j,k,nens
       integer  :: column_index
-      integer  :: active_index
       character(len=100) :: message
 
       obsdat%mpi_local = .false.
@@ -4981,7 +4976,7 @@ contains
 
 ! local variables ..
    integer :: istn,ipass,ireg ,idata
-   integer :: mxstn ,ifirst,ilast ,ier,i,j
+   integer :: mxstn ,ifirst,ilast, i,j
    integer :: isize,rsize,active_index ,column_index
    integer :: ii0,iifirst,ii
    integer :: numheader, numBody
@@ -5109,7 +5104,7 @@ contains
       integer ::   numBody_mpilocal,  numBody_mpiglobal
       integer :: bodyIndex_mpilocal,bodyIndex_mpiglobal
       integer :: headerIndex_mpilocal,headerIndex_mpiglobal
-      integer :: idataend,ifamid,idata,active_index
+      integer :: idataend,idata,active_index
       integer :: column_index
 
       !!---------------------------------------------------------------
@@ -6480,7 +6475,7 @@ contains
       integer, intent(in) :: kobs
       integer, intent(in) :: kulout
 
-      integer :: ialt,idburp,ii,ilon,ilat,iout,jtrans
+      integer :: ialt,idburp,ilon,ilat,iout
       character(len=12) :: ccstnid
       real(8) :: torad 
 
@@ -6678,7 +6673,7 @@ contains
       integer, intent(in) :: kobs
       integer, intent(in) :: kulout
 
-      integer :: ipnt,idata,iens,j,jdata,k,nens
+      integer :: ipnt,idata,iens,jdata,nens
 
       nens = size(hx,1)
 

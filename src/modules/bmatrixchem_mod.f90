@@ -182,7 +182,7 @@ contains
     integer                  :: cvDim_out
     character(len=*), intent(in), optional :: mode_opt
 
-    integer :: jlev, nulnam, ierr, fnom, fclos, jm, jn, status
+    integer :: nulnam, ierr, fnom, fclos, jm, jn, status
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
     integer :: jvar,nChmVars,jvar2
@@ -669,7 +669,6 @@ contains
     type(struct_gsv) :: statevector
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim)
-    integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) return
 
@@ -773,7 +772,6 @@ contains
     type(struct_gsv) :: statevector
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim)
-    integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
       if(mpi_myid == 0) write(*,*) 'bMatrixChem not initialized'
@@ -848,7 +846,7 @@ contains
     real(8), allocatable, dimension(:,:) :: zcornssrc
 
     ! Standard file variables
-    integer :: ini,inj,ink,in1,in2
+    integer :: ini,inj,ink
     integer :: ip1,ip2,ip3,idateo
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
@@ -1014,15 +1012,11 @@ contains
 
     real(8) :: dlfact2,dlc,dsummed
     real(8) :: dtlen,zr,dlfact
-    integer :: ilen,jn,jlat,jk,jvar,jlev,nsize,ierr
+    integer :: jn,jlat,jk,jvar,jlev,nsize,ierr
     real(8) :: zleg(0:ntrunc,nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) :: dlwti(nj_l),zrmu(nj_l)
 
-    integer :: inracp,nlev_MT,ini,inj,ink,nulcorns
-    real(8) :: zpg(nj_l),zsia(nj_l),zrad(nj_l),zpgssin2(nj_l)
-    real(8) :: zsinm1(nj_l),zsinm2(nj_l),zsin2(nj_l),zsinlat(nj_l)
-    real(8) :: dlfact1, dln
-    real(8) :: dlnorm(0:ntrunc)
+    integer :: nlev_MT,ini,inj,ink,nulcorns
     real(8), allocatable :: wtemp(:,:,:)    
     logical :: lfound
     integer :: fnom, fstouv, fstfrm, fclos
@@ -1257,14 +1251,9 @@ contains
     real(8) :: rcoord(10000)
     
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
-    character(len=2)  :: cltypvar
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100)
 
     ! Reading the data
 
@@ -1331,14 +1320,12 @@ contains
     integer :: jvar,jn,inix,injx,inkx
     integer :: ikey, jlevo, firstn,lastn
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T))
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1409,16 +1396,14 @@ contains
 
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,jlevo
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),work
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T))
     real(8), allocatable :: zspbuf(:)
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
 
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1503,15 +1488,13 @@ contains
     implicit none
 
     integer :: jvar,in
-    integer :: ikey,jlevo
+    integer :: ikey
     real(8), allocatable :: rgsig3d(:,:,:)
     
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1593,11 +1576,9 @@ contains
     real(8), allocatable :: rgsig3d(:,:,:)
     
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
-    character(len=1)  :: clgrtyp
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1680,23 +1661,13 @@ contains
     real(8) :: eigenvalsqrt(nkgdim)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
 
-    integer :: jlat,jn,jk1,jk2,jvar
+    integer :: jn,jk1,jk2,jvar,ierr
     integer :: ilwork,info,jnum,jstart,nsize
 
     real(8) :: zwork(2*4*nkgdim)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
     logical, allocatable :: lfound_sqrt(:)
-    
-    ! Standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
-    character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
     
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
@@ -1827,11 +1798,8 @@ contains
     integer :: jn, nulcorns,ierr,jvar,jstart,jnum,numvartot
 
     ! standard file variables
-    integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
-    character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     integer :: fnom, fstouv, fstfrm, fclos
     
@@ -1912,7 +1880,6 @@ contains
     integer :: ip1,ip2,ip3
     integer :: idateo
     character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
 
     if (nmat == 0) then
@@ -2016,11 +1983,10 @@ contains
     real(8) :: sp(nla_mpilocal,2,nkgdim)
 
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
-    real(8) :: sq2, zp
+    real(8) :: sq2
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal
+    integer :: jlev, jlon, jlat
     real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
-    real(8) :: dla2, dl1sa2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
     call tmg_start(82,'bchm_SPA2GD1')
 
@@ -2140,11 +2106,10 @@ contains
     real(8) :: sp(nla_mpilocal,2,nkgdim)
 
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
-    real(8) :: sq2, zp
+    real(8) :: sq2
     real(8), allocatable :: zsp(:,:,:), zsp2(:,:,:)
 
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal
-    real(8) :: dl1sa2, dla2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
+    integer :: jlev, jlon, jlat
     real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
 
@@ -2307,7 +2272,7 @@ contains
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
 
@@ -2459,7 +2424,7 @@ contains
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
 
     integer :: jproc,cvDim_maxmpilocal,ierr
-    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+    integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
 
@@ -2879,22 +2844,15 @@ contains
     real(8), allocatable :: eigenvec(:,:),result(:,:)
 
     integer :: jn,jk1,jk2,jvar,numvartot,jstart
-    integer :: ilwork,info,jnum,nvlev
+    integer :: ilwork,info,jnum,nvlev,ierr
 
     real(8) :: zwork(2*4*nkgdim)
-    real(8) :: zr,eigenvalmax
+    real(8) :: eigenvalmax
     integer iulcorvert
     
     ! Standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
-    character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
     integer :: fnom,fstouv,fstfrm,fclos
     logical, allocatable :: lfound(:)
    
@@ -3085,7 +3043,7 @@ contains
     real(8), intent(in), optional :: rsig_opt(ndim2) ! Input error standard deviations. Required when lrgsig=.true.
    
     integer :: jvar,jk1,jk2,jk3,nsize
-    real(8) :: rmat_work(ndim2,ndim2),rsum
+    real(8) :: rmat_work(ndim2,ndim2)
 
     if (.not.initialized) return
  
