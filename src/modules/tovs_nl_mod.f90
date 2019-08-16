@@ -152,7 +152,7 @@ module tovs_nl_mod
   integer :: surfaceType(kslon,kslat)  
   real(8) :: waterFraction(kslon,kslat) 
 
-  ! Derived types
+  ! Derived typeso
   type(rttov_coefs),        allocatable :: tvs_coefs(:)          ! coefficients
   type(rttov_options),      allocatable :: tvs_opts(:)           ! options
   type(rttov_profile),      allocatable :: tvs_profiles(:)       ! profiles, all profiles
@@ -1679,7 +1679,7 @@ contains
       deallocate (huExtrapolated,      stat = allocStatus(7))
       deallocate (ttExtrapolated,      stat = allocStatus(8))
       deallocate (logHuInterpolated,   stat = allocStatus(9))
-      deallocate (hu,                  stat = allocStatus(10))
+      deallocate (huInterpolated,      stat = allocStatus(10))
       deallocate (ttInterpolated,      stat = allocStatus(11))
       deallocate (ozone,               stat = allocStatus(12))
       deallocate (latitudes,           stat = allocStatus(13))
