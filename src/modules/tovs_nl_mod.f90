@@ -369,7 +369,7 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addpc = .false.     ! to carry out principal component calculations 
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
-        tvs_opts(sensorIndex) % rt_mw % clw_data = .false.  ! profil d'eau liquide pas disponible
+        tvs_opts(sensorIndex) % rt_mw % clw_data = .true.  ! profil d'eau liquide pas disponible
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .false. ! use of internal profile interpolator (rt calculation on model levels)
@@ -1664,7 +1664,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: status, Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(17)
+    integer :: allocStatus(22)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
@@ -1691,6 +1691,11 @@ contains
     real(8), allocatable :: ozoneExtrapolated(:,:)
     real(8), allocatable :: ozoneInterpolated(:,:)
     character(len=4) :: ozoneVarName
+    real(8), allocatable :: lwc   (:,:)
+    real(8), allocatable :: logLwc(:,:)
+    real(8), allocatable :: logLwcInterp(:,:)
+    real(8), allocatable :: lwcInterp(:,:)
+    real(8), allocatable :: lwcExtrap(:,:)
     
     real(8) :: modelTopPressure
  
@@ -1799,6 +1804,11 @@ contains
           allocate (ozoneInterpolated(levelsBelowModelTop,profileCount), stat= allocStatus(16))
         end if
       end if
+      allocate (lwc       (nlv_T,count_profile),stat= allocStatus(17))
+      allocate (logLwc    (nlv_T,count_profile),stat= allocStatus(18))
+      allocate (logLwcInterp(jpmolev,count_profile),stat= allocStatus(19))
+      allocate (lwcInterp(jpmolev,count_profile),stat= allocStatus(20))
+      allocate (lwcExtrap(nlevels,count_profile),stat= allocStatus(21))
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
       profileCount = 0
@@ -1846,6 +1856,7 @@ contains
           hu  (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'HU')
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
+          lwc (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
         end do
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
@@ -1887,6 +1898,10 @@ contains
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
         huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
+        logLwc(:,profileIndex) = log( lwc(:,profileIndex) )
+        call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logLwc(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logLwcInterp(:,profileIndex:profileIndex))
+        lwcInterp(:,profileIndex) = exp ( logLwcInterp(:,profileIndex) )
       end do
       !$omp end parallel do
 
@@ -1951,7 +1966,13 @@ contains
         end if
       end if
 
-      !   2.4  Get ozone profiles (ppmv)
+      ! liquid water content
+      lwcExtrap(:,:) = 0.0d0
+      do profileIndex = 1, profileCount
+        do levelIndex = 1, levelsBelowModelTop
+          lwcExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = lwcInterp(levelIndex,profileIndex)
+        end do
+      end do
 
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
         ozoneExtrapolated(:,:)= 0.0d0
@@ -2025,6 +2046,7 @@ contains
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
         tvs_profiles(tovsIndex) % cfraction = 0.d0
+        tvs_profiles(tovsIndex) % clw(:)          = lwcExtrap(:,profileIndex)
       end do
 
       deallocate (rttovPressure,       stat = allocStatus(1))
@@ -2048,6 +2070,11 @@ contains
           deallocate (ozoneInterpolated, stat= allocStatus(17))
         end if
       end if
+      deallocate (lwc       ,stat= allocStatus(18))
+      deallocate (logLwc    ,stat= allocStatus(19))
+      deallocate (logLwcInterp,stat= allocStatus(20))
+      deallocate (lwcInterp ,stat= allocStatus(21))
+      deallocate (lwcExtrap ,stat= allocStatus(22))
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
      
