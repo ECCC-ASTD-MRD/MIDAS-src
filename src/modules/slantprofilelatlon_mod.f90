@@ -62,7 +62,7 @@ contains
     real(8), intent(out)  :: lonSlantLev_M(:)
 
     ! Locals:
-    real(4) :: heightInterp, heightIntersect, heightDiff 
+    real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4 
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: lat, lon, latSlant, lonSlant
     integer :: subGridIndex, lonIndex, latIndex
@@ -106,7 +106,7 @@ contains
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
-      call heightBilinearInterp(lat, lon, hco, height3D_T_r4(:,:,lev_T), heightInterp)
+      call heightBilinearInterp(lat, lon, hco, height3D_T_r4(:,:,lev_T), heightInterp_r4)
       call tmg_stop(197)
 
       doIteration = .true.
@@ -114,16 +114,16 @@ contains
       while_doIteration: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
         call tmg_start(197,'heightBilinearInterp')
-        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_T_r4(:,:,lev_T), heightIntersect)
+        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_T_r4(:,:,lev_T), heightIntersect_r4)
         call tmg_stop(197)
 
-        heightDiff = abs(heightInterp-heightIntersect)
-        if ( heightDiff > toleranceHeightDiff .or. &
+        heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
+        if ( heightDiff_r4 > toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
 
         numIteration = numIteration + 1
@@ -143,7 +143,7 @@ contains
 
       ! find the interpolated height 
       call tmg_start(197,'heightBilinearInterp')
-      call heightBilinearInterp(lat, lon, hco, height3D_M_r4(:,:,lev_M), heightInterp)
+      call heightBilinearInterp(lat, lon, hco, height3D_M_r4(:,:,lev_M), heightInterp_r4)
       call tmg_stop(197)
 
       doIteration = .true.
@@ -151,16 +151,16 @@ contains
       while_doIteration2: do while (doIteration)
 
         call tmg_start(196,'findIntersectLatlon')
-        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp, latSlant, lonSlant)
+        call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
         call tmg_start(197,'heightBilinearInterp')
-        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_M_r4(:,:,lev_M), heightIntersect)
+        call heightBilinearInterp(latSlant, lonSlant, hco, height3D_M_r4(:,:,lev_M), heightIntersect_r4)
         call tmg_stop(197)
 
-        heightDiff = abs(heightInterp-heightIntersect)
-        if ( heightDiff > toleranceHeightDiff .or. &
+        heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
+        if ( heightDiff_r4 > toleranceHeightDiff .or. &
              numIteration >= maxNumIteration ) doIteration = .false.
 
         numIteration = numIteration + 1
