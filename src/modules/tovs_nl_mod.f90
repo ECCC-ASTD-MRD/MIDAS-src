@@ -1804,11 +1804,11 @@ contains
           allocate (ozoneInterpolated(levelsBelowModelTop,profileCount), stat= allocStatus(16))
         end if
       end if
-      allocate (lwc       (nlv_T,count_profile),stat= allocStatus(17))
-      allocate (logLwc    (nlv_T,count_profile),stat= allocStatus(18))
-      allocate (logLwcInterp(jpmolev,count_profile),stat= allocStatus(19))
-      allocate (lwcInterp(jpmolev,count_profile),stat= allocStatus(20))
-      allocate (lwcExtrap(nlevels,count_profile),stat= allocStatus(21))
+      allocate (lwc       (nlv_T,profileCount),stat= allocStatus(17))
+      allocate (logLwc    (nlv_T,profileCount),stat= allocStatus(18))
+      allocate (logLwcInterp(levelsBelowModelTop,profileCount),stat= allocStatus(19))
+      allocate (lwcInterp(levelsBelowModelTop,profileCount),stat= allocStatus(20))
+      allocate (lwcExtrap(nRttovLevels,profileCount),stat= allocStatus(21))
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
       profileCount = 0
@@ -1898,10 +1898,12 @@ contains
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
         huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
-        logLwc(:,profileIndex) = log( lwc(:,profileIndex) )
-        call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logLwc(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logLwcInterp(:,profileIndex:profileIndex))
-        lwcInterp(:,profileIndex) = exp ( logLwcInterp(:,profileIndex) )
+        !logLwc(:,profileIndex) = log( lwc(:,profileIndex) )
+        !call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logLwc(:,profileIndex:profileIndex),nlv_T,1, &
+        !     levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logLwcInterp(:,profileIndex:profileIndex))
+        !lwcInterp(:,profileIndex) = exp ( logLwcInterp(:,profileIndex) )
+        call ppo_IntAvg (pressure(:,profileIndex:profileIndex),lwc(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),lwcInterp(:,profileIndex:profileIndex))
       end do
       !$omp end parallel do
 
