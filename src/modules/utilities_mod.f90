@@ -1864,8 +1864,6 @@ contains
 
   end subroutine utl_heapsort2d
 
-<<<<<<< HEAD
-
   function utl_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
     !
@@ -2008,7 +2006,7 @@ contains
     end if
 
   end function utl_getPositionXY
-=======
+
   subroutine utl_splitString(string,separator,stringArray)
     implicit none
     character(len=*), intent(in) :: string
@@ -2046,6 +2044,5 @@ contains
     write(*,*)  'utl_stringArrayToIntegerArray: integerArray = ', integerArray(:)
 
   end subroutine utl_stringArrayToIntegerArray
->>>>>>> Issue #247: Generalization of the observation transform - part 1
 
 end module utilities_mod

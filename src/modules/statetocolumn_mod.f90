@@ -422,7 +422,7 @@ contains
         call gsv_deallocate(stateVector_Tiles_allVar_1Step)
 
       else
-        stateVector_Tiles_ptr => vtr_getStateVectorTrial('height')
+        stateVector_Tiles_ptr => gvt_getStateVectorTrial('height')
 
         call gsv_allocate( stateVector_Tiles_1Step, 1, &
                            stateVector%hco, stateVector%vco, &

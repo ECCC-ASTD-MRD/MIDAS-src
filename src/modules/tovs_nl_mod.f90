@@ -3878,7 +3878,6 @@ contains
 
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
-    real(8) zdtb
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(OBS_REAL) :: zdtb
@@ -3890,7 +3889,7 @@ contains
     integer lcanjo(tvs_maxChannelNumber)
     integer :: headerIndex, bodyIndex
     real(8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
-    real(8) :: sigmaObs
+    real(8) :: sigmaObs, dlsum
     integer :: list_chan(tvs_maxChannelNumber)
     integer :: count
 
