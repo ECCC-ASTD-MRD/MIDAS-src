@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * The observation variable transforms was generalized and modernized (#247 and !TBD). 
+    * Previously only wind (speed,direction) -> (u,v) was supported. Now users can add (relatively) easily any tupe of variable transform. For now, only visibility -> log(visibility_ was added.
+    * An observation transforms can only be activated when an assimilated observation is not found in the observations readed from burp or squlite files.
+    * On outputs, the o-p and/or o-a of the transformed variables will be converted and added to the original/source variable. In the output burp files, only the source variable will appear because it was found to diffult to modify brpr_updateBurp. However, both source and transform variable info can be found in the sqlite files.
  * The height/pressure are computed on the grid, before horizontal interpolation to observation locations, to prepare for using slanted columns and footprint operators. (#124 and !220)
     * The height/pressure are part of statevector/columndata main data storage arrays (gd_r4/gd_r8/all) and are calculated for the trial fields and the increments.
     * Allocation of height/pressure is set to true, by default, and it is done if the necessary variables for their calculation are available in the statevector/columndata.
