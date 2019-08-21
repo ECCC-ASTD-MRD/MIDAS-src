@@ -1235,7 +1235,7 @@ contains
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    codtyp integer, date integer, time integer, elev real); &
-                   create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
+                   create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                    vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )

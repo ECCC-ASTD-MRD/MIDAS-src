@@ -1333,10 +1333,9 @@ contains
     character(4) :: varName
     character(2) :: varLevel
     character(9) :: cstnid
-
     real(8), pointer :: col_ptr_uv(:)
-
     logical :: passe_once, valeurs_defaut, print_debug
+    logical, save :: firstCall=.true.
 
     if(.not. new_oer_sw) return
 
@@ -1344,7 +1343,8 @@ contains
     passe_once     = .true.
     print_debug    = .false.
 
-    write(*,*) "Entering subroutine oer_sw"
+    if (firstCall) write(*,*) "Entering subroutine oer_sw"
+    firstCall = .false.
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do

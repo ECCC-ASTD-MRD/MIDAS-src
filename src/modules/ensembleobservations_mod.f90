@@ -45,7 +45,7 @@ MODULE ensembleObservations_mod
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setMeanOMP, eob_setAssFlag
-  public :: eob_calcRemoveMeanYb, eob_setPres, eob_clean, eob_copy
+  public :: eob_setMeanHPHT, eob_calcRemoveMeanYb, eob_setPres, eob_clean, eob_copy
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -58,7 +58,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: lat(:), lon(:) ! lat/lon of observation
     real(8), allocatable          :: logPres(:)     ! ln(pres) of obs, used for localization
     real(8), allocatable          :: varObsInv(:)   ! inverse of obs error variances
-    real(8), allocatable          :: Yb(:,:)        ! background ensemble perturbation in obs space
+    real(4), allocatable          :: Yb_r4(:,:)     ! background ensemble perturbation in obs space
     real(8), allocatable          :: meanYb(:)      ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)     ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)    ! the observed value
@@ -96,7 +96,7 @@ CONTAINS
     allocate( ensObs%logPres(ensObs%numObs) )
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%varObsInv(ensObs%numObs) )
-    allocate( ensObs%Yb(ensObs%numMembers,ensObs%numObs) )
+    allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
     allocate( ensObs%assFlag(ensObs%numObs) )
@@ -123,7 +123,7 @@ CONTAINS
     deallocate( ensObs%logPres )
     deallocate( ensObs%obsValue )
     deallocate( ensObs%varObsInv )
-    deallocate( ensObs%Yb )
+    deallocate( ensObs%Yb_r4 )
     deallocate( ensObs%meanYb )
     deallocate( ensObs%deterYb )
     deallocate( ensObs%assFlag )
@@ -164,7 +164,7 @@ CONTAINS
         ensObsClean%lon(obsCleanIndex)       = ensObs%lon(obsIndex)
         ensObsClean%logPres(obsCleanIndex)   = ensObs%logPres(obsIndex)
         ensObsClean%varObsInv(obsCleanIndex) = ensObs%varObsInv(obsIndex)
-        ensObsClean%Yb(:,obsCleanIndex)      = ensObs%Yb(:,obsIndex)
+        ensObsClean%Yb_r4(:,obsCleanIndex)   = ensObs%Yb_r4(:,obsIndex)
         ensObsClean%meanYb(obsCleanIndex)    = ensObs%meanYb(obsIndex)
         ensObsClean%deterYb(obsCleanIndex)   = ensObs%deterYb(obsIndex)
         ensObsClean%obsValue(obsCleanIndex)  = ensObs%obsValue(obsIndex)
@@ -196,7 +196,7 @@ CONTAINS
     ensObsOut%lon(:)       = ensObsIn%lon(:)
     ensObsOut%logPres(:)   = ensObsIn%logPres(:)
     ensObsOut%varObsInv(:) = ensObsIn%varObsInv(:)
-    ensObsOut%Yb(:,:)      = ensObsIn%Yb(:,:)
+    ensObsOut%Yb_r4(:,:)   = ensObsIn%Yb_r4(:,:)
     ensObsOut%meanYb(:)    = ensObsIn%meanYb(:)
     ensObsOut%deterYb(:)   = ensObsIn%deterYb(:)
     ensObsOut%obsValue(:)  = ensObsIn%obsValue(:)
@@ -268,8 +268,8 @@ CONTAINS
                            ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
                            0, 'GRID', ierr )
     do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_gatherv( ensObs%Yb(memberIndex,:)          , ensObs%numObs, 'mpi_real8', &
-                             ensObs_mpiglobal%Yb(memberIndex,:), allNumObs, displs, 'mpi_real8',  &
+      call rpn_comm_gatherv( ensObs%Yb_r4(memberIndex,:)          , ensObs%numObs, 'mpi_real4', &
+                             ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
     end do
 
@@ -290,7 +290,7 @@ CONTAINS
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
     do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_bcast(ensObs_mpiglobal%Yb(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real8',  &
+      call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
 
@@ -494,7 +494,9 @@ CONTAINS
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
                                 channelIndex, tvs_profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
-          write(*,*) 'eob_setPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
+          if(mpi_myid == 0) then
+            write(*,*) 'eob_setPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
+          end if
         else
           ensObs%logPres(obsIndex) = log(500.0D2)
         end if
@@ -532,10 +534,10 @@ CONTAINS
     integer          :: memberIndex
 
     ! get the Y-HX value from obsSpaceData
-    call obs_extractObsRealBodyColumn(ensObs%Yb(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
+    call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
 
     ! now compute HX = Y - (Y-HX)
-    ensObs%Yb(memberIndex,:) = ensObs%obsValue(:) - ensObs%Yb(memberIndex,:)
+    ensObs%Yb_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Yb_r4(memberIndex,:)
 
   end subroutine eob_setYb
 
@@ -568,8 +570,8 @@ CONTAINS
     integer :: obsIndex
 
     do obsIndex = 1, ensObs%numObs
-      ensObs%meanYb(obsIndex) = sum(ensObs%Yb(:,obsIndex)) / ensObs%numMembers
-      ensObs%Yb(:,obsIndex) = ensObs%Yb(:,obsIndex) - ensObs%meanYb(obsIndex)
+      ensObs%meanYb(obsIndex) = sum(ensObs%Yb_r4(:,obsIndex)) / ensObs%numMembers
+      ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - ensObs%meanYb(obsIndex)
     end do
 
   end subroutine eob_calcRemoveMeanYb
@@ -592,6 +594,34 @@ CONTAINS
     end do
 
   end subroutine eob_setMeanOMP
+
+  !--------------------------------------------------------------------------
+  ! eob_setMeanHPHT
+  !--------------------------------------------------------------------------
+  subroutine eob_setMeanHPHT(ensObs)
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer :: obsIndex, memberIndex
+    real(8) :: hpht
+
+    do obsIndex = 1, ensObs%numObs
+      hpht = 0.0d0
+      do memberIndex = 1, ensObs%numMembers
+        hpht = hpht + ensObs%Yb_r4(memberIndex,obsIndex)**2 / ensObs%numMembers
+      end do
+      if (hpht > 0.0D0) then 
+        hpht = sqrt(hpht)
+      else
+        hpht = 0.0D0
+      end if
+      call obs_bodySet_r(ensObs%obsSpaceData, OBS_HPHT, obsIndex, hpht)
+    end do
+
+  end subroutine eob_setMeanHPHT
 
   !--------------------------------------------------------------------------
   ! max_transmission

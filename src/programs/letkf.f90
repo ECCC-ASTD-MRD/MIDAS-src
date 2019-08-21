@@ -63,7 +63,8 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorStdDevTrl
   type(struct_gsv)          :: stateVectorStdDevAnl
-  type(struct_gsv)          :: stateVectorMeanAnlSfcPressure
+  type(struct_gsv)          :: stateVectorMeanAnlSfcPres
+  type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
   type(struct_gsv)          :: stateVectorDeterTrl4D
   type(struct_gsv)          :: stateVectorDeterTrl
   type(struct_gsv)          :: stateVectorDeterAnl
@@ -422,6 +423,9 @@ program midas_letkf
   ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
   call eob_setMeanOMP(ensObs)
 
+  ! Put HPHT in OBS_HPHT, for writing to obs files
+  call eob_setMeanHPHT(ensObs)
+
   ! Apply obs operators to ensemble mean background for several purposes
   write(*,*) ''
   write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean background'
@@ -626,13 +630,21 @@ program midas_letkf
   call tmg_start(4,'LETKF-writeOutput')
 
   !- 7.0 Prepare stateVector with only MeanAnl surface pressure and surface height
-  call gsv_allocate( stateVectorMeanAnlSfcPressure, tim_nstepobsinc, hco_ens, vco_ens,   &
+  call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
-  call gsv_zero(stateVectorMeanAnlSfcPressure)
-  call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPressure, allowMismatch_opt=.true.)
-  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPressure)
+  call gsv_zero(stateVectorMeanAnlSfcPres)
+  if (mpi_myid <= (nEns-1)) then
+    call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.false., &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+    call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
+  end if
+  call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowMismatch_opt=.true.)
+  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+  call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
 
   !- 7.1 Output the ensemble spread stddev Trl and Anl
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
@@ -655,7 +667,7 @@ program midas_letkf
       call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='R', writeHeightSfc_opt=.false., &
                            stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-      call gsv_writeToFile(stateVectorMeanAnlSfcPressure, outFileName, 'ENSMEAN_INC',  &
+      call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='A', writeHeightSfc_opt=.true., &
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
@@ -677,7 +689,7 @@ program midas_letkf
         call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
                              typvar_opt='R', writeHeightSfc_opt=.false., &
                              stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-        call gsv_writeToFile(stateVectorMeanAnlSfcPressure, outFileName, 'DETER_INC',  &
+        call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'DETER_INC',  &
                              typvar_opt='A', writeHeightSfc_opt=.true., &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -694,30 +706,26 @@ program midas_letkf
 
   !- 7.6 Output all ensemble member analyses
   if (updateMembers) then
+    call tmg_start(104,'LETKF-writeEns')
     call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)
+    call tmg_stop(104)
   end if
 
   !- 7.7 Output all ensemble member increments (include MeanAnl Psfc)
   if (writeIncrements) then
     ! WARNING: Increment put in ensembleTrl for output
     call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
+    call tmg_start(104,'LETKF-writeEns')
     call ens_writeEnsemble(ensembleTrl, '.', '', ' ', 'ENS_INC', 'R',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.false.)
     ! Also write the reference (analysis) surface pressure to increment files
-    do memberIndex = 1, nEns
-      call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(),  &
-                               memberIndex, ensFileNameSuffix_opt='inc' )
-      write(memberIndexStr,'(I4.4)') memberIndex
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnlSfcPressure, outFileName,  &
-                             'ENS_INC' // memberIndexStr,  &
-                             typvar_opt='A', writeHeightSfc_opt=.true., &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-      end do
-    end do
+    call writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
+                           etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                           ensPath='.')
+    call tmg_stop(104)
   end if
 
   !- 7.8 Output the sub-sampled ensemble analyses and increments
@@ -729,7 +737,7 @@ program midas_letkf
       call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='R', writeHeightSfc_opt=.false., &
                            stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-      call gsv_writeToFile(stateVectorMeanAnlSfcPressure, outFileName, 'ENSMEAN_INC',  &
+      call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='A', writeHeightSfc_opt=.true., &
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
@@ -743,28 +751,25 @@ program midas_letkf
     end do
 
     ! Output the sub-sampled analysis ensemble members
+    call tmg_start(104,'LETKF-writeEns')
     call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', ' ', 'ENS_ANL', 'A',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.true.)
+    call tmg_stop(104)
 
     ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
     ! WARNING: Increment put in ensembleTrlSubSample for output
     call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
+    call tmg_start(104,'LETKF-writeEns')
     call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', ' ', 'ENS_INC', 'R',  &
                            numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                            containsFullField_opt=.false.)
     ! Also write the reference (analysis) surface pressure to increment files
-    do memberIndex = 1, ens_getNumMembers(ensembleAnlSubSample)
-      call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(),  &
-                               memberIndex, ensFileNameSuffix_opt='inc' )
-      write(memberIndexStr,'(I4.4)') memberIndex
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnlSfcPressure, outFileName,  &
-                             'ENS_INC' // memberIndexStr,  &
-                             typvar_opt='A', writeHeightSfc_opt=.true., &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-      end do
-    end do
+    call writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
+                           ens_getNumMembers(ensembleAnlSubSample),  &
+                           etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                           ensPath='subspace')
+    call tmg_stop(104)
   end if
 
   !- 7.9 Output obs files with mean OMP and OMA
@@ -806,5 +811,48 @@ program midas_letkf
   if ( mpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
   if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
 
+
+contains
+
+  subroutine writeToAllMembers(stateVector, nEns, etiket, typvar,  &
+                               fileNameSuffix, ensPath)
+    implicit none
+
+    ! arguments:
+    type(struct_gsv) :: stateVector
+    integer          :: nEns
+    character(len=*) :: etiket
+    character(len=*) :: typvar
+    character(len=*) :: fileNameSuffix
+    character(len=*) :: ensPath
+
+    ! locals:
+    integer :: memberIndex, stepIndex, writeFilePE(nEns)
+    character(len=4) :: memberIndexStr
+
+    do memberIndex = 1, nEns
+      writeFilePE(memberIndex) = mod(memberIndex-1, mpi_nprocs)
+    end do
+
+    do memberIndex = 1, nEns
+
+      if (mpi_myid == writeFilePE(memberIndex)) then
+
+        call fln_ensAnlFileName( outFileName, ensPath, tim_getDateStamp(),  &
+                                 memberIndex, ensFileNameSuffix_opt=fileNameSuffix )
+        write(memberIndexStr,'(I4.4)') memberIndex
+
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(stateVector, outFileName,  &
+                               trim(etiket) // memberIndexStr,  &
+                               typvar_opt=trim(typvar), writeHeightSfc_opt=.true., &
+                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+        end do
+
+      end if
+
+    end do
+
+  end subroutine writeToAllMembers
 
 end program midas_letkf

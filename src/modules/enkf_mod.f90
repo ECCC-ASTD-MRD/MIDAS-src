@@ -145,6 +145,9 @@ contains
     logical :: deterExists
     logical :: firstTime = .true.
 
+    write(*,*) 'enkf_LETKFanalyses: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     !
     ! Set things up for the redistribution of work across mpi tasks
     !
@@ -334,17 +337,19 @@ contains
           call tmg_stop(18)
 
           do memberIndex = 1, nEns
-            YbTinvR(memberIndex,localObsIndex) = ensObs_mpiglobal%Yb(memberIndex, bodyIndex) * &
+            YbTinvR(memberIndex,localObsIndex) = ensObs_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                                                  localization * ensObs_mpiglobal%varObsInv(bodyIndex)
           end do
 
           if (localObsIndex == 1) YbTinvRYb(:,:) = 0.0D0
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEns
               YbTinvRYb(memberIndex1,memberIndex2) = YbTinvRYb(memberIndex1,memberIndex2) +  &
-                   YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb(memberIndex2, bodyIndex)
+                   YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
             end do
           end do
+          !$OMP END PARALLEL DO
 
         end do ! localObsIndex
 
@@ -784,6 +789,9 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(19)
 
+    write(*,*) 'enkf_LETKFanalyses: done'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   end subroutine enkf_LETKFanalyses
 
   !----------------------------------------------------------------------
@@ -864,6 +872,9 @@ contains
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
+
+    write(*,*) 'enkf_LETKFsetupMpiDistribution: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (trim(mpiDistribution) == 'TILES') then
 
@@ -1044,6 +1055,9 @@ contains
                  myProcIndexesSend(latLonIndex,1:myNumProcIndexesSend(latLonIndex))
     end do
 
+    write(*,*) 'enkf_LETKFsetupMpiDistribution: done'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   end subroutine enkf_LETKFsetupMpiDistribution
 
   !----------------------------------------------------------------------
@@ -1102,10 +1116,7 @@ contains
     integer :: lonIndex, latIndex, ni, nj
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     real(8) :: interpWeightLon, interpWeightLat
-
-    if (hco%grtyp == 'U') then
-      call utl_abort('enkf_setupInterpInfo: Yin-Yang grid (U) not yet supported.')
-    end if
+    logical :: includesYinYangBndry
 
     ni = hco%ni
     nj = hco%nj
@@ -1114,13 +1125,14 @@ contains
     myLonEndHalo = min(ni, 1 + weightLatLonStep * ceiling(real(myLonEnd - 1)/real(weightLatLonStep)))
     myLatBegHalo = 1 + weightLatLonStep * floor(real(myLatBeg - 1)/real(weightLatLonStep))
     myLatEndHalo = min(nj, 1 + weightLatLonStep * ceiling(real(myLatEnd - 1)/real(weightLatLonStep)))
-    write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (original)  = ',  &
+    write(*,*) 'enkf_setupInterpInfo: myLonBeg/End, myLatBeg/End (original)  = ',  &
                myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    write(*,*) 'midas-letkf: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
+    write(*,*) 'enkf_setupInterpInfo: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
                myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    write(*,*) 'midas-letkf: number of local gridpts where weights computed = ',  &
+    write(*,*) 'enkf_setupInterpInfo: number of local gridpts where weights computed = ',  &
                ( 1 + ceiling(real(myLonEndHalo - myLonBegHalo) / real(weightLatLonStep)) ) *  &
                ( 1 + ceiling(real(myLatEndHalo - myLatBegHalo) / real(weightLatLonStep)) )
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     wInterpInfo%latLonStep   = weightLatLonStep
     wInterpInfo%myLonBegHalo = myLonBegHalo
@@ -1130,6 +1142,12 @@ contains
 
     allocate(wInterpInfo%numIndexes(myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     if (weightLatLonStep > 1) then
+      ! Figure out if this tile straddles Yin-Yang boundary
+      if (hco%grtyp == 'U' .and. myLatBegHalo <= nj/2 .and. myLatEndHalo >= ((nj/2)+1)) then
+        includesYinYangBndry = .true.
+      else
+        includesYinYangBndry = .false.
+      end if
       allocate(wInterpInfo%lonIndexes(4,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
       allocate(wInterpInfo%latIndexes(4,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
       allocate(wInterpInfo%interpWeights(4,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
@@ -1152,10 +1170,26 @@ contains
         do latIndex = myLatBegHalo, myLatEndHalo, weightLatLonStep
           wInterpInfo%numIndexes(myLonEndHalo,latIndex) = 0
         end do
+        ! Ensure weights are computed along both sides of Yin-Yang boundary
+        if (includesYinYangBndry) then
+          wInterpInfo%numIndexes(ni,nj/2) = 0
+          wInterpInfo%numIndexes(ni,(nj/2)+1) = 0
+          write(*,*) 'enkf_setupInterpInfo: Yin-Yang boundary (lon,lat1,lat2) =',  &
+                     ni, nj/2, (nj/2)+1
+        end if
       end if
       if (myLatEndHalo == nj) then
         do lonIndex = myLonBegHalo, myLonEndHalo, weightLatLonStep
           wInterpInfo%numIndexes(lonIndex,myLatEndHalo) = 0
+        end do
+      end if
+      ! Ensure weights are computed along both sides of Yin-Yang boundary
+      if (includesYinYangBndry) then
+        do lonIndex = myLonBegHalo, myLonEndHalo, weightLatLonStep
+          wInterpInfo%numIndexes(lonIndex,nj/2) = 0
+          wInterpInfo%numIndexes(lonIndex,(nj/2)+1) = 0
+          write(*,*) 'enkf_setupInterpInfo: Yin-Yang boundary (lon,lat1,lat2) =',  &
+                     lonIndex, nj/2, (nj/2)+1
         end do
       end if
       ! For lon-only interpolation
@@ -1163,7 +1197,7 @@ contains
         if (wInterpInfo%numIndexes(myLonBegHalo,latIndex) > 0) cycle
         do lonIndex = myLonBegHalo, myLonEndHalo
           if (wInterpInfo%numIndexes(lonIndex,latIndex) == 0) cycle
-          ! Find nearest grid point with a value towards left 
+          ! Find nearest grid point with a value towards left
           wInterpInfo%numIndexes(lonIndex,latIndex) = 2
           wInterpInfo%lonIndexes(1,lonIndex,latIndex) = myLonBegHalo +  &
                weightLatLonStep * floor(real(lonIndex - myLonBegHalo)/real(weightLatLonStep)) 
@@ -1182,7 +1216,7 @@ contains
         do lonIndex = myLonBegHalo, myLonEndHalo, weightLatLonStep
           if (wInterpInfo%numIndexes(lonIndex,myLatBegHalo) > 0) cycle
           if (wInterpInfo%numIndexes(lonIndex,latIndex) == 0) cycle
-          ! Find nearest grid point with a value towards left 
+          ! Find nearest grid point with a value towards bottom
           wInterpInfo%numIndexes(lonIndex,latIndex) = 2
           wInterpInfo%lonIndexes(1,lonIndex,latIndex) = lonIndex
           wInterpInfo%lonIndexes(2,lonIndex,latIndex) = lonIndex
@@ -1190,6 +1224,14 @@ contains
                weightLatLonStep * floor(real(latIndex - myLatBegHalo)/real(weightLatLonStep)) 
           wInterpInfo%latIndexes(2,lonIndex,latIndex) = min(nj,  &
                wInterpInfo%latIndexes(1,lonIndex,latIndex) + weightLatLonStep)
+          ! Ensure we do not interpolate values across Yin-Yang boundary
+          if (includesYinYangBndry) then
+            if (latIndex <= nj/2) then
+              wInterpInfo%latIndexes(2,lonIndex,latIndex) = min(nj/2, wInterpInfo%latIndexes(2,lonIndex,latIndex))
+            else if(latIndex >= (nj/2)+1) then
+              wInterpInfo%latIndexes(1,lonIndex,latIndex) = max((nj/2)+1, wInterpInfo%latIndexes(1,lonIndex,latIndex))
+            end if
+          end if
           wInterpInfo%interpWeights(1,lonIndex,latIndex) =  &
                real(wInterpInfo%latIndexes(2,lonIndex,latIndex) - latIndex, 8)/real(weightLatLonStep, 8)
           wInterpInfo%interpWeights(2,lonIndex,latIndex) = 1.0D0 -  &
@@ -1218,6 +1260,16 @@ contains
           ! 4. top-right indexes
           wInterpInfo%lonIndexes(4,lonIndex,latIndex) = wInterpInfo%lonIndexes(2,lonIndex,latIndex)
           wInterpInfo%latIndexes(4,lonIndex,latIndex) = wInterpInfo%latIndexes(3,lonIndex,latIndex)
+          ! Ensure we do not interpolate values across Yin-Yang boundary
+          if (includesYinYangBndry) then
+            if (latIndex <= nj/2) then
+              wInterpInfo%latIndexes(3,lonIndex,latIndex) = min(nj/2, wInterpInfo%latIndexes(3,lonIndex,latIndex))
+              wInterpInfo%latIndexes(4,lonIndex,latIndex) = min(nj/2, wInterpInfo%latIndexes(4,lonIndex,latIndex))
+            else if(latIndex >= (nj/2)+1) then
+              wInterpInfo%latIndexes(1,lonIndex,latIndex) = max((nj/2)+1, wInterpInfo%latIndexes(1,lonIndex,latIndex))
+              wInterpInfo%latIndexes(2,lonIndex,latIndex) = max((nj/2)+1, wInterpInfo%latIndexes(2,lonIndex,latIndex))
+            end if
+          end if
           ! one-dimensional weights in lon and lat directions
           interpWeightLon = real(wInterpInfo%lonIndexes(4,lonIndex,latIndex) - lonIndex, 8) /  &
                             real(weightLatLonStep, 8)
@@ -1234,6 +1286,7 @@ contains
       ! no interpolation, all weights are computed
       wInterpInfo%numIndexes(:,:) = 0
     end if
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine enkf_setupInterpInfo
 
