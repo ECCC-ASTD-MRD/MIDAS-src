@@ -860,7 +860,7 @@ contains
     end if
 
     if (printInformation) then
-      write(*,*)' utl_matInvers: Inverse matrix of a symmetric matrix'
+      write(*,*)' utl_eigenDecomp: Eigen decomposition of a symmetric matrix'
     end if
 
     !     1. Computation of eigenvalues and eigenvectors
@@ -1818,7 +1818,6 @@ contains
       if ( size(array) == dim1*dim2*dim3 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if
@@ -1838,7 +1837,6 @@ contains
       if ( size(array) == dim1*dim2*dim3 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if
@@ -1858,7 +1856,6 @@ contains
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if
@@ -1878,7 +1875,6 @@ contains
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if
@@ -1898,7 +1894,6 @@ contains
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if
@@ -1918,7 +1913,6 @@ contains
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
         return
       else
-        write(*,*) 'utl_reAllocate: size of array has changed, deallocating'
         deallocate(array)
       end if
     end if

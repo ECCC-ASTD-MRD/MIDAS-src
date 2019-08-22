@@ -63,6 +63,7 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorStdDevTrl
   type(struct_gsv)          :: stateVectorStdDevAnl
+  type(struct_gsv)          :: stateVectorStdDevAnlPert
   type(struct_gsv)          :: stateVectorMeanAnlSfcPres
   type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
   type(struct_gsv)          :: stateVectorDeterTrl4D
@@ -88,6 +89,7 @@ program midas_letkf
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
   character(len=4)   :: memberIndexStr
+  character(len=12)  :: etiketMean='', etiketStd=''
 
   logical :: deterExists
 
@@ -114,13 +116,14 @@ program midas_letkf
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
+  character(len=12) :: etiket0
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      updateMembers, writeIncrements, writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
-                     mpiDistribution
+                     etiket0, mpiDistribution
 
 
   write(*,'(/,' //  &
@@ -175,6 +178,7 @@ program midas_letkf
   imposeSaturationLimit = .false.
   imposeRttovHuLimits   = .false.
   obsTimeInterpType     = 'LINEAR'
+  etiket0               = 'E26_0_0P'
   mpiDistribution       = 'ROUNDROBIN'
 
   !- 1.2 Read the namelist
@@ -494,6 +498,9 @@ program midas_letkf
   call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                     dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
   call ens_computeMean(ensembleTrl)
   call ens_computeMean(ensembleAnl)
   call ens_computeStdDev(ensembleTrl)
@@ -508,6 +515,9 @@ program midas_letkf
   !- 6.1 Apply RTPS, if requested
   if (alphaRTPS > 0.0D0) then
     call enkf_RTPS(ensembleAnl, ensembleTrl, stateVectorStdDevAnl, stateVectorStdDevTrl, stateVectorMeanAnl, alphaRTPS)
+    ! recompute the analysis spread stddev
+    call ens_computeStdDev(ensembleAnl)
+    call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
   end if
 
   !- 6.2 If SubSample requested, copy sub-sample of analysis and trial members
@@ -578,10 +588,8 @@ program midas_letkf
   end if
 
   !- 6.5 Recompute the analysis spread stddev after inflation and humidity limits
-  if (alphaRTPS > 0.0D0 .or. alphaRandomPert > 0.0D0) then
-    call ens_computeStdDev(ensembleAnl)
-    call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
-  end if
+  call ens_computeStdDev(ensembleAnl)
+  call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
 
   !- 6.6 If SubSample requested, do remaining processing and output of sub-sampled members
   if (writeSubSample) then
@@ -646,26 +654,56 @@ program midas_letkf
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
   call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
 
-  !- 7.1 Output the ensemble spread stddev Trl and Anl
+  !- 7.1 Output ens stddev and mean in trialrms, analrms and analpertrms files
+
+  ! determine middle timestep for output of these files
+  middleStepIndex = (tim_nstepobsinc + 1) / 2
+
+  ! output trialmean, trialrms
+  call getRmsEtiket(etiketMean, etiketStd, 'F')
+  call fln_ensFileName( outFileName, '.', shouldExist_opt=.false. )
+  outFileName = trim(outFileName) // '_trialmean'
+  call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
+                       typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16,  &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+  call fln_ensFileName( outFileName, '.', shouldExist_opt=.false. )
+  outFileName = trim(outFileName) // '_trialrms'
+  call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
+                       typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16, &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+
+  ! output analmean, analrms
+  call getRmsEtiket(etiketMean, etiketStd, 'A')
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
-  outFileName = trim(outFileName) // '_stddev'
-  do stepIndex = 1, tim_nstepobsinc
-    call gsv_writeToFile(stateVectorStdDevTrl, outFileName, 'ENSSTD_TRL',  &
-                         typvar_opt='R', writeHeightSfc_opt=.false., &
-                         stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-  end do
-  do stepIndex = 1, tim_nstepobsinc
-    call gsv_writeToFile(stateVectorStdDevAnl, outFileName, 'ENSSTD_ANL',  &
-                         typvar_opt='R', writeHeightSfc_opt=.false., &
-                         stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-  end do
+  outFileName = trim(outFileName) // '_analmean'
+  call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                       typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+  call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+  outFileName = trim(outFileName) // '_analrms'
+  call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
+                       typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+
+  ! output analpertmean, analpertrms
+  call getRmsEtiket(etiketMean, etiketStd, 'P')
+  call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+  outFileName = trim(outFileName) // '_analpertmean'
+  call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                       typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+  call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+  outFileName = trim(outFileName) // '_analpertrms'
+  call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
+                       typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                       stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
 
   !- 7.2 Output the ensemble mean increment (include MeanAnl Psfc)
   if (writeIncrements) then
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
-                           typvar_opt='R', writeHeightSfc_opt=.false., &
+                           typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
                            stepIndex_opt=stepIndex, containsFullField_opt=.false.)
       call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='A', writeHeightSfc_opt=.true., &
@@ -677,7 +715,7 @@ program midas_letkf
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
   do stepIndex = 1, tim_nstepobsinc
     call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
-                         typvar_opt='A', writeHeightSfc_opt=.false., &
+                         typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                          stepIndex_opt=stepIndex, containsFullField_opt=.true.)
   end do
 
@@ -687,10 +725,10 @@ program midas_letkf
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )
       do stepIndex = 1, tim_nstepobsinc
         call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
-                             typvar_opt='R', writeHeightSfc_opt=.false., &
+                             typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.false.)
         call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'DETER_INC',  &
-                             typvar_opt='A', writeHeightSfc_opt=.true., &
+                             typvar_opt='A', writeHeightSfc_opt=.true., numBits_opt=16, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
     end if
@@ -699,7 +737,7 @@ program midas_letkf
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorDeterAnl, outFileName, 'DETER_ANL',  &
-                           typvar_opt='A', writeHeightSfc_opt=.false., &
+                           typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
   end if
@@ -735,7 +773,7 @@ program midas_letkf
     call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
-                           typvar_opt='R', writeHeightSfc_opt=.false., &
+                           typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
                            stepIndex_opt=stepIndex, containsFullField_opt=.false.)
       call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
                            typvar_opt='A', writeHeightSfc_opt=.true., &
@@ -746,7 +784,7 @@ program midas_letkf
     call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, 'ENSMEAN_ANL',  &
-                           typvar_opt='A', writeHeightSfc_opt=.false., &
+                           typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
 
@@ -814,6 +852,54 @@ program midas_letkf
 
 contains
 
+  subroutine getRmsEtiket(etiketMean, etiketStd, etiketType)
+    implicit none
+
+    ! arguments:
+    character(len=*) :: etiketMean
+    character(len=*) :: etiketStd
+    character(len=*) :: etiketType
+
+    if (trim(etiketType) == 'F') then
+
+      ! create trialrms etiket, e.g. E2AVGTRPALL E24_3GMP0256
+      etiketStd(1:5) = etiket0(1:5)
+      etiketStd(6:7) = 'GM'
+      etiketStd(8:8) = etiket0(8:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7) = 'AVGTR'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else if (trim(etiketType) == 'A') then
+
+      ! create analrms etiket, e.g. E2AVGANPALL, E24_3_0P0256
+      etiketStd(1:8) = etiket0(1:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7)='AVGAN'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else if (trim(etiketType) == 'P') then
+
+      ! create analpertrms etiket, e.g. E2AVGPTPALL, E24_3PTP0256
+      etiketStd(1:5) = etiket0(1:5)
+      etiketStd(6:7) = 'PT'
+      etiketStd(8:8) = etiket0(8:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7) = 'AVGPT'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else
+      call utl_abort('midas-letkf: unknown value of etiketType')
+    end if
+
+  end subroutine getRmsEtiket
+
   subroutine writeToAllMembers(stateVector, nEns, etiket, typvar,  &
                                fileNameSuffix, ensPath)
     implicit none
@@ -846,7 +932,8 @@ contains
           call gsv_writeToFile(stateVector, outFileName,  &
                                trim(etiket) // memberIndexStr,  &
                                typvar_opt=trim(typvar), writeHeightSfc_opt=.true., &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                               numBits_opt=16)
         end do
 
       end if

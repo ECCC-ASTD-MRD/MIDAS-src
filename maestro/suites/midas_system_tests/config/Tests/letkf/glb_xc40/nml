@@ -1,20 +1,21 @@
  &NAMLETKF
-   algorithm             = 'CVLETKF'
-   NENS                  = 256
-   numSubEns             = 8
-   MAXNUMLOCALOBS        = 10000
-   WEIGHTLATLONSTEP      = 10
-   HLOCALIZE             = 2000.0D0
-   VLOCALIZE             = 2.0D0
-   alphaRTPP             = 0.00D0
-   alphaRTPS             = 0.00D0
-   alphaRandomPert       = 0.33D0
-   UPDATEMEMBERS         = .true.
-   WRITEINCREMENTS       = .true.
-   imposeSaturationLimit = .true.
-   imposeRttovHuLimits   = .true.
-   obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'ROUNDROBIN'
+   algorithm                = 'CVLETKF'
+   NENS                     = 128
+   numSubEns                = 8
+   MAXNUMLOCALOBS           = 10000
+   WEIGHTLATLONSTEP         = 10
+   HLOCALIZE                = 2000.0D0
+   VLOCALIZE                = 2.0D0
+   alphaRTPP                = 0.00D0
+   alphaRTPS                = 0.00D0
+   alphaRandomPert          = 0.33D0
+   alphaRandomPertSubSample = 0.66D0
+   UPDATEMEMBERS            = .true.
+   WRITEINCREMENTS          = .true.
+   imposeSaturationLimit    = .true.
+   imposeRttovHuLimits      = .true.
+   obsTimeInterpType        = 'LINEAR'
+   mpiDistribution          = 'ROUNDROBIN'
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
@@ -30,8 +31,8 @@
    NDATAMX=100000
 /
  &NAMTIME
-   DSTEPOBS    = 1.0d0
-   DSTEPOBSINC = 1.0d0
+   DSTEPOBS    = 3.0d0
+   DSTEPOBSINC = 3.0d0
 /
  &NAMFILT
   NELEMS = 17,
