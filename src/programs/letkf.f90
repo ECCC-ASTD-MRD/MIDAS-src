@@ -100,18 +100,21 @@ program midas_letkf
   character(len=20)  :: algorithm ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
   integer            :: numSubEns ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
-  integer  :: nEns               ! ensemble size
-  integer  :: maxNumLocalObs     ! maximum number of obs in each local volume to assimilate
-  integer  :: weightLatLonStep   ! separation of lat-lon grid points for weight calculation
-  integer  :: randomSeed         ! seed used for random perturbation additive inflation
-  logical  :: updateMembers      ! true means compute and write out members analyses/increments
-  logical  :: writeIncrements    ! write ens of increments and mean increment
-  logical  :: writeSubSample     ! write sub-sample members for initializing medium-range fcsts
-  real(8)  :: hLocalize          ! horizontal localization radius (in km)
-  real(8)  :: vLocalize          ! vertical localization radius (in units of ln(Pressure in Pa))
-  real(8)  :: alphaRTPP          ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRTPS          ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRandomPert    ! Random perturbation additive inflation coeff (0->1)
+  integer  :: nEns                ! ensemble size
+  integer  :: maxNumLocalObs      ! maximum number of obs in each local volume to assimilate
+  integer  :: weightLatLonStep    ! separation of lat-lon grid points for weight calculation
+  integer  :: randomSeed          ! seed used for random perturbation additive inflation
+  logical  :: backgroundCheck     ! apply additional background check using ensemble spread
+  logical  :: huberize            ! apply huber norm quality control procedure
+  logical  :: rejectRadNearSfc    ! reject radiance observations near the surface
+  logical  :: updateMembers       ! true means compute and write out members analyses/increments
+  logical  :: writeIncrements     ! write ens of increments and mean increment
+  logical  :: writeSubSample      ! write sub-sample members for initializing medium-range fcsts
+  real(8)  :: hLocalize           ! horizontal localization radius (in km)
+  real(8)  :: vLocalize           ! vertical localization radius (in units of ln(Pressure in Pa))
+  real(8)  :: alphaRTPP           ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRTPS           ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRandomPert     ! Random perturbation additive inflation coeff (0->1)
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
@@ -120,6 +123,7 @@ program midas_letkf
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
+                     backgroundCheck, huberize, rejectRadNearSfc,  &
                      updateMembers, writeIncrements, writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
@@ -165,6 +169,9 @@ program midas_letkf
   numSubEns             = 2
   maxNumLocalObs        = 1000
   weightLatLonStep      = 1
+  backgroundCheck       = .false.
+  huberize              = .false.
+  rejectRadNearSfc      = .false.
   updateMembers         = .false.
   writeIncrements       = .false.
   writeSubSample        = .false.
@@ -262,6 +269,9 @@ program midas_letkf
 
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+
+  ! Set lat, lon, obs values in ensObs
+  call eob_setLatLonObs(ensObs)
 
   !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -386,8 +396,7 @@ program midas_letkf
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
     call tmg_stop(6)
 
-    ! Copy to ensObs: Y-HX and various other obs quantities
-    call eob_setLatLonObs(ensObs)
+    ! Copy to ensObs: Y-HX for deterministic background
     call eob_setDeterYb(ensObs)
 
   end if
@@ -410,25 +419,22 @@ program midas_letkf
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
     call tmg_stop(6)
 
-    ! Copy to ensObs: Y-HX and various other obs quantities
-    if (memberIndex == 1) call eob_setLatLonObs(ensObs)
+    ! Copy to ensObs: Y-HX for this member
     call eob_setYb(ensObs, memberIndex)
 
   end do
 
-  !- 3.3 Set some additional information in ensObs and then communicate globally
-
-  ! Set assimilation flag in ensObs using value after applying H to all members
-  call eob_setAssFlag(ensObs)
+  !- 3.3 Set some additional information in ensObs and additional quality 
+  !      control before finally communicating ensObs globally
 
   !  Compute and remove the mean of Yb
-  call eob_calcRemoveMeanYb(ensObs)
+  call eob_calcAndRemoveMeanYb(ensObs)
 
   ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
   call eob_setMeanOMP(ensObs)
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
-  call eob_setMeanHPHT(ensObs)
+  call eob_setHPHT(ensObs)
 
   ! Apply obs operators to ensemble mean background for several purposes
   write(*,*) ''
@@ -437,16 +443,27 @@ program midas_letkf
   call gsv_copy(stateVectorMeanTrl4D, stateVectorWithZandP4D, allowMismatch_opt=.true.)
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
-  call tvs_allocTransmission ! this will cause radiative transmission profiles to be stored for use in eob_setPres
+  call tvs_allocTransmission ! this will cause radiative transmission profiles to be stored for use in eob_setLogPres
   call tmg_start(6,'LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
 
   ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
-  call eob_setPres(ensObs, column)
+  call eob_setLogPres(ensObs, column)
 
-  ! Clean and then globally communicate obs-related data to all mpi tasks
-  call eob_clean(ensObs)
+  ! Apply a background check (reject_limit is set in the routine)
+  if (backgroundCheck) call eob_backgroundCheck(ensObs)
+
+  ! Apply huber norm quality control procedure (modifies obs_oer)
+  if (huberize) call eob_huberNorm(ensObs)
+
+  ! Reject radiance observations too close to the surface
+  if (rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
+
+  ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
+  call eob_setObsErrInv(ensObs)
+
+  ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
 
   call tmg_stop(2)

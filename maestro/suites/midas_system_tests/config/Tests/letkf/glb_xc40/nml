@@ -10,6 +10,9 @@
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.33D0
    alphaRandomPertSubSample = 0.66D0
+   backgroundCheck          = .false.
+   huberize                 = .false.
+   rejectRadNearSfc         = .false.
    UPDATEMEMBERS            = .true.
    WRITEINCREMENTS          = .true.
    imposeSaturationLimit    = .true.
@@ -324,6 +327,7 @@
 /
  &NAMGPSRO
   LEVELGPSRO=2,
+  gpsroDynError = 'STATIC_OLD'
   SURFMIN  = 1000.D0,
   HSFMIN   = 1000.D0,
   HTPMAX   = 40000.D0,

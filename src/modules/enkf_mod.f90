@@ -338,7 +338,7 @@ contains
 
           do memberIndex = 1, nEns
             YbTinvR(memberIndex,localObsIndex) = ensObs_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                                                 localization * ensObs_mpiglobal%varObsInv(bodyIndex)
+                                                 localization * ensObs_mpiglobal%obsErrInv(bodyIndex)
           end do
 
           if (localObsIndex == 1) YbTinvRYb(:,:) = 0.0D0

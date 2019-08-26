@@ -333,7 +333,7 @@ module gps_mod
 !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
-!     gpsroDynError: key for using dynamic/static refractivity error estimation (default .TRUE.)
+!     gpsroDynError: key for using dynamic/static refractivity error estimation (default 'YES')
 !
 !     J.M. Aparicio, Apr 2008
 !
@@ -344,7 +344,7 @@ module gps_mod
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
-  logical gpsroDynError
+  character(len=20) :: gpsroDynError
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroDynError
 
@@ -3008,7 +3008,7 @@ contains
     HTPMAX     = 70000.d0
     BGCKBAND   = 0.05d0
     NUMGPSSATS = 0
-    gpsroDynError = .TRUE.
+    gpsroDynError = 'YES'
 !
 !   Override with NML values:
 !     
@@ -3018,7 +3018,7 @@ contains
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, gpsroDynError 
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, trim(gpsroDynError)
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !
