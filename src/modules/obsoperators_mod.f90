@@ -251,7 +251,7 @@ contains
           IK = 0
         else if ( ITYP == BUFR_NETS .or. ityp == BUFR_NESS .or. &
                ITYP == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ITYP == BUFR_NEHS .or. ityp == bufr_vis) then
+               ITYP == BUFR_NEHS .or. ityp == bufr_vis .or. ityp == bufr_logVis) then
           ! for surface observations associated with NON-surface analysis variables
           IK = nlev - 1
         end if
@@ -660,10 +660,10 @@ contains
 
           ! only process this set of surface observations
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
-          if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS .and.  &
-               ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS .and.  &
-               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN .and. &
-               ivnm /= bufr_vis .and. ivnm /= bufr_gust ) cycle BODY
+          if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS   .and.  &
+              ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS   .and.  &
+              ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN   .and.  &
+              ivnm /= bufr_vis  .and. ivnm /= bufr_logVis .and. ivnm /= bufr_gust ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -671,8 +671,8 @@ contains
           varLevel = vnl_varLevelFromVarnum(ivnm)
 
           if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
-              ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or. &
-              ivnm == bufr_gust ) then
+              ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or.  &
+              ivnm == bufr_gust .or. ivnm == bufr_vis  .or. ivnm == bufr_logVis) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the
@@ -729,13 +729,6 @@ contains
 
             ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
 
-          else if (ivnm == bufr_vis) then
-            ! For visibility, transform the observation in term logarithm and compute log(y)-Hx, where x is log(VIS)
-            ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
-            ipb  = ipt + 1
-            columnVarB=col_getElem(columnhr,ipb,headerIndex)
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-                  log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))-columnVarB)
           end if
 
           ! contribution to jobs
@@ -1981,7 +1974,7 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
-                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
                if( ityp == bufr_neus .or. ityp == bufr_nevs .or. &
@@ -2002,7 +1995,7 @@ contains
 
                if (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
                   ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
-                  ityp == bufr_vis  .or. ityp == bufr_gust ) THEN
+                  ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) THEN
                  if (ITYP == BUFR_NESS ) THEN
                    delP = col_getPressure(column,nlev,headerIndex,'TH')
                    columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
@@ -2738,7 +2731,7 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
-                 .or. ityp == bufr_vis  .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis .or. ityp == bufr_gust  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
                if( ityp == bufr_neus .or. ityp == bufr_nevs .or. ityp == bufr_gust) then
@@ -2758,7 +2751,7 @@ contains
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                if (ITYP == BUFR_NETS .or. ITYP == BUFR_NESS .or.  &
                     ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
-                    ityp == bufr_vis  .or. ityp == bufr_gust ) then
+                    ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) then
                  if ( ityp == bufr_ness ) then
                    tt_column  => col_getColumn(column,headerIndex,'TT')
                    hu_column  => col_getColumn(column,headerIndex,'HU')

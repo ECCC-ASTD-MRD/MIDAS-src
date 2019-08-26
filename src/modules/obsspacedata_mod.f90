@@ -1278,6 +1278,7 @@ module ObsSpaceData_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod
    use IndexListDepot_mod
+   use mathPhysConstants_mod
    implicit none
    save
    private
@@ -1444,6 +1445,8 @@ module ObsSpaceData_mod
    integer, public, parameter :: OBS_JPNBRELEM   = 57 ! obs variable-types table length
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
+
+   real(OBS_REAL), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, OBS_REAL) ! Missing value
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 

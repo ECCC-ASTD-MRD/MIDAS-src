@@ -29,7 +29,6 @@ module enkf_mod
   use tt2phi_mod
   use obsSpaceData_mod
   use columnData_mod
-
   use timeCoord_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -37,7 +36,7 @@ module enkf_mod
   use gridStateVector_mod
   use randomNumber_mod
   use controlVector_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use bMatrix_mod
   implicit none
   save
@@ -376,7 +375,7 @@ contains
     end if
     call vco_setupFromFile(vco_randomPert, './bgcov', etiket)
     call bmat_setup(hco_randomPert, vco_randomPert)
-    call vtr_setup(hco_randomPert, vco_randomPert)
+    call gvt_setup(hco_randomPert, vco_randomPert)
 
     call rng_setup(abs(randomSeed))
 

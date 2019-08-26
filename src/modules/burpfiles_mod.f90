@@ -34,6 +34,7 @@ module burpFiles_mod
   use burp_module
   use mpi_mod
   use obsUtil_mod
+  use obsVariableTransforms_mod
 
   implicit none
   save
@@ -174,7 +175,8 @@ contains
     
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call brpr_readBurp(obsdat,familyType,fileName,fileIndex)
+    call brpr_readBurp(obsdat,                         & ! INOUT
+                       familyType, fileName, fileIndex)  ! IN
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
  
@@ -182,9 +184,9 @@ contains
 
     if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
 
-      call obsu_windDirectionToUV       (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
-      call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
-      call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
+      call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
+      call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
 
     end if  
 

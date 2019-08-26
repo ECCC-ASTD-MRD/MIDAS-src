@@ -31,7 +31,6 @@ module obsFilter_mod
   use gps_mod
   use utilities_mod
   use varNameList_mod
-  use chem_setup_mod
   use physicsFunctions_mod
   implicit none
   save
@@ -42,24 +41,26 @@ module obsFilter_mod
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
+  public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
 
-  integer filt_nelems, filt_nlist(30)
-  integer filt_nflags, filt_nlistflg(15)
+  integer :: filt_nelems, filt_nflags
+  integer, target :: filt_nlist(30)
+  integer :: filt_nlistflg(15)
 
-  logical discardlandsfcwind
+  logical :: discardlandsfcwind
 
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
-  integer, parameter :: numElem = 19
+  integer, parameter :: numElem = 20
   real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
        (/     50.d0,    50.d0,     50.d0,      50.d0,     50.d0,    800.d0,    800.d0,  &
              800.d0,   800.d0,   1000.d0,      50.d0,     50.d0,     50.d0,     50.d0,  &
-              50.d0,    50.d0,     50.d0,      50.d0,     50.d0 /)
+              50.d0,    50.d0,     50.d0,      50.d0,     50.d0,      50.d0 /)
   integer, parameter :: elemList(numElem) =  &
        (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
           BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
-          BUFR_NEES, BUFR_NETT, BUFR_NEAL,  bufr_vis, bufr_gust /)
+          BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis , bufr_logVis, bufr_gust /)
 
   real(8) :: surfaceBufferZone_Pres
   real(8) :: surfaceBufferZone_Height
@@ -68,6 +69,8 @@ module obsFilter_mod
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
 
   character(len=48) :: filterMode
+
+  logical :: initialized = .false.
 
 contains
 
@@ -252,6 +255,8 @@ contains
         end if
       end do
     end if
+
+    initialized = .true.
 
   end subroutine filt_setup
 
@@ -1564,16 +1569,16 @@ end subroutine filt_topoAISW
 
       end do BODY
 
-      if (warn_suspicious) then
-         call utl_open_asciifile(chm_setup_get_str('message'),unit)
-         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
-         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
-              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
-         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
-              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-         write(unit,*)
-         ier = fclos(unit)
-      end if
+!!$      if (warn_suspicious) then
+!!$         call utl_open_asciifile(chm_setup_get_str('message'),unit)
+!!$         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
+!!$         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
+!!$              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+!!$         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+!!$              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+!!$         write(unit,*)
+!!$         ier = fclos(unit)
+!!$      end if
 
     end do HEADER
 
@@ -1606,5 +1611,70 @@ end subroutine filt_topoAISW
 224 format(2x,a29,100(2x,i6))
 
   END SUBROUTINE filt_topoChemistry
+
+  !--------------------------------------------------------------------------
+  ! filt_bufrCodeAssimilated
+  !------------------------------------------------------------------------- 
+  function filt_bufrCodeAssimilated(bufrCode) result(assimilated)
+    !
+    ! :Purpose: To test if a bufr code part of the assimilated observation list
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: bufrCode    ! The input bufr code
+    logical             :: assimilated ! Assimilated of not
+
+    ! Locals:
+    integer :: elemIndex
+
+    if (.not. initialized) call filt_setup('none')
+
+    assimilated = .false.
+
+    do elemIndex = 1, filt_nelems
+      if (filt_nlist(elemIndex) == bufrCode) then
+        assimilated = .true.
+        return
+      end if
+    end do
+
+  end function filt_bufrCodeAssimilated
+
+  !--------------------------------------------------------------------------
+  ! filt_getBufrCodeAssimilated
+  !------------------------------------------------------------------------- 
+  subroutine filt_getBufrCodeAssimilated(bufrCodeList)
+    !
+    ! :Purpose: To get the assimilated observation list
+    !
+    implicit none
+
+    ! Argument:
+    integer :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
+
+    if (.not. initialized) call filt_setup('none')
+
+    bufrCodeList(:) = filt_nlist(1:filt_nelems)
+
+  end subroutine filt_getBufrCodeAssimilated
+
+  !--------------------------------------------------------------------------
+  ! filt_nBufrCodeAssimilated
+  !------------------------------------------------------------------------- 
+  function filt_nBufrCodeAssimilated() result(nBufrCode)
+    !
+    ! :Purpose: To get the number of assimilated observations
+    !
+    implicit none
+
+    ! Argument:
+    integer :: nBufrCode  ! The number of assimilated observations
+
+    if (.not. initialized) call filt_setup('none')
+
+    nBufrCode = filt_nelems
+
+  end function filt_nBufrCodeAssimilated
 
 end module obsFilter_mod

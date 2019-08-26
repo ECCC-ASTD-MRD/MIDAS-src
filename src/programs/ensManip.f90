@@ -44,7 +44,7 @@ program midas_ensManip
   use utilities_mod
   use ramDisk_mod
   use humidityLimits_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   implicit none
 
   type(struct_gsv) :: statevector_mean, statevector_stddev
@@ -244,7 +244,7 @@ program midas_ensManip
   end if
 
   if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensemble,'HU')) then
-    call vtr_transform(ensemble,'HUtoLQ')
+    call gvt_transform(ensemble,'HUtoLQ')
   end if
 
   call tmg_stop(2)

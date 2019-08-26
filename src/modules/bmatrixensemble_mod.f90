@@ -33,7 +33,7 @@ MODULE BmatrixEnsemble_mod
   use localization_mod
   use mathPhysConstants_mod
   use earthConstants_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use utilities_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
@@ -940,7 +940,7 @@ CONTAINS
 
     if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensPerts(1),'HU') .and. &
          ensContainsFullField ) then
-      call vtr_transform(ensPerts(1),'HUtoLQ')
+      call gvt_transform(ensPerts(1),'HUtoLQ')
     end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
@@ -1627,7 +1627,7 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
-       call vtr_transform( statevector,   &                        ! INOUT
+       call gvt_transform( statevector,   &                        ! INOUT
                            'LQtoHU_tlm',  &                        ! IN
                            stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
@@ -1688,7 +1688,7 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'LQ' .and. gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector,  &                         ! INOUT
+      call gvt_transform( statevector,  &                         ! INOUT
                           'LQtoHU_ad',  &                         ! IN
                           stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if

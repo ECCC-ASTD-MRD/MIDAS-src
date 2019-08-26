@@ -32,7 +32,7 @@ MODULE BmatrixHI_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   implicit none
   save
   private
@@ -2277,7 +2277,7 @@ CONTAINS
 
     call copyToStatevector(statevector,gd_out)
 
-    call vtr_transform( statevector,  &                         ! INOUT
+    call gvt_transform( statevector,  &                         ! INOUT
                         'LQtoHU_tlm', &                         ! IN
                         stateVectorRef_opt=stateVectorRef_opt ) ! IN
 
@@ -2311,7 +2311,7 @@ CONTAINS
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
-    call vtr_transform( statevector, &                          ! INOUT
+    call gvt_transform( statevector, &                          ! INOUT
                         'LQtoHU_ad', &                          ! IN
                         stateVectorRef_opt=stateVectorRef_opt ) ! IN
 

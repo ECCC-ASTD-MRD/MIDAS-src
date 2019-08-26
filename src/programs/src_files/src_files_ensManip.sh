@@ -6,4 +6,4 @@ SRC_FILES="$SRC_FILES codeprecision_mod.ftn90 horizontalcoord_mod.f90 physicsfun
 SRC_FILES="$SRC_FILES gridstatevector_mod.f90 "
 SRC_FILES="$SRC_FILES analysisgrid_mod.f90 filenames_mod.f90 humiditylimits_mod.f90 obsspacedata_mod.f90"
 SRC_FILES="$SRC_FILES ensemblestatevector_mod.f90 globalspectraltransform_mod.f90 lamspectraltransform_mod.f90 tt2phi_mod.f90"
-SRC_FILES="$SRC_FILES variabletransforms_mod.f90"
+SRC_FILES="$SRC_FILES gridVariableTransforms_mod.f90"

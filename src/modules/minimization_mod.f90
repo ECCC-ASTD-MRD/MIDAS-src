@@ -38,7 +38,6 @@ module minimization_mod
   use bmatrixchem_mod
   use bmatrixEnsemble_mod
   use stateToColumn_mod
-  use variableTransforms_mod
   use varNameList_mod
   use varqc_mod
   use randomNumber_mod

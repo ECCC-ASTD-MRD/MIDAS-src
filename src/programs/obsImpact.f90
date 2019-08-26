@@ -41,7 +41,7 @@ program midas_obsimpact
   use obsFiles_mod
   use obsFilter_mod
   use obsErrors_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use rttov_const, only :inst_name, platform_name
   use tovs_nl_mod
   implicit none
@@ -199,7 +199,7 @@ program midas_obsimpact
   !
   ! - Initialize the gridded variable transform module
   !
-  call vtr_setup(hco_anl,vco_anl)
+  call gvt_setup(hco_anl,vco_anl)
 
   !
   !- 2. Do the actual job

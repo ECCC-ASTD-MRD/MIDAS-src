@@ -73,6 +73,7 @@ module tovs_nl_mod
   use mod_rttov_emis_atlas
   use rMatrix_mod 
   use verticalCoord_mod
+  use codePrecision_mod
 
   implicit none
   save
@@ -3877,9 +3878,9 @@ contains
 
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
-    real(8) dlsum, zdtb !, zjon,zgami,zqcarg
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(OBS_REAL) :: zdtb
     integer j, i, nchanperline, indxs, indxe
     integer inobsjo, incanjo
     integer idatyp
@@ -3888,7 +3889,7 @@ contains
     integer lcanjo(tvs_maxChannelNumber)
     integer :: headerIndex, bodyIndex
     real(8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
-    real(8) :: sigmaObs
+    real(8) :: sigmaObs, dlsum
     integer :: list_chan(tvs_maxChannelNumber)
     integer :: count
 

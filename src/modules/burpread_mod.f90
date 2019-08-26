@@ -29,6 +29,8 @@ use MathPhysConstants_mod
 use earthconstants_mod
 use utilities_mod
 use obsUtil_mod
+use obsVariableTransforms_mod
+use obsFilter_mod
 
 implicit none
 save
@@ -1663,10 +1665,18 @@ CONTAINS
         CALL BRPACMA_NML('namburp_chm')
         NELE=NELEMS 
     END SELECT
+
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
-    if(NELE     > 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
-    if(NELE_SFC > 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
+    if (NELE     > 0) then
+      write(*,*)  ' LISTE_ELE =',LISTE_ELE
+      call ovt_setup(LISTE_ELE(1:NELE))
+    end if
+    if (NELE_SFC > 0) then
+      write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
+      call ovt_setup(LISTE_ELE_SFC(1:NELE_SFC))
+    end if
+
     write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
     btyp_offset_uni=-999
@@ -2639,7 +2649,7 @@ CONTAINS
     INTEGER     ::   NELE,NVAL
     integer     ::   LISTE_ELE(:)
 
-    INTEGER     ::   ID_OBS,ID_DATA
+    INTEGER     ::   ID_OBS
 
     INTEGER     ::   NOBS
     INTEGER     ::   VARNO,IL,J,COUNT,NLV
@@ -2746,14 +2756,10 @@ CONTAINS
         IFLAG = INT(qCflag(il,j))
 
         if(iand(iflag,BITSflagoff) /= 0) cycle
-        !burpmodule IFLAG = IBCLR(IFLAG,12)
-
-        !if (VARNO == .10194)OBSV=OBSV*RG
 
         if ( obsv /= MPC_missingValue_R4 .and. VCOORD /= MPC_missingValue_R4   ) then
           count = count  + 1
           NLV= NLV +1
-          ID_DATA=count
           IFLAG = IBCLR(IFLAG,12)
 
           call obs_bodySet_r(obsdat,OBS_VAR,count,OBSV)
@@ -2772,48 +2778,30 @@ CONTAINS
                 call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
              end if
           end if
-          !call obs_set_i(obsdat,'OBS',count,NOBS)
 
           call obs_bodySet_i(obsdat,OBS_VCO,count,VCO)
-          !call obs_bodySet_i(obsdat,OBS_IDD,count,ID_DATA)
-          !call obs_bodySet_i(obsdat,OBS_IDD,count,0)
 
-          if ( varno == 11001 .or. varno == 11011) then
-            call obs_bodySet_r(obsdat,OBS_VAR,count,OBSV)
-            if ( varno == 11001) then
-              call obs_bodySet_i(obsdat,OBS_VNM,count+1,11003)
-              call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
-              !call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-              ELEV_R=VCOORD + ELEV*ELEVFACT
-              call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
-              call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
-
-              call obs_bodySet_i(obsdat,OBS_VNM,count+2,11004)
-              !call obs_set_i(obsdat,'OBS',count+2,NOBS)
-              call obs_bodySet_i(obsdat,OBS_FLG,count+2,0)
-              !call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-              call obs_bodySet_r(obsdat,OBS_PPP,count+2,ELEV_R)
-              call obs_bodySet_i(obsdat,OBS_VCO,count+2,VCO)
-            else
-              call obs_bodySet_i(obsdat,OBS_VNM,count+1,11215)
-              call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
-              !call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-              ELEV_R=VCOORD + ELEV*ELEVFACT
-              call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
-              call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
-
-              call obs_bodySet_i(obsdat,OBS_VNM,count+2,11216)
-              call obs_bodySet_i(obsdat,OBS_FLG,count+2,0)
-              !call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-              call obs_bodySet_r(obsdat,OBS_PPP,count+2,ELEV_R)
-              call obs_bodySet_i(obsdat,OBS_VCO,count+2,VCO)
-            end if
-
+          if (.not. filt_bufrCodeAssimilated(varno) .and. &
+              .not. ovt_bufrCodeSkipped(varno)) then
+            ! Add a row for the destination transform variable
+            call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationBufrCode(varno))
+            call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
+            ELEV_R=VCOORD + ELEV*ELEVFACT
+            call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
+            call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
             call obs_bodySet_r(obsdat,OBS_VAR,count+1,MISG)
-            call obs_bodySet_r(obsdat,OBS_VAR,count+2,MISG)
-
-            count = count + 2
-            NLV = NLV + 2
+            count = count + 1
+            NLV = NLV + 1
+            if (ovt_isWindObs(varno)) then
+              ! Add an extra row for the other wind component
+              call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationBufrCode(varno,extra_opt=.true.))
+              call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
+              call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
+              call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
+              call obs_bodySet_r(obsdat,OBS_VAR,count+1,MISG)
+              count = count + 1
+              NLV = NLV + 1
+            end if
           end if
 
         end if
@@ -2821,7 +2809,6 @@ CONTAINS
       END DO
 
     END DO
-
 
     WRITE_BODY=NLV
 

@@ -30,7 +30,7 @@ module calcStatsLam_mod
   use utilities_mod
   use menetrierDiag_mod
   use ensemblestatevector_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use varNameList_mod
   use gridBinning_mod
   use timeCoord_mod
@@ -225,7 +225,7 @@ contains
 
     if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensPerts,'HU') .and. &
          ensContainsFullField ) then
-      call vtr_transform(ensPerts,'HUtoLQ')
+      call gvt_transform(ensPerts,'HUtoLQ')
     end if
 
     !
@@ -319,11 +319,11 @@ contains
     end if
 
     if      ( bhi%momentumControlVar(1) == 'PP' .and. bhi%momentumControlVar(2) == 'CC' ) then
-      call vtr_transform(ensPerts,'UVtoPsiChi')
+      call gvt_transform(ensPerts,'UVtoPsiChi')
       call ens_modifyVarName(ensPerts, 'UU', 'PP')
       call ens_modifyVarName(ensPerts, 'VV', 'CC')
     else if ( bhi%momentumControlVar(1) == 'QR' .and. bhi%momentumControlVar(2) == 'DD' ) then
-      call vtr_transform(ensPerts,'UVtoVortDiv')
+      call gvt_transform(ensPerts,'UVtoVortDiv')
       call ens_modifyVarName(ensPerts, 'UU', 'QR')
       call ens_modifyVarName(ensPerts, 'VV', 'DD')
     end if

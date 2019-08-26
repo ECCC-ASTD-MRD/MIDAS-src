@@ -1092,7 +1092,7 @@ module computeHBHT_mod
         ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
         if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &
              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
-             ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_vis  .or. ityp == bufr_gust .or. &
+             ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_logVis  .or. ityp == bufr_gust .or. &
              ityp == bufr_riverFlow) then
 
           ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
@@ -1124,7 +1124,7 @@ module computeHBHT_mod
 
           if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. &
                ityp == BUFR_NESS .or. ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ityp == bufr_vis  .or. ityp == bufr_gust) then
+               ityp == bufr_logVis  .or. ityp == bufr_gust) then
 
             ipt  = ik + col_getOffsetFromVarno(lcolumng,ityp)
             ipb  = ipt+1

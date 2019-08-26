@@ -32,6 +32,8 @@ use utilities_mod
 use bufr_mod
 use ramDisk_mod
 use codtyp_mod
+use obsVariableTransforms_mod
+use obsFilter_mod
 
 implicit none   
  
@@ -194,6 +196,8 @@ contains
     type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
     character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit
+    character(len=256),allocatable :: listElemArray(:)
+    integer,allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
     character(len=*), parameter :: myName = 'sqlr_readSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -377,6 +381,17 @@ contains
         call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
     end select
     ierr=fclos( nulnam )
+
+    ! Set the observation variable transforms
+    if (numberElem > 0) then
+      call utl_splitString(listElem,',', & ! IN
+                           listElemArray)  ! OUT
+      call utl_stringArrayToIntegerArray(listElemArray,      & ! IN
+                                         listElemArrayInteger) ! OUT
+      call ovt_setup(listElemArrayInteger) ! IN
+      deallocate(listElemArrayInteger)
+      deallocate(listElemArray)
+    end if
 
     ! Compose SQL queries
     bitsFlagOff=0
@@ -583,42 +598,32 @@ contains
            call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                 obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
-            if ( obsVarno == bufr_nedd .or. obsVarno == bufr_neds ) then ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+           if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
+               .not. ovt_bufrCodeSkipped(obsVarno)) then
+             call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
+             call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                 obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
+                                 0, vertCoordType, bodyIndex + 1 )
+             bodyIndex = bodyIndex + 1
+             obsNlv = obsNlv + 1
+             if (ovt_isWindObs(obsVarno)) then
+               ! Add an extra row for the other wind component
+               call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
+               call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                   obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
+                                   0, vertCoordType, bodyIndex + 1 )
+               bodyIndex = bodyIndex + 1
+               obsNlv = obsNlv + 1
+             end if
+           end if
+           
+         end if       ! TOVS or CONV
 
-              if ( obsVarno == bufr_nedd ) then
+       end if          !  obsIdo   
 
-                ! U COMPONENT
-                call obs_bodySet_i( obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_neuu, 0, vertCoordType, bodyIndex + 1 )
-                ! V COMPONENT
-                call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevv, 0, vertCoordType, bodyIndex + 2 )
-              else if ( obsVarno == bufr_neds) then
+     end do DATA  ! END OF DATA LOOP
 
-                ! Us COMPONENT
-                call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_neus, 0, vertCoordType, bodyIndex + 1 )
-                ! Vs COMPONENT
-                call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData( obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                     real(MPC_missingValue_R8,OBS_REAL), bufr_nevs, 0, vertCoordType, bodyIndex + 2 )
-              end if
-
-              bodyIndex = bodyIndex + 2
-              obsNlv = obsNlv + 2
-
-            end if      ! extra space for winds
-
-          end if       ! TOVS or CONV
-
-        end if          !  obsIdo   
-
-      end do DATA  ! END OF DATA LOOP
-
-      if ( obsNlv > 0 ) then
+     if ( obsNlv > 0 ) then
 
         if ( headerIndex == 1 ) call obs_headSet_i(obsdat, OBS_RLN, headerIndex, 1 )
 
@@ -801,9 +806,9 @@ contains
         ITEMS: do itemId = 1, numberUpdateItems
 
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue /= MPC_missingValue_R8 ) then  
+          if ( obsValue /= obs_missingValue_R ) then  
             romp = obs_bodyElem_r(obsdat, updateList(itemId), bodyIndex )
-            if ( romp == MPC_missingValue_R4 ) then
+            if ( romp == obs_missingValue_R ) then
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1                  )  ! sql null values
             else
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
@@ -943,28 +948,28 @@ contains
                 call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo   )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP      )
-                if ( obsValue == MPC_missingValue_R4 ) then          ! sql null values
+                if ( obsValue == obs_missingValue_R ) then          ! sql null values
                   call fSQL_bind_param( stmt, PARAM_INDEX = 4                      )
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = obsValue )
                 end if
                 call fSQL_bind_param( stmt, PARAM_INDEX = 5, INT_VAR  = obsFlag  )
-                if ( OMA == MPC_missingValue_R4 ) then
+                if ( OMA == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 6                    ) 
                 else 
                   call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = OMA    ) 
                 end if
-                if ( OMP == MPC_missingValue_R4 ) then
+                if ( OMP == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7                    ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMP    ) 
                 end if
-                if ( FGE == MPC_missingValue_R4 ) then
+                if ( FGE == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8                    ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE    )
                 end if
-                if ( OER == MPC_missingValue_R4 ) then
+                if ( OER == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9                    ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER    ) 
@@ -974,28 +979,28 @@ contains
                 call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
                 call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP           ) 
                 call fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = vertCoordType )
-                if ( obsValue == MPC_missingValue_R4 ) then
+                if ( obsValue == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 5                         )
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = obsValue    )
                 end if 
                 call fSQL_bind_param( stmt, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-                if ( OMA == MPC_missingValue_R4 ) then
+                if ( OMA == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7                         ) 
                 else 
                   call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA         )
                 end if
-                if ( OMP == MPC_missingValue_R4 ) then
+                if ( OMP == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8                         ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = OMP         ) 
                 end if
-                if ( FGE == MPC_missingValue_R4 ) then
+                if ( FGE == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9                         ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = FGE         ) 
                 end if
-                if ( OER == MPC_missingValue_R4 ) then
+                if ( OER == obs_missingValue_R ) then
                   call fSQL_bind_param( stmt, PARAM_INDEX = 10                        ) 
                 else
                   call fSQL_bind_param( stmt, PARAM_INDEX = 10, REAL_VAR = OER        )
@@ -1323,22 +1328,22 @@ contains
         end if
         call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
         call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
-        if ( OMA == MPC_missingValue_R4 ) then
+        if ( OMA == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
         end if
-        if ( OMP == MPC_missingValue_R4 ) then
+        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
         end if
-        if ( FGE == MPC_missingValue_R4 ) then
+        if ( FGE == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
         end if
-        if ( OER == MPC_missingValue_R4 ) then
+        if ( OER == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )

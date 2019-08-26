@@ -29,7 +29,7 @@ module LamBMatrixHI_mod
   use gridStateVector_mod
   use analysisGrid_mod
   use utilities_mod
-  use variableTransforms_mod
+  use gridVariableTransforms_mod
   use varNameList_mod
   implicit none
   save
@@ -765,7 +765,7 @@ contains
     !-  4. Convert LQ_inc to HU_inc
     !
     if ( gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector,   &                        ! INOUT
+      call gvt_transform( statevector,   &                        ! INOUT
                           'LQtoHU_tlm',  &                        ! IN
                           stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
@@ -802,7 +802,7 @@ contains
     !-  4. Convert LQ_inc to HU_inc
     !
     if ( gsv_varExist(varName='HU') ) then
-      call vtr_transform( statevector,  &                         ! INOUT
+      call gvt_transform( statevector,  &                         ! INOUT
                           'LQtoHU_ad',  &                         ! IN
                           stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if

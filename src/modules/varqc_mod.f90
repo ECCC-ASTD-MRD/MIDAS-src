@@ -118,7 +118,6 @@ module varqc_mod
           ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, JDATA ) * MPC_MBAR_PER_PA_R8
           ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
           ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
-          if (ityp==bufr_vis) zval = log(max(min(zval,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
 
           ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
 
@@ -126,7 +125,7 @@ module varqc_mod
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
               ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
               ityp == BUFR_NEZD .or. ityp == bufr_vis  .or.  &
-              ityp == bufr_gust) then
+              ityp == bufr_logVis .or. ityp == bufr_gust) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated)
           else
              LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
@@ -286,7 +285,7 @@ module varqc_mod
                 !
                 call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zauv *  &
                     sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zauv ) * ( 2.d0 * zduv )))
-              else if (ityp == bufr_vis ) then
+              else if (ityp == bufr_vis .or. ityp == bufr_logVis) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR VISIBILITY
                 !
@@ -510,7 +509,7 @@ module varqc_mod
                ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
                ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
                ityp == BUFR_NEZD .or. ityp == bufr_sst  .or. ityp == BUFR_ICEC .or.  &
-               ityp == bufr_vis  .or. ityp == bufr_gust ) then
+               ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) then
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and.  &
@@ -546,7 +545,6 @@ module varqc_mod
              end if
 
              ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex)
-             if (ityp==bufr_vis) zvar = log(max(min(zvar,MPC_MAXIMUM_VIS_R8),MPC_MINIMUM_VIS_R8))
 
              ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
              ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,bodyIndex)
