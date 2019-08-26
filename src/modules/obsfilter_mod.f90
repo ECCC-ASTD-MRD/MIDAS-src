@@ -41,7 +41,7 @@ module obsFilter_mod
   ! public procedures
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
-  public :: filt_variableBufrCodeAssimilated, filt_getvariableBufrCodeAssimilated, filt_nVariableBufrCodeAssimilated
+  public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
 
   integer :: filt_nelems, filt_nflags
   integer, target :: filt_nlist(30)
@@ -1613,12 +1613,19 @@ end subroutine filt_topoAISW
   END SUBROUTINE filt_topoChemistry
 
   !--------------------------------------------------------------------------
-  ! filt_variableBufrCodeAssimilated
+  ! filt_bufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  function filt_variableBufrCodeAssimilated(variableBufrCode) result(assimilated)
+  function filt_bufrCodeAssimilated(bufrCode) result(assimilated)
+    !
+    ! :Purpose: To test if a bufr code part of the assimilated observation list
+    !
     implicit none
-    integer :: variableBufrCode
-    logical :: assimilated
+
+    ! Arguments:
+    integer, intent(in) :: bufrCode    ! The input bufr code
+    logical             :: assimilated ! Assimilated of not
+
+    ! Locals:
     integer :: elemIndex
 
     if (.not. initialized) call filt_setup('none')
@@ -1626,40 +1633,48 @@ end subroutine filt_topoAISW
     assimilated = .false.
 
     do elemIndex = 1, filt_nelems
-      if (filt_nlist(elemIndex) == variableBufrCode) then
+      if (filt_nlist(elemIndex) == bufrCode) then
         assimilated = .true.
         return
       end if
     end do
 
-  end function filt_variableBufrCodeAssimilated
+  end function filt_bufrCodeAssimilated
 
   !--------------------------------------------------------------------------
-  ! filt_getVariableBufrCodeAssimilated
+  ! filt_getBufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  subroutine filt_getVariableBufrCodeAssimilated(variableBufrCodeList)
+  subroutine filt_getBufrCodeAssimilated(bufrCodeList)
+    !
+    ! :Purpose: To get the assimilated observation list
+    !
     implicit none
 
-    integer :: variableBufrCodeList(filt_nelems)
+    ! Argument:
+    integer :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
 
     if (.not. initialized) call filt_setup('none')
 
-    variableBufrCodeList(:) = filt_nlist(1:filt_nelems)
+    bufrCodeList(:) = filt_nlist(1:filt_nelems)
 
-  end subroutine filt_getVariableBufrCodeAssimilated
+  end subroutine filt_getBufrCodeAssimilated
 
   !--------------------------------------------------------------------------
-  ! filt_nVariableBufrCodeAssimilated
+  ! filt_nBufrCodeAssimilated
   !------------------------------------------------------------------------- 
-  function filt_nVariableBufrCodeAssimilated() result(nVariableBufrCode)
+  function filt_nBufrCodeAssimilated() result(nBufrCode)
+    !
+    ! :Purpose: To get the number of assimilated observations
+    !
     implicit none
 
-    integer :: nVariableBufrCode
+    ! Argument:
+    integer :: nBufrCode  ! The number of assimilated observations
 
     if (.not. initialized) call filt_setup('none')
 
-    nVariableBufrCode = filt_nelems
+    nBufrCode = filt_nelems
 
-  end function filt_nVariableBufrCodeAssimilated
+  end function filt_nBufrCodeAssimilated
 
 end module obsFilter_mod

@@ -35,7 +35,7 @@ module obsVariableTransforms_mod
   private
 
   public :: ovt_setup, ovt_transformObsValues, ovt_transformResiduals
-  public :: ovt_getDestinationVariableBufrCode, ovt_getSourceVariableBufrCode, ovt_variableBufrCodeSkipped
+  public :: ovt_getDestinationBufrCode, ovt_getSourceBufrCode, ovt_bufrCodeSkipped
   public :: ovt_isWindObs, ovt_isTransformedVariable, ovt_adjustHumGZ
 
   integer, parameter :: nTransformSupported  = 2
@@ -69,6 +69,7 @@ contains
     ! 
     implicit none
 
+    ! Locals:
     integer :: transformIndex
 
     ! Upper and surface winds
@@ -105,17 +106,19 @@ contains
   !--------------------------------------------------------------------------
   ! ovt_setup
   !--------------------------------------------------------------------------
-  subroutine ovt_setup(bufrCodeReaded)
+  subroutine ovt_setup(bufrCodeRead)
     !
     ! :Purpose: To determine which transform must be actived
     !
     implicit none
 
-    integer, intent(in) :: bufrCodeReaded(:)
+    ! Argument:
+    integer, intent(in) :: bufrCodeRead(:)          ! The list of bufr code read
 
-    integer, allocatable :: bufrCodeAssimilated(:)
+    ! Locals:
+    integer, allocatable :: bufrCodeAssimilated(:)  ! The list of bufr code assimilated
 
-    integer :: nBufrCodeReaded, nBufrCodeAssimilated
+    integer :: nBufrCodeRead, nBufrCodeAssimilated
     integer :: readBufrCodeIndex, transformIndex, assimBufrCodeIndex
 
     logical :: variableTransformNeeded, foundTransformation
@@ -126,20 +129,23 @@ contains
       firstTime = .false.
     end if
 
-    nBufrCodeAssimilated = filt_nVariableBufrCodeAssimilated()
-    nBufrCodeReaded = size(bufrCodeReaded)
+    nBufrCodeAssimilated = filt_nBufrCodeAssimilated()
+    nBufrCodeRead = size(bufrCodeRead)
     variableTransformNeeded = .false.
 
     allocate(bufrCodeAssimilated(nBufrCodeAssimilated))
-    call filt_getVariableBufrCodeAssimilated(bufrCodeAssimilated)
+    call filt_getBufrCodeAssimilated(bufrCodeAssimilated)
 
-    do readBufrCodeIndex = 1, nBufrCodeReaded
+    do readBufrCodeIndex = 1, nBufrCodeRead
     
       ! Check if a transform is neeeded
-      if (filt_variableBufrCodeAssimilated(bufrCodeReaded(readBufrCodeIndex)) .or. &
-          bufrCodeReaded(readBufrCodeIndex) == bufr_neff             .or. &
-          bufrCodeReaded(readBufrCodeIndex) == bufr_nefs ) then
+      if (filt_bufrCodeAssimilated(bufrCodeRead(readBufrCodeIndex)) .or. &
+          bufrCodeRead(readBufrCodeIndex) == bufr_neff             .or. &
+          bufrCodeRead(readBufrCodeIndex) == bufr_nefs ) then
         cycle ! No transformation needed. Move on.
+              ! Note that this is where we decide that wind speed will be ignored, 
+              ! because we do all the appropriate wind manipulations when we encounter direction.
+              ! This strategy allow to assimilate lonely speed observations, like SAR winds.
       end if
 
       ! Find and activate the appropriate transform
@@ -147,7 +153,7 @@ contains
 
       transformLoop : do transformIndex = 1, nTransformSupported
         assimBufrCodeLoop : do assimBufrCodeIndex = 1, nBufrCodeAssimilated
-          if (any(transform(transformIndex)%sourceBufrCode(:) == bufrCodeReaded(readBufrCodeIndex))        .and. &
+          if (any(transform(transformIndex)%sourceBufrCode(:) == bufrCodeRead(readBufrCodeIndex))        .and. &
               any(transform(transformIndex)%destinationBufrCode(:) == bufrCodeAssimilated(assimBufrCodeIndex)) )  then
             if (.not. transform(transformIndex)%active) then
               write(*,*) 'ovt_setup: transform activated : ', trim(transform(transformIndex)%name)
@@ -161,11 +167,11 @@ contains
 
       if (.not. foundTransformation) then
         write(*,*)
-        write(*,*) 'ovt_setup: !WARNING! No transform found for the readed bufr code = ', bufrCodeReaded(readBufrCodeIndex)
-        write(*,*) '           We are assuming that this observation is readed but not assimilated.'
-        write(*,*) '           Please consider removing this bufr code from the readed observation list.'
+        write(*,*) 'ovt_setup: !WARNING! No transform found for the read bufr code = ', bufrCodeRead(readBufrCodeIndex)
+        write(*,*) '           We are assuming that this observation is read but not assimilated.'
+        write(*,*) '           Please consider removing this bufr code from the read observation list.'
         nSkippedBufrCodes = nSkippedBufrCodes + 1
-        skippedBufrCodes(nSkippedBufrCodes) = bufrCodeReaded(readBufrCodeIndex)
+        skippedBufrCodes(nSkippedBufrCodes) = bufrCodeRead(readBufrCodeIndex)
       end if
 
     end do
@@ -177,21 +183,26 @@ contains
   end subroutine ovt_setup
 
   !--------------------------------------------------------------------------
-  ! ovt_variableBufrCodeSkipped
+  ! ovt_bufrCodeSkipped
   !--------------------------------------------------------------------------
-  function ovt_variableBufrCodeSkipped(sourceBufrCode) result(skip)
+  function ovt_bufrCodeSkipped(sourceBufrCode) result(skip)
     !
-    ! :Purpose: To determine if an observation must be ignored or not
+    ! :Purpose: To NEVER activate a variable transform for this bufr code,
+    !           even when this bufr_code is read but not found in the assimilated list.
+    !           So far, this function is only used to "skipped" wind speed reports
+    !           because we do all the appropriate wind manipulations when we encounter direction.
     !
     implicit none
 
-    integer, intent(in) :: sourceBufrCode
-    logical :: skip
+    ! Arguments:
+    integer, intent(in) :: sourceBufrCode ! The input bufr code
+    logical :: skip                       ! The decision
     
+    ! Locals:
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_variableBufrCodeSkipped: this module has not been setup')
+      call utl_abort(' ovt_bufrCodeSkipped: this module has not been setup')
     end if
 
     skip = .false.
@@ -202,27 +213,29 @@ contains
       end if
     end do
 
-  end function ovt_variableBufrCodeSkipped
+  end function ovt_bufrCodeSkipped
 
   !--------------------------------------------------------------------------
-  ! ovt_getDestinationVariableBufrCode
+  ! ovt_getDestinationBufrCode
   !--------------------------------------------------------------------------
-  function ovt_getDestinationVariableBufrCode(sourceBufrCode,extra_opt) result(destinationBufrCode)
+  function ovt_getDestinationBufrCode(sourceBufrCode,extra_opt) result(destinationBufrCode)
     !
     ! :Purpose: To get the bufr code of the transformed/destination variable based on the 
     !           bufr code of the source variable
     !
     implicit none
 
-    integer, intent(in) :: sourceBufrCode
-    integer :: destinationBufrCode
-    logical, optional :: extra_opt
+    ! Arguments:
+    integer, intent(in) :: sourceBufrCode    ! The input source bufr code
+    integer :: destinationBufrCode           ! The returned destination/transform bufr code
+    logical, optional :: extra_opt           ! Should we look in the "extra" bufr code list or not
     
+    ! Locals:
     logical :: extra
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_getDestinationVariableBufrCode: this module has not been setup')
+      call utl_abort(' ovt_getDestinationBufrCode: this module has not been setup')
     end if
 
     if (present(extra_opt)) then
@@ -248,31 +261,33 @@ contains
 
     if (destinationBufrCode == -1) then
       write(*,*)
-      write(*,*) 'ovt_getDestinationVariableBufrCode: source bufrCode = ', sourceBufrCode
-      call utl_abort('ovt_getDestinationVariableBufrCode: found no associated bufrCode for the above source variable bufr code')
+      write(*,*) 'ovt_getDestinationBufrCode: source bufrCode = ', sourceBufrCode
+      call utl_abort('ovt_getDestinationBufrCode: found no associated bufrCode for the above source variable bufr code')
     end if
 
-  end function ovt_getDestinationVariableBufrCode
+  end function ovt_getDestinationBufrCode
 
   !--------------------------------------------------------------------------
-  ! ovt_getSourceVariableBufrCode
+  ! ovt_getSourceBufrCode
   !--------------------------------------------------------------------------
-  function ovt_getSourceVariableBufrCode(destinationBufrCode,extra_opt) result(sourceBufrCode)
+  function ovt_getSourceBufrCode(destinationBufrCode,extra_opt) result(sourceBufrCode)
     !
     ! :Purpose: To get the bufr code of the source variable based on the 
     !           bufr code of the destination/transformed variable
     !
     implicit none
 
-    integer, intent(in) :: destinationBufrCode
-    integer :: sourceBufrCode
-    logical, optional :: extra_opt
+    ! Arguments:
+    integer, intent(in) :: destinationBufrCode  ! The input destination/transform bufr code
+    integer :: sourceBufrCode                   ! The returned source bufr code
+    logical, optional :: extra_opt              ! Should we look in the "extra" bufr code list or not
     
+    ! Locals:
     logical :: extra
     integer :: transformIndex, destinationBufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_getSourceVariableBufrCode: this module has not been setup')
+      call utl_abort(' ovt_getSourceBufrCode: this module has not been setup')
     end if
 
     if (present(extra_opt)) then
@@ -298,11 +313,11 @@ contains
 
     if (sourceBufrCode == -1) then
       write(*,*)
-      write(*,*) 'ovt_getSourceVariableBufrCode: tranform variable bufr code = ', destinationBufrCode
-      call utl_abort('ovt_getSourceVariableBufrCode: found no associated variable bufr code for the above transform variable bufr code')
+      write(*,*) 'ovt_getSourceBufrCode: tranform variable bufr code = ', destinationBufrCode
+      call utl_abort('ovt_getSourceBufrCode: found no associated variable bufr code for the above transform variable bufr code')
     end if
 
-  end function ovt_getSourceVariableBufrCode
+  end function ovt_getSourceBufrCode
 
   !--------------------------------------------------------------------------
   ! ovt_isWindObs
@@ -313,9 +328,11 @@ contains
     !
     implicit none
 
-    integer, intent(in) :: sourceBufrCode
-    logical :: wind
+    ! Arguments:
+    integer, intent(in) :: sourceBufrCode ! The input source bufr code
+    logical :: wind                       ! Is this bufr code linked to wind or not
 
+    ! Locals:
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
@@ -342,9 +359,11 @@ contains
     !
     implicit none
 
-    integer, intent(in) :: bufrCode
-    logical :: transformed
+    ! Arguments:
+    integer, intent(in) :: bufrCode    ! The input bufr code
+    logical :: transformed             ! Is this a bufr code associated to a transform variable or not
 
+    ! Locals:
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
@@ -376,10 +395,11 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: headerIndexStart 
-    integer          , intent(in)    :: headerIndexEnd
+    type (struct_obs), intent(inout) :: obsSpaceData      ! The observation database
+    integer          , intent(in)    :: headerIndexStart  ! The initial header index to analyse
+    integer          , intent(in)    :: headerIndexEnd    ! The final header index to analyse
 
+    ! Locals:
     integer :: transformIndex
 
     if (.not. initialized) then
@@ -413,9 +433,10 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: residualTypeID
+    type (struct_obs), intent(inout) :: obsSpaceData    ! The observation database 
+    integer          , intent(in)    :: residualTypeID  ! The residual type ID (o-p or o-a)
 
+    ! Local:
     integer :: transformIndex
 
     if (.not. initialized) then
@@ -449,11 +470,11 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: headerIndexStart 
-    integer          , intent(in)    :: headerIndexEnd
+    type (struct_obs), intent(inout) :: obsSpaceData      ! The observation database
+    integer          , intent(in)    :: headerIndexStart  ! The initial header index to analyse
+    integer          , intent(in)    :: headerIndexEnd    ! The final header index to analyse
 
-    ! locals
+    ! Locals:
     integer        :: bufrCode, bufrCode2, bufrCode3
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bodyIndexFound, bufrCodeAssociated
     integer        :: directionFlag, speedFlag, combinedFlag, uWindFlag, vWindFlag
@@ -477,8 +498,8 @@ contains
       ! Find the wind direction report
       body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
-        direction = obs_missingValue
-        speed     = obs_missingValue
+        direction = obs_missingValue_R
+        speed     = obs_missingValue_R
         bufrCode  = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         direction_missing = .true.
       
@@ -544,7 +565,7 @@ contains
             if ( direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0. ) then
               direction_missing = .true.
               speed_missing     = .true.
-            else if ( direction == obs_missingValue .or. speed == obs_missingValue ) then
+            else if ( direction == obs_missingValue_R .or. speed == obs_missingValue_R ) then
               direction_missing = .true.
               speed_missing     = .true.
             else
@@ -614,11 +635,11 @@ contains
           level_uWind = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
           bodyIndexFound = -1
 
-          if ( level_uWind == level .and. uWind == obs_missingValue ) then
+          if ( level_uWind == level .and. uWind == obs_missingValue_R ) then
             call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
           end if
 
-          if ( level_uWind == level .and. uWind /= obs_missingValue ) then
+          if ( level_uWind == level .and. uWind /= obs_missingValue_R ) then
 
             uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
             bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
@@ -658,11 +679,11 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_obs)    :: obsSpaceData
-    integer, intent(in) :: residualTypeID
+    ! Arguments:
+    type(struct_obs)    :: obsSpaceData    ! The observation database
+    integer, intent(in) :: residualTypeID  ! The residual type ID (o-p or o-a)
 
-    ! locals
+    ! Locals:
     integer :: uWindBufrCode, vWindBufrCode, speedBufrCode, directionBufrCode
     integer :: headerIndex, headerIndexStart, headerIndexEnd, windTypeIndex, bodyIndex, bodyIndex2
 
@@ -766,11 +787,11 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: headerIndexStart 
-    integer          , intent(in)    :: headerIndexEnd
+    type (struct_obs), intent(inout) :: obsSpaceData      ! The observation database
+    integer          , intent(in)    :: headerIndexStart  ! The initial header index to analyse
+    integer          , intent(in)    :: headerIndexEnd    ! The final header index to analyse
 
-    ! locals
+    ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
     integer        :: visFlag, logVisFlag
     real(obs_real) :: visObs, visLevel, logVisObs, level
@@ -801,7 +822,7 @@ contains
 
           if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_logVis) cycle body2
 
-          if (visObs == obs_missingValue) then
+          if (visObs == obs_missingValue_R) then
             logVisObs = visObs
           else
             ! vis -> log(vis)
@@ -837,10 +858,10 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: residualTypeID
+    type (struct_obs), intent(inout) :: obsSpaceData    ! The observation database
+    integer          , intent(in)    :: residualTypeID  ! The residual type ID (o-p or o-a)
 
-    ! locals
+    ! Locals:
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
     real(obs_real) :: visObs, logVisLevel, logVisObs, level
     real(obs_real) :: visResidual, logVisResidual
@@ -875,7 +896,7 @@ contains
         call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, visResidual)
 
         ! Set the obs error to missing
-        call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, obs_missingValue)
+        call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, obs_missingValue_R)
 
         ! Set flags
         call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
@@ -904,12 +925,12 @@ contains
     !
     implicit none
 
-    ! arguments
-    type (struct_obs), intent(inout) :: obsSpaceData
-    integer          , intent(in)    :: headerIndexStart
-    integer          , intent(in)    :: headerIndexEnd
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData      ! The observation database
+    integer          , intent(in)    :: headerIndexStart  ! The initial header index to analyse
+    integer          , intent(in)    :: headerIndexEnd    ! The final header index to analyse
 
-    ! locals
+    ! Locals:
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: bufrCode
 

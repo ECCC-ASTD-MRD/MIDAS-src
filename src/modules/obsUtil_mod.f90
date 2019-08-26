@@ -47,40 +47,40 @@ contains
     type(struct_obs) :: obsSpaceData
 
     ! locals
-    integer          :: transformVariableBufrCode, transformVariableBufrCodeExtra
+    integer          :: transformBufrCode, transformBufrCodeExtra
     integer          :: flag, flagExtra, mergedFlag
-    integer          :: sourceVariableBufrCode, sourceVariableBufrCodeExtra
+    integer          :: sourceBufrCode, sourceBufrCodeExtra
     integer          :: headerIndex, bodyIndexStart, bodyIndexEnd, bodyIndex, bodyIndex2
-    real(obs_real)   :: levType
+    real(obs_real)   :: level
 
-    integer :: transformIndex, transformedVariableBufrCodeIndex
+    integer :: transformIndex, transformedBufrCodeIndex
 
     body : do bodyIndex = 1, obs_numBody(obsSpaceData) 
 
       if (ovt_isTransformedVariable(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex))) then
 
         ! We have found a transformed variable
-        transformVariableBufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        transformBufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
 
         ! We will assign his assimilation flag to its source variable
-        sourceVariableBufrCode = ovt_getSourceVariableBufrCode(transformVariableBufrCode)
+        sourceBufrCode = ovt_getSourceBufrCode(transformBufrCode)
 
         headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex   )
         bodyIndexStart   = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
         bodyIndexEnd     = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
-        levType          = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex   )
+        level            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex   )
         flag             = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex   )
 
-        if (ovt_isWindObs(sourceVariableBufrCode)) then
+        if (ovt_isWindObs(sourceBufrCode)) then
 
            ! Get the flag of the companion transformed variable
-          transformVariableBufrCodeExtra = ovt_getDestinationVariableBufrCode(sourceVariableBufrCode, &
+          transformBufrCodeExtra = ovt_getDestinationBufrCode(sourceBufrCode, &
                                                                    extra_opt=.true.)
 
           flagExtra = -999
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == transformVariableBufrCodeExtra .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == transformBufrCodeExtra .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
               flagExtra = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex2)
             end if
           end do
@@ -92,26 +92,26 @@ contains
             call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
           end if
           
-          ! Find sourceVariableBufrCode and sourceVariableBufrCodeExtra and update their flag
-          sourceVariableBufrCodeExtra = ovt_getSourceVariableBufrCode(transformVariableBufrCode,&
+          ! Find sourceBufrCode and sourceBufrCodeExtra and update their flag
+          sourceBufrCodeExtra = ovt_getSourceBufrCode(transformBufrCode,&
                                                                       extra_opt=.true.)
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
             end if
-            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCodeExtra .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCodeExtra .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
             end if
           end do
           
         else
           
-          ! Find sourceVariableBufrCode and update its flag
+          ! Find sourceBufrCode and update its flag
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceVariableBufrCode .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == levType ) then
+            if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag ) 
             end if
           end do

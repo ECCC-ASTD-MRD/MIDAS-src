@@ -1446,7 +1446,7 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
 
-   real(OBS_REAL), public, parameter :: obs_missingValue = real(MPC_missingValue_R8, OBS_REAL) ! Missing value
+   real(OBS_REAL), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, OBS_REAL) ! Missing value
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
