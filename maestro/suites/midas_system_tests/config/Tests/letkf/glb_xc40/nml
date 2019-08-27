@@ -10,8 +10,10 @@
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.33D0
    alphaRandomPertSubSample = 0.66D0
+   modifyAmsubObsError   = .false.
    backgroundCheck          = .false.
    huberize                 = .false.
+   rejectHighLatIR       = .false.
    rejectRadNearSfc         = .false.
    UPDATEMEMBERS            = .true.
    WRITEINCREMENTS          = .true.

@@ -8,8 +8,10 @@
    alphaRTPP             = 0.40D0
    alphaRTPS             = 0.80D0
    alphaRandomPert       = 0.10D0
+   modifyAmsubObsError   = .false.
    backgroundCheck       = .false.
    huberize              = .false.
+   rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
    updateMembers         = .true.
    writeIncrements       = .true.

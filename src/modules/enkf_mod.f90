@@ -23,12 +23,14 @@ module enkf_mod
   use mpi, only : mpi_statuses_ignore ! this is the mpi library module
   use mpi_mod
   use utilities_mod
+  use mathPhysConstants_mod
   use columnData_mod
   use timeCoord_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use obsSpaceData_mod
   use ensembleObservations_mod
   use randomNumber_mod
   use controlVector_mod
@@ -36,6 +38,7 @@ module enkf_mod
   use bMatrix_mod
   use localizationFunction_mod
   use varNameList_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -45,7 +48,7 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_interpWeights, enkf_addRandomPert, enkf_RTPS
-  public :: enkf_selectSubSample, enkf_LETKFanalyses
+  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError, enkf_rejectHighLatIR
 
   public :: enkf_computeColumnsMean, enkf_computeColumnsPerturbations
   public :: enkf_gatherHX
@@ -1565,6 +1568,74 @@ contains
     call gsv_deallocate(stateVectorVtr)
 
   end subroutine enkf_addRandomPert
+
+  !--------------------------------------------------------------------------
+  ! enkf_modifyAMSUBobsError
+  !--------------------------------------------------------------------------
+  subroutine enkf_modifyAMSUBobsError(obsSpaceData)
+    implicit none
+
+    ! arguments:
+    type(struct_obs), target  :: obsSpaceData
+
+    ! locals:
+    real(obs_real), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
+    integer            :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
+    real(obs_real)     :: lat_obs
+
+    ! for AMSUB observations set the observation error std dev equal to 1.0
+    ! in the larger tropical area where the spread-skill correlation suggests 
+    ! that the data are accurate (.i.e |lat|<40. ). Otherwise don't reduce the
+    ! observational error.
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+      lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
+      codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
+      lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
+      if ( abs(lat_obs) < 40. .and. (codeType==181 .or. codeType==182) ) then
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_r(obsSpaceData, obs_oer, bodyIndex, AMSUB_trop_oer)
+        end do
+      end if
+    end do
+
+  end subroutine enkf_modifyAMSUBobsError
+
+  !--------------------------------------------------------------------------
+  ! enkf_rejectHighLatIR
+  !--------------------------------------------------------------------------
+  subroutine enkf_rejectHighLatIR(obsSpaceData)
+    implicit none
+
+    ! arguments:
+    type(struct_obs), target  :: obsSpaceData
+
+    ! locals:
+    integer        :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
+    real(obs_real) :: lat_obs
+
+    ! reject all HIR radiance observation in arctic and antarctic (.i.e |lat|>60. )
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+      lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
+      codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
+      lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
+      if ( abs(lat_obs) > 60. .and. (codeType==183 .or. codeType==186 .or. codeType==193) ) then
+        write(*,*) 'enkf_rejectHighLatIR: !!!!!!!!--------WARNING--------!!!!!!!!'
+        write(*,*) 'enkf_rejectHighLatIR: This HIR radiance profile was rejected because |lat|>60.'
+        write(*,*) 'enkf_rejectHighLatIR: latidude= ', lat_obs, 'codtyp= ', codeType
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          call obs_bodySet_i(obsSpaceData, obs_ass, bodyIndex, obs_notAssimilated)
+          ! also set the 'rejected by selection process' flag (bit 11)
+          call obs_bodySet_i( obsSpaceData, obs_flg, bodyIndex,  &
+                              ibset( obs_bodyElem_i( obsSpaceData, obs_flg, bodyIndex ), 11) )
+        end do
+      end if
+    end do
+
+  end subroutine enkf_rejectHighLatIR
 
   !-----------------------------------------------------------------
   ! enkf_selectSubSample

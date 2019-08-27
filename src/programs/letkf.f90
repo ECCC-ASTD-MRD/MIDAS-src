@@ -104,8 +104,10 @@ program midas_letkf
   integer  :: maxNumLocalObs      ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep    ! separation of lat-lon grid points for weight calculation
   integer  :: randomSeed          ! seed used for random perturbation additive inflation
+  logical  :: modifyAmsubObsError ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck     ! apply additional background check using ensemble spread
   logical  :: huberize            ! apply huber norm quality control procedure
+  logical  :: rejectHighLatIR     ! reject all IR observations at high latitudes
   logical  :: rejectRadNearSfc    ! reject radiance observations near the surface
   logical  :: updateMembers       ! true means compute and write out members analyses/increments
   logical  :: writeIncrements     ! write ens of increments and mean increment
@@ -123,7 +125,7 @@ program midas_letkf
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
-                     backgroundCheck, huberize, rejectRadNearSfc,  &
+                     modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      updateMembers, writeIncrements, writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
@@ -169,8 +171,10 @@ program midas_letkf
   numSubEns             = 2
   maxNumLocalObs        = 1000
   weightLatLonStep      = 1
+  modifyAmsubObsError   = .false.
   backgroundCheck       = .false.
   huberize              = .false.
+  rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
   updateMembers         = .false.
   writeIncrements       = .false.
@@ -451,11 +455,17 @@ program midas_letkf
   ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
   call eob_setLogPres(ensObs, column)
 
-  ! Apply a background check (reject_limit is set in the routine)
+  ! Modify the obs error stddev for AMSUB in the tropics
+  if (modifyAmsubObsError) call enkf_modifyAmsubObsError(obsSpaceData)
+
+  ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
   if (huberize) call eob_huberNorm(ensObs)
+
+  !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
+  if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 
   ! Reject radiance observations too close to the surface
   if (rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
