@@ -163,15 +163,22 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ben_setup
   !--------------------------------------------------------------------------
-  SUBROUTINE ben_setup(hco_anl_in, vco_anl_in, cvDim_out, &
+  SUBROUTINE ben_setup(hco_anl_in, vco_anl_in, cvDimPerInstance, &
                        mode_opt)
+    !
+    !:Purpose: To configure the ensemble B matrix
+    !
     implicit none
 
+    ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco_anl_in
     type(struct_vco), pointer, intent(in) :: vco_anl_in
 
     character(len=*), intent(in), optional :: mode_opt
 
+    integer, allocatable, intent(out)      :: cvDimPerInstance(:)
+
+    ! Locals:
     character(len=15) :: ben_mode
 
     type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
@@ -191,7 +198,7 @@ CONTAINS
     real(4), pointer :: bin2d(:,:,:)
     real(8), pointer :: HeightSfc(:,:)
 
-    integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
+    integer        :: myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,jvar,status
     integer        :: fnom,fclos,ierr,nulnam
     integer        :: waveBandIndex, stepIndex
@@ -255,7 +262,9 @@ CONTAINS
     ! If zero weight, skip rest of setup
     if ( sum(scaleFactor(:)) == 0.0d0 ) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup'
-      cvDim_out = 0
+      !cvDim_out = 0
+      allocate(cvDimPerInstance(1))
+      cvDimPerInstance(:) = 0
       return
     end if
 
@@ -528,7 +537,9 @@ CONTAINS
                        vLocalize(waveBandIndex))                                                 ! IN
       end do
 
-      cvDim_out = cvDim_mpilocal
+      !cvDim_out = cvDim_mpilocal
+      allocate(cvDimPerInstance(1))
+      cvDimPerInstance(:) = cvDim_mpilocal
       deallocate(pressureProfileEns_M)
 
     end if
@@ -592,7 +603,9 @@ CONTAINS
     call setupEnsemble()
 
     if ( trim(ben_mode) /= 'Analysis' ) then
-      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble)
+      !cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble)
+      allocate(cvDimPerInstance(1))
+      cvDimPerInstance(:) = 9999
       initialized = .true.
       call tmg_stop(12)
       return

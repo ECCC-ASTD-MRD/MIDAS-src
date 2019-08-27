@@ -49,10 +49,20 @@ module BMatrix_mod
   public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4, bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
 
   logical :: globalGrid = .true.
-  integer, parameter :: numBmat = 5
-  character(len=4) :: bmatTypeList(numBmat) = (/'HI','LATB','ENS','CHM','DIFF'/)
-  character(len=8) :: bmatLabelList(numBmat) = (/'B_HI','B_LATB','B_ENS','B_CHM','B_DIFF'/)
-  logical :: bmatIs3dList(numBmat) = (/.true.,.true.,.false.,.true.,.true./)
+
+  integer,          parameter :: numMasterBmat = 5
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'  , 'LATB'  , 'ENS'  , 'CHM'  , 'DIFF'  /)
+  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_LATB', 'B_ENS', 'B_CHM', 'B_DIFF'/)
+  logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true.  , .false., .true. , .true.  /)
+
+  integer            :: numBmat
+  integer, parameter :: numBmatMax = 45
+
+  character(len=4)  :: bmatTypeList  (numBmatMax)
+  character(len=8)  :: bmatLabelList (numBmatMax)
+  integer           :: bmatInstanceID(numBmatMax)
+  logical           :: bmatIs3dList  (numBmatMax)
+  logical           :: bmatActive    (numBmatMax)
 
 contains
 
@@ -66,10 +76,19 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type(struct_vco), pointer :: vco_anl
     type(struct_hco), pointer :: hco_anl
 
-    integer :: cvdim, bmatIndex
+    ! Locals:
+    integer, allocatable :: cvDimPerInstance(:)
+    integer :: cvdim
+    integer :: masterBmatIndex, bMatInstanceIndex, nBmatInstance, bmatIndex
+
+    character(len=1) :: bMatInstanceIndexString
+    character(len=2) :: bMatExtraLabel
+
+    logical :: active
 
     !
     !- 1.  Get/Check the analysis grid info
@@ -81,12 +100,17 @@ contains
     !
     !- 2.  Setup the B matrices
     !
-    do bmatIndex = 1, numBmat
+    numBmat = 0
 
-      select case( trim(bmatTypeList(bmatIndex)) )
+    do masterBmatIndex = 1, numMasterBmat
+
+      select case( trim(masterBmatTypeList(masterBmatIndex)) )
       case ('HI')
 
         !- 2.1 Time-Mean Homogeneous and Isotropic...
+        nBmatInstance = 1 ! hardiwred
+        allocate(cvdimPerInstance(nBmatInstance))
+
         if ( globalGrid ) then
           write(*,*)
           write(*,*) 'Setting up the modular GLOBAL HI covariances...'
@@ -99,9 +123,14 @@ contains
                            cvdim )             ! OUT
         end if
 
+        cvdimPerInstance(1) = cvdim
+
       case ('LATB')
 
         !- 2.2 Time-Mean Lat-Bands...
+        nBmatInstance = 1 ! hardiwred
+        allocate(cvdimPerInstance(nBmatInstance))
+
         if ( globalGrid ) then
           write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
           call blb_Setup( hco_anl, vco_anl, & ! IN
@@ -110,17 +139,24 @@ contains
           cvdim=0
         end if
 
+        cvdimPerInstance(1) = cvdim
+
       case ('ENS')
 
         !- 2.3 Flow-dependent Ensemble-Based
         write(*,*)
         write(*,*) 'Setting up the modular ENSEMBLE covariances...'
         call ben_Setup( hco_anl, vco_anl, & ! IN
-                        cvdim )             ! OUT
+                        cvdimPerInstance )  ! OUT
+
+        nBmatInstance = size(cvdimPerInstance)
 
       case ('CHM')
 
         !- 2.4  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        nBmatInstance = 1 ! hardiwred
+        allocate(cvdimPerInstance(nBmatInstance))
+
         if ( globalGrid ) then
           write(*,*)
           write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
@@ -130,22 +166,72 @@ contains
           cvdim=0
         end if
 
+        cvdimPerInstance(1) = cvdim
+
       case ('DIFF')
 
         !- 2.5 Covariances modelled using a diffusion operator.
+        nBmatInstance = 1 ! hardiwred
+        allocate(cvdimPerInstance(nBmatInstance))
+
         write(*,*)
         write(*,*) 'Setting up the modular DIFFUSION covariances...'
         call bdiff_Setup( hco_anl, vco_anl, & ! IN
                           cvdim )             ! OUT
 
+        cvdimPerInstance(1) = cvdim
+
       case default
 
-        call utl_abort( 'bmat_setup: requested bmatrix type = ' // trim(bmatTypeList(bmatIndex)) )
+        call utl_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
 
       end select
 
-      call cvm_setupSubVector(bmatLabelList(bmatIndex), bmatTypeList(bmatIndex), cvdim)
+      !- 2.6 Append the info to the B matrix info arrays and setup the proper control sub-vectors
+      do bMatInstanceIndex = 1, nBmatInstance
 
+        numBmat = numBmat + 1
+
+        if (nBmatInstance == 1) then
+          bMatExtraLabel= ""
+        else
+          write(bMatInstanceIndexString,"('I1')") bMatInstanceIndex 
+          bMatExtraLabel="_"//bMatInstanceIndexString
+        end if
+        bmatLabelList (numBmat) = masterbmatLabelList(masterBmatIndex)//trim(bMatExtraLabel)
+
+        bmatTypeList  (numBmat) = masterBmatTypeList(masterBmatIndex)
+        bmatIs3dList  (numBmat) = masterbmatIs3dList(masterBmatIndex)
+        bmatInstanceID(numBmat) = bMatInstanceIndex
+
+        call cvm_setupSubVector(bmatLabelList(numBmat), bmatTypeList(numBmat), cvdimPerInstance(bMatInstanceIndex))
+
+      end do
+
+      deallocate(cvdimPerInstance)
+
+    end do
+
+    !
+    !- 3. Print a summary and set the active B matrices array
+    !
+    write(*,*)
+    write(*,*) " bmat_setup SUMMARY, number of B matrices found = ", numBmat
+    do bmatIndex = 1, numBmat
+      write(*,*) "  B matrix #", bmatIndex
+      active = cvm_subVectorExists(bmatLabelList(bmatIndex))
+      if (active) then
+        write(*,*) "   ACTIVE"
+      else
+        write(*,*) "   NOT USED"
+      end if
+       write(*,*) "     -> label       = ", bmatLabelList (bmatIndex)
+      write(*,*) "     -> type        = ", bmatTypeList  (bmatIndex)
+      if (active) then
+        write(*,*) "     -> is 3D       = ", bmatIs3dList  (bmatIndex)
+        write(*,*) "     -> instance ID = ", bmatInstanceID(bmatIndex)
+      end if
+      bmatActive(bmatIndex) = active
     end do
 
   end subroutine bmat_setup
@@ -192,7 +278,7 @@ contains
     !
     bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
       call gsv_zero( statevector_temp )
@@ -298,7 +384,7 @@ contains
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
       subVector(:) = 0.0d0
@@ -407,7 +493,7 @@ contains
 
     bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -476,7 +562,7 @@ contains
 
     bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -545,7 +631,7 @@ contains
 
     bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
@@ -614,7 +700,7 @@ contains
 
     bmat_loop: do bmatIndex = 1, numBmat
 
-      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle bmat_loop
+      if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
       if ( mpi_myid == 0 ) then
