@@ -175,6 +175,7 @@ contains
     !
     implicit none
 
+    ! Arguments:
     integer, intent(in)           :: varNumber ! BUFR element number
     logical                       :: var_chm
       
@@ -202,6 +203,8 @@ contains
     !          measurement.
     !
     implicit none
+
+    ! Arguments:
     integer, intent(in) :: varNumber ! BUFR element number
  
     if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
@@ -221,6 +224,7 @@ contains
     !
     implicit none
     
+    ! Arguments:
     integer, intent(in) :: varNumber ! BUFR element number
 
     select case(varNumber)

@@ -104,7 +104,7 @@ module tovs_nl_mod
 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_calc_jo, tvs_allocTransmission
-  public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpInst
+  public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs, tvs_getChannelIndexFromChannelNumber
@@ -689,14 +689,15 @@ contains
   !--------------------------------------------------------------------------
   logical function tvs_isIdBurpTovs(idatyp)
     !
-    ! :Purpose: Function to check if the given idatyp (a.k.a. codtyp) corresponds to a radiance
+    ! :Purpose: Function to check if the given idatyp (a.k.a. codtyp) 
+    !           corresponds to a radiance
     !
     implicit none
 
     ! Argument:
     integer, intent(in) :: idatyp
     
-    !Locals:
+    ! Locals:
     logical, save :: first=.true.
     integer, save :: ninst_tovs
     integer :: nulnam, ierr, instrumentIndex 
@@ -747,6 +748,71 @@ contains
     end do
 
   end function tvs_isIdBurpTovs
+
+  !--------------------------------------------------------------------------
+  !  tvs_isIdBurpHyperSpectral
+  !--------------------------------------------------------------------------
+  logical function tvs_isIdBurpHyperSpectral(idatyp)
+    !
+    ! :Purpose: Function to check if the given idatyp (a.k.a. codtyp) 
+    !           corresponds to a hyper-spectral infrared radiance
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: idatyp
+    
+    ! Locals:
+    logical, save :: first=.true.
+    integer, save :: ninst_hyper
+    integer :: nulnam, ierr, instrumentIndex 
+    integer, external :: fnom, fclos
+    integer, save :: list_inst(ninst)
+    character(len=22) :: name_inst(ninst)
+    namelist /namhyper/ name_inst
+
+    if (tvs_nsensors == 0) then
+      ! no tovs data will be read, therefore false
+      tvs_isIdBurpHyperSpectral = .false.
+      return
+    end if
+
+    if (first) then
+      nulnam = 0
+      ninst_hyper = 0
+      list_inst(:) = -1
+      name_inst(:) = "XXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=namhyper, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namhyper)
+      ierr = fclos(nulnam)
+      do instrumentIndex=1, ninst
+        if (name_inst(instrumentIndex) == "XXXXXX" ) then
+          ninst_hyper = instrumentIndex - 1
+          exit
+        else
+          list_inst(instrumentIndex) = codtyp_get_codtyp( name_inst(instrumentIndex) )
+          if (list_inst(instrumentIndex) < 0) then
+            write(*,*) name_inst(instrumentIndex)
+            call utl_abort('tvs_isIdBurpHyperSpectral: unknown instrument in namhyper namelist')
+          end if
+        end if
+      end do
+      if ( ninst_hyper == 0 ) call utl_abort('tvs_isIdBurpHyperSpectral: Empty namhyper namelist')
+      first = .false.
+    end if
+
+    tvs_isIdBurpHyperSpectral = .false.
+
+    do instrumentIndex = 1, ninst_hyper
+      if (idatyp == list_inst(instrumentIndex) ) then
+        tvs_isIdBurpHyperSpectral = .true.
+        exit
+      end if
+    end do
+
+  end function tvs_isIdBurpHyperSpectral
 
   !--------------------------------------------------------------------------
   !  tvs_isIdBurpInst

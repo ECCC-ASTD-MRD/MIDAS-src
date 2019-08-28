@@ -91,7 +91,7 @@ program midas_letkf
   character(len=4)   :: memberIndexStr
   character(len=12)  :: etiketMean='', etiketStd=''
 
-  logical :: deterExists
+  logical :: deterministicStateExists
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -336,8 +336,8 @@ program midas_letkf
 
   !- 2.12 If deterministic background exists, do allocation and then read it
   call fln_ensFileName( deterFileName, ensPathName, shouldExist_opt=.false. )
-  inquire(file=deterFileName, exist=deterExists)
-  if (deterExists) then
+  inquire(file=deterFileName, exist=deterministicStateExists)
+  if (deterministicStateExists) then
     write(*,*)
     write(*,*) 'midas-letkf: Deterministic background state found, will provide deterministic analysis.'
     write(*,*) 'filename = ', deterFileName
@@ -383,7 +383,7 @@ program midas_letkf
   !
 
   !- 3.1 If it exists, compute HX for deterministic background
-  if (deterExists) then
+  if (deterministicStateExists) then
 
     write(*,*) ''
     write(*,*) 'midas-letkf: apply nonlinear H to deterministic background'
@@ -604,7 +604,7 @@ program midas_letkf
     call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
 
     ! Impose limits on deterministic analysis
-    if (deterExists) then
+    if (deterministicStateExists) then
       if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorDeterAnl)
       if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit(stateVectorDeterAnl)
       ! And recompute deterministic increment
@@ -746,7 +746,7 @@ program midas_letkf
                          stepIndex_opt=stepIndex, containsFullField_opt=.true.)
   end do
 
-  if (deterExists) then
+  if (deterministicStateExists) then
     !- 7.4 Output the deterministic increment (include MeanAnl Psfc)
     if (writeIncrements) then
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )

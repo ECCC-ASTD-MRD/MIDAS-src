@@ -1717,7 +1717,7 @@ contains
           end if
 
           if (LEVELGPSRO==2) then
-            if (trim(gpsroDynError) == 'YES') then
+            if (trim(gpsroError) == 'DYNAMIC') then
               do NH1 = 1, NH
                 SUM0=0.d0
                 SUM1=0.d0
@@ -1732,7 +1732,7 @@ contains
                 end if
                 if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
-            else if (trim(gpsroDynError) == 'STATIC_NEW') then
+            else if (trim(gpsroError) == 'STATIC_2018') then
               ! this was introduced by Maziar in late 2018 on advice by Josep
               do NH1 = 1, NH
                 HNH1 = H(NH1)
@@ -1745,7 +1745,7 @@ contains
                 IF ( L3 ) ZERR(NH1)=0.005d0+0.030d0*(HNH1-30000.d0)/30000.d0
                 if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
-            else if (trim(gpsroDynError) == 'STATIC_OLD') then
+            else if (trim(gpsroError) == 'STATIC_2014') then
               ! recipe used in EnKF from Josep by email on February 25 2014 
               do NH1 = 1, NH
                 HNH1 = H(NH1)
@@ -1759,7 +1759,7 @@ contains
                 end select
               end do
             else
-              call utl_abort('oer_setErrGPSro: Invalid value for gpsroDynError')
+              call utl_abort('oer_setErrGPSro: Invalid value for gpsroError')
             endif
           else
             do NH1 = 1, NH

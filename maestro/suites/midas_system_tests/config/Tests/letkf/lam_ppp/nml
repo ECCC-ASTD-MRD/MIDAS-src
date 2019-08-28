@@ -325,7 +325,7 @@
 /
  &NAMGPSRO
   LEVELGPSRO=2,
-  gpsroDynError = 'STATIC_OLD'
+  gpsroError = 'STATIC_2014'
   SURFMIN  = 1000.D0,
   HSFMIN   = 1000.D0,
   HTPMAX   = 40000.D0,

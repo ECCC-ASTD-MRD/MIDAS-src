@@ -33,7 +33,7 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroDynError
+  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, NUMGPSSATS, IGPSSAT, SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS, gpsroError
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
@@ -333,20 +333,20 @@ module gps_mod
 !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
-!     gpsroDynError: key for using dynamic/static refractivity error estimation (default 'YES')
+!     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
 !
 !     J.M. Aparicio, Apr 2008
 !
 !     Revision 01: M. Bani Shahabadi, Nov 2018
-!       - adding the gpsroDynError key to use static error estimation for the refractivity.
+!       - adding the gpsroError key to use static error estimation for the refractivity.
 !         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
 !         recommended to ALWAYS set it to true (dynamic error) for operations.
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
-  character(len=20) :: gpsroDynError
+  character(len=20) :: gpsroError
 
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroDynError
+  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS, gpsroError
 
 
 !modgpsztd_mod
@@ -3008,7 +3008,7 @@ contains
     HTPMAX     = 70000.d0
     BGCKBAND   = 0.05d0
     NUMGPSSATS = 0
-    gpsroDynError = 'YES'
+    gpsroError = 'DYNAMIC'
 !
 !   Override with NML values:
 !     
@@ -3018,7 +3018,7 @@ contains
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, trim(gpsroDynError)
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS, trim(gpsroError)
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !

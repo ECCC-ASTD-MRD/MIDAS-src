@@ -31,6 +31,7 @@ module enkf_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use obsSpaceData_mod
+  use tovs_nl_mod
   use ensembleObservations_mod
   use randomNumber_mod
   use controlVector_mod
@@ -39,6 +40,7 @@ module enkf_mod
   use localizationFunction_mod
   use varNameList_mod
   use codePrecision_mod
+  use codTyp_mod
   implicit none
   save
   private
@@ -105,17 +107,17 @@ contains
     character(len=*)            :: mpiDistribution
 
     ! Locals
-    integer :: nEns, nEnsSubEns, nEnsSubEnsComp, nLev_M, ierr, matrixRank
+    integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, nLev_M, ierr, matrixRank
     integer :: memberIndex, memberIndex1, memberIndex2
     integer :: memberIndexCV, memberIndexCV1, memberIndexCV2
     integer :: procIndex, procIndexSend
-    integer :: latIndex, lonIndex, stepIndex, kIndex, levIndex, levIndex2
+    integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
     integer :: bodyIndex, localObsIndex, numLocalObs, numLocalObsFound
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
     integer :: myNumLatLonRecv, myNumLatLonSend, numLatLonRecvMax
     integer :: numLatLonTotalUnique, latLonIndex, subEnsIndex, subEnsIndex2
     integer :: sendTag, recvTag, nsize, numRecv, numSend
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numK
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     real(8) :: anlLat, anlLon, anlLogPres, distance, tolerance, localization
 
@@ -145,7 +147,7 @@ contains
 
     type(struct_hco), pointer :: hco_ens => null()
 
-    logical :: deterExists
+    logical :: deterministicStateExists
     logical :: firstTime = .true.
 
     write(*,*) 'enkf_LETKFanalyses: starting'
@@ -169,12 +171,12 @@ contains
     myLonEnd = stateVectorMeanInc%myLonEnd
     myLatBeg = stateVectorMeanInc%myLatBeg
     myLatEnd = stateVectorMeanInc%myLatEnd
-    numK     = stateVectorMeanInc%nk
+    numVarLev    = stateVectorMeanInc%nk
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
-    deterExists = stateVectorDeterTrl%allocated
+    deterministicStateExists = stateVectorDeterTrl%allocated
 
     !
     ! Compute gridded 3D ensemble weights
@@ -204,7 +206,7 @@ contains
     allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
     ! Weights for deterministic analysis
-    if (deterExists) then
+    if (deterministicStateExists) then
       allocate(weightsDeter(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
       weightsDeter(:,:,:,:) = 0.0d0
       allocate(weightsDeterLatLon(nEns,1,myNumLatLonSend))
@@ -213,23 +215,23 @@ contains
 
     ! Quantities needed for CVLETKF
     if (trim(algorithm) == 'CVLETKF') then
-      nEnsSubEns = nEns / numSubEns
-      if ( (nEnsSubEns * numSubEns) /= nEns ) then
+      nEnsPerSubEns = nEns / numSubEns
+      if ( (nEnsPerSubEns * numSubEns) /= nEns ) then
         call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
       if (numSubEns <= 1) then
         call utl_abort('enkf_LETKFanalyses: for CVLETKF algorithm, numSubEns must be greater than 1')
       end if
-      nEnsSubEnsComp = nEns - nEnsSubEns
-      allocate(YbTinvRYb_CV(nEnsSubEnsComp,nEnsSubEnsComp))
-      allocate(eigenValues_CV(nEnsSubEnsComp))
-      allocate(eigenVectors_CV(nEnsSubEnsComp,nEnsSubEnsComp))
-      allocate(memberIndexSubEns(nEnsSubEns,numSubEns))
-      allocate(memberIndexSubEnsComp(nEnsSubEnsComp,numSubEns))
+      nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
+      allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
+      allocate(eigenValues_CV(nEnsIndependentPerSubEns))
+      allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
+      allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
+      allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
       do subEnsIndex = 1, numSubEns
-        do memberIndex = 1, nEnsSubEns
+        do memberIndex = 1, nEnsPerSubEns
           memberIndexSubEns(memberIndex,subEnsIndex) =  &
-               (subEnsIndex-1)*nEnsSubEns + memberIndex
+               (subEnsIndex-1)*nEnsPerSubEns + memberIndex
         end do
       end do
       do subEnsIndex = 1, numSubEns
@@ -237,14 +239,14 @@ contains
         do subEnsIndex2 = 1, numSubEns
           if (subEnsIndex2 == subEnsIndex) cycle
 
-          memberIndexSubEnsComp(memberIndex:memberIndex+nEnsSubEns-1,subEnsIndex) =  &
+          memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
             memberIndexSubEns(:,subEnsIndex2)
-          memberIndex = memberIndex + nEnsSubEns
+          memberIndex = memberIndex + nEnsPerSubEns
         end do
       end do
 
-      write(*,*) 'nEns, numSubEns, nEnsSubEns, nEnsSubEnsComp = ',  &
-                 nEns, numSubEns, nEnsSubEns, nEnsSubEnsComp
+      write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
+                 nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
       do subEnsIndex = 1, numSubEns
         write(*,*) 'memberIndexSubEns = '
         write(*,*) memberIndexSubEns(:,subEnsIndex)
@@ -282,7 +284,7 @@ contains
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        if (deterExists) then
+        if (deterministicStateExists) then
           numRecv = numRecv + 1
           recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
           call mpi_irecv( weightsDeter(:,1,lonIndex,latIndex),  &
@@ -400,7 +402,7 @@ contains
               end do
             end do
 
-            if (deterExists) then
+            if (deterministicStateExists) then
               ! Compute deterministic analysis local weights as Pa * YbTinvR * (obs - deterYb)
               weightsTemp(:) = 0.0d0
               do localObsIndex = 1, numLocalObs
@@ -477,7 +479,7 @@ contains
               end do
             end do
 
-            if (deterExists) then
+            if (deterministicStateExists) then
               ! Compute deterministic analysis local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - deterYb)
               weightsTemp(:) = 0.0d0
               do localObsIndex = 1, numLocalObs
@@ -521,11 +523,11 @@ contains
               ! Loop over sub-ensembles
               do subEnsIndex = 1, numSubEns
 
-                ! Use complement ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+                ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
                 call tmg_start(90,'LETKF-eigenDecomp')
-                do memberIndexCV2 = 1, nEnsSubEnsComp
+                do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                   memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
-                  do memberIndexCV1 = 1, nEnsSubEnsComp
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
                   end do
@@ -535,7 +537,7 @@ contains
                 call tmg_stop(90)
 
                 ! Loop over members within the current sub-ensemble being updated
-                do memberIndexCV = 1, nEnsSubEns
+                do memberIndexCV = 1, nEnsPerSubEns
 
                   ! This is index of member being updated
                   memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
@@ -543,7 +545,7 @@ contains
                   ! E^T * YbTinvRYb
                   weightsTemp(:) = 0.0d0
                   do memberIndex2 = 1, matrixRank
-                    do memberIndexCV1 = 1, nEnsSubEnsComp
+                    do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                       memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                       weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
                                                   eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
@@ -555,9 +557,9 @@ contains
 
                   do memberIndex1 = 1, matrixRank
                     weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                                ( 1.0D0/sqrt(real(nEnsSubEnsComp - 1,8)) -   &
+                                                ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
                                                   1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
-                                                             real(nEnsSubEnsComp - 1,8)) )
+                                                             real(nEnsIndependentPerSubEns - 1,8)) )
                     weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
                                                 eigenValues_CV(memberIndex1)
                   end do
@@ -565,7 +567,7 @@ contains
                   ! E * previous_result
                   weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
                   do memberIndex2 = 1, matrixRank
-                    do memberIndexCV1 = 1, nEnsSubEnsComp
+                    do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                       memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                       weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
                            weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
@@ -576,7 +578,8 @@ contains
 
                   ! -1 * (Nens-1)^1/2 * previous_result
                   weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
-                       -1.0D0 * sqrt(real(nEnsSubEnsComp - 1,8)) * weightsMembersLatLon(:,memberIndex,latLonIndex)
+                       -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+                       weightsMembersLatLon(:,memberIndex,latLonIndex)
 
                   ! I + previous_result
                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
@@ -604,7 +607,7 @@ contains
           ! no observations near this grid point, set weights to zero
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          if (deterExists) weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
+          if (deterministicStateExists) weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
         end if ! numLocalObs > 0
 
         call tmg_stop(91)
@@ -624,7 +627,7 @@ contains
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
-          if (deterExists) then
+          if (deterministicStateExists) then
             numSend = numSend + 1
             sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
             call mpi_isend( weightsDeterLatLon(:,1,latLonIndex),  &
@@ -669,7 +672,7 @@ contains
 
         call enkf_interpWeights(wInterpInfo, weightsMean)
 
-        if (deterExists) call enkf_interpWeights(wInterpInfo, weightsDeter)
+        if (deterministicStateExists) call enkf_interpWeights(wInterpInfo, weightsDeter)
 
         if (updateMembers) call enkf_interpWeights(wInterpInfo, weightsMembers)
 
@@ -684,7 +687,7 @@ contains
       meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
       meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
       meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
-      if (deterExists) then
+      if (deterministicStateExists) then
         deterInc_ptr_r4 => gsv_getField_r4(stateVectorDeterInc)
         deterTrl_ptr_r4 => gsv_getField_r4(stateVectorDeterTrl)
         deterAnl_ptr_r4 => gsv_getField_r4(stateVectorDeterAnl)
@@ -696,65 +699,71 @@ contains
           if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
 
           ! Compute the ensemble mean increment and analysis
-          do kIndex = 1, numK
-            ! Only treat kIndex values that correspond with current levIndex
-            if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,kIndex)) == 'SF') then
+          do varLevIndex = 1, numVarLev
+            ! Only treat varLevIndex values that correspond with current levIndex
+            if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
               levIndex2 = nLev_M
             else
-              levIndex2 = gsv_getLevFromK(stateVectorMeanInc,kIndex)
+              levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
             end if
             if (levIndex2 /= levIndex) cycle
-            memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,kIndex)
+            memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
               do memberIndex = 1, nEns
-                meanInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) = meanInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) +  &
+                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                      weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) - meanTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex))
+                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
               end do ! memberIndex
               ! mean analysis
-              meanAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) = meanTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) +  &
-                   meanInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex)
+              meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                   meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
             end do ! stepIndex
-          end do ! kIndex
+          end do ! varLevIndex
 
           ! Compute the deterministic increment and analysis
-          if (deterExists) then
-            do kIndex = 1, numK
-              ! Only treat kIndex values that correspond with current levIndex
-              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,kIndex)) == 'SF') then
+          if (deterministicStateExists) then
+            do varLevIndex = 1, numVarLev
+              ! Only treat varLevIndex values that correspond with current levIndex
+              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
                 levIndex2 = nLev_M
               else
-                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,kIndex)
+                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
               end if
               if (levIndex2 /= levIndex) cycle
-              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,kIndex)
+              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
               do stepIndex = 1, tim_nstepobsinc
                 ! deterministic increment
                 do memberIndex = 1, nEns
-                  deterInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) = deterInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) +  &
+                  deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                       deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                        weightsDeter(memberIndex,1,lonIndex,latIndex) *  &
-                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) - deterTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex))
+                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                        deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
                 end do ! memberIndex
                 ! deterministic analysis
-                deterAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) = deterTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) +  &
-                     deterInc_ptr_r4(lonIndex,latIndex,kIndex,stepIndex)
+                deterAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                     deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                     deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
               end do ! stepIndex
-            end do ! kIndex
+            end do ! varLevIndex
           end if
 
           ! Compute the ensemble member analyses
           if (updateMembers) then
-            do kIndex = 1, numK
-              ! Only treat kIndex values that correspond with current levIndex
-              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,kIndex)) == 'SF') then
+            do varLevIndex = 1, numVarLev
+              ! Only treat varLevIndex values that correspond with current levIndex
+              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
                 levIndex2 = nLev_M
               else
-                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,kIndex)
+                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
               end if
               if (levIndex2 /= levIndex) cycle
-              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,kIndex)
-              memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,kIndex)
+              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+              memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
               do stepIndex = 1, tim_nstepobsinc
                 ! Compute analysis member perturbation
                 memberAnlPert(:) = 0.0d0
@@ -763,14 +772,14 @@ contains
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                          weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
                          (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                          meanTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex))
+                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
                   end do ! memberIndex1
                 end do ! memberIndex2
                 ! Add analysis member perturbation to mean analysis
                 memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
-                     meanAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) + memberAnlPert(:)
+                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
               end do ! stepIndex
-            end do ! kIndex
+            end do ! varLevIndex
           end if ! updateMembers
 
         end do LON_LOOP5
@@ -1362,8 +1371,8 @@ contains
     real(8)          :: alphaRTPS
 
     ! Locals
-    integer :: kIndex, latIndex, lonIndex, stepIndex, memberIndex
-    integer :: nEns, numK, myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
+    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     real(8) :: factorRTPS
     real(4), pointer     :: stdDevTrl_ptr_r4(:,:,:,:), stdDevAnl_ptr_r4(:,:,:,:)
     real(4), pointer     :: meanAnl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
@@ -1375,19 +1384,19 @@ contains
     meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
 
     nEns = ens_getNumMembers(ensembleAnl)
-    numK = ens_getNumK(ensembleAnl)
+    numVarLev = ens_getNumK(ensembleAnl)
     call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-    do kIndex = 1, numK
-      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,kIndex)
+    do varLevIndex = 1, numVarLev
+      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, tim_nstepobsinc
             ! compute the inflation factor for RTPS
-            if ( stdDevAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) > 0.0 ) then
+            if ( stdDevAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) > 0.0 ) then
               factorRTPS = 1.0D0 + alphaRTPS *  &
-                           ( stdDevTrl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) -  &
-                             stdDevAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) ) /  &
-                           stdDevAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex)
+                           ( stdDevTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) -  &
+                             stdDevAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) /  &
+                           stdDevAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
             else
               factorRTPS = 0.0D0
             end if
@@ -1397,14 +1406,14 @@ contains
                 memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                      factorRTPS *  &
                      ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                       meanAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex) ) +  &
-                     meanAnl_ptr_r4(lonIndex,latIndex,kIndex,stepIndex)
+                       meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
+                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
               end do ! memberIndex
             end if ! factorRTPS > 0
           end do ! stepIndex
         end do ! lonIndex
       end do ! latIndex
-    end do ! kIndex
+    end do ! varLevIndex
 
     write(*,*) 'enkf_RTPS: Finished'
 
@@ -1440,13 +1449,13 @@ contains
     real(8), allocatable :: PsfcReference(:,:,:)
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
-    integer :: cvIndex, memberIndex, kIndex, lonIndex, latIndex, stepIndex
-    integer :: nEns, numK, myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
+    integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     logical, save :: firstCall = .true.
 
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensembleAnl)
-    numK = ens_getNumK(ensembleAnl)
+    numVarLev = ens_getNumK(ensembleAnl)
     call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     vco_ens => ens_getVco(ensembleAnl)
     hco_ens => ens_getHco(ensembleAnl)
@@ -1471,7 +1480,7 @@ contains
 
     allocate(controlVector(cvm_nvadim))
     allocate(controlVector_mpiglobal(cvm_nvadim_mpiglobal))
-    allocate(perturbationMean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numK))
+    allocate(perturbationMean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev))
     perturbationMean(:,:,:) = 0.0d0
 
     call gsv_allocate(stateVectorPerturbation, 1, hco_randomPert, vco_randomPert, &
@@ -1526,37 +1535,37 @@ contains
       write(*,*) 'enkf_addRandomPert: member ', memberIndex, ', perturbation min/maxval = ',  &
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
-      do kIndex = 1, numK
-        memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,kIndex)
+      do varLevIndex = 1, numVarLev
+        memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            perturbationMean(lonIndex, latIndex, kIndex) =   &
-                 perturbationMean(lonIndex, latIndex, kIndex) +  &
-                 perturbation_ptr(lonIndex, latIndex, kIndex) / real(nEns, 8)
+            perturbationMean(lonIndex, latIndex, varLevIndex) =   &
+                 perturbationMean(lonIndex, latIndex, varLevIndex) +  &
+                 perturbation_ptr(lonIndex, latIndex, varLevIndex) / real(nEns, 8)
             do stepIndex = 1, tim_nstepobsinc
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) + perturbation_ptr(lonIndex, latIndex, kIndex)
+                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) + perturbation_ptr(lonIndex, latIndex, varLevIndex)
             end do ! stepIndex
           end do ! lonIndex
         end do ! latIndex
-      end do ! kIndex
+      end do ! varLevIndex
 
     end do ! memberIndex
 
     ! remove the ensemble mean of the perturbations
-    do kIndex = 1, numK
-      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,kIndex)
+    do varLevIndex = 1, numVarLev
+      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, tim_nstepobsinc
             do memberIndex = 1, nEns
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) - perturbationMean(lonIndex, latIndex, kIndex)
+                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) - perturbationMean(lonIndex, latIndex, varLevIndex)
             end do ! memberIndex
           end do ! stepIndex
         end do ! lonIndex
       end do ! latIndex
-    end do ! kIndex
+    end do ! varLevIndex
 
     deallocate(controlVector)
     deallocate(controlVector_mpiglobal)
@@ -1591,7 +1600,8 @@ contains
       lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
       codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
       lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
-      if ( abs(lat_obs) < 40. .and. (codeType==181 .or. codeType==182) ) then
+      if ( abs(lat_obs) < 40. .and. (codeType == codtyp_get_codtyp('amsub') .or.  &
+                                     codeType == codtyp_get_codtyp('mhs')) ) then
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
@@ -1620,7 +1630,7 @@ contains
       lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
       codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
       lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
-      if ( abs(lat_obs) > 60. .and. (codeType==183 .or. codeType==186 .or. codeType==193) ) then
+      if ( abs(lat_obs) > 60. .and. tvs_isIdBurpHyperSpectral(codeType) ) then
         write(*,*) 'enkf_rejectHighLatIR: !!!!!!!!--------WARNING--------!!!!!!!!'
         write(*,*) 'enkf_rejectHighLatIR: This HIR radiance profile was rejected because |lat|>60.'
         write(*,*) 'enkf_rejectHighLatIR: latidude= ', lat_obs, 'codtyp= ', codeType

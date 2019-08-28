@@ -1198,7 +1198,8 @@ contains
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                 ! type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
-    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, SIGI, SIGO
+    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
+    real                   :: ensInnovStdDev, ensObsErrStdDev
     integer                :: numberInsertions, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
@@ -1305,14 +1306,14 @@ contains
         FGE           = obs_bodyElem_r( obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r( obsdat, OBS_PPP , bodyIndex )
         if ( obs_columnActive_RB(obsdat, OBS_SIGI) ) then
-          SIGI = obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex)
+          ensInnovStdDev = obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex)
         else
-          SIGI = obs_missingValue_R
+          ensInnovStdDev = obs_missingValue_R
         end if
         if ( obs_columnActive_RB(obsdat, OBS_SIGO) ) then
-          SIGO = obs_bodyElem_r(obsdat, OBS_SIGO, bodyIndex)
+          ensObsErrStdDev = obs_bodyElem_r(obsdat, OBS_SIGO, bodyIndex)
         else
-          SIGO = obs_missingValue_R
+          ensObsErrStdDev = obs_missingValue_R
         end if
 
         select case( obsFamily )
@@ -1360,15 +1361,15 @@ contains
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
         end if 
-        if ( SIGI == obs_missingValue_R ) then
+        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 11                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = SIGI       )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = ensInnovStdDev )
         end if 
-        if ( SIGO == obs_missingValue_R ) then
+        if ( ensObsErrStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = SIGO       )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensObsErrStdDev )
         end if 
 
         call fSQL_exec_stmt ( stmtData )

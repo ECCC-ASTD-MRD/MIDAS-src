@@ -6106,7 +6106,6 @@ module gridStateVector_mod
     ! do allGather for 1 2D field/stepIndex at a time
     do stepIndex = 1, numStep
       do kIndex = 1, stateVector_tiles%nk
-write(*,*) 'stepIndex, kIndex = ', stepIndex, kIndex
         if ( stateVector_tiles%dataKind == 4 ) then
           gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) =  &
                field_in_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
