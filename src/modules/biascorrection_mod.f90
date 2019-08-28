@@ -1005,15 +1005,15 @@ CONTAINS
     ! There are three parts in this subroutine, read, update and write out the coeff files
     ! IN
     integer            :: maxsat, maxpred
-    character(len=80)  :: coeff_file
+    character(len=*)   :: coeff_file
     logical,optional   :: updateCoeff_opt
 
     ! OUT 
-    character(len=10)  :: sats(maxsat)        ! dim(maxsat), satellite names
+    character(len=*)   :: sats(maxsat)        ! dim(maxsat), satellite names
     integer            :: chans(maxsat, maxNumChannels)       ! dim(maxsat, maxchan), channel numbers
     integer            :: nsat, nfov
     integer            :: nchan(maxsat)       ! dim(maxsat), number of channels
-    character(len=6)   :: cinstrum    ! string: instrument (e.g. AMSUB)
+    character(len=*)   :: cinstrum    ! string: instrument (e.g. AMSUB)
  
     ! Local
     real(8)            :: fovbias(maxsat,maxNumChannels,maxfov)     ! dim(maxsat,maxchan,maxfov), bias as F(fov)
