@@ -68,7 +68,7 @@ module obsErrors_mod
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
-  logical :: new_oer_sw
+  logical :: new_oer_sw, useTovsUtil
 
   character(len=48) :: obserrorMode
 
@@ -104,17 +104,25 @@ contains
   !--------------------------------------------------------------------------
   ! oer_setObsErrors
   !--------------------------------------------------------------------------
-  subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in )
+  subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in, useTovsUtil_opt )
     !
     ! :Purpose: read and set observation errors (from former sucovo subroutine).
     !
     type(struct_obs)             :: lobsSpaceData
     character(len=*), intent(in) :: obserrorMode_in
+    logical, optional            :: useTovsUtil_opt
 
     !
     !- 1.  Setup Mode
     !
     obserrorMode = obserrorMode_in
+
+    ! Additional key to allow the use of 'util' column in stats_tovs file
+    if (present(useTovsUtil_opt)) then
+      useTovsUtil = useTovsUtil_opt
+    else
+      useTovsUtil = .false.
+    end if
 
     !
     !- 2.  Read in the observation std dev errors
@@ -318,7 +326,7 @@ contains
             if ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
               call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
             end if
-            if ( trim(obserrorMode) == 'bgckIR' ) THEN
+            if ( trim(obserrorMode) == 'bgckIR' .or. useTovsUtil ) THEN
               do JI = 1, tvs_maxChannelNumber
                 tovutil(JI,JL) =  IUTILST(JI,JM)
               end do
@@ -879,7 +887,7 @@ contains
                   call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, TOVERRST( ichn, jn ))
 
                   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
-                  if ( trim( obserrorMode ) == 'bgckIR' ) then
+                  if ( trim( obserrorMode ) == 'bgckIR' .or. useTovsUtil ) then
                     if  ( tovutil( ichn, jn ) == 0) &
                       call obs_bodySet_i( lobsSpaceData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( lobsSpaceData, OBS_FLG, bodyIndex ), 8))
                   end if
@@ -1325,10 +1333,9 @@ contains
     character(4) :: varName
     character(2) :: varLevel
     character(9) :: cstnid
-
     real(8), pointer :: col_ptr_uv(:)
-
     logical :: passe_once, valeurs_defaut, print_debug
+    logical, save :: firstCall=.true.
 
     if(.not. new_oer_sw) return
 
@@ -1336,7 +1343,8 @@ contains
     passe_once     = .true.
     print_debug    = .false.
 
-    write(*,*) "Entering subroutine oer_sw"
+    if (firstCall) write(*,*) "Entering subroutine oer_sw"
+    firstCall = .false.
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
@@ -1709,7 +1717,7 @@ contains
           end if
 
           if (LEVELGPSRO==2) then
-            if (gpsroDynError) then
+            if (trim(gpsroError) == 'DYNAMIC') then
               do NH1 = 1, NH
                 SUM0=0.d0
                 SUM1=0.d0
@@ -1724,8 +1732,10 @@ contains
                 end if
                 if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
               end do
-            else
+            else if (trim(gpsroError) == 'STATIC_2018') then
+              ! this was introduced by Maziar in late 2018 on advice by Josep
               do NH1 = 1, NH
+                HNH1 = H(NH1)
                 ZERR(NH1) = 0.05d0
                 L1=( HNH1 <= 10000.d0 )
                 L2=( HNH1 > 10000.d0 .and. HNH1 < 30000.d0 )
@@ -1734,7 +1744,22 @@ contains
                 IF ( L2 ) ZERR(NH1)=0.005d0
                 IF ( L3 ) ZERR(NH1)=0.005d0+0.030d0*(HNH1-30000.d0)/30000.d0
                 if ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
-              enddo
+              end do
+            else if (trim(gpsroError) == 'STATIC_2014') then
+              ! recipe used in EnKF from Josep by email on February 25 2014 
+              do NH1 = 1, NH
+                HNH1 = H(NH1)
+                select case (nint(hnh1))
+                case(:10000)
+                  ZERR(NH1) = 0.005 + 0.015 * ((10000.0-hnh1)/10000.0)
+                case (10001:30000)
+                  ZERR(NH1) = 0.005
+                case (30001:)
+                  ZERR(NH1) = 0.005 + 0.010 * ((hnh1-30000.0)/10000.0)
+                end select
+              end do
+            else
+              call utl_abort('oer_setErrGPSro: Invalid value for gpsroError')
             endif
           else
             do NH1 = 1, NH

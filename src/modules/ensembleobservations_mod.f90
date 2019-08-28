@@ -35,6 +35,7 @@ MODULE ensembleObservations_mod
   use utilities_mod
   use earthconstants_mod
   use bufr_mod
+  use codePrecision_mod
   implicit none
   save
   private
@@ -44,8 +45,9 @@ MODULE ensembleObservations_mod
 
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setMeanOMP, eob_setAssFlag
-  public :: eob_calcRemoveMeanYb, eob_setPres, eob_clean, eob_copy
+  public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
+  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy
+  public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -57,8 +59,8 @@ MODULE ensembleObservations_mod
     type(struct_obs), pointer     :: obsSpaceData   ! pointer to obsSpaceData object
     real(8), allocatable          :: lat(:), lon(:) ! lat/lon of observation
     real(8), allocatable          :: logPres(:)     ! ln(pres) of obs, used for localization
-    real(8), allocatable          :: varObsInv(:)   ! inverse of obs error variances
-    real(8), allocatable          :: Yb(:,:)        ! background ensemble perturbation in obs space
+    real(8), allocatable          :: obsErrInv(:)   ! inverse of obs error variances
+    real(4), allocatable          :: Yb_r4(:,:)     ! background ensemble perturbation in obs space
     real(8), allocatable          :: meanYb(:)      ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)     ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)    ! the observed value
@@ -73,7 +75,9 @@ CONTAINS
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData)
+    !
     ! :Purpose: Allocate an ensObs object
+    !
     implicit none
 
     ! arguments
@@ -95,8 +99,8 @@ CONTAINS
     allocate( ensObs%lon(ensObs%numObs) )
     allocate( ensObs%logPres(ensObs%numObs) )
     allocate( ensObs%obsValue(ensObs%numObs) )
-    allocate( ensObs%varObsInv(ensObs%numObs) )
-    allocate( ensObs%Yb(ensObs%numMembers,ensObs%numObs) )
+    allocate( ensObs%obsErrInv(ensObs%numObs) )
+    allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
     allocate( ensObs%assFlag(ensObs%numObs) )
@@ -122,8 +126,8 @@ CONTAINS
     deallocate( ensObs%lon )
     deallocate( ensObs%logPres )
     deallocate( ensObs%obsValue )
-    deallocate( ensObs%varObsInv )
-    deallocate( ensObs%Yb )
+    deallocate( ensObs%obsErrInv )
+    deallocate( ensObs%Yb_r4 )
     deallocate( ensObs%meanYb )
     deallocate( ensObs%deterYb )
     deallocate( ensObs%assFlag )
@@ -133,12 +137,17 @@ CONTAINS
   end subroutine eob_deallocate
 
   !--------------------------------------------------------------------------
-  ! eob_clean
+  ! eob_clean (private routine)
   !--------------------------------------------------------------------------
   subroutine eob_clean(ensObs)
+    !
     ! :Purpose: Remove all obs from the ensObs object that are not 
     !           flagged for assimilation. All arrays will be reallocated
-    !           in place to the smaller size after cleaning.
+    !           in place to the smaller size after cleaning. 
+    !
+    ! :Note: After this procedure, the link with the bodyIndex of obsSpaceData will
+    !        be lost!
+    !
     implicit none
 
     ! arguments
@@ -148,23 +157,25 @@ CONTAINS
     integer :: obsIndex, obsCleanIndex, numObsClean
     type(struct_eob) :: ensObsClean
 
+    call eob_setAssFlag(ensObs)
+
     numObsClean = 0
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) numObsClean = numObsClean + 1
     end do
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
-
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
 
+    obsCleanIndex = 0
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) then
         obsCleanIndex = obsCleanIndex + 1
         ensObsClean%lat(obsCleanIndex)       = ensObs%lat(obsIndex)
         ensObsClean%lon(obsCleanIndex)       = ensObs%lon(obsIndex)
         ensObsClean%logPres(obsCleanIndex)   = ensObs%logPres(obsIndex)
-        ensObsClean%varObsInv(obsCleanIndex) = ensObs%varObsInv(obsIndex)
-        ensObsClean%Yb(:,obsCleanIndex)      = ensObs%Yb(:,obsIndex)
+        ensObsClean%obsErrInv(obsCleanIndex) = ensObs%obsErrInv(obsIndex)
+        ensObsClean%Yb_r4(:,obsCleanIndex)   = ensObs%Yb_r4(:,obsIndex)
         ensObsClean%meanYb(obsCleanIndex)    = ensObs%meanYb(obsIndex)
         ensObsClean%deterYb(obsCleanIndex)   = ensObs%deterYb(obsIndex)
         ensObsClean%obsValue(obsCleanIndex)  = ensObs%obsValue(obsIndex)
@@ -195,8 +206,8 @@ CONTAINS
     ensObsOut%lat(:)       = ensObsIn%lat(:)
     ensObsOut%lon(:)       = ensObsIn%lon(:)
     ensObsOut%logPres(:)   = ensObsIn%logPres(:)
-    ensObsOut%varObsInv(:) = ensObsIn%varObsInv(:)
-    ensObsOut%Yb(:,:)      = ensObsIn%Yb(:,:)
+    ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv(:)
+    ensObsOut%Yb_r4(:,:)   = ensObsIn%Yb_r4(:,:)
     ensObsOut%meanYb(:)    = ensObsIn%meanYb(:)
     ensObsOut%deterYb(:)   = ensObsIn%deterYb(:)
     ensObsOut%obsValue(:)  = ensObsIn%obsValue(:)
@@ -208,9 +219,11 @@ CONTAINS
   ! eob_allGather
   !--------------------------------------------------------------------------
   subroutine eob_allGather(ensObs,ensObs_mpiglobal)
+    !
     ! :Purpose: Collect obs information distributed over all mpi tasks and
     !           make it available on all mpi tasks. The output ensObs object
     !           will be allocated within this subroutine.
+    !
     implicit none
 
     ! arguments
@@ -223,6 +236,10 @@ CONTAINS
 
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! refresh assimilation flag and then clean ensObs before cleaning
+    call eob_setAssFlag(ensObs)
+    call eob_clean(ensObs)
 
     call rpn_comm_allgather( ensObs%numObs, 1, 'mpi_integer',  &
                              allNumObs, 1, 'mpi_integer', &
@@ -255,8 +272,8 @@ CONTAINS
     call rpn_comm_gatherv( ensObs%obsValue          , ensObs%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%varObsInv          , ensObs%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%varObsInv, allNumObs, displs, 'mpi_real8',  &
+    call rpn_comm_gatherv( ensObs%obsErrInv          , ensObs%numObs, 'mpi_real8', &
+                           ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
     call rpn_comm_gatherv( ensObs%meanYb          , ensObs%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
@@ -268,8 +285,8 @@ CONTAINS
                            ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
                            0, 'GRID', ierr )
     do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_gatherv( ensObs%Yb(memberIndex,:)          , ensObs%numObs, 'mpi_real8', &
-                             ensObs_mpiglobal%Yb(memberIndex,:), allNumObs, displs, 'mpi_real8',  &
+      call rpn_comm_gatherv( ensObs%Yb_r4(memberIndex,:)          , ensObs%numObs, 'mpi_real4', &
+                             ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
     end do
 
@@ -281,7 +298,7 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%varObsInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
+    call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
@@ -290,7 +307,7 @@ CONTAINS
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
     do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_bcast(ensObs_mpiglobal%Yb(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real8',  &
+      call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
 
@@ -306,10 +323,12 @@ CONTAINS
   !--------------------------------------------------------------------------
   function eob_getLocalBodyIndices(ensObs,localBodyIndices,distances,lat,lon,logPres,  &
                                    hLocalize,vLocalize,numLocalObsFound) result(numLocalObs)
+    !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
     !           the local volume around the specified lat/lon used for assimilation
     !           (as defined by h/vLocalize). The kdtree2 module is used to efficiently
     !           perform this task. The kdtree itself is constructed on the first call.
+    !
     implicit none
 
     ! arguments
@@ -363,7 +382,7 @@ CONTAINS
       distance = abs( logPres - ensObs%logPres(searchResults(localObsIndex)%idx) )
       if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
         numLocalObsFound = numLocalObsFound + 1
-        if (numLocalObs <= maxNumLocalObs) then
+        if (numLocalObs < maxNumLocalObs) then
           numLocalObs = numLocalObs + 1
           localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
           distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
@@ -383,31 +402,45 @@ CONTAINS
     ! arguments
     type(struct_eob) :: ensObs
 
-    ! locals
-    integer :: obsIndex
-
     call obs_extractObsRealHeaderColumn(ensObs%lat, ensObs%obsSpaceData, OBS_LAT)
     call obs_extractObsRealHeaderColumn(ensObs%lon, ensObs%obsSpaceData, OBS_LON)
     call obs_extractObsRealBodyColumn(ensObs%obsValue, ensObs%obsSpaceData, OBS_VAR)
-    call obs_extractObsRealBodyColumn(ensObs%varObsInv, ensObs%obsSpaceData, OBS_OER)
-    do obsIndex = 1, ensObs%numObs
-      if(ensObs%varObsInv(obsIndex) > 0.0d0) then
-        ensObs%varObsInv(obsIndex) = 1.0d0/(ensObs%varObsInv(obsIndex)**2)
-      else
-        ensObs%varObsInv(obsIndex) = 0.0d0
-      end if
-    end do
 
   end subroutine eob_setLatLonObs
 
   !--------------------------------------------------------------------------
-  ! eob_setPres
+  ! eob_setobsErrInv
   !--------------------------------------------------------------------------
-  subroutine eob_setPres(ensObs, columnMeanTrl)
+  subroutine eob_setobsErrInv(ensObs)
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer :: obsIndex
+
+    call obs_extractObsRealBodyColumn(ensObs%obsErrInv, ensObs%obsSpaceData, OBS_OER)
+    do obsIndex = 1, ensObs%numObs
+      if(ensObs%obsErrInv(obsIndex) > 0.0d0) then
+        ensObs%obsErrInv(obsIndex) = 1.0d0/(ensObs%obsErrInv(obsIndex)**2)
+      else
+        ensObs%obsErrInv(obsIndex) = 0.0d0
+      end if
+    end do
+
+  end subroutine eob_setobsErrInv
+
+  !--------------------------------------------------------------------------
+  ! eob_setLogPres
+  !--------------------------------------------------------------------------
+  subroutine eob_setLogPres(ensObs, columnMeanTrl)
+    !
     ! :Purpose: Set the ln(pressure) value for each observation that 
     !           will be used when doing vertical localization. For
     !           radiance observations, the level of the maximum value
     !           of the derivative of transmission is used.
+    !
     implicit none
 
     ! arguments
@@ -420,6 +453,8 @@ CONTAINS
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
+
+    call eob_setAssFlag(ensObs)
 
     presM_ptr   => col_getAllColumns(columnMeanTrl,'P_M')
     heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
@@ -444,7 +479,7 @@ CONTAINS
 
       else if (varNumber(obsIndex) == BUFR_NEZD) then
 
-        ! ZTD observation, try 0.8*Psfc (i.e. ~700hPa when Psfc=1000hPa)
+        ! ZTD observation, try 0.7*Psfc (i.e. ~700hPa when Psfc=1000hPa)
         ensObs%logPres(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
 
       else if (obsPPP(obsIndex) > 0.0d0 .and. obsVcoCode(obsIndex)==2) then
@@ -494,7 +529,9 @@ CONTAINS
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
                                 channelIndex, tvs_profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
-          write(*,*) 'eob_setPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
+          if(mpi_myid == 0) then
+            write(*,*) 'eob_setLogPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
+          end if
         else
           ensObs%logPres(obsIndex) = log(500.0D2)
         end if
@@ -503,12 +540,12 @@ CONTAINS
 
         write(*,*) 'eob_setLatLonPresObs: ERROR! cannot compute pressure for this observation: ',  &
                    obsPPP(obsIndex), varNumber(obsIndex), obsVcoCode(obsIndex)
-        call utl_abort('eob_setPres')
+        call utl_abort('eob_setLogPres')
 
       end if
     end do
 
-  end subroutine eob_setPres
+  end subroutine eob_setLogPres
 
   !--------------------------------------------------------------------------
   ! eob_setAssFlag
@@ -532,10 +569,10 @@ CONTAINS
     integer          :: memberIndex
 
     ! get the Y-HX value from obsSpaceData
-    call obs_extractObsRealBodyColumn(ensObs%Yb(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
+    call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
 
     ! now compute HX = Y - (Y-HX)
-    ensObs%Yb(memberIndex,:) = ensObs%obsValue(:) - ensObs%Yb(memberIndex,:)
+    ensObs%Yb_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Yb_r4(memberIndex,:)
 
   end subroutine eob_setYb
 
@@ -556,9 +593,9 @@ CONTAINS
   end subroutine eob_setDeterYb
 
   !--------------------------------------------------------------------------
-  ! eob_calcRemoveMeanYb
+  ! eob_calcAndRemoveMeanYb
   !--------------------------------------------------------------------------
-  subroutine eob_calcRemoveMeanYb(ensObs)
+  subroutine eob_calcAndRemoveMeanYb(ensObs)
     implicit none
 
     ! arguments
@@ -568,11 +605,11 @@ CONTAINS
     integer :: obsIndex
 
     do obsIndex = 1, ensObs%numObs
-      ensObs%meanYb(obsIndex) = sum(ensObs%Yb(:,obsIndex)) / ensObs%numMembers
-      ensObs%Yb(:,obsIndex) = ensObs%Yb(:,obsIndex) - ensObs%meanYb(obsIndex)
+      ensObs%meanYb(obsIndex) = sum(ensObs%Yb_r4(:,obsIndex)) / ensObs%numMembers
+      ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - ensObs%meanYb(obsIndex)
     end do
 
-  end subroutine eob_calcRemoveMeanYb
+  end subroutine eob_calcAndRemoveMeanYb
 
   !--------------------------------------------------------------------------
   ! eob_setMeanOMP
@@ -594,12 +631,265 @@ CONTAINS
   end subroutine eob_setMeanOMP
 
   !--------------------------------------------------------------------------
-  ! max_transmission
+  ! eob_setHPHT
+  !--------------------------------------------------------------------------
+  subroutine eob_setHPHT(ensObs)
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer :: obsIndex, memberIndex
+    real(8) :: hpht, sigo, sigi
+
+    do obsIndex = 1, ensObs%numObs
+      hpht = 0.0d0
+      do memberIndex = 1, ensObs%numMembers
+        hpht = hpht + ensObs%Yb_r4(memberIndex,obsIndex)**2 / ensObs%numMembers
+      end do
+      if (hpht > 0.0D0) then 
+        hpht = sqrt(hpht)
+      else
+        hpht = 0.0D0
+      end if
+      call obs_bodySet_r(ensObs%obsSpaceData, OBS_HPHT, obsIndex, hpht)
+
+      ! also set 'sigi' and 'sigo'
+      sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex)
+      sigi = (sigo**2 + hpht**2)**0.5
+      call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGI, obsIndex, sigi)
+      call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGO, obsIndex, sigo)
+    end do
+
+  end subroutine eob_setHPHT
+
+  !--------------------------------------------------------------------------
+  ! eob_backgroundCheck
+  !--------------------------------------------------------------------------
+  subroutine eob_backgroundCheck(ensObs)
+    !
+    ! :Purpose: Apply additional background using the ensemble spread.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_eob) :: ensObs
+
+    ! locals:
+    integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
+    integer :: numRejected, numRejectedMpiGlobal, ierr, windCount
+    real    :: sigo, sigb, omp, sig, reject_limit
+    logical :: reject_wind
+
+    numRejected = 0
+    reject_limit = 5.0
+    do headerIndex = 1, obs_numheader(ensObs%obsSpaceData)
+      bodyIndexBeg = obs_headElem_i(ensObs%obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(ensObs%obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+      reject_wind = .false.
+
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle
+        sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, bodyIndex)
+        sigb = obs_bodyElem_r(ensObs%obsSpaceData, OBS_HPHT, bodyIndex)
+        ! cut off at reject_limit standard deviations
+        sig = reject_limit*(sigo**2 + sigb**2)**0.5
+        omp = abs(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OMP, bodyIndex))
+        if (omp > sig) then
+          call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+          call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
+                             IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
+          ivar = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex)
+          reject_wind = bufr_isWindComponent(ivar)
+          write(*,*) 'eob_backgroundCheck: headerIndex, omp, sig, ivar, reject_wind', &
+                                           headerIndex, omp, sig, ivar, reject_wind
+          numRejected = numRejected + 1
+        end if
+      end do
+
+      ! take the same reject decision for both components of the
+      ! wind vector (and any other winds for that station).
+      ! N.B.: This seems to assume only one level per header, this is generally 
+      ! the case for wind observations currently, since radiosondes are 4D
+      if (reject_wind) then 
+        ! first count how many wind observations we have for this station
+        windCount = 0
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          if (bufr_isWindComponent(obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex))) then
+            windCount = windCount + 1
+          end if
+        end do
+        if (windCount > 2) then
+          write(*,*) 'eob_backgroundCheck: WARNING' 
+          write(*,*) 'Station ',headerIndex,' has ',windCount,' wind observations '
+          write(*,*) 'Perhaps old radiosonde format - std dev not changed for other wind component'
+        else
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notassimilated) cycle
+            ivar = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex)
+            if (bufr_isWindComponent(ivar) .and.  &
+                obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
+              call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+              call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
+                                 IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
+              write(*,*) 'eob_backgroundCheck: other wind component headerIndex, ivar', &
+                                               headerIndex, ivar
+              numRejected = numRejected + 1
+            end if
+          end do
+        end if
+      end if
+    end do
+
+    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    write(*,*)
+    write(*,*) 'eob_backgroundCheck: number of observations rejected (local) =', numRejected
+    write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
+
+  end subroutine eob_backgroundCheck
+
+  !--------------------------------------------------------------------------
+  ! eob_huberNorm
+  !--------------------------------------------------------------------------
+  subroutine eob_huberNorm(ensObs)
+    !
+    ! :Purpose: Apply huber norm quality control procedure.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer        :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
+    integer        :: bodyIndex, bodyIndexBeg, bodyIndexEnd, headerIndex
+    real(obs_real) :: c_limit, sig, sigo, sigb, omp, sigo_hub, sigo_hub_wind
+    logical        :: reject_wind
+
+    c_limit = 2.0
+    huberCount = 0
+    do headerIndex = 1,obs_numheader(ensObs%obsSpaceData)
+      bodyIndexBeg = obs_headElem_i(ensObs%obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(ensObs%obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+      reject_wind = .false.
+      sigo_hub_wind = 0.0
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, bodyIndex)
+        sigb = obs_bodyElem_r(ensObs%obsSpaceData, OBS_HPHT, bodyIndex)
+        ! cut off at reject_limit standard deviations
+        sig = c_limit*(sigo**2 + sigb**2)**0.5
+        omp = abs(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OMP, bodyIndex))
+        if (omp > sig) then
+          ! redefining the observational error such that the innovation
+          ! is at exactly c_limit standard deviations.
+          huberCount = huberCount + 1
+          sigo_hub = ((omp/c_limit)**2-sigb**2)**0.5
+          ivar = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex)
+          if (bufr_isWindComponent(ivar)) then
+            ! the other wind components will be changed at the same time (next if)
+            reject_wind = .true.
+            call obs_bodySet_r(ensObs%obsSpaceData, OBS_OER, bodyIndex, sigo_hub)
+            ! this is for the special case both components of the wind innovation
+            ! suggest using the Huber norm. 
+            if (sigo_hub > sigo_hub_wind) then
+              sigo_hub_wind = sigo_hub
+            end if
+          else
+            call obs_bodySet_r(ensObs%obsSpaceData, OBS_OER, bodyIndex, sigo_hub)
+          end if
+        end if
+      end do
+
+      ! Give the same inflated observation error to both wind components.
+      ! this part assumes that modern sondes are used (at most two
+      ! wind observations per station.
+      if (reject_wind) then
+        ! first count how many wind observations we have for this station
+        windCount = 0
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          if (bufr_isWindComponent(obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex))) then
+            windCount = windCount + 1
+          end if
+        end do
+        if (windCount > 2) then
+          write(*,*) 'Warning Hubernorm' 
+          write(*,*) 'Station ',headerIndex,' has ',windCount,' wind observations '
+          write(*,*) 'Perhaps old radiosonde format - std dev not changed for other wind component'
+        else
+          huberCount = huberCount + 1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            if (bufr_isWindComponent(obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex))) then
+              call obs_bodySet_r(ensObs%obsSpaceData, OBS_OER, bodyIndex, sigo_hub_wind)
+            end if
+          end do
+        end if
+      end if 
+    end do
+
+    call rpn_comm_allreduce(huberCount, huberCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    write(*,*)
+    write(*,*) 'eob_huberNorm: number of obs with increased error stddev (local) = ', huberCount
+    write(*,*) 'eob_huberNorm: number of obs with increased error stddev (global)= ', huberCountMpiGlobal
+
+  end subroutine eob_huberNorm
+
+  !--------------------------------------------------------------------------
+  ! eob_rejectRadNearSfc
+  !--------------------------------------------------------------------------
+  subroutine eob_rejectRadNearSfc(ensObs)
+    !
+    ! :Purpose: Reject all radiance observations with peak sensitivity
+    !           too close to the surface.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
+    integer :: varNumber, bodyIndex, ierr
+    ! reject lower than 975 hPa
+    real, parameter    :: logPresRadianceLimit = 11.4876E0
+
+    acceptCount = 0
+    rejectCount = 0
+    do bodyIndex = 1, obs_numbody(ensObs%obsSpaceData)
+      varNumber = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex)
+      if (varNumber == bufr_nbt1 .or.  &
+          varNumber == bufr_nbt2 .or.  &
+          varNumber == bufr_nbt3) then
+        if (ensObs%logPres(bodyIndex) < logPresRadianceLimit) then
+          acceptCount = acceptCount + 1
+        else
+          rejectCount = rejectCount + 1
+          call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+          call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
+                             IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
+        end if 
+      end if
+    end do
+
+    call rpn_comm_allreduce(acceptCount, acceptCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    call rpn_comm_allreduce(rejectCount, rejectCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    write(*,*)
+    write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (local) : ',  &
+               acceptCount, rejectCount
+    write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (global): ',  &
+               acceptCountMpiGlobal, rejectCountMpiGlobal
+
+  end subroutine eob_rejectRadNearSfc
+
+  !--------------------------------------------------------------------------
+  ! max_transmission (private routine)
   !--------------------------------------------------------------------------
   subroutine max_transmission(transmission, numLevels, transIndex, rttovPres, maxLnP)
+    !
     ! :Purpose: Determine the height in log pressure where we find the maximum 
     !           value of the first derivative of transmission with respect to 
     !           log pressure
+    !
     implicit none
 
     ! arguments
@@ -643,10 +933,12 @@ CONTAINS
   end subroutine max_transmission
 
   !--------------------------------------------------------------------------
-  ! get_peak
+  ! get_peak (private routine)
   !--------------------------------------------------------------------------
   subroutine get_peak(maxIndex,nlev,lnp,deriv,maxLnP)
+    !
     ! :Purpose: Do quadratic interpolation to find pressure of peak transmission.
+    !
     implicit none
 
     ! arguments

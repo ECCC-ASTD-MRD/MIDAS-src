@@ -406,7 +406,7 @@ contains
   end subroutine inn_setupBackgroundColumnsAnl
 
 
-  subroutine inn_computeInnovation(columnhr,obsSpaceData,beSilent_opt)
+  subroutine inn_computeInnovation(columnhr,obsSpaceData,destObsColumn_opt,beSilent_opt)
     !
     !:Purpose: To initialize Observation Innovations using the nonlinear H
     implicit none
@@ -414,17 +414,24 @@ contains
     ! Arguments:
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
 
     ! Locals:
     real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
     real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof,zjoaladin,zjosfctm
     real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm,zjosfcgl,zjosfchy
-    integer :: get_max_rss
+    integer :: destObsColumn, get_max_rss
     logical :: lgpdata, beSilent
 
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    if ( present(destObsColumn_opt) ) then
+      destObsColumn = destObsColumn_opt
+    else
+      destObsColumn = obs_omp
+    end if
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -459,44 +466,46 @@ contains
     !------------------------------
     !
     call tmg_start(48,'NL_OBS_OPER')
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJORAOB, 'UA')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJORAOB, 'UA', destObsColumn)
     !
     !        AIREPS
     !--------------------------------
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOAIREP, 'AI')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOAIREP, 'AI', destObsColumn)
     !
     !        SATWINDS
     !--------------------------------
     call oer_sw(columnhr,obsSpaceData)
-    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOSATWIND, 'SW')
+    call oop_ppp_nl(columnhr, obsSpaceData, beSilent, ZJOSATWIND, 'SW', destObsColumn)
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
-    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSF, 'SF')
-    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCUA, 'UA')
-    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSC, 'SC')
-    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGP, 'GP')
-    call oop_sst_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCTM, 'TM')
-    call oop_ice_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGL, 'GL')
-    call oop_hydro_nl(columnhr, obsSpaceData, beSilent, ZJOSFCHY, 'HY')
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSF, 'SF', destObsColumn)
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCUA, 'UA', destObsColumn)
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCSC, 'SC', destObsColumn)
+    call oop_sfc_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGP, 'GP', destObsColumn)
+    call oop_sst_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCTM, 'TM', destObsColumn)
+    call oop_ice_nl  (columnhr, obsSpaceData, beSilent, ZJOSFCGL, 'GL', destObsColumn)
+    call oop_hydro_nl(columnhr, obsSpaceData, beSilent, ZJOSFCHY, 'HY', destObsColumn)
 
     ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP + ZJOSFCTM + ZJOSFCGL + ZJOSFCHY
     !
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgckIR'  ) then
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,ZJOTOV,bgckMode_opt=.true.)
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+                       beSilent, ZJOTOV, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,ZJOTOV,bgckMode_opt=.false.)
+      call oop_tovs_nl(columnhr, obsSpaceData, tim_getDatestamp(), filt_rlimlvhu,  &
+                       beSilent, ZJOTOV, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
     !
     !        PROFILER
     !------------------------------
-    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOPROF, 'PR')
+    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOPROF, 'PR', destObsColumn)
     !
     !        GEOMETRIC HEIGHT - ALADIN WINDS
     !------------------------------
-    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOALADIN, 'AL')
+    call oop_zzz_nl(columnhr, obsSpaceData, beSilent, ZJOALADIN, 'AL', destObsColumn)
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
@@ -504,12 +513,12 @@ contains
     if (obs_famExist(obsSpaceData,'RO', localMPI_opt = .true. )) then
        CALL filt_gpsro(columnhr, obsSpaceData, beSilent)
        CALL oer_SETERRGPSRO(columnhr, obsSpaceData, beSilent)
-       call oop_gpsro_nl(columnhr, obsSpaceData, beSilent, ZJOGPSRO)
+       call oop_gpsro_nl(columnhr, obsSpaceData, beSilent, ZJOGPSRO, destObsColumn)
     end if
     !
     !        CH - CHEMICAL CONSTITUENTS
     !-------------------------------
-    call oop_chm_nl(columnhr, obsSpaceData, beSilent, zjochm)
+    call oop_chm_nl(columnhr, obsSpaceData, beSilent, zjochm, destObsColumn)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------
@@ -518,10 +527,12 @@ contains
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
         call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .true.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB, .true.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB,  &
+                                       destObsColumn, analysisMode_opt=.true.)
       else
         call oer_SETERRGPSGB(columnhr, obsSpaceData, beSilent, lgpdata, .false.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB, .false.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr, obsSpaceData, beSilent, ZJOGPSGB,  &
+                                       destObsColumn, analysisMode_opt=.false.)
       end if
     end if
 

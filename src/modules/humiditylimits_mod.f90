@@ -48,7 +48,7 @@ contains
     ! Arguments:
     type(struct_gsv) :: statevector
 
-    write(*,*) 'qlim_gsvSaturationLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_gsvSaturationLimit: STARTING'
 
     if( .not. gsv_varExist(statevector,'HU') ) then
       if( mpi_myid == 0 ) write(*,*) 'qlim_gsvSaturationLimit: statevector does not ' // &
@@ -234,7 +234,7 @@ contains
     integer :: fnom, fclos, ierr, nulfile
     logical, save :: firstTime=.true.
 
-    write(*,*) 'qlim_gsvRttovLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_gsvRttovLimit: STARTING'
 
     if ( .not. gsv_varExist(statevector,'HU') ) then
       if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: statevector does not ' // &
@@ -252,7 +252,7 @@ contains
     end if
 
     read(nulfile,*) numLev_rttov
-    if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
+    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
     allocate(press_rttov(numLev_rttov))
     allocate(qmin_rttov(numLev_rttov))
     allocate(qmax_rttov(numLev_rttov))

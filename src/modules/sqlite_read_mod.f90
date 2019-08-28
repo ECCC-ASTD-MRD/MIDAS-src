@@ -1199,6 +1199,7 @@ contains
     type(fSQL_STATUS)      :: stat                 ! type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
+    real                   :: ensInnovStdDev, ensObsErrStdDev
     integer                :: numberInsertions, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
@@ -1234,14 +1235,15 @@ contains
     call tmg_start(181, myName//': Create HEADER and DATA')
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
-                   codtyp integer, date integer, time integer, elev real); &
-                   create table data (id_data integer primary key, id_obs integer, varno integer, vcoord integer, &
-                   vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, obs_error real);'
+                   &codtyp integer, date integer, time integer, elev real); &
+                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
+                   &vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, &
+                   &obs_error real, sigi real, sigo real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
     call tmg_stop(181)
 
-    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error) values(?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error,sigi,sigo) values(?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
@@ -1303,6 +1305,17 @@ contains
         OER           = obs_bodyElem_r( obsdat, OBS_OER , bodyIndex )
         FGE           = obs_bodyElem_r( obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r( obsdat, OBS_PPP , bodyIndex )
+        if ( obs_columnActive_RB(obsdat, OBS_SIGI) ) then
+          ensInnovStdDev = obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex)
+        else
+          ensInnovStdDev = obs_missingValue_R
+        end if
+        if ( obs_columnActive_RB(obsdat, OBS_SIGO) ) then
+          ensObsErrStdDev = obs_bodyElem_r(obsdat, OBS_SIGO, bodyIndex)
+        else
+          ensObsErrStdDev = obs_missingValue_R
+        end if
+
         select case( obsFamily )
           case ( 'UA', 'AI', 'SW' )
             if ( vertCoordType == 2 ) vertCoordType = 7004
@@ -1347,6 +1360,16 @@ contains
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
+        end if 
+        if ( ensInnovStdDev == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = ensInnovStdDev )
+        end if 
+        if ( ensObsErrStdDev == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensObsErrStdDev )
         end if 
 
         call fSQL_exec_stmt ( stmtData )

@@ -1136,16 +1136,15 @@ CONTAINS
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
-
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
       ! P_T
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_M, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
       if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -1153,10 +1152,10 @@ CONTAINS
       ! P_M
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_T, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
+                          ip1_list=statevector%vco%ip1_T, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
       if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)

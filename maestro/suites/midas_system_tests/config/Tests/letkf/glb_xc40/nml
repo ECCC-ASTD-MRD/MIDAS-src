@@ -1,17 +1,29 @@
  &NAMLETKF
-   NENS = 40
-   MAXNUMLOCALOBS        = 10000
-   WEIGHTLATLONSTEP      = 3
-   HLOCALIZE             = 200.0D0
-   VLOCALIZE             = 2.0D0
-   alphaRTPP             = 0.40D0
-   alphaRTPS             = 0.80D0
-   alphaRandomPert       = 0.10D0
-   UPDATEMEMBERS         = .true.
-   WRITEINCREMENTS       = .true.
-   imposeSaturationLimit = .true.
-   imposeRttovHuLimits   = .true.
-   obsTimeInterpType     = 'LINEAR'
+   algorithm                = 'CVLETKF'
+   NENS                     = 128
+   numSubEns                = 8
+   MAXNUMLOCALOBS           = 10000
+   WEIGHTLATLONSTEP         = 10
+   HLOCALIZE                = 2000.0D0
+   VLOCALIZE                = 2.0D0
+   alphaRTPP                = 0.00D0
+   alphaRTPS                = 0.00D0
+   alphaRandomPert          = 0.33D0
+   alphaRandomPertSubSample = 0.66D0
+   modifyAmsubObsError   = .false.
+   backgroundCheck          = .false.
+   huberize                 = .false.
+   rejectHighLatIR       = .false.
+   rejectRadNearSfc         = .false.
+   UPDATEMEMBERS            = .true.
+   WRITEINCREMENTS          = .true.
+   imposeSaturationLimit    = .true.
+   imposeRttovHuLimits      = .true.
+   obsTimeInterpType        = 'LINEAR'
+   mpiDistribution          = 'ROUNDROBIN'
+/
+ &NAMWRITEDIAG
+   lWriteDiagSql   = .false.
 /
  &NAMBHI
    NTRUNC  =          42,
@@ -20,11 +32,12 @@
  &NAMBEN
 /
  &NAMDIMO
-   NMXOBS=500000
-   NDATAMX=1000000
+   NMXOBS=10000
+   NDATAMX=100000
 /
  &NAMTIME
-   DSTEPOBS = 3.0d0
+   DSTEPOBS    = 3.0d0
+   DSTEPOBSINC = 3.0d0
 /
  &NAMFILT
   NELEMS = 17,
@@ -49,7 +62,6 @@
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  !list_topoFilt = 8*'**'
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
@@ -317,6 +329,7 @@
 /
  &NAMGPSRO
   LEVELGPSRO=2,
+  gpsroError = 'STATIC_2014'
   SURFMIN  = 1000.D0,
   HSFMIN   = 1000.D0,
   HTPMAX   = 40000.D0,

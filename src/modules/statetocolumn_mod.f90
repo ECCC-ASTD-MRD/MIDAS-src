@@ -90,7 +90,6 @@ module stateToColumn_mod
   logical, save :: slantPath_tlad
   logical, save :: nmlAlreadyRead = .false.
 
-
 contains 
 
   !---------------------------------------------------------
@@ -1069,8 +1068,6 @@ contains
 
     end do k_loop
 
-    !write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     deallocate(cols_hint)
     deallocate(cols_send)
     deallocate(cols_recv)
@@ -1322,6 +1319,7 @@ contains
     call tmg_start(169,'S2C_NL')
 
     write(*,*) 's2c_nl: STARTING'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( .not. stateVector%allocated ) then 
       call utl_abort('s2c_nl: stateVector must be allocated')
@@ -1398,8 +1396,6 @@ contains
       end if
       call tmg_stop(165)
     end if
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! arrays for interpolated column for 1 level/variable and each time step
     allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
@@ -1521,8 +1517,6 @@ contains
 
     end do k_loop
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     ! Interpolate surface height separately, only exists on mpi task 0
     HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
@@ -1625,8 +1619,8 @@ contains
 
     call gsv_deallocate( statevector_VarsLevs )
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 's2c_nl: FINISHED'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call tmg_stop(169)
 

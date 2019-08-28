@@ -1324,6 +1324,7 @@ module ObsSpaceData_mod
    public obs_enkf_prnthdr! print the header of an observation record
    public obs_expandToMpiGlobal ! restore data for the mpi-global context
    public obs_extractObsRealBodyColumn    ! return entire selected column (real/body)
+   public obs_extractObsRealBodyColumn_r4 ! return entire selected column (real/body), real4 version
    public obs_extractObsIntBodyColumn     ! return entire selected column (int/body)
    public obs_extractObsRealHeaderColumn  ! return entire selected column (real/header)
    public obs_extractObsIntHeaderColumn   ! return entire selected column (int/header)
@@ -3572,6 +3573,26 @@ contains
      end do
 
    end subroutine obs_extractObsRealBodyColumn
+
+
+   subroutine obs_extractObsRealBodyColumn_r4(realBodyColumn, obsSpaceData, obsColumnIndex)
+     ! :Purpose: Extract contents of a real body column into a vector.
+     !
+     implicit none
+
+     ! arguments
+     real(4), intent(out) :: realBodyColumn(:)
+     type(struct_obs)     :: obsSpaceData
+     integer              :: obsColumnIndex
+
+     ! locals
+     integer :: bodyIndex
+
+     do bodyIndex = 1, obs_numBody(obsSpaceData)
+       realBodyColumn(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
+     end do
+
+   end subroutine obs_extractObsRealBodyColumn_r4
 
 
    subroutine obs_extractObsIntBodyColumn(intBodyColumn, obsSpaceData, obsColumnIndex)

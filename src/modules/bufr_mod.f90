@@ -24,11 +24,12 @@ module bufr_mod
 
   ! Public routines:
   !
-  !       - "buf_IsAtmosConstituent" determines if observation is
+  !       - "bufr_IsAtmosConstituent" determines if observation is
   !         constituent/chemistry data
   !
-  !       - "buf_IsIntegral" determines if vertical integral measurement
+  !       - "bufr_IsIntegral" determines if vertical integral measurement
   !
+  !       - "bufr_isWindComponent" determines if a wind component variable
   !
 
  public
@@ -172,44 +173,67 @@ contains
     !:Purpose: To determine whether 'varNumber' refers to constituent data from
     !          the CH family with recognized data units.
     !
-      implicit none
+    implicit none
 
-      integer, intent(in)           :: varNumber ! BUFR element number
-      logical                       :: var_chm
+    ! Arguments:
+    integer, intent(in)           :: varNumber ! BUFR element number
+    logical                       :: var_chm
       
-      if (any(varNumber.eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2, &
-                               BUFR_UNIT_MMR, BUFR_UNIT_MMR2, BUFR_UNIT_NumberDensity, BUFR_UNIT_MolarDensity,  &
-                               BUFR_UNIT_Density, BUFR_UNIT_Density2, &
-                               BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity, &
-                               BUFR_UNIT_OptDepth, BUFR_UNIT_OptDepth2, BUFR_UNIT_OptDepth3, BUFR_UNIT_MR_NVaerosol, &
-                               BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
-                               BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
-                               BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, &
-                               BUFR_UNIT_IntegDens, BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, &
-                               BUFR_UNIT_IntegMolarDens, BUFR_UNIT_ExtinctCoef, BUFR_UNIT_PhotoDissoc /) )) then          
-          var_chm=.true.
-      else         
-          var_chm=.false.
-      end if
+    if (any(varNumber.eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2, &
+                             BUFR_UNIT_MMR, BUFR_UNIT_MMR2, BUFR_UNIT_NumberDensity, BUFR_UNIT_MolarDensity,  &
+                             BUFR_UNIT_Density, BUFR_UNIT_Density2, &
+                             BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity, &
+                             BUFR_UNIT_OptDepth, BUFR_UNIT_OptDepth2, BUFR_UNIT_OptDepth3, BUFR_UNIT_MR_NVaerosol, &
+                             BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
+                             BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
+                             BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, &
+                             BUFR_UNIT_IntegDens, BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, &
+                             BUFR_UNIT_IntegMolarDens, BUFR_UNIT_ExtinctCoef, BUFR_UNIT_PhotoDissoc /) )) then          
+       var_chm=.true.
+    else         
+       var_chm=.false.
+    end if
       
   end function bufr_IsAtmosConstituent
+
 
   logical function bufr_IsIntegral(varNumber)
     !
     !:Purpose: To identify whether obs is a vertically integrated constituent
     !          measurement.
     !
-  implicit none
-  integer, intent(in) :: varNumber ! BUFR element number
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: varNumber ! BUFR element number
  
-  if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
-                            BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &
-                            BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, BUFR_UNIT_IntegMolarDens /) )) then      
+    if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
+                              BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &
+                              BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, BUFR_UNIT_IntegMolarDens /) )) then      
       bufr_IsIntegral=.true.     
-  else
+    else
       bufr_IsIntegral=.false.
-  end if
+    end if
   
   end function bufr_IsIntegral
+
+
+  logical function bufr_isWindComponent(varNumber)
+    !
+    !:Purpose: True if the variable is a wind component
+    !
+    implicit none
+    
+    ! Arguments:
+    integer, intent(in) :: varNumber ! BUFR element number
+
+    select case(varNumber)
+    case(BUFR_NEUU, BUFR_NEVV, BUFR_NEUS, BUFR_NEVS)
+      bufr_isWindComponent=.true.
+    case default
+      bufr_isWindComponent=.false.
+    end select
+
+  end function bufr_isWindComponent
 
 end module bufr_mod

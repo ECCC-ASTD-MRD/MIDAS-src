@@ -31,9 +31,9 @@ module fileNames_mod
 
 contains
 
- !--------------------------------------------------------------------------
- ! fln_ensFileName
- !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! fln_ensFileName
+  !--------------------------------------------------------------------------
   subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
                              ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
                              copyToRamDisk_opt )
@@ -148,11 +148,11 @@ contains
 
   end subroutine fln_ensFileName
 
- !--------------------------------------------------------------------------
- ! fln_ensAnlFileName
- !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! fln_ensAnlFileName
+  !--------------------------------------------------------------------------
   subroutine fln_ensAnlFileName( ensFileName, ensPathName, dateStamp,  &
-                                 memberIndex_opt, ensFileNamePrefix_opt )
+                                 memberIndex_opt, ensFileNamePrefix_opt, ensFileNameSuffix_opt )
     ! :Purpose: Return the filename for an analysis state, including for
     !           ensemble members (by specifying memberIndex_opt). The member
     !           index extension is assumed to be 4 digits.
@@ -165,6 +165,7 @@ contains
     integer           :: dateStamp
     integer, optional :: memberIndex_opt
     character(len=*), optional :: ensFileNamePrefix_opt
+    character(len=*), optional :: ensFileNameSuffix_opt
 
     ! locals
     integer :: imode, ierr, hours, prntdate, prnttime, newdate
@@ -183,17 +184,37 @@ contains
 
     if (present(memberIndex_opt)) then
       if (present(ensFileNamePrefix_opt)) then
-        ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
-                      dateStrAnl // '_000_' // trim(ensNumber)
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrAnl // '_000_' // trim(ensFileNameSuffix_opt) // '_' // trim(ensNumber)
+        else
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrAnl // '_000_' // trim(ensNumber)
+        end if
       else
-        ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000_' // trim(ensNumber)
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000_' //  &
+                        trim(ensFileNameSuffix_opt) // '_' // trim(ensNumber)
+        else
+          ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000_' // trim(ensNumber)
+        end if
       end if
     else
       if (present(ensFileNamePrefix_opt)) then
-        ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
-                      dateStrAnl // '_000'
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrAnl // '_000_' // trim(ensFileNameSuffix_opt)
+        else
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrAnl // '_000'
+        end if
       else
-        ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000'
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000_' //  &
+                        trim(ensFileNameSuffix_opt)
+        else
+          ensFileName = trim(ensPathName) // '/' // dateStrAnl // '_000'
+        end if
       end if
     end if
 
