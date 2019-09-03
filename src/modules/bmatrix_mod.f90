@@ -56,13 +56,13 @@ module BMatrix_mod
   logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true.  , .false., .true. , .true.  /)
 
   integer            :: numBmat
-  integer, parameter :: numBmatMax = 45
+  integer, parameter :: numBmatMax = 50
 
-  character(len=4)  :: bmatTypeList  (numBmatMax)
-  character(len=8)  :: bmatLabelList (numBmatMax)
-  integer           :: bmatInstanceID(numBmatMax)
-  logical           :: bmatIs3dList  (numBmatMax)
-  logical           :: bmatActive    (numBmatMax)
+  character(len=4) :: bmatTypeList  (numBmatMax)
+  character(len=9) :: bmatLabelList (numBmatMax)
+  integer          :: bmatInstanceID(numBmatMax)
+  logical          :: bmatIs3dList  (numBmatMax)
+  logical          :: bmatActive    (numBmatMax)
 
 contains
 
@@ -85,8 +85,8 @@ contains
     integer :: cvdim
     integer :: masterBmatIndex, bMatInstanceIndex, nBmatInstance, bmatIndex
 
-    character(len=1) :: bMatInstanceIndexString
-    character(len=2) :: bMatExtraLabel
+    character(len=2) :: bMatInstanceIndexString
+    character(len=3) :: bMatExtraLabel
 
     logical :: active
 
@@ -195,10 +195,10 @@ contains
         if (nBmatInstance == 1) then
           bMatExtraLabel= ""
         else
-          write(bMatInstanceIndexString,"('I1')") bMatInstanceIndex 
-          bMatExtraLabel="_"//bMatInstanceIndexString
+          write(bMatInstanceIndexString,'(I2.2)') bMatInstanceIndex 
+          bMatExtraLabel="_"//trim(bMatInstanceIndexString)
         end if
-        bmatLabelList (numBmat) = masterbmatLabelList(masterBmatIndex)//trim(bMatExtraLabel)
+        bmatLabelList (numBmat) = trim(masterbmatLabelList(masterBmatIndex))//trim(bMatExtraLabel)
 
         bmatTypeList  (numBmat) = masterBmatTypeList(masterBmatIndex)
         bmatIs3dList  (numBmat) = masterbmatIs3dList(masterBmatIndex)
@@ -329,10 +329,9 @@ contains
 
         !- 2.5 Flow-dependent Ensemble-Based
         call tmg_start(60,'B_ENS')
-        call ben_bsqrt( subVector,         & ! IN
-                        statevector_temp,  & ! OUT
-                        useFSOFcst_opt,    & ! IN
-                        stateVectorRef_opt ) ! IN
+        call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
+                        statevector_temp,                     & ! OUT
+                        useFSOFcst_opt, stateVectorRef_opt )    ! IN
         call tmg_stop(60)
 
       end select
@@ -397,14 +396,12 @@ contains
       case ('ENS')
 
         !- 2.1 Flow-dependent Ensemble-Based
-
         call tmg_start(61,'B_ENS_T')
-        call ben_bsqrtad( statevector_temp, &  ! IN
-                          subVector,        &  ! OUT
-                          useFSOFcst_opt,   &  ! IN
-                          stateVectorRef_opt ) ! IN
-        call tmg_stop(61)
 
+        call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
+                          subVector,                                   &  ! OUT
+                          useFSOFcst_opt, stateVectorRef_opt )            ! IN
+        call tmg_stop(61)
 
       case ('DIFF')
 
@@ -534,7 +531,7 @@ contains
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call ben_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+        call ben_reduceToMPILocal(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex))
 
       end select
 
@@ -603,7 +600,7 @@ contains
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call ben_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
+        call ben_reduceToMPILocal_r4(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex))
 
       end select
 
@@ -672,7 +669,7 @@ contains
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call ben_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
+        call ben_expandToMPIGlobal(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex) )
 
       end select
 
@@ -741,7 +738,7 @@ contains
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call ben_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
+        call ben_expandToMPIGlobal_r4(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex) )
 
       end select
 
