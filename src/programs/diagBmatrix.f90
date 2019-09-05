@@ -65,7 +65,7 @@ program midas_diagBmatrix
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
   integer :: nlons, nlats, nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
-  integer :: locIndex, stepIndexInc, nEns
+  integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
 
   integer, parameter :: lonPosIndex = 1
@@ -82,6 +82,7 @@ program midas_diagBmatrix
   character(len=12)  :: etiket
   character(len=4)   :: varName, oneobs_varName
   character(len=1)   :: locIndexString
+  character(len=2)   :: instanceIndexString
 
   character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
   character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
@@ -319,6 +320,7 @@ program midas_diagBmatrix
     !- Compute columns of the L matrix
     !
     numLoc = ben_getNumLoc()
+    numBensInstance = ben_getNumInstance()
     numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
     amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 
@@ -332,94 +334,101 @@ program midas_diagBmatrix
       datestampList(1) = dateStamp
     end if
 
-    do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
-      loc => ben_getLoc(locIndex)
+    do instanceIndex = 1, numBensInstance
+      do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
+        loc => ben_getLoc(locIndex,instanceIndex_opt=instanceIndex)
 
-      if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
-        varNameALFA(:) = varNameALFAatm(:)
-      else ! vco_anl%Vcode == -1
-        varNameALFA(:) = varNameALFAsfc(:)
-      end if
+        if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
+          varNameALFA(:) = varNameALFAatm(:)
+        else ! vco_anl%Vcode == -1
+          varNameALFA(:) = varNameALFAsfc(:)
+        end if
 
-      call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-      call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+        call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+        call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-      call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
+        call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
+                          datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
-      call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, loc%hco, loc%vco, &
-                        dateStampList_opt=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8, &
-                        mpi_local_opt=.true.)
+        call gsv_allocate(statevectorEnsAmplitude, numStepAmplitude, loc%hco, loc%vco, &
+                          dateStampList_opt=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8, &
+                          mpi_local_opt=.true.)
 
-      allocate(controlVector(loc%cvDim))
+        allocate(controlVector(loc%cvDim))
 
-      write(*,*) '********************************************'
-      write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
-      write(*,*) '********************************************'
+        write(*,*) '********************************************'
+        write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
+        write(*,*) '********************************************'
       
-      write(*,*) ' number of levels            = ', nlevs
-      write(*,*) ' number of lon-lat positions = ', nLonLatPos
+        write(*,*) ' number of levels            = ', nlevs
+        write(*,*) ' number of lon-lat positions = ', nLonLatPos
 
-      if (numLoc > 1) then
-        write(locIndexString,'(i1)') locIndex
-        filename = 'columnL_' // trim(loc%locType) // '_' // locIndexString // '_' // datestr // '.fst'
-      else
-        filename = 'columnL_' // trim(loc%locType) // '_' // datestr // '.fst'
-      end if
-
-      ip3 = 0
-      do levIndex = 1, nlevs2
-        do lonLatPosIndex = 1, nLonLatPos
-
-          latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
-          lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
-
-          call ens_zero(ensAmplitude)
-          call gsv_zero(statevectorEnsAmplitude)
-          if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
-               lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
-            ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,oneobs_levs(levIndex))
-            ensAmplitude_oneLev(:,oneobs_timeStepIndex,lonIndex,latIndex) = 1.d0
+        if (numLoc > 1) then
+          write(locIndexString,'(i1)') locIndex
+          filename = 'columnL_' // trim(loc%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+        else
+          if (numBensInstance > 1) then
+            write(instanceIndexString,'(I2.2)') instanceIndex
+            filename = 'columnL_i' // trim(instanceIndexString) // '_' // trim(loc%locType) // '_' // datestr // '.fst'
+          else
+            filename = 'columnL_' // trim(loc%locType) // '_' // datestr // '.fst'
           end if
-          controlVector(:)=0.0d0
+        end if
 
-          if (numStepAmplitude > 1) then
-            call adv_ensemble_ad(ensAmplitude,                 & ! INOUT
-                                 adv_amplitudeAssimWindow, nEns)  ! IN
-          end if
+        ip3 = 0
+        do levIndex = 1, nlevs2
+          do lonLatPosIndex = 1, nLonLatPos
+            
+            latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
+            lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
+            
+            call ens_zero(ensAmplitude)
+            call gsv_zero(statevectorEnsAmplitude)
+            if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
+                 lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
+              ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,oneobs_levs(levIndex))
+              ensAmplitude_oneLev(:,oneobs_timeStepIndex,lonIndex,latIndex) = 1.d0
+            end if
+            controlVector(:)=0.0d0
 
-          call loc_LsqrtAd(loc,           & ! IN
-                           ensAmplitude,  & ! IN
-                           controlVector, & ! OUT
-                           amp3dStepIndex)  ! IN
-          call loc_Lsqrt  (loc,           & ! IN
-                           controlVector, & ! IN
-                           ensAmplitude,  & ! OUT
-                           amp3dStepIndex)  ! IN
+            if (numStepAmplitude > 1) then
+              call adv_ensemble_ad(ensAmplitude,                 & ! INOUT
+                                   adv_amplitudeAssimWindow, nEns)  ! IN
+            end if
 
-          if (numStepAmplitude > 1) then
-            call adv_ensemble_tl(ensAmplitude,                 & ! INOUT
-                                 adv_amplitudeAssimWindow, nEns) ! IN
-          end if
+            call loc_LsqrtAd(loc,           & ! IN
+                             ensAmplitude,  & ! IN
+                             controlVector, & ! OUT
+                             amp3dStepIndex)  ! IN
+            call loc_Lsqrt  (loc,           & ! IN
+                             controlVector, & ! IN
+                             ensAmplitude,  & ! OUT
+                             amp3dStepIndex)  ! IN
 
-          write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
-          call flush(6)
+            if (numStepAmplitude > 1) then
+              call adv_ensemble_tl(ensAmplitude,                 & ! INOUT
+                                   adv_amplitudeAssimWindow, nEns) ! IN
+            end if
 
-          ip3 = ip3 + 1
-          call ens_copyMember(ensAmplitude, statevectorEnsAmplitude, 1)
-          do stepIndexInc = 1, numStepAmplitude
-            call gsv_writeToFile(statevectorEnsAmplitude,filename,'ONEOBS',  &
-                                 stepIndex_opt=stepIndexInc, ip3_opt=ip3,unitConversion_opt=.false.)
+            write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
+            call flush(6)
+
+            ip3 = ip3 + 1
+            call ens_copyMember(ensAmplitude, statevectorEnsAmplitude, 1)
+            do stepIndexInc = 1, numStepAmplitude
+              call gsv_writeToFile(statevectorEnsAmplitude,filename,'ONEOBS',  &
+                                   stepIndex_opt=stepIndexInc, ip3_opt=ip3,unitConversion_opt=.false.)
+            end do
+
           end do
-
         end do
-      end do
 
-      deallocate(controlVector)
-      call ens_deallocate(ensAmplitude)
-      call gsv_deallocate(statevectorEnsAmplitude)
+        deallocate(controlVector)
+        call ens_deallocate(ensAmplitude)
+        call gsv_deallocate(statevectorEnsAmplitude)
 
-    end do ! localization index (if active in B)
+      end do ! localization index (if active in B)
+    end do ! Bens instance
 
   end if ! if any oneobs selected
 

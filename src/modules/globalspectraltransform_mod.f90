@@ -502,7 +502,11 @@ contains
     gst(gstID)%nj = nj_in
     gst(gstID)%njlath = (gst(gstID)%nj + 1)/2
 
-    gst(gstID)%ntrunc = ntrunc_in
+    if (ntrunc_in == -1) then ! no truncation case
+      gst(gstID)%ntrunc = gst(gstID)%ni / 2
+    else
+      gst(gstID)%ntrunc = ntrunc_in
+    end if
     gst(gstID)%nla = (gst(gstID)%ntrunc + 1) * (gst(gstID)%ntrunc +2)/2
     gst(gstID)%nlarh = (gst(gstID)%ntrunc+1) * (gst(gstID)%ntrunc+1)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: ntrunc=', gst(gstID)%ntrunc

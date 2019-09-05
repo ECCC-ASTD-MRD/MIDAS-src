@@ -267,9 +267,12 @@ contains
 
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex
 
-    call ben_Setup( hco_anl, vco_anl, & ! IN
-                    cvdim )             ! OUT
+    integer, allocatable :: cvDimPerInstance(:)
 
+    call ben_Setup( hco_anl, vco_anl, & ! IN
+                    cvdimPerInstance )  ! OUT
+
+    cvDim = cvdimPerInstance(1)
     call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
                       mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
@@ -277,7 +280,7 @@ contains
                       mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
-    allocate ( controlVector1(cvDim) )
+    allocate ( controlVector1(cvdim) )
 
     ! x
     seed=1
@@ -294,11 +297,11 @@ contains
 
     ! y
     controlVector1 = 0.d0
-    call ben_bSqrtAd( statevector_x, &  ! IN
+    call ben_bSqrtAd( 1, statevector_x, &  ! IN
                       controlVector1)  ! OUT
 
     ! Ly
-    call ben_bSqrt( controlVector1, & ! IN
+    call ben_bSqrt( 1, controlVector1, & ! IN
                     statevector_Ly )  ! OUT
 
     ! <x ,L(y)>
@@ -314,7 +317,7 @@ contains
     ! L_T(x)
     allocate ( controlVector2(cvDim) )
     controlVector2 = 0.d0
-    call ben_bSqrtAd( statevector_x, &  ! IN
+    call ben_bSqrtAd( 1, statevector_x, &  ! IN
                       controlVector2 )  ! OUT
     
     ! <L_T(x),y>
@@ -357,6 +360,8 @@ contains
 
     integer,allocatable :: dateStampList(:)
 
+    integer, allocatable :: cvDimPerInstance(:)
+
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
@@ -364,7 +369,9 @@ contains
     write(*,*) 'JFC dateStampList = ', dateStampList(:)
 
     call ben_Setup( hco_anl, vco_anl, & ! IN
-                    cvdim )             ! OUT
+                    cvDimPerInstance )             ! OUT
+
+    cvDim = cvDimPerInstance(1)
 
     write(*,*) 'JFC ben_Setup done '
     

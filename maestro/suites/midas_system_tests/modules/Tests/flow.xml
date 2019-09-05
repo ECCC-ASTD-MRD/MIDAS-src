@@ -278,8 +278,13 @@
   </FAMILY>
 
   <FAMILY  name="diagBmatrix">
-    <SUBMITS sub_name="Bcolumns"/>
-    <FAMILY  name="Bcolumns">
+    <SUBMITS sub_name="Bcolumns-SDL"/>
+    <FAMILY  name="Bcolumns-SDL">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="Bcolumns-SDLwSL"/>
+    <FAMILY  name="Bcolumns-SDLwSL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

@@ -50,7 +50,7 @@ module BmatrixEnsemble_mod
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize
   public :: ben_setFsoLeadTime, ben_getNumStepAmplitudeAssimWindow, ben_getAmplitudeAssimWindow
-  public :: ben_getAmp3dStepIndexAssimWindow, ben_getNumLoc, ben_getLoc
+  public :: ben_getAmp3dStepIndexAssimWindow, ben_getNumLoc, ben_getLoc, ben_getNumInstance
 
   integer, parameter   :: maxNumLevels      = 200
   integer, parameter   :: maxNumLocalLength =  20
@@ -80,7 +80,8 @@ module BmatrixEnsemble_mod
     integer             :: numStepAdvectFSOFcst
     
     ! Localizations
-    integer             :: nWaveBand = 0
+    integer             :: nWaveBand
+    integer             :: nWaveBandForFiltering = 0
     
     ! Ensemble perturbations
     type(struct_ens), allocatable :: ensPerts(:)
@@ -133,6 +134,7 @@ module BmatrixEnsemble_mod
     real(8)             :: vLocalize(maxNumLocalLength)
     character(len=256)  :: LocalizationType
     integer             :: waveBandPeaks(maxNumLocalLength)
+    integer             :: waveBandIndexSelected
     logical             :: ensDiagnostic
     logical             :: advDiagnostic
     character(len=2)    :: ctrlVarHumidity
@@ -204,6 +206,7 @@ CONTAINS
     real(8)             :: vLocalize(maxNumLocalLength)
     character(len=256)  :: localizationType
     integer             :: waveBandPeaks(maxNumLocalLength)
+    integer             :: waveBandIndexSelected
     logical             :: ensDiagnostic
     logical             :: advDiagnostic
     character(len=2)    :: ctrlVarHumidity
@@ -227,7 +230,7 @@ CONTAINS
          ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
-         useCmatrixOnly
+         useCmatrixOnly, waveBandIndexSelected
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -263,6 +266,7 @@ CONTAINS
       enspathname           = 'ensemble'
       localizationType      = 'LevelDependent'
       waveBandPeaks(:)      =   -1.0d0
+      waveBandIndexSelected =   -1
       ensDiagnostic         = .false.
       advDiagnostic         = .false.
       hLocalize(:)          =   -1.0d0
@@ -326,6 +330,7 @@ CONTAINS
       bEns(nInstance)%vLocalize(:)               = vLocalize(:)
       bEns(nInstance)%localizationType           = localizationType
       bEns(nInstance)%waveBandPeaks(:)           = waveBandPeaks(:)
+      bEns(nInstance)%waveBandIndexSelected      = waveBandIndexSelected
       bEns(nInstance)%ensDiagnostic              = ensDiagnostic
       bEns(nInstance)%advDiagnostic              = advDiagnostic
       bEns(nInstance)%ctrlVarHumidity            = ctrlVarHumidity
@@ -351,7 +356,6 @@ CONTAINS
       !- Set the instance
       call ben_setupOneInstance(nInstance,               & ! IN
                                 cvDimStorage(nInstance))   ! OUT
-
 
       bEns(nInstance)%initialized = .true.
       
@@ -408,17 +412,20 @@ CONTAINS
     character(len=32)   :: direction, directionEnsPerts, directionAnlInc
 
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
-
     
     write(*,*) 'ben_setupOneInstance: enspathname = ', trim(bEns(instanceIndex)%ensPathName)
 
-    !- 2.2 Number of time step bins
+    !
+    !- 1.  B matrix configuration
+    !
+
+    !- 1.1 Number of time step bins
     bEns(instanceIndex)%numStep = tim_nstepobsinc
     if (bEns(instanceIndex)%numStep /= 1.and.bEns(instanceIndex)%numStep /= 3.and.bEns(instanceIndex)%numStep /= 5.and.bEns(instanceIndex)%numStep /= 7) then
       call utl_abort('ben_setupOneInstance: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
 
-    !- for FSO
+    !- 1.2 FSO-related options
     bEns(instanceIndex)%numStepAssimWindow = bEns(instanceIndex)%numStep
     if (bEns(instanceIndex)%fsoLeadTime > 0.0D0) then
       bEns(instanceIndex)%numStep = bEns(instanceIndex)%numStep + 1
@@ -433,7 +440,7 @@ CONTAINS
       call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep,tim_getDatestamp())
     end if
 
-    !- 2.3 Horizontal grid
+    !- 1.3 Horizontal grid
     bEns(instanceIndex)%hco_ens => bEns(instanceIndex)%hco_anl ! ensemble members must be on analysis grid
     bEns(instanceIndex)%ni = bEns(instanceIndex)%hco_ens%ni
     bEns(instanceIndex)%nj = bEns(instanceIndex)%hco_ens%nj
@@ -445,7 +452,7 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: LAM mode activated'
     end if
 
-    !- 2.4 Vertical levels
+    !- 1.4 Vertical levels
     if ( mpi_myid == 0 ) then
       call fln_ensfileName(ensFileName, bEns(instanceIndex)%ensPathName, memberIndex_opt=1)
       call vco_SetupFromFile(bEns(instanceIndex)%vco_file, ensFileName)
@@ -532,7 +539,7 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
     end if
 
-    !- 2.5 Bmatrix Weight
+    !- 1.5 Bmatrix Weight
     if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
       bEns(instanceIndex)%varNameALFA(:) = varNameALFAatm(:)
       allocate(bEns(instanceIndex)%scaleFactor_M(bEns(instanceIndex)%nLevEns_M))
@@ -570,11 +577,11 @@ CONTAINS
       end if
     end if
 
-    !- 2.5 Domain Partionning
+    !- 1.5 Domain Partionning
     call mpivar_setup_latbands(bEns(instanceIndex)%nj, latPerPE, latPerPEmax, bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd)
     call mpivar_setup_lonbands(bEns(instanceIndex)%ni, lonPerPE, lonPerPEmax, bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd)
 
-    !- 2.6 Localization
+    !- 1.6 Localization
     if ( trim(ben_mode) == 'Analysis' ) then
 
       call mpivar_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
@@ -582,16 +589,26 @@ CONTAINS
            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
       bEns(instanceIndex)%nEnsOverDimension = mpi_npex * maxMyMemberCount
 
-      if (trim(bEns(instanceIndex)%localizationType) == 'LevelDependent') then
+      select case(trim(bEns(instanceIndex)%localizationType))
+      case('LevelDependent')
         if (mpi_myid == 0) write(*,*)
         if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Level-Dependent (Standard) localization will be used'
         bEns(instanceIndex)%nWaveBand = 1
-      else if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+
+      case('ScaleDependent','ScaleDependentWithSpectralLoc')
         if (mpi_myid == 0) write(*,*)
-        if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization will be used'
-        bEns(instanceIndex)%nWaveBand = count(bEns(instanceIndex)%waveBandPeaks .ge. 0)
-        if ( bEns(instanceIndex)%nWaveBand <= 1 ) then
-          call utl_abort('ben_setupOneInstance: nWaveBand <= 1')
+        if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+          if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used'
+          bEns(instanceIndex)%nWaveBand             = count(bEns(instanceIndex)%waveBandPeaks >= 0)
+          bEns(instanceIndex)%nWaveBandForFiltering = bEns(instanceIndex)%nWaveBand
+        else
+          if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization with Spectral localization (SDLwSL) will be used'
+          bEns(instanceIndex)%nWaveBand             = 1
+          bEns(instanceIndex)%nWaveBandForFiltering = count(bEns(instanceIndex)%waveBandPeaks >= 0)
+        end if
+
+        if ( bEns(instanceIndex)%nWaveBandForFiltering <= 1 ) then
+          call utl_abort('ben_setupOneInstance: nWaveBandForFiltering <= 1')
         end if
         ! You must provide nWaveBand wavenumbers in decreasing order
         ! e.g. For a 3 wave bands decomposition...
@@ -603,31 +620,48 @@ CONTAINS
         ! See FilterResponseFunction for further info...
 
         ! Make sure that the wavenumbers are in the correct (decreasing) order
-        do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand-1
+        do waveBandIndex = 1, bEns(instanceIndex)%nWaveBandForFiltering-1
           if ( bEns(instanceIndex)%waveBandPeaks(waveBandIndex)-bEns(instanceIndex)%waveBandPeaks(waveBandIndex+1) <= 0 ) then
             call utl_abort('ben_setupOneInstance: waveBandPeaks are not in decreasing wavenumber order') 
           end if
         end do
 
-        ! Make sure that we have valid localization length scales for each wave bands
-        do  waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
-          if ( bEns(instanceIndex)%hLocalize(waveBandIndex) <= 0.0d0 ) then
-            call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
-          end if
-          if ( bEns(instanceIndex)%vLocalize(waveBandIndex) <= 0.0d0 .and. (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
-            call utl_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
-          end if
-        end do
+        if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+          ! Make sure that we have valid localization length scales for each wave bands
+          do  waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
+            if ( bEns(instanceIndex)%hLocalize(waveBandIndex) <= 0.0d0 ) then
+              call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
+            end if
+            if ( bEns(instanceIndex)%vLocalize(waveBandIndex) <= 0.0d0 .and. (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
+              call utl_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
+            end if
+          end do
 
-        ! Make sure the truncation is compatible with the waveBandPeaks
-        if ( bEns(instanceIndex)%nTrunc < bEns(instanceIndex)%waveBandPeaks(1) ) then
-          call utl_abort('ben_setupOneInstance: The truncation is not compatible with the your scale-dependent localization')
+          ! Make sure the truncation is compatible with the waveBandPeaks
+          if ( bEns(instanceIndex)%nTrunc < bEns(instanceIndex)%waveBandPeaks(1) ) then
+            call utl_abort('ben_setupOneInstance: The truncation is not compatible with the your scale-dependent localization')
+          end if
+
+        else
+          ! Do we have a valid selected waveBand index?
+          if (bEns(instanceIndex)%waveBandIndexSelected < 1                              .and. &
+              bEns(instanceIndex)%waveBandIndexSelected > bEns(instanceIndex)%nWaveBand ) then
+            write(*,*) 'ben_setupOneInstance: waveBandIndexSelected = ', bEns(instanceIndex)%waveBandIndexSelected
+            write(*,*) 'ben_setupOneInstance: nWaveBand             = ', bEns(instanceIndex)%nWaveBand
+            call utl_abort('ben_setupOneInstance: The selected waveBand index is not valid')
+          end if
+
+          ! Make sure we have only ONE localization length scales for the selected waveBand index
+          if ( bEns(instanceIndex)%hLocalize(2) > 0.0d0 .or. bEns(instanceIndex)%vLocalize(2) > 0.0d0 ) then
+            call utl_abort('ben_setupOneInstance: only a single localization length scale must be provided with SDLwSL')
+          end if
         end if
 
-      else
+      case default
         call utl_abort('ben_setupOneInstance: Invalid mode for LocalizationType')
-      end if
+      end select
 
+      ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
         pSurfRef = 101000.D0
         nullify(pressureProfileInc_M)
@@ -647,10 +681,11 @@ CONTAINS
 
       allocate(bEns(instanceIndex)%locStorage(bEns(instanceIndex)%nWaveBand))
       do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
-        call loc_setup(bEns(instanceIndex)%locStorage(waveBandIndex), bEns(instanceIndex)%cvDim_mpilocal,                              & ! OUT
-                       bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%nEns, pressureProfileEns_M, bEns(instanceIndex)%nTrunc, 'spectral',       & ! IN
-                       bEns(instanceIndex)%localizationType, bEns(instanceIndex)%hLocalize(waveBandIndex), bEns(instanceIndex)%hLocalize(waveBandIndex+1), & ! IN
-                       bEns(instanceIndex)%vLocalize(waveBandIndex))                                                 ! IN
+        call loc_setup(bEns(instanceIndex)%locStorage(waveBandIndex), bEns(instanceIndex)%cvDim_mpilocal,          & ! OUT
+                       bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%nEns,         & ! IN
+                       pressureProfileEns_M, bEns(instanceIndex)%nTrunc, 'spectral',                               & ! IN
+                       bEns(instanceIndex)%localizationType, bEns(instanceIndex)%hLocalize(waveBandIndex),         & ! IN
+                       bEns(instanceIndex)%hLocalize(waveBandIndex+1), bEns(instanceIndex)%vLocalize(waveBandIndex)) ! IN
       end do
 
       cvDim = bEns(instanceIndex)%cvDim_mpilocal
@@ -658,7 +693,7 @@ CONTAINS
 
     end if
 
-    !- 2.7 Control variables
+    !- 1.7 Control variables
     if      ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' ) then
       write(*,*)
       write(*,*) 'ben_setupOneInstance: Humidity control variable = ', bEns(instanceIndex)%ctrlVarHumidity
@@ -675,10 +710,10 @@ CONTAINS
     end if
 
     !
-    !- 3.  Read/Process the Ensemble
+    !- 2.  Read/Process the Ensemble
     !
     
-    !- 3.1 Identify set of variables for which ensembles are required    
+    !- 2.1 Identify set of variables for which ensembles are required    
     do jvar = 1, vnl_numvarmax
       if (trim(bEns(instanceIndex)%includeAnlVar(jvar)) == '') exit
       if (.not.gsv_varExist(varName = trim(bEns(instanceIndex)%includeAnlVar(jvar)))) then
@@ -713,7 +748,7 @@ CONTAINS
       end do
     end if
 
-    !- 3.2 Read the ensemble data
+    !- 2.2 Read the ensemble data
     call setupEnsemble(instanceIndex)
 
     if ( trim(ben_mode) /= 'Analysis' ) then
@@ -721,7 +756,7 @@ CONTAINS
       return
     end if
 
-    !- 3.3 Convert into a C matrix
+    !- 2.3 Convert into a C matrix
     if (bEns(instanceIndex)%useCmatrixOnly .or. trim(bEns(instanceIndex)%varianceSmoothing) /= 'none') then
       call ens_computeStdDev(bEns(instanceIndex)%ensPerts(1), containsScaledPerts_opt=.true.)
       call ens_normalize(bEns(instanceIndex)%ensPerts(1))
@@ -730,7 +765,7 @@ CONTAINS
       bEns(instanceIndex)%ensPertsNormalized = .false.
     end if
 
-    !- 3.4 Variance smoothing
+    !- 2.4 Variance smoothing
     if (trim(bEns(instanceIndex)%varianceSmoothing) /= 'none' .and. .not. bEns(instanceIndex)%useCmatrixOnly) then
       if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: variance smoothing will be performed'
 
@@ -772,7 +807,7 @@ CONTAINS
       end if
     end if
 
-    !- 3.5 Pre-compute everything for advection in FSO mode
+    !- 2.5 Pre-compute everything for advection in FSO mode
     if (bEns(instanceIndex)%fsoLeadTime > 0.0D0) then
       bEns(instanceIndex)%amp3dStepIndexFSOFcst = 1
       if ( sum(bEns(instanceIndex)%advectFactorFSOFcst(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
@@ -804,7 +839,7 @@ CONTAINS
       bEns(instanceIndex)%numStepAmplitudeFSOFcst = 0
     end if
 
-    !- 3.6 Pre-compute everything for advection in ANALYSIS mode
+    !- 2.6 Pre-compute everything for advection in ANALYSIS mode
     if ( sum(bEns(instanceIndex)%advectFactorAssimWindow(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated in ANALYSIS mode'
 
@@ -913,7 +948,7 @@ CONTAINS
 
     end if
 
-    !- 3.7 Ensemble perturbations advection
+    !- 2.7 Ensemble perturbations advection
     if ( bEns(instanceIndex)%advectEnsPertAnlInc ) then
 
       !- If wanted, write the original ensemble perturbations for member #1
@@ -942,12 +977,13 @@ CONTAINS
 
     end if
 
-    !- 3.8 Compute and write Std. Dev.
+    !- 2.8 Compute and write Std. Dev.
     if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'FullPerturbations')
 
-    !- 3.9 Partitioned the ensemble perturbations into wave bands
-    if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
-      call EnsembleScaleDecomposition(instanceIndex)
+    !- 2.9 Partitioned the ensemble perturbations into wave bands
+    if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent'                .or. &
+        trim(bEns(instanceIndex)%localizationType) == 'ScaleDependentWithSpectralLoc') then
+      call ensembleScaleDecomposition(instanceIndex)
       if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'WaveBandPerturbations')
     end if
 
@@ -965,7 +1001,7 @@ CONTAINS
       call ens_zero(ensAmplitudeSave_M(instanceIndex))
     end if
 
-    !- 3.10 Setup en ensGridStateVector to store the amplitude fields (for writing)
+    !- 2.10 Setup en ensGridStateVector to store the amplitude fields (for writing)
     if (bEns(instanceIndex)%keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setupOneInstance: ensAmplitude fields will be store for potential write to file'
@@ -1085,7 +1121,9 @@ CONTAINS
     end do
 
     !- 2. Read ensemble
-    makeBiPeriodic = (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent' .or. trim(bEns(instanceIndex)%varianceSmoothing) /= 'none')
+    makeBiPeriodic = (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent' .or. &
+                      trim(bEns(instanceIndex)%localizationType) == 'ScaleDependentWithSpectralLoc' .or. &
+                      trim(bEns(instanceIndex)%varianceSmoothing) /= 'none')
     call ens_readEnsemble(bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%ensPathName, makeBiPeriodic,         &
                           vco_file_opt = bEns(instanceIndex)%vco_file,                          &
                           varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), & 
@@ -1374,9 +1412,9 @@ CONTAINS
   end subroutine ben_getEnsMean
 
   !--------------------------------------------------------------------------
-  ! EnsembleScaleDecomposition
+  ! ensembleScaleDecomposition
   !--------------------------------------------------------------------------
-  subroutine EnsembleScaleDecomposition(instanceIndex)
+  subroutine ensembleScaleDecomposition(instanceIndex)
     implicit none
 
     integer, intent(in) :: instanceIndex
@@ -1396,14 +1434,19 @@ CONTAINS
 
     integer, allocatable :: nIndex_vec(:)
 
+    integer :: nTrunc
     integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
     integer :: mymCount, mynCount, ierr
-    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount !, nEnsOverDimension
+    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
+    integer :: waveBandIndexStart, waveBandIndexEnd
+    integer :: waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
 
     type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
 
     character(len=19)   :: kind
 
+    !
+    ! --> For SDL
     !
     ! --- Ensemble Perturbation Data at the Start  ---
     ! ensPerts(1          ,:) contains the full perturbations
@@ -1414,12 +1457,23 @@ CONTAINS
     ! ...
     ! ensPerts(1        ,:) contains the smallest scales
     !
+
+    !
+    ! --> For SDLwSL
+    !
+    ! --- Ensemble Perturbation Data at the Start  ---
+    ! ensPerts(1,:) contains the full perturbations
+    !
+    ! --- Ensemble Perturbation Data at the End    ---
+    ! ensPerts(1,:) contains the selected scales
+    !
+
     if ( mpi_myid == 0 ) then
       write(*,*)
       write(*,*) 'Scale decomposition of the ensemble perturbations'
-      write(*,*) '   number of WaveBands = ', bEns(instanceIndex)%nWaveBand
+      write(*,*) '   number of WaveBands for filtering = ', bEns(instanceIndex)%nWaveBandForFiltering
       write(*,*) '   WaveBand Peaks (total wavenumber)...'
-      do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
+      do waveBandIndex = 1, bEns(instanceIndex)%nWaveBandForFiltering
         write(*,*) waveBandIndex, bEns(instanceIndex)%waveBandPeaks(waveBandIndex)
       end do
     end if
@@ -1427,24 +1481,27 @@ CONTAINS
     !
     !- Setup a spectral transform for filtering (nk = nEnsOverDimension)
     !
-
-    !call mpivar_setup_levels(bEns(instanceIndex)%nEns,                                  & ! IN
-    !                         myMemberBeg,myMemberEnd,myMemberCount)   ! OUT
-    !call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-    !                        1,"MPI_INTEGER","mpi_max","GRID",ierr)
-    !nEnsOverDimension  = mpi_npex * maxMyMemberCount
+    if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+      nTrunc = bEns(instanceIndex)%waveBandPeaks(1)
+    else ! ScaleDependentWithSpectralLoc
+      if (bEns(instanceIndex)%waveBandIndexSelected == 1) then
+        nTrunc = -1 ! no truncation needed to extract the smallest scales
+      else
+        nTrunc = bEns(instanceIndex)%waveBandPeaks(bEns(instanceIndex)%waveBandIndexSelected-1)
+      end if
+    end if
 
     if (bEns(instanceIndex)%hco_ens%global) then
       ! Global mode
-      gstFilterID = gst_setup(bEns(instanceIndex)%ni,bEns(instanceIndex)%nj,bEns(instanceIndex)%nTrunc,bEns(instanceIndex)%nEnsOverDimension)
+      gstFilterID = gst_setup(bEns(instanceIndex)%ni,bEns(instanceIndex)%nj,nTrunc,bEns(instanceIndex)%nEnsOverDimension)
       if (mpi_myid == 0) write(*,*) 'ben : returned value of gstFilterID = ',gstFilterID
 
       nla_filter = gst_getNla(gstFilterID)
       nphase_filter = 2
 
       allocate(nIndex_vec(nla_filter))
-      call mpivar_setup_m(bEns(instanceIndex)%nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
-      call mpivar_setup_n(bEns(instanceIndex)%nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
+      call mpivar_setup_m(nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
+      call mpivar_setup_n(nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
       ila_filter = 0
       do mIndex = mymBeg, mymEnd, mymSkip
         do nIndex = mynBeg, mynEnd, mynSkip
@@ -1457,19 +1514,32 @@ CONTAINS
 
     else
       ! LAM mode
-      call lst_Setup(lst_ben_filter,                              & ! OUT
-                     bEns(instanceIndex)%ni, bEns(instanceIndex)%nj, bEns(instanceIndex)%hco_ens%dlon, bEns(instanceIndex)%nTrunc,                & ! IN
-                     'LatLonMN', maxlevels_opt=bEns(instanceIndex)%nEnsOverDimension, & ! IN
-                     gridDataOrder_opt='kij' )                      ! IN
+      call lst_Setup(lst_ben_filter,                                                                           & ! OUT
+                     bEns(instanceIndex)%ni, bEns(instanceIndex)%nj, bEns(instanceIndex)%hco_ens%dlon, nTrunc, & ! IN
+                     'LatLonMN', maxlevels_opt=bEns(instanceIndex)%nEnsOverDimension, gridDataOrder_opt='kij' )  ! IN
 
-      nla_filter = lst_ben_filter%nla
+      nla_filter    = lst_ben_filter%nla
       nphase_filter = lst_ben_filter%nphase
     end if
 
     !
     !- 1.  Scale decomposition for every wave band except for wave band #1
     !
-    allocate(ResponseFunction(nla_filter,2:bEns(instanceIndex)%nWaveBand))
+    if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+      waveBandIndexStart     = 2                ! Skip the smallest scales
+      waveBandIndexEnd       = bEns(instanceIndex)%nWaveBand
+      waveBandIndexLoopStart = waveBandIndexEnd ! Start with the largest scales
+      waveBandIndexLoopEnd   = waveBandIndexStart
+      waveBandIndexLoopDirection = -1 
+    else ! ScaleDependentWithSpectralLoc
+      waveBandIndexStart     = bEns(instanceIndex)%waveBandIndexSelected
+      waveBandIndexEnd       = bEns(instanceIndex)%waveBandIndexSelected
+      waveBandIndexLoopStart = waveBandIndexStart
+      waveBandIndexLoopEnd   = waveBandIndexEnd 
+      waveBandIndexLoopDirection = 1 
+    end if
+
+    allocate(ResponseFunction(nla_filter,waveBandIndexStart:waveBandIndexEnd))
     allocate(ensPertSP(nla_filter,nphase_filter,bEns(instanceIndex)%nEnsOverDimension))
     allocate(ensPertSPfiltered(nla_filter,nphase_filter,bEns(instanceIndex)%nEnsOverDimension))
     allocate(ensPertGD(bEns(instanceIndex)%nEnsOverDimension,bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
@@ -1477,24 +1547,29 @@ CONTAINS
     ensPertSP        (:,:,:) = 0.0d0
     ensPertSPfiltered(:,:,:) = 0.0d0
 
-    !- 1.1 Pre-compute the response function for each wave band except for wave band #1
-    do waveBandIndex = bEns(instanceIndex)%nWaveBand, 2, -1 ! Start with the largest scales
+    !- 1.1 Pre-compute the response function
+    do waveBandIndex = waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
       do ila_filter = 1, nla_filter
         if (bEns(instanceIndex)%hco_ens%global) then
           totwvnb_r8 = real(nIndex_vec(ila_filter),8)
         else
           totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
         end if
-        ResponseFunction(ila_filter,waveBandIndex) = spf_FilterResponseFunction(totwvnb_r8,waveBandIndex, bEns(instanceIndex)%waveBandPeaks, bEns(instanceIndex)%nWaveBand)
+        ResponseFunction(ila_filter,waveBandIndex) = spf_FilterResponseFunction(totwvnb_r8,waveBandIndex, bEns(instanceIndex)%waveBandPeaks, &
+                                                                                bEns(instanceIndex)%nWaveBandForFiltering)
+        if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependentWithSpectralLoc') then
+          ResponseFunction(ila_filter,waveBandIndex) = sqrt(ResponseFunction(ila_filter,waveBandIndex)) 
+        end if
         write(*,*) totwvnb_r8, ResponseFunction(ila_filter,waveBandIndex)
       end do
     end do
     if (bEns(instanceIndex)%hco_ens%global) deallocate(nIndex_vec)
 
     do stepIndex = 1, bEns(instanceIndex)%numStep ! Loop on ensemble time bin
-      do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(waveBandIndex)) ! Loop on variables and vertical levels
-        ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1),levIndex)
+      do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(1)) ! Loop on variables and vertical levels
 
+        ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1),levIndex)
+          
         !- 1.2 GridPoint space -> Spectral Space
         !$OMP PARALLEL DO PRIVATE (latIndex)
         do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
@@ -1525,7 +1600,8 @@ CONTAINS
         end if
 
         !- 1.3 Filtering and transformation back to grid point space 
-        do waveBandIndex = bEns(instanceIndex)%nWaveBand, 2, -1 ! Start with the largest scales
+        do waveBandIndex = waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
+
           ! Filtering
           !$OMP PARALLEL DO PRIVATE (memberIndex,p,ila_filter)
           do memberIndex = 1, bEns(instanceIndex)%nEns
@@ -1552,7 +1628,12 @@ CONTAINS
                                   ensPertGD,              & ! OUT
                                   kind, bEns(instanceIndex)%nEnsOverDimension ) ! IN
           end if
-          ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
+
+          if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
+          else
+            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1),levIndex)
+          end if
           !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
           do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
             do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
@@ -1573,35 +1654,39 @@ CONTAINS
     deallocate(ensPertSPfiltered)
 
     !
-    !- 2.  Isolate the smallest scales in waveBandIndex = 1 by difference in grid point space
+    !- 2.  For SDL only, Isolate the smallest scales in waveBandIndex = 1 by difference in grid point space
     !
-    allocate(bandSum(bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
-    do stepIndex = 1, bEns(instanceIndex)%numStep
-      !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,waveBandIndex,bandsum,ptr4d_r4)
-      do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(1))
-        do memberIndex = 1, bEns(instanceIndex)%nEns
-          bandSum(:,:) = 0.d0
-          do waveBandIndex = 2, bEns(instanceIndex)%nWaveBand
-            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
+    if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+
+      allocate(bandSum(bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
+      do stepIndex = 1, bEns(instanceIndex)%numStep
+        !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,waveBandIndex,bandsum,ptr4d_r4)
+        do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(1))
+          do memberIndex = 1, bEns(instanceIndex)%nEns
+            bandSum(:,:) = 0.d0
+            do waveBandIndex = 2, bEns(instanceIndex)%nWaveBand
+              ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
+              do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
+                do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
+                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
+                end do
+              end do
+            end do
+            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1),levIndex)
             do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
               do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-                bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
+                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
               end do
             end do
           end do
-          ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1),levIndex)
-          do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-            do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
-            end do
-          end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
-    end do
-    deallocate(bandSum)
+      deallocate(bandSum)
 
-  end subroutine EnsembleScaleDecomposition
+    end if
+
+  end subroutine ensembleScaleDecomposition
 
   !--------------------------------------------------------------------------
   ! ben_reduceToMPILocal
@@ -1645,7 +1730,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal'
 
     call loc_expandToMPIGlobal(bEns(instanceIndex)%locStorage(1), cv_mpilocal,  & ! IN
-                               cv_mpiglobal)                  ! OUT  
+                               cv_mpiglobal)                                      ! OUT  
 
   end subroutine ben_expandToMPIGlobal
 
@@ -1661,7 +1746,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal_r4'
 
     call loc_expandToMPIGlobal_r4(bEns(instanceIndex)%locStorage(1), cv_mpilocal,  & ! IN
-                                  cv_mpiglobal)                  ! OUT
+                                  cv_mpiglobal)                                      ! OUT
 
   end subroutine ben_expandToMPIGlobal_r4
 
@@ -2336,13 +2421,17 @@ CONTAINS
     character(len=2) :: instanceNumber
 
     if ( trim(mode) == 'FullPerturbations') then
-       nWaveBandToDiagnose = 1
+      nWaveBandToDiagnose = 1
     else if ( trim(mode) == 'WaveBandPerturbations' ) then
-       nWaveBandToDiagnose = bEns(instanceIndex)%nWaveBand
+      if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
+        nWaveBandToDiagnose = bEns(instanceIndex)%nWaveBand
+      else
+        nWaveBandToDiagnose = 1
+      end if
     else
-       write(*,*)
-       write(*,*) 'mode = ', trim(mode)
-       call utl_abort('EnsembleDiagnostic: unknown mode')
+      write(*,*)
+      write(*,*) 'mode = ', trim(mode)
+      call utl_abort('EnsembleDiagnostic: unknown mode')
     end if
 
     if ( mpi_myid == 0 ) write(*,*)
@@ -2361,19 +2450,16 @@ CONTAINS
                         allocHeight_opt=.false., allocPressure_opt=.false.)
       call ben_getPerturbation( statevector,    & ! OUT
                                 memberIndex,    & ! IN
-                                'ConstantValue', waveBandIndex ) ! IN
+                                'ConstantValue', waveBandIndex, instanceIndex_opt = instanceIndex) ! IN
       if ( trim(mode) == 'FullPerturbations') then
         etiket = 'PERT001_FULL'
       else
         write(waveBandNumber,'(I2.2)') waveBandIndex
         etiket = 'PERT001_WB' // trim(waveBandNumber)
       end if
-      if (nInstance == 1) then
-        fileName = './ens_pert001.fst'
-      else
-        write(instanceNumber,'(I2.2)') instanceIndex
-        fileName = './ens_pert001_i' // trim(instanceNumber) // '.fst'
-      end if
+      write(instanceNumber,'(I2.2)') instanceIndex
+      fileName = './ens_pert001_i' // trim(instanceNumber) // '.fst'
+
       call gsv_writeToFile(statevector,fileName,etiket, & ! IN
                            dnens2,HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )    ! IN
       call gsv_deallocate(statevector)
@@ -2419,12 +2505,9 @@ CONTAINS
           write(waveBandNumber,'(I2.2)') waveBandIndex
           etiket = 'STDDEV_WB' // trim(waveBandNumber)
        end if
-       if (nInstance == 1) then
-         fileName = './ens_stddev.fst'
-       else
-         write(instanceNumber,'(I2.2)') instanceIndex
-         fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
-       end if
+       write(instanceNumber,'(I2.2)') instanceIndex
+       fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
+
        call gsv_writeToFile(statevector,fileName,etiket,                         & ! IN
                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
        call gsv_deallocate(statevector)
@@ -2517,6 +2600,17 @@ CONTAINS
     stepIndex = bEns(instanceIndex)%amp3dStepIndexAssimWindow
 
   end function ben_getAmp3dStepIndexAssimWindow
+
+  !--------------------------------------------------------------------------
+  ! ben_getNumInstance
+  !--------------------------------------------------------------------------
+  function ben_getNumInstance() result(numInstance)
+    implicit none
+    integer  :: numInstance
+
+    numInstance = nInstance
+
+  end function ben_getNumInstance
 
   !--------------------------------------------------------------------------
   ! ben_getNumLoc

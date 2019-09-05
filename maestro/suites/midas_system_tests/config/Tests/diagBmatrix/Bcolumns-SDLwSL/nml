@@ -1,0 +1,65 @@
+ &NAMCT0
+/
+ &NCONF
+/
+ &NAMDIAG
+   DIAGDATE = 2016070112
+   ONEOBS_LEVS = 1
+   ONEOBS_LONLAT(1,:) = 198, 110
+   ONEOBS_LONLAT(2,:) = 198, 250
+   ONEOBS_LONLAT(3,:) = 450, 110
+   ONEOBS_LONLAT(4,:) = 450, 250
+/
+ &NAMBHI
+   NTRUNC  = 250,
+   SCALEFACTOR   = 100*0.00D0
+/
+ &NAMBEN
+   NTRUNC       = 80,
+   NENS         = 16
+   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
+   WAVEBANDPEAKS = 80,20,4
+   waveBandIndexSelected = 1
+   hLocalize    = 250.d0
+   vLocalize    = -1.d0
+   SCALEFACTOR  = 100*1.00D0
+   ENSPATHNAME  ='./ensemble/'
+   ensContainsFullField = .false.
+   !ensDiagnostic = .true.
+/
+ &NAMBEN
+   NTRUNC       = 80,
+   NENS         = 16
+   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
+   WAVEBANDPEAKS = 80,20,4
+   waveBandIndexSelected = 2
+   hLocalize    = 500.d0
+   vLocalize    = -1.d0
+   SCALEFACTOR  = 100*1.00D0
+   ENSPATHNAME  ='./ensemble/'
+   ensContainsFullField = .false.
+   !ensDiagnostic = .true.
+/
+ &NAMBEN
+   NTRUNC       = 80,
+   NENS         = 16
+   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
+   WAVEBANDPEAKS = 80,20,4
+   waveBandIndexSelected = 3
+   hLocalize    = 1000.d0
+   vLocalize    = -1.d0
+   SCALEFACTOR  = 100*1.00D0
+   ENSPATHNAME  ='./ensemble/'
+   ensContainsFullField = .false.
+   !ensDiagnostic = .true.
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='P0'
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
