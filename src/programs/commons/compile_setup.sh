@@ -65,8 +65,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     . ssmuse-sh -x comm/eccc/cmdd/rttov/rttov-1.0/serial/disable-shared/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.1"
-    . r.load.dot eccc/mrd/rpn/libs/19.1
+    echo "... loading eccc/mrd/rpn/libs/19.2-beta"
+    . r.load.dot eccc/mrd/rpn/libs/19.2-beta
     ## for openmpi
     echo "... loading hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045"
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
@@ -80,8 +80,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     module load cray-hdf5
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.1"
-    . r.load.dot eccc/mrd/rpn/libs/19.1
+    echo "... loading eccc/mrd/rpn/libs/19.2-beta"
+    . r.load.dot eccc/mrd/rpn/libs/19.2-beta
     echo "... loading cray-hdf5"
     module load cray-hdf5
     echo "... loading cray-netcdf"
