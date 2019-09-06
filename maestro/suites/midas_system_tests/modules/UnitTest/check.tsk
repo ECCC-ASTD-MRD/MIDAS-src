@@ -80,24 +80,24 @@ function check_result {
         fi
 
         if [ "${method}" = fstcomp ]; then
+	    filterFstcomp () {
+		cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3  E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    }
+
             ln -s ${rfrn} rfrn
             ln -s ${live_file} live
 	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
-	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
-AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    filterFstcomp
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
-                maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	        rm fstcomp.list fstcomp.list.grep rfrn
+                maxerror=$(awk '{if ($(NF-1)>maxerror) { maxerror=$(NF-1); var=$1; niv=$3 " " $4 } } END{print maxerror, var, niv}' fstcomp.list.grep)
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
-	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
-AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+		filterFstcomp
 	        if [ -s fstcomp.list.grep ]; then
 		    not_validating="yes"
-                    maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
+                    maxerror=$(awk '{if ($(NF-1)>maxerror) { maxerror=$(NF-1); var=$1; niv=$3 " " $4 } } END{print maxerror, var, niv}' fstcomp.list.grep)
 	        fi
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
         elif [ "${method}" = cmp ]; then
 	    cmp ${live_file} ${rfrn} || not_validating="yes"
@@ -263,7 +263,11 @@ EOF
 
     if [ -n "${not_validating}" ]; then
         if [ "${method}" = fstcomp -a -n "${maxerror}" ]; then
-            message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror})"
+	    set ${maxerror}
+	    maxerror=$1
+	    var=$(echo $2 | sed 's/^<//')
+	    niv=$(echo $3 $4)
+            message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror} for variable ${var} at level '${niv}')"
         else
 	    message="The file ${file} does not validate with method '${method}'!"
         fi
