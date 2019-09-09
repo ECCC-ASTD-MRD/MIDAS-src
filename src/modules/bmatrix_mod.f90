@@ -108,7 +108,7 @@ contains
       case ('HI')
 
         !- 2.1 Time-Mean Homogeneous and Isotropic...
-        nBmatInstance = 1 ! hardiwred
+        nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
         if ( globalGrid ) then
@@ -128,7 +128,7 @@ contains
       case ('LATB')
 
         !- 2.2 Time-Mean Lat-Bands...
-        nBmatInstance = 1 ! hardiwred
+        nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
         if ( globalGrid ) then
@@ -154,7 +154,7 @@ contains
       case ('CHM')
 
         !- 2.4  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        nBmatInstance = 1 ! hardiwred
+        nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
         if ( globalGrid ) then
@@ -171,7 +171,7 @@ contains
       case ('DIFF')
 
         !- 2.5 Covariances modelled using a diffusion operator.
-        nBmatInstance = 1 ! hardiwred
+        nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
         write(*,*)
@@ -225,7 +225,7 @@ contains
       else
         write(*,*) "   NOT USED"
       end if
-       write(*,*) "     -> label       = ", bmatLabelList (bmatIndex)
+      write(*,*) "     -> label       = ", bmatLabelList (bmatIndex)
       write(*,*) "     -> type        = ", bmatTypeList  (bmatIndex)
       if (active) then
         write(*,*) "     -> is 3D       = ", bmatIs3dList  (bmatIndex)
