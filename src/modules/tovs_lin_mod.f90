@@ -373,7 +373,7 @@ contains
            calcemis,                                              & ! in
            emissivity_local,                                      & ! in
            emissivity_tl,                                         & ! inout
-           nthreads=nthreads )          ! in
+           nthreads=nthreads )                                      ! in
                
       if (errorstatus /= 0) then
         Write(*,*) "Error in rttov_parallel_tl",errorstatus

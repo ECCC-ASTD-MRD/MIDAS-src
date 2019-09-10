@@ -642,7 +642,7 @@ CONTAINS
         channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor), tvs_nchan(nosensor), channelIndex)
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
-                                channelIndex, tvs_profiles(tovsIndex)%p, ensObs%logPres(obsIndex))
+                                channelIndex, tvs_profiles_nl(tovsIndex)%p, ensObs%logPres(obsIndex))
           if(mpi_myid == 0) then
             write(*,*) 'eob_setLogPres for tovs: ', codType(obsIndex), obsPPP(obsIndex), 0.01*exp(ensObs%logPres(obsIndex))
           end if

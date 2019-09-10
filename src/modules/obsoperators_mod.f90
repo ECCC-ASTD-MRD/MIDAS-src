@@ -1697,7 +1697,8 @@ contains
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,beSilent)
+    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,"nl",limlvhu,beSilent)
+
     if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 2.   Compute radiance
@@ -2223,7 +2224,7 @@ contains
       !
       if (min_nsim == 1) then
         datestamp = tim_getDatestamp()
-        call tvs_fillProfiles(columng, obsSpaceData, datestamp, filt_rlimlvhu, .false.)
+        call tvs_fillProfiles(columng, obsSpaceData, datestamp, "tlad", filt_rlimlvhu, .false.)
       end if
 
 

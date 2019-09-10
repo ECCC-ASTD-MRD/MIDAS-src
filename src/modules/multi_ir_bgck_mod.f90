@@ -635,7 +635,8 @@ contains
           if (btCalc(channelIndex) > 350.d0) rejflag(channelIndex,9) = 1
         end do
 
-        ksurf = tvs_profiles(tvs_nobtov) % skin % surftype
+        ksurf = tvs_profiles_nl(tvs_nobtov) % skin % surftype
+
         !Test pour detecter l angle zenithal  manquant (-1) ou anormal
         ! (angle negatif ou superieur a 75 degres )
         satelliteZenithAngle= obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
@@ -2525,7 +2526,7 @@ contains
     end if
 
 
-    nlevels =  tvs_profiles(iptobs(1))% nlevels
+    nlevels =  tvs_profiles_nl(iptobs(1))% nlevels
   
     nchannels = NIR
 
@@ -2555,7 +2556,7 @@ contains
          errorstatus,             & ! out
          chanprof,                & ! in
          tvs_opts(1),             & ! in
-         tvs_profiles(iptobs(:)), & ! in
+         tvs_profiles_nl(iptobs(:)), & ! in
          coefs_avhrr,             & ! in
          transmission,            & ! inout
          radiancedata_d,          & ! out
