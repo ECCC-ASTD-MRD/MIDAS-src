@@ -33,7 +33,7 @@ module controlVector_mod
 
   type struct_cvm
     private
-    character(len=8) :: label                  = 'XXXXXXXX'
+    character(len=9) :: label                  = 'XXXXXXXXX'
     character(len=4) :: BmatrixType            = 'XXXX'
     integer          :: dimVector              = 0
     integer          :: subVectorBeg           = 1
@@ -43,7 +43,7 @@ module controlVector_mod
     integer          :: subVectorEnd_mpiglobal = 0
   end type struct_cvm
 
-  integer, parameter :: maxNumVectors = 5
+  integer, parameter :: maxNumVectors = 50
   integer            :: numVectors = 0
   type(struct_cvm)   :: cvm_vector(maxNumVectors)
 
@@ -74,6 +74,11 @@ contains
     if ( dimVector_mpiglobal == 0 ) return
 
     numVectors = numVectors + 1
+
+    if ( any(cvm_vector(:)%label == label) ) then
+      write(*,*) 'cvm_setupSubVector: label = ', trim(label)
+      call utl_abort('cvm_setupSubVector: this label is already present')
+    end if
 
     cvm_vector(numVectors)%label = label
     cvm_vector(numVectors)%BmatrixType = BmatrixType

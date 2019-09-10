@@ -273,24 +273,23 @@ CONTAINS
     !
 
     !  2.1 Determine localization length scale for each vertical level
-    if ( ( trim(localizationMode) == 'LevelDependent' .and. horizLengthScale2 < 0.0d0 ) .or. &
-           trim(localizationMode) == 'ScaleDependent' ) then
-       ! vertically constant horizontal localization
-       horizLengthScaleAll(:) = horizLengthScale1
+    if ( trim(localizationMode) == 'LevelDependent' .and. horizLengthScale2 > 0.0d0 ) then
+      ! vertically varying horizontal localization (linear in log P)
+      do levIndex = 1, lsp%nLev
+        horizLengthScaleAll(levIndex) = ( horizLengthScale1*( log(pressureProfile(levIndex)) - &
+                                                              log(pressureProfile(1       )) ) +    &
+                                          horizLengthScale2*( log(pressureProfile(lsp%nLev   )) - &
+                                                              log(pressureProfile(levIndex)) ) ) /  &
+                                         ( log(pressureProfile(lsp%nLev))-log(pressureProfile(1)) )
+        if (mpi_myid == 0) then
+          write(*,*) 'loc: localization length scale (',levIndex,') = ',horizLengthScaleAll(levIndex)
+        end if
+      end do
     else
-       ! vertically varying horizontal localization (linear in log P)
-       do levIndex = 1, lsp%nLev
-          horizLengthScaleAll(levIndex) = ( horizLengthScale1*( log(pressureProfile(levIndex)) - &
-                                          log(pressureProfile(1       )) ) +    &
-                                            horizLengthScale2*( log(pressureProfile(lsp%nLev    )) - &
-                                          log(pressureProfile(levIndex)) ) ) /  &
-                                          ( log(pressureProfile(lsp%nLev))-log(pressureProfile(1)) )
-          if (mpi_myid == 0) then
-             write(*,*) 'loc: localization length scale (',levIndex,') = ',horizLengthScaleAll(levIndex)
-          end if
-       end do
+      ! vertically constant horizontal localization
+       horizLengthScaleAll(:) = horizLengthScale1
     end if
-
+    
     !- 2.2 Compute the matrix
     if (lsp%global) then
        call setupGlobalSpectralHLoc(lsp,horizLengthScaleAll) ! IN

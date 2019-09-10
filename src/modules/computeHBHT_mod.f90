@@ -193,7 +193,9 @@ module computeHBHT_mod
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
       INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
 
-      integer :: nLev_M,nLev_T,status,shift_level,Vcode_anl,cvdim
+      integer :: nLev_M,nLev_T,status,shift_level,Vcode_anl
+
+      integer :: cvdim
 
       real(8), allocatable  :: scaleFactor(:)
 
@@ -704,7 +706,8 @@ module computeHBHT_mod
 
   real(8), allocatable :: HBHT_ens(:)
 
-  integer :: memberIndex, index_body, cvdim
+  integer :: memberIndex, index_body
+  integer, allocatable :: cvdim(:)
 
   !
   !- 1.  Initialization
@@ -720,7 +723,7 @@ module computeHBHT_mod
                   cvdim,               & ! OUT
                   'BackgroundCheck' )    ! IN
 
-  if ( cvdim > 0 ) then
+  if ( cvdim(1) > 0 ) then
      write(*,*)
      write(*,*) 'Computing HBHT from ensemble perturbations - START'
      active = .true.

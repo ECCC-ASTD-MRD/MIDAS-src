@@ -131,10 +131,9 @@ contains
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kref, mref, nref
-    integer                         :: m, n, k, ila, nfact_lon, nfact_lat
+    integer                         :: m, n, k, kMax, ila, nfact_lon, nfact_lat
     integer                         :: ier, ilaglb, i, j, p
-    real(8)                         :: a, b, r
-    real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq
+    real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq, r
     real(8)                         :: NormFactor1, NormFactor2, NormFactor3
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
@@ -156,7 +155,6 @@ contains
 
     lst%ni     = ni_in
     lst%nj     = nj_in
-    lst%ktrunc = ktrunc_in
     lst%nphase = nphase
     lst%nip    = nip
     lst%njp    = njp
@@ -206,31 +204,6 @@ contains
     write(*,'(A,f8.1)') ' lst_Setup: Your grid spacing (in km) = ', RA*dlon_in/1000.0
     write(*,*) '           Max wavenumbers in x-axis = ', lst%mmax            
     write(*,*) '           Max wavenumbers in y-axis = ', lst%nmax
-    if      (lst%ktrunc > nint(sqrt(real(lst%mmax)**2+real(lst%nmax)**2))) then
-      write(*,*)
-      write(*,*) 'lst_Setup: Warning: Truncation is larger than sqrt(mmax^2+nmax^2)'
-      write(*,*) '           NO TRUNCATION will be applied'
-    else if (lst%ktrunc > min(lst%mmax,lst%nmax)) then
-      write(*,*)
-      if (lst%ktrunc > lst%mmax) then
-         write(*,*) 'lst_Setup: Warning: Truncation is larger than mmax only'
-         write(*,*) '           TRUNCATION will be applied only above nmax'
-         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
-                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
-      else
-         write(*,*) 'lst_Setup: Warning: Truncation is larger than nmax only'
-         write(*,*) '           TRUNCATION will be applied only above mmax'
-         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
-                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
-      end if
-    else
-      write(*,*)
-      write(*,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst%ktrunc
-      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
-                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
-      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
-                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
-    end if
 
     !- 1.3 MPI Strategy
 
@@ -485,12 +458,48 @@ contains
        call utl_abort('lst_setup')
     end select
 
+    kMax = nint(lst_totalWaveNumber(lst%mmax,lst%nmax,mref,nref,kref))
+
+    if (ktrunc_in == -1) then ! no truncation case
+      lst%ktrunc = kMax
+    else
+      if (ktrunc_in > 0) then
+        lst%ktrunc = ktrunc_in
+      else
+        call utl_abort('lst_setup: invalid truncation')
+      end if
+    end if
+
+    if      (lst%ktrunc >= kMax) then
+      write(*,*)
+      write(*,*) 'lst_Setup: Warning: Truncation is larger than kMax'
+      write(*,*) '           NO TRUNCATION will be applied'
+    else if (lst%ktrunc > min(lst%mmax,lst%nmax)) then
+      write(*,*)
+      if (lst%ktrunc > lst%mmax) then
+         write(*,*) 'lst_Setup: Warning: Truncation is larger than mmax only'
+         write(*,*) '           TRUNCATION will be applied only above nmax'
+         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
+      else
+         write(*,*) 'lst_Setup: Warning: Truncation is larger than nmax only'
+         write(*,*) '           TRUNCATION will be applied only above mmax'
+         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
+      end if
+    else
+      write(*,*)
+      write(*,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst%ktrunc
+      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+                     (lst%ni*RA*dlon_in/1000.0)/lst%ktrunc
+      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+                     (lst%nj*RA*dlon_in/1000.0)/lst%ktrunc
+    end if
+
     ila = 0
     do n = lst%mynBeg, lst%mynEnd, lst%mynSkip
       do m = lst%mymBeg, lst%mymEnd, lst%mymSkip
-         a = real(m,8)/real(mref,8)
-         b = real(n,8)/real(nref,8)
-         r = real(kref,8) * sqrt((a**2) + (b**2)) ! Ellipse Shape if nref /= mref
+         r = lst_totalWaveNumber(m,n,mref,nref,kref)
          k = nint(r) ! or ceiling(r) as in Denis et al. ?
          if (k <= lst%ktrunc) then
             ila = ila +1
@@ -701,6 +710,19 @@ contains
     lst%allocated = .true.
 
   end subroutine lst_Setup
+
+  !--------------------------------------------------------------------------
+  ! lst_totalWaveNumber
+  !--------------------------------------------------------------------------
+  function lst_totalWaveNumber(m,n,mref,nref,kref) result(r)
+    integer :: m, n, mref, nref, kref
+    real(8) :: a, b, r
+
+    a = real(m,8)/real(mref,8)
+    b = real(n,8)/real(nref,8)
+    r = real(kref,8) * sqrt((a**2) + (b**2)) ! Ellipse Shape if nref /= mref
+
+  end function lst_totalWaveNumber
 
   !--------------------------------------------------------------------------
   ! lst_VARTRANSFORM
