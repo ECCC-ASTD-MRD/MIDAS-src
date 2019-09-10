@@ -316,7 +316,7 @@ contains
                  column,                & ! OUT (H_horiz EnsPert)
                  columng, obsSpaceData )  ! IN
     !- 2.3 Interpolation to observation space
-    call oop_Htl(column,columng,obsSpaceData,min_nsim=1)
+    call oop_Htl(column,columng,obsSpaceData)
 
   !- Copy from OBS_WORK to OBS_HPHT
 
