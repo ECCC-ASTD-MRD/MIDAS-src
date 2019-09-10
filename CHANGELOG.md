@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
- * Multipled instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
+ * Added ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
  * Added many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
    * Also includes Yin-Yang grid compatibility and additional procedures for quality control, data selection and modification of obs error to facilitate comparison with the current EnKF
  * Add new variables to varnamelist_mod useful for ensManip to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236, !240)
