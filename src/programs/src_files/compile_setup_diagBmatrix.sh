@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="descrip $MPILIB random"
+LIBAPPL="vgrid irc $MPILIB random"
 

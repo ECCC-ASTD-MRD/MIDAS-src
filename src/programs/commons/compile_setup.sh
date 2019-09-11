@@ -30,8 +30,8 @@ fi
 #---------------------------------------------------------------
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
     ## for s.compile, s.f90
-    echo "... loading hpco/tmp/eccc/201402/06/base"
-    . ssmuse-sh -d hpco/tmp/eccc/201402/06/base
+    echo "... loading hpco/tmp/eccc/201402/07/base"
+    . ssmuse-sh -d hpco/tmp/eccc/201402/07/base
     echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
@@ -40,8 +40,8 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     LIBIRC=irc
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
     ## for s.compile, s.f90
-    echo "... loading hpco/tmp/eccc/201402/06/base"
-    . ssmuse-sh -d hpco/tmp/eccc/201402/06/base
+    echo "... loading hpco/tmp/eccc/201402/07/base"
+    . ssmuse-sh -d hpco/tmp/eccc/201402/07/base
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
@@ -138,11 +138,14 @@ else
 fi
 
 if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O 0'"
-    COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
-    COMPF="${COMPF_NOC} =-C"
     FOPTMIZ=0
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -check all -O ${FOPTMIZ}'"
+    COMPF_NOC="${COMPF_GLOBAL} -debug ${OPTF}"
+    COMPF="${COMPF_NOC} -check all"
 else
-    COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
+    COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}
 fi
+
+GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
+GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"

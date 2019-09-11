@@ -2,7 +2,7 @@
 
 set -e
 
-export MAKE_LINKS_MACHINE_LIST="eccc-ppp4 daley"
+export MAKE_LINKS_MACHINE_LIST="eccc-ppp3 daley"
 
 MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
