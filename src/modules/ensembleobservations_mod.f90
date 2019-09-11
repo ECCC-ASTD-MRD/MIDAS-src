@@ -160,6 +160,7 @@ CONTAINS
     call eob_setAssFlag(ensObs)
 
     numObsClean = 0
+    obsCleanIndex = 0
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) numObsClean = numObsClean + 1
     end do

@@ -16,7 +16,7 @@ else
     exit 1
 fi
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
@@ -89,7 +89,7 @@ done
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
 ./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on 'daley' for platform 'sles-15-skylake-64-xc50'"
+echo "Checking if all programs have been compiled on '${host}' for platform 'sles-15-skylake-64-xc50'"
 ./check_if_all_programs_compiled.sh sles-15-skylake-64-xc50 ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
