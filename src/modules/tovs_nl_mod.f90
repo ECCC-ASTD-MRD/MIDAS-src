@@ -1827,16 +1827,16 @@ contains
     end if
     if ( profileType == "nl" ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(tvs_nobtov) , stat=alloc_status(1) )
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_fillProfiles tvs_profiles_nl")
+        allocate(tvs_profiles_nl(tvs_nobtov) , stat=allocStatus(1) )
+        call utl_checkAllocationStatus(allocStatus(1:1), " tvs_fillProfiles tvs_profiles_nl")
       else
         return
       end if
       profiles => tvs_profiles_nl
     else if ( profileType == "tlad" ) then
       if ( .not. allocated( tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(tvs_nobtov) , stat=alloc_status(1) )
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_fillProfiles tvs_profiles_tlad")
+        allocate(tvs_profiles_tlad(tvs_nobtov) , stat=allocStatus(1) )
+        call utl_checkAllocationStatus(allocStatus(1:1), " tvs_fillProfiles tvs_profiles_tlad")
       else
         return
       end if
@@ -1926,11 +1926,9 @@ contains
         headerIndex = tvs_headerIndex(tovsIndex)
         sensorHeaderIndexes(profileCount) = headerIndex
 
-!        if ( .not. associated( profiles(iobs)%t ) ) then
-        call rttov_alloc_prof(alloc_status(1), 1, profiles(iobs:iobs), nlv_T,  &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(sensor_id),asw=1,coefs=tvs_coefs(sensor_id),init=.true. ) ! asw =1 allocation
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_fillProfiles")
-!        end if
+        call rttov_alloc_prof(allocStatus(1), 1, profiles(tovsIndex:tovsIndex), nlv_T,  &    ! 1 = nprofiles un profil a la fois
+             tvs_opts(sensorIndex),asw=1,coefs=tvs_coefs(sensorIndex),init=.true. ) ! asw =1 allocation
+        call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_fillProfiles")
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
         ksurf = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)

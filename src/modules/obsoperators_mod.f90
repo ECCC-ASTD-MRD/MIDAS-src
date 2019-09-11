@@ -3006,16 +3006,9 @@ contains
 
 
       datestamp = tim_getDatestamp()
-      if ( trim(obsoperMode) == 'bgckIR') then
-        call tvs_fillProfiles(columng,obsSpaceData,datestamp,"tlad",filt_rlimlvhu,.true.,.false.)
-      else
-        call tvs_fillProfiles(columng,obsSpaceData,datestamp,"tlad",filt_rlimlvhu,.false.,.false.)
-      end if
-
-
+      call tvs_fillProfiles(columng,obsSpaceData,datestamp,"tlad",filt_rlimlvhu,.false.)
 
       call tvslin_rttov_ad(column,columng,obsSpaceData)
-
 
     end subroutine oop_HTto
 

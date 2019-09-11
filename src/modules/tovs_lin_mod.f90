@@ -451,7 +451,7 @@ contains
 
     integer :: allocStatus(17)
     integer :: omp_get_num_threads, nthreads
-    integer :: nRttovLevels,nobmax
+    integer :: nobmax
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_T,ilowlvl_M,profileCount,headerIndex,nlv_M,nlv_T
     integer :: profileIndex, levelIndex

@@ -444,7 +444,7 @@ contains
 
     nchn = tvs_coefs(id) % coef % fmv_chn
 
-    nlv_T = col_getNumLev(lcolumnhr,'TH')
+    nlv_T = col_getNumLev(columnHr,'TH')
 
     write(*,*) ' irbg_doQualityControl - nchn ', nchn
    
@@ -507,15 +507,7 @@ contains
     difftop_min = 100000.d0
     modelTopIndex = 1
 
-!    ptop_T = col_getPressure(columnHr,1,1,'TH')
-!    do levelIndex = 1, levelsBelowModelTop
-!      if ( abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex)) < difftop_min ) then
-!        difftop_min = abs(ptop_T - 100.d0 * pressureInterpolated(levelIndex))
-!        modelTopIndex = levelIndex
-!      end if
-!    end do
-    !  Find radiative transfer model level nearest to trial top (only compute one time)
-
+    ptop_T = col_getPressure(columnHr,1,1,'TH')
 
     write(*,*) 'TOIT DU MODELE (MB)'
     write(*,*) 0.01d0 * ptop_T
@@ -585,10 +577,6 @@ contains
           pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
         end do
         qs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
-
-!        call ppo_lintv (pressure(:,1:1),height(:,1:1),nlv_T,1, &
-!             levelsBelowModelTop,pressureInterpolated,heightInterpolated(:,1:1))
-
 
         bodyStart   = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyStart - 1
@@ -908,14 +896,14 @@ contains
         end do
 
         call cloud_top ( ptop_bt,ptop_rd,ntop_bt,ntop_rd, &
-             btObs,tt,height,rcal_clr,p0,radObs,cloudyRadiance,pressure, &
+             btObs,tt,height(:,1),rcal_clr,p0,radObs,cloudyRadiance,pressure(:,1), &
              cldflag, lev_start, iopt2, ihgt, ilist_he,rejflag_opt=rejflag,ichref_opt=ichref)
 
         if (liasi) then
           lev_start_avhrr(:) = 0
           do classIndex=1,nClassAVHRR
             call cloud_top( ptop_bt_avhrr(:,classIndex),ptop_rd_avhrr(:,classIndex),ntop_bt_avhrr(:,classIndex),ntop_rd_avhrr(:,classIndex), &
-                 btObs_avhrr(:,classIndex),tt,height,rcal_clr_avhrr,p0,radObs_avhrr(:,classIndex),cloudyRadiance_avhrr,pressure, &
+                 btObs_avhrr(:,classIndex),tt,height(:,1),rcal_clr_avhrr,p0,radObs_avhrr(:,classIndex),cloudyRadiance_avhrr,pressure(:,1), &
                  cldflag_avhrr(classIndex),lev_start_avhrr(classIndex),iopt2,ihgt,ilist_avhrr)
           end do
         end if
@@ -953,13 +941,13 @@ contains
         end if
         !  Cloud top based on co2 slicing 
 
-        CO2MIN = minloc( abs( ZLEVMOD(:) - pco2min ) )
-        CO2MAX = minloc( abs( ZLEVMOD(:) - pco2max ) )
+        co2min = minloc( abs( pressure(:,1) - pco2min ) )
+        co2max = minloc( abs( pressure(:,1) - pco2max ) )
         
         lev_start = max( min(lev_start,co2max(1)), co2min(1) )
 
         call co2_slicing ( ptop_co2, ntop_co2, fcloud_co2, &
-             rcal_clr, cloudyRadiance, radObs, p0, pressure, cldflag, rejflag, &
+             rcal_clr, cloudyRadiance, radObs, p0, pressure(:,1), cldflag, rejflag, &
              lev_start, ichref, ilist_co2, ilist_co2_pair)
 
         !  -- Find consensus cloud top and fraction
@@ -1017,7 +1005,7 @@ contains
         end if
 
         !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds        
-        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm, pressure, cldflag, modelTopIndex)
+        call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm, pressure(:,1), cldflag, modelTopIndex)
         !  -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
         ! *** Test # 3 ***
