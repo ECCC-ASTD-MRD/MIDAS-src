@@ -186,25 +186,6 @@ contains
     allocate( tvs_surfaceParameters(tvs_nobtov), stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), " irbg_setup tvs_surfaceParameters")
 
-    !___ radiance by profile
-    do tovsIndex = 1, tvs_nobtov
-      sensorIndex = tvs_lsensor(tovsIndex)
-      channelNumber = 81
-      nlevels = tvs_coefs(sensorIndex) % coef % nlevels
-      ! allocate clear sky radiance output
-      allocate( tvs_radiance(tovsIndex)  % clear  ( channelNumber ) ,stat= allocStatus(2) )
-      tvs_radiance(tovsIndex)  % clear  ( : ) = 0.d0
-      !  allocate overcast black cloud sky radiance output
-      allocate( tvs_radiance(tovsIndex)  % overcast  (nlevels - 1,channelNumber), stat=allocStatus(1))
-      call utl_checkAllocationStatus(allocStatus(1:1), " irbg_setup")
-      tvs_radiance(tovsIndex)  % overcast  (:,:) = 0.d0
-    end do
-
-
-    !___ transmission by profile
-
-    call tvs_allocTransmission(81)
-
     !___ emissivity by profile
 
     maxChannelNumber = 1
@@ -2468,7 +2449,7 @@ contains
     ! locals
     type (rttov_chanprof)  :: chanprof(3)
     logical :: calcemis  (3)
-    integer ::  list_sensor (3),errorstatus,allocStatus(2)
+    integer ::  list_sensor (3),errorstatus,allocStatus
     integer, save :: idiasi_old=-1
     integer :: ich
     integer :: ichan_avhrr (NIR)
@@ -2502,7 +2483,6 @@ contains
            tvs_opts(1),                    &! in
            channels=ichan_avhrr,           &! in
            instrument=list_sensor )         ! in
-
        
       if ( errorstatus /= 0) then
         write(*,*) "Probleme dans rttov_read_coefs !"
@@ -2513,9 +2493,9 @@ contains
    
     end if
 
+    iptobs(1) = headerIndex
+    nlevels =  tvs_profiles_nl(headerIndex)% nlevels
 
-    nlevels =  tvs_profiles_nl(iptobs(1))% nlevels
-  
     nchannels = NIR
 
     calcemis(:) = .false.
@@ -2527,19 +2507,25 @@ contains
       chanprof(ich) % chan = ich
     end do
 
-    ! allocate transmittance structure
     allocStatus = 0
-    allocate( transmission % tau_levels     ( nlevels, nchannels ) ,stat= allocStatus(1))
-    allocate( transmission % tau_total      ( nchannels )          ,stat= allocStatus(2))
-    call utl_checkAllocationStatus(allocStatus, " tovs_rttov_avhrr_for_IASI transmission")
-    transmission % tau_levels (:,:) = 0.0D0
-    transmission % tau_total (:) = 0.0D0
-    ! allocate radiance structure
+    call rttov_alloc_direct(            &
+         allocStatus,             &
+         asw=1,                        &
+         nprofiles=1,     & ! (not used)
+         nchanprof=nchannels,          &
+         nlevels=nlevels,       &
+         opts=tvs_opts(1),    &
+         coefs=coefs_avhrr,  &
+         transmission=transmission,  &
+         radiance=radiancedata_d,    &
+         init=.true.)
 
-    asw = 1 ! 1 to allocate,0 to deallocate
-    call rttov_alloc_rad (allocStatus(1),nchannels,radiancedata_d,nlevels,asw)
-    call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rttov_avhrr_for_IASI radiances")
-    iptobs(1) = headerIndex
+    if (allocStatus /= 0) then
+      write(*,*) "Memory allocation error"
+      call utl_abort('tovs_rttov_avhrr_for_IASI')
+    end if
+
+    
     call rttov_direct(            &
          errorstatus,             & ! out
          chanprof,                & ! in
@@ -2559,13 +2545,21 @@ contains
     avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
 
-    deallocate( transmission % tau_total    ,stat= allocStatus(1))
-    deallocate( transmission % tau_levels   ,stat= allocStatus(2))
-    call utl_checkAllocationStatus(allocStatus, " tovs_rttov_avhrr_for_IASI transmission", .false.)
+    call rttov_alloc_direct(            &
+         allocStatus,             &
+         asw=0,                        &
+         nprofiles=1,     & ! (not used)
+         nchanprof=nchannels,          &
+         nlevels=nlevels,       &
+         opts=tvs_opts(1),    &
+         coefs=coefs_avhrr,  &
+         transmission=transmission,  &
+         radiance=radiancedata_d )
 
-    asw = 0 ! 1 to allocate,0 to deallocate
-    call rttov_alloc_rad (allocStatus(1),nchannels,radiancedata_d,nlevels,asw)
-    call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rttov_avhrr_for_IASI radiances", .false.)
+    if (allocStatus /= 0) then
+      write(*,*) "Memory deallocation error"
+      call utl_abort('tovs_rttov_avhrr_for_IASI')
+    end if
   
   end subroutine tovs_rttov_avhrr_for_IASI
 

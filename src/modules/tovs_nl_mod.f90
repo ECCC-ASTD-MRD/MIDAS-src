@@ -182,7 +182,6 @@ module tovs_nl_mod
   type(rttov_radiance), allocatable        :: tvs_radiance(:)       ! radiances organized by profile
   type(rttov_transmission), allocatable    :: tvs_transmission(:)   ! transmittances all profiles for HIR quality control
 
-
   integer, external :: get_max_rss
  
 contains
@@ -219,9 +218,9 @@ contains
     allocStatus = 0
     allocate (tvs_nchan(tvs_nsensors),                         stat= allocStatus(1))
     allocate (tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors), stat= allocStatus(2))
-    allocate (tvs_lsensor(obs_numheader(obsSpaceData)),       stat= allocStatus(3))
-    allocate (tvs_headerIndex (obs_numheader(obsSpaceData)),       stat= allocStatus(4))
-    allocate (tvs_tovsIndex(obs_numheader(obsSpaceData)),       stat= allocStatus(5))
+    allocate (tvs_lsensor(obs_numheader(obsSpaceData)),        stat= allocStatus(3))
+    allocate (tvs_headerIndex (obs_numheader(obsSpaceData)),   stat= allocStatus(4))
+    allocate (tvs_tovsIndex(obs_numheader(obsSpaceData)),      stat= allocStatus(5))
     allocate (tvs_isReallyPresent(tvs_nsensors),               stat= allocStatus(6))
     allocate (tvs_nchanMpiGlobal(tvs_nsensors),                stat= allocStatus(7))
     allocate (tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors), stat= allocStatus(8))
@@ -368,7 +367,7 @@ contains
         !< General RT options
         tvs_opts(sensorIndex) % rt_all % switchrad = .true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
         tvs_opts(sensorIndex) % rt_all % use_q2m = .false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
-        tvs_opts(sensorIndex) % rt_all % addrefrac = .true. ! to account for atmospheric refraction
+        tvs_opts(sensorIndex) % rt_all % addrefrac = .true.  ! to account for atmospheric refraction
         !< VIS/IR RT options
         tvs_opts(sensorIndex) % rt_ir % addsolar = .false.  ! to model solar component in the near IR (2000 cm-1 et plus)
         tvs_opts(sensorIndex) % rt_ir % addaerosl = .false. ! to account for scattering due to aerosols
@@ -2441,16 +2440,16 @@ contains
           tb1 = 1 + (profileIndex2-1) * tvs_nchan(sensorId) 
           tb2 = profileIndex2 * tvs_nchan(sensorId)
 
-          call rttov_parallel_direct(                                                            &
-               rttov_err_stat,                                                                   & ! out
-               chanprof1,                                                                        & ! in
-               tvs_opts(sensorId),                                                               & ! in
-               tvs_profiles_nl(sensorTovsIndexes(profileIndex2):sensorTovsIndexes(profileIndex2)),  & ! in
-               tvs_coefs(sensorId),                                                              & ! in
-               transmission1,                                                                    & ! inout
-               radiancedata_d1,                                                                  & ! inout
-               calcemis=calcemis(tb1:tb2),                                                       & ! in
-               emissivity=emissivity_local(tb1:tb2),                                             & ! inout
+          call rttov_parallel_direct(                                                              &
+               rttov_err_stat,                                                                     & ! out
+               chanprof1,                                                                          & ! in
+               tvs_opts(sensorId),                                                                 & ! in
+               tvs_profiles_nl(sensorTovsIndexes(profileIndex2):sensorTovsIndexes(profileIndex2)), & ! in
+               tvs_coefs(sensorId),                                                                & ! in
+               transmission1,                                                                      & ! inout
+               radiancedata_d1,                                                                    & ! inout
+               calcemis=calcemis(tb1:tb2),                                                         & ! in
+               emissivity=emissivity_local(tb1:tb2),                                               & ! inout
                nthreads=nthreads )   
 
           ! copy contents of single profile structures into complete structures
@@ -2510,8 +2509,8 @@ contains
         profileIndex = chanprof(btIndex)%prof
         channelIndex = chanprof(btIndex)%chan
         tovsIndex = sensorTovsIndexes(profileIndex)
-        tvs_radiance(tovsIndex) % bt(channelIndex) =     &
-             radiancedata_d % bt(btIndex)
+        tvs_radiance(tovsIndex) % bt(channelIndex) = radiancedata_d % bt(btIndex)
+
         if ( bgckMode ) then
           if ( .not. associated(tvs_radiance(tovsIndex)  % clear)) then 
             allocStatus = 0
