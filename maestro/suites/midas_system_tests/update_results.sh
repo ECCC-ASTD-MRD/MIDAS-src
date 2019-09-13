@@ -10,9 +10,17 @@ export SEQ_EXP_HOME
 
 gitworkdir=$(dirname $(true_path ${SEQ_EXP_HOME}))/../..
 
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+
+suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+if [ -z "${MACHINE_PPP}" ]; then
+    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+fi
+
 if [ -z "${version}" ]; then
     gitdescribe="cd ${gitworkdir}; git describe --always --abbrev=7 --dirty=_M 2>/dev/null"
-    version=$( eval ${gitdescribe}  || ssh eccc-ppp4 "${gitdescribe}" || echo unkown revision)
+    version=$( eval ${gitdescribe}  || ssh ${MACHINE_PPP} "${gitdescribe}" || echo unkown revision)
 fi
 
 if [ "${version}" = 'unknown revision' ]; then

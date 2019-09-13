@@ -1,6 +1,9 @@
 # Machine stuff
 FRONTEND=eccc-ppp3
-BACKEND=daley
+BACKEND=banting
+
+REFERENCE_MACHINE=eccc-ppp3
+REFERENCE_UPDATE_MACHINE=eccc-ppp3
 
 BACKEND_DEFAULT_Q=development
 FRONTEND_DEFAULT_Q=development
@@ -9,3 +12,4 @@ BACKEND_XFER_Q=xfer
 FRONTEND_XFER_Q=xfer
 
 SEQ_JOBNAME_PREFIX=midas-
+

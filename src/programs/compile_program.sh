@@ -12,6 +12,14 @@ deleteCompileDir=$3
 export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
 . ./commons/compile_setup.sh
 
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+
+suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+if [ -z "${COMPILING_MACHINE_PPP}" ]; then
+    COMPILING_MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+fi
+
 echo "..."
 echo "...             |=====================================================|"
 echo "... ------------| Compilation script STARTING for program: ${program}  "
@@ -58,7 +66,7 @@ modulesDir=$PWD/../modules
 depotDir=$PWD/..
 
 # Get revision number
-revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp4 "cd $modulesDir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh ${COMPILING_MACHINE_PPP} "cd $modulesDir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 
