@@ -27,6 +27,12 @@ if [ -z "${COMPILING_MACHINE_SUPER}" ]; then
     COMPILING_MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
 fi
 
+if [ "${COMPILING_MACHINE_SUPER}" = brooks -o "${COMPILING_MACHINE_SUPER}" = hare ]; then
+    PLAT_SUPER=sles-11-broadwell-64-xc40
+else
+    PLAT_SUPER=sles-15-skylake-64-xc50
+fi
+
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
 
@@ -89,8 +95,8 @@ done
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
 ./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform 'sles-15-skylake-64-xc50'"
-./check_if_all_programs_compiled.sh sles-15-skylake-64-xc50 ${MIDAS_ABS} || status=1
+echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}'"
+./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
     echo "All programs have been compiled correctly!"

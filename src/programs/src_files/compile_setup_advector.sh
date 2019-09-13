@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="vgrid irc $MPILIB"
+LIBAPPL="${VGRID_LIBNAME} irc $MPILIB"
 

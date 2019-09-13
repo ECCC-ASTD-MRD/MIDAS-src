@@ -95,6 +95,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     ## for 'vgrid'
     echo "... loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
     . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
+    VGRID_LIBNAME="descrip"
 
     ## for 'burplib'
     echo "... loading eccc/cmd/cmda/libs/16.2-6/${COMP_ARCH}"
@@ -106,10 +107,15 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
 
     echo "... loading eccc/mrd/rpn/anl/rttov/12v1.2"
     . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
+
+    ## for 'random_tools'
+    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0"
+    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
     echo "... loading eccc/mrd/rpn/vgrid/6.4.1"
     . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.1
+    VGRID_LIBNAME="vgrid"
 
     echo "... loading eccc/cmd/cmda/libs/19.1/${COMP_ARCH}"
     . ssmuse-sh -d eccc/cmd/cmda/libs/19.1/${COMP_ARCH}
@@ -120,11 +126,11 @@ elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-
 
     echo "... loading eccc/mrd/rpn/anl/rttov/12v1.3"
     . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.3/${COMP_ARCH}
-fi
 
-## for 'random_tools'
-echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
-. ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
+    ## for 'random_tools'
+    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
+    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
+fi
 
 COMPF_GLOBAL="-openmp -mpi"
 OPTF="-check noarg_temp_created -no-wrap-margin"
