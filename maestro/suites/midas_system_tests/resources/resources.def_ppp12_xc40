@@ -1,0 +1,29 @@
+# Machine stuff
+FRONTEND=eccc-ppp1
+BACKEND=brooks
+
+REFERENCE_MACHINE=eccc-ppp2
+REFERENCE_UPDATE_MACHINE=eccc-ppp2
+
+BACKEND_DEFAULT_Q=development
+FRONTEND_DEFAULT_Q=development
+
+BACKEND_XFER_Q=xfer
+FRONTEND_XFER_Q=xfer
+
+SEQ_JOBNAME_PREFIX=midas-
+
+# Define the number of openMP threads for various jobs
+NUMTHREAD_maxPerNode_ppp=44
+NUMTHREAD_var_EnVar_gdps=3
+NUMTHREAD_var_EnVar_geps=3
+NUMTHREAD_var_EnVar_rdps=6
+NUMTHREAD_var_EnVar_96mem_ppp_sqlite=3
+NUMTHREAD_var_EnVar_biFourier_xc40=3
+
+NUMTHREAD_var_Var3D_aladin_assim=1
+MEMORY_var_Var3D_aladin_assim=4500M
+NUMTHREAD_var_Var3D_gbc=8
+NUMTHREAD_var_Var3D_splitobs_xc40=2
+
+NUMTHREAD_var_vbc=6
