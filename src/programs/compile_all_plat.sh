@@ -98,7 +98,7 @@ done
 
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
-./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
+./check_if_all_programs_compiled.sh ${ORDENV_PLAT} ${MIDAS_ABS} || status=1
 echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}'"
 ./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
 
