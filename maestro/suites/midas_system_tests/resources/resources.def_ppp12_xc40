@@ -15,6 +15,7 @@ SEQ_JOBNAME_PREFIX=midas-
 
 # Define the number of openMP threads for various jobs
 NUMTHREAD_maxPerNode_ppp=44
+
 NUMTHREAD_var_EnVar_gdps=3
 NUMTHREAD_var_EnVar_geps=3
 NUMTHREAD_var_EnVar_rdps=6

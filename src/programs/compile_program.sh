@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# set the resources.def file, which depends on the TRUE_HOST name
+../../set_resources_def.sh
+
 if [ $# -lt 1 ]; then
     echo "compile_program.sh: You must give at least one argument which is the program the compile"
     exit 1

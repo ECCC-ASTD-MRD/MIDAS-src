@@ -2,6 +2,9 @@
 
 set -e
 
+# set the resources.def file, which depends on the TRUE_HOST name
+../../set_resources_def.sh
+
 if [ $# -eq 0 ]; then
     MIDAS_ABS=
     codedir=${PWD}
@@ -54,6 +57,7 @@ EOF
 #pbs_extra1='-Wblock=true'
 #ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_SUPER} -listing ${PWD} -w 60 -cpus 36
 
+set -x
 ## Using as many cpus as there are programs to compile
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 

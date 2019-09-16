@@ -2,20 +2,8 @@
 
 set -e
 
-if [ "${TRUE_HOST}" = eccc-ppp1 -o "${TRUE_HOST}" = eccc-ppp2 ]; then
-    resources_file=resources.def_ppp12_xc40
-elif [ "${TRUE_HOST}" = eccc-ppp3 -o "${TRUE_HOST}" = eccc-ppp4 ]; then
-    resources_file=resources.def_ppp34_xc50
-else
-    echo "Unknown TRUE_HOST: ${TRUE_HOST}"
-    exit
-fi
-echo ${resources_file}
-cd resources
-rm -f resources.def
-ln -s ${resources_file} resources.def
-cd ../
-#exit
+# set the resources.def file, which depends on the TRUE_HOST name
+../../../set_resources_def.sh
 
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
