@@ -16,6 +16,9 @@ else
     exit 1
 fi
 
+MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-eccc-ppp4}
+MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
+
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
 
@@ -36,17 +39,17 @@ EOF
 #ord_soumet compile_job -jn ${jobname} -mach daley    -listing ${PWD} -w 60 -cpus 36
 
 ## Using as many cpus as there are programs to compile
-jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp3 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
+jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
 ## On evite d'attendre en queue en faisant un 'ssh' directement sur 'daley'
-cat compile_job | ssh daley bash --login
+cat compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login
 rm compile_job
 
 function is_compilation_done {
     set -e
     __is_compilation_done_host__=${1}
 
-    if [ "${__is_compilation_done_host__}" = daley -o "${__is_compilation_done_host__}" = eccc-ppp3 ]; then
+    if [ "${__is_compilation_done_host__}" = ${MIDAS_COMPILE_BACKEND} -o "${__is_compilation_done_host__}" = ${MIDAS_COMPILE_FRONTEND} ]; then
         # the jobname is cut with 15 characters by 'jobst'
         jobstname=$(echo ${jobname} | cut -c-15)
     else
@@ -69,14 +72,14 @@ function is_compilation_done {
     unset __is_compilation_done_host__
 }
 
-for host in eccc-ppp3; do
+for host in ${MIDAS_COMPILE_FRONTEND}; do
     is_compilation_done ${host}
 done
 
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
 ./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on 'daley' for platform 'sles-15-skylake-64-xc50'"
+echo "Checking if all programs have been compiled on '${MIDAS_COMPILE_BACKEND}' for platform 'sles-15-skylake-64-xc50'"
 ./check_if_all_programs_compiled.sh sles-15-skylake-64-xc50 ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
