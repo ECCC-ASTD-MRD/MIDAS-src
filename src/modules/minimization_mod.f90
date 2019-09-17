@@ -1333,6 +1333,8 @@ CONTAINS
       if(mpi_myid == 0) then 
          write(*,*) 'min_hessianIO : reading Hessian'
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
+      else
+         allocate(vatravec_r4_mpiglobal(1))
       end if
       allocate(vatra_r4(nvadim_mpilocal))
 
