@@ -414,6 +414,7 @@ contains
 
           call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = azimuthReal_R8 )
           azimuthReal = azimuthReal_R8
+          azimuth = nint( azimuthReal * 100. )
           call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrainType, INT_MISSING=MPC_missingValue_INT )
 
         end if
@@ -434,7 +435,6 @@ contains
         if (codeType == 202 .and. instrument == 620) instrument = 2046
         zenith = nint ( (90. + zenithReal ) * 100. )
         solarZenith = nint ( (90. + solarZenithReal ) * 100. )
-        azimuth = nint( azimuthReal * 100. )
         cloudCover   = nint ( cloudCoverReal * 1.     )
         solarAzimuth = nint ( solarAzimuthReal * 100. )
         if ( terrainType ==  0 ) landSea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
