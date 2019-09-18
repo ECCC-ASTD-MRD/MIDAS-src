@@ -39,7 +39,7 @@ module obsFilter_mod
   ! public variables
   public :: filt_rlimlvhu
   ! public procedures
-  public :: filt_setup, filt_topo, filt_sethind, filt_suprep
+  public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
 
   integer filt_nelems, filt_nlist(30)
@@ -221,24 +221,6 @@ contains
     end if
 
   end subroutine filt_setup
-
-  subroutine filt_sethind(obsSpaceData)
-    implicit none
-    type(struct_obs) :: obsSpaceData
-    integer :: ij,idata,idatend,bodyIndex,headerIndex
-    !
-    ! Set the header index in the body of obsSpaceData
-    !
-    ij=0
-    do headerIndex = 1, obs_numheader(obsSpaceData)
-       idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-       idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
-       do bodyIndex= idata, idatend
-          ij   = ij+1
-          call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
-       end do
-    end do
-  end subroutine filt_sethind
 
 
   subroutine filt_suprep(obsSpaceData)

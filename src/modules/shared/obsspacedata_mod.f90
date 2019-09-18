@@ -1394,6 +1394,7 @@ module ObsSpaceData_mod
    public obs_set_current_body_list   ! set a body list for a family as current
    public obs_set_current_header_list ! set a header list for a family as current
    public obs_setFamily  ! set the family of a datum
+   public obs_sethind    ! set the header index in body table
    public obs_famExist   ! checks if a family is present in the observation set
    public obs_status     ! returns the values of the object's status variables
    public obs_write      ! write the observation data to binary files
@@ -6495,6 +6496,28 @@ contains
       endif
 
    end subroutine obs_setFamily
+
+
+   subroutine obs_sethind(obsSpaceData)
+     !
+     ! :PURPOSE: Set the header index in the body table
+     !
+     implicit none
+     type(struct_obs) :: obsSpaceData
+     integer :: ij,idata,idatend,bodyIndex,headerIndex
+     !
+     ! Set the header index in the body of obsSpaceData
+     !
+     ij=0
+     do headerIndex = 1, obs_numheader(obsSpaceData)
+        idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+        idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
+        do bodyIndex= idata, idatend
+           ij   = ij+1
+           call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+        end do
+     end do
+   end subroutine obs_sethind
 
 
    subroutine obs_status(obsdat, obs_full, numstns_out, numobs_out, kulout)

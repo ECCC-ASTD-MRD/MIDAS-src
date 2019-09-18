@@ -157,7 +157,7 @@ contains
     ! Filter out data from CMA
     !
     call tmg_start(14,'SUPREP')
-    call filt_sethind(obsSpaceData)
+    call obs_sethind(obsSpaceData)
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
 
