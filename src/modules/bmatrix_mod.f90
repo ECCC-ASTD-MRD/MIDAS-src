@@ -391,6 +391,7 @@ contains
     ! locals
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
+    real(8), target :: dummyVector(1)
 
     BMAT_LOOP: do bmatIndex = 1, numBmat
 
@@ -400,7 +401,7 @@ contains
       if ( mpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         subVector_mpiglobal => null()
+         subVector_mpiglobal => dummyVector
       end if
 
       select case( trim(bmatTypeList(bmatIndex)) )
@@ -459,6 +460,7 @@ contains
     ! locals
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
+    real(4), target :: dummyVector(1)
 
     BMAT_LOOP: do bmatIndex = 1, numBmat
 
@@ -468,7 +470,7 @@ contains
       if ( mpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         subVector_mpiglobal => null()
+         subVector_mpiglobal => dummyVector
       end if
 
       select case( trim(bmatTypeList(bmatIndex)) )
@@ -527,6 +529,7 @@ contains
     ! locals
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
+    real(8), target :: dummyVector(1)
 
     BMAT_LOOP: do bmatIndex = 1, numBmat
 
@@ -536,7 +539,7 @@ contains
       if ( mpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         subVector_mpiglobal => null()
+         subVector_mpiglobal => dummyVector
       end if
 
       select case( trim(bmatTypeList(bmatIndex)) )
@@ -595,6 +598,7 @@ contains
     ! locals
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
+    real(4), target :: dummyVector(1)
 
     BMAT_LOOP: do bmatIndex = 1, numBmat
 
@@ -604,7 +608,7 @@ contains
       if ( mpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         subVector_mpiglobal => null()
+         subVector_mpiglobal => dummyVector
       end if
 
       select case( trim(bmatTypeList(bmatIndex)) )
