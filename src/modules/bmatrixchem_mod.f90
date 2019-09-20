@@ -1634,7 +1634,7 @@ contains
         
         ! Move to rgsig
         if (inj == nj_l .and. ini == ni_l) then
-          rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)) = rgsig3d(:,:,1) 
+          rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)) = rgsig3d(1:ni_l,:,1) 
           rgsig(ni_l+1,:,nsposit(jvar)+(jlevo-1)) = rgsig3d(1,:,1)
         else
           ! Interpolate in lat and long

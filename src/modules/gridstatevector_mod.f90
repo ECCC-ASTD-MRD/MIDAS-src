@@ -2505,6 +2505,7 @@ module gridStateVector_mod
     ! set up vertical and horizontal coordinate for input file
     if ( present(vcoFileIn_opt)) then
       vco_file => vcoFileIn_opt
+      readSubsetOfLevels = .false.
     else
       call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
       readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)

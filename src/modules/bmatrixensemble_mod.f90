@@ -212,7 +212,7 @@ CONTAINS
     character(len=2)    :: ctrlVarHumidity
     character(len=32)   :: advectTypeAssimWindow
     character(len=32)   :: advectStartTimeIndexAssimWindow
-    logical             :: advectAmplitudeFSOFcst
+    logical             :: advectAmplitudeFSOFcst     = .false.
     logical             :: advectAmplitudeAssimWindow = .false.
     logical             :: advectEnsPertAnlInc        = .false.
     logical             :: removeSubEnsMeans
