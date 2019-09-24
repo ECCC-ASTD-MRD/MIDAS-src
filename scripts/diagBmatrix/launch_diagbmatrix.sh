@@ -65,7 +65,7 @@ cat << EOF > $TMPDIR/go_diagbmatrix.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
- . ssmuse-sh -d eccc/mrd/rpn/utils/19.2-beta
+ . ssmuse-sh -d eccc/mrd/rpn/utils/19.2
  
  # MPI SETUP FOR PPP ONLY
  if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
