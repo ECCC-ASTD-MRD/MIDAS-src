@@ -27,7 +27,6 @@ runtests:
    stage: test
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
-     MAKE_LINKS_MACHINE_LIST: "eccc-ppp4 daley"
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
      - cd maestro/suites/midas_system_tests
