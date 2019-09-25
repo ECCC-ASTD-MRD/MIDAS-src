@@ -48,6 +48,16 @@ contains
     ! Arguments:
     type(struct_gsv) :: statevector
 
+    ! Locals:
+    type(struct_vco), pointer :: vco_ptr
+    real(4), pointer :: lq_ptr_r4(:,:,:,:), hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
+    real(8), pointer :: lq_ptr_r8(:,:,:,:), hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
+    real(8), pointer :: pressure(:,:,:)
+    real(8)          :: hu, husat, hu_modified, tt
+    real(8), allocatable :: psfc(:,:)
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
+    integer          :: lonIndex, latIndex, levIndex, stepIndex
+
     if (mpi_myid == 0) write(*,*) 'qlim_gsvSaturationLimit: STARTING'
 
     if( .not. gsv_varExist(statevector,'HU') ) then
@@ -56,164 +66,84 @@ contains
       return
     end if
 
-    if ( statevector%dataKind == 8 ) then
-      call qlim_gsvSaturationLimit_r8(statevector)
-    else if ( statevector%dataKind == 4 ) then
-      call qlim_gsvSaturationLimit_r4(statevector)
+    vco_ptr => gsv_getVco(statevector)
+    if (stateVector%dataKind == 8) then
+      lq_ptr_r8 => gsv_getField_r8(statevector,'HU')
+      hu_ptr_r8 => gsv_getField_r8(statevector,'HU')
+      tt_ptr_r8 => gsv_getField_r8(statevector,'TT')
     else
-      call utl_abort('qlim_gsvSaturationLimit: only compatible with single or double precision ' // &
-           'data.')
+      lq_ptr_r4 => gsv_getField_r4(statevector,'HU')
+      hu_ptr_r4 => gsv_getField_r4(statevector,'HU')
+      tt_ptr_r4 => gsv_getField_r4(statevector,'TT')
     end if
+
+    lon1 = statevector%myLonBeg
+    lon2 = statevector%myLonEnd
+    lat1 = statevector%myLatBeg
+    lat2 = statevector%myLatEnd
+    lev1 = 1
+    lev2 = vco_getNumLev(vco_ptr,'TH')
+
+    allocate(psfc(lon2-lon1+1,lat2-lat1+1))
+    do stepIndex = 1, statevector%numStep
+      if (stateVector%dataKind == 8) then
+        psfc_ptr_r8 => gsv_getField_r8(statevector,'P0')
+        psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
+      else
+        psfc_ptr_r4 => gsv_getField_r4(statevector,'P0')
+        psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
+      end if
+      nullify(pressure)
+      ierr = vgd_levels(vco_ptr%vgrid,           &
+           ip1_list=vco_ptr%ip1_T,  &
+           levels=pressure,         &
+           sfc_field=psfc, &
+           in_log=.false.)
+      if (stateVector%dataKind == 8) then
+        !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
+        do levIndex = lev1, lev2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              hu = hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
+              tt = tt_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
+
+              ! get the saturated vapor pressure from HU
+              husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
+
+              ! limit the humidity to the saturated humidity
+              hu_modified = min(husat, hu)
+              hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
+
+            end do ! lonIndex
+          end do ! latIndex
+        end do ! levIndex
+        !$OMP END PARALLEL DO
+      else
+        !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
+        do levIndex = lev1, lev2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              hu = hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
+              tt = tt_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
+
+              ! get the saturated vapor pressure from HU
+              husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
+
+              ! limit the humidity to the saturated humidity
+              hu_modified = min(husat, hu)
+              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
+
+            end do ! lonIndex
+          end do ! latIndex
+        end do ! levIndex
+        !$OMP END PARALLEL DO
+      end if
+
+      deallocate(pressure)
+
+    end do ! stepIndex
 
   end subroutine qlim_gsvSaturationLimit
-
-  !--------------------------------------------------------------------------
-  ! qlim_gsvSaturationLimit_r8
-  !--------------------------------------------------------------------------
-  subroutine qlim_gsvSaturationLimit_r8(statevector)
-    !
-    !:Purpose: To impose saturation limit on humidity variable of a r8
-    !          statevector
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv) :: statevector
-
-    ! Locals:
-    type(struct_vco), pointer :: vco_ptr
-    real(8), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), tt_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
-    real(8), pointer :: pressure(:,:,:)
-    real(8)          :: hu, husat, hu_modified, tt
-    real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
-    integer          :: lonIndex, latIndex, levIndex, stepIndex
-
-    if ( statevector%dataKind /= 8 ) then
-      call utl_abort('qlim_gsvSaturationLimit_r8: only compatible with double precision ' // &
-           'data.')
-    end if
-
-    vco_ptr => gsv_getVco(statevector)
-    lq_ptr => gsv_getField_r8(statevector,'HU')
-    hu_ptr => gsv_getField_r8(statevector,'HU')
-    tt_ptr => gsv_getField_r8(statevector,'TT')
-
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    lev1 = 1
-    lev2 = vco_getNumLev(vco_ptr,'TH')
-
-    allocate(psfc(lon2-lon1+1,lat2-lat1+1))
-    do stepIndex = 1, statevector%numStep
-      psfc_ptr => gsv_getField_r8(statevector,'P0')
-      psfc(:,:) = psfc_ptr(:,:,1,stepIndex)
-      nullify(pressure)
-      ierr = vgd_levels(vco_ptr%vgrid,           &
-           ip1_list=vco_ptr%ip1_T,  &
-           levels=pressure,         &
-           sfc_field=psfc, &
-           in_log=.false.)
-      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
-      do levIndex = lev1, lev2
-        do latIndex = lat1, lat2
-          do lonIndex = lon1, lon2
-            hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
-            tt = tt_ptr(lonIndex,latIndex,levIndex,stepIndex)
-
-            ! get the saturated vapor pressure from HU
-            husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
-
-            ! limit the humidity to the saturated humidity
-            hu_modified = min(husat, hu)
-            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
-
-          end do ! lonIndex
-        end do ! latIndex
-      end do ! levIndex
-      !$OMP END PARALLEL DO
-
-      deallocate(pressure)
-
-    end do ! stepIndex
-
-  end subroutine qlim_gsvSaturationLimit_r8
-
-  !--------------------------------------------------------------------------
-  ! qlim_gsvSaturationLimit_r4
-  !--------------------------------------------------------------------------
-  subroutine qlim_gsvSaturationLimit_r4(statevector)
-    !
-    !:Purpose: To impose saturation limit on humidity variable of a r4
-    !          statevector
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv) :: statevector
-
-    ! Locals:
-    type(struct_vco), pointer :: vco_ptr
-    real(4), pointer :: lq_ptr(:,:,:,:), hu_ptr(:,:,:,:), tt_ptr(:,:,:,:), psfc_ptr(:,:,:,:)
-    real(8), pointer :: pressure(:,:,:)
-    real(8)          :: hu, husat, hu_modified, tt
-    real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
-    integer          :: lonIndex, latIndex, levIndex, stepIndex
-
-    if ( statevector%dataKind /= 4 ) then
-      call utl_abort('qlim_gsvSaturationLimit_r4: only compatible with single precision ' // &
-           'data.')
-    end if
-
-    vco_ptr => gsv_getVco(statevector)
-    lq_ptr => gsv_getField_r4(statevector,'HU')
-    hu_ptr => gsv_getField_r4(statevector,'HU')
-    tt_ptr => gsv_getField_r4(statevector,'TT')
-
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    lev1 = 1
-    lev2 = vco_getNumLev(vco_ptr,'TH')
-
-    allocate(psfc(lon2-lon1+1,lat2-lat1+1))
-    do stepIndex = 1, statevector%numStep
-      psfc_ptr => gsv_getField_r4(statevector,'P0')
-      psfc(:,:) = real(psfc_ptr(:,:,1,stepIndex),8)
-      nullify(pressure)
-      ierr = vgd_levels(vco_ptr%vgrid,           &
-           ip1_list=vco_ptr%ip1_T,  &
-           levels=pressure,         &
-           sfc_field=psfc, &
-           in_log=.false.)
-      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
-      do levIndex = lev1, lev2
-        do latIndex = lat1, lat2
-          do lonIndex = lon1, lon2
-            hu = real(hu_ptr(lonIndex,latIndex,levIndex,stepIndex),8)
-            tt = real(tt_ptr(lonIndex,latIndex,levIndex,stepIndex),8)
-
-            ! get the saturated vapor pressure from HU
-            husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
-
-            ! limit the humidity to the saturated humidity
-            hu_modified = min(husat, hu)
-            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = real(hu_modified,4)
-
-          end do ! lonIndex
-        end do ! latIndex
-      end do ! levIndex
-      !$OMP END PARALLEL DO
-
-      deallocate(pressure)
-
-    end do ! stepIndex
-
-  end subroutine qlim_gsvSaturationLimit_r4
 
   !--------------------------------------------------------------------------
   ! qlim_gsvRttovLimit
