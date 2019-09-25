@@ -113,12 +113,12 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.4.1"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.1
+    echo "... loading eccc/mrd/rpn/vgrid/6.4.2"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.2
     VGRID_LIBNAME="vgrid"
 
-    echo "... loading eccc/cmd/cmda/libs/19.1/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.1/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/19.2/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/19.2/${COMP_ARCH}
 
     ## For 'perftools' needed for TMG timings
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
