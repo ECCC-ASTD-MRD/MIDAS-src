@@ -59,17 +59,13 @@ function check_result {
                 ## SQLite
                 255)
 		    method=not_the_same_type
-                    if [[ "$(cat file.filetype)" = "${live_file}: SQLite 3.x database"* ]]; then
-			if [[ "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database"* ]]; then
-                            method=SQLite
-			fi
-                    elif [[ "$(cat file.filetype)" = "${live_file}: ASCII text"* ]]; then
-			if [[ "$(cat rfrn.filetype)" = "${rfrn}: ASCII text"* ]]; then
-                            method=diff
-			fi
+                    if [[ "$(cat file.filetype)" = "${live_file}: SQLite 3.x database"* && "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database"* ]]; then
+                        method=SQLite
+                    elif [[ "$(cat file.filetype)" = "${live_file}: ASCII text"* && "$(cat rfrn.filetype)" = "${rfrn}: ASCII text"* ]]; then
+                        method=diff
 		    fi
                     if [ "${method}" = not_the_same_type ]; then
-	                $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not SQLite databases!"
+	                $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not SQLite databases or ASCII file.  Cannot compare!"
                     fi;;
                 ## when the filetype is not know, then use 'cmp'
                 *) method=cmp;;
