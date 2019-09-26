@@ -71,7 +71,8 @@ set -ex
  if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
      . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
      . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
- fi
+     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+fi
 
  cd $gest
  export TMG_ON=YES
