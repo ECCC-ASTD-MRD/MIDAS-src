@@ -86,6 +86,9 @@ CONTAINS
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
                           dateStampList, varNames_opt, dataKind_opt, &
                           hInterpolateDegree_opt)
+    !
+    !:Purpose: Allocate an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -162,6 +165,9 @@ CONTAINS
   ! ens_allocateMean
   !--------------------------------------------------------------------------
   subroutine ens_allocateMean(ens)
+    !
+    !:Purpose: Allocate the ensemble mean arrays within an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -192,6 +198,9 @@ CONTAINS
   ! ens_allocateStdDev
   !--------------------------------------------------------------------------
   subroutine ens_allocateStdDev(ens)
+    !
+    !:Purpose: Allocate the ensemble stddev arrays within an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -222,6 +231,9 @@ CONTAINS
   ! ens_deallocate
   !--------------------------------------------------------------------------
   subroutine ens_deallocate( ens )
+    !
+    !:Purpose: Deallocate an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -271,6 +283,11 @@ CONTAINS
   ! ens_modifyVarName
   !--------------------------------------------------------------------------
   subroutine ens_modifyVarName(ens, oldVarName, newVarName) 
+    !
+    !:Purpose: Change an existing variable name within the ensemble.
+    !          This is only used when the contents of a variable are
+    !          transformed into another variable **in place**.
+    !
     implicit none
     
     ! Arguments:
@@ -286,6 +303,9 @@ CONTAINS
   ! ens_copy
   !--------------------------------------------------------------------------
   subroutine ens_copy(ens_in,ens_out)
+    !
+    !:Purpose: Copy the contents of one ensembleStateVector object into another
+    !
     implicit none
 
     ! Arguments:
@@ -353,8 +373,9 @@ CONTAINS
   ! ens_copy4Dto3D
   !--------------------------------------------------------------------------
   subroutine ens_copy4Dto3D(ens_in,ens_out)
-    ! :Purpose: Copy contents of a 4D ensemble into a 3D ensemble object by
-    !           extracting the middle time step.
+    !
+    !:Purpose: Copy contents of a 4D ensemble into a 3D ensemble object by
+    !          extracting the middle time step.
     !
     implicit none
 
@@ -428,9 +449,11 @@ CONTAINS
   ! ens_add
   !--------------------------------------------------------------------------
   subroutine ens_add(ens_in, ens_inOut, scaleFactorIn_opt, scaleFactorInOut_opt)
-    ! :Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
+    !
+    !:Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
     !
     implicit none
+
     ! arguments
     type(struct_ens)  :: ens_in, ens_inOut
     real(8), optional :: scaleFactorIn_opt
@@ -524,6 +547,9 @@ CONTAINS
   ! ens_zero
   !--------------------------------------------------------------------------
   subroutine ens_zero(ens)
+    !
+    !:Purpose: Set the main contents of an ensembleStateVector object to zero
+    !
     implicit none
 
     ! Arguments:
@@ -585,6 +611,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_copyToStateWork(ens, dataType, memberIndex_opt, &
                                  subEnsIndex_opt)
+    !
+    !:Purpose: Copy the selected contents of an ensembleStateVector into
+    !          the 'work' stateVector within the object. The possible
+    !          types of content are: 'member', 'mean', or 'stdDev'.
+    !
     implicit none
 
     ! Arguments:
@@ -658,6 +689,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_copyFromStateWork(ens, dataType, memberIndex_opt, &
                                    subEnsIndex_opt)
+    !
+    !:Purpose: This is the inverse operation as ens_copyToStateWork.
+    !
     implicit none
 
     ! Arguments:
@@ -730,10 +764,15 @@ CONTAINS
   ! ens_getOneLev_r4
   !--------------------------------------------------------------------------
   function ens_getOneLev_r4(ens,kIndex) result(oneLevLevel)
+    !
+    !:Purpose: Return a 4D pointer to a single level of a real4 ensemble. The
+    !          dimensions of the pointer are:
+    !          (memberIndex, stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(4),pointer  :: oneLevLevel(:,:,:,:)
 
     ! Arguments:
+    real(4), pointer :: oneLevLevel(:,:,:,:)
     type(struct_ens) :: ens
     integer          :: kIndex
 
@@ -751,10 +790,15 @@ CONTAINS
   ! ens_getOneLev_r8
   !--------------------------------------------------------------------------
   function ens_getOneLev_r8(ens,kIndex) result(oneLevLevel)
+    !
+    !:Purpose: Return a 4D pointer to a single level of a real8 ensemble. The
+    !          dimensions of the pointer are:
+    !          (memberIndex, stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(8),pointer  :: oneLevLevel(:,:,:,:)
 
     ! Arguments:
+    real(8), pointer :: oneLevLevel(:,:,:,:)
     type(struct_ens) :: ens
     integer          :: kIndex
 
@@ -772,15 +816,20 @@ CONTAINS
   ! ens_getOneLevMean_r8
   !--------------------------------------------------------------------------
   function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
+    !
+    !:Purpose: Return a 3D pointer to a single level the ensemble mean. The
+    !          dimensions of the pointer are:
+    !          (stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(8),pointer   :: field(:,:,:)
 
     ! Arguments:
+    real(8), pointer  :: field(:,:,:)
     type(struct_ens)  :: ens
     integer           :: subEnsIndex, kIndex
 
     ! Locals:
-    integer           :: lon1,lat1
+    integer           :: lon1, lat1
 
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
@@ -793,6 +842,9 @@ CONTAINS
   ! ens_copyEnsMean
   !--------------------------------------------------------------------------
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
+    !
+    !:Purpose: Copy the ensemble mean into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -848,6 +900,9 @@ CONTAINS
   ! ens_copyToEnsMean
   !--------------------------------------------------------------------------
   subroutine ens_copyToEnsMean(ens, statevector, subEnsIndex_opt)
+    !
+    !:Purpose: Copy the supplied stateVector into the ensemble mean.
+    !
     implicit none
 
     ! Arguments:
@@ -897,6 +952,9 @@ CONTAINS
   ! ens_copyEnsStdDev
   !--------------------------------------------------------------------------
   subroutine ens_copyEnsStdDev(ens, statevector)
+    !
+    !:Purpose: Copy the ensemble StdDev into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -945,6 +1003,9 @@ CONTAINS
   ! ens_copyMember
   !--------------------------------------------------------------------------
   subroutine ens_copyMember(ens, statevector, memberIndex)
+    !
+    !:Purpose: Copy a selected ensemble member into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -1061,6 +1122,9 @@ CONTAINS
   ! ens_insertMember
   !--------------------------------------------------------------------------
   subroutine ens_insertMember(ens, statevector, memberIndex)
+    !
+    !:Purpose: Copy the supplied stateVector in the selected ensemble member.
+    !
     implicit none
 
     ! Arguments:
@@ -1171,6 +1235,9 @@ CONTAINS
   ! ens_varExist
   !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
+    !
+    !:Purpose: Return true if the specified variable name exists in the ensemble.
+    !
     implicit none
     logical                      :: varExist 
 
@@ -1186,6 +1253,9 @@ CONTAINS
   ! ens_varNamesList
   !--------------------------------------------------------------------------
   subroutine ens_varNamesList(varNames,ens)
+    !
+    !:Purpose: Return a list of the variable names that exist in the ensemble.
+    !
     implicit none
     
     ! Arguments:
@@ -1208,6 +1278,9 @@ CONTAINS
   ! ens_getNumLev
   !--------------------------------------------------------------------------
   function ens_getNumLev(ens,varLevel) result(nlev)
+    !
+    !:Purpose: Return the number of vertical levels of the ensemble.
+    !
     implicit none
     integer                       :: nlev
 
@@ -1223,6 +1296,9 @@ CONTAINS
   ! ens_getNumMembers
   !--------------------------------------------------------------------------
   function ens_getNumMembers(ens) result(numMembers)
+    !
+    !:Purpose: Return the number of members in the ensemble.
+    !
     implicit none
     integer                       :: numMembers
 
@@ -1238,6 +1314,9 @@ CONTAINS
   ! ens_getNumSubEns
   !--------------------------------------------------------------------------
   function ens_getNumSubEns(ens) result(numMembers)
+    !
+    !:Purpose: Return the number of sub-ensembles in the ensemble.
+    !
     implicit none
     integer                       :: numMembers
 
@@ -1252,6 +1331,9 @@ CONTAINS
   ! ens_getNumK
   !--------------------------------------------------------------------------
   function ens_getNumK(ens) result(numK)
+    !
+    !:Purpose: Return the number of kIndex (a.k.a. varLevs) values of the ensemble.
+    !
     implicit none
     integer                       :: numK
 
@@ -1266,6 +1348,9 @@ CONTAINS
   ! ens_getDataKind
   !--------------------------------------------------------------------------
   function ens_getDataKind(ens) result(dataKind)
+    !
+    !:Purpose: Return the floating point kind of the ensemble (4 or 8).
+    !
     implicit none
     integer                       :: dataKind
 
@@ -1280,6 +1365,9 @@ CONTAINS
   ! ens_getOffsetFromVarName
   !--------------------------------------------------------------------------
   function ens_getOffsetFromVarName(ens,varName) result(offset)
+    !
+    !:Purpose: Return the offset of the kIndex for the specified variable name.
+    !
     implicit none
     integer                      :: offset
 
@@ -1299,6 +1387,9 @@ CONTAINS
   ! ens_getLevFromK
   !--------------------------------------------------------------------------
   function ens_getLevFromK(ens,kIndex) result(levIndex)
+    !
+    !:Purpose: Return the level index from the kIndex value.
+    !
     implicit none
     integer                      :: levIndex
 
@@ -1314,6 +1405,10 @@ CONTAINS
   ! ens_getKFromLevVarName
   !--------------------------------------------------------------------------
   function ens_getKFromLevVarName(ens, levIndex, varName) result(kIndex)
+    !
+    !:Purpose: Return the kIndex value for the specified level index
+    !          and variable name.
+    !
     implicit none
     integer                      :: kIndex
 
@@ -1330,6 +1425,9 @@ CONTAINS
   ! ens_getVarNameFromK
   !--------------------------------------------------------------------------
   function ens_getVarNameFromK(ens,kIndex) result(varName)
+    !
+    !:Purpose: Return the variable name from the specified kIndex value.
+    !
     implicit none
     character(len=4)             :: varName
 
@@ -1345,6 +1443,9 @@ CONTAINS
   ! ens_getVco
   !--------------------------------------------------------------------------
   function ens_getVco(ens) result(vco_ptr)
+    !
+    !:Purpose: Return a pointer to the verticalCoord object associate with the ensemble.
+    !
     implicit none
     type(struct_vco), pointer :: vco_ptr
 
@@ -1359,6 +1460,9 @@ CONTAINS
   ! ens_getHco
   !--------------------------------------------------------------------------
   function ens_getHco(ens) result(hco_ptr)
+    !
+    !:Purpose: Return a pointer to the horizontalCoord object associate with the ensemble.
+    !
     implicit none
     type(struct_hco), pointer :: hco_ptr
 
@@ -1373,6 +1477,9 @@ CONTAINS
   ! ens_getLatLonBounds
   !--------------------------------------------------------------------------
   subroutine ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    !
+    !:Purpose: Return the longitude and latitude index bounds for this mpi task.
+    !
     implicit none
 
     ! Arguments:
@@ -1393,6 +1500,9 @@ CONTAINS
   ! ens_getNumStep
   !--------------------------------------------------------------------------
   function ens_getNumStep(ens) result(numStep)
+    !
+    !:Purpose: Return the number of time steps stored in the ensemble.
+    !
     implicit none
     integer :: numStep
 
@@ -1407,6 +1517,9 @@ CONTAINS
   ! ens_computeMean
   !--------------------------------------------------------------------------
   subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt)
+    !
+    !:Purpose: Internally compute the ensemble mean.
+    !
     implicit none
 
     ! Arguments:
@@ -1509,6 +1622,9 @@ CONTAINS
   ! ens_computeStdDev
   !--------------------------------------------------------------------------
   subroutine ens_computeStdDev(ens, containsScaledPerts_opt)
+    !
+    !:Purpose: Internally compute the ensemble stdDev.
+    !
     implicit none
 
     ! Arguments:
@@ -1643,6 +1759,9 @@ CONTAINS
   ! ens_normalize
   !--------------------------------------------------------------------------
   subroutine ens_normalize(ens)
+    !
+    !:Purpose: Normalize the ensemble by the 3D ensemble stdDev.
+    !
     implicit none
 
     ! Arguments:
@@ -1695,6 +1814,9 @@ CONTAINS
   ! ens_removeMean
   !--------------------------------------------------------------------------
   subroutine ens_removeMean(ens)
+    !
+    !:Purpose: Subtract the ensemble mean from each member.
+    !
     implicit none
 
     ! Arguments:
@@ -1858,6 +1980,11 @@ CONTAINS
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
                               containsFullField_opt)
+    !
+    !:Purpose: Read the ensemble from disk in parallel and do mpi communication
+    !          so that all members for a given lat-lon tile are present on each
+    !          mpi task.
+    !
     implicit none
 
     ! Arguments:
@@ -2192,6 +2319,10 @@ CONTAINS
                                ctrlVarHumidity, etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt)
+    !
+    !:Purpose: Write the ensemble to disk by doing mpi transpose so that
+    !          each mpi task can write a single member in parallel.
+    !
     implicit none
 
     ! Arguments:
