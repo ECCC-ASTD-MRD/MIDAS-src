@@ -21,7 +21,7 @@ npex=11
 npey=4
 openmp=2
 maxcputime=450
-run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2.3/all/bin/r.run_in_parallel"
+run_in_parallel="r.run_in_parallel"
 #
 # Don't modify below ...
 #
@@ -425,17 +425,31 @@ cat << EOF > $TMPDIR/go_ensembleh.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
-. ssmuse-sh -d eccc/mrd/rpn/anl/oavar/3.0.4
+ if [ "${TRUE_HOST}" = eccc-ppp1 -o "${TRUE_HOST}" = eccc-ppp2 -o "${TRUE_HOST}" = hare -o "${TRUE_HOST}" = brooks ]; then
+   . ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
+   . ssmuse-sh -d eccc/mrd/rpn/anl/oavar/3.0.4
+ elif [ "${TRUE_HOST}" = eccc-ppp3 -o "${TRUE_HOST}" = eccc-ppp4 -o "${TRUE_HOST}" = daley -o "${TRUE_HOST}" = banting -o "${TRUE_HOST}" = xc3 -o "${TRUE_HOST}" = xc4 ]; then
+   . ssmuse-sh -d eccc/mrd/rpn/utils/19.2
+ else
+   echo "Unknown TRUE_HOST: ${TRUE_HOST}"
+   exit
+ fi
 
-# MPI SETUP FOR PPP ONLY
-if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
-  . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-  . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-  . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156 
-  export OMPI_MCA_orte_tmpdir_base=/run/shm
-  export OMPI_MCA_btl_openib_if_include=mlx5_0
-fi
+ # MPI SETUP FOR PPP ONLY
+ if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
+   . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
+   . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
+   . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156 
+   export OMPI_MCA_orte_tmpdir_base=/run/shm
+   export OMPI_MCA_btl_openib_if_include=mlx5_0
+ fi
+ 
+ # MPI SETUP FOR PPP ONLY
+ if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
+   . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+   . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+   . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
+ fi
 
  cd $gest
  export TMG_ON=YES
