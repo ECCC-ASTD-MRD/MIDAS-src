@@ -25,9 +25,8 @@ runtests:
    stage: test
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
-     MAKE_LINKS_MACHINE_LIST: "eccc-ppp3 eccc-ppp4 banting daley"
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
