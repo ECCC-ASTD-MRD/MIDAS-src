@@ -72,7 +72,6 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorDeterAnl
   type(struct_gsv)          :: stateVectorDeterInc
   type(struct_gsv)          :: stateVectorHeightSfc
-  type(struct_gsv)          :: stateVectorMember
   type(struct_columnData)   :: column
 
   type(struct_eob) :: ensObs, ensObs_mpiglobal
@@ -607,18 +606,8 @@ program midas_letkf
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
 
-      call gsv_allocate(stateVectorMember, tim_nstepobsinc,  &
-                        hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                        dataKind_opt=4, allocHeightSfc_opt=.true., &
-                        allocHeight_opt=.false., allocPressure_opt=.false. )
-      do memberIndex = 1, ens_getNumMembers(ensembleAnl)
-        call ens_copyMember(ensembleAnl, stateVectorMember, memberIndex)
-        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorMember)
-        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (stateVectorMember)
-        call ens_insertMember(ensembleAnl, stateVectorMember, memberIndex)
-      end do
-      call gsv_deallocate(stateVectorMember)
+      if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensembleAnl)
+      if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensembleAnl)
     end if
 
     ! And recompute analysis mean
@@ -677,18 +666,8 @@ program midas_letkf
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
 
-      call gsv_allocate(stateVectorMember, tim_nstepobsinc,  &
-                        hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                        dataKind_opt=4, allocHeightSfc_opt=.true., &
-                        allocHeight_opt=.false., allocPressure_opt=.false. )
-      do memberIndex = 1, ens_getNumMembers(ensembleAnlSubSample)
-        call ens_copyMember(ensembleAnlSubSample, stateVectorMember, memberIndex)
-        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorMember)
-        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (stateVectorMember)
-        call ens_insertMember(ensembleAnlSubSample, stateVectorMember, memberIndex)
-      end do
-      call gsv_deallocate(stateVectorMember)
+      if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensembleAnlSubSample)
+      if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensembleAnlSubSample)
     end if
 
     ! Re-compute analysis mean of sub-sampled ensemble

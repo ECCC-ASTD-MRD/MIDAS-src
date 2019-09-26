@@ -47,7 +47,7 @@ program midas_ensManip
   use gridVariableTransforms_mod
   implicit none
 
-  type(struct_gsv) :: statevector_mean, statevector_stddev, stateVectorMember
+  type(struct_gsv) :: statevector_mean, statevector_stddev
   type(struct_gsv) :: statevector_recenteringMean, statevector_alternativeEnsembleMean
 
   type(struct_ens)          :: ensemble
@@ -244,17 +244,8 @@ program midas_ensManip
     if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of ensemble'
     if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
     if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
-
-    call gsv_allocate(stateVectorMember, numStep, hco, vco, &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
-    do memberIndex = 1, ens_getNumMembers(ensemble)
-      call ens_copyMember(ensemble, stateVectorMember, memberIndex)
-      if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorMember)
-      if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (stateVectorMember)
-      call ens_insertMember(ensemble, stateVectorMember, memberIndex)
-    end do
-    call gsv_deallocate(stateVectorMember)
+    if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
+    if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
   end if
 
   if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensemble,'HU')) then
@@ -402,17 +393,8 @@ program midas_ensManip
         if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
         if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
         if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
-
-        call gsv_allocate(stateVectorMember, numStep, hco, vco, &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
-        do memberIndex = 1, ens_getNumMembers(ensemble)
-          call ens_copyMember(ensemble, stateVectorMember, memberIndex)
-          if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorMember)
-          if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (stateVectorMember)
-          call ens_insertMember(ensemble, stateVectorMember, memberIndex)
-        end do
-        call gsv_deallocate(stateVectorMember)
+        if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
+        if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
       end if
 
       call tmg_stop(12)
@@ -438,17 +420,8 @@ program midas_ensManip
         if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
         if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
         if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-
-        call gsv_allocate(stateVectorMember, numStep, hco, vco, &
-                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
-        do memberIndex = 1, ens_getNumMembers(ensemble)
-          call ens_copyMember(ensemble, stateVectorMember, memberIndex)
-          if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorMember)
-          if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (stateVectorMember)
-          call ens_insertMember(ensemble, stateVectorMember, memberIndex)
-        end do
-        call gsv_deallocate(stateVectorMember)
+        if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
+        if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
       end if
       call tmg_stop(12)
 
