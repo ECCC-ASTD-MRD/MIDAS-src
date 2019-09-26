@@ -11,7 +11,7 @@ abs=/home/alc001/midas_issue_89/compiledir/midas_abs/midas-seaIce_ubuntu-14.04-a
 #abs="${HOME}/data_maestro/ords/compiledir/compiledir-seaIce-ubuntu-14.04-amd64-64_m_3.1.0-97-g3f891fc_M/midas-seaIce_ubuntu-14.04-amd64-64-m_3.1.0-97-g3f891fc_M.Abs"
 npex=1
 npey=1
-openmp=44
+openmp=40
 maxcputime=3000
 run_in_parallel=r.run_in_parallel
 #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
@@ -91,12 +91,29 @@ cat << EOF > $TMPDIR/go_seaice.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
- . ssmuse-sh -d eccc/mrd/rpn/utils/19.1
+ if [ "${TRUE_HOST}" = eccc-ppp1 -o "${TRUE_HOST}" = eccc-ppp2 -o "${TRUE_HOST}" = hare -o "${TRUE_HOST}" = brooks ]; then
+   . ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
+ elif [ "${TRUE_HOST}" = eccc-ppp3 -o "${TRUE_HOST}" = eccc-ppp4 -o "${TRUE_HOST}" = daley -o "${TRUE_HOST}" = banting -o "${TRUE_HOST}" = xc3 -o "${TRUE_HOST}" = xc4 ]; then
+   . ssmuse-sh -d eccc/mrd/rpn/utils/19.2
+ else
+   echo "Unknown TRUE_HOST: ${TRUE_HOST}"
+   exit
+ fi
+
+ # MPI SETUP FOR PPP ONLY
+ if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
+   . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
+   . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
+   . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156 
+   export OMPI_MCA_orte_tmpdir_base=/run/shm
+   export OMPI_MCA_btl_openib_if_include=mlx5_0
+ fi
  
  # MPI SETUP FOR PPP ONLY
  if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
-     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
-     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+   . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+   . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+   . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
  fi
 
  cd $gest

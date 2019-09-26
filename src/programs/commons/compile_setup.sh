@@ -21,7 +21,7 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 ];then
 elif [ "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     FOPTMIZ=4
 else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'ubuntu-14.04-amd64-64' are."
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
 fi
 
@@ -48,7 +48,7 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loading compiler PrgEnv-intel-6.0.5"
     module load PrgEnv-intel/6.0.5
 else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
 fi
 
@@ -139,7 +139,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = ubuntu-18.04
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ];then
     OPTF="${OPTF}"
 else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
 fi
 

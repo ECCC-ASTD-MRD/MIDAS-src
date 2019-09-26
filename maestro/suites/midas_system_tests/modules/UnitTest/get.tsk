@@ -1,10 +1,10 @@
 #!/bin/ksh
 
 for fileinput in ${TASK_INPUT}/inputs/*.ca; do
-    input=$(readlink ${fileinput})
+    input=$(${TASK_BIN}/readlink ${fileinput})
     $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Downloading input: ${input}"
-    if [ -f "${input}" ]; then
-        ln -s ${input} inputs.ca
+    if [ -f "${input##*:}" ]; then
+        ln -s ${input##*:} inputs.ca
     else
         ${TASK_BIN}/remote_copy ${input} inputs.ca
     fi
@@ -13,4 +13,3 @@ for fileinput in ${TASK_INPUT}/inputs/*.ca; do
     rm inputs.ca
     mv * ${TASK_OUTPUT}
 done
-
