@@ -166,12 +166,14 @@ contains
       end do transformLoop
 
       if (.not. foundTransformation) then
-        write(*,*)
-        write(*,*) 'ovt_setup: !WARNING! No transform found for the read bufr code = ', bufrCodeRead(readBufrCodeIndex)
-        write(*,*) '           We are assuming that this observation is read but not assimilated.'
-        write(*,*) '           Please consider removing this bufr code from the read observation list.'
-        nSkippedBufrCodes = nSkippedBufrCodes + 1
-        skippedBufrCodes(nSkippedBufrCodes) = bufrCodeRead(readBufrCodeIndex)
+        if ( .not. any( skippedBufrCodes(:) == bufrCodeRead(readBufrCodeIndex) ) ) then
+          write(*,*)
+          write(*,*) 'ovt_setup: !WARNING! No transform found for the read bufr code = ', bufrCodeRead(readBufrCodeIndex)
+          write(*,*) '           We are assuming that this observation is read but not assimilated.'
+          write(*,*) '           Please consider removing this bufr code from the read observation list.'
+          nSkippedBufrCodes = nSkippedBufrCodes + 1
+          skippedBufrCodes(nSkippedBufrCodes) = bufrCodeRead(readBufrCodeIndex)
+        end if
       end if
 
     end do

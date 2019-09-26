@@ -73,7 +73,7 @@ module stateToColumn_mod
     ! interpolation weights and lat/lon indices are accessed via the 'depotIndexBeg/End'
     integer, pointer          :: depotIndexBeg(:,:,:,:,:) => null()    ! (subGrid, headerUsed, kIndex, step, proc)
     integer, pointer          :: depotIndexEnd(:,:,:,:,:) => null()    ! (subGrid, headerUsed, kIndex, step, proc)
-    real(8), pointer          :: interpWeightDepot(:)                ! (depotIndex)
+    real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
   end type struct_interpInfo
@@ -2282,7 +2282,7 @@ contains
 
     ! Arguments:
     real(4)                , intent(in)    :: footprintRadius_r4 ! (metres)
-    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
@@ -2414,7 +2414,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
@@ -2648,7 +2648,7 @@ contains
 
     ! Arguments:
     real(4)                , intent(in)    :: fpr ! footprint radius (metres)
-    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
@@ -2904,7 +2904,7 @@ contains
     implicit none
 
     ! arguments
-    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex

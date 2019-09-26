@@ -1336,6 +1336,8 @@ CONTAINS
       if(mpi_myid == 0) then 
          write(*,*) 'min_hessianIO : reading Hessian'
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
+      else
+         allocate(vatravec_r4_mpiglobal(1))
       end if
       allocate(vatra_r4(nvadim_mpilocal))
 
@@ -1360,7 +1362,7 @@ CONTAINS
 
       end do
 
-      if(mpi_myid == 0) deallocate(vatravec_r4_mpiglobal)       
+      deallocate(vatravec_r4_mpiglobal)       
       deallocate(vatra_r4)       
 
       imode = 2

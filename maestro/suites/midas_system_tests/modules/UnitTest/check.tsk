@@ -61,8 +61,8 @@ function check_result {
                 6) method=${UnitTest_burp_diff};;
                 ## SQLite
                 255)
-                    if [ "$(cat live.filetype)" = "${live_file}: SQLite 3.x database" -a \
-                         "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database" ]; then
+                    if [[ "$(cat live.filetype)" == "${live_file}: SQLite 3.x database"* && \
+                          "$(cat rfrn.filetype)" == "${rfrn}: SQLite 3.x database"* ]]; then
                         method=SQLite
                     else
 	              method=cmp

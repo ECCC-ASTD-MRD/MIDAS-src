@@ -84,6 +84,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed bugs, compilation procedure and system tests to allow compatibility on new machines (ppp3/4, banting/daley) - note, only the latest version of the reference results are available on the new machines (#258 and !243)
  * Correction of the conversion factor used to compute air mass predictors in biascorrection_mod.f90. Problem introduced in !191. (#219 and !219)
  * Fixed some potential bugs detected while compiling with `-check all` (#182 and !187)
  * Improved efficiency of ensemble amplitude memory access and writing of `rehm` and `anlm` files (#170 and !153)

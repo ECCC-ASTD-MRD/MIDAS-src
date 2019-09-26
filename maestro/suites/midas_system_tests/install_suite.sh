@@ -2,12 +2,29 @@
 
 set -e
 
+# set the resources.def file, which depends on the TRUE_HOST name
+../../../set_resources_def.sh
+
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+
+suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+if [ -z "${MACHINE_PPP}" ]; then
+    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+fi
+if [ -z "${MACHINE_SUPER}" ]; then
+    MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+fi
+echo ${MACHINE_PPP} ${MACHINE_SUPER}
+
+export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+
 MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
+which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/19.1
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 
@@ -137,7 +154,7 @@ export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 
 echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-$(dirname $(dirname $(dirname ${PWD})))/compiledir}/midas_abs" > abs.dot
-echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unknown revision)" >> abs.dot
+echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh ${MACHINE_PPP} 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unknown revision)" >> abs.dot
 
 ## Ajouter la creation pour chaque usager de repertoires de reference pour les tests
 ##    test_results

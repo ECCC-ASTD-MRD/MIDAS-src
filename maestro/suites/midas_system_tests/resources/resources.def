@@ -1,9 +1,0 @@
-# Machine stuff
-FRONTEND=eccc-ppp2
-BACKEND=brooks
-
-BACKEND_DEFAULT_Q=development
-FRONTEND_DEFAULT_Q=development
-
-BACKEND_XFER_Q=xfer
-FRONTEND_XFER_Q=xfer

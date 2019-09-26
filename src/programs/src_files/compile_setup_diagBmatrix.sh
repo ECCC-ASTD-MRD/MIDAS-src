@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="descrip $MPILIB random"
+LIBAPPL="${VGRID_LIBNAME} irc $MPILIB random"
 

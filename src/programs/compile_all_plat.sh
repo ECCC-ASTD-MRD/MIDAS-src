@@ -2,6 +2,9 @@
 
 set -e
 
+# set the resources.def file, which depends on the TRUE_HOST name
+../../set_resources_def.sh
+
 if [ $# -eq 0 ]; then
     MIDAS_ABS=
     codedir=${PWD}
@@ -16,7 +19,7 @@ else
     exit 1
 fi
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
@@ -25,6 +28,12 @@ if [ -z "${COMPILING_MACHINE_PPP}" ]; then
 fi
 if [ -z "${COMPILING_MACHINE_SUPER}" ]; then
     COMPILING_MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+fi
+
+if [ "${COMPILING_MACHINE_SUPER}" = brooks -o "${COMPILING_MACHINE_SUPER}" = hare ]; then
+    PLAT_SUPER=sles-11-broadwell-64-xc40
+else
+    PLAT_SUPER=sles-15-skylake-64-xc50
 fi
 
 rev=${CI_BUILD_REF:-$(git describe)}
@@ -48,6 +57,7 @@ EOF
 #pbs_extra1='-Wblock=true'
 #ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_SUPER} -listing ${PWD} -w 60 -cpus 36
 
+set -x
 ## Using as many cpus as there are programs to compile
 jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${COMPILING_MACHINE_PPP} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
@@ -88,9 +98,9 @@ done
 
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
-./check_if_all_programs_compiled.sh ${ORDENV_PLAT}            ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform 'sles-11-broadwell-64-xc40'"
-./check_if_all_programs_compiled.sh sles-11-broadwell-64-xc40 ${MIDAS_ABS} || status=1
+./check_if_all_programs_compiled.sh ${ORDENV_PLAT} ${MIDAS_ABS} || status=1
+echo "Checking if all programs have been compiled on '${host}' for platform '${PLAT_SUPER}'"
+./check_if_all_programs_compiled.sh ${PLAT_SUPER} ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
     echo "All programs have been compiled correctly!"

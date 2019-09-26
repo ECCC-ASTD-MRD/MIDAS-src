@@ -7,5 +7,5 @@ if [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell
     module load cray-netcdf
 fi
 
-LIBAPPL="netcdff burp_module descrip $MPILIB random"
+LIBAPPL="netcdff burp_module ${VGRID_LIBNAME} irc $MPILIB random"
 
