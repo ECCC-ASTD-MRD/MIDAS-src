@@ -16,16 +16,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.4.0]
+
+### Fixed
+
  * Fixed bugs, compilation procedure and system tests to allow
    compatibility on new machines (ppp3/4, banting/daley) - note, only
    the latest version of the reference results are available on the
    new machines (#234 and !244)
 	* This work is aimed to be introduced in a new release branch
 	`v_3.4` which origins from `v_3.3.5`.
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.3.5]
 
@@ -279,7 +285,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...HEAD
+[3.4.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...v_3.4.0
 [3.3.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...v_3.3.5
 [3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
 [3.3.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...v_3.3.3
