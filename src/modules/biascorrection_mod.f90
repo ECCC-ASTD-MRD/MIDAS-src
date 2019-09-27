@@ -147,7 +147,7 @@ CONTAINS
             if ( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle
             bias(iSensor)%numScan = nfov
             allocate( bias(iSensor)%channelNum(nchan(iSat)) ) 
-            bias(iSensor)%channelNum(:)  = chans(iSat,:)
+            bias(iSensor)%channelNum(:)  = chans(iSat,1:nchan(iSat))
             bias(iSensor)%numChannels = maxval(bias(iSensor)%channelNum(:))
           end do
         end if
@@ -205,7 +205,8 @@ CONTAINS
     integer  :: iSensor,iChannel,iPredictor,index_cv
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
-    real(8),pointer  :: cv_bias(:)
+    real(8), pointer :: cv_bias(:)
+    real(8), target  :: dummy4Pointer(1)
     real(8)  :: biasCor
     logical,save  :: firstTime=.true.
 
@@ -217,6 +218,7 @@ CONTAINS
       firstTime = .false.
     end if
 
+    nullify(cv_bias)
     if ( mpi_myid == 0) then
       if ( cvm_subVectorExists('BIAS') ) then
         cv_Bias => cvm_getSubVector(cv_in,'BIAS')
@@ -225,7 +227,9 @@ CONTAINS
         write(*,*) 'bias_calcBias_tl: control vector does not include bias coefficients'
         return
       end if
-    end if
+   else
+      cv_bias => dummy4Pointer
+   end if
 
     ! get bias coefficients
     call bias_cvToCoeff(cv_bias)
@@ -743,20 +747,24 @@ CONTAINS
     integer  :: iSensor,iChannel,iPredictor,index_cv,nsize,ierr
     integer  :: iScan, iFOV, jPred
     real(8)  :: predictor(NumPredictors)
-    real(8),pointer  :: cv_bias(:)
+    real(8), pointer  :: cv_bias(:)
+    real(8), target  :: dummy4Pointer(1)
     real(8)  :: biasCor
 
     if ( .not. lvarbc ) return
 
     if ( mpi_myid == 0 ) write(*,*) 'Starting bias_calcBias_ad'
 
+    nullify(cv_bias)
     if ( mpi_myid == 0 ) then
-      if ( cvm_subVectorExists('BIAS') ) then
-        cv_bias => cvm_getSubVector(cv_out,'BIAS')
-      else
-        write(*,*) 'bias_calcBias_ad: control vector does not include bias coefficients'
-        return
-      end if
+       if ( cvm_subVectorExists('BIAS') ) then
+          cv_bias => cvm_getSubVector(cv_out,'BIAS')
+       else
+          write(*,*) 'bias_calcBias_ad: control vector does not include bias coefficients'
+          return
+       end if
+    else
+       cv_bias => dummy4Pointer
     end if
 
     ! adjoint of applying bias increment to specified obs column
@@ -889,7 +897,8 @@ CONTAINS
     integer  :: iSensor,iChannel,iPredictor
     integer  :: jSensor,jChannel
     integer  :: fnom,fclos,nulfile_inc,nulfile_fov,ierr
-    real(8),pointer   :: cv_bias(:)
+    real(8), pointer :: cv_bias(:)
+    real(8), target  :: dummy4Pointer(1)
     character(len=80) :: BgFileName
     real(8)           :: biasCoeff_bg(tvs_nSensors,maxNumChannels,NumPredictors)
     logical           :: fileExists
@@ -909,14 +918,17 @@ CONTAINS
 
     if ( .not. lvarbc ) return
 
+    nullify(cv_bias)
     if ( mpi_myid == 0 ) then
-      if ( cvm_subVectorExists('BIAS') ) then
-        cv_bias => cvm_getSubVector(cv_in,'BIAS')
-        write(*,*) 'bias_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
-      else
-        write(*,*) 'bias_writeBias: control vector does not include bias coefficients'
-        return
-      end if
+       if ( cvm_subVectorExists('BIAS') ) then
+          cv_bias => cvm_getSubVector(cv_in,'BIAS')
+          write(*,*) 'bias_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
+       else
+          write(*,*) 'bias_writeBias: control vector does not include bias coefficients'
+          return
+       end if
+    else
+       cv_bias => dummy4Pointer
     end if
 
     call bias_cvToCoeff(cv_bias)
@@ -1005,15 +1017,15 @@ CONTAINS
     ! There are three parts in this subroutine, read, update and write out the coeff files
     ! IN
     integer            :: maxsat, maxpred
-    character(len=80)  :: coeff_file
+    character(len=*)   :: coeff_file
     logical,optional   :: updateCoeff_opt
 
     ! OUT 
-    character(len=10)  :: sats(maxsat)        ! dim(maxsat), satellite names
+    character(len=*)   :: sats(maxsat)        ! dim(maxsat), satellite names
     integer            :: chans(maxsat, maxNumChannels)       ! dim(maxsat, maxchan), channel numbers
     integer            :: nsat, nfov
     integer            :: nchan(maxsat)       ! dim(maxsat), number of channels
-    character(len=6)   :: cinstrum    ! string: instrument (e.g. AMSUB)
+    character(len=*)   :: cinstrum    ! string: instrument (e.g. AMSUB)
  
     ! Local
     real(8)            :: fovbias(maxsat,maxNumChannels,maxfov)     ! dim(maxsat,maxchan,maxfov), bias as F(fov)

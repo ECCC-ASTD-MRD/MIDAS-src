@@ -2,7 +2,7 @@
 
 set -e
 
-LIBAPPL="descrip $MPILIB"
+LIBAPPL="vgrid irc $MPILIB"
 
 SRC_FILES="codeprecision_mod.ftn90 clib_interfaces_mod.ftn90 randomnumber_mod.f90 utilities_mod.f90 ramdisk_mod.f90 bufr_mod.f90"
 SRC_FILES="$SRC_FILES mathphysconstants_mod.f90 earthconstants_mod.f90 mpi_mod.f90 mpivar_mod.f90 codtyp_mod.f90 filenames_mod.f90"

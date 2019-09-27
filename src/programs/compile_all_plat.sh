@@ -16,6 +16,9 @@ else
     exit 1
 fi
 
+MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-eccc-ppp4}
+MIDAS_COMPILE_BACKEND=${MIDAS_COMPILE_BACKEND:-daley}
+
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
 
@@ -33,20 +36,20 @@ yes '' | head -n ${number_of_programs} | ./compile_all.sh
 EOF
 
 #pbs_extra1='-Wblock=true'
-#ord_soumet compile_job -jn ${jobname} -mach brooks    -listing ${PWD} -w 60 -cpus 36
+#ord_soumet compile_job -jn ${jobname} -mach daley    -listing ${PWD} -w 60 -cpus 36
 
 ## Using as many cpus as there are programs to compile
-jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp1 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
+jobid=$(ord_soumet compile_job -jn ${jobname} -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
-## On evite d'attendre en queue en faisant un 'ssh' directement sur 'brooks'
-cat compile_job | ssh brooks bash --login
+## On evite d'attendre en queue en faisant un 'ssh' directement sur 'daley'
+cat compile_job | ssh ${MIDAS_COMPILE_BACKEND} bash --login
 rm compile_job
 
 function is_compilation_done {
     set -e
     __is_compilation_done_host__=${1}
 
-    if [ "${__is_compilation_done_host__}" = brooks -o "${__is_compilation_done_host__}" = eccc-ppp1 ]; then
+    if [ "${__is_compilation_done_host__}" = ${MIDAS_COMPILE_BACKEND} -o "${__is_compilation_done_host__}" = ${MIDAS_COMPILE_FRONTEND} ]; then
         # the jobname is cut with 15 characters by 'jobst'
         jobstname=$(echo ${jobname} | cut -c-15)
     else
@@ -69,15 +72,15 @@ function is_compilation_done {
     unset __is_compilation_done_host__
 }
 
-for host in eccc-ppp1; do
+for host in ${MIDAS_COMPILE_FRONTEND}; do
     is_compilation_done ${host}
 done
 
 status=0
 echo "Checking if all programs have been compiled on '${TRUE_HOST}' for platform '${ORDENV_PLAT}'"
-./check_if_all_programs_compiled.sh ${ORDENV_PLAT}            ${MIDAS_ABS} || status=1
-echo "Checking if all programs have been compiled on '${host}' for platform 'sles-11-broadwell-64-xc40'"
-./check_if_all_programs_compiled.sh sles-11-broadwell-64-xc40 ${MIDAS_ABS} || status=1
+./check_if_all_programs_compiled.sh ${ORDENV_PLAT}          ${MIDAS_ABS} || status=1
+echo "Checking if all programs have been compiled on '${MIDAS_COMPILE_BACKEND}' for platform 'sles-15-skylake-64-xc50'"
+./check_if_all_programs_compiled.sh sles-15-skylake-64-xc50 ${MIDAS_ABS} || status=1
 
 if [ "${status}" -eq 0 ]; then
     echo "All programs have been compiled correctly!"

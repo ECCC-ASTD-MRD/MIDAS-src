@@ -157,7 +157,7 @@ contains
     ! Filter out data from CMA
     !
     call tmg_start(14,'SUPREP')
-    call filt_sethind(obsSpaceData)
+    call obs_sethind(obsSpaceData)
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
 
@@ -405,11 +405,17 @@ contains
       allocate( varInterphr_M ( nlevtrl_M, numColumns ))
       allocate( varInterphr_SF( 1        , numColumns ))
       allocate( varInterphr_VV( nlevtrl_M, numColumns ))
-      varInterphr_T(:,:)  = 0.0d0
-      varInterphr_M(:,:)  = 0.0d0
-      varInterphr_VV(:,:) = 0.0d0
-      varInterphr_SF(:,:) = 0.0d0
+    else
+       allocate( varInterphr_T ( 1,1 ))
+       allocate( varInterphr_M ( 1,1 ))
+       allocate( varInterphr_SF( 1,1 ))
+       allocate( varInterphr_VV( 1,1 ))
     end if
+
+    varInterphr_T(:,:)  = 0.0d0
+    varInterphr_M(:,:)  = 0.0d0
+    varInterphr_VV(:,:) = 0.0d0
+    varInterphr_SF(:,:) = 0.0d0
 
     allocate(dlonfld(numColumn_maxmpiglobal))
     allocate(dlatfld(numColumn_maxmpiglobal))
@@ -926,12 +932,12 @@ contains
     !
     if ( numColumns > 0 ) then       
       deallocate(notag)
-      deallocate(varInterphr_T)
-      deallocate(varInterphr_M)
-      deallocate(varInterphr_VV)
-      deallocate(varInterphr_SF)
     end if
 
+    deallocate(varInterphr_T)
+    deallocate(varInterphr_M)
+    deallocate(varInterphr_VV)
+    deallocate(varInterphr_SF)
     deallocate(datestamplist)
     deallocate(nobs,nobs_maxmpiglobal)
     deallocate(nultrl)

@@ -425,16 +425,13 @@ cat << EOF > $TMPDIR/go_ensembleh.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
-. ssmuse-sh -d eccc/mrd/rpn/utils/16.2
-. ssmuse-sh -d eccc/mrd/rpn/anl/oavar/3.0.4
+. ssmuse-sh -d eccc/mrd/rpn/utils/19.2
 
-# MPI SETUP FOR PPP ONLY
-if [ "\${EC_ARCH}" = Linux_x86-64 ]; then
-  . ssmuse-sh -d hpco/tmp/eccc/201402/05/base
-  . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
-  . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156 
-  export OMPI_MCA_orte_tmpdir_base=/run/shm
-  export OMPI_MCA_btl_openib_if_include=mlx5_0
+ # MPI SETUP FOR PPP ONLY
+ if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
+     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
 fi
 
  cd $gest
@@ -448,7 +445,7 @@ EOFRUN
 chmod +x run.sh
 
 
- ${run_in_parallel} -pgm ./run.sh -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
+ ${run_in_parallel} -pgm ./ensembleh.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml

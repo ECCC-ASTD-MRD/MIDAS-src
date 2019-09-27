@@ -3,11 +3,11 @@
 set -e
 
 MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 
-which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmda/maestro/dev/2.11
+which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/16.2
+which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/19.2
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 
@@ -110,7 +110,7 @@ export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
 
 echo "ABS_DIR=${COMPILEDIR_MIDAS_MAIN:-$(dirname $(dirname $(dirname ${PWD})))/compiledir}/midas_abs" > abs.dot
-echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unkown revision)" >> abs.dot
+echo "MIDAS_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp4 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unkown revision)" >> abs.dot
 
 ## Ajouter la creation pour chaque usager de repertoires de reference pour les tests
 ##    test_results

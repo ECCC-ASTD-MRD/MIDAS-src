@@ -58,12 +58,14 @@ function check_result {
                 6) method=${UnitTest_burp_diff};;
                 ## SQLite
                 255)
-                    if [ "$(cat file.filetype)" = "${live_file}: SQLite 3.x database" -a \
-                         "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database" ]; then
+		    method=not_the_same_type
+                    if [[ "$(cat file.filetype)" = "${live_file}: SQLite 3.x database"* && "$(cat rfrn.filetype)" = "${rfrn}: SQLite 3.x database"* ]]; then
                         method=SQLite
-                    else
-	                $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not SQLite databases!"
-                        method=not_the_same_type
+                    elif [[ "$(cat file.filetype)" = "${live_file}: ASCII text"* && "$(cat rfrn.filetype)" = "${rfrn}: ASCII text"* ]]; then
+                        method=diff
+		    fi
+                    if [ "${method}" = not_the_same_type ]; then
+	                $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${live} are not SQLite databases or ASCII file.  Cannot compare!"
                     fi;;
                 ## when the filetype is not know, then use 'cmp'
                 *) method=cmp;;
@@ -74,24 +76,24 @@ function check_result {
         fi
 
         if [ "${method}" = fstcomp ]; then
+	    filterFstcomp () {
+		cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3  E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    }
+
             ln -s ${rfrn} rfrn
             ln -s ${live_file} live
 	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
-	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
-AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    filterFstcomp
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating="yes"
-                maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	        rm fstcomp.list fstcomp.list.grep rfrn
+                maxerror=$(awk '{if ($(NF-1)>maxerror) { maxerror=$(NF-1); var=$1; niv=$3 " " $4 } } END{print maxerror, var, niv}' fstcomp.list.grep)
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
-	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
-AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+		filterFstcomp
 	        if [ -s fstcomp.list.grep ]; then
 		    not_validating="yes"
-                    maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
+                    maxerror=$(awk '{if ($(NF-1)>maxerror) { maxerror=$(NF-1); var=$1; niv=$3 " " $4 } } END{print maxerror, var, niv}' fstcomp.list.grep)
 	        fi
-	        rm fstcomp.list fstcomp.list.grep rfrn
 	    fi
         elif [ "${method}" = cmp ]; then
 	    cmp ${live_file} ${rfrn} || not_validating="yes"
@@ -137,6 +139,21 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
                 done
 	    fi
         elif [ "${method}" = liburp ]; then
+	    ## finds element of the form
+	    ##      [-7-]{+8+}
+	    cat > diff.py <<EOF
+#!/usr/bin/python3
+
+import sys, re
+
+regex = re.compile("\[-([0-9]+)-\]{\+([0-9]+)\+\}")
+
+for line in sys.stdin.readlines():
+    for match in regex.finditer(line):
+        a=int(match.group(1))
+        b=int(match.group(2))
+        print(abs(a-b))
+EOF
 	    status=0
 	    diff ${live_file} ${rfrn} > /dev/null || status=1
 	    if [ "${status}" -ne 0 ]; then
@@ -145,9 +162,15 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 		status=0
 		cmp live.${live} rfrn.${live} || status=1
 		if [ "${status}" -ne 0 ]; then
+		    wdiff -s live.${live} rfrn.${live} | grep words
 		    diff ${diff_options} live.${live} rfrn.${live} || not_validating="yes"
 		    if [ -z "${not_validating}" ]; then
 			rm live.${live} rfrn.${live}
+		    else
+			git diff -U0 --word-diff  --word-diff-regex=. live.${live} rfrn.${live} | python3 diff.py | sort -n | uniq -c | tee gitdiff.listing
+			#for line in $(git diff -U0 --word-diff  --word-diff-regex=. live.${live} rfrn.${live} | python3 diff.py | sort | uniq -c); do
+			#    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "File ${live}: ${line}"
+			#done
 		    fi
 		fi
 	    fi
@@ -236,7 +259,11 @@ EOF
 
     if [ -n "${not_validating}" ]; then
         if [ "${method}" = fstcomp -a -n "${maxerror}" ]; then
-            message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror})"
+	    set ${maxerror}
+	    maxerror=$1
+	    var=$(echo $2 | sed 's/^<//')
+	    niv=$(echo $3 $4)
+            message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror} for variable ${var} at level '${niv}')"
         else
 	    message="The file ${file} does not validate with method '${method}'!"
         fi
@@ -299,10 +326,19 @@ while read line; do
 done < results_files
 wait
 
+set +x
 for file in *.listing; do
     echo Listing file of ${file}
     cat ${file}
 done
+
+for file in *.check_result/gitdiff.listing; do
+    if [ -f "${file}" ]; then
+	echo Listing git diff from ${file}
+	cat ${file}
+    fi
+done
+set -x
 
 if [ -n "$(/bin/ls *.not_validating 2>/dev/null)" ]; then
     $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "One of the files does not validate"

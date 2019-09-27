@@ -543,7 +543,6 @@ contains
     integer :: ierr, procID, unitFile, all_nfiles(0:(mpi_nprocs-1))
     integer :: fnom, fclos
     logical :: fileExists
-    character(len=20)   :: fileStart
 
     call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
                              all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
@@ -572,33 +571,35 @@ contains
     implicit none
     ! arguments
     character(len=*),intent(out) :: obsFileType
-    character(len=*) ,intent(in)  :: fileName
+    character(len=*) ,intent(in) :: fileName
     ! locals
     integer           :: ierr, unitFile
-    integer           :: fnom, fclos
+    integer           :: fnom, fclos, wkoffit
     character(len=20) :: fileStart
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
    
     if ( index(trim(fileName), 'cma' ) > 0 ) then
-
       obsFileType = 'CMA'
-
     else
 
-      unitFile = 0
-      ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
-      read(unitFile,'(A)') fileStart
-      ierr = fclos(unitFile)
-    
-      if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-        obsFileType = 'SQLITE'
-      else if ( index( fileStart, 'XDF0BRP0' ) > 0 ) then
-        obsFiletype = 'BURP'
-      else
-        call utl_abort('obsf_determineFileType: unknown obs file type')
-      end if
+      ierr = wkoffit(trim(fileName))
 
+      if (ierr.eq.6) then
+         obsFiletype = 'BURP'
+      else
+         unitFile = 0
+         ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
+         read(unitFile,'(A)') fileStart
+         ierr = fclos(unitFile)
+
+         if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
+            obsFileType = 'SQLITE'
+         else
+            call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+         end if
+
+      end if
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType

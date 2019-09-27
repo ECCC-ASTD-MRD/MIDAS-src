@@ -93,6 +93,8 @@ program midas_obsio
   call obsf_readFiles( obsSpaceData )
   call tmg_stop(11)
 
+  call obs_sethind( obsSpaceData )
+
   !- Update values in 'obsSpaceData'
   write(*,*)
   write(*,*) '> midas-obsIO: multiply obs value by ', obsIOFactor

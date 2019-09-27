@@ -16,7 +16,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed bugs, compilation procedure and system tests to allow
+   compatibility on new machines (ppp3/4, banting/daley) - note, only
+   the latest version of the reference results are available on the
+   new machines (#234 and !244)
+	* This work is aimed to be introduced in a new release branch
+	`v_3.4` which origins from `v_3.3.5`.
 
 ### Removed
 

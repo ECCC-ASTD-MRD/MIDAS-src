@@ -22,6 +22,8 @@ fi
 
 echo "The preparation of the working directory took ${SECONDS} seconds"
 
+ulimit -c unlimited
+
 echo starting ${RUN_PGM} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 ${RUN_PGM}
