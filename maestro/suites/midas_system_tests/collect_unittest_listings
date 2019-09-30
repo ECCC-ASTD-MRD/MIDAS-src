@@ -6,8 +6,11 @@ SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maest
 which nodelister 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 which cmcarc
 
-export SEQ_EXP_HOME=$(dirname $(true_path ${0}))
+export SEQ_EXP_HOME=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 unittests=${*}
+
+REFERENCE_UPDATE_MACHINE=$(cd ${SEQ_EXP_HOME}; getdef resources REFERENCE_UPDATE_MACHINE)
+REFERENCE_MACHINE=$(cd ${SEQ_EXP_HOME}; getdef resources REFERENCE_MACHINE)
 
 ## Si 'overwrite_listings=yes' alors on va effacer les listings precedents
 if [ -n "${COLLECT_UNITTEST_LISTINGS_OVERWRITE_LISTINGS}" ]; then
