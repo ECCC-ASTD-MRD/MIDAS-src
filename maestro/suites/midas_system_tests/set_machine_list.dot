@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+
 suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 if [ -z "${MACHINE_PPP}" ]; then
     MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
