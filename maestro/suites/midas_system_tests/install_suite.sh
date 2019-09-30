@@ -10,7 +10,7 @@ $(git rev-parse --show-toplevel)/set_resources_def.sh
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-. $(git rev-parse --show-toplevel)/set_machine_list.dot ${MIDAS_SUITE_LAUNCH_DIRECTORY}
+. ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot ${MIDAS_SUITE_LAUNCH_DIRECTORY}
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
