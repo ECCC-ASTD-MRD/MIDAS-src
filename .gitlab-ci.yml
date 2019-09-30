@@ -35,7 +35,8 @@ runtests:
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
      - ./collect_unittest_listings
-     - clean_suite $suite
+     - ./set_machine_list ${suite}
+     - clean_suite -y ${suite}
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:

@@ -2,25 +2,15 @@
 
 set -e
 
+MIDAS_SUITE_LAUNCH_DIRECTORY=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+
 # set the resources.def file, which depends on the TRUE_HOST name
-../../../set_resources_def.sh
+$(git rev-parse --show-toplevel)/set_resources_def.sh
 
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
-if [ -z "${MACHINE_PPP}" ]; then
-    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
-fi
-if [ -z "${MACHINE_SUPER}" ]; then
-    MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
-fi
-echo ${MACHINE_PPP} ${MACHINE_SUPER}
-
-export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
-
-MIDAS_SUITE_LAUNCH_DIRECTORY=$(dirname $(true_path $0))
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
+. $(git rev-parse --show-toplevel)/set_machine_list.dot ${MIDAS_SUITE_LAUNCH_DIRECTORY}
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}

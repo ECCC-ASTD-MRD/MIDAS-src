@@ -1,0 +1,12 @@
+#!/bin/bash
+
+suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+if [ -z "${MACHINE_PPP}" ]; then
+    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+fi
+if [ -z "${MACHINE_SUPER}" ]; then
+    MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+fi
+echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}"
+
+export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
