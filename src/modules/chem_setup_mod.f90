@@ -243,11 +243,16 @@ module chem_setup_mod
   integer :: generalized_operator(0:chm_constituents_size)   ! Same as genoper in NAMCHEM
   integer :: tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
   integer :: obsdata_maxsize
-  integer :: transform(0:chm_constituents_size),message_fileunit
   real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
-  real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-  real(8) :: sigma_cutoff(0:chm_constituents_size)
-  character(len=chm_filename_size) :: message_filename 
+  integer :: message_fileunit
+
+  ! Iniitialization needed here in the event chm_setup is not called. (no 'ch' family obs)
+  character(len=chm_filename_size) :: message_filename = "chem_message_"   ! Not used
+  integer :: ilist
+  real(8) :: low_cutoff(0:chm_constituents_size) = (/ (0.1, ilist=0,chm_constituents_size) /)
+  real(8) :: high_cutoff(0:chm_constituents_size) = (/  (10.0, ilist=0,chm_constituents_size) /)
+  real(8) :: sigma_cutoff(0:chm_constituents_size) = (/ (0.01, ilist=0,chm_constituents_size) /)
+  integer :: transform(0:chm_constituents_size) = (/ (0, ilist=0,chm_constituents_size) /)
 
 contains
 
@@ -459,13 +464,15 @@ contains
   
   ! Default NAMCHEM values
   
+  ! sigma_cutoff(:)=0.01
+  ! low_cutoff(:)=0.1
+  ! high_cutoff(:)=10.0
+  ! transform(:)=0   ! At least ensure positive values and provide related warning as needed.
+  ! message_filename = 'chem_message_'   ! Not used
+  
   genoper(:)=0
   obsdata_maxsize=90000
-  sigma_cutoff(:)=0.01
-  low_cutoff(:)=0.1
-  high_cutoff(:)=10.0
-  transform(:)=0   ! At least ensure positive values and provide related warning as needed.
-  
+
   assim_fam(:)=''
   assim_fam(1)='CH'
   assim_famNum=1
@@ -482,8 +489,6 @@ contains
   tropo_mode(:) = 0
   tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
-
-  message_filename = 'chem_message_'   ! Not used
   
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
