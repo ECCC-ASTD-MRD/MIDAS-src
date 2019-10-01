@@ -14,4 +14,8 @@ unset __set_machine_list_suite__
 
 echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}"
 
-export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+if [ "${MACHINE_PPP}" = "${TRUE_HOST}" -o "${MACHINE_SUPER}" = "${TRUE_HOST}" ]; then
+    export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+else
+    export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST} ${MACHINE_SUPER}"
+fi
