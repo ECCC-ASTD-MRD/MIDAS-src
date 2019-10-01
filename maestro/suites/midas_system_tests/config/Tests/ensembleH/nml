@@ -1,5 +1,5 @@
  &NAMENSEMBLEH
-   NENS = 32
+   NENS = 40
    ASCIDUMPOBS = .true.
 /
  &NAMTIME

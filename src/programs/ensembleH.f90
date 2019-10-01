@@ -38,13 +38,11 @@ program midas_ensembleH
   use obsErrors_mod
   use obsOperators_mod
   use innovation_mod
-  use tt2phi_mod
   implicit none
 
   type(struct_obs), target             :: obsSpaceData
   type(struct_gsv)                     :: stateVector, statevector_tiles
   type(struct_columnData), allocatable :: columns(:)
-  type(struct_columnData)              :: column_mean
 
   real(8), allocatable :: HXmean(:)
   real(8), allocatable :: HXens(:,:)
@@ -68,13 +66,11 @@ program midas_ensembleH
 
   logical :: beSilent, dealloc
 
-  real(8), pointer    :: column_ptr(:)
-
   ! namelist variables
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: useTlmH, obsClean, asciDumpObs
+  logical  :: obsClean, asciDumpObs
   integer  :: nEns
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, useTlmH, &
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, &
                          obsClean, asciDumpObs
 
   write(*,'(/,' //  &
@@ -105,7 +101,6 @@ program midas_ensembleH
   nEns            = 10
   ensPathName     = 'ensemble'
   ensFileBaseName = ''
-  useTlmH         = .false.
   obsClean        = .false.
   asciDumpObs     = .false.
 
@@ -116,10 +111,6 @@ program midas_ensembleH
   if ( ierr /= 0) call utl_abort('midas-ensembleH: Error reading namelist')
   if ( mpi_myid == 0 ) write(*,nml=namensembleh)
   ierr = fclos(nulnam)
-
-  if ( useTlmH ) call utl_abort('midas-ensembleH: WARNING use of TL of H not tested recently')
-
-  
 
   ! Read the observations
   call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
@@ -179,11 +170,6 @@ program midas_ensembleH
     call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData),  &
                       mpiLocal_opt=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
   end do
-  if ( useTlmH ) then
-    write(*,*) 'midas-ensembleH: allocating column_mean'
-    call col_setVco(column_mean, vco_ens)
-    call col_allocate(column_mean, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
-  end if
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(5)
 
@@ -235,66 +221,26 @@ program midas_ensembleH
   call obs_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
 
   ! ------------------------------------------------------------
-  ! Compute H(X) for all members either with TLM or nonlinear H()
+  ! Compute H(X) for all members either with nonlinear H()
   ! ------------------------------------------------------------
-  if ( useTlmH ) then
-
-    ! Compute ensemble mean column and use nonlinear H()
-    call enkf_computeColumnsMean(column_mean, columns)
-
-    write(*,*) ''
-    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble mean'
-    write(*,*) ''
+  do memberIndex = 1, nEns
     ! compute Y-H(X) in OBS_OMP
+    write(*,*) ''
+    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
+    write(*,*) ''
+    beSilent = .true.
+    if ( memberIndex == 1 ) beSilent = .false.
+
     call tmg_start(7,'OBSOPER')
-    call inn_computeInnovation(column_mean, obsSpaceData )
+    call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
     call tmg_stop(7)
 
-    ! extract observation-minus-HXmean value, Y-HXmean
-    call obs_extractObsRealBodyColumn(HXmean, obsSpaceData, OBS_OMP)
-    ! compute HXmean = Y - (Y-HXmean)
-    HXmean(:) = obsVal(:) - HXmean(:)
+    ! extract observation-minus-HX value, Y-HX
+    call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
+    ! compute HX = Y - (Y-HX)
+    HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
 
-    ! Compute ensemble perturbation columns and use TL H()
-    call enkf_computeColumnsPerturbations(columns, column_mean)
-    write(*,*) ''
-    write(*,*) 'midas-ensembleH: apply tangent linear H to ensemble perturbations'
-    write(*,*) ''
-    do memberIndex = 1, nEns
-      ! compute H(dX) in OBS_WORK
-      call tmg_start(7,'OBSOPER')
-      call oop_Htl(columns(memberIndex), column_mean, obsSpaceData, memberIndex)
-      call tmg_stop(7)
-
-      ! extract HXpert value
-      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_WORK)
-      ! Recombine mean and perturbation to get total HX values
-      HXens(:,memberIndex) = HXmean(:) + HXens(:,memberIndex)
-    end do
-
-  else
-
-    ! Compute HX for all members using the nonlinear H()
-    do memberIndex = 1, nEns
-      ! compute Y-H(X) in OBS_OMP
-      write(*,*) ''
-      write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
-      write(*,*) ''
-      beSilent = .true.
-      if ( memberIndex == 1 ) beSilent = .false.
-
-      call tmg_start(7,'OBSOPER')
-      call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
-      call tmg_stop(7)
-
-      ! extract observation-minus-HX value, Y-HX
-      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
-      ! compute HX = Y - (Y-HX)
-      HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
-
-    end do
-
-  end if ! useTlmH
+  end do
 
   ! Put y-mean(H(X)) in OBS_OMP
   HXmean(:) = 0.0d0
