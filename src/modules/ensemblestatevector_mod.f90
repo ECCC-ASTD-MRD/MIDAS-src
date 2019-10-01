@@ -32,7 +32,6 @@ module ensembleStateVector_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
-  use humidityLimits_mod
   implicit none
   save
   private
@@ -41,10 +40,10 @@ module ensembleStateVector_mod
   public :: struct_ens, ens_allocate, ens_deallocate, ens_zero
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
-  public :: ens_varExist, ens_getNumLev, ens_getNumMembers
-  public :: ens_computeMean, ens_removeMean, ens_recenter, ens_recenterState
-  public :: ens_copyEnsMean, ens_copyMember, ens_insertMember
-  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_clipHumidity, ens_normalize
+  public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns
+  public :: ens_computeMean, ens_removeMean, ens_recenter
+  public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
+  public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
@@ -87,6 +86,9 @@ CONTAINS
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
                           dateStampList, varNames_opt, dataKind_opt, &
                           hInterpolateDegree_opt)
+    !
+    !:Purpose: Allocate an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -163,6 +165,9 @@ CONTAINS
   ! ens_allocateMean
   !--------------------------------------------------------------------------
   subroutine ens_allocateMean(ens)
+    !
+    !:Purpose: Allocate the ensemble mean arrays within an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -193,6 +198,9 @@ CONTAINS
   ! ens_allocateStdDev
   !--------------------------------------------------------------------------
   subroutine ens_allocateStdDev(ens)
+    !
+    !:Purpose: Allocate the ensemble stddev arrays within an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -223,6 +231,9 @@ CONTAINS
   ! ens_deallocate
   !--------------------------------------------------------------------------
   subroutine ens_deallocate( ens )
+    !
+    !:Purpose: Deallocate an ensembleStateVector object
+    !
     implicit none
 
     ! Arguments:
@@ -272,6 +283,11 @@ CONTAINS
   ! ens_modifyVarName
   !--------------------------------------------------------------------------
   subroutine ens_modifyVarName(ens, oldVarName, newVarName) 
+    !
+    !:Purpose: Change an existing variable name within the ensemble.
+    !          This is only used when the contents of a variable are
+    !          transformed into another variable **in place**.
+    !
     implicit none
     
     ! Arguments:
@@ -287,6 +303,9 @@ CONTAINS
   ! ens_copy
   !--------------------------------------------------------------------------
   subroutine ens_copy(ens_in,ens_out)
+    !
+    !:Purpose: Copy the contents of one ensembleStateVector object into another
+    !
     implicit none
 
     ! Arguments:
@@ -354,8 +373,9 @@ CONTAINS
   ! ens_copy4Dto3D
   !--------------------------------------------------------------------------
   subroutine ens_copy4Dto3D(ens_in,ens_out)
-    ! :Purpose: Copy contents of a 4D ensemble into a 3D ensemble object by
-    !           extracting the middle time step.
+    !
+    !:Purpose: Copy contents of a 4D ensemble into a 3D ensemble object by
+    !          extracting the middle time step.
     !
     implicit none
 
@@ -429,9 +449,11 @@ CONTAINS
   ! ens_add
   !--------------------------------------------------------------------------
   subroutine ens_add(ens_in, ens_inOut, scaleFactorIn_opt, scaleFactorInOut_opt)
-    ! :Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
+    !
+    !:Purpose: Add the contents of the ens_in ensemble to the ens_inOut ensemble.
     !
     implicit none
+
     ! arguments
     type(struct_ens)  :: ens_in, ens_inOut
     real(8), optional :: scaleFactorIn_opt
@@ -525,6 +547,9 @@ CONTAINS
   ! ens_zero
   !--------------------------------------------------------------------------
   subroutine ens_zero(ens)
+    !
+    !:Purpose: Set the main contents of an ensembleStateVector object to zero
+    !
     implicit none
 
     ! Arguments:
@@ -582,10 +607,15 @@ CONTAINS
   end subroutine ens_zero
 
   !--------------------------------------------------------------------------
-  ! ens_copyToStateWork
+  ! ens_copyToStateWork (private routine)
   !--------------------------------------------------------------------------
   subroutine ens_copyToStateWork(ens, dataType, memberIndex_opt, &
                                  subEnsIndex_opt)
+    !
+    !:Purpose: Copy the selected contents of an ensembleStateVector into
+    !          the 'work' stateVector within the object. The possible
+    !          types of content are: 'member', 'mean', or 'stdDev'.
+    !
     implicit none
 
     ! Arguments:
@@ -659,6 +689,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_copyFromStateWork(ens, dataType, memberIndex_opt, &
                                    subEnsIndex_opt)
+    !
+    !:Purpose: This is the inverse operation as ens_copyToStateWork.
+    !
     implicit none
 
     ! Arguments:
@@ -731,10 +764,15 @@ CONTAINS
   ! ens_getOneLev_r4
   !--------------------------------------------------------------------------
   function ens_getOneLev_r4(ens,kIndex) result(oneLevLevel)
+    !
+    !:Purpose: Return a 4D pointer to a single level of a real4 ensemble. The
+    !          dimensions of the pointer are:
+    !          (memberIndex, stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(4),pointer  :: oneLevLevel(:,:,:,:)
 
     ! Arguments:
+    real(4), pointer :: oneLevLevel(:,:,:,:)
     type(struct_ens) :: ens
     integer          :: kIndex
 
@@ -752,10 +790,15 @@ CONTAINS
   ! ens_getOneLev_r8
   !--------------------------------------------------------------------------
   function ens_getOneLev_r8(ens,kIndex) result(oneLevLevel)
+    !
+    !:Purpose: Return a 4D pointer to a single level of a real8 ensemble. The
+    !          dimensions of the pointer are:
+    !          (memberIndex, stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(8),pointer  :: oneLevLevel(:,:,:,:)
 
     ! Arguments:
+    real(8), pointer :: oneLevLevel(:,:,:,:)
     type(struct_ens) :: ens
     integer          :: kIndex
 
@@ -773,15 +816,20 @@ CONTAINS
   ! ens_getOneLevMean_r8
   !--------------------------------------------------------------------------
   function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
+    !
+    !:Purpose: Return a 3D pointer to a single level the ensemble mean. The
+    !          dimensions of the pointer are:
+    !          (stepIndex, lonIndex, latIndex)
+    !
     implicit none
-    real(8),pointer   :: field(:,:,:)
 
     ! Arguments:
+    real(8), pointer  :: field(:,:,:)
     type(struct_ens)  :: ens
     integer           :: subEnsIndex, kIndex
 
     ! Locals:
-    integer           :: lon1,lat1
+    integer           :: lon1, lat1
 
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
@@ -794,6 +842,9 @@ CONTAINS
   ! ens_copyEnsMean
   !--------------------------------------------------------------------------
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
+    !
+    !:Purpose: Copy the ensemble mean into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -846,9 +897,64 @@ CONTAINS
   end subroutine ens_copyEnsMean
 
   !--------------------------------------------------------------------------
+  ! ens_copyToEnsMean
+  !--------------------------------------------------------------------------
+  subroutine ens_copyToEnsMean(ens, statevector, subEnsIndex_opt)
+    !
+    !:Purpose: Copy the supplied stateVector into the ensemble mean.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer, optional :: subEnsIndex_opt
+
+    ! Locals:
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
+    character(len=4), pointer :: varNamesInEns(:)
+
+    if( present(subEnsIndex_opt) ) then
+      subEnsIndex = subEnsIndex_opt
+    else
+      subEnsIndex = 1
+    end if
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    if (.not. statevector%allocated) then
+      call utl_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
+    end if
+
+    if (statevector%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = ptr4d_r8(:,:,jk,stepIndex)
+        end do
+      end do
+    else
+      ptr4d_r4 => gsv_getField_r4(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:) = real(ptr4d_r4(:,:,jk,stepIndex),8)
+        end do
+      end do
+    end if
+
+  end subroutine ens_copyToEnsMean
+
+  !--------------------------------------------------------------------------
   ! ens_copyEnsStdDev
   !--------------------------------------------------------------------------
   subroutine ens_copyEnsStdDev(ens, statevector)
+    !
+    !:Purpose: Copy the ensemble StdDev into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -897,6 +1003,9 @@ CONTAINS
   ! ens_copyMember
   !--------------------------------------------------------------------------
   subroutine ens_copyMember(ens, statevector, memberIndex)
+    !
+    !:Purpose: Copy a selected ensemble member into the supplied stateVector.
+    !
     implicit none
 
     ! Arguments:
@@ -1013,6 +1122,9 @@ CONTAINS
   ! ens_insertMember
   !--------------------------------------------------------------------------
   subroutine ens_insertMember(ens, statevector, memberIndex)
+    !
+    !:Purpose: Copy the supplied stateVector in the selected ensemble member.
+    !
     implicit none
 
     ! Arguments:
@@ -1123,6 +1235,9 @@ CONTAINS
   ! ens_varExist
   !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
+    !
+    !:Purpose: Return true if the specified variable name exists in the ensemble.
+    !
     implicit none
     logical                      :: varExist 
 
@@ -1138,6 +1253,9 @@ CONTAINS
   ! ens_varNamesList
   !--------------------------------------------------------------------------
   subroutine ens_varNamesList(varNames,ens)
+    !
+    !:Purpose: Return a list of the variable names that exist in the ensemble.
+    !
     implicit none
     
     ! Arguments:
@@ -1160,6 +1278,9 @@ CONTAINS
   ! ens_getNumLev
   !--------------------------------------------------------------------------
   function ens_getNumLev(ens,varLevel) result(nlev)
+    !
+    !:Purpose: Return the number of vertical levels of the ensemble.
+    !
     implicit none
     integer                       :: nlev
 
@@ -1175,6 +1296,9 @@ CONTAINS
   ! ens_getNumMembers
   !--------------------------------------------------------------------------
   function ens_getNumMembers(ens) result(numMembers)
+    !
+    !:Purpose: Return the number of members in the ensemble.
+    !
     implicit none
     integer                       :: numMembers
 
@@ -1185,10 +1309,31 @@ CONTAINS
 
   end function ens_getNumMembers
 
+
+  !--------------------------------------------------------------------------
+  ! ens_getNumSubEns
+  !--------------------------------------------------------------------------
+  function ens_getNumSubEns(ens) result(numMembers)
+    !
+    !:Purpose: Return the number of sub-ensembles in the ensemble.
+    !
+    implicit none
+    integer                       :: numMembers
+
+    ! Arguments:
+    type(struct_ens), intent(in)  :: ens
+
+    numMembers = ens%numSubEns
+
+  end function ens_getNumSubEns
+
   !--------------------------------------------------------------------------
   ! ens_getNumK
   !--------------------------------------------------------------------------
   function ens_getNumK(ens) result(numK)
+    !
+    !:Purpose: Return the number of kIndex (a.k.a. varLevs) values of the ensemble.
+    !
     implicit none
     integer                       :: numK
 
@@ -1203,6 +1348,9 @@ CONTAINS
   ! ens_getDataKind
   !--------------------------------------------------------------------------
   function ens_getDataKind(ens) result(dataKind)
+    !
+    !:Purpose: Return the floating point kind of the ensemble (4 or 8).
+    !
     implicit none
     integer                       :: dataKind
 
@@ -1217,6 +1365,9 @@ CONTAINS
   ! ens_getOffsetFromVarName
   !--------------------------------------------------------------------------
   function ens_getOffsetFromVarName(ens,varName) result(offset)
+    !
+    !:Purpose: Return the offset of the kIndex for the specified variable name.
+    !
     implicit none
     integer                      :: offset
 
@@ -1236,6 +1387,9 @@ CONTAINS
   ! ens_getLevFromK
   !--------------------------------------------------------------------------
   function ens_getLevFromK(ens,kIndex) result(levIndex)
+    !
+    !:Purpose: Return the level index from the kIndex value.
+    !
     implicit none
     integer                      :: levIndex
 
@@ -1251,6 +1405,10 @@ CONTAINS
   ! ens_getKFromLevVarName
   !--------------------------------------------------------------------------
   function ens_getKFromLevVarName(ens, levIndex, varName) result(kIndex)
+    !
+    !:Purpose: Return the kIndex value for the specified level index
+    !          and variable name.
+    !
     implicit none
     integer                      :: kIndex
 
@@ -1267,6 +1425,9 @@ CONTAINS
   ! ens_getVarNameFromK
   !--------------------------------------------------------------------------
   function ens_getVarNameFromK(ens,kIndex) result(varName)
+    !
+    !:Purpose: Return the variable name from the specified kIndex value.
+    !
     implicit none
     character(len=4)             :: varName
 
@@ -1282,6 +1443,9 @@ CONTAINS
   ! ens_getVco
   !--------------------------------------------------------------------------
   function ens_getVco(ens) result(vco_ptr)
+    !
+    !:Purpose: Return a pointer to the verticalCoord object associate with the ensemble.
+    !
     implicit none
     type(struct_vco), pointer :: vco_ptr
 
@@ -1296,6 +1460,9 @@ CONTAINS
   ! ens_getHco
   !--------------------------------------------------------------------------
   function ens_getHco(ens) result(hco_ptr)
+    !
+    !:Purpose: Return a pointer to the horizontalCoord object associate with the ensemble.
+    !
     implicit none
     type(struct_hco), pointer :: hco_ptr
 
@@ -1310,6 +1477,9 @@ CONTAINS
   ! ens_getLatLonBounds
   !--------------------------------------------------------------------------
   subroutine ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    !
+    !:Purpose: Return the longitude and latitude index bounds for this mpi task.
+    !
     implicit none
 
     ! Arguments:
@@ -1330,6 +1500,9 @@ CONTAINS
   ! ens_getNumStep
   !--------------------------------------------------------------------------
   function ens_getNumStep(ens) result(numStep)
+    !
+    !:Purpose: Return the number of time steps stored in the ensemble.
+    !
     implicit none
     integer :: numStep
 
@@ -1343,19 +1516,19 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_computeMean
   !--------------------------------------------------------------------------
-  subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt, &
-                             imposeRttovHuLimits_opt, imposeSaturationLimit_opt)
+  subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt)
+    !
+    !:Purpose: Internally compute the ensemble mean.
+    !
     implicit none
 
     ! Arguments:
     type(struct_ens)  :: ens
     logical, optional :: computeSubEnsMeans_opt
     integer, optional :: numSubEns_opt
-    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
 
     ! Locals:
     logical           :: computeSubEnsMeans, lExists
-    logical           :: imposeRttovHuLimits, imposeSaturationLimit
 
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
 
@@ -1367,16 +1540,6 @@ CONTAINS
       computeSubEnsMeans = computeSubEnsMeans_opt
     else
       computeSubEnsMeans = .false.
-    end if
-    if (present(imposeRttovHuLimits_opt)) then
-      imposeRttovHuLimits = imposeRttovHuLimits_opt
-    else
-      imposeRttovHuLimits = .false.
-    end if
-    if (present(imposeSaturationLimit_opt)) then
-      imposeSaturationLimit = imposeSaturationLimit_opt
-    else
-      imposeSaturationLimit = .false.
     end if
 
     ! Read sub-ensemble index list from file, if it exists
@@ -1450,15 +1613,6 @@ CONTAINS
     end do
     !$OMP END PARALLEL DO
 
-    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-      do subEnsIndex = 1, ens%numSubEns
-        call ens_copyToStateWork  (ens, 'mean', subEnsIndex_opt=subEnsIndex)
-        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
-        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
-        call ens_copyFromStateWork(ens, 'mean', subEnsIndex_opt=subEnsIndex)
-      end do
-    end if
-
     ! provide output argument value
     if ( present(numSubEns_opt) ) numSubEns_opt = ens%numSubEns
 
@@ -1468,6 +1622,9 @@ CONTAINS
   ! ens_computeStdDev
   !--------------------------------------------------------------------------
   subroutine ens_computeStdDev(ens, containsScaledPerts_opt)
+    !
+    !:Purpose: Internally compute the ensemble stdDev.
+    !
     implicit none
 
     ! Arguments:
@@ -1602,6 +1759,9 @@ CONTAINS
   ! ens_normalize
   !--------------------------------------------------------------------------
   subroutine ens_normalize(ens)
+    !
+    !:Purpose: Normalize the ensemble by the 3D ensemble stdDev.
+    !
     implicit none
 
     ! Arguments:
@@ -1654,6 +1814,9 @@ CONTAINS
   ! ens_removeMean
   !--------------------------------------------------------------------------
   subroutine ens_removeMean(ens)
+    !
+    !:Purpose: Subtract the ensemble mean from each member.
+    !
     implicit none
 
     ! Arguments:
@@ -1696,8 +1859,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_recenter(ens,recenteringMean,recenteringCoeff, &
                           alternativeEnsembleMean_opt, &
-                          ensembleControlMember_opt, imposeRttovHuLimits_opt, &
-                          imposeSaturationLimit_opt, scaleFactor_opt)
+                          ensembleControlMember_opt, scaleFactor_opt)
     !
     !:Purpose:
     !          To compute:
@@ -1714,7 +1876,6 @@ CONTAINS
     type(struct_gsv) :: recenteringMean
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
-    logical, optional :: imposeRttovHuLimits_opt, imposeSaturationLimit_opt
     real(8), optional :: scaleFactor_opt(:)
 
     ! Locals:
@@ -1724,19 +1885,7 @@ CONTAINS
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
-    logical :: imposeRttovHuLimits, imposeSaturationLimit
     character(len=4) :: varLevel
-
-    if (present(imposeRttovHuLimits_opt)) then
-      imposeRttovHuLimits = imposeRttovHuLimits_opt
-    else
-      imposeRttovHuLimits = .false.
-    end if
-    if (present(imposeSaturationLimit_opt)) then
-      imposeSaturationLimit = imposeSaturationLimit_opt
-    else
-      imposeSaturationLimit = .false.
-    end if
 
     if ( present(scaleFactor_opt) ) then
       !scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
@@ -1823,157 +1972,7 @@ CONTAINS
     end do
     !$OMP END PARALLEL DO
 
-    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-      if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'ens_recenter: limits will be imposed on the humidity'
-      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-
-      if (present(ensembleControlMember_opt)) then
-        if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ensembleControlMember_opt)
-        if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ensembleControlMember_opt)
-      else
-        call ens_clipHumidity(ens, imposeSaturationLimit, imposeRttovHuLimits)
-      end if
-    end if
-
   end subroutine ens_recenter
-
-  !--------------------------------------------------------------------------
-  ! ens_recenterState
-  !--------------------------------------------------------------------------
-  subroutine ens_recenterState(ens,fileNameIn,fileNameOut,recenteringMean, &
-                               recenteringCoeff, etiket,typvar, &
-                               hInterpolationDegree, &
-                               alternativeEnsembleMean_opt, &
-                               numBits_opt, &
-                               imposeRttovHuLimitsOnInputs_opt, &
-                               imposeSaturationLimitOnInputs_opt, &
-                               imposeRttovHuLimitsOnOutputs_opt, &
-                               imposeSaturationLimitOnOutputs_opt, &
-                               scaleFactor_opt)
-    !
-    !:Purpose: To compute:
-    !          ..math::
-    !             x_recentered =
-    !                     scaleFactor*x_original 
-    !                   + recenteringCoeff*(  x_recenteringMean
-    !                                       - scaleFactor*x_ensembleMean
-    !                                      )
-    implicit none
-
-    ! Arguments:
-    type(struct_ens) :: ens
-    character(len=*) :: fileNameIn, fileNameOut
-    type(struct_gsv) :: recenteringMean
-    real(8)          :: recenteringCoeff
-    character(len=*)  :: etiket
-    character(len=*)  :: typvar
-    character(len=*)  :: hInterpolationDegree
-    type(struct_gsv), optional :: alternativeEnsembleMean_opt
-    integer, optional :: numBits_opt
-    logical, optional :: imposeRttovHuLimitsOnInputs_opt, imposeSaturationLimitOnInputs_opt
-    logical, optional :: imposeRttovHuLimitsOnOutputs_opt, imposeSaturationLimitOnOutputs_opt
-    real(8), optional :: scaleFactor_opt(:)
-
-    ! Locals:
-    integer,parameter:: maxNumLevels=200
-    type(struct_gsv) :: statevector_ensembleControlMember
-    integer          :: stepIndex, numStep
-    real(8) :: scaleFactor(maxNumLevels)
-    logical :: imposeRttovHuLimitsOnInputs, imposeSaturationLimitOnInputs
-    logical :: imposeRttovHuLimitsOnOutputs, imposeSaturationLimitOnOutputs
-
-    if (present(imposeRttovHuLimitsOnInputs_opt)) then
-      imposeRttovHuLimitsOnInputs = imposeRttovHuLimitsOnInputs_opt
-    else
-      imposeRttovHuLimitsOnInputs = .false.
-    end if
-    if (present(imposeSaturationLimitOnInputs_opt)) then
-      imposeSaturationLimitOnInputs = imposeSaturationLimitOnInputs_opt
-    else
-      imposeSaturationLimitOnInputs = .false.
-    end if
-    if (present(imposeRttovHuLimitsOnOutputs_opt)) then
-      imposeRttovHuLimitsOnOutputs = imposeRttovHuLimitsOnOutputs_opt
-    else
-      imposeRttovHuLimitsOnOutputs = .false.
-    end if
-    if (present(imposeSaturationLimitOnOutputs_opt)) then
-      imposeSaturationLimitOnOutputs = imposeSaturationLimitOnOutputs_opt
-    else
-      imposeSaturationLimitOnOutputs = .false.
-    end if
-
-    if ( present(scaleFactor_opt) ) then
-      scaleFactor = scaleFactor_opt
-    else
-      scaleFactor(:) = 1.0D0
-    end if
-
-    numStep = ens%statevector_work%numStep
-
-    call gsv_allocate(statevector_ensembleControlMember, numStep, ens%statevector_work%hco, ens%statevector_work%vco, &
-         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-         hInterpolateDegree_opt = hInterpolationDegree, &
-         allocHeight_opt=.false., allocPressure_opt=.false.)
-
-    do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
-      call gsv_readFromFile( statevector_ensembleControlMember, trim(fileNameIn), ' ', ' ',  &
-                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,  &
-                             containsFullField_opt=.true. )
-    end do
-
-    ! Check the humidity bounds before the recentering steps
-    if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_ensembleControlMember)
-    if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_ensembleControlMember)
-
-    ! Recenter
-    call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
-                      ensembleControlMember_opt = statevector_ensembleControlMember,                                  &
-                      imposeRttovHuLimits_opt=imposeRttovHuLimitsOnOutputs,                                           &
-                      imposeSaturationLimit_opt=imposeSaturationLimitOnOutputs,                                       &
-                      scaleFactor_opt=scaleFactor)
-
-    ! Output the recentered ensemble control member
-    do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
-      call gsv_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
-                            stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
-                            containsFullField_opt = .true. )
-    end do
-
-    call gsv_deallocate(statevector_ensembleControlMember)
-
-  end subroutine ens_recenterState
-
-  !--------------------------------------------------------------------------
-  ! ens_clipHumidity
-  !--------------------------------------------------------------------------
-  subroutine ens_clipHumidity(ens,imposeSaturationLimit,imposeRttovHuLimits)
-    implicit none
-
-    ! Arguments:
-    type(struct_ens) :: ens
-    logical          :: imposeRttovHuLimits, imposeSaturationLimit
-
-    ! Locals:
-    integer :: memberIndex
-
-    if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) 'ens_clipHumidity: limits will be imposed on the humidity'
-    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-
-    do memberIndex = 1, ens%numMembers
-      call ens_copyToStateWork  (ens, 'member', memberIndex_opt=memberIndex)
-      if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(ens%statevector_work)
-      if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit     (ens%statevector_work)
-      call ens_copyFromStateWork(ens, 'member', memberIndex_opt=memberIndex)
-    end do
-
-  end subroutine ens_clipHumidity
 
   !--------------------------------------------------------------------------
   ! ens_readEnsemble
@@ -1981,6 +1980,11 @@ CONTAINS
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
                               containsFullField_opt)
+    !
+    !:Purpose: Read the ensemble from disk in parallel and do mpi communication
+    !          so that all members for a given lat-lon tile are present on each
+    !          mpi task.
+    !
     implicit none
 
     ! Arguments:
@@ -2315,6 +2319,10 @@ CONTAINS
                                ctrlVarHumidity, etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt)
+    !
+    !:Purpose: Write the ensemble to disk by doing mpi transpose so that
+    !          each mpi task can write a single member in parallel.
+    !
     implicit none
 
     ! Arguments:

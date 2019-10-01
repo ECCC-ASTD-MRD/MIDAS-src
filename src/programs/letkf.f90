@@ -32,6 +32,7 @@ program midas_letkf
   use horizontalCoord_mod
   use analysisGrid_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use utilities_mod
   use ramDisk_mod
   use statetocolumn_mod
@@ -476,6 +477,10 @@ program midas_letkf
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
 
+  ! Print number of assimilated obs per family to the listing
+  write(*,*) 'oti_timeBinning: After extra filtering done in midas-letkf'
+  call oti_timeBinning(obsSpaceData,tim_nstepobs)
+
   call tmg_stop(2)
 
   !
@@ -595,7 +600,16 @@ program midas_letkf
   if (imposeSaturationLimit .or. imposeRttovHuLimits) then 
     call tmg_start(102,'LETKF-imposeHulimits')
     ! Impose limits on analysis ensemble
-    call ens_clipHumidity(ensembleAnl, imposeSaturationLimit, imposeRttovHuLimits)
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
+      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+    end if
+
     ! And recompute analysis mean
     call ens_computeMean(ensembleAnl)
     call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
@@ -605,8 +619,8 @@ program midas_letkf
 
     ! Impose limits on deterministic analysis
     if (deterministicStateExists) then
-      if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorDeterAnl)
-      if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit(stateVectorDeterAnl)
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorDeterAnl)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit(stateVectorDeterAnl)
       ! And recompute deterministic increment
       call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
       call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
@@ -645,9 +659,16 @@ program midas_letkf
     call ens_computeMean(ensembleAnlSubSample)
 
     ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
-    call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl, recenteringCoeff=1.0D0, &
-                      imposeRttovHuLimits_opt=.true., &
-                      imposeSaturationLimit_opt=.true.)
+    call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl, recenteringCoeff=1.0D0)
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of recentered ensemble'
+      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
+    end if
 
     ! Re-compute analysis mean of sub-sampled ensemble
     call ens_computeMean(ensembleAnlSubSample)
