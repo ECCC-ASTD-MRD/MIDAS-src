@@ -244,8 +244,8 @@ program midas_ensManip
     if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of ensemble'
     if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
     if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
-    if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
-    if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
+    if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
+    if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
   end if
 
   if ( ctrlVarHumidity == 'LQ' .and. ens_varExist(ensemble,'HU')) then
@@ -266,8 +266,8 @@ program midas_ensManip
     if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
       do subEnsIndex = 1, ens_getNumSubEns(ensemble)
         call ens_copyEnsMean(ensemble, statevector_mean, subEnsIndex_opt=subEnsIndex)
-        if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_mean)
-        if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_mean)
+        if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_mean)
+        if ( imposeRttovHuLimitsOnInputs   ) call qlim_rttovLimit     (statevector_mean)
         call ens_copyToEnsMean(ensemble, statevector_mean, subEnsIndex_opt=subEnsIndex)
       end do
     end if
@@ -348,8 +348,8 @@ program midas_ensManip
                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,                    &
                             containsFullField_opt=.true.)
     end do
-    if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_recenteringMean)
-    if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_recenteringMean)
+    if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_recenteringMean)
+    if ( imposeRttovHuLimitsOnInputs   ) call qlim_rttovLimit     (statevector_recenteringMean)
 
     call tmg_stop(10)
 
@@ -379,8 +379,8 @@ program midas_ensManip
                               ' ', ' ', stepIndex_opt=stepIndex, unitConversion_opt=.true.,               &
                               containsFullField_opt=.true. )
       end do
-      if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_alternativeEnsembleMean)
-      if ( imposeSaturationLimitOnInputs ) call qlim_gsvRttovLimit     (statevector_alternativeEnsembleMean)
+      if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_alternativeEnsembleMean)
+      if ( imposeSaturationLimitOnInputs ) call qlim_rttovLimit     (statevector_alternativeEnsembleMean)
 
       call tmg_stop(11)
 
@@ -393,8 +393,8 @@ program midas_ensManip
         if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
         if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
         if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
-        if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
-        if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
+        if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
+        if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
 
       call tmg_stop(12)
@@ -420,8 +420,8 @@ program midas_ensManip
         if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
         if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
         if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-        if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensemble)
-        if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensemble)
+        if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
+        if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
       call tmg_stop(12)
 
@@ -549,8 +549,8 @@ contains
     end do
 
     ! Check the humidity bounds before the recentering steps
-    if ( imposeSaturationLimitOnInputs ) call qlim_gsvSaturationLimit(statevector_ensembleControlMember)
-    if ( imposeRttovHuLimitsOnInputs   ) call qlim_gsvRttovLimit     (statevector_ensembleControlMember)
+    if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_ensembleControlMember)
+    if ( imposeRttovHuLimitsOnInputs   ) call qlim_rttovLimit     (statevector_ensembleControlMember)
 
     ! Recenter
     call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
@@ -558,8 +558,8 @@ contains
                       scaleFactor_opt=scaleFactor)
 
     ! Check the humidity bounds after the recentering steps
-    if ( imposeSaturationLimitOnOutputs ) call qlim_gsvSaturationLimit(statevector_ensembleControlMember)
-    if ( imposeRttovHuLimitsOnOutputs   ) call qlim_gsvRttovLimit     (statevector_ensembleControlMember)
+    if ( imposeSaturationLimitOnOutputs ) call qlim_saturationLimit(statevector_ensembleControlMember)
+    if ( imposeRttovHuLimitsOnOutputs   ) call qlim_rttovLimit     (statevector_ensembleControlMember)
 
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep

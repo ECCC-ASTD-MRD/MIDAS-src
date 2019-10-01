@@ -382,9 +382,9 @@ CONTAINS
     !- Impose limits on humidity analysis and recompute increment
     !
     call tmg_start(182,'INC_QLIMITS')
-    write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_gsvSaturationLimit'
-    call qlim_gsvSaturationLimit(statevector_analysis)
-    if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis)
+    write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_saturationLimit'
+    call qlim_saturationLimit(statevector_analysis)
+    if( imposeRttovHuLimits ) call qlim_rttovLimit(statevector_analysis)
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
     call tmg_stop(182)

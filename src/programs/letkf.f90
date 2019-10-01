@@ -606,8 +606,8 @@ program midas_letkf
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
 
-      if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensembleAnl)
-      if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensembleAnl)
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
     end if
 
     ! And recompute analysis mean
@@ -619,8 +619,8 @@ program midas_letkf
 
     ! Impose limits on deterministic analysis
     if (deterministicStateExists) then
-      if ( imposeSaturationLimit ) call qlim_gsvSaturationLimit(stateVectorDeterAnl)
-      if ( imposeRttovHuLimits   ) call qlim_gsvRttovLimit(stateVectorDeterAnl)
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorDeterAnl)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit(stateVectorDeterAnl)
       ! And recompute deterministic increment
       call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
       call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
@@ -666,8 +666,8 @@ program midas_letkf
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
 
-      if ( imposeSaturationLimit ) call qlim_ensSaturationLimit(ensembleAnlSubSample)
-      if ( imposeRttovHuLimits   ) call qlim_ensRttovLimit     (ensembleAnlSubSample)
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
     end if
 
     ! Re-compute analysis mean of sub-sampled ensemble

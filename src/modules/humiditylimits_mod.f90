@@ -31,17 +31,28 @@ module humidityLimits_mod
   private
 
   ! public procedures
-  public :: qlim_gsvSaturationLimit, qlim_ensSaturationLimit
-  public :: qlim_gsvRttovLimit, qlim_ensRttovLimit
+  public :: qlim_saturationLimit, qlim_rttovLimit
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
+
+  ! interface for qlim_saturationLimit
+  interface qlim_saturationLimit
+    module procedure qlim_saturationLimit_gsv
+    module procedure qlim_saturationLimit_ens
+  end interface qlim_saturationLimit
+
+  ! interface for qlim_rttovLimit
+  interface qlim_rttovLimit
+    module procedure qlim_rttovLimit_gsv
+    module procedure qlim_rttovLimit_ens
+  end interface qlim_rttovLimit
 
 contains
 
   !--------------------------------------------------------------------------
-  ! qlim_gsvSaturationLimit
+  ! qlim_saturationLimit_gsv
   !--------------------------------------------------------------------------
-  subroutine qlim_gsvSaturationLimit(statevector)
+  subroutine qlim_saturationLimit_gsv(statevector)
     !
     !:Purpose: To impose saturation limit on humidity variable of a statevector
     !
@@ -60,10 +71,10 @@ contains
     integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
-    if (mpi_myid == 0) write(*,*) 'qlim_gsvSaturationLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
 
     if( .not. gsv_varExist(statevector,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_gsvSaturationLimit: statevector does not ' // &
+      if( mpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -145,12 +156,12 @@ contains
 
     deallocate(psfc)
 
-  end subroutine qlim_gsvSaturationLimit
+  end subroutine qlim_saturationLimit_gsv
 
   !--------------------------------------------------------------------------
-  ! qlim_ensSaturationLimit
+  ! qlim_saturationLimit_ens
   !--------------------------------------------------------------------------
-  subroutine qlim_ensSaturationLimit(ensemble)
+  subroutine qlim_saturationLimit_ens(ensemble)
     !
     !:Purpose: To impose saturation limit on humidity variable of an ensemble
     !
@@ -169,14 +180,14 @@ contains
     integer          :: lon1, lon2, lat1, lat2, numLev, ierr
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
-    if (mpi_myid == 0) write(*,*) 'qlim_ensSaturationLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
-      call utl_abort('qlim_ensSaturationLimit: Not compatible with dataKind = 8')
+      call utl_abort('qlim_saturationLimit_ens: Not compatible with dataKind = 8')
     end if
 
     if( .not. ens_varExist(ensemble,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_ensSaturationLimit: ensemble does not ' // &
+      if( mpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -229,12 +240,12 @@ contains
 
     deallocate(psfc)
 
-  end subroutine qlim_ensSaturationLimit
+  end subroutine qlim_saturationLimit_ens
 
   !--------------------------------------------------------------------------
-  ! qlim_gsvRttovLimit
+  ! qlim_rttovLimit_gsv
   !--------------------------------------------------------------------------
-  subroutine qlim_gsvRttovLimit(statevector)
+  subroutine qlim_rttovLimit_gsv(statevector)
     !
     !:Purpose: To impose RTTOV limits on humidity
     !
@@ -259,10 +270,10 @@ contains
     character(len=256)   :: fileName
     logical, save        :: firstTime=.true.
 
-    if (mpi_myid == 0) write(*,*) 'qlim_gsvRttovLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
 
     if ( .not. gsv_varExist(statevector,'HU') ) then
-      if ( mpi_myid == 0 ) write(*,*) 'qlim_gsvRttovLimit: statevector does not ' // &
+      if ( mpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_gsv: statevector does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -273,11 +284,11 @@ contains
     ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
     if( ierr /= 0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'fileName = ', fileName
-      call utl_abort('qlim_gsvRttovLimit: error opening the humidity limits file')
+      call utl_abort('qlim_rttovLimit_gsv: error opening the humidity limits file')
     end if
 
     read(nulfile,*) numLev_rttov
-    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_gsvRttovLimit: rttov number of levels = ', numLev_rttov
+    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_gsv: rttov number of levels = ', numLev_rttov
     allocate(press_rttov(numLev_rttov))
     allocate(qmin_rttov(numLev_rttov))
     allocate(qmax_rttov(numLev_rttov))
@@ -292,7 +303,7 @@ contains
     if (firstTime) then
       write(*,*) ' '
       do levIndex = 1, numLev_rttov
-        if ( mpi_myid == 0 ) write(*,fmt='(" qlim_gsvRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+        if ( mpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_gsv:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
              levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
       end do
       firstTime = .false.
@@ -374,12 +385,12 @@ contains
     deallocate(qmin_rttov)
     deallocate(press_rttov)
 
-  end subroutine qlim_gsvRttovLimit
+  end subroutine qlim_rttovLimit_gsv
 
   !--------------------------------------------------------------------------
-  ! qlim_ensRttovLimit
+  ! qlim_rttovLimit_ens
   !--------------------------------------------------------------------------
-  subroutine qlim_ensRttovLimit(ensemble)
+  subroutine qlim_rttovLimit_ens(ensemble)
     !
     !:Purpose: To impose RTTOV limits on humidity
     !
@@ -403,16 +414,16 @@ contains
     character(len=256)   :: fileName
     logical, save        :: firstTime=.true.
 
-    if (mpi_myid == 0) write(*,*) 'qlim_ensRttovLimit: STARTING'
+    if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
     if ( .not. ens_varExist(ensemble,'HU') ) then
-      if ( mpi_myid == 0 ) write(*,*) 'qlim_ensRttovLimit: ensemble does not ' // &
+      if ( mpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
 
     if (ens_getDataKind(ensemble) == 8) then
-      call utl_abort('qlim_ensRttovLimit: Not compatible with dataKind = 8')
+      call utl_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
     end if
 
     ! Read in RTTOV humidity limits
@@ -421,11 +432,11 @@ contains
     ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
     if( ierr /= 0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'fileName = ', fileName
-      call utl_abort('qlim_ensRttovLimit: error opening the humidity limits file')
+      call utl_abort('qlim_rttovLimit_ens: error opening the humidity limits file')
     end if
 
     read(nulfile,*) numLev_rttov
-    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_ensRttovLimit: rttov number of levels = ', numLev_rttov
+    if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_ens: rttov number of levels = ', numLev_rttov
     allocate(press_rttov(numLev_rttov))
     allocate(qmin_rttov(numLev_rttov))
     allocate(qmax_rttov(numLev_rttov))
@@ -440,7 +451,7 @@ contains
     if (firstTime) then
       write(*,*) ' '
       do levIndex = 1, numLev_rttov
-        if ( mpi_myid == 0 ) write(*,fmt='(" qlim_ensRttovLimit:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+        if ( mpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_ens:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
              levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
       end do
       firstTime = .false.
@@ -507,7 +518,7 @@ contains
     deallocate(qmin_rttov)
     deallocate(press_rttov)
 
-  end subroutine qlim_ensRttovLimit
+  end subroutine qlim_rttovLimit_ens
 
   !--------------------------------------------------------------------------
   ! qlim_lintv_minmax
