@@ -3,13 +3,15 @@
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
+__set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 if [ -z "${MACHINE_PPP}" ]; then
-    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
+    MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
 fi
 if [ -z "${MACHINE_SUPER}" ]; then
-    MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+    MACHINE_SUPER=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
 fi
+unset __set_machine_list_suite__
+
 echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}"
 
 export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
