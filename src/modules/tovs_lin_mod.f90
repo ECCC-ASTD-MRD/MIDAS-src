@@ -144,7 +144,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
-    integer :: allocStatus(17)
+    integer :: allocStatus(22)
     logical :: diagTtop,TopAt10hPa
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
@@ -155,22 +155,30 @@ contains
 
     real(8), allocatable :: ttInterpolated(:,:)
     real(8), allocatable :: huInterpolated_tl(:,:)
-    real(8), allocatable :: logHuInterpolated_tl(:,:)
+    real(8), allocatable :: logVarInterpolated_tl(:,:)
     real(8), allocatable :: ttExtrapolated_tl(:,:)
     real(8), allocatable :: huExtrapolated_tl(:,:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: dPdPs(:,:)
     real(8), allocatable :: tt_tl(:,:)
     real(8), allocatable :: hu_tl(:,:)
-    real(8), allocatable :: logHu_tl(:,:)
+    real(8), allocatable :: logVar_tl(:,:)
     real(8), allocatable :: tt(:,:)
     real(8), allocatable :: hu(:,:)
-    real(8), allocatable :: logHu(:,:)
+    real(8), allocatable :: logVar(:,:)
     real(8), allocatable :: huExtrapolated(:,:)
     real(8), allocatable :: pressure_tl(:,:)
     real(8), allocatable :: rttovPressure(:)
+    
+    real(8), allocatable :: ozone(:,:)
+    real(8), allocatable :: ozone_tl(:,:)
+    real(8), allocatable :: ozoneInterpolated_tl(:,:)
+    real(8), allocatable :: ozoneExtrapolated(:,:)
+    real(8), allocatable :: ozoneExtrapolated_tl(:,:)
+    
     real(8) :: topPressure
     real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
+    real(8), pointer :: delO3(:), O3b(:)
     integer :: nRttovLevels
     integer :: btCount
     integer,external :: omp_get_num_threads
@@ -268,21 +276,29 @@ contains
       allocate (sensorHeaderIndexes (profileCount),      stat= allocStatus(1) )
       allocate (ttInterpolated     (levelsBelowModelTop,profileCount),  stat= allocStatus(2) )
       allocate (huInterpolated_tl    (levelsBelowModelTop,profileCount),  stat= allocStatus(3) )
-      allocate (logHuInterpolated_tl (levelsBelowModelTop,profileCount),  stat= allocStatus(4) )
+      allocate (logVarInterpolated_tl (levelsBelowModelTop,profileCount),  stat= allocStatus(4) )
       allocate (ttExtrapolated_tl  (nRttovLevels  ,profileCount),stat= allocStatus(5) )
       allocate (huExtrapolated_tl  (nRttovLevels  ,profileCount),stat= allocStatus(6) )
       allocate (pressure     (nlv_T,profileCount),    stat= allocStatus(7) )
       allocate (dPdPs     (nlv_T,profileCount),    stat= allocStatus(8) )
       allocate (tt_tl     (nlv_T,profileCount),    stat= allocStatus(9) )
-      allocate (hu_tl    (nlv_T,profileCount),    stat= allocStatus(10))
-      allocate (logHu_tl (nlv_T,profileCount),    stat= allocStatus(11))
+      allocate (hu_tl    (nlv_T,profileCount),     stat= allocStatus(10))
+      allocate (logVar_tl (nlv_T,profileCount),    stat= allocStatus(11))
       allocate (tt        (nlv_T,profileCount),    stat= allocStatus(12))
-      allocate (hu       (nlv_T,profileCount),    stat= allocStatus(13))
-      allocate (logHu    (nlv_T,profileCount),    stat= allocStatus(14))
+      allocate (hu       (nlv_T,profileCount),     stat= allocStatus(13))
+      allocate (logVar    (nlv_T,profileCount),    stat= allocStatus(14))
       allocate (huExtrapolated     (nRttovLevels,profileCount),  stat= allocStatus(15))
       allocate (pressure_tl     (nlv_T,profileCount),    stat= allocStatus(16))
       allocate (profilesdata_tl(profileCount),     stat= allocStatus(17))
-
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          allocate (ozone(nlv_T,profileCount),       stat= allocStatus(18))
+          allocate (ozone_tl(nlv_T,profileCount),    stat= allocStatus(19))
+          allocate (ozoneInterpolated_tl(levelsBelowModelTop,profileCount),  stat= allocStatus(20))
+          allocate (ozoneExtrapolated(nRttovLevels,profileCount),      stat= allocStatus(21))
+          allocate (ozoneExtrapolated_tl(nRttovLevels,profileCount),   stat= allocStatus(22))
+        end if
+      end if
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_tl")
  
       sensorHeaderIndexes(:) = 0 
@@ -297,6 +313,15 @@ contains
       pressure_tl(:,:) = 0.0d0
       ttInterpolated(:,:) = 0.0d0
       huInterpolated_tl(:,:) = 0.0d0
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          ozone(:,:) = 0.0d0
+          ozone_tl(:,:) = 0.0d0
+          ozoneInterpolated_tl(:,:) = 0.0d0
+          ozoneExtrapolated(:,:) = 0.0d0
+          ozoneExtrapolated_tl(:,:) = 0.0d0
+        end if
+      end if
 
       ! allocate profiledata_tl structures
       asw = 1 ! 1 to allocate
@@ -344,6 +369,16 @@ contains
           pressure(levelIndex,profileCount)  = Pres(levelIndex) *MPC_MBAR_PER_PA_R8
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
+        if (.not. tvs_luseo3climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+            delO3 => col_getColumn(column,headerIndex,'TO3')
+            O3b => col_getColumn(columng,headerIndex,'TO3')
+
+            ozone_tl(1:nlv_T,profileCount) =  delO3(1:nlv_T) * 1.0d-9 ! Assuimes model ozone in ug/kg
+            ozone(1:nlv_T,profileCount) =  O3b(1:nlv_T) * 1.0d-9
+
+          end if
+        end if
         
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 
@@ -355,6 +390,12 @@ contains
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
           hu(1,profileCount) =  hu(2,profileCount)
+          if (.not. tvs_luseo3climatology) then
+            if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+              ozone_tl(1,profileCount) = 0.d0
+              ozone(1,profileCount) =  ozone(2,profileCount)
+            end if
+          end if
         end if
         
         sensorHeaderIndexes(profileCount) = headerIndex
@@ -378,17 +419,38 @@ contains
              tt(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
 
-        logHu(:,profileIndex) = log( hu(:,profileIndex) )
-        logHu_tl(:,profileIndex) = hu_tl(:,profileIndex) / hu(:,profileIndex)
-        call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logHu_tl(:,profileIndex:profileIndex), &
-             logHu(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logHuInterpolated_tl(:,profileIndex:profileIndex))
+        logVar(:,profileIndex) = log( hu(:,profileIndex) )
+        logVar_tl(:,profileIndex) = hu_tl(:,profileIndex) / hu(:,profileIndex)
+        call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logVar_tl(:,profileIndex:profileIndex), &
+             logVar(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated_tl(:,profileIndex:profileIndex))
 
-       huInterpolated_tl(:,profileIndex) = logHuInterpolated_tl(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
-
-
+       huInterpolated_tl(:,profileIndex) = logVarInterpolated_tl(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+       
       end do
       !$omp end parallel do
+
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+
+          do profileIndex = 1, profileCount
+            ozoneExtrapolated(1:nRttovLevels,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % o3(1:nRttovLevels)
+          end do
+
+          !$omp parallel do private(profileIndex)
+          do profileIndex=1, profileCount
+            logVar(:,profileIndex) = log( ozone(:,profileIndex) )
+            logVar_tl(:,profileIndex) = ozone_tl(:,profileIndex) / ozone(:,profileIndex)
+            call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logVar_tl(:,profileIndex:profileIndex), &
+                 logVar(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
+                 levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated_tl(:,profileIndex:profileIndex))
+
+             ozoneInterpolated_tl(:,profileIndex) = logVarInterpolated_tl(:,profileIndex) * ozoneExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+       
+          end do
+          !$omp end parallel do
+        end if
+      end if
       
       !  2.2  Extrapolation of temperature profile above 10mb
       ttExtrapolated_tl(:,:) = 0.0d0
@@ -431,11 +493,31 @@ contains
         end if
       end if
 
+      !    2.4  Extrapolation of ozone profile (kg/kg) if necessary
+
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          do profileIndex = 1, profileCount
+            ozoneExtrapolated_tl(1:modelTopIndex - 1,profileIndex) = 0.d0
+            do levelIndex = 1, levelsBelowModelTop
+              ozoneExtrapolated_tl(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = ozoneInterpolated_tl(levelIndex,profileIndex)
+            end do
+          end do
+        end if
+      end if
+      
       do  profileIndex = 1 , profileCount
         profilesdata_tl(profileIndex) % gas_units       = gas_unit_specconc ! all gas profiles should be provided in kg/kg
         profilesdata_tl(profileIndex) % nlevels         =  nRttovLevels
         profilesdata_tl(profileIndex) % nlayers         =  nRttovLevels - 1
-        if (tvs_coefs(sensorIndex)%coef%nozone > 0) profilesdata_tl(profileIndex) % o3(:) =  0.d0
+        if (tvs_coefs(sensorIndex)%coef%nozone > 0) then
+          if (tvs_lUseO3Climatology) then
+            profilesdata_tl(profileIndex) % o3(:) =  0.0d0
+          else
+            profilesdata_tl(profileIndex) % o3(1:nRttovLevels) = ozoneExtrapolated_tl(1:nRttovLevels,profileIndex)
+            profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TO3') * 1.0d-9 ! Assumes model ozone in ug/kg
+          end if
+        end if
         
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
@@ -459,26 +541,35 @@ contains
         profilesdata_tl(profileIndex) % q(1:nRttovLevels)    = huExtrapolated_tl(1:nRttovLevels,profileIndex)
       end do
 
-      deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
-      deallocate (ttInterpolated,      stat= allocStatus(2) )
-      deallocate (huInterpolated_tl,   stat= allocStatus(3) )
-      deallocate (logHuInterpolated_tl,stat= allocStatus(4) )
-      deallocate (ttExtrapolated_tl,   stat= allocStatus(5) )
-      deallocate (huExtrapolated_tl,   stat= allocStatus(6) )
-      deallocate (pressure,            stat= allocStatus(7) )
-      deallocate (dPdPs,               stat= allocStatus(8) )
-      deallocate (tt_tl,               stat= allocStatus(9) )
-      deallocate (hu_tl,               stat= allocStatus(10))
-      deallocate (logHu_tl,            stat= allocStatus(11))
-      deallocate (tt,                  stat= allocStatus(12))
-      deallocate (hu,                  stat= allocStatus(13))
-      deallocate (logHu,               stat= allocStatus(14))
-      deallocate (huExtrapolated,      stat= allocStatus(15))
-      deallocate (pressure_tl,         stat= allocStatus(16))
-      deallocate (rttovPressure,       stat= allocStatus(17))
+      deallocate (sensorHeaderIndexes,  stat= allocStatus(1) )
+      deallocate (ttInterpolated,       stat= allocStatus(2) )
+      deallocate (huInterpolated_tl,    stat= allocStatus(3) )
+      deallocate (logVarInterpolated_tl,stat= allocStatus(4) )
+      deallocate (ttExtrapolated_tl,    stat= allocStatus(5) )
+      deallocate (huExtrapolated_tl,    stat= allocStatus(6) )
+      deallocate (pressure,             stat= allocStatus(7) )
+      deallocate (dPdPs,                stat= allocStatus(8) )
+      deallocate (tt_tl,                stat= allocStatus(9) )
+      deallocate (hu_tl,                stat= allocStatus(10))
+      deallocate (logVar_tl,            stat= allocStatus(11))
+      deallocate (tt,                   stat= allocStatus(12))
+      deallocate (hu,                   stat= allocStatus(13))
+      deallocate (logVar,               stat= allocStatus(14))
+      deallocate (huExtrapolated,       stat= allocStatus(15))
+      deallocate (pressure_tl,          stat= allocStatus(16))
+      deallocate (rttovPressure,        stat= allocStatus(17))
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          deallocate (ozone,              stat= allocStatus(18))
+          deallocate (ozone_tl,           stat= allocStatus(19))
+          deallocate (ozoneInterpolated_tl,  stat= allocStatus(20))
+          deallocate (ozoneExtrapolated,     stat= allocStatus(21))
+          deallocate (ozoneExtrapolated_tl,  stat= allocStatus(22))
+        end if
+      end if
       call utl_checkAllocationStatus(allocStatus, "tvslin_rttov_tl", .false.)
 
-      !     set nthreads to actual number of threads which will be used.
+      !  set nthreads to actual number of threads which will be used.
 
       nthreads = min(max_nthreads, profileCount)  
 
@@ -544,7 +635,6 @@ contains
         end if
         
       end do
-
  
       ! de-allocate memory
       
@@ -598,7 +688,7 @@ contains
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
     
-    integer :: allocStatus(17)
+    integer :: allocStatus(22)
     logical :: diagTtop,TopAt10hPa
     integer :: omp_get_num_threads, nthreads
     integer :: nRttovLevels,nobmax
@@ -609,26 +699,33 @@ contains
     integer :: modelTopIndex, levelsBelowModelTop
     
     real(8), allocatable :: ttInterpolated_ad(:,:)
-    real(8), allocatable ::huInterpolated_ad(:,:)
-    real(8), allocatable :: logHuInterpolated_ad(:,:)
+    real(8), allocatable :: huInterpolated_ad(:,:)
+    real(8), allocatable :: logVarInterpolated_ad(:,:)
     real(8), allocatable :: ttExtrapolated_ad(:,:)
     real(8), allocatable :: huExtrapolated_ad(:,:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: dPdPs(:,:)
     real(8), allocatable :: tt_ad(:,:)
     real(8), allocatable :: hu_ad(:,:)
-    real(8), allocatable :: logHu_ad(:,:)
+    real(8), allocatable :: logVar_ad(:,:)
     real(8), allocatable :: tt(:,:)
     real(8), allocatable :: hu(:,:)
-    real(8), allocatable :: logHu(:,:)
+    real(8), allocatable :: logVar(:,:)
     real(8), allocatable :: huExtrapolated(:,:)
     real(8), allocatable :: pressure_ad(:,:)
     real(8), allocatable :: rttovPressure(:)
+    
+    real(8), allocatable :: ozone(:,:)
+    real(8), allocatable :: ozone_ad(:,:)
+    real(8), allocatable :: ozoneInterpolated_ad(:,:)
+    real(8), allocatable :: ozoneExtrapolated_ad(:,:)
+    real(8), allocatable :: ozoneExtrapolated(:,:)
 
     real(8) :: topPressure
    
-    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:),p_column(:)
-    real(8), pointer :: TTb(:), HUb(:), Pres(:)
+    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),  &
+                        tg_column(:),p_column(:),o3_column(:)
+    real(8), pointer :: TTb(:), HUb(:), O3b(:), Pres(:)
 
     integer :: btCount
     integer :: max_nthreads
@@ -727,24 +824,34 @@ contains
       levelsBelowModelTop = (nRttovLevels - modelTopIndex + 1)
      
       allocStatus(:) = 0
-      allocate (sensorHeaderIndexes(profileCount),                     stat= allocStatus(1) )
-      allocate (ttInterpolated_ad(levelsBelowModelTop,profileCount),   stat= allocStatus(2) )
-      allocate (huInterpolated_ad(levelsBelowModelTop,profileCount),   stat= allocStatus(3) )
-      allocate (logHuInterpolated_ad(levelsBelowModelTop,profileCount),stat= allocStatus(4) )
-      allocate (ttExtrapolated_ad(nRttovLevels,profileCount),          stat= allocStatus(5) )
-      allocate (huExtrapolated_ad(nRttovLevels,profileCount),          stat= allocStatus(6) )
-      allocate (pressure(nlv_T,profileCount),                          stat= allocStatus(7) )
-      allocate (dPdPs(nlv_T,profileCount),                             stat= allocStatus(8) )
-      allocate (tt_ad(nlv_T,profileCount),                             stat= allocStatus(9) )
-      allocate (hu_ad(nlv_T,profileCount),                             stat= allocStatus(10))
-      allocate (logHu_ad(nlv_T,profileCount),                          stat= allocStatus(11))
-      allocate (tt(nlv_T,profileCount),                                stat= allocStatus(12))
-      allocate (hu(nlv_T,profileCount),                                stat= allocStatus(13))
-      allocate (logHu(nlv_T,profileCount),                             stat= allocStatus(14))
-      allocate (huExtrapolated(nRttovLevels,profileCount),             stat= allocStatus(15))
-      allocate (pressure_ad(nlv_T,profileCount),                       stat= allocStatus(16))
+      allocate (sensorHeaderIndexes(profileCount),                      stat= allocStatus(1) )
+      allocate (ttInterpolated_ad(levelsBelowModelTop,profileCount),    stat= allocStatus(2) )
+      allocate (huInterpolated_ad(levelsBelowModelTop,profileCount),    stat= allocStatus(3) )
+      allocate (logVarInterpolated_ad(levelsBelowModelTop,profileCount),stat= allocStatus(4) )
+      allocate (ttExtrapolated_ad(nRttovLevels,profileCount),           stat= allocStatus(5) )
+      allocate (huExtrapolated_ad(nRttovLevels,profileCount),           stat= allocStatus(6) )
+      allocate (pressure(nlv_T,profileCount),                           stat= allocStatus(7) )
+      allocate (dPdPs(nlv_T,profileCount),                              stat= allocStatus(8) )
+      allocate (tt_ad(nlv_T,profileCount),                              stat= allocStatus(9) )
+      allocate (hu_ad(nlv_T,profileCount),                              stat= allocStatus(10))
+      allocate (logVar_ad(nlv_T,profileCount),                          stat= allocStatus(11))
+      allocate (tt(nlv_T,profileCount),                                 stat= allocStatus(12))
+      allocate (hu(nlv_T,profileCount),                                 stat= allocStatus(13))
+      allocate (logVar(nlv_T,profileCount),                             stat= allocStatus(14))
+      allocate (huExtrapolated(nRttovLevels,profileCount),              stat= allocStatus(15))
+      allocate (pressure_ad(nlv_T,profileCount),                        stat= allocStatus(16))
 
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          allocate (ozone(nlv_T,profileCount),                            stat= allocStatus(17) )
+          allocate (ozone_ad(nlv_T,profileCount),                         stat= allocStatus(18) )
+          allocate (ozoneInterpolated_ad(levelsBelowModelTop,profileCount), stat= allocStatus(19) )
+          allocate (ozoneExtrapolated_ad(nRttovLevels,profileCount),      stat= allocStatus(20) )
+          allocate (ozoneExtrapolated(nRttovLevels,profileCount),         stat= allocStatus(21) )
+        end if
+      end if
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad")
+
       !  loop over all obs.
       profileCount = 0 
       
@@ -764,6 +871,15 @@ contains
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
         
+        if (.not. tvs_luseo3climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+            O3b => col_getColumn(columng,headerIndex,'TO3')
+            ! Model-based values are converted to the units required by RTTOV (kg/kg)
+            ozone(1:nlv_T,profileCount) = O3b(1:nlv_T) * 1.0d-9 ! Assumes model (trial) ozone in ug/kg
+          end if
+        end if
+
+
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
@@ -857,8 +973,12 @@ contains
       call tmg_stop(84)
 
       !.. store results from rttov_ad into profiles_ad
+
       ttExtrapolated_ad(:,:) = 0.d0
       huExtrapolated_ad(:,:) = 0.d0
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozoneExtrapolated_ad(:,:) = 0.d0
+      endif
 
       do btIndex = 1, btCount
         
@@ -881,14 +1001,45 @@ contains
         hu_column(ilowlvl_T) = 0.d0 
         uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
         vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
-      end do
+
+        if (.not. tvs_luseo3climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+            ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...'TO3')  
+            o3_column => col_getColumn(column,headerIndex,'TO3')
+            o3_column(ilowlvl_T) =  profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
+            
+            ozoneExtrapolated_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
+          end if
+        end if
+     end do
 
 
-      !  2.4  Adjoint of filling profiles_ad structure
+      !  2.5  Adjoint of filling profiles_ad structure
+      
       do profileIndex = 1, profileCount
         huExtrapolated(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(:)
       end do
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
+          do profileIndex = 1, profileCount
+            ozoneExtrapolated(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % o3(:)
+          end do
+        end if
+      end if
 
+      !   2.4  Adjoint of extrapolation of ozone profile (kg/kg) if necessary
+
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
+
+          ozoneInterpolated_ad(:,:) = 0.0d0
+          do profileIndex = 1, profileCount
+            do levelIndex = 1, levelsBelowModelTop
+              ozoneInterpolated_ad(levelIndex,profileIndex) =  ozoneExtrapolated_ad(nRttovLevels-levelsBelowModelTop + levelIndex,profileIndex)
+            end do
+          end do
+        end if
+      end if
     
       !   2.3  Adjoint of extrapolation of humidity profile (kg/kg)
       !        above rlimlvhu (normally 300mbs or 70mbs)
@@ -919,6 +1070,7 @@ contains
       end do
 
       !   2.2  Adjoint of extrapolation of temperature profile above 10mb
+
       ttInterpolated_ad(:,:) = 0.0d0
       if ( .not. TopAt10hPa ) then
         do profileIndex = 1, profileCount
@@ -930,7 +1082,33 @@ contains
       end if
  
       !   2.1  Adjoint of vertical interpolation of model temperature and logarithm of
-      !        specific humidity to pressure levels required by tovs rt model
+      !        specific humidity and ozone to pressure levels required by tovs rt model
+      
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
+
+          ozone_ad(:,:)   = 0.0d0
+
+          !$omp parallel do private(profileIndex)
+          do profileIndex = 1, profileCount
+            logVar(:,profileIndex) = log( ozone(:,profileIndex) ) 
+            logVar_ad(:,profileIndex) = 0.d0
+            logVarInterpolated_ad(:,profileIndex) = 0.d0
+            logVarInterpolated_ad(:,profileIndex) = logVarInterpolated_ad(:,profileIndex) +ozoneInterpolated_ad(:,profileIndex) * ozoneExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+            call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex), &
+                 logVar_ad(:,profileIndex:profileIndex), logVar(:,profileIndex:profileIndex), &
+                 pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
+                 levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels), logVarInterpolated_ad(:,profileIndex:profileIndex))
+        
+            ozone_ad(:,profileIndex) = ozone_ad(:,profileIndex) + logVar_ad(:,profileIndex) / ozone(:,profileIndex)
+
+          end do
+          !$omp end parallel do
+          
+        end if
+      end if
+
+      !   2.0  Store adjoints in columnData object
       
       tt_ad(:,:) = 0.0d0
       hu_ad(:,:) = 0.0d0
@@ -946,17 +1124,16 @@ contains
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated_ad(:,profileIndex:profileIndex))
         
-
-        logHu(:,profileIndex) = log( hu(:,profileIndex) ) 
-        logHu_ad(:,profileIndex) = 0.d0
-        logHuInterpolated_ad(:,profileIndex) = 0.d0
-        logHuInterpolated_ad(:,profileIndex) = logHuInterpolated_ad(:,profileIndex) +huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+        logVar(:,profileIndex) = log( hu(:,profileIndex) ) 
+        logVar_ad(:,profileIndex) = 0.d0
+        logVarInterpolated_ad(:,profileIndex) = 0.d0
+        logVarInterpolated_ad(:,profileIndex) = logVarInterpolated_ad(:,profileIndex) +huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
         call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex), &
-             logHu_ad(:,profileIndex:profileIndex), logHu(:,profileIndex:profileIndex), &
+             logVar_ad(:,profileIndex:profileIndex), logVar(:,profileIndex:profileIndex), &
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels), logHuInterpolated_ad(:,profileIndex:profileIndex))
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels), logVarInterpolated_ad(:,profileIndex:profileIndex))
 
-        hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logHu_ad(:,profileIndex) / hu(:,profileIndex)
+        hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logVar_ad(:,profileIndex) / hu(:,profileIndex)
 
       end do
       !$omp end parallel do
@@ -965,14 +1142,22 @@ contains
       ! Fix pour eviter probleme au toit avec GEM 4
       ! (grosse variabilite temperature au dernier niveau thermo due 
       !  a l'extrapolation utilisee)
+
       if ( diagTtop ) then
+        if (.not. tvs_luseo3climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
+            do profileIndex = 1, profileCount
+              ozone_ad(1,profileIndex) = 0.d0
+            end do
+          end if
+        end if
         do profileIndex = 1, profileCount
           tt_ad (1,profileIndex) = 0.d0
           hu_ad(1,profileIndex) = 0.d0
         end do
       end if
 
-      !   2.1  Store adjoints in columnData object
+      !   2.0  Store adjoints in columnData object
 
       do  profileIndex = 1 , profileCount 
         ps_column => col_getColumn(column, sensorHeaderIndexes(profileIndex), 'P0')
@@ -987,23 +1172,43 @@ contains
         end do
       end do
 
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          do  profileIndex = 1 , profileCount 
+            o3_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'TO3')
+            do levelIndex = 1, col_getNumLev(column,'TH')
+              o3_column(levelIndex) = o3_column(levelIndex) +  ozone_ad(levelIndex,profileIndex) * 1.0d-9
+            end do
+          end do
+        end if
+      end if
+
       deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
       deallocate (ttInterpolated_ad,   stat= allocStatus(2) )
       deallocate (huInterpolated_ad,   stat= allocStatus(3) )
-      deallocate (logHuInterpolated_ad,stat= allocStatus(4) )
+      deallocate (logVarInterpolated_ad,stat= allocStatus(4) )
       deallocate (ttExtrapolated_ad,   stat= allocStatus(5) )
       deallocate (huExtrapolated_ad,   stat= allocStatus(6) )
       deallocate (pressure,            stat= allocStatus(7) )
       deallocate (dPdPs,               stat= allocStatus(8) )
       deallocate (tt_ad,               stat= allocStatus(9) )
       deallocate (hu_ad,               stat= allocStatus(10))
-      deallocate (logHu_ad,            stat= allocStatus(11))
+      deallocate (logVar_ad,           stat= allocStatus(11))
       deallocate (tt,                  stat= allocStatus(12))
       deallocate (hu,                  stat= allocStatus(13))
-      deallocate (logHu,               stat= allocStatus(14))
+      deallocate (logVar,              stat= allocStatus(14))
       deallocate (huExtrapolated,      stat= allocStatus(15))
       deallocate (pressure_ad,         stat= allocStatus(16))
       deallocate (rttovPressure,       stat= allocStatus(17))
+      if (.not. tvs_luseo3climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          deallocate (ozone,           stat= allocStatus(18) )
+          deallocate (ozone_ad,        stat= allocStatus(19) )
+          deallocate (ozoneInterpolated_ad,  stat= allocStatus(20) )
+          deallocate (ozoneExtrapolated_ad,  stat= allocStatus(21) )
+          deallocate (ozoneExtrapolated,     stat= allocStatus(22) )
+        end if 
+      end if
       
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad", .false.)
     
