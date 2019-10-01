@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
  * New functionality: now able to read various types of sea ice data (family =*GL*) (#127 and !131)
- * New functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable lUseO3Climatology (default to .true.).
+ * New functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable lUseO3Climatology (default to .true.). (#195 and !246)
 
 ### Changed
 
