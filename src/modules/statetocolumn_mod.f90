@@ -2005,10 +2005,11 @@ contains
     real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
     real(8), allocatable ::zgd(:,:,:)
-    real(8), pointer :: uu_column(:),vv_column(:),hu_column(:)
-    real(8), pointer :: tt_column(:),ps_column(:),tg_column(:)
-    real(8), pointer :: vis_column(:),gust_column(:)
     real(8), pointer :: field_ptr(:,:,:)
+
+    real(8), pointer :: varColumn(:)
+    integer :: jvar, varCount
+    character(len=4) :: varName
 
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid by suprep
@@ -2096,75 +2097,28 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-      if(col_varExist(column,'UU'))  uu_column   => col_getColumn(column,headerIndex,'UU')
-      if(col_varExist(column,'VV'))  vv_column   => col_getColumn(column,headerIndex,'VV')
-      if(col_varExist(column,'HU'))  hu_column   => col_getColumn(column,headerIndex,'HU')
-      if(col_varExist(column,'TT'))  tt_column   => col_getColumn(column,headerIndex,'TT')
-      if(col_varExist(column,'P0'))  ps_column   => col_getColumn(column,headerIndex,'P0')
-      if(col_varExist(column,'TG'))  tg_column   => col_getColumn(column,headerIndex,'TG')
-      if(col_varExist(column,'LVIS'))vis_column  => col_getColumn(column,headerIndex,'LVIS')
-      if(col_varExist(column,'WGE')) gust_column => col_getColumn(column,headerIndex,'WGE')
-     
-      do jk = 1, gsv_getNumLev(statevector,'MM')
-        if(gsv_varExist(statevector,'UU')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
-          uu_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
+      
+      varCount=0     
+      do jvar = 1, vnl_numvarmax
+        if (.not. col_varExist(column,trim(vnl_varNameList(jvar)))) cycle
+        varCount=varCount+1
+        varName=trim(vnl_varNameList(jvar))
+        varColumn => col_getColumn(column,headerIndex,varName)
+        
+        if(gsv_varExist(statevector,varName)) then
+          do jk = 1, gsv_getNumLevFromVarName(statevector,varName)      
+              jk2=jk+gsv_getOffsetFromVarName(statevector,varName)
+              varColumn(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
+                                + dlw2*zgd(lonIndex+1,ila,jk2)  &
+                                + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
+                                + dlw4*zgd(lonIndex+1,ila+1,jk2)
+          end do
         end if
-        if(gsv_varExist(statevector,'VV')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
-          vv_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
-        end if
+        
+        nullify(varColumn)
       end do
-      do jk = 1, gsv_getNumLev(statevector,'TH')
-        if(gsv_varExist(statevector,'HU')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
-          hu_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
-        end if
-        if(gsv_varExist(statevector,'TT')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
-          tt_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                          + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                          + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                          + dlw4*zgd(lonIndex+1,ila+1,jk2)
-        end if
-        if(gsv_varExist(statevector,'LVIS')) then
-          jk2=jk+gsv_getOffsetFromVarName(statevector,'LVIS')
-          vis_column(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                           + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                           + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                           + dlw4*zgd(lonIndex+1,ila+1,jk2)
-        end if
-      end do
-      if(gsv_varExist(statevector,'P0')) then
-        jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
-        ps_column(1) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
-      end if
-      if(gsv_varExist(statevector,'WGE')) then
-        jk2=1+gsv_getOffsetFromVarName(statevector,'WGE')
-        gust_column(1) = dlw1*zgd(lonIndex  ,ila,jk2)  &
-                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
-      end if
-      if(gsv_varExist(statevector,'TG')) then
-        jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
-        tg_column(1) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
-                       + dlw2*zgd(lonIndex+1,ila,jk2)  &
-                       + dlw3*zgd(lonIndex  ,ila+1,jk2)  &
-                       + dlw4*zgd(lonIndex+1,ila+1,jk2)
-      end if
+      
+      if (varCount == 0 ) call utl_abort('s2c_bgcheck_bilin: No recognized model state field found.')
     end do
 
     deallocate(zgd)
