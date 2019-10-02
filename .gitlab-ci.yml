@@ -18,8 +18,9 @@ build:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
-    - master
-    - v_3.3
+    - v_3.4
+  tags:
+    - hpcr-u1
 
 runtests:
    stage: test
@@ -37,8 +38,9 @@ runtests:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - master
-     - v_3.3
+     - v_3.4
+   tags:
+     - hpcr-u1
 
 doc_f90doc:
   stage: doc
@@ -63,5 +65,6 @@ doc_sphinx:
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
-    - master
-    - v_3.3
+    - v_3.4
+  tags:
+    - hpcr-u1
