@@ -203,8 +203,7 @@ contains
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
     if (.not. tvs_useO3Climatology .and. ( .not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3') ) ) then
-      write(*,*) 'tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
-      call utl_abort('tvslin_rttov_tl')
+      call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE.')
     end if
 
     !  1.  Set index for model's lowest level and model top
@@ -755,8 +754,7 @@ contains
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
     if (.not. tvs_useO3Climatology .and. (.not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3')) ) then
-      write(*,*) 'tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
-      call utl_abort('tvslin_rttov_ad')
+      call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE.')
     end if
 
     !     1.    Set index for model's lowest level and model top

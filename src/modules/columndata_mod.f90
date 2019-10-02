@@ -233,8 +233,7 @@ contains
     enddo
 
     if (iloc == 0) then
-      write(*,*) 'col_allocate: Nothing to allocate !'
-      call utl_abort('col_allocate')
+      call utl_abort('col_allocate: Nothing to allocate')
     end if
 
     column%nk = iloc

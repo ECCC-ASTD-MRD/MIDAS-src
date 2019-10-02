@@ -641,8 +641,7 @@ module gridStateVector_mod
     end if
 
     if (iloc == 0) then
-      write(*,*) 'gsv_allocate:  Nothing to allocate !'
-      call utl_abort('gsv_allocate')
+      call utl_abort('gsv_allocate:  Nothing to allocate')
     end if
 
     statevector%nk=iloc

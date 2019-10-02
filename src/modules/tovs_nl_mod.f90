@@ -452,10 +452,10 @@ contains
     integer :: nsensors
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
-    logical :: ldbgtov, luseO3Climatology
+    logical :: ldbgtov, useO3Climatology
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
-    namelist /NAMTOV/ ldbgtov,lUseO3Climatology
+    namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
  
     !   1.1 Default values for namelist variables
@@ -466,7 +466,7 @@ contains
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
-    lUseO3Climatology = .true.
+    useO3Climatology = .true.
     crtmodl = 'RTTOV'
     useUofWIREmiss = .false.
 
@@ -485,7 +485,7 @@ contains
     tvs_nsensors = nsensors
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
-    tvs_useO3Climatology = luseO3Climatology
+    tvs_useO3Climatology = useO3Climatology
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
 
@@ -1479,8 +1479,7 @@ contains
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') ) then
-      write(*,*) 'tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
-      call utl_abort('tvs_fillProfiles')
+      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE. ')
     end if
 
     !  1.    Set index for model's lowest level and model top
@@ -1816,11 +1815,11 @@ contains
       deallocate (sensorHeaderIndexes, stat = allocStatus(13))
       deallocate (sensorTovsIndexes,   stat = allocStatus(14))
       if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-         deallocate (ozoneExtrapolated,    stat = allocStatus(15))
-          if (.not.tvs_useO3Climatology) then
-            deallocate (ozone,             stat= allocStatus(16))
-            deallocate (ozoneInterpolated, stat= allocStatus(17))
-          end if
+        deallocate (ozoneExtrapolated,    stat = allocStatus(15))
+        if (.not.tvs_useO3Climatology) then
+          deallocate (ozone,             stat= allocStatus(16))
+          deallocate (ozoneInterpolated, stat= allocStatus(17))
+        end if
       end if
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
