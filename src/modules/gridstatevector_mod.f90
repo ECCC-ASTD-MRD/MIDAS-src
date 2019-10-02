@@ -639,6 +639,11 @@ module gridStateVector_mod
       end do
 
     end if
+
+    if (iloc == 0) then
+      call utl_abort('gsv_allocate:  Nothing to allocate')
+    end if
+
     statevector%nk=iloc
 
     if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: statevector%nk = ',statevector%nk

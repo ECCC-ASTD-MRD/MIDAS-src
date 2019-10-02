@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * New functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
  * Added ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
  * Added many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
    * Also includes Yin-Yang grid compatibility and additional procedures for quality control, data selection and modification of obs error to facilitate comparison with the current EnKF
@@ -46,7 +47,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
  * New functionality: now able to read various types of sea ice data (family =*GL*) (#127 and !131)
-
+ 
 ### Changed
 
  * The observation variable transforms was generalized and modernized (#247 and !239).

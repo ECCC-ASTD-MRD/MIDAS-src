@@ -97,7 +97,7 @@ module tovs_nl_mod
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
   public :: tvs_isReallyPresent,tvs_listSensors
   public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
-  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName
+  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
@@ -119,7 +119,7 @@ module tovs_nl_mod
   integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
   integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
   integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
-
+                                     
   ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
   ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
   ! afgl 1986, g.p. anderson, j.h. chetwynd, s.a. clough, e. p. shettle and f.x. kneizys
@@ -143,6 +143,8 @@ module tovs_nl_mod
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W emissivity Atlases
+  logical :: tvs_useO3Climatology                 ! Determine if ozone model field or climatology is used
+                                                   ! If ozone model field is specified, related increments will be generated in assimilation
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
@@ -208,7 +210,6 @@ contains
     tvs_lsensor(:) = -1
     tvs_headerIndex(:) = -1
     tvs_tovsIndex (:) = -1
-
 
     tvs_nobtov = 0
 
@@ -293,7 +294,6 @@ contains
     end do
 
     write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
-
 
 
     !  3. Initialize TOVS radiance transfer model
@@ -452,12 +452,11 @@ contains
     integer :: nsensors
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
-    logical :: ldbgtov
+    logical :: ldbgtov, useO3Climatology
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
-    namelist /NAMTOV/ ldbgtov
+    namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
-
  
     !   1.1 Default values for namelist variables
 
@@ -467,6 +466,7 @@ contains
     csatid(1) = 'NOAA16'
     cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
+    useO3Climatology = .true.
     crtmodl = 'RTTOV'
     useUofWIREmiss = .false.
 
@@ -485,6 +485,7 @@ contains
     tvs_nsensors = nsensors
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
+    tvs_useO3Climatology = useO3Climatology
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
 
@@ -1434,7 +1435,7 @@ contains
 
     ! Locals:
     logical :: diagTtop,TopAt10hPa
-    integer :: ksurf, modelTopIndex, levelsBelowModelTop 
+    integer :: ksurf, modelTopIndex, levelsBelowModelTop
     integer :: instrum, iplatform
     integer :: nRttovLevels,nobmax
     integer :: sensorIndex, tovsIndex
@@ -1443,21 +1444,21 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: status, Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(15)
+    integer :: allocStatus(17)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
 
-    integer, allocatable :: sensorTovsIndexes(:) 
-    integer, allocatable :: sensorHeaderIndexes(:) 
+    integer, allocatable :: sensorTovsIndexes(:)
+    integer, allocatable :: sensorHeaderIndexes(:)
   
     type(struct_vco), pointer :: vco
 
     real(8), allocatable :: ttInterpolated(:,:)
     real(8), allocatable :: huInterpolated(:,:)
     real(8), allocatable :: hu(:,:)
-    real(8), allocatable :: logHuInterpolated(:,:)
-    real(8), allocatable :: logHu(:,:)
+    real(8), allocatable :: logVarInterpolated(:,:)
+    real(8), allocatable :: logVar(:,:)
     real(8), allocatable :: ttExtrapolated(:,:)
     real(8), allocatable :: huExtrapolated(:,:)
     real(8), allocatable :: pressure(:,:)
@@ -1465,8 +1466,10 @@ contains
     real(8), allocatable :: height(:,:)
     real(8), allocatable :: rttovPressure(:)
     real(8), allocatable :: latitudes(:)
-    real(8), allocatable :: toto3obs(:),PP(:,:) 
+    real(8), allocatable :: toto3obs(:),PP(:,:)
     real(8), allocatable :: ozone(:,:)
+    real(8), allocatable :: ozoneExtrapolated(:,:)
+    real(8), allocatable :: ozoneInterpolated(:,:)
     
     real(8) :: modelTopPressure
  
@@ -1475,6 +1478,9 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') ) then
+      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE. ')
+    end if
 
     !  1.    Set index for model's lowest level and model top
     
@@ -1512,7 +1518,7 @@ contains
 
     !  1.2   Read ozone climatology
 
-    call ozo_read_climatology(datestamp)
+    if (tvs_useO3Climatology) call ozo_read_climatology(datestamp)
 
     !     2.  Fill profiles structure
     
@@ -1548,17 +1554,24 @@ contains
       allocate (sensorTovsIndexes(profileCount),                     stat = allocStatus(1) )
       allocate (sensorHeaderIndexes(profileCount),                   stat = allocStatus(2) )
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
-      allocate (ozone(nRttovLevels,profileCount),                    stat = allocStatus(4) ) 
-      allocate (ttInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(5) )
-      allocate (huInterpolated(levelsBelowModelTop,profileCount),                stat = allocStatus(6) )
-      allocate (logHuInterpolated(levelsBelowModelTop,profileCount), stat = allocStatus(7) )	
-      allocate (ttExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(8) )
-      allocate (huExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(9) )
-      allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(10))
-      allocate (tt(nlv_T,profileCount),                              stat = allocStatus(11))
-      allocate (hu(nlv_T,profileCount),                              stat = allocStatus(12))
-      allocate (logHu(nlv_T,profileCount),                           stat = allocStatus(13))
-      allocate (height(nlv_T,profileCount),                          stat = allocStatus(14))
+      allocate (ttInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(4) )
+      allocate (huInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(5) )
+      allocate (logVarInterpolated(levelsBelowModelTop,profileCount), stat = allocStatus(6) )
+      allocate (ttExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(7) )
+      allocate (huExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(8) )
+      allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(9) )
+      allocate (tt(nlv_T,profileCount),                              stat = allocStatus(10))
+      allocate (hu(nlv_T,profileCount),                              stat = allocStatus(11))
+      allocate (logVar(nlv_T,profileCount),                          stat = allocStatus(12))
+      allocate (height(nlv_T,profileCount),                          stat = allocStatus(13))
+      call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
+      if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+        allocate (ozoneExtrapolated(nRttovLevels,profileCount),          stat= allocStatus(14))
+        if (.not. tvs_useO3Climatology) then
+          allocate (ozone(nlv_T,profileCount),                           stat= allocStatus(15))
+          allocate (ozoneInterpolated(levelsBelowModelTop,profileCount), stat= allocStatus(16))
+        end if
+      end if
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
       profileCount = 0
@@ -1607,7 +1620,16 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
         end do
-
+        if (.not. tvs_useO3Climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
+            do levelIndex = 1, nlv_T
+              ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.
+              ! Conversion to kg/kg for use by RTTOV in done later
+              ozone(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TO3') * 1.0D-9 * o3Mixratio2ppmv
+            end do
+          end if
+        end if
+        
         if (diagTtop) then
           ! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
           ! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
@@ -1616,12 +1638,17 @@ contains
                log( col_getPressure(columnghr,1,headerIndex,'TH') /  &
                col_getPressure(columnghr,2,headerIndex,'TH') )
           hu  (1,profileCount) =  hu  (2,profileCount)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
+
+          if (.not. tvs_useO3Climatology) then
+            if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozone(1,profileCount) =   ozone(2,profileCount)
+            ! extrapolation valeur constante pour O3 peu important a cette hauteur
+          end if
         end if
         
       end do bobs2
  
       !   2.1  Vertical interpolation of model temperature, logarithm of
-      !           specific humidity and height levels to pressure levels
+      !           specific humidity and ozone, and height levels to pressure levels
       !           required by tovs rt model
 
 
@@ -1629,13 +1656,25 @@ contains
       do profileIndex=1, profileCount
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),tt(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
-        logHu(:,profileIndex) = log( hu(:,profileIndex) )
-        call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logHu(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logHuInterpolated(:,profileIndex:profileIndex))
-        huInterpolated(:,profileIndex) = exp ( logHuInterpolated(:,profileIndex) )
+        logVar(:,profileIndex) = log( hu(:,profileIndex) )
+        call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
+        huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
       end do
       !$omp end parallel do
 
+      if (.not. tvs_useO3Climatology) then
+        if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
+          !$omp parallel do private(profileIndex)
+          do profileIndex=1, profileCount
+            logVar(:,profileIndex) = log( ozone(:,profileIndex) )
+            call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
+               levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
+            ozoneInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
+          end do
+          !$omp end parallel do
+        end if
+      end if
 
       !    2.2  Extrapolation of temperature profile above model top
 
@@ -1654,8 +1693,8 @@ contains
         call extrap (ttInterpolated,ttExtrapolated,levelsBelowModelTop,nRttovLevels,profileCount)
       end if
 
-      !   2.4  Extrapolation of humidity profile (kg/kg)
-      !           above rlimlvhu (normally 300mbs or 70mbs)
+      !   2.3  Extrapolation of humidity profile (kg/kg)
+      !        above rlimlvhu (normally 300mbs or 70mbs)
 
       huExtrapolated(:,:) = 0.0d0
       
@@ -1685,20 +1724,39 @@ contains
         end if
       end if
 
-      !    2.5  Get ozone profiles (ppmv)
+      !   2.4  Get ozone profiles (ppmv)
+
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
-        allocate ( toto3obs(profileCount) )     
-        toto3obs(:) = 0.d0
-        allocate( pp(nRttovLevels,profileCount) )
-        do profileIndex=1,profileCount
-          pp(1:nRttovLevels,profileIndex)=rttovPressure(1:nRttovLevels)
-        end do
-        call ozo_get_profile (ozone, toto3obs, latitudes, pp, nRttovLevels, profileCount, datestamp)
-        deallocate( PP )
-        deallocate ( toto3obs )
+        ozoneExtrapolated(:,:)= 0.0d0
+        if (tvs_useO3Climatology) then
+          allocate ( toto3obs(profileCount) )
+          toto3obs(:) = 0.d0
+          allocate( pp(nRttovLevels,profileCount) )
+          do profileIndex=1,profileCount
+            pp(1:nRttovLevels,profileIndex)=rttovPressure(1:nRttovLevels)
+          end do
+          call ozo_get_profile (ozoneExtrapolated, toto3obs, latitudes, pp, nRttovLevels, profileCount, datestamp)
+          deallocate( PP )
+          deallocate ( toto3obs )
+        else
+        
+          ! Extrapolation of ozone profile
+          
+          do levelIndex = 1, levelsBelowModelTop
+            ozoneExtrapolated(nRttovLevels - levelsBelowModelTop + levelIndex,1:profileCount) = ozoneInterpolated(levelIndex,1:profileCount)
+          end do
+          if (nRttovLevels - levelsBelowModelTop > 0) then
+            ! Extrapolation if needed.
+            do levelIndex=1,nRttovLevels - levelsBelowModelTop
+!              ozoneExtrapolated(levelIndex,1:profileCount) = ozoneInterpolated(1,1:profileCount) &
+!                    * log(rttovPressure(levelIndex)/rttovPressure(nRttovLevels - levelsBelowModelTop + 1))
+              ozoneExtrapolated(levelIndex,1:profileCount) = ozoneInterpolated(1,1:profileCount)
+            end do
+          end if
+        end if
       end if
 
-      !    2.6  Fill profiles structure
+      !   2.5  Fill profiles structure
 
       do  profileIndex = 1 , profileCount 
         tovsIndex = sensorTovsIndexes(profileIndex)
@@ -1730,29 +1788,40 @@ contains
         tvs_profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         tvs_profiles(tovsIndex) % p(:)            = tvs_coefs(sensorIndex) %coef% ref_prfl_p(:)
         tvs_profiles(tovsIndex) % t(:)            = ttExtrapolated(:,profileIndex)
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) &
-             tvs_profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          ! Conversion to mass mixing ratio (kg/kg)
+          tvs_profiles(tovsIndex) % o3(:) = ozoneExtrapolated(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
+          if (.not.tvs_useO3Climatology)  then
+            tvs_profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,'TO3') * 1.0d-9 ! Assumes model ozone in ug/kg
+          end if
+        end if
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
-        tvs_profiles(tovsIndex) % cfraction = 0.d0        
+        tvs_profiles(tovsIndex) % cfraction = 0.d0
       end do
 
       deallocate (rttovPressure,       stat = allocStatus(1))
       deallocate (height,              stat = allocStatus(2))
-      deallocate (logHu,               stat = allocStatus(3))
+      deallocate (logVar,              stat = allocStatus(3))
       deallocate (hu,                  stat = allocStatus(4))
       deallocate (tt,                  stat = allocStatus(5))
       deallocate (pressure,            stat = allocStatus(6))
       deallocate (huExtrapolated,      stat = allocStatus(7))
       deallocate (ttExtrapolated,      stat = allocStatus(8))
-      deallocate (logHuInterpolated,   stat = allocStatus(9))
+      deallocate (logVarInterpolated,  stat = allocStatus(9))
       deallocate (huInterpolated,      stat = allocStatus(10))
       deallocate (ttInterpolated,      stat = allocStatus(11))
-      deallocate (ozone,               stat = allocStatus(12))
-      deallocate (latitudes,           stat = allocStatus(13))
-      deallocate (sensorHeaderIndexes, stat = allocStatus(14))
-      deallocate (sensorTovsIndexes,   stat = allocStatus(15))
-    
+      deallocate (latitudes,           stat = allocStatus(12))
+      deallocate (sensorHeaderIndexes, stat = allocStatus(13))
+      deallocate (sensorTovsIndexes,   stat = allocStatus(14))
+      if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+        deallocate (ozoneExtrapolated,    stat = allocStatus(15))
+        if (.not.tvs_useO3Climatology) then
+          deallocate (ozone,             stat= allocStatus(16))
+          deallocate (ozoneInterpolated, stat= allocStatus(17))
+        end if
+      end if
+
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
      
     end do sensor_loop

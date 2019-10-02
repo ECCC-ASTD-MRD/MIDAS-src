@@ -170,7 +170,8 @@ contains
           write(*,*)
           write(*,*) 'ovt_setup: !WARNING! No transform found for the read bufr code = ', bufrCodeRead(readBufrCodeIndex)
           write(*,*) '           We are assuming that this observation is read but not assimilated.'
-          write(*,*) '           Please consider removing this bufr code from the read observation list.'
+          write(*,*) '           Please consider removing this bufr code from the read observation list'
+          write(*,*) '           unless the bufr element is read for another purpose.'
           nSkippedBufrCodes = nSkippedBufrCodes + 1
           skippedBufrCodes(nSkippedBufrCodes) = bufrCodeRead(readBufrCodeIndex)
         end if

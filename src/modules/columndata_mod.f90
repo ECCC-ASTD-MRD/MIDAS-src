@@ -231,6 +231,11 @@ contains
         iloc = iloc + 1
       endif
     enddo
+
+    if (iloc == 0) then
+      call utl_abort('col_allocate: Nothing to allocate')
+    end if
+
     column%nk = iloc
 
     if(column%numCol.le.0) then
