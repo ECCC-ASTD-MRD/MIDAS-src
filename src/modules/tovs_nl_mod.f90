@@ -97,7 +97,7 @@ module tovs_nl_mod
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
   public :: tvs_isReallyPresent,tvs_listSensors
   public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
-  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_luseO3Climatology
+  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
@@ -143,7 +143,7 @@ module tovs_nl_mod
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W emissivity Atlases
-  logical :: tvs_luseO3Climatology                 ! Determine if ozone model field or climatology is used
+  logical :: tvs_useO3Climatology                 ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -485,7 +485,7 @@ contains
     tvs_nsensors = nsensors
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
-    tvs_luseO3Climatology = luseO3Climatology
+    tvs_useO3Climatology = luseO3Climatology
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
 
@@ -1478,6 +1478,10 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') ) then
+      write(*,*) 'tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
+      call utl_abort('tvs_fillProfiles')
+    end if
 
     !  1.    Set index for model's lowest level and model top
     
@@ -1515,7 +1519,7 @@ contains
 
     !  1.2   Read ozone climatology
 
-    if (tvs_lUseO3Climatology) call ozo_read_climatology(datestamp)
+    if (tvs_useO3Climatology) call ozo_read_climatology(datestamp)
 
     !     2.  Fill profiles structure
     
@@ -1564,7 +1568,7 @@ contains
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
         allocate (ozoneExtrapolated(nRttovLevels,profileCount),          stat= allocStatus(14))
-        if (.not. tvs_luseO3Climatology) then
+        if (.not. tvs_useO3Climatology) then
           allocate (ozone(nlv_T,profileCount),                           stat= allocStatus(15))
           allocate (ozoneInterpolated(levelsBelowModelTop,profileCount), stat= allocStatus(16))
         end if
@@ -1617,10 +1621,10 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
         end do
-        if (.not. tvs_luseO3Climatology) then
+        if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
             do levelIndex = 1, nlv_T
-              ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_luseO3Climatology is .true.
+              ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.
               ! Conversion to kg/kg for use by RTTOV in done later
               ozone(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TO3') * 1.0D-9 * o3Mixratio2ppmv
             end do
@@ -1636,7 +1640,7 @@ contains
                col_getPressure(columnghr,2,headerIndex,'TH') )
           hu  (1,profileCount) =  hu  (2,profileCount)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 
-          if (.not. tvs_luseO3Climatology) then
+          if (.not. tvs_useO3Climatology) then
             if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozone(1,profileCount) =   ozone(2,profileCount)
             ! extrapolation valeur constante pour O3 peu important a cette hauteur
           end if
@@ -1660,7 +1664,7 @@ contains
       end do
       !$omp end parallel do
 
-      if (.not. tvs_lUseO3Climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
           !$omp parallel do private(profileIndex)
           do profileIndex=1, profileCount
@@ -1725,7 +1729,7 @@ contains
 
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
         ozoneExtrapolated(:,:)= 0.0d0
-        if (tvs_lUseO3Climatology) then
+        if (tvs_useO3Climatology) then
           allocate ( toto3obs(profileCount) )
           toto3obs(:) = 0.d0
           allocate( pp(nRttovLevels,profileCount) )
@@ -1788,8 +1792,9 @@ contains
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           ! Conversion to mass mixing ratio (kg/kg)
           tvs_profiles(tovsIndex) % o3(:) = ozoneExtrapolated(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
-          if (.not.tvs_luseO3Climatology) &
+          if (.not.tvs_useO3Climatology)  then
             tvs_profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,'TO3') * 1.0d-9 ! Assumes model ozone in ug/kg
+          end if
         end if
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
@@ -1812,7 +1817,7 @@ contains
       deallocate (sensorTovsIndexes,   stat = allocStatus(14))
       if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
          deallocate (ozoneExtrapolated,    stat = allocStatus(15))
-          if (.not.tvs_luseO3Climatology) then
+          if (.not.tvs_useO3Climatology) then
             deallocate (ozone,             stat= allocStatus(16))
             deallocate (ozoneInterpolated, stat= allocStatus(17))
           end if

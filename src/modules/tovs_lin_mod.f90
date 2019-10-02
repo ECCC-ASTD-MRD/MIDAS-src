@@ -202,6 +202,11 @@ contains
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
+    if (.not. tvs_useO3Climatology .and. ( .not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3') ) ) then
+      write(*,*) 'tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
+      call utl_abort('tvslin_rttov_tl')
+    end if
+
     !  1.  Set index for model's lowest level and model top
 
     nlv_M = col_getNumLev(columng,'MM')
@@ -290,7 +295,7 @@ contains
       allocate (huExtrapolated     (nRttovLevels,profileCount),  stat= allocStatus(15))
       allocate (pressure_tl     (nlv_T,profileCount),    stat= allocStatus(16))
       allocate (profilesdata_tl(profileCount),     stat= allocStatus(17))
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           allocate (ozone(nlv_T,profileCount),       stat= allocStatus(18))
           allocate (ozone_tl(nlv_T,profileCount),    stat= allocStatus(19))
@@ -313,7 +318,7 @@ contains
       pressure_tl(:,:) = 0.0d0
       ttInterpolated(:,:) = 0.0d0
       huInterpolated_tl(:,:) = 0.0d0
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           ozone(:,:) = 0.0d0
           ozone_tl(:,:) = 0.0d0
@@ -369,7 +374,7 @@ contains
           pressure(levelIndex,profileCount)  = Pres(levelIndex) *MPC_MBAR_PER_PA_R8
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
-        if (.not. tvs_luseo3climatology) then
+        if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
             delO3 => col_getColumn(column,headerIndex,'TO3')
             O3b => col_getColumn(columng,headerIndex,'TO3')
@@ -390,7 +395,7 @@ contains
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
           hu(1,profileCount) =  hu(2,profileCount)
-          if (.not. tvs_luseo3climatology) then
+          if (.not. tvs_useO3Climatology) then
             if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
               ozone_tl(1,profileCount) = 0.d0
               ozone(1,profileCount) =  ozone(2,profileCount)
@@ -430,7 +435,7 @@ contains
       end do
       !$omp end parallel do
 
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
 
           do profileIndex = 1, profileCount
@@ -495,7 +500,7 @@ contains
 
       !    2.4  Extrapolation of ozone profile (kg/kg) if necessary
 
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           do profileIndex = 1, profileCount
             ozoneExtrapolated_tl(1:modelTopIndex - 1,profileIndex) = 0.d0
@@ -511,7 +516,7 @@ contains
         profilesdata_tl(profileIndex) % nlevels         =  nRttovLevels
         profilesdata_tl(profileIndex) % nlayers         =  nRttovLevels - 1
         if (tvs_coefs(sensorIndex)%coef%nozone > 0) then
-          if (tvs_lUseO3Climatology) then
+          if (tvs_useO3Climatology) then
             profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           else
             profilesdata_tl(profileIndex) % o3(1:nRttovLevels) = ozoneExtrapolated_tl(1:nRttovLevels,profileIndex)
@@ -558,7 +563,7 @@ contains
       deallocate (huExtrapolated,       stat= allocStatus(15))
       deallocate (pressure_tl,          stat= allocStatus(16))
       deallocate (rttovPressure,        stat= allocStatus(17))
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           deallocate (ozone,              stat= allocStatus(18))
           deallocate (ozone_tl,           stat= allocStatus(19))
@@ -749,6 +754,10 @@ contains
          
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
+    if (.not. tvs_useO3Climatology .and. (.not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3')) ) then
+      write(*,*) 'tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be present in trial fields !'
+      call utl_abort('tvslin_rttov_ad')
+    end if
 
     !     1.    Set index for model's lowest level and model top
 
@@ -841,7 +850,7 @@ contains
       allocate (huExtrapolated(nRttovLevels,profileCount),              stat= allocStatus(15))
       allocate (pressure_ad(nlv_T,profileCount),                        stat= allocStatus(16))
 
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           allocate (ozone(nlv_T,profileCount),                            stat= allocStatus(17) )
           allocate (ozone_ad(nlv_T,profileCount),                         stat= allocStatus(18) )
@@ -871,7 +880,7 @@ contains
           dPdPs(levelIndex,profileCount)  = 1.0d0
         end do
         
-        if (.not. tvs_luseo3climatology) then
+        if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
             O3b => col_getColumn(columng,headerIndex,'TO3')
             ! Model-based values are converted to the units required by RTTOV (kg/kg)
@@ -976,7 +985,7 @@ contains
 
       ttExtrapolated_ad(:,:) = 0.d0
       huExtrapolated_ad(:,:) = 0.d0
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozoneExtrapolated_ad(:,:) = 0.d0
       endif
 
@@ -1002,7 +1011,7 @@ contains
         uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
         vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
 
-        if (.not. tvs_luseo3climatology) then
+        if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
             ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...'TO3')  
             o3_column => col_getColumn(column,headerIndex,'TO3')
@@ -1019,7 +1028,7 @@ contains
       do profileIndex = 1, profileCount
         huExtrapolated(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % q(:)
       end do
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
           do profileIndex = 1, profileCount
             ozoneExtrapolated(:,profileIndex) =  tvs_profiles(sensorTovsIndexes(profileIndex)) % o3(:)
@@ -1029,7 +1038,7 @@ contains
 
       !   2.4  Adjoint of extrapolation of ozone profile (kg/kg) if necessary
 
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
 
           ozoneInterpolated_ad(:,:) = 0.0d0
@@ -1084,7 +1093,7 @@ contains
       !   2.1  Adjoint of vertical interpolation of model temperature and logarithm of
       !        specific humidity and ozone to pressure levels required by tovs rt model
       
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
 
           ozone_ad(:,:)   = 0.0d0
@@ -1144,7 +1153,7 @@ contains
       !  a l'extrapolation utilisee)
 
       if ( diagTtop ) then
-        if (.not. tvs_luseo3climatology) then
+        if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
             do profileIndex = 1, profileCount
               ozone_ad(1,profileIndex) = 0.d0
@@ -1172,7 +1181,7 @@ contains
         end do
       end do
 
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           do  profileIndex = 1 , profileCount 
             o3_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'TO3')
@@ -1200,7 +1209,7 @@ contains
       deallocate (huExtrapolated,      stat= allocStatus(15))
       deallocate (pressure_ad,         stat= allocStatus(16))
       deallocate (rttovPressure,       stat= allocStatus(17))
-      if (.not. tvs_luseo3climatology) then
+      if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           deallocate (ozone,           stat= allocStatus(18) )
           deallocate (ozone_ad,        stat= allocStatus(19) )

@@ -2008,7 +2008,7 @@ contains
     real(8), pointer :: field_ptr(:,:,:)
 
     real(8), pointer :: varColumn(:)
-    integer :: jvar, varCount
+    integer :: varIndex
     character(len=4) :: varName
 
     ! Note: We assume here the all the obs between the poles and the last grid points
@@ -2097,12 +2097,10 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-      
-      varCount=0     
-      do jvar = 1, vnl_numvarmax
-        if (.not. col_varExist(column,trim(vnl_varNameList(jvar)))) cycle
-        varCount=varCount+1
-        varName=trim(vnl_varNameList(jvar))
+           
+      do varIndex = 1, vnl_numvarmax
+        if (.not. col_varExist(column,trim(vnl_varNameList(varIndex)))) cycle
+        varName=trim(vnl_varNameList(varIndex))
         varColumn => col_getColumn(column,headerIndex,varName)
         
         if(gsv_varExist(statevector,varName)) then
@@ -2118,7 +2116,6 @@ contains
         nullify(varColumn)
       end do
       
-      if (varCount == 0 ) call utl_abort('s2c_bgcheck_bilin: No recognized model state field found.')
     end do
 
     deallocate(zgd)

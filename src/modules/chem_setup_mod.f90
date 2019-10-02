@@ -463,13 +463,7 @@ contains
 
   
   ! Default NAMCHEM values
-  
-  ! sigma_cutoff(:)=0.01
-  ! low_cutoff(:)=0.1
-  ! high_cutoff(:)=10.0
-  ! transform(:)=0   ! At least ensure positive values and provide related warning as needed.
-  ! message_filename = 'chem_message_'   ! Not used
-  
+
   genoper(:)=0
   obsdata_maxsize=90000
 
