@@ -1021,7 +1021,7 @@ contains
     integer       :: count
     real(8)       :: t_effective
     integer       :: allocStatus(28)
-    real(8)       :: tg, p0, tskinRetrieved, ptop_T, zlqs
+    real(8)       :: tg, p0, tskinRetrieved, ptop_T, qs
     real(8), allocatable :: tt(:), height(:,:), pressureInterpolated(:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: btObsErr(:), btObs(:), btCalc(:), rcal_clr(:), sfctau(:)
@@ -1147,7 +1147,7 @@ contains
     ! p0 -- surface pressure (hPa)
     ! tt(nlv_T) -- temperature profiles on NWP model levels (deg K)
     ! height(nlv_T,1) -- height profiles on NWP model levels (m)
-    ! zlqs -- surface specific humidity in ln q (kg/kg)
+    ! qs -- surface specific humidity (kg/kg)
     ! btObsErr(nchn) -- observation error standard deviation
     ! btObs(nchn) -- observed brightness temperatures (deg K)
     ! btCalc(nchn) -- computed brightness temperatures (deg K)
@@ -1286,7 +1286,7 @@ contains
           height(levelIndex,1) = col_getHeight(columnHr, levelIndex, headerIndex, 'TH')
           pressure(levelIndex,1)= col_getPressure(columnHr, levelIndex, headerIndex, 'TH') * MPC_MBAR_PER_PA_R8
         end do
-        zlqs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
+        qs = col_getElem(columnHr, nlv_T, headerIndex, 'HU')
 
         call ppo_lintv (pressure(:,1:1),height(:,1:1),nlv_T,1, &
              levelsBelowModelTop,pressureInterpolated,heightInterpolated(:,1:1))
@@ -1857,7 +1857,7 @@ contains
         call obs_headSet_i(obsSpaceData, OBS_NCO2, headerIndex, ngood)
         call obs_headSet_r(obsSpaceData, OBS_ZTM,  headerIndex, tt(nlv_T) )
         call obs_headSet_r(obsSpaceData, OBS_ZTGM, headerIndex, tg )
-        call obs_headSet_r(obsSpaceData, OBS_ZLQM, headerIndex, exp(zlqs) )
+        call obs_headSet_r(obsSpaceData, OBS_ZLQM, headerIndex, qs )
         call obs_headSet_r(obsSpaceData, OBS_ZPS,  headerIndex, 100.d0 * p0 )
         call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, ksurf )
 
