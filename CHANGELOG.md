@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
 
 ### Fixed
-
+ * Correction to the surface humidity (BUFR element 13214) writen in BURP files info block during hyperspectral IR background check. Due to the error introduced in !111 exp(HU) was written instead of HU.
  * Fixed bugs, compilation procedure and system tests to allow compatibility on new machines (ppp3/4, banting/daley) - note, only the latest version of the reference results are available on the new machines (#258 and !243)
  * Correction of the conversion factor used to compute air mass predictors in biascorrection_mod.f90. Problem introduced in !191. (#219 and !219)
  * Fixed some potential bugs detected while compiling with `-check all` (#182 and !187)
