@@ -1998,11 +1998,13 @@ contains
     ! locals
     integer :: numSubGrids
     integer :: ezget_nsubGrids, ezget_subGridids, gdxyfll, ezgprm, gdgaxes
-    integer, allocatable :: EZscintIDvec(:)
+    integer :: EZscintIDvec(2)
+    integer, save :: EZscintIDvec1_old = -999
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4, lonIndex, latIndex
     real :: lonrot, latrot
-    real, allocatable :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
+    real, allocatable, save :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
+    logical :: axesDifferent
 
     ! this controls which approach to use for interpolation within the YIN-YAN overlap
     logical :: useSingleValueOverlap = .true.  
@@ -2021,7 +2023,6 @@ contains
 
       ! This is a Yin-Yang grid, do something different
 
-      allocate(EZscintIDvec(numSubGrids))
       ierr = ezget_subGridids(gdid, EZscintIDvec)   
       ! get ni nj of subGrid, assume same for both YIN and YANG
       ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
@@ -2030,8 +2031,14 @@ contains
       ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
       ! compute rotated lon and lat at obs location
-      allocate(ax_yin(ni),ay_yin(nj))
-      ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
+      axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
+      if (axesDifferent) then
+        write(*,*) 'utl_getPositionXY: axesDifferent, compute needed parameters'
+        if (allocated(ax_yin)) deallocate(ax_yin,ay_yin)
+        allocate(ax_yin(ni),ay_yin(nj))
+        ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
+        EZscintIDvec1_old = EZscintIDvec(1)
+      end if
       lonIndex = floor(xpos_r4)
       if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
         lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
@@ -2046,7 +2053,6 @@ contains
       else
         latrot = -999.0
       end if
-      deallocate(ax_yin,ay_yin)
       subGridIndex = 1
 
       if ( useSingleValueOverlap ) then
@@ -2103,8 +2109,6 @@ contains
         end if
 
       end if
-
-      deallocate(EZscintIDvec)
 
     end if    
 

@@ -1,10 +1,9 @@
  &NAMENSEMBLEH
-   NENS = 40
-   ASCIDUMPOBS = .true.
+   NENS = 16
 /
  &NAMTIME
-   DSTEPOBS = 3.0d0
-   DSTEPOBSINC = 3.0d0
+   DSTEPOBS = 1.0d0
+   DSTEPOBSINC = 1.0d0
 /
  &NAMSTATE
    addHeightSfcOffset = .true.

@@ -40,9 +40,9 @@ program midas_ensembleH
   use innovation_mod
   implicit none
 
-  type(struct_obs), target             :: obsSpaceData
-  type(struct_gsv)                     :: stateVector, statevector_tiles
-  type(struct_columnData), allocatable :: columns(:)
+  type(struct_obs), target :: obsSpaceData
+  type(struct_gsv)         :: stateVector, statevector_tiles
+  type(struct_columnData)  :: column
 
   real(8), allocatable :: HXmean(:)
   real(8), allocatable :: HXens(:,:)
@@ -67,11 +67,9 @@ program midas_ensembleH
   logical :: beSilent, dealloc
 
   ! namelist variables
-  character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: obsClean, asciDumpObs
+  character(len=256) :: ensPathName
   integer  :: nEns
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, &
-                         obsClean, asciDumpObs
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -81,6 +79,8 @@ program midas_ensembleH
         '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   midasMode = 'analysis'
+  obsColumnMode = 'ENKFMIDAS'
+  obsMpiStrategy = 'LIKESPLITFILES'
 
   !
   !- 0. MPI, TMG initialization
@@ -100,9 +100,6 @@ program midas_ensembleH
   ! Setting default namelist variable values
   nEns            = 10
   ensPathName     = 'ensemble'
-  ensFileBaseName = ''
-  obsClean        = .false.
-  asciDumpObs     = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -114,6 +111,9 @@ program midas_ensembleH
 
   ! Read the observations
   call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
+  if ( obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE' ) then
+    call utl_abort('midas-ensembleH: only BURP and SQLITE are valid obs file formats')
+  end if
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
@@ -142,36 +142,21 @@ program midas_ensembleH
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   call tmg_start(4,'SETUPOBS')
-  obsColumnMode = 'ENKFMIDAS'
-  ! determine the mpi strategy for observations, based on file type
-  if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
-    obsMpiStrategy = 'LIKESPLITFILES'
-  else
-    obsMpiStrategy = 'ROUNDROBIN'
-  end if
   ! read in the observations
-  call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
-                     obsClean_opt = obsClean )
+  call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode )
   ! set up the observation operators
   call oop_setup(midasMode)
+  ! Initialize obs error covariances
+  call oer_setObsErrors(obsSpaceData, midasMode)
   call tmg_stop(4)
 
-  call tmg_start(5,'ALLOC_COLS')
-  write(*,*) ''
-  write(*,*) 'midas-ensembleH: allocate an ensemble of columnData objects'
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  write(*,*) ''
   call col_setup
-  allocate(columns(nEns))
-  do memberIndex = 1, nEns
-    beSilent = .true.
-    if ( memberIndex == 1 ) beSilent = .false.
-    call col_setVco(columns(memberIndex), vco_ens)
-    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData),  &
-                      mpiLocal_opt=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
-  end do
+  call col_setVco(column, vco_ens)
+  call col_allocate(column, obs_numheader(obsSpaceData))
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(5)
+
+  ! Initialize the observation error covariances
+  call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate statevector to store an ensemble member (keep distribution as members on native grid)
   call gsv_allocate( stateVector, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -182,11 +167,17 @@ program midas_ensembleH
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
 
+  ! Allocate vectors for storing HX values
+  numBody = obs_numBody(obsSpaceData)
+  allocate(HXmean(numBody))
+  allocate(HXens(numBody, nEns))
+  allocate(obsVal(numBody))
+
   do memberIndex = 1, nEns
     write(*,*) ''
     write(*,*) 'midas-ensembleH: read member ', memberIndex
-    call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call tmg_start(3,'READ_ENSEMBLE')
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
@@ -196,51 +187,33 @@ program midas_ensembleH
 
     write(*,*) ''
     write(*,*) 'midas-ensembleH: call s2c_nl for member ', memberIndex
+    write(*,*) ''
     call tmg_start(6,'SETUP_COLS')
-    if ( memberIndex == nEns ) then
-      dealloc = .true.  ! some deallocation when doing the last member
-    else
-      dealloc = .false.
-    end if
-    call s2c_nl( stateVector_tiles, obsSpaceData, columns(memberIndex), timeInterpType='LINEAR', dealloc_opt=dealloc )
+    dealloc = .false.
+    if ( memberIndex == nEns ) dealloc = .true.
+    call s2c_nl( stateVector_tiles, obsSpaceData, column, timeInterpType='LINEAR', dealloc_opt=dealloc )
     call tmg_stop(6)
-  end do
-  call gsv_deallocate( stateVector_tiles )
-  call gsv_deallocate( stateVector )
 
-  ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, midasMode) ! IN
-
-  ! Allocate vectors for storing HX values
-  numBody = obs_numBody(obsSpaceData)
-  allocate(HXmean(numBody))
-  allocate(HXens(numBody, nEns))
-  allocate(obsVal(numBody))
-
-  ! extract observation value, Y
-  call obs_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
-
-  ! ------------------------------------------------------------
-  ! Compute H(X) for all members either with nonlinear H()
-  ! ------------------------------------------------------------
-  do memberIndex = 1, nEns
-    ! compute Y-H(X) in OBS_OMP
     write(*,*) ''
-    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
+    write(*,*) 'midas-ensembleH: apply nonlinear H to member ', memberIndex
     write(*,*) ''
+    call tmg_start(7,'OBSOPER')
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
-
-    call tmg_start(7,'OBSOPER')
-    call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
+    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=beSilent)
     call tmg_stop(7)
 
-    ! extract observation-minus-HX value, Y-HX
-    call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
     ! compute HX = Y - (Y-HX)
+    if (memberIndex == 1) then
+      call obs_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
+    end if
+    call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
     HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
 
   end do
+
+  call gsv_deallocate( stateVector_tiles )
+  call gsv_deallocate( stateVector )
 
   ! Put y-mean(H(X)) in OBS_OMP
   HXmean(:) = 0.0d0
@@ -257,16 +230,12 @@ program midas_ensembleH
 
   ! Gather obsSpaceData and HXens onto task 0
   call tmg_start(8,'OBS&HX_MPICOMM')
-  if ( .not. obsf_filesSplit() ) then 
-    call obs_expandToMpiGlobal(obsSpaceData)
-  end if
   call enkf_gatherHX(HXens,HXens_mpiglobal)
   call tmg_stop(8)
 
   ! Output mpiglobal H(X) and obsSpaceData files
   call tmg_start(9,'WRITEHXOBS')
-  call obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt = HXens_mpiglobal, &
-                        asciDumpObs_opt = asciDumpObs )
+  call obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt=HXens_mpiglobal )
   call tmg_stop(9)
 
   !
