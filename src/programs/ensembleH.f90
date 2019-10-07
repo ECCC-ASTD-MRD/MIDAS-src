@@ -31,30 +31,26 @@ program midas_ensembleH
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
-  use enkf_mod
   use statetocolumn_mod
   use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
   use obsOperators_mod
   use innovation_mod
+  use ensembleObservations_mod
   implicit none
 
   type(struct_obs), target :: obsSpaceData
   type(struct_gsv)         :: stateVector, statevector_tiles
   type(struct_columnData)  :: column
-
-  real(8), allocatable :: HXmean(:)
-  real(8), allocatable :: HXens(:,:)
-  real(8), allocatable :: HXens_mpiglobal(:,:)
-  real(8), allocatable :: obsVal(:)
+  type(struct_eob)         :: ensObs, ensObs_mpiglobal
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
   integer              :: fclos, fnom, fstopc, ierr
-  integer              :: memberIndex, stepIndex, numStep, procIndex, numBody, bodyIndex
+  integer              :: memberIndex, stepIndex, numStep, numBody, bodyIndex
   integer              :: nulnam, dateStamp
   integer              :: get_max_rss
 
@@ -98,8 +94,8 @@ program midas_ensembleH
   call ram_setup
 
   ! Setting default namelist variable values
-  nEns            = 10
-  ensPathName     = 'ensemble'
+  nEns             = 10
+  ensPathName      = 'ensemble'
 
   ! Read the namelist
   nulnam = 0
@@ -167,11 +163,13 @@ program midas_ensembleH
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
 
-  ! Allocate vectors for storing HX values
+  ! Allocate and initialize eob object for storing HX values
   numBody = obs_numBody(obsSpaceData)
-  allocate(HXmean(numBody))
-  allocate(HXens(numBody, nEns))
-  allocate(obsVal(numBody))
+  call eob_allocate(ensObs, nEns, numBody, obsSpaceData)
+  call eob_zero(ensObs)
+
+  ! Set lat, lon, obs values in ensObs
+  call eob_setLatLonObs(ensObs)
 
   do memberIndex = 1, nEns
     write(*,*) ''
@@ -203,40 +201,19 @@ program midas_ensembleH
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=beSilent)
     call tmg_stop(7)
 
-    ! compute HX = Y - (Y-HX)
-    if (memberIndex == 1) then
-      call obs_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
-    end if
-    call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
-    HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
+    ! Copy to ensObs: Y-HX for this member
+    call eob_setYb(ensObs, memberIndex)
 
   end do
 
   call gsv_deallocate( stateVector_tiles )
   call gsv_deallocate( stateVector )
 
-  ! Put y-mean(H(X)) in OBS_OMP
-  HXmean(:) = 0.0d0
-  do memberIndex = 1, nEns
-    do bodyIndex = 1, numBody
-      HXmean(bodyIndex) = HXmean(bodyIndex) + HXens(bodyIndex,memberIndex)
-    end do 
-  end do
-  HXmean(:) = HXmean(:)/nEns
-  do bodyIndex = 1, numBody
-    call obs_bodySet_r(obsSpaceData, OBS_OMP, bodyIndex,  &
-                       obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)-HXmean(bodyIndex))
-  end do
-
-  ! Gather obsSpaceData and HXens onto task 0
-  call tmg_start(8,'OBS&HX_MPICOMM')
-  call enkf_gatherHX(HXens,HXens_mpiglobal)
+  ! Clean and globally communicate obs-related data, then write to files
+  call tmg_start(8,'OBS&HX_MPIANDWRITE')
+  call eob_allGather(ensObs,ensObs_mpiglobal)
+  call eob_writeToFiles(ensObs_mpiglobal)
   call tmg_stop(8)
-
-  ! Output mpiglobal H(X) and obsSpaceData files
-  call tmg_start(9,'WRITEHXOBS')
-  call obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt=HXens_mpiglobal )
-  call tmg_stop(9)
 
   !
   !- MPI, tmg finalize

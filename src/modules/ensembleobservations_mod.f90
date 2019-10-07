@@ -46,8 +46,9 @@ MODULE ensembleObservations_mod
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
-  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy
+  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy, eob_zero
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
+  public :: eob_writeToFiles, eob_readFromFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -135,6 +136,36 @@ CONTAINS
     ensObs%allocated = .false.
 
   end subroutine eob_deallocate
+
+  !--------------------------------------------------------------------------
+  ! eob_zero
+  !--------------------------------------------------------------------------
+  subroutine eob_zero(ensObs)
+    !
+    ! :Purpose: Initialize an ensObs object to zero
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob)         :: ensObs
+
+    if ( .not.ensObs%allocated ) then
+      call utl_abort('eob_zero: this object is not allocated')
+    end if
+
+    ensObs%lat(:)       = 0.0d0
+    ensObs%lon(:)       = 0.0d0
+    ensObs%logPres(:)   = 0.0d0
+    ensObs%obsValue(:)  = 0.0d0
+    ensObs%obsErrInv(:) = 0.0d0
+    ensObs%Yb_r4(:,:)   = 0.0
+    ensObs%meanYb(:)    = 0.0d0
+    ensObs%deterYb(:)   = 0.0d0
+    ensObs%assFlag(:)   = 0
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine eob_zero
 
   !--------------------------------------------------------------------------
   ! eob_clean (private routine)
@@ -237,7 +268,7 @@ CONTAINS
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    ! refresh assimilation flag and then clean ensObs before cleaning
+    ! refresh assimilation flag and then clean ensObs before communicating and writing
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs)
 
@@ -317,6 +348,72 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine eob_allGather
+
+  !--------------------------------------------------------------------------
+  ! eob_writeToFiles
+  !--------------------------------------------------------------------------
+  subroutine eob_writeToFiles(ensObs)
+    !
+    ! :Purpose: Write the contents of an ensObs object to files
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob)         :: ensObs
+
+    ! locals
+    integer :: unitNum, ierr, obsIndex, memberIndex
+    character(len=40) :: fileName
+    character(len=4)  :: memberIndexStr
+    integer :: fnom, fclos
+
+    ! only the first mpi task does writing, assuming mpi gather already done
+    if (mpi_myid /= 0) return
+
+    if ( .not.ensObs%allocated ) then
+      call utl_abort('eob_writeToFiles: this object is not allocated')
+    end if
+
+    ! write the lat, lon and obs values to a file
+    fileName = 'eob_Lat_Lon_ObsValue'
+    write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+    unitNum = 0
+    ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+    do obsIndex = 1, ensObs%numObs
+      write(unitNum) ensObs%lat(obsIndex), ensObs%lon(obsIndex), ensObs%obsValue(obsIndex)
+    end do
+    ierr = fclos(unitNum)
+
+    ! write the contents of Yb, 1 member per file
+    do memberIndex = 1, ensObs%numMembers
+      write(memberIndexStr,'(I0.4)') memberIndex
+      fileName = 'eob_HX_' // memberIndexStr
+      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      unitNum = 0
+      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      do obsIndex = 1, ensObs%numObs
+        write(unitNum) ensObs%Yb_r4(memberIndex,obsIndex)
+      end do
+      ierr = fclos(unitNum)
+    end do
+
+  end subroutine eob_writeToFiles
+
+  !--------------------------------------------------------------------------
+  ! eob_readFromFiles
+  !--------------------------------------------------------------------------
+  subroutine eob_readFromFiles(ensObs)
+    !
+    ! :Purpose: Read the contents of an ensObs object from files
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob)         :: ensObs
+
+    call utl_abort('eob_readFromFiles: not yet implemented')
+
+  end subroutine eob_readFromFiles
 
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices
