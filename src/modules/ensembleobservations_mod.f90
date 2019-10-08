@@ -379,9 +379,9 @@ CONTAINS
     write(*,*) 'eob_writeToFiles: writing ',trim(filename)
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-    do obsIndex = 1, ensObs%numObs
-      write(unitNum) ensObs%lat(obsIndex), ensObs%lon(obsIndex), ensObs%obsValue(obsIndex)
-    end do
+    write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
+    write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
+    write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
     ierr = fclos(unitNum)
 
     ! write the contents of Yb, 1 member per file
@@ -391,9 +391,7 @@ CONTAINS
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-      do obsIndex = 1, ensObs%numObs
-        write(unitNum) ensObs%Yb_r4(memberIndex,obsIndex)
-      end do
+      write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
       ierr = fclos(unitNum)
     end do
 
