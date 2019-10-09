@@ -3526,8 +3526,6 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     real(8), allocatable :: gd_send_height(:,:),gd_recv_height(:,:,:)
-    real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
-    real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
 
     write(*,*) 'gsv_transposeTilesToVarsLevs: START'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -3648,20 +3646,6 @@ module gridStateVector_mod
       if ( gsv_varExist(stateVector_out, 'UU') .and.  &
            gsv_varExist(stateVector_out, 'VV') ) then
 
-        if ( statevector_out%UVComponentPresent ) then
-          if ( outKind == 8 ) then
-            allocate(gdUV_r8(statevector_out%ni,statevector_out%nj, &
-                             statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-            allocate(gd_r8(statevector_out%ni,statevector_out%nj, &
-                           statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-          else
-            allocate(gdUV_r4(statevector_out%ni,statevector_out%nj, &
-                             statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-            allocate(gd_r4(statevector_out%ni,statevector_out%nj, &
-                           statevector_out%myUVkBeg:statevector_out%myUVkEnd))
-          end if
-        end if
-
         numSend = 0
         numRecv = 0
         LOOP_KINDEX: do kIndexUU = 1, stateVector_out%nk
@@ -3677,11 +3661,11 @@ module gridStateVector_mod
 
           if ( MpiIdUU == MpiIdVV .and. mpi_myid == MpiIdUU ) then
             if ( outKind == 8 ) then
-              gdUV_r8(:, :, kIndexUU) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
-              gdUV_r8(:, :, kIndexVV) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
+              statevector_out%gdUV(kIndexUU)%r8(:, :, stepIndex) =  statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
+              statevector_out%gdUV(kIndexVV)%r8(:, :, stepIndex) =  statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
             else
-              gdUV_r4(:, :, kIndexUU) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
-              gdUV_r4(:, :, kIndexVV) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
+              statevector_out%gdUV(kIndexUU)%r4(:, :, stepIndex) =  statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
+              statevector_out%gdUV(kIndexVV)%r4(:, :, stepIndex) =  statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
             end if
             cycle LOOP_KINDEX
           end if
@@ -3694,28 +3678,22 @@ module gridStateVector_mod
 
             numRecv = numRecv + 1
             if ( outKind == 8 ) then
-              call mpi_irecv( gdUV_r8(:, :, kIndexUU),  &
+              call mpi_irecv( statevector_out%gdUV(kIndexUU)%r8(:, :, stepIndex),  &
                               nsize, mpi_datyp_real8, MpiIdVV, mpiTagVV,  &
                               mpi_comm_grid, requestIdRecv(numRecv), ierr )
             else
-              call mpi_irecv( gdUV_r4(:, :, kIndexUU),  &
+              call mpi_irecv( statevector_out%gdUV(kIndexUU)%r4(:, :, stepIndex),  &
                               nsize, mpi_datyp_real4, MpiIdVV, mpiTagVV,  &
                               mpi_comm_grid, requestIdRecv(numRecv), ierr )
             end if
 
             numSend = numSend + 1
             if ( outKind == 8 ) then
-              gd_r8(:, :, kIndexUU) = statevector_out%gd_r8(:, :, kIndexUU, stepIndex)
-            else
-              gd_r4(:, :, kIndexUU) = statevector_out%gd_r4(:, :, kIndexUU, stepIndex)
-            end if
-
-            if ( outKind == 8 ) then
-              call mpi_isend( gd_r8(:, :, kIndexUU),  &
+              call mpi_isend( statevector_out%gd_r8(:, :, kIndexUU, stepIndex),  &
                               nsize, mpi_datyp_real8, MpiIdVV, mpiTagUU,  &
                               mpi_comm_grid, requestIdSend(numSend), ierr )
             else
-              call mpi_isend( gd_r4(:, :, kIndexUU),  &
+              call mpi_isend( statevector_out%gd_r4(:, :, kIndexUU, stepIndex),  &
                               nsize, mpi_datyp_real4, MpiIdVV, mpiTagUU,  &
                               mpi_comm_grid, requestIdSend(numSend), ierr )
             end if
@@ -3724,27 +3702,22 @@ module gridStateVector_mod
 
             numRecv = numRecv + 1
             if ( outKind == 8 ) then
-              call mpi_irecv( gdUV_r8(:, :, kIndexVV),  &
+              call mpi_irecv( statevector_out%gdUV(kIndexVV)%r8(:, :, stepIndex),  &
                               nsize, mpi_datyp_real8, MpiIdUU, mpiTagUU,  &
                               mpi_comm_grid, requestIdRecv(numRecv), ierr )
             else
-              call mpi_irecv( gdUV_r4(:, :, kIndexVV),  &
+              call mpi_irecv( statevector_out%gdUV(kIndexVV)%r4(:, :, stepIndex),  &
                               nsize, mpi_datyp_real4, MpiIdUU, mpiTagUU,  &
                               mpi_comm_grid, requestIdRecv(numRecv), ierr )
             end if
 
             numSend = numSend + 1
             if ( outKind == 8 ) then
-              gd_r8(:, :, kIndexVV) = statevector_out%gd_r8(:, :, kIndexVV, stepIndex)
-            else
-              gd_r4(:, :, kIndexVV) = statevector_out%gd_r4(:, :, kIndexVV, stepIndex)
-            end if
-            if ( outKind == 8 ) then
-              call mpi_isend( gd_r8(:, :, kIndexVV),  &
+              call mpi_isend( statevector_out%gd_r8(:, :, kIndexVV, stepIndex),  &
                               nsize, mpi_datyp_real8, MpiIdUU, mpiTagVV,  &
                               mpi_comm_grid, requestIdSend(numSend), ierr )
             else
-              call mpi_isend( gd_r4(:, :, kIndexVV),  &
+              call mpi_isend( statevector_out%gd_r4(:, :, kIndexVV, stepIndex),  &
                               nsize, mpi_datyp_real4, MpiIdUU, mpiTagVV,  &
                               mpi_comm_grid, requestIdSend(numSend), ierr )
             end if
@@ -3759,23 +3732,6 @@ module gridStateVector_mod
 
         if ( numSend > 0 ) then
           call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
-        end if
-
-        if ( statevector_out%UVComponentPresent ) then
-          do kIndex = statevector_out%myUVkBeg, statevector_out%myUVkEnd
-            if ( outKind == 8 ) then
-              statevector_out%gdUV(kIndex)%r8(:, :, stepIndex) =  gdUV_r8(:, :, kIndex)
-            else
-              statevector_out%gdUV(kIndex)%r4(:, :, stepIndex) =  gdUV_r4(:, :, kIndex)
-            end if
-          end do
-          if ( outKind == 8 ) then
-            deallocate(gdUV_r8)
-            deallocate(gd_r8)
-          else
-            deallocate(gdUV_r4)
-            deallocate(gd_r4)
-          end if
         end if
 
       end if ! UU and VV exist
