@@ -626,7 +626,7 @@ contains
     ! namelist variables
     logical :: adjustTemperature
 
-    namelist /NAMSURFACE_OBS/adjustTemperature
+    namelist /namSurfaceObs/adjustTemperature
 
     if (.not.beSilent) write(*,*) "Entering subroutine oop_sfc_nl"
 
@@ -634,14 +634,20 @@ contains
 
     jobs = 0.d0
 
-    ! Read in the namelist NAMSURFACE_OBS
+    ! Read in the namelist namSurfaceObs
     adjustTemperature = .true. ! default value
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namsurface_obs,iostat=ierr)
-    if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist')
-    if (.not.beSilent) write(*,nml=namsurface_obs)
-    ierr=fclos(nulnam)
+
+    if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namSurfaceObs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
+      if (.not. beSilent) write(*,nml=namSurfaceObs)
+      ierr=fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'
+    end if
 
     ! loop over all header indices of the specified family with surface obs
     call obs_set_current_header_list(obsSpaceData,cdfam)
