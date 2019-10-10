@@ -14,7 +14,7 @@ stages:
 #    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
 #    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
 
-build:
+.build:
   stage: build
   script:
     - cd src/programs
@@ -22,7 +22,7 @@ build:
   only:
     - master-ci
 
-runtests:
+.runtests:
    stage: test
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
@@ -41,7 +41,7 @@ runtests:
    only:
      - master-ci
 
-doc_sphinx:
+.doc_sphinx:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
@@ -54,10 +54,50 @@ doc_sphinx:
   only:
     - master-ci
 
-ssm:
+.ssm:
   stage: deploy
   script:
     - cd ssm
     - ./publish
   only:
     - tags
+
+build:hpcr-u0:
+  extends: .build
+  tags:
+    - hpcr-u0
+
+runtests:hpcr-u0:
+  extends: .runtests
+  tags:
+    - hpcr-u0
+
+doc_sphinx:hpcr-u0:
+  extends: .doc_sphinx
+  tags:
+    - hpcr-u0
+
+ssm:hpcr-u1:
+  extends: .ssm
+  tags:
+    - hpcr-u1
+
+build:hpcr-u1:
+  extends: .build
+  tags:
+    - hpcr-u1
+
+runtests:hpcr-u1:
+  extends: .runtests
+  tags:
+    - hpcr-u1
+
+doc_sphinx:hpcr-u0:
+  extends: .doc_sphinx
+  tags:
+    - hpcr-u1
+
+ssm:hpcr-u0:
+  extends: .ssm
+  tags:
+    - hpcr-u1
