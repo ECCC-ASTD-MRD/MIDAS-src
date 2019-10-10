@@ -35,7 +35,6 @@ program midas_ensembleH
   use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
-  use obsOperators_mod
   use innovation_mod
   use ensembleObservations_mod
   implicit none
@@ -140,8 +139,7 @@ program midas_ensembleH
   call tmg_start(4,'SETUPOBS')
   ! read in the observations
   call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode )
-  ! set up the observation operators
-  call oop_setup(midasMode)
+
   ! Initialize obs error covariances
   call oer_setObsErrors(obsSpaceData, midasMode)
   call tmg_stop(4)

@@ -134,3 +134,5 @@
  &NAMALADIN_OBS
   do_adjust_aladin=.false.
 /
+ &NAMSURFACE_OBS
+/

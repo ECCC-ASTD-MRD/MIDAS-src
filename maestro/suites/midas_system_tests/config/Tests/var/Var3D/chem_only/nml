@@ -160,3 +160,5 @@
    assim_stnid(1,2)='00322000'
    assim_stnid(1,3)='00038700'
 /
+ &NAMSURFACE_OBS
+/
