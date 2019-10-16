@@ -2175,7 +2175,7 @@ contains
     character (len=100)  :: word
     logical :: namelistExist
 
-    ! Check is namelistFileName is present
+    ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
     if (.not. namelistExist) then
       call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
