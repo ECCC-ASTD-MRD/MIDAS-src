@@ -479,7 +479,7 @@ contains
 
     ! Locals:
     integer        :: bufrCode, bufrCode2, bufrCode3
-    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bodyIndexFound, bufrCodeAssociated
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bufrCodeAssociated
     integer        :: directionFlag, speedFlag, combinedFlag, uWindFlag, vWindFlag
     integer        :: speedBufrCode, uWindBufrCode, vWindBufrCode, uWindbodyIndex, vWindBodyIndex
 
@@ -614,8 +614,8 @@ contains
     !
     header2: do headerIndex = headerIndexStart, headerIndexEnd
 
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
     
       ! Search uWind component
       body2: do bodyIndex = bodyIndexStart, bodyIndexEnd
@@ -631,40 +631,41 @@ contains
             cycle body2
         end select
 
+        uWindbodyIndex = bodyIndex
+
         ! Eleminate entries where uWind is missing
-        uWind = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        uWind = obs_bodyElem_r(obsSpaceData, OBS_VAR, uWindbodyIndex)
         if ( uWind == obs_missingValue_R ) then
-          call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
+          call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
         ! Search the associated vWind component
-        bodyIndexFound = -1
+        vWindBodyIndex = -1
         body3: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
           bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
           level2    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if ( bufrCode2 == bufrCodeAssociated .and. level2 == level ) then
+          if ( bufrCode2 /= bufrCodeAssociated .or. level2 /= level ) cycle
 
-            if ( uWind == obs_missingValue_R ) then
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
-            else
-              uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-              vWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2)
-              combinedFlag = ior( uWindFlag, vWindFlag )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex,  combinedFlag)
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, combinedFlag)
-            end if
+          vWindBodyIndex = bodyIndex2
 
-            bodyIndexFound = bodyIndex2
-            exit body3
-
+          if ( uWind == obs_missingValue_R ) then
+            call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1)
+          else
+            uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, uWindbodyIndex)
+            vWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, vWindBodyIndex)
+            combinedFlag = ior( uWindFlag, vWindFlag )
+            call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag)
+            call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag)
           end if
+
+          exit body3
 
         end do body3
 
         ! Eleminate entries where vWind is missing
-        if (bodyIndexFound < 0 .and. uWind /= obs_missingValue_R) then
-          call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
+        if (vWindBodyIndex < 0 .and. uWind /= obs_missingValue_R) then
+          call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
       end do body2
