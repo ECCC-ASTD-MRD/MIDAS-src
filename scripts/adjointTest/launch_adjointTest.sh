@@ -56,7 +56,7 @@ cat << EOF > $TMPDIR/go_adjointTest.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
- . ssmuse-sh -d eccc/mrd/rpn/utils/19.2
+ . ssmuse-sh -d eccc/mrd/rpn/utils/19.3
  
  # MPI SETUP FOR PPP ONLY
  if [ "\${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
