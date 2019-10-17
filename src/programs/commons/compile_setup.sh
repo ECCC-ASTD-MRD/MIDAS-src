@@ -35,6 +35,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ]; then
     echo "... loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
+    echo "... loading eccc/mrd/rpn/code-tools/01.3"
+    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.3
     echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
     . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
@@ -44,6 +46,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     echo "... loading compiler PrgEnv-intel-5.2.82"
     module load PrgEnv-intel/5.2.82
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
+    echo "... loading eccc/mrd/rpn/code-tools/01.3"
+    . ssmuse-sh -d eccc/mrd/rpn/code-tools/01.3
     echo "... loading compiler PrgEnv-intel-6.0.5"
     module load PrgEnv-intel/6.0.5
 else
@@ -65,8 +69,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     . ssmuse-sh -x comm/eccc/cmdd/rttov/rttov-1.0/serial/disable-shared/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.2"
-    . r.load.dot eccc/mrd/rpn/libs/19.2
+    echo "... loading eccc/mrd/rpn/libs/19.3"
+    . r.load.dot eccc/mrd/rpn/libs/19.3
     ## for openmpi
     echo "... loading hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045"
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
@@ -80,8 +84,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     module load cray-hdf5
 elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.2"
-    . r.load.dot eccc/mrd/rpn/libs/19.2
+    echo "... loading eccc/mrd/rpn/libs/19.3"
+    . r.load.dot eccc/mrd/rpn/libs/19.3
     echo "... loading cray-hdf5"
     module load cray-hdf5
     echo "... loading cray-netcdf"
@@ -107,11 +111,11 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.4.2"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.2
+    echo "... loading eccc/mrd/rpn/vgrid/6.4.3"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.3
 
-    echo "... loading eccc/cmd/cmda/libs/19.2/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.2/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/19.3/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/19.3/${COMP_ARCH}
 
     ## For 'perftools' needed for TMG timings
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
