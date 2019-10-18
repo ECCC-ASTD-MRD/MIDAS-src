@@ -740,19 +740,6 @@ program midas_letkf
                        typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16, &
                        stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
 
-  ! convert transformed to model variables for ensemble mean analysis and trial
-  call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-  call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-  ! and recompute mean increment for converted model variables (e.g. VIS and PR)
-  nullify(varNames)
-  call gsv_varNamesList(varNames, stateVectorMeanAnl)
-  call gsv_deallocate( stateVectorMeanInc )
-  call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-  call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-  call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-
   ! output analmean, analrms
   call getRmsEtiket(etiketMean, etiketStd, 'A')
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
@@ -779,7 +766,23 @@ program midas_letkf
                        typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                        stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
 
-  !- 7.3 Output the ensemble mean increment (include MeanAnl Psfc)
+  !- 7.3 Output the ensemble mean increment (include MeanAnl Psfc) and analysis
+
+  ! convert transformed to model variables for ensemble mean of analysis and trial
+  call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  ! and recompute mean increment for converted model variables (e.g. VIS and PR)
+  nullify(varNames)
+  call gsv_varNamesList(varNames, stateVectorMeanAnl)
+  call gsv_deallocate( stateVectorMeanInc )
+  call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+  call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+  call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+  deallocate(varNames)
+
+  ! output ensemble mean increment
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
   do stepIndex = 1, tim_nstepobsinc
     call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
@@ -790,7 +793,7 @@ program midas_letkf
                          stepIndex_opt=stepIndex, containsFullField_opt=.true.)
   end do
 
-  !- 7.4 Output the ensemble mean analysis state
+  ! output ensemble mean analysis state
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
   do stepIndex = 1, tim_nstepobsinc
     call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
@@ -798,8 +801,23 @@ program midas_letkf
                          stepIndex_opt=stepIndex, containsFullField_opt=.true.)
   end do
 
+  !- 7.4 Output the deterministic increment (include MeanAnl Psfc) and analysis
   if (deterministicStateExists) then
-    !- 7.5 Output the deterministic increment (include MeanAnl Psfc)
+    ! convert transformed to model variables for deterministic analysis and trial
+    call gvt_transform(stateVectorDeterAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(stateVectorDeterTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    ! and recompute mean increment for converted model variables (e.g. VIS and PR)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorDeterAnl)
+    call gsv_deallocate( stateVectorDeterInc )
+    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+    call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
+    call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
+    deallocate(varNames)
+
+    ! output the deterministic increment
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
@@ -810,7 +828,7 @@ program midas_letkf
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
 
-    !- 7.6 Output the deterministic analysis state
+    ! output the deterministic analysis state
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorDeterAnl, outFileName, 'DETER_ANL',  &
@@ -819,7 +837,7 @@ program midas_letkf
     end do
   end if
 
-  !- 7.7 Output all ensemble member analyses and increments
+  !- 7.5 Output all ensemble member analyses and increments
   ! convert transformed to model variables for analysis and trial ensembles
   call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
   call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -841,7 +859,7 @@ program midas_letkf
                          ensPath='.')
   call tmg_stop(104)
 
-  !- 7.8 Output the sub-sampled ensemble analyses and increments
+  !- 7.6 Output the sub-sampled ensemble analyses and increments
   if (writeSubSample) then
 
     ! Output the ensemble mean increment (include MeanAnl Psfc)
