@@ -479,7 +479,7 @@ contains
 
     ! Locals:
     integer        :: bufrCode, bufrCode2, bufrCode3
-    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bodyIndexFound, bufrCodeAssociated
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bufrCodeAssociated
     integer        :: directionFlag, speedFlag, combinedFlag, uWindFlag, vWindFlag
     integer        :: speedBufrCode, uWindBufrCode, vWindBufrCode, uWindbodyIndex, vWindBodyIndex
 
@@ -488,7 +488,7 @@ contains
 
     real(obs_real) :: obsValue
     real(obs_real) :: uWind, vWind, direction, speed
-    real(obs_real) :: level_direction, level3, level, level_uWind
+    real(obs_real) :: level_direction, level, level2, level3
 
     speedFlag = 0
 
@@ -609,16 +609,18 @@ contains
 
     end do header
 
-    ! Merge uWind and vWind flags
+    !
+    !- Merge uWind and vWind flags (JFC: not sure why this is needed because this was already done above)
+    !
     header2: do headerIndex = headerIndexStart, headerIndexEnd
 
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
-      
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
+    
+      ! Search uWind component
       body2: do bodyIndex = bodyIndexStart, bodyIndexEnd
-        direction_missing = .true.
-        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
-        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+        level    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
         select case (bufrCode)
           case (bufr_neuu)
@@ -629,42 +631,41 @@ contains
             cycle body2
         end select
 
-        bodyIndexFound = -1
+        uWindbodyIndex = bodyIndex
 
-        ! Unified uWind and vWind flag bits
+        ! Eleminate entries where uWind is missing
+        uWind = obs_bodyElem_r(obsSpaceData, OBS_VAR, uWindbodyIndex)
+        if ( uWind == obs_missingValue_R ) then
+          call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
+        end if
+
+        ! Search the associated vWind component
+        vWindBodyIndex = -1
         body3: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+          bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
+          level2    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          uWind       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-          level_uWind = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
-          bodyIndexFound = -1
+          if ( bufrCode2 /= bufrCodeAssociated .or. level2 /= level ) cycle
 
-          if ( level_uWind == level .and. uWind == obs_missingValue_R ) then
-            call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex2, -1 )
+          vWindBodyIndex = bodyIndex2
+
+          if ( uWind == obs_missingValue_R ) then
+            call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1)
+          else
+            uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, uWindbodyIndex)
+            vWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, vWindBodyIndex)
+            combinedFlag = ior( uWindFlag, vWindFlag )
+            call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag)
+            call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag)
           end if
 
-          if ( level_uWind == level .and. uWind /= obs_missingValue_R ) then
-
-            uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
-            bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
-
-            if ( bufrCodeAssociated == bufrCode2 ) then
-              vWindFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-              combinedFlag = ior( uWindFlag, vWindFlag )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex,  combinedFlag)
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, combinedFlag)
-              bodyIndexFound = bodyIndex2
-              exit body3
-            end if
-
-          end if
+          exit body3
 
         end do body3
 
-        ! Eleminate entries where on component of wind (u or v) is missing
-        if (bodyIndexFound < 0) then
-          write(*,*) ' ovt_windSpeedDirectionToUV: discard winds for station ', obs_elem_c(obsSpaceData,'STID',headerIndex ),  &
-          obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex ), obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
-          call obs_bodySet_i(obsSpaceData, OBS_VNM, bodyIndex, -1 )
+        ! Eleminate entries where vWind is missing
+        if (vWindBodyIndex < 0 .and. uWind /= obs_missingValue_R) then
+          call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
       end do body2
