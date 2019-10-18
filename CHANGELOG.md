@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * The system tests will now be run on both platforms for HPCR-U0 and HPCR-U1 (#270 and !250)
  * New functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
  * Added ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
  * Added many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
