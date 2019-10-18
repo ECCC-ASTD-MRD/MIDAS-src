@@ -138,7 +138,7 @@ CONTAINS
 
 
   subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
-                               stateVectorRef_opt)
+                               stateVectorRef_opt, allowOverWrite_opt)
     implicit none
    
     ! Arguments
@@ -146,15 +146,28 @@ CONTAINS
     character(len=*), intent(in) :: transform
     type(struct_gsv), optional :: statevectorOut_opt
     type(struct_gsv), optional :: statevectorRef_opt
-
+    logical, optional          :: allowOverWrite_opt
 
     select case(trim(transform))
+
+    case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR, LVIStoVIS
+      if ( gsv_varExist(statevector,'LPR') ) then
+        write(*,*) 'gvt_transform: calling LPRtoPR stateVector transformation'
+        call LPRtoPR_gsv(statevector, statevectorOut_opt=statevectorOut_opt,  &
+                         allowOverWrite_opt=allowOverWrite_opt)
+      end if
+      if ( gsv_varExist(statevector,'LVIS') ) then
+        write(*,*) 'gvt_transform: calling LVIStoVIS stateVector transformation'
+        call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt,  &
+                       allowOverWrite_opt=allowOverWrite_opt)
+      end if
 
     case ('UVtoVortDiv')
       if (present(statevectorOut_opt)) then
         call utl_abort('gvt_transform: for UVtoVortDiv, the option statevectorOut_opt is not yet available')
       end if
       call UVtoVortDiv_gsv(statevector)
+
     case ('VortDivToPsiChi')
       if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
         call utl_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
@@ -163,6 +176,7 @@ CONTAINS
         call utl_abort('gvt_transform: for VortDivToPsiChi, the option statevectorOut_opt is not yet available')
       end if
       call VortDivToPsiChi_gsv(statevector)
+
     case ('UVtoPsiChi')
       if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
         call utl_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
@@ -171,6 +185,7 @@ CONTAINS
         call utl_abort('gvt_transform: for UVToPsiChi, the option statevectorOut_opt is not yet available')
       end if
       call UVtoPsiChi_gsv(statevector)
+
     case ('LQtoHU')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
@@ -179,6 +194,7 @@ CONTAINS
         call utl_abort('gvt_transform: for LQtoHU, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU(statevector)
+
     case ('HUtoLQ')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for HUtoLQ, variable HU must be allocated in gridstatevector')
@@ -187,6 +203,7 @@ CONTAINS
         call utl_abort('gvt_transform: for HUtoLQ, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_gsv(statevector)
+
     case ('LQtoHU_tlm')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for LQtoHU_tlm, variable HU must be allocated in gridstatevector')
@@ -195,6 +212,7 @@ CONTAINS
         call utl_abort('gvt_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector, stateVectorRef_opt)
+
     case ('HUtoLQ_tlm')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
@@ -203,6 +221,7 @@ CONTAINS
         call utl_abort('gvt_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector, stateVectorRef_opt)
+
     case ('LQtoHU_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
@@ -211,6 +230,7 @@ CONTAINS
         call utl_abort('gvt_transform: for LQtoHU_ad, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector, stateVectorRef_opt) ! self-adjoint
+
     case ('HUtoLQ_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
         call utl_abort('gvt_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
@@ -219,6 +239,19 @@ CONTAINS
         call utl_abort('gvt_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector, stateVectorRef_opt) ! self-adjoint
+
+    case ('LPRoPR')
+      if ( .not. gsv_varExist(statevector,'PR') ) then
+        call utl_abort('gvt_transform: for LPRtoPR, variable PR must be allocated in gridstatevector')
+      end if
+      call LPRtoPR_gsv(statevector, statevectorOut_opt,  &
+                       allowOverWrite_opt=allowOverWrite_opt)
+
+    case ('PRtoLPR')
+      if ( .not. gsv_varExist(statevector,'PR') ) then
+        call utl_abort('gvt_transform: for PRtoLPR, variable PR must be allocated in gridstatevector')
+      end if
+      call PRtoLPR_gsv(statevector, statevectorOut_opt)
 
     case ('LVIStoVIS')
       if (present(statevectorOut_opt)) then
@@ -235,6 +268,7 @@ CONTAINS
         end if
         call LVIStoVIS(statevector)
       end if
+
     case ('TTHUtoHeight_nl')
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('gvt_transform: for TTHUtoHeight_nl, variable TT must be allocated in gridstatevector')
@@ -334,16 +368,24 @@ CONTAINS
   end subroutine gvt_transform_gsv
 
 
-  subroutine gvt_transform_ens(ens,transform)
+  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt)
     implicit none
    
-    type(struct_ens) :: ens
- 
+    ! Arguments
+    type(struct_ens)  :: ens
     character(len=*), intent(in) :: transform
+    logical, optional :: allowOverWrite_opt
 
     select case(trim(transform))
+    case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
+      if ( ens_varExist(ens,'LPR') ) then
+        write(*,*) 'gvt_transform: calling LPRtoPR ensemble transformation'
+        call LPRtoPR_ens(ens, allowOverWrite_opt=allowOverWrite_opt)
+      end if
     case ('HUtoLQ')
       call HUtoLQ_ens(ens)
+    case ('LPRtoPR')
+      call LPRtoPR_ens(ens, allowOverWrite_opt=allowOverWrite_opt)
     case ('UVtoPsiChi')
       call UVtoPsiChi_ens(ens)
     case ('UVtoVortDiv')
@@ -567,23 +609,317 @@ CONTAINS
 
   end subroutine HUtoLQ_tlm
 
-
-  subroutine LVIStoVIS(statevector_in, statevectorOut_opt)
+  !--------------------------------------------------------------------------
+  ! LPRtoPR_gsv
+  !--------------------------------------------------------------------------
+  subroutine LPRtoPR_gsv(statevector_in, statevectorOut_opt, allowOverWrite_opt)
     implicit none
 
-    type(struct_gsv) :: statevector_in
+    ! Arguments
+    type(struct_gsv)           :: statevector_in
     type(struct_gsv), optional :: statevectorOut_opt
-    integer :: lonIndex,latIndex,levIndex,stepIndex
+    logical, optional          :: allowOverWrite_opt
 
-    real(4), pointer :: vis_ptr_r4(:,:,:,:), lvis_ptr_r4(:,:,:,:)
-    real(8), pointer :: vis_ptr_r8(:,:,:,:), lvis_ptr_r8(:,:,:,:)
+    ! Locals
+    integer :: lonIndex,latIndex,levIndex,stepIndex
+    logical :: overWriteNeeded
+    real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
+    real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
+
+    ! Check if overWrite of PR is needed, but not allowed
+    overWriteNeeded = .false.
+    if (present(statevectorOut_opt)) then
+      if (.not. gsv_varExist(stateVectorOut_opt,'PR')) then
+        overWriteNeeded = .true.
+      end if
+    else
+      if (.not. gsv_varExist(stateVector_in,'PR')) then
+        overWriteNeeded = .true.
+      end if
+    end if
+    if (overWriteNeeded) then
+      if(present(allowOverWrite_opt)) then
+        if (.not.allowOverWrite_opt) then
+          call utl_abort('LPRtoPR_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
+        end if
+      else
+        call utl_abort('LPRtoPR_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
+      end if
+    end if
 
     if ( statevector_in%dataKind == 8 ) then
 
       if (present(statevectorOut_opt)) then
-        vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'VIS')
+        if (gsv_varExist(stateVectorOut_opt,'PR')) then
+          pr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'PR')
+        else
+          pr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LPR')
+        end if
       else
-        vis_ptr_r8  => gsv_getField_r8(statevector_in,'VIS')
+        if (gsv_varExist(stateVector_in,'PR')) then
+          pr_ptr_r8  => gsv_getField_r8(statevector_in,'PR')
+        else
+          pr_ptr_r8  => gsv_getField_r8(statevector_in,'LPR')
+        end if
+      end if
+      lpr_ptr_r8 => gsv_getField_r8(statevector_in,'LPR')
+      
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              if (lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.99D0*MPC_missingValue_R8) then
+                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =   &
+                     max(0.0D0, exp(lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)) - &
+                                MPC_MINIMUM_PR_R8)
+              else
+                pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+              end if
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    else
+
+      if (present(statevectorOut_opt)) then
+        if (gsv_varExist(stateVectorOut_opt,'PR')) then
+          pr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'PR')
+        else
+          pr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LPR')
+        end if
+      else
+        if (gsv_varExist(stateVector_in,'PR')) then
+          pr_ptr_r4  => gsv_getField_r4(statevector_in,'PR')
+        else
+          pr_ptr_r4  => gsv_getField_r4(statevector_in,'LPR')
+        end if
+      end if
+      lpr_ptr_r4 => gsv_getField_r4(statevector_in,'LPR')
+
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('LPR'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              if (lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > 0.99*MPC_missingValue_R4) then
+                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =   &
+                     max(0.0, exp(lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)) - &
+                              MPC_MINIMUM_PR_R4)
+              else
+                pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+              end if
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    end if
+
+    ! Change the variable name from LPR to PR if PR does not exist
+    if (present(statevectorOut_opt)) then
+      if (.not. gsv_varExist(stateVectorOut_opt,'PR')) then
+        call gsv_modifyVarName(stateVectorOut_opt,'LPR','PR')
+      end if
+    else
+      if (.not. gsv_varExist(stateVector_in,'PR')) then
+        call gsv_modifyVarName(stateVector_in,'LPR','PR')
+      end if
+    end if
+
+  end subroutine LPRtoPR_gsv
+
+  !--------------------------------------------------------------------------
+  ! LPRtoPR_ens
+  !--------------------------------------------------------------------------
+  subroutine LPRtoPR_ens(ens, allowOverWrite_opt)
+    implicit none
+
+    ! Arguments
+    type(struct_ens)  :: ens
+    logical, optional :: allowOverWrite_opt
+
+    ! Locals
+    integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, kIndexLPR, kIndexPR
+    logical :: overWriteNeeded
+    character(len=4) :: varName
+    real(4), pointer :: PR_ptr_r4(:,:,:,:), LPR_ptr_r4(:,:,:,:)
+
+    ! Check if overWrite of PR is needed, but not allowed
+    overWriteNeeded = .false.
+    if (.not. ens_varExist(ens,'PR')) then
+      overWriteNeeded = .true.
+    end if
+    if (overWriteNeeded) then
+      if(present(allowOverWrite_opt)) then
+        if (.not.allowOverWrite_opt) then
+          call utl_abort('LPRtoPR_ens: allowOverWrite_opt is false, but PR not present in ensemble')
+        end if
+      else
+        call utl_abort('LPRtoPR_ens: allowOverWrite_opt not specified, but PR not present in ensemble')
+      end if
+    end if
+
+    call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+
+    levIndex = 1
+    kIndexLPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
+    if (ens_varExist(ens,'PR')) then
+      kIndexPR = ens_getKFromLevVarName(ens, levIndex, 'PR')
+    else
+      kIndexPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
+    end if
+
+    LPR_ptr_r4 => ens_getOneLev_r4(ens,kIndexLPR)
+    PR_ptr_r4  => ens_getOneLev_r4(ens,kIndexPR)
+
+    do latIndex = myLatBeg, myLatEnd
+      do lonIndex = myLonBeg, myLonEnd
+        do stepIndex = 1, ens_getNumStep(ens)
+          do memberIndex = 1, ens_getNumMembers(ens)
+              PR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
+                   max(0.0, exp(LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)) - &
+                              MPC_MINIMUM_PR_R4)
+              ! maybe also impose minimum value of LPR
+              !LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =   &
+              !     max(log(MPC_MINIMUM_PR_R4), LPR_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex))
+          end do
+        end do
+      end do
+    end do
+
+    ! Change the variable name from LPR to PR if PR does not exist
+    if (.not. ens_varExist(ens,'PR')) then
+      call ens_modifyVarName(ens,'LPR','PR')
+    end if
+
+  end subroutine LPRtoPR_ens
+
+  !--------------------------------------------------------------------------
+  ! PRtoLPR_gsv
+  !--------------------------------------------------------------------------
+  subroutine PRtoLPR_gsv(statevector_in, statevectorOut_opt)
+    implicit none
+
+    ! Arguments
+    type(struct_gsv) :: statevector_in
+    type(struct_gsv), optional :: statevectorOut_opt
+
+    ! Locals
+    integer :: lonIndex,latIndex,levIndex,stepIndex
+    real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
+    real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
+
+    if ( statevector_in%dataKind == 8 ) then
+
+      if (present(statevectorOut_opt)) then
+        lpr_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LPR')
+      else
+        lpr_ptr_r8  => gsv_getField_r8(statevector_in,'LPR')
+      end if
+      pr_ptr_r8 => gsv_getField_r8(statevector_in,'PR')
+      
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              if (pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) > -1.0D0) then
+                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
+                     log(MPC_MINIMUM_PR_R8 + max(0.0d0,pr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)))
+              else
+                lpr_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R8
+              end if
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    else
+
+      if (present(statevectorOut_opt)) then
+        lpr_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LPR')
+      else
+        lpr_ptr_r4  => gsv_getField_r4(statevector_in,'LPR')
+      end if
+      pr_ptr_r4 => gsv_getField_r4(statevector_in,'PR')
+
+      do stepIndex = 1, statevector_in%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector_in,vnl_varLevelFromVarname('PR'))
+          do latIndex = statevector_in%myLatBeg, statevector_in%myLatEnd
+            do lonIndex = statevector_in%myLonBeg, statevector_in%myLonEnd
+              if (pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) > -1.0) then
+                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
+                     log(MPC_MINIMUM_PR_R4 + max(0.0,pr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)))
+              else
+                lpr_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = MPC_missingValue_R4
+              end if
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+
+    end if
+
+  end subroutine PRtoLPR_gsv
+
+
+  subroutine LVIStoVIS(statevector_in, statevectorOut_opt, allowOverWrite_opt)
+    implicit none
+
+    ! Arguments
+    type(struct_gsv) :: statevector_in
+    type(struct_gsv), optional :: statevectorOut_opt
+    logical, optional          :: allowOverWrite_opt
+
+    ! Locals
+    integer :: lonIndex,latIndex,levIndex,stepIndex
+    logical :: overWriteNeeded
+    real(4), pointer :: vis_ptr_r4(:,:,:,:), lvis_ptr_r4(:,:,:,:)
+    real(8), pointer :: vis_ptr_r8(:,:,:,:), lvis_ptr_r8(:,:,:,:)
+
+    ! Check if overWrite of PR is needed, but not allowed
+    overWriteNeeded = .false.
+    if (present(statevectorOut_opt)) then
+      if (.not. gsv_varExist(stateVectorOut_opt,'PR')) then
+        overWriteNeeded = .true.
+      end if
+    else
+      if (.not. gsv_varExist(stateVector_in,'PR')) then
+        overWriteNeeded = .true.
+      end if
+    end if
+    if (overWriteNeeded) then
+      if(present(allowOverWrite_opt)) then
+        if (.not.allowOverWrite_opt) then
+          call utl_abort('LPRtoPR_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
+        end if
+      else
+        call utl_abort('LPRtoPR_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
+      end if
+    end if
+
+    if ( statevector_in%dataKind == 8 ) then
+
+      if (present(statevectorOut_opt)) then
+        if (gsv_varExist(stateVectorOut_opt,'VIS')) then
+          vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'VIS')
+        else
+          vis_ptr_r8  => gsv_getField_r8(statevectorOut_opt,'LVIS')
+        end if
+      else
+        if (gsv_varExist(stateVector_in,'VIS')) then
+          vis_ptr_r8  => gsv_getField_r8(statevector_in,'VIS')
+        else
+          vis_ptr_r8  => gsv_getField_r8(statevector_in,'LVIS')
+        end if
       end if
       lvis_ptr_r8 => gsv_getField_r8(statevector_in,'LVIS')
       
@@ -602,9 +938,17 @@ CONTAINS
     else
 
       if (present(statevectorOut_opt)) then
-        vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'VIS')
+        if (gsv_varExist(stateVectorOut_opt,'VIS')) then
+          vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'VIS')
+        else
+          vis_ptr_r4  => gsv_getField_r4(statevectorOut_opt,'LVIS')
+        end if
       else
-        vis_ptr_r4  => gsv_getField_r4(statevector_in,'VIS')
+        if (gsv_varExist(stateVector_in,'VIS')) then
+          vis_ptr_r4  => gsv_getField_r4(statevector_in,'VIS')
+        else
+          vis_ptr_r4  => gsv_getField_r4(statevector_in,'LVIS')
+        end if
       end if
       lvis_ptr_r4 => gsv_getField_r4(statevector_in,'LVIS')
 
@@ -622,8 +966,20 @@ CONTAINS
 
     end if
 
+    ! Change the variable name from LVIS to VIS if VIS does not exist
+    if (present(statevectorOut_opt)) then
+      if (.not. gsv_varExist(stateVectorOut_opt,'VIS')) then
+        call gsv_modifyVarName(stateVectorOut_opt,'LVIS','VIS')
+      end if
+    else
+      if (.not. gsv_varExist(stateVector_in,'VIS')) then
+        call gsv_modifyVarName(stateVector_in,'LVIS','VIS')
+      end if
+    end if
+
   end subroutine LVIStoVIS
 
+  !--------------------------------------------------------------------------
   ! TTHUtoHeight_nl
   !--------------------------------------------------------------------------
   subroutine TTHUtoHeight_nl(statevector)

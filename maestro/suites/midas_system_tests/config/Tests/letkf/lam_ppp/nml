@@ -13,8 +13,6 @@
    huberize              = .false.
    rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
-   updateMembers         = .true.
-   writeIncrements       = .true.
    imposeSaturationLimit = .true.
    imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
@@ -70,6 +68,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LPR'
 /
  &NAMTOV   
    NSENSORS =  30,

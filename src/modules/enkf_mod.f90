@@ -77,7 +77,7 @@ contains
                                 stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                                 stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
                                 wInterpInfo, maxNumLocalObs, hLocalize, vLocalize,  &
-                                updateMembers, alphaRTPP, mpiDistribution)
+                                alphaRTPP, mpiDistribution)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean and (if present) a deterministic state.
@@ -99,7 +99,6 @@ contains
     integer                     :: maxNumLocalObs
     real(8)                     :: hLocalize
     real(8)                     :: vLocalize
-    logical                     :: updateMembers
     real(8)                     :: alphaRTPP
     character(len=*)            :: mpiDistribution
 
@@ -288,14 +287,12 @@ contains
                           nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                           mpi_comm_grid, requestIdRecv(numRecv), ierr )
         end if
-        if (updateMembers) then
-          nsize = nEns*nEns
-          numRecv = numRecv + 1
-          recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
-          call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
-                          nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
-                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        end if
+        nsize = nEns*nEns
+        numRecv = numRecv + 1
+        recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+        call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
+                        nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
+                        mpi_comm_grid, requestIdRecv(numRecv), ierr )
       end do
       call tmg_stop(103)
 
@@ -372,11 +369,7 @@ contains
             ! Compute Pa and sqrt(Pa) matrices from PaInv
             Pa(:,:) = PaInv(:,:)
             call tmg_start(90,'LETKF-eigenDecomp')
-            if (updateMembers) then
-              call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
-            else
-              call utl_matInverse(Pa, nEns)
-            end if
+            call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
             call tmg_stop(90)
 
             ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
@@ -422,13 +415,11 @@ contains
             end if
 
             ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
-            if (updateMembers) then
-              weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
-              do memberIndex = 1, nEns
-                weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
-                     weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-              end do
-            end if
+            weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
+            do memberIndex = 1, nEns
+              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
+                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
+            end do
 
           else if (trim(algorithm) == 'CVLETKF') then
             !
@@ -516,83 +507,81 @@ contains
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
             !        E^T * YbTinvRYb ]
             !      + alphaRTPP*I
-            if (updateMembers) then
-              ! Loop over sub-ensembles
-              do subEnsIndex = 1, numSubEns
+            ! Loop over sub-ensembles
+            do subEnsIndex = 1, numSubEns
 
-                ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-                call tmg_start(90,'LETKF-eigenDecomp')
-                do memberIndexCV2 = 1, nEnsIndependentPerSubEns
-                  memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+              ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+              call tmg_start(90,'LETKF-eigenDecomp')
+              do memberIndexCV2 = 1, nEnsIndependentPerSubEns
+                memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+                do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+                  memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
+                end do
+              end do
+              tolerance = 1.0D-50
+              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+              call tmg_stop(90)
+
+              ! Loop over members within the current sub-ensemble being updated
+              do memberIndexCV = 1, nEnsPerSubEns
+
+                ! This is index of member being updated
+                memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+
+                ! E^T * YbTinvRYb
+                weightsTemp(:) = 0.0d0
+                do memberIndex2 = 1, matrixRank
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                    YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
+                    weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                                eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                                                YbTinvRYb(memberIndex1,memberIndex)
                   end do
                 end do
-                tolerance = 1.0D-50
-                call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-                call tmg_stop(90)
 
-                ! Loop over members within the current sub-ensemble being updated
-                do memberIndexCV = 1, nEnsPerSubEns
+                ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
 
-                  ! This is index of member being updated
-                  memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+                do memberIndex1 = 1, matrixRank
+                  weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                              ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
+                                                1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
+                                                           real(nEnsIndependentPerSubEns - 1,8)) )
+                  weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                              eigenValues_CV(memberIndex1)
+                end do
 
-                  ! E^T * YbTinvRYb
-                  weightsTemp(:) = 0.0d0
-                  do memberIndex2 = 1, matrixRank
-                    do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                      memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                      weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                                  eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                                                  YbTinvRYb(memberIndex1,memberIndex)
-                    end do
+                ! E * previous_result
+                weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
+                do memberIndex2 = 1, matrixRank
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+                    memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                    weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
+                         weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
+                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                         weightsTemp(memberIndex2)
                   end do
+                end do
 
-                  ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+                ! -1 * (Nens-1)^1/2 * previous_result
+                weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
+                     -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+                     weightsMembersLatLon(:,memberIndex,latLonIndex)
 
-                  do memberIndex1 = 1, matrixRank
-                    weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                                ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                                  1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
-                                                             real(nEnsIndependentPerSubEns - 1,8)) )
-                    weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                                eigenValues_CV(memberIndex1)
-                  end do
+                ! I + previous_result
+                weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
+                     1.0D0 + weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
 
-                  ! E * previous_result
-                  weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
-                  do memberIndex2 = 1, matrixRank
-                    do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                      memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                      weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
-                           weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
-                           eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                           weightsTemp(memberIndex2)
-                    end do
-                  end do
+              end do ! memberIndexCV
+            end do ! subEnsIndex
 
-                  ! -1 * (Nens-1)^1/2 * previous_result
-                  weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
-                       -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
-                       weightsMembersLatLon(:,memberIndex,latLonIndex)
-
-                  ! I + previous_result
-                  weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
-                       1.0D0 + weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-
-                end do ! memberIndexCV
-              end do ! subEnsIndex
-
-              ! Apply RTPP
-              weightsMembersLatLon(:,:,latLonIndex) =  &
-                   (1.0d0 - alphaRTPP) * weightsMembersLatLon(:,:,latLonIndex)
-              do memberIndex = 1, nEns
-                weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
-                     weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
-              end do
-            end if
+            ! Apply RTPP
+            weightsMembersLatLon(:,:,latLonIndex) =  &
+                 (1.0d0 - alphaRTPP) * weightsMembersLatLon(:,:,latLonIndex)
+            do memberIndex = 1, nEns
+              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = alphaRTPP +  &
+                   weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
+            end do
 
           else
 
@@ -631,14 +620,12 @@ contains
                             nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                             mpi_comm_grid, requestIdSend(numSend), ierr )
           end if
-          if (updateMembers) then
-            nsize = nEns*nEns
-            numSend = numSend + 1
-            sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
-            call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
-                            nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
-          end if
+          nsize = nEns*nEns
+          numSend = numSend + 1
+          sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
+                          nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
+                          mpi_comm_grid, requestIdSend(numSend), ierr )
         end do
         call tmg_stop(103)
 
@@ -671,7 +658,7 @@ contains
 
         if (deterministicStateExists) call enkf_interpWeights(wInterpInfo, weightsDeter)
 
-        if (updateMembers) call enkf_interpWeights(wInterpInfo, weightsMembers)
+        call enkf_interpWeights(wInterpInfo, weightsMembers)
 
       end if
       call tmg_stop(92)
@@ -750,34 +737,32 @@ contains
           end if
 
           ! Compute the ensemble member analyses
-          if (updateMembers) then
-            do varLevIndex = 1, numVarLev
-              ! Only treat varLevIndex values that correspond with current levIndex
-              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
-                levIndex2 = nLev_M
-              else
-                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-              end if
-              if (levIndex2 /= levIndex) cycle
-              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-              memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
-              do stepIndex = 1, tim_nstepobsinc
-                ! Compute analysis member perturbation
-                memberAnlPert(:) = 0.0d0
-                do memberIndex2 = 1, nEns
-                  do memberIndex1 = 1, nEns
-                    memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
-                         weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
-                         (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-                  end do ! memberIndex1
-                end do ! memberIndex2
-                ! Add analysis member perturbation to mean analysis
-                memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
-                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
-              end do ! stepIndex
-            end do ! varLevIndex
-          end if ! updateMembers
+          do varLevIndex = 1, numVarLev
+            ! Only treat varLevIndex values that correspond with current levIndex
+            if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
+              levIndex2 = nLev_M
+            else
+              levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+            end if
+            if (levIndex2 /= levIndex) cycle
+            memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+            memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+            do stepIndex = 1, tim_nstepobsinc
+              ! Compute analysis member perturbation
+              memberAnlPert(:) = 0.0d0
+              do memberIndex2 = 1, nEns
+                do memberIndex1 = 1, nEns
+                  memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
+                       weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
+                       (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                       meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                end do ! memberIndex1
+              end do ! memberIndex2
+              ! Add analysis member perturbation to mean analysis
+              memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
+                   meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
+            end do ! stepIndex
+          end do ! varLevIndex
 
         end do LON_LOOP5
       end do
