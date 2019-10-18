@@ -92,11 +92,6 @@ runtests:hpcr-u1:
   tags:
     - hpcr-u1
 
-doc_sphinx:hpcr-u1:
-  <<: *doc_sphinx_template
-  tags:
-    - hpcr-u1
-
 ssm:hpcr-u1:
   <<: *ssm_template
   tags:
