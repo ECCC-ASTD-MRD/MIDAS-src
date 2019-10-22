@@ -1,7 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
-    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3"
+    SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
 
 stages:
    - build
@@ -14,16 +14,15 @@ stages:
 #    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
 #    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
 
-build:
+.build:: &build_template
   stage: build
   script:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
-    - v_3.3
 
-runtests:
+.runtests: &runtests_template
    stage: test
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
@@ -41,9 +40,8 @@ runtests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
-     - v_3.3
 
-doc_sphinx:
+.doc_sphinx: &doc_sphinx_template
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
@@ -55,12 +53,46 @@ doc_sphinx:
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - master
-    - v_3.3
 
-ssm:
+.ssm: &ssm_template
   stage: deploy
   script:
     - cd ssm
     - ./publish
   only:
     - tags
+
+build:hpcr-u0:
+  <<: *build_template
+  tags:
+    - hpcr-u0
+
+runtests:hpcr-u0:
+  <<: *runtests_template
+  tags:
+    - hpcr-u0
+
+doc_sphinx:hpcr-u0:
+  <<: *doc_sphinx_template
+  tags:
+    - hpcr-u0
+
+ssm:hpcr-u0:
+  <<: *ssm_template
+  tags:
+    - hpcr-u0
+
+build:hpcr-u1:
+  <<: *build_template
+  tags:
+    - hpcr-u1
+
+runtests:hpcr-u1:
+  <<: *runtests_template
+  tags:
+    - hpcr-u1
+
+ssm:hpcr-u1:
+  <<: *ssm_template
+  tags:
+    - hpcr-u1

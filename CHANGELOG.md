@@ -50,10 +50,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * The automated (CI) system tests now runs on both available platforms: HPCR-U0 and HPCR-U1 (#270 and !250)
  * The observation variable transforms was generalized and modernized (#247 and !239).
-    Previously only wind (speed,direction) -> (u,v) was supported. Now users can add (relatively) easily any type of variable transform. For now, only visibility -> log(visibility) was added.
-    An observation transform is activated when an assimilated observation is not found in the observations read from burp or sqlite files.
-    On outputs, the o-p and/or o-a of the transformed variables are converted and added to the original/source variable. In the output burp files, only the source variable appears because it was found too difficult to modify brpr_updateBurp. However, both source and transformed variable info are written to the sqlite files.
+    * Previously only wind (speed,direction) -> (u,v) was supported. Now users can add (relatively) easily any type of variable transform. For now, only visibility -> log(visibility) was added.
+    * An observation transform is activated when an assimilated observation is not found in the observations read from burp or sqlite files.
+    * On outputs, the o-p and/or o-a of the transformed variables are converted and added to the original/source variable. In the output burp files, only the source variable appears because it was found too difficult to modify brpr_updateBurp. However, both source and transformed variable info are written to the sqlite files.
  * The height/pressure are computed on the grid, before horizontal interpolation to observation locations, to prepare for using slanted columns and footprint operators. (#124 and !220)
     * The height/pressure are part of statevector/columndata main data storage arrays (gd_r4/gd_r8/all) and are calculated for the trial fields and the increments.
     * Allocation of height/pressure is set to true, by default, and it is done if the necessary variables for their calculation are available in the statevector/columndata.
