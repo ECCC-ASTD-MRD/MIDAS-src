@@ -20,7 +20,7 @@ stages:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
-    - 270-make-ci-work-on-both-hpcr-u0-and-hpcr-u1
+    - master
 
 .runtests: &runtests_template
    stage: test
@@ -39,7 +39,7 @@ stages:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - 270-make-ci-work-on-both-hpcr-u0-and-hpcr-u1
+     - master
 
 .doc_sphinx: &doc_sphinx_template
   stage: doc
@@ -52,7 +52,7 @@ stages:
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
-    - 270-make-ci-work-on-both-hpcr-u0-and-hpcr-u1
+    - master
 
 .ssm: &ssm_template
   stage: deploy
