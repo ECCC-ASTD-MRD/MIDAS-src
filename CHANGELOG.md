@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Using `rpn/libs/19.4` instead of `rpn/libs/19.2` (no impact of the results) (#269 and !251)
 
 ### Fixed
 
