@@ -87,9 +87,9 @@ Runner for 'erv000' connected to 'gitlab.science.gc.ca:atmospheric-data-assimila
 
 It will ask for tags which you can ignore.  The next question is the
 `executor` for which we want a `ssh` and you put
-`eccc-ppp1.science.gc.ca` as the `SSH server address` when asked, then
+`eccc-ppp4.science.gc.ca` as the `SSH server address` when asked, then
 the script will be executed by doing a SSH connection to
-`eccc-ppp1.science.gc.ca`.
+`eccc-ppp4.science.gc.ca`.
 
 The last questions are the port of the SSH server which is `22` and DO
 NOT ENTER YOUR PASSWORD, just do return and it will ask you the path
@@ -104,7 +104,7 @@ cat > ~/bin/gitlab_runner.sh <<EOF
 #!/bin/bash
 set -ex
 
-runhost=\${1:-ppp1}
+runhost=\${1:-ppp4}
 qname=dev_daemon
 
 gitlabrunner_exists=true
@@ -126,14 +126,14 @@ chmod +x ~/bin/gitlab_runner.sh
 ~/bin/gitlab_runner.sh
 ```
 
-This script will launch a job on the queue `dev_daemon` (which has no time limit) on `eccc-ppp1`.
+This script will launch a job on the queue `dev_daemon` (which has no time limit) on `eccc-ppp4`.
 
 ### Maintain the runner with `hcron`
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp1
-cat > ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp1/gitlab-runner <<EOF
+mkdir -pv ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp4
+cat > ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp4/gitlab-runner <<EOF
 as_user=
 host=\$HCRON_EVENT_NAME[1]
 command=echo ~/bin/gitlab_runner.sh | bash --login
