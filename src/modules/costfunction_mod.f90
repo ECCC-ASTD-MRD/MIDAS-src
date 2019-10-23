@@ -159,7 +159,7 @@ contains
     integer :: bodyIndex, itvs, isens, headerIndex, idata, idatend
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
-    real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro
+    real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
 
     call tmg_start(81,'SUMJO')
@@ -179,6 +179,7 @@ contains
     dljoice = 0.0d0
     dljotov_sensors(:) = 0.d0
     dljohydro = 0.0d0
+    dljoradar = 0.0d0
 
     do bodyIndex = 1, obs_numbody( lobsSpaceData )
 
@@ -217,6 +218,8 @@ contains
         dljoice     = dljoice     + pjo_1
       case('HY')
         dljohydro   = dljohydro   + pjo_1
+      case('RA')
+        dljoradar   = dljoradar   + pjo_1
       end select
     enddo
 
@@ -248,6 +251,7 @@ contains
     call mpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
     call mpi_allreduce_sumreal8scalar( dljoice, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
+    call mpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
     do isens = 1, tvs_nsensors
        call mpi_allreduce_sumreal8scalar( dljotov_sensors(isens), "GRID" )
     end do
@@ -267,6 +271,7 @@ contains
       write(*,'(a15,f25.17)') 'Jo(AL)   = ', dljoaladin
       write(*,'(a15,f25.17)') 'Jo(GL)   = ', dljoice
       write(*,'(a15,f25.17)') 'Jo(HY)   = ', dljohydro
+      write(*,'(a15,f25.17)') 'Jo(RA)   = ', dljoradar
       write(*,*) ' '
       if ( tvs_nsensors > 0 ) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
