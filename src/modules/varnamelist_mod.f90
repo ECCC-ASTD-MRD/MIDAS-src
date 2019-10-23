@@ -201,6 +201,10 @@ module varNameList_mod
         varname='VIS'
       case ( bufr_logVis )
         varname='LVIS'
+      case ( bufr_radarPrecip )
+        varname='PR'
+      case ( bufr_logRadarPrecip )
+        varname='LPR'
       case ( bufr_gust )
         varname='WGE'
       case ( bufr_riverFlow )

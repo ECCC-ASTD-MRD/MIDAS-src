@@ -245,13 +245,15 @@ contains
           ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)
           if( ZLEV < ZPT ) IK = JK
         end do
-        if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
-             ITYP == BUFR_NEZD .or. ityp == bufr_gust) THEN
+        if ( ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. &
+             ityp == BUFR_NEZD .or. ityp == bufr_gust .or. &
+             ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) THEN
           ! for surface observations associated with surface analysis variables
           IK = 0
-        else if ( ITYP == BUFR_NETS .or. ityp == BUFR_NESS .or. &
-               ITYP == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ITYP == BUFR_NEHS .or. ityp == bufr_vis .or. ityp == bufr_logVis) then
+        else if ( ityp == BUFR_NETS .or. ityp == BUFR_NESS .or. &
+                  ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
+                  ityp == BUFR_NEHS .or. ityp == bufr_vis  .or.  &
+                  ityp == bufr_logVis ) then
           ! for surface observations associated with NON-surface analysis variables
           IK = nlev - 1
         end if
@@ -660,15 +662,18 @@ contains
           if (bodyIndex < 0) exit BODY
 
           ! only process height level observations flagged to be assimilated
-          if(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 .or.  &
-               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY
+          if ( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 .or.  &
+               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
 
           ! only process this set of surface observations
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
           if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS   .and.  &
               ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS   .and.  &
               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN   .and.  &
-              ivnm /= bufr_vis  .and. ivnm /= bufr_logVis .and. ivnm /= bufr_gust ) cycle BODY
+              ivnm /= bufr_vis  .and. ivnm /= bufr_logVis .and.  &
+              ivnm /= bufr_gust .and.  &
+              ivnm /= bufr_radarPrecip .and.  &
+              ivnm /= bufr_logRadarPrecip ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -677,7 +682,10 @@ contains
 
           if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or.  &
-              ivnm == bufr_gust .or. ivnm == bufr_vis  .or. ivnm == bufr_logVis) then
+              ivnm == bufr_gust .or. ivnm == bufr_vis  .or.  &
+              ivnm == bufr_logVis .or. &
+              ivnm == bufr_radarPrecip .or.  &
+              ivnm == bufr_logRadarPrecip ) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the

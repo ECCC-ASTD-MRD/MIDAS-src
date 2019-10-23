@@ -74,6 +74,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEDWDT      = 40033 ! derivative of HLOS wrt T
  integer, parameter :: BUFR_NEDW        = 11200 ! Doppler wind
  integer, parameter :: BUFR_radarPrecip = 21036 ! radar precipitation
+ integer, parameter :: BUFR_logRadarPrecip = 51036 ! radar precipitation
  integer, parameter :: bufr_sst         = 22042
  integer, parameter :: bufr_soz         = 07025
  integer, parameter :: BUFR_ICEC        = 20237 ! concentration (%) from ice charts
