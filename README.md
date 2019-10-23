@@ -38,7 +38,7 @@ clone_projet --no-central -c v_3.3 git@gitlab.science.gc.ca:atmospheric-data-ass
 
 To compile a program for a given platform, one has to do:
 ```bash
-ssh ${host}  ## '${host}' can be 'hare', 'brooks', 'eccc-ppp1', eccc-ppp2, 'gpsc*'
+ssh ${host}  ## '${host}' can be 'eccc-ppp3', 'eccc-ppp4', 'daley' or 'banting'
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 ./compile_program.sh ${program}
@@ -53,14 +53,14 @@ binary is.
 
 To compile the programs used in this code, use the commands
 ```bash
-ssh eccc-ppp2  ## or eccc-ppp1
+ssh eccc-ppp3  ## or eccc-ppp4
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
 ```
 and
 ```bash
-ssh brooks  ## or hare
+ssh daley  ## or banting
 cd ${WHERE YOUR CODE IS}
 cd src/programs
 yes '' | ./compile_all.sh
