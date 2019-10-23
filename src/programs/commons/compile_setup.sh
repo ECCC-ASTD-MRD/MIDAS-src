@@ -111,8 +111,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 -o "${ORDENV_PLAT}" = sles-11-amd6
     . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.2/${COMP_ARCH}
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.4.3"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.3
+    echo "... loading eccc/mrd/rpn/vgrid/6.4.4"
+    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.4.4
 
     echo "... loading eccc/cmd/cmda/libs/19.4/${COMP_ARCH}"
     . ssmuse-sh -d eccc/cmd/cmda/libs/19.4/${COMP_ARCH}
