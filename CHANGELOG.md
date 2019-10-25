@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-  * Using `rpn/libs/19.5` instead of `rpn/libs/19.4` (no impact of the results) (#272 and !253)
+ * (Nothing yet)
 
 ### Fixed
 
@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.4.2]
+
+ * Using `rpn/libs/19.5` instead of `rpn/libs/19.4` (no impact of the results) (#272 and !253)
 
 ## [3.4.1]
 
@@ -289,8 +293,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...HEAD
-[3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...HEAD
+[3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
+[3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
 [3.4.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...v_3.4.0
 [3.3.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...v_3.3.5
 [3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
