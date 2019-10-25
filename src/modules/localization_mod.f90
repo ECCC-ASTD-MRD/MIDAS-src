@@ -71,7 +71,7 @@ CONTAINS
     integer, intent(in) :: nEns
     integer, intent(in) :: nTrunc
 
-    real(8), intent(in) :: pressureProfile(vco_loc%nLev_M)
+    real(8), intent(in) :: pressureProfile(:)
     real(8), intent(in) :: horizLengthScale1
     real(8), intent(in) :: horizLengthScale2
     real(8), intent(in) :: vertLengthScale
@@ -92,7 +92,11 @@ CONTAINS
     loc%vco => vco_loc
 
     if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 ) then
-      nLev = loc%vco%nLev_M
+      if (loc%vco%nLev_M > 0) then
+        nLev = loc%vco%nLev_M
+      else
+        nLev = loc%vco%nLev_T
+      end if
     else !  vco_anl%Vcode == 0
       nLev = 1
     end if

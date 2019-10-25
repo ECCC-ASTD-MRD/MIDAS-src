@@ -79,9 +79,9 @@ contains
     allocate (vco%ip1_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
-    if( stat /= 0 ) then
+    if ( stat /= 0 ) then
       call utl_abort('vco_allocateIp1: problem with allocate in vco ')
-    endif
+    end if
 
   end subroutine vco_allocateIp1
 
@@ -124,43 +124,43 @@ contains
 
     if ( associated(vco) ) then
       call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
-    endif
+    end if
 
     allocate(vco)
 
-    if(present(etiket_opt)) then
+    if (present(etiket_opt)) then
       etiket = etiket_opt
     else
       etiket = ' '
-    endif
+    end if
 
-    if(present(beSilent_opt)) then
+    if (present(beSilent_opt)) then
       beSilent = beSilent_opt
     else
       beSilent = .false.
-    endif
+    end if
 
-    if(mpi_myid == 0 .and. .not. beSilent) then
+    if (mpi_myid == 0 .and. .not. beSilent) then
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
-    endif
+    end if
     inquire(file=templatefile,exist=isExist_L)
-    if( isExist_L )then
+    if ( isExist_L )then
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-      if( ierr == 0 ) then
+      if ( ierr == 0 ) then
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
         call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
-      endif
+      end if
     else
       call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
-    endif
+    end if
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file (vgd_new reads "!!" record)
 
     stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
-    if(stat == VGD_OK) then
+    if (stat == VGD_OK) then
       vco%vgridPresent = .true.
     else
       write(*,*) 'vco_setupFromFile: Problem with vgd_new, check if surface-only file'
@@ -214,24 +214,24 @@ contains
     end if
 
     ! Print out vertical structure 
-    if(mpi_myid == 0 .and. .not. beSilent) then
+    if (mpi_myid == 0 .and. .not. beSilent) then
       stat = vgd_print(vco%vgrid)
-      if( stat /= VGD_OK )then
+      if ( stat /= VGD_OK )then
         call utl_abort('vco_setupFromFile: ERROR with vgd_print')
-      endif
-    endif
+      end if
+    end if
 
     !==========================================================================
     ! Get version of the vertical coordinate
 
     stat = 0
     stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-    if( stat /= VGD_OK ) then
+    if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
-    endif
+    end if
     if (Vcode /= 5002 .and. Vcode /= 5005) then
       call utl_abort('vco_setupFromFile: Invalid Vcode. Currently only 5002 and 5005 supported.')
-    endif
+    end if
     vco%Vcode = Vcode
 
     ! Get vgrid values for ip1
@@ -243,9 +243,9 @@ contains
     stat = vgd_get(vco%vgrid,key='vipt - vertical ip1 levels (t)',value=vgd_ip1_t)
     stat = stat + VGD_OK
 
-    if(stat /= 0) then
+    if (stat /= 0) then
       call utl_abort('vco_setupFromFile: problem with vgd_get')
-    endif
+    end if
 
     vgd_nlev_M = size(vgd_ip1_M)
     vgd_nlev_T = size(vgd_ip1_T)
@@ -257,65 +257,61 @@ contains
     nomvar_T = 'TH  '
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-      if(ikey > 0) vco%nlev_T = vco%nlev_T + 1
-    enddo
-    if(vco%nlev_T == 0) then
-      if(mpi_myid == 0 .and. .not. beSilent) then
+      if (ikey > 0) vco%nlev_T = vco%nlev_T + 1
+    end do
+    if (vco%nlev_T == 0) then
+      if (mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: TH not found looking for TT to get nlev_T'
-      endif
+      end if
       nomvar_T = 'TT  '
       do jlev = 1, vgd_nlev_T
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-        if(ikey > 0) vco%nlev_T = vco%nlev_T + 1
-      enddo
-    endif
-    if( vco%nlev_T == 0 ) then
+        if (ikey > 0) vco%nlev_T = vco%nlev_T + 1
+      end do
+    end if
+    if ( vco%nlev_T == 0 ) then
       write(*,*) 
       write(*,*) 'vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!'
-    endif
+    end if
 
     vco%nlev_M = 0
     nomvar_M = 'MM  '
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-      if(ikey > 0) vco%nlev_M = vco%nlev_M + 1
-    enddo
-    if(vco%nlev_M == 0) then
-      if(mpi_myid == 0 .and. .not. beSilent) then
+      if (ikey > 0) vco%nlev_M = vco%nlev_M + 1
+    end do
+    if (vco%nlev_M == 0) then
+      if (mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: MM not found looking for UU to get nlev_M'
-      endif
+      end if
       nomvar_M = 'UU  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
-      enddo
-    endif
-    if(vco%nlev_M == 0) then
-      if(mpi_myid == 0 .and. .not. beSilent) then
+        if (ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
+      end do
+    end if
+    if (vco%nlev_M == 0) then
+      if (mpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupFromFile: UU not found looking for PP to get nlev_M'
-      endif
+      end if
       nomvar_M = 'PP  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if( ikey > 0 ) vco%nlev_M = vco%nlev_M + 1
-      enddo
-    endif
-    if(vco%nlev_M == 0) then
+        if ( ikey > 0 ) vco%nlev_M = vco%nlev_M + 1
+      end do
+    end if
+    if (vco%nlev_M == 0) then
       write(*,*) 
       write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
-    endif
-
-    if ( (vco%nlev_M == 0 .and. vco%nlev_T /= 0) .or. &
-         (vco%nlev_M /= 0 .and. vco%nlev_T == 0) ) & 
-       call utl_abort('vco_setupfromfile: one of the nlev_M/nlev_T is zero and the other is not!')
+    end if
 
     if (vco%nlev_M == 0 .and. vco%nlev_T == 0) then
       call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if
 
-    if(mpi_myid == 0 .and. .not.beSilent) then
+    if (mpi_myid == 0 .and. .not.beSilent) then
       write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
-    endif
+    end if
     
     call vco_allocateIp1(vco)
 
@@ -326,18 +322,18 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-      if( ikey > 0 ) then
+      if ( ikey > 0 ) then
         nlevMatched = nlevMatched + 1
-        if(nlevMatched.gt.vco%nlev_M) then
+        if (nlevMatched.gt.vco%nlev_M) then
           call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
-        endif
+        end if
         vco%ip1_M(nlevMatched) = vgd_ip1_M(jlev)
-      endif
-    enddo
-    if(nlevMatched /= vco%nlev_M) then
+      end if
+    end do
+    if (nlevMatched /= vco%nlev_M) then
       write(*,*) 'vco_setupFromFile: nlevMatched = ', nlevMatched, ', nlev_M = ', vco%nlev_M
       call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
-    endif
+    end if
 
     !==========================================================================
     ! Define levels ip1 for thermo levels
@@ -346,18 +342,18 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-      if( ikey > 0 ) then
+      if ( ikey > 0 ) then
         nlevMatched = nlevMatched + 1
-        if(nlevMatched > vco%nlev_T) then
+        if (nlevMatched > vco%nlev_T) then
           call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
-        endif
+        end if
         vco%ip1_T(nlevMatched) = vgd_ip1_T(jlev)
-      endif
-    enddo
-    if(nlevMatched /= vco%nlev_T) then
+      end if
+    end do
+    if (nlevMatched /= vco%nlev_T) then
       write(*,*) 'vco_setupFromFile: nlevMatched = ', nlevMatched, ', nlev_T = ', vco%nlev_T
       call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
-    endif
+    end if
 
     !
     !- Define level ip1 for surface (only used for Vcode=5005)
@@ -367,17 +363,17 @@ contains
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
     ip1_found = .false.
     do jlev = 1, vgd_nlev_T
-      if(ip1_sfc .eq. vgd_ip1_T(jlev)) then
+      if (ip1_sfc .eq. vgd_ip1_T(jlev)) then
         ip1_found = .true.
         vco%ip1_sfc = vgd_ip1_T(jlev)
-      endif
-    enddo
-    if(.not.ip1_found) then
+      end if
+    end do
+    if (.not.ip1_found) then
       write(*,*) 'vco_setupFromFile: Could not find IP1=',ip1_sfc
       call utl_abort('vco_setupFromFile: No surface level found in Vgrid!!!')
     else
-      if( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
-    endif
+      if ( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
+    end if
 
     !
     !- determine IP1s of 2m and 10m levels
@@ -427,15 +423,15 @@ contains
 
     integer                      :: nlev
 
-    if(varLevel == 'MM') then
+    if (varLevel == 'MM') then
       nlev = vco%nlev_M
-    elseif(varLevel == 'TH') then
+    elseif (varLevel == 'TH') then
       nlev = vco%nlev_T
-    elseif(varLevel == 'SF') then
+    elseif (varLevel == 'SF') then
       nlev = 1
     else
       call utl_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
-    endif
+    end if
 
   end function vco_getNumLev
 
@@ -459,12 +455,12 @@ contains
     write(*,*) 'vco_mpiBcast: starting'
 
     if ( mpi_myid > 0 ) then
-      if( .not.associated(vco) ) then
+      if ( .not.associated(vco) ) then
         allocate(vco)
       else 
         call utl_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
-      endif
-    endif
+      end if
+    end if
 
     call rpn_comm_bcast(vco%initialized , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%vgridPresent, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
@@ -478,13 +474,13 @@ contains
       if ( mpi_myid == 0 ) then
         vgd_nlev_M = size(vco%ip1_M)
         vgd_nlev_T = size(vco%ip1_T)
-      endif
+      end if
       call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       if ( mpi_myid > 0 ) then
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
-      endif
+      end if
       call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
     end if
@@ -506,7 +502,7 @@ contains
         ierr = vgd_get(vco%vgrid,'IP_1',vgdip1)
         ierr = vgd_get(vco%vgrid,'IP_2',vgdip2)
         ierr = vgd_get(vco%vgrid,'IP_3',vgdip3)
-      endif
+      end if
 
       ! 3D table of real*8
       call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
@@ -536,7 +532,7 @@ contains
         ierr = vgd_put(vco%vgrid,'IP_1',vgdip1)
         ierr = vgd_put(vco%vgrid,'IP_2',vgdip2)
         ierr = vgd_put(vco%vgrid,'IP_3',vgdip3)
-      endif
+      end if
       
       deallocate(vgdtable) 
 
@@ -585,7 +581,7 @@ contains
                       levels=sourcePressureLevels,   &
                       sfc_field=pSfc,                &
                       in_log=.false.)
-    if( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
+    if ( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
 
     !pressure on momentum levels of destination grid
     status=vgd_levels(vco_destGrid%vgrid,            &
@@ -593,7 +589,7 @@ contains
                       levels=destPressureLevels,     &
                       sfc_field=pSfc,                &
                       in_log=.false.)
-    if( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
+    if ( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
 
     !count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
@@ -628,13 +624,13 @@ contains
     if (.not. equal) then
       write(*,*) 'vco_equal: Vcode not equal'
       return
-    endif
+    end if
     if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
        equal = equal .and. (vco1%vgrid == vco2%vgrid)
        if (.not. equal) then
           write(*,*) 'vco_equal: vgrid not equal'
           return
-       endif
+       end if
     end if
 
     ! Even if vgrid defined, not enough just to compare vgrid, must compare everything
@@ -642,34 +638,34 @@ contains
     if (.not. equal) then
        write(*,*) 'vco_equal: nlev_T not equal', vco1%nlev_T, vco2%nlev_T
        return
-    endif
+    end if
     equal = equal .and. (vco1%nlev_M == vco2%nlev_M)
     if (.not. equal) then
        write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
        return
-    endif
+    end if
     if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
       equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_T not equal'
         return
-      endif
+      end if
       equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_M not equal'
         return
-      endif
+      end if
       equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_sfc not equal'
         return
-      endif
+      end if
       if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
         equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
         if (.not. equal) then
           write(*,*) 'vco_equal: hybrid parameters are not equal'
           return
-        endif
+        end if
       end if
     end if
 

@@ -370,9 +370,10 @@ contains
         do columnIndex = 1, col_getNumCol(columng)
           columng_ptr => col_getColumn(columng,columnIndex,'Z_T')
           columng_ptr(col_getNumLev(columng,'TH')) = columng%HeightSfc(1,columnIndex)
-
-          columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
-          columng_ptr(col_getNumLev(columng,'MM')) = columng%HeightSfc(1,columnIndex)
+          if (col_varExist(columng,'Z_M')) then
+            columng_ptr => col_getColumn(columng,columnIndex,'Z_M')
+            columng_ptr(col_getNumLev(columng,'MM')) = columng%HeightSfc(1,columnIndex)
+          end if
         end do
       end if
 
@@ -380,22 +381,28 @@ contains
       write(*,*) 'inn_setupBackgroundColumnsAnl:  height TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
-    if ( col_getNumCol(columng) > 0 .and. col_varExist(columng,'Z_T') ) then
+    if (col_getNumCol(columng) > 0) then
+      write(*,*)
       write(*,*) 'inn_setupBackgroundColumnsAnl, vIntProf output:'
-      write(*,*) 'Z_T (columnhr):'
-      columng_ptr => col_getColumn(columnhr,1,'Z_T')
-      write(*,*) columng_ptr(:)
-      write(*,*) 'Z_T (columng):'
-      columng_ptr => col_getColumn(columng,1,'Z_T')
-      write(*,*) columng_ptr(:)
 
-      write(*,*) 'Z_M(columnhr):'
-      columng_ptr => col_getColumn(columnhr,1,'Z_M')
-      write(*,*) columng_ptr(:)
-      write(*,*) 'Z_M(columng):'
-      columng_ptr => col_getColumn(columng,1,'Z_M')
-      write(*,*) columng_ptr(:)
-
+      if ( col_getNumLev(columng,'TH') > 0 .and. col_varExist(columng,'Z_T') ) then
+        write(*,*) 'Z_T (columnhr):'
+        columng_ptr => col_getColumn(columnhr,1,'Z_T')
+        write(*,*) columng_ptr(:)
+        write(*,*) 'Z_T (columng):'
+        columng_ptr => col_getColumn(columng,1,'Z_T')
+        write(*,*) columng_ptr(:)
+      end if
+      
+      if ( col_getNumLev(columng,'MM') > 0 .and. col_varExist(columng,'Z_M') ) then
+        write(*,*) 'Z_M(columnhr):'
+        columng_ptr => col_getColumn(columnhr,1,'Z_M')
+        write(*,*) columng_ptr(:)
+        write(*,*) 'Z_M(columng):'
+        columng_ptr => col_getColumn(columng,1,'Z_M')
+        write(*,*) columng_ptr(:)
+      end if
+ 
       write(*,*) 'HeightSfc:', columng%HeightSfc(1,1)
     end if
 
