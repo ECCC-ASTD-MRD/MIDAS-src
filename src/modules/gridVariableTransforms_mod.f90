@@ -899,10 +899,10 @@ CONTAINS
     if (overWriteNeeded) then
       if(present(allowOverWrite_opt)) then
         if (.not.allowOverWrite_opt) then
-          call utl_abort('LPRtoPR_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
+          call utl_abort('LVIStoVIS_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
         end if
       else
-        call utl_abort('LPRtoPR_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
+        call utl_abort('LVIStoVIS_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
       end if
     end if
 
@@ -1416,7 +1416,7 @@ CONTAINS
                         levels=Pressure_out, &
                         sfc_field=Psfc, &
                         in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r8: ERROR with vgd_levels')
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -1427,7 +1427,7 @@ CONTAINS
                         levels=Pressure_out, &
                         sfc_field=Psfc, &
                         in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r8: ERROR with vgd_levels')
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -1501,7 +1501,7 @@ CONTAINS
                           levels=Pressure_out, &
                           sfc_field=Psfc, &
                           in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r4: ERROR with vgd_levels')
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -1512,7 +1512,7 @@ CONTAINS
                           levels=Pressure_out, &
                           sfc_field=Psfc, &
                           in_log=.false.)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_nl_r4: ERROR with vgd_levels')
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -1592,7 +1592,7 @@ CONTAINS
                            statevector%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
       ! calculate delP_M
       do lev_M = 1, nlev_M
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -1609,7 +1609,7 @@ CONTAINS
                            statevector%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_tl: ERROR with vgd_dpidpis')
       ! calculate delP_T
       do lev_T = 1, nlev_T
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -1689,7 +1689,7 @@ CONTAINS
                            statevector%vco%ip1_M, &
                            dP_dPsfc_M, &
                            Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
       ! calculate delP_M
       do lev_M = 1, nlev_M
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -1706,7 +1706,7 @@ CONTAINS
                            statevector%vco%ip1_T, &
                            dP_dPsfc_T, &
                            Psfc)
-      if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_dpidpis')
+      if( status .ne. VGD_OK ) call utl_abort('calcPressure_ad: ERROR with vgd_dpidpis')
       ! calculate delP_T
       do lev_T = 1, nlev_T
         do latIndex = statevector%myLatBeg, statevector%myLatEnd

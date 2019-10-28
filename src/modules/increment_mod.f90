@@ -93,7 +93,6 @@ CONTAINS
     type(struct_gsv) :: statevector_trial, statevector_analysis
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
     type(struct_gsv) :: statevector_1step_r4, statevector_Psfc_1step_r4
-!    type(struct_gsv) :: statevector_analysis_vis, statevector_vis_1step_r4
     type(struct_gsv) :: statevector_mask
 
     type(struct_vco), pointer :: vco_trl => null()
