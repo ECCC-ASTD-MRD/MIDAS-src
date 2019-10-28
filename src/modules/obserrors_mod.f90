@@ -1270,9 +1270,19 @@ contains
               call utl_abort( myName//": unsupported codeType" )
             end if  
 
+          else if ( cfam == 'RA' ) then
+
+            if ( ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
+              ! Temporary hardcoded value for log-transformed radar precipitation
+              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 1.0D0 )
+            else
+              write(*,*) 'varnum = ', ityp
+              call utl_abort( myName//': unknown varnum for RA family' )
+            end if
+
           else
 
-            write(*,*)' UNKNOWN DATA FAMILY:',cfam
+            write(*,*) myName//': UNKNOWN DATA FAMILY:',cfam
 
           end if
 

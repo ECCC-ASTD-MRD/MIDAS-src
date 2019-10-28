@@ -263,6 +263,7 @@ contains
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
     else if ( trim(familyType) == 'RA' ) then
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn"
+      vertCoordType = 1
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, id_stn, status, elev"  
     end if

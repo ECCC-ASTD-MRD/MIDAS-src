@@ -245,13 +245,15 @@ contains
           ZPT = col_getHeight(columnghr,JK,IOBS,varLevel)
           if( ZLEV < ZPT ) IK = JK
         end do
-        if ( ITYP == BUFR_NEPS .or. ITYP == BUFR_NEPN .or. &
-             ITYP == BUFR_NEZD .or. ityp == bufr_gust) THEN
+        if ( ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. &
+             ityp == BUFR_NEZD .or. ityp == bufr_gust .or. &
+             ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) THEN
           ! for surface observations associated with surface analysis variables
           IK = 0
-        else if ( ITYP == BUFR_NETS .or. ityp == BUFR_NESS .or. &
-               ITYP == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
-               ITYP == BUFR_NEHS .or. ityp == bufr_vis .or. ityp == bufr_logVis) then
+        else if ( ityp == BUFR_NETS .or. ityp == BUFR_NESS .or. &
+                  ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. &
+                  ityp == BUFR_NEHS .or. ityp == bufr_vis  .or.  &
+                  ityp == bufr_logVis ) then
           ! for surface observations associated with NON-surface analysis variables
           IK = nlev - 1
         end if
@@ -660,15 +662,18 @@ contains
           if (bodyIndex < 0) exit BODY
 
           ! only process height level observations flagged to be assimilated
-          if(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 .or.  &
-               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY
+          if ( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1 .or.  &
+               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
 
           ! only process this set of surface observations
           ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
           if( ivnm /= BUFR_NETS .and. ivnm /= BUFR_NEPS   .and.  &
               ivnm /= BUFR_NEUS .and. ivnm /= BUFR_NEVS   .and.  &
               ivnm /= BUFR_NESS .and. ivnm /= BUFR_NEPN   .and.  &
-              ivnm /= bufr_vis  .and. ivnm /= bufr_logVis .and. ivnm /= bufr_gust ) cycle BODY
+              ivnm /= bufr_vis  .and. ivnm /= bufr_logVis .and.  &
+              ivnm /= bufr_gust .and.  &
+              ivnm /= bufr_radarPrecip .and.  &
+              ivnm /= bufr_logRadarPrecip ) cycle BODY
 
           zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -677,7 +682,10 @@ contains
 
           if (ivnm == BUFR_NETS .or. ivnm == BUFR_NESS .or.  &
               ivnm == BUFR_NEUS .or. ivnm == BUFR_NEVS .or.  &
-              ivnm == bufr_gust .or. ivnm == bufr_vis  .or. ivnm == bufr_logVis) then
+              ivnm == bufr_gust .or. ivnm == bufr_vis  .or.  &
+              ivnm == bufr_logVis .or. &
+              ivnm == bufr_radarPrecip .or.  &
+              ivnm == bufr_logRadarPrecip ) then
              ! T2m,(T-TD)2m,US,VS
              ! In this section we always extrapolate linearly the trial
              ! field at the model surface to the height of the
@@ -1962,15 +1970,15 @@ contains
       !
       IMPLICIT NONE
 
-      INTEGER IPB,IPT,IXTR
+      INTEGER IPB,IPT
       INTEGER headerIndex,IK
-      INTEGER J,bodyIndex,ITYP,INDEX_FAMILY,nlev
+      INTEGER J,bodyIndex,ITYP,INDEX_FAMILY,nlev,nlev_T
       REAL*8 ZCON
       REAL*8 ZWB,ZWT, ZEXP,ZGAMMA,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB
       REAL*8 delP
-      INTEGER, PARAMETER :: numFamily=4
+      INTEGER, PARAMETER :: numFamily=5
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !C
       !C     Temperature lapse rate for extrapolation of height below model surface
@@ -1983,6 +1991,7 @@ contains
       list_family(2) = 'SF'
       list_family(3) = 'SC'
       list_family(4) = 'GP'
+      list_family(5) = 'RA'
 
       FAMILY: do index_family=1,numFamily
 
@@ -1999,19 +2008,16 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
-                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis  &
+                 .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. &
-                   ityp == bufr_gust ) then
-                  varLevel = 'MM'
-               else
-                  varLevel = 'TH'
-               end if
-               nlev = col_getNumLev(column,varLevel)
+               varLevel = vnl_varLevelFromVarnum(ityp)
+               nlev   = col_getNumLev(column,varLevel)
+               nlev_T = col_getNumLev(column,'TH')
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-               !IXTR = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                ZHHH = ZLEV
@@ -2019,41 +2025,43 @@ contains
                IPB  = IPT+1
 
                if (ITYP == BUFR_NETS .OR. ITYP == BUFR_NESS .OR.  &
-                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
-                  ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) THEN
+                   ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS .OR. &
+                   ityp == bufr_vis  .or. ityp == bufr_logVis  .or.  &
+                   ityp == bufr_gust .or.  &
+                   ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip) THEN
                  if (ITYP == BUFR_NESS ) THEN
-                   delP = col_getPressure(column,nlev,headerIndex,'TH')
-                   columnVarB = hutoes_tl(col_getElem(column,nlev,headerIndex,'HU'), &
-                          col_getElem(column,nlev,headerIndex,'TT'), &
+                   delP = col_getPressure(column,nlev_T,headerIndex,'TH')
+                   columnVarB = hutoes_tl(col_getElem(column,nlev_T,headerIndex,'HU'), &
+                          col_getElem(column,nlev_T,headerIndex,'TT'), &
                           delP, &
-                          col_getElem(columng,nlev,headerIndex,'HU'), &
+                          col_getElem(columng,nlev_T,headerIndex,'HU'), &
                           col_getPressure(columng,nlev,headerIndex,varLevel))
-                  else
-                    columnVarB=col_getElem(COLUMN,IPB,headerIndex)
-                  end if
-                  call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,columnVarB)
+                 else
+                   columnVarB=col_getElem(COLUMN,IPB,headerIndex)
+                 end if
+                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,columnVarB)
                else if (ITYP == BUFR_NEPS .OR. ITYP == BUFR_NEPN) THEN
-                  ZLTV  = columng%OLTV(1,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'TT')  & 
-                       + columng%OLTV(2,nlev,headerIndex)*col_getElem(COLUMN,nlev,headerIndex,'HU')
-                  ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
-                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
-                  ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
-                  ZDELPS= (col_getElem(COLUMN,1,headerIndex,'P0')*ZCON**ZEXP)
-                  ZDELTV= ((col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
+                 ZLTV  = columng%OLTV(1,nlev_T,headerIndex)*col_getElem(COLUMN,nlev_T,headerIndex,'TT')  & 
+                       + columng%OLTV(2,nlev_T,headerIndex)*col_getElem(COLUMN,nlev_T,headerIndex,'HU')
+                 ZTVG  = columng%OLTV(1,nlev_T,headerIndex)*col_getElem(columng,nlev_T,headerIndex,'TT')
+                 ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
+                 ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
+                 ZDELPS= (col_getElem(COLUMN,1,headerIndex,'P0')*ZCON**ZEXP)
+                 ZDELTV= ((col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                        *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-                  call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZDELPS+ZDELTV)
-               ELSE
-                  ! not sure what this block of code is for, not present in nonlinear version (Buehner)
-                  IPT  = IK + col_getOffsetFromVarno(columng,ityp)
-                  IPB  = IPT+1
-                  ZPT  = col_getHeight(columng,IK,headerIndex,varLevel)
-                  ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
-                  ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
-                  ZWT  = 1.d0 - ZWB
-                  call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
-                       ZWB*col_getElem(COLUMN,IPB,headerIndex) + ZWT*col_getElem(COLUMN,IPT,headerIndex)+  &
-                       (col_getElem(columng,IPB,headerIndex)-col_getElem(columng,IPT,headerIndex)))
-               END IF
+                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZDELPS+ZDELTV)
+               else
+                 ! not sure what this block of code is for, not present in nonlinear version (Buehner)
+                 IPT  = IK + col_getOffsetFromVarno(columng,ityp)
+                 IPB  = IPT+1
+                 ZPT  = col_getHeight(columng,IK,headerIndex,varLevel)
+                 ZPB  = col_getHeight(columng,IK+1,headerIndex,varLevel)
+                 ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
+                 ZWT  = 1.d0 - ZWB
+                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
+                      ZWB*col_getElem(COLUMN,IPB,headerIndex) + ZWT*col_getElem(COLUMN,IPT,headerIndex)+  &
+                      (col_getElem(columng,IPB,headerIndex)-col_getElem(columng,IPT,headerIndex)))
+              end if
 
             end if
 
@@ -2722,24 +2730,25 @@ contains
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
-      INTEGER headerIndex,IK,nlev
+      INTEGER headerIndex,IK,nlev,nlev_T
       INTEGER bodyIndex,ITYP,INDEX_FAMILY
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:),p_column(:)
       REAL*8 :: dPdPsfc
-      INTEGER, PARAMETER :: numFamily=4
+      INTEGER, PARAMETER :: numFamily=5
       CHARACTER(len=2) :: list_family(numFamily),varLevel
-      !C
-      !C     Temperature lapse rate for extrapolation of height below model surface
-      !C
+      !
+      !     Temperature lapse rate for extrapolation of height below model surface
+      !
       zgamma = 0.0065d0
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma/RG)
-      !C
-      !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
-      !C     .  ---------------------------------------------------------------
+      !
+      !*    1. Fill in column by using the adjoint of the "vertical" interpolation
+      !     .  ---------------------------------------------------------------
       list_family(1) = 'UA'
       list_family(2) = 'SF'
       list_family(3) = 'SC'
       list_family(4) = 'GP'
+      list_family(5) = 'RA'
 
       FAMILY: do index_family=1,numFamily
 
@@ -2756,16 +2765,14 @@ contains
                  .and. (ityp == bufr_nets .or. ityp == bufr_neps  &
                  .or. ityp == bufr_nepn .or. ityp == bufr_ness  &
                  .or. ityp == bufr_neus .or. ityp == bufr_nevs  &
-                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_vis  .or. ityp == bufr_logVis  &
+                 .or. ityp == bufr_gust  &
+                 .or. ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip  &
                  .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
 
-               if( ityp == bufr_neus .or. ityp == bufr_nevs .or. ityp == bufr_gust) then
-                  varLevel = 'MM'
-               else
-                  varLevel = 'TH'
-               end if
+               varLevel = vnl_varLevelFromVarnum(ityp)
                nlev = col_getNumLev(column,varLevel)
-
+               nlev_T = col_getNumLev(column,'TH')
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
                IK   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
@@ -2775,18 +2782,20 @@ contains
                IPB  = IPT+1
                ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
                if (ITYP == BUFR_NETS .or. ITYP == BUFR_NESS .or.  &
-                    ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
-                    ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) then
+                   ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS .or. & 
+                   ityp == bufr_vis  .or. ityp == bufr_logVis  .or.  &
+                   ityp == bufr_gust .or.  &
+                   ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip) then
                  if ( ityp == bufr_ness ) then
                    tt_column  => col_getColumn(column,headerIndex,'TT')
                    hu_column  => col_getColumn(column,headerIndex,'HU')
                    p_column   => col_getColumn(column,headerIndex,'P_T')
-                   call hutoes_ad(hu_column(nlev),  &
-                        tt_column(nlev),  &
-                        p_column(nlev),     &
-                        ZRES,             &
-                        col_getElem(columng,nlev,headerIndex,'HU'),      &
-                        col_getPressure(columng,nlev,headerIndex,'TH'))
+                   call hutoes_ad(hu_column(nlev_T),  &
+                        tt_column(nlev_T),  &
+                        p_column(nlev_T),   &
+                        ZRES,               &
+                        col_getElem(columng,nlev_T,headerIndex,'HU'),  &
+                        col_getPressure(columng,nlev_T,headerIndex,'TH'))
                  else
                    all_column => col_getColumn(column,headerIndex) 
                    all_column(IPB) = all_column(IPB) + ZRES
@@ -2795,7 +2804,7 @@ contains
                  tt_column  => col_getColumn(column,headerIndex,'TT')
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')
-                 ZTVG  = columng%OLTV(1,nlev,headerIndex)*col_getElem(columng,nlev,headerIndex,'TT')
+                 ZTVG  = columng%OLTV(1,nlev_T,headerIndex)*col_getElem(columng,nlev_T,headerIndex,'TT')
                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columng,0,headerIndex,'SF'))
                  ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
                  ZDELTV= (col_getElem(columng,1,headerIndex,'P0')*ZEXP*ZCON**(ZEXP-1))  &
@@ -2803,10 +2812,10 @@ contains
                  ZDELPS= ZCON**ZEXP
                  ZATV  = ZDELTV*ZRES
                  ps_column(1)    = ps_column(1) + ZDELPS*ZRES
-                 tt_column(nlev) = tt_column(nlev)  &
-                      + columng%OLTV(1,nlev,headerIndex)*ZATV
-                 hu_column(nlev)= hu_column(nlev)   &
-                      + columng%OLTV(2,nlev,headerIndex)*ZATV
+                 tt_column(nlev_T) = tt_column(nlev_T)  &
+                      + columng%OLTV(1,nlev_T,headerIndex)*ZATV
+                 hu_column(nlev_T)= hu_column(nlev_T)   &
+                      + columng%OLTV(2,nlev_T,headerIndex)*ZATV
                else
                  ! not sure what this block of code is for, not present in nonlinear version (Buehner)
                  all_column => col_getColumn(column,headerIndex)
@@ -2827,12 +2836,11 @@ contains
                end if
             end if
 
-         END DO BODY
+         end do BODY
 
-      END DO FAMILY
+      end do FAMILY
 
-      RETURN
-    END subroutine oop_HTsf
+    end subroutine oop_HTsf
 
     subroutine oop_HTsst
       !

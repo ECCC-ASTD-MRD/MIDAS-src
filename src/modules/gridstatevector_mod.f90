@@ -129,7 +129,13 @@ module gridStateVector_mod
     character(len=*), intent(in) :: varName
     integer                      :: offset
 
-    offset=statevector%varOffset(vnl_varListIndex(varName))
+    integer                      :: varIndex
+
+    varIndex = vnl_varListIndex(varName)
+    if (.not. statevector%varExistList(varIndex)) then
+      call utl_abort('gsv_getOffsetFromVarName: specified varName does not exist in stateVector: ' // trim(varName))
+    end if
+    offset=statevector%varOffset(varIndex)
 
   end function gsv_getOffsetFromVarName
 
@@ -146,7 +152,7 @@ module gridStateVector_mod
     do varIndex = 1, vnl_numvarmax
       if ( statevector%varExistList(varIndex) ) then
         if ( (kIndex >= (statevector%varOffset(varIndex) + 1)) .and.  &
-            (kIndex <= (statevector%varOffset(varIndex) + statevector%varNumLev(varIndex))) ) then
+             (kIndex <= (statevector%varOffset(varIndex) + statevector%varNumLev(varIndex))) ) then
           varName = vnl_varNameList(varIndex)
           return
         end if
@@ -3074,6 +3080,8 @@ module gridStateVector_mod
             varNameToRead = 'VIS'
           case ('Z_T','Z_M','P_T','P_M')
             cycle k_loop
+          case ('LPR')
+            varNameToRead = 'PR'
           case default
             call utl_abort('gsv_readFile: variable '//trim(varName)//' was not found in '//trim(fileName))
           end select
@@ -3152,8 +3160,11 @@ module gridStateVector_mod
           case ('LVIS')
             field_r4_ptr(:,:,kIndex,stepIndex) = &
                  log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),MPC_MAXIMUM_VIS_R4),MPC_MINIMUM_VIS_R4))
+          case ('LPR')
+            field_r4_ptr(:,:,kIndex,stepIndex) = &
+                 log(MPC_MINIMUM_PR_R4 + max(0.0,gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)))
           case default
-            call utl_abort('gsv_readFile: Oups! This should not happen... Check to code.')
+            call utl_abort('gsv_readFile: Oups! This should not happen... Check the code.')
           end select
         endif
 
@@ -3251,6 +3262,9 @@ module gridStateVector_mod
           field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
         end if
 
+        if ( trim(varName) == 'PR' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = max(field_r4_ptr(:,:,kIndex,stepIndex),0.0)
+        end if
       end do
 
       ! Do unit conversion for extra copy of winds, if present

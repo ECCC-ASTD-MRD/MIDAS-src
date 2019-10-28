@@ -563,11 +563,12 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData,OBS_HIND,obsIndex)
 
-      if( varNumber(obsIndex) == BUFR_NETS .or. varNumber(obsIndex) == BUFR_NEPS .or.  &
-          varNumber(obsIndex) == BUFR_NEUS .or. varNumber(obsIndex) == BUFR_NEVS .or.  &
-          varNumber(obsIndex) == BUFR_NESS .or. varNumber(obsIndex) == BUFR_NEPN .or. &
-          varNumber(obsIndex) == BUFR_VIS  .or. varNumber(obsIndex) == BUFR_GUST .or. &
-          varNumber(obsIndex) == BUFR_radarPrecip ) then
+      if( varNumber(obsIndex) == BUFR_NETS .or. varNumber(obsIndex) == BUFR_NEPS   .or.  &
+          varNumber(obsIndex) == BUFR_NEUS .or. varNumber(obsIndex) == BUFR_NEVS   .or.  &
+          varNumber(obsIndex) == BUFR_NESS .or. varNumber(obsIndex) == BUFR_NEPN   .or.  &
+          varNumber(obsIndex) == BUFR_VIS  .or. varNumber(obsIndex) == BUFR_LOGVIS .or.  &
+          varNumber(obsIndex) == BUFR_GUST .or.  &
+          varNumber(obsIndex) == BUFR_radarPrecip .or. varNumber(obsIndex) == BUFR_logRadarPrecip ) then
 
         ! all surface observations
         ensObs%logPres(obsIndex) = log(sfcPres_ptr(1,headerIndex))
@@ -582,7 +583,7 @@ CONTAINS
         ! all pressure level observations
         ensObs%logPres(obsIndex) = log(obsPPP(obsIndex))
 
-      else if(obsVcoCode(obsIndex)==1) then
+      else if(obsVcoCode(obsIndex) == 1) then
 
         ! all height level observations (not including surface obs)
         obsHeight = obsPPP(obsIndex)

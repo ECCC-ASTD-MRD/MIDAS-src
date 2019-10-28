@@ -13,8 +13,6 @@
    huberize              = .false.
    rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
-   UPDATEMEMBERS         = .true.
-   WRITEINCREMENTS       = .true.
    imposeSaturationLimit = .true.
    imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
