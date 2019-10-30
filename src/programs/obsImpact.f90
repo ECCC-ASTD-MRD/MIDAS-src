@@ -164,11 +164,6 @@ program midas_obsimpact
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Setup observation operators
-  !
-  call oop_setup('FSO') ! IN
-
-  !
   !- Basic setup of columnData module
   !
   call col_setup

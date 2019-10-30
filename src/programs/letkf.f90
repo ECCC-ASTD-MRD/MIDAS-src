@@ -40,7 +40,6 @@ program midas_letkf
   use obsSpaceData_mod
   use obsErrors_mod
   use obsFilter_mod
-  use obsOperators_mod
   use innovation_mod
   use gridVariableTransforms_mod
   use physicsFunctions_mod
@@ -259,9 +258,6 @@ program midas_letkf
   ! Read the observations
   call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
                      obsClean_opt = .false. )
-
-  ! Set up the obs operators
-  call oop_setup(midasMode)
 
   ! Initialize obs error covariances and set flag using 'util' column of stats_tovs
   call oer_setObsErrors(obsSpaceData, midasMode, useTovsUtil_opt=.true.) ! IN

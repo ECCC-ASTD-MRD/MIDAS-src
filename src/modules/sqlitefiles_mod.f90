@@ -87,15 +87,6 @@ module sqliteFiles_mod
     call INCDATR (datestamp, istampobs, delhh)
     ier = newdate(datestamp, nbrpdate, inewhh, -3)
     nbrphh = ktime
-    if (nbrphh >= 21 .or. nbrphh < 3 ) then
-      nbrphh = 0
-    else if(nbrphh >= 3 .and. nbrphh < 9 ) then
-      nbrphh = 6
-    else if(nbrphh >= 9 .and. nbrphh < 15 ) then
-      nbrphh = 12
-    else
-      nbrphh = 18
-    end if
     ier = newdate(datestamp, nbrpdate, nbrphh * 1000000, 3)
     write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
     write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
