@@ -42,7 +42,7 @@ save
 
 private
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles
+public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr
 
 contains
   
@@ -171,6 +171,101 @@ contains
     end if
 
   end subroutine sqlr_initHeader
+
+
+  subroutine sqlr_readSqlite_avhrr(obsdat, fileName, headerIndexBegin, headerIndexEnd )
+    ! :Purpose: To read SQLite avhrr_cloud parameters .
+    ! 
+    implicit none
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
+    character(len=*) , intent(in)    :: fileName   ! SQLite filename
+    integer          , intent(in)    :: headerIndexBegin, headerIndexEnd
+    ! locals
+    type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
+    type(fSQL_STATEMENT)     :: stmt ! type for precompiled SQLite statements
+    type(fSQL_STATUS)        :: stat !type for error status
+    integer                  :: avhrrSqlite
+    integer                  :: obsIdo
+    character(len=128)       :: querySqlite,avhrrSqliteCharacter
+    integer                  :: i, headerIndex, count,iobs
+    integer                  :: numberRows ,  numberColumns
+
+    real, allocatable        :: matdata(:,:)
+
+    REAL(OBS_REAL) :: CFRAC,MOYRAD,STDRAD
+
+    character(len=*), parameter :: myName = 'sqlr_readSqlite_avhrr'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+    write(*,*) 'Subroutine '//myName
+    write(*,*) myName//': fileName   : ', trim(fileName)
+
+    call fSQL_open( db, trim(fileName) ,stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( myError//': fSQL_open' )
+    end if
+    avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
+    write(*,'(4a)') myName//' START OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
+
+    querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'Observation_avhrr_cloud' ;"
+    avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
+    read( avhrrSqliteCharacter, * ) avhrrSqlite 
+    if (   avhrrSqlite ==1 ) then
+       write(*,*)myName//' Table Observation_avhrr_cloud exists: insert contents into obsdat '
+    else
+       write(*,*)myName//' Table Observation_avhrr_cloud does not exist :  ... return  '
+       return
+    endif
+
+    querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from Observation_avhrr_cloud where id_obs = ? '
+    call fSQL_prepare( db, querySqlite , stmt, stat )
+    write(*,*)myName//' obs_getNchanAvhr=',obs_getNchanAvhrr()
+    do headerIndex = headerIndexBegin, headerIndexEnd
+       obsIdo = obs_headElem_i( obsdat,OBS_IDO, headerIndex )
+       call fSQL_bind_param(stmt, PARAM_INDEX = 1, INT_VAR  =  obsIdo )
+       call fSQL_exec_stmt (stmt)
+       call fSQL_get_many (  stmt, nrows = numberRows , ncols = numberColumns , mode = FSQL_REAL )
+!      write(*,*) myName//'  numberRows numberColumns =', numberRows, numberColumns
+       allocate( matdata(numberRows, numberColumns) )
+       matdata = 0.0
+       call fSQL_fill_matrix ( stmt, matdata )
+       do i =1,numberRows
+         MOYRAD=matdata(i,1)
+         STDRAD=matdata(i,2)
+         CFRAC =matdata(i,3)
+!        write(*,*)myName//' moy std cfrac classe headIndex obsIdo=', MOYRAD,STDRAD, CFRAC, headerIndex,obsIdo
+         do iobs=OBS_CF1,OBS_CF7
+           if(obs_columnActive_RH(obsdat,iobs)) then
+             call obs_headSet_r(obsdat,iobs,headerIndex, CFRAC)
+           end if
+         end do
+
+         do iobs=OBS_M1C1,OBS_M7C6
+           if(obs_columnActive_RH(obsdat,iobs)) then
+             call obs_headSet_r(obsdat,iobs,headerIndex, MOYRAD )
+            endif
+         end do
+
+         do iobs=OBS_S1C1,OBS_S7C6
+           if(obs_columnActive_RH(obsdat,iobs)) then
+             call obs_headSet_r(obsdat,iobs,headerIndex,  STDRAD)
+           end if
+         end do
+
+       end do
+       deallocate(matdata)
+       call fSQL_free_mem    ( stmt )
+
+    end do
+    avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
+    write(*,'(4a)') myName//'  END OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlr_readSqlite_avhrr
 
 
   subroutine sqlr_readSqlite(obsdat, familyType, fileName )
@@ -453,7 +548,7 @@ contains
 
     csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ( "//trim(listElem)//" )"//trim(SQLNull)//trim(sqlExtraDat)
     queryData= "select "//columnsData
-    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlLimit)//";"
+    queryData = trim(queryData)//trim(" from data where ")//trim(csqlcrit) //" order by id_obs "//trim(sqlLimit)//";"
     queryHeader="select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" order by id_obs;"
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
@@ -662,6 +757,7 @@ contains
           if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris' ) then
 
             surfEmiss = matdata(rowIndex,7)
+!pikpik            call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
 
             biasCorrection = matdata(rowIndex,8)
@@ -817,7 +913,7 @@ contains
     integer                          :: headerIndex, bodyIndex, numberUpdateItems
     character(len =   3)             :: item, itemUpdateList(15)
     integer                          :: updateList(20), fnom, fclos, nulnam, ierr
-    character(len =   9)             :: item2
+    character(len =  10)             :: item2
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
@@ -867,6 +963,9 @@ contains
         case('FGE')
           updateList(itemId) = OBS_HPHT
           item2='fg_error'
+        case('EMI')
+          updateList(itemId) = OBS_SEM
+          item2='surf_emiss'
         case DEFAULT
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
           call utl_abort( myError//'invalid item ' )
@@ -940,7 +1039,7 @@ contains
           call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR = headPrimaryKey )
           call fSQL_exec_stmt ( stmt)
 
-       end do HEADER2
+        end do HEADER2
     
        call fSQL_finalize( stmt )
 

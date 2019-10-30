@@ -122,6 +122,9 @@ module sqliteFiles_mod
     call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
+    if ( trim(familyType) == 'TO' ) then
+      call sqlr_readSqlite_avhrr(obsdat,  trim(fileName),headerIndexBegin, headerIndexEnd )
+    end if
 
     if ( trim(familyType) /= 'TO' ) then
       call ovt_transformObsValues      (obsdat, headerIndexBegin, headerIndexEnd )
