@@ -19,6 +19,7 @@ module utilities_mod
   !
   ! :Purpose: A place to collect numerous simple utility routines
   !
+  use clib_interfaces_mod
   implicit none
   save
   private
@@ -2172,7 +2173,7 @@ contains
 
     integer :: unit, fnom, fclos, ierr
     character (len=1000) :: text
-    character (len=100)  :: word
+    character (len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
 
     ! Check if namelistFileName is present
@@ -2187,12 +2188,16 @@ contains
 
     ! Search for namelistSectionName
     found = .false.
+    namelistSectionNameUpper = namelistSectionName
+    ierr = clib_toUpper(namelistSectionNameUpper)
     namelistLoop : do
       read (unit,"(a)",iostat=ierr) text ! read line into character variable
       if (ierr /= 0) exit
       if (trim(text) == "") cycle ! skip empty lines
       read (text,*) word ! read first word of line
-      if (word == '&'//namelistSectionName) then ! found search string at beginning of line
+      ierr = clib_toUpper(word)
+      if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+        ! found search string at beginning of line
         found = .true.
         exit
       end if

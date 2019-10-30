@@ -167,7 +167,7 @@ module BmatrixEnsemble_mod
   character(len=4), parameter  :: varNameALFAatmTH(1) = (/ 'ALFT' /)
   character(len=4), parameter  :: varNameALFAsfc(1)   = (/ 'ALFS' /)
 
-  logical, parameter :: verbose = .true. ! Control parameter for the level of listing output
+  logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
   integer, external    :: get_max_rss, omp_get_thread_num
   
@@ -289,7 +289,7 @@ CONTAINS
       footprintRadius        =  250.0d3 ! 250km
       footprintTopoThreshold =  200.0d0 ! 200 m
       useCmatrixOnly        = .false.
-      ensDateOfValidity     = -999 ! undefined
+      ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -442,7 +442,7 @@ CONTAINS
       call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep-1,tim_getDatestamp())
       bEns(instanceIndex)%dateStampList(bEns(instanceIndex)%numStep) = dateStampFSO
     else
-      if (bEns(instanceIndex)%ensDateOfValidity == -999) then
+      if (bEns(instanceIndex)%ensDateOfValidity == MPC_missingValue_INT) then
         call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep,tim_getDatestamp())
       else
         if (bEns(instanceIndex)%numStep == 1) then
@@ -2109,13 +2109,15 @@ CONTAINS
 
       call tmg_start(66,'ADDMEM_PREPAMP')
 
-      if ( vnl_varLevelFromVarname(varName) == 'MM' .or. &
-          (vnl_varLevelFromVarname(varName) == 'TH' .and. bEns(instanceIndex)%nLevEns_M == 0) ) then
+      if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
+           vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
+        ! The non-surface variable varName is on the same levels than the amplitude field
 
         ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
+        ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
 
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
 
@@ -2164,8 +2166,8 @@ CONTAINS
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
+        ! Surface variable cases
 
-        ! surface variable
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
         else ! vco_anl%Vcode == 0
@@ -2351,14 +2353,16 @@ CONTAINS
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
           if (omp_get_thread_num() == 0) call tmg_start(68,'ADDMEMAD_PREPAMP')
-          if ( vnl_varLevelFromVarname(varName) == 'MM' .or. &
-              (vnl_varLevelFromVarname(varName) == 'TH' .and. bEns(instanceIndex)%nLevEns_M == 0) ) then
+          if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
+               vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
+            ! The non-surface variable varName is on the same levels than the amplitude field
 
             ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
             ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           else if (vnl_varLevelFromVarname(varName) == 'TH') then
+            ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
 
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
 
@@ -2404,8 +2408,8 @@ CONTAINS
             end if
 
           else if (vnl_varLevelFromVarname(varName) == 'SF') then
+            ! Surface variable cases
 
-            ! surface variable
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
               ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
             else ! vco_anl%Vcode == 0
