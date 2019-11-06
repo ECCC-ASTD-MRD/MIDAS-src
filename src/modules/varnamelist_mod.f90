@@ -37,7 +37,7 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 36, vnl_numvarmax2D = 31
+  integer, parameter          :: vnl_numvarmax3D = 37, vnl_numvarmax2D = 32
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -45,7 +45,7 @@ module varNameList_mod
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2',        &
                                  'TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS','HR  ',        &
-                                 'TD  '/)
+                                 'TD  ','ALFT'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -53,7 +53,7 @@ module varNameList_mod
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',          &
-                                 'TH'/)
+                                 'TH',  'TH'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -61,25 +61,25 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',  'MT',          &
-                                 'MT'/)
+                                 'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
                                  'GL  ','WGE ','BIN ','MG  ','TM  ','QI1 ','QO1 ','STOR','ALFS', &
-                                 'PN  ','PR  ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ','DN  ', &
-                                 'FB  ','FI  ','MSKC','LZS '/)
+                                 'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
+                                 'DN  ','FB  ','FI  ','MSKC','LZS '/)
 
   character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
-                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
+                                 'SF',  'SF',  'SF',  'SF',  'SF'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
-                                 'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', &
-                                 'MT', 'MT', 'MT', 'MT', 'OC', 'HY', 'HY', 'HY', 'HY', &
-                                 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', &
-                                 'MT', 'MT', 'MT', 'HY'/)
+                                 'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
+                                 'MT',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
+                                 'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
+                                 'MT',  'MT',  'MT',  'MT',  'HY'/)
 
   integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
 
@@ -201,6 +201,10 @@ module varNameList_mod
         varname='VIS'
       case ( bufr_logVis )
         varname='LVIS'
+      case ( bufr_radarPrecip )
+        varname='PR'
+      case ( bufr_logRadarPrecip )
+        varname='LPR'
       case ( bufr_gust )
         varname='WGE'
       case ( bufr_riverFlow )

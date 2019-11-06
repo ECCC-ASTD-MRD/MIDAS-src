@@ -151,19 +151,21 @@ module BmatrixEnsemble_mod
     real(8)             :: footprintRadius
     real(8)             :: footprintTopoThreshold
     logical             :: useCmatrixOnly
+    integer             :: ensDateOfValidity
   end type struct_bEns
 
   integer :: nInstance = 0 ! The number of Bens instances
 
   type(struct_bEns) :: bEns(nInstanceMax)
 
-  type(struct_ens), target :: ensAmplitudeSave_M(nInstanceMax) ! Save this to allow early allocation 
+  type(struct_ens), target :: ensAmplitudeSave(nInstanceMax) ! Save this to allow early allocation 
                                                                ! for better efficiency
 
   character(len=15) :: ben_mode
 
-  character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
-  character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
+  character(len=4), parameter  :: varNameALFAatmMM(1) = (/ 'ALFA' /)
+  character(len=4), parameter  :: varNameALFAatmTH(1) = (/ 'ALFT' /)
+  character(len=4), parameter  :: varNameALFAsfc(1)   = (/ 'ALFS' /)
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
@@ -223,6 +225,7 @@ CONTAINS
     real(8)             :: footprintRadius
     real(8)             :: footprintTopoThreshold
     logical             :: useCmatrixOnly
+    integer             :: ensDateOfValidity
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &
@@ -230,7 +233,7 @@ CONTAINS
          ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
-         useCmatrixOnly, waveBandIndexSelected
+         useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -286,6 +289,7 @@ CONTAINS
       footprintRadius        =  250.0d3 ! 250km
       footprintTopoThreshold =  200.0d0 ! 200 m
       useCmatrixOnly        = .false.
+      ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -349,6 +353,7 @@ CONTAINS
       bEns(nInstance)%footprintRadius            = footprintRadius
       bEns(nInstance)%footprintTopoThreshold     = footprintTopoThreshold
       bEns(nInstance)%useCmatrixOnly             = useCmatrixOnly
+      bEns(nInstance)%ensDateOfValidity          = ensDateOfValidity
 
       bEns(nInstance)%hco_anl => hco_anl_in
       bEns(nInstance)%vco_anl => vco_anl_in
@@ -405,7 +410,7 @@ CONTAINS
     integer        :: fnom, fclos, ierr, nulnam
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
-    integer        :: dateStampFSO
+    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
 
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
 
@@ -437,7 +442,22 @@ CONTAINS
       call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep-1,tim_getDatestamp())
       bEns(instanceIndex)%dateStampList(bEns(instanceIndex)%numStep) = dateStampFSO
     else
-      call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep,tim_getDatestamp())
+      if (bEns(instanceIndex)%ensDateOfValidity == MPC_missingValue_INT) then
+        call tim_getstamplist(bEns(instanceIndex)%dateStampList,bEns(instanceIndex)%numStep,tim_getDatestamp())
+      else
+        if (bEns(instanceIndex)%numStep == 1) then
+          if (bEns(instanceIndex)%ensDateOfValidity == -1) then
+            ensDateStampOfValidity = bEns(instanceIndex)%ensDateOfValidity
+          else
+            idate = bEns(instanceIndex)%ensDateOfValidity/100
+            itime = (bEns(instanceIndex)%ensDateOfValidity-idate*100)*1000000
+            ierr = newdate(ensDateStampOfValidity, idate, itime, 3)
+          end if
+          bEns(instanceIndex)%dateStampList(:) = ensDateStampOfValidity
+        else
+          call utl_abort('ben_setupOneInstance: A single date of validity cannot be specified for numStep > 1')
+        end if
+      end if
     end if
 
     !- 1.3 Horizontal grid
@@ -516,7 +536,9 @@ CONTAINS
         call utl_abort('ben_setupOneInstance: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       end if
     else if (bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-      if (bEns(instanceIndex)%nLevEns_T.ne.bEns(instanceIndex)%nLevEns_M) then
+      if ( bEns(instanceIndex)%nLevEns_T /= bEns(instanceIndex)%nLevEns_M .and. &
+           bEns(instanceIndex)%nLevEns_T /= 0 .and. &
+           bEns(instanceIndex)%nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
         call utl_abort('ben_setupOneInstance: Vcode=5005, nLevEns_T must equal nLevEns_M!')
       end if
@@ -541,7 +563,13 @@ CONTAINS
 
     !- 1.5 Bmatrix Weight
     if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-      bEns(instanceIndex)%varNameALFA(:) = varNameALFAatm(:)
+      if (bEns(instanceIndex)%nLevEns_M > 0) then
+        ! Multi-level or momentum-level-only analysis
+        bEns(instanceIndex)%varNameALFA(:) = varNameALFAatmMM(:)
+      else
+        ! Thermo-level-only analysis
+        bEns(instanceIndex)%varNameALFA(:) = varNameALFAatmTH(:)
+      end if
       allocate(bEns(instanceIndex)%scaleFactor_M(bEns(instanceIndex)%nLevEns_M))
       allocate(bEns(instanceIndex)%scaleFactor_T(bEns(instanceIndex)%nLevEns_T))
       do levIndex = 1, bEns(instanceIndex)%nLevEns_T
@@ -994,11 +1022,11 @@ CONTAINS
     else
       write(*,*) 'ben_setupOneInstance: using saved memory for ensemble amplitudes for improved efficiency'
       bEns(instanceIndex)%useSaveAmp = .true.
-      call ens_allocate(ensAmplitudeSave_M(instanceIndex), bEns(instanceIndex)%nEnsOverDimension,     &
+      call ens_allocate(ensAmplitudeSave(instanceIndex), bEns(instanceIndex)%nEnsOverDimension,     &
                         bEns(instanceIndex)%numStepAmplitudeAssimWindow, bEns(instanceIndex)%hco_ens, &
                         bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList,               &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
-      call ens_zero(ensAmplitudeSave_M(instanceIndex))
+      call ens_zero(ensAmplitudeSave(instanceIndex))
     end if
 
     !- 2.10 Setup en ensGridStateVector to store the amplitude fields (for writing)
@@ -1765,8 +1793,8 @@ CONTAINS
     type(struct_gsv), optional :: statevectorRef_opt
 
     ! Locals
-    type(struct_ens), target  :: ensAmplitude_M
-    type(struct_ens), pointer :: ensAmplitude_M_ptr
+    type(struct_ens), target  :: ensAmplitude
+    type(struct_ens), pointer :: ensAmplitude_ptr
 
     integer   :: ierr, waveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
@@ -1813,7 +1841,7 @@ CONTAINS
     !
     !- 2.  Compute the analysis increment from Bens
     !
-    if (verbose) write(*,*) 'ben_bsqrt: allocating ensAmplitude_M'
+    if (verbose) write(*,*) 'ben_bsqrt: allocating ensAmplitude'
     if (useFSOFcst) then
       numStepAmplitude = bEns(instanceIndex)%numStepAmplitudeFSOFcst
       amp3dStepIndex   = bEns(instanceIndex)%amp3dStepIndexFSOFcst
@@ -1822,12 +1850,12 @@ CONTAINS
       amp3dStepIndex   = bEns(instanceIndex)%amp3dStepIndexAssimWindow
     end if
     if (bEns(instanceIndex)%useSaveAmp) then
-      ensAmplitude_M_ptr => ensAmplitudeSave_M(instanceIndex)
+      ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
-      call ens_allocate(ensAmplitude_M, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
+      call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
                         bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
-      ensAmplitude_M_ptr => ensAmplitude_M
+      ensAmplitude_ptr => ensAmplitude
     end if
     call gsv_zero(statevector)
 
@@ -1835,33 +1863,33 @@ CONTAINS
 
       ! 2.1 Compute the ensemble amplitudes
       call loc_Lsqrt(bEns(instanceIndex)%locStorage(waveBandIndex),controlVector_in, & ! IN
-                     ensAmplitude_M_ptr,                                             & ! OUT
+                     ensAmplitude_ptr,                                             & ! OUT
                      amp3dStepIndex)                                                   ! IN
 
       ! 2.2 Advect the amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call tmg_start(131,'BEN_ADVEC_AMP_FSO_TL')
-        call adv_ensemble_tl( ensAmplitude_M_ptr,                                                  & ! INOUT
+        call adv_ensemble_tl( ensAmplitude_ptr,                                                  & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeFSOFcst, bEns(instanceIndex)%nEns )   ! IN
         call tmg_stop(131)
       else if (bEns(instanceIndex)%advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(133,'BEN_ADVEC_AMP_ANL_TL')
-        call adv_ensemble_tl( ensAmplitude_M_ptr,                                                    & ! INOUT
+        call adv_ensemble_tl( ensAmplitude_ptr,                                                    & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeAssimWindow, bEns(instanceIndex)%nEns ) ! IN
         call tmg_stop(133)
       end if
 
       if ( bEns(instanceIndex)%keepAmplitude .and. waveBandIndex == 1 ) then
-        call ens_copy(ensAmplitude_M_ptr, bEns(instanceIndex)%ensAmplitudeStorage)
+        call ens_copy(ensAmplitude_ptr, bEns(instanceIndex)%ensAmplitudeStorage)
       end if
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      call addEnsMember( ensAmplitude_M_ptr, statevector,          & ! INOUT 
+      call addEnsMember( ensAmplitude_ptr, statevector,          & ! INOUT 
                          instanceIndex, waveBandIndex, useFSOFcst )  ! IN
 
     end do ! Loop on WaveBand
 
-    if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude_M)
+    if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
 
     ! 2.4 Apply the Std. Dev (if needed)
     if (bEns(instanceIndex)%ensPertsNormalized .and. .not. bEns(instanceIndex)%useCmatrixOnly) then
@@ -1906,8 +1934,8 @@ CONTAINS
     type(struct_gsv), optional :: statevectorRef_opt
 
     ! Locals
-    type(struct_ens), target  :: ensAmplitude_M
-    type(struct_ens), pointer :: ensAmplitude_M_ptr
+    type(struct_ens), target  :: ensAmplitude
+    type(struct_ens), pointer :: ensAmplitude_ptr
 
     integer           :: ierr, waveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
@@ -1966,7 +1994,7 @@ CONTAINS
                             statevector)                                 ! INOUT 
     end if
 
-    if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude_M'
+    if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude'
     if (useFSOFcst) then
       numStepAmplitude = bEns(instanceIndex)%numStepAmplitudeFSOFcst
       amp3dStepIndex   = bEns(instanceIndex)%amp3dStepIndexFSOFcst
@@ -1975,41 +2003,41 @@ CONTAINS
       amp3dStepIndex   = bEns(instanceIndex)%amp3dStepIndexAssimWindow
     end if
     if (bEns(instanceIndex)%useSaveAmp) then
-      ensAmplitude_M_ptr => ensAmplitudeSave_M(instanceIndex)
+      ensAmplitude_ptr => ensAmplitudeSave(instanceIndex)
     else
-      call ens_allocate(ensAmplitude_M, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
+      call ens_allocate(ensAmplitude, bEns(instanceIndex)%nEnsOverDimension, numStepAmplitude,                     &
                         bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList, &
                         varNames_opt=bEns(instanceIndex)%varNameALFA, dataKind_opt=8)
-      ensAmplitude_M_ptr => ensAmplitude_M
+      ensAmplitude_ptr => ensAmplitude
     end if
 
     do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      call addEnsMemberAd( statevector, ensAmplitude_M_ptr,         & ! INOUT
+      call addEnsMemberAd( statevector, ensAmplitude_ptr,         & ! INOUT
                            instanceIndex, waveBandIndex, useFSOFcst)  ! IN
 
       ! 2.2 Advect the  amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst .and. useFSOFcst) then
         call tmg_start(132,'BEN_ADVEC_AMP_FSO_AD')
-        call adv_ensemble_ad( ensAmplitude_M_ptr,          & ! INOUT
+        call adv_ensemble_ad( ensAmplitude_ptr,          & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeFSOFcst, bEns(instanceIndex)%nEns )   ! IN
         call tmg_stop(132)
       else if (bEns(instanceIndex)%advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(134,'BEN_ADVEC_AMP_ANL_AD')
-        call adv_ensemble_ad( ensAmplitude_M_ptr,                                                    & ! INOUT
+        call adv_ensemble_ad( ensAmplitude_ptr,                                                    & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeAssimWindow, bEns(instanceIndex)%nEns ) ! IN
         call tmg_stop(134)
       end if
 
       ! 2.1 Compute the ensemble amplitudes
-      call loc_LsqrtAd(bEns(instanceIndex)%locStorage(waveBandIndex),ensAmplitude_M_ptr, & ! IN
+      call loc_LsqrtAd(bEns(instanceIndex)%locStorage(waveBandIndex),ensAmplitude_ptr, & ! IN
                        controlVector_out,                                                & ! OUT
                        amp3dStepIndex)                                                     ! IN
 
     end do ! Loop on WaveBand
 
-    if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude_M)
+    if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
 
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if (mpi_myid == 0) write(*,*) 'ben_bsqrtAd: done'
@@ -2019,18 +2047,18 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! addEnsMember
   !--------------------------------------------------------------------------
-  subroutine addEnsMember(ensAmplitude_M, statevector_out, &
+  subroutine addEnsMember(ensAmplitude, statevector_out, &
                           instanceIndex, waveBandIndex, useFSOFcst_opt)
     implicit none
 
-    type(struct_ens)    :: ensAmplitude_M
+    type(struct_ens)    :: ensAmplitude
     type(struct_gsv)    :: statevector_out
     integer, intent(in) :: instanceIndex
     integer, intent(in) :: waveBandIndex
     logical, optional   :: useFSOFcst_opt
 
-    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:)
-    real(8), pointer    :: ensAmplitude_M_oneLevM1(:,:,:,:), ensAmplitude_M_oneLevP1(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable, target :: ensAmplitude_MT(:,:,:,:)
     real(8), pointer     :: ensAmplitude_MT_ptr(:,:,:,:)
     real(8), pointer     :: increment_out(:,:,:,:)
@@ -2081,31 +2109,34 @@ CONTAINS
 
       call tmg_start(66,'ADDMEM_PREPAMP')
 
-      if (vnl_varLevelFromVarname(varName) == 'MM') then
+      if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
+           vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
+        ! The non-surface variable varName is on the same levels than the amplitude field
 
-        ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-        ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+        ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+        ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
+        ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
 
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
 
           if (lev == 1) then
             ! use top momentum level amplitudes for top thermo level
-            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+            ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
           else if (lev == bEns(instanceIndex)%nLevEns_T) then
             ! use surface momentum level amplitudes for surface thermo level
-            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
-            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+            ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
+            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
           else
             ! for other levels, interpolate momentum weights to get thermo amplitudes
-            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
-            ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
+            ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,lev)
+            ensAmplitude_oneLevM1 => ens_getOneLev_r8(ensAmplitude,lev-1)
             !$OMP PARALLEL DO PRIVATE (latIndex)
             do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevM1(1:bEns(instanceIndex)%nEns,:,:,latIndex) +   &
-                                                        ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,latIndex) )
+              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_oneLevM1(1:bEns(instanceIndex)%nEns,:,:,latIndex) +   &
+                                                        ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,latIndex) )
             end do
             !$OMP END PARALLEL DO
             ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_MT(:,:,:,:)
@@ -2115,16 +2146,16 @@ CONTAINS
 
           if (lev == bEns(instanceIndex)%nLevEns_T) then
             ! use surface momentum level amplitudes for surface thermo level
-            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
-            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+            ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
+            ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
           else
             ! for other levels, interpolate momentum weights to get thermo amplitudes
-            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
-            ensAmplitude_M_oneLevP1 => ens_getOneLev_r8(ensAmplitude_M,lev+1)
+            ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,lev)
+            ensAmplitude_oneLevP1 => ens_getOneLev_r8(ensAmplitude,lev+1)
             !$OMP PARALLEL DO PRIVATE (latIndex)
             do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevP1(1:bEns(instanceIndex)%nEns,:,:,latIndex) +   &
-                                                        ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,latIndex) )
+              ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_oneLevP1(1:bEns(instanceIndex)%nEns,:,:,latIndex) +   &
+                                                        ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,latIndex) )
             end do
             !$OMP END PARALLEL DO
             ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_MT(:,:,:,:)
@@ -2135,14 +2166,14 @@ CONTAINS
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
+        ! Surface variable cases
 
-        ! surface variable
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-          ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
+          ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
         else ! vco_anl%Vcode == 0
-          ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
+          ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
         end if
-        ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+        ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
       end if
       call tmg_stop(66)
 
@@ -2207,18 +2238,18 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! addEnsMemberAd
   !--------------------------------------------------------------------------
-  subroutine addEnsMemberAd(statevector_in, ensAmplitude_M, &
+  subroutine addEnsMemberAd(statevector_in, ensAmplitude, &
                             instanceIndex, waveBandIndex, useFSOFcst_opt)
     implicit none
 
-    type(struct_ens)   :: ensAmplitude_M
+    type(struct_ens)   :: ensAmplitude
     type(struct_gsv)   :: statevector_in
     integer,intent(in) :: instanceIndex
     integer,intent(in) :: waveBandIndex
     logical,optional   :: useFSOFcst_opt
 
-    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:)
-    real(8), pointer    :: ensAmplitude_M_oneLevM1(:,:,:,:), ensAmplitude_M_oneLevP1(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable :: ensAmplitude_MT(:,:)
     real(8), pointer :: increment_in(:,:,:,:)
     real(8), allocatable :: increment_in2(:,:,:)
@@ -2257,10 +2288,10 @@ CONTAINS
 
     ! set output ensemble Amplitude to zero
     call tmg_start(69,'ADDMEMAD_ZERO')
-    !$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_M_oneLev)
-    do levIndex = 1, ens_getNumLev(ensAmplitude_M,vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)))
-      ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
-      ensAmplitude_M_oneLev(:,:,:,:) = 0.0d0
+    !$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_oneLev)
+    do levIndex = 1, ens_getNumLev(ensAmplitude,vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)))
+      ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
+      ensAmplitude_oneLev(:,:,:,:) = 0.0d0
     end do
     !$OMP END PARALLEL DO
     call tmg_stop(69)
@@ -2296,8 +2327,8 @@ CONTAINS
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
-           memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, &
-           ensAmplitude_M_oneLevP1, ensAmplitude_MT)
+           memberIndex,ensAmplitude_oneLev, ensAmplitude_oneLevM1, &
+           ensAmplitude_oneLevP1, ensAmplitude_MT)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 
@@ -2322,51 +2353,54 @@ CONTAINS
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
           if (omp_get_thread_num() == 0) call tmg_start(68,'ADDMEMAD_PREPAMP')
-          if (vnl_varLevelFromVarname(varName) == 'MM') then
+          if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
+               vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
+            ! The non-surface variable varName is on the same levels than the amplitude field
 
-            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-            ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                 ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+            ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+            ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                 ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           else if (vnl_varLevelFromVarname(varName) == 'TH') then
+            ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
 
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
 
               if (lev == 1) then
                 ! use top momentum level amplitudes for top thermo level
-                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
-                ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                   ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+                ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+                ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                   ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
               else if (lev == bEns(instanceIndex)%nLevEns_T) then
                 ! use surface momentum level amplitudes for surface thermo level
-                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
-                ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                     ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+                ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
+                ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
               else
                 ! for other levels, interpolate momentum weights to get thermo amplitudes
-                ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
-                ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
-                ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   = &
-                     ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
-                ensAmplitude_M_oneLevM1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                     ensAmplitude_M_oneLevM1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,lev)
+                ensAmplitude_oneLevM1 => ens_getOneLev_r8(ensAmplitude,lev-1)
+                ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   = &
+                     ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_oneLevM1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_oneLevM1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
               end if
 
             else if (bEns(instanceIndex)%vco_anl%Vcode == 5005) then
 
               if (lev == bEns(instanceIndex)%nLevEns_T) then
                 ! use surface momentum level amplitudes for surface thermo level
-                ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
-                ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                     ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+                ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
+                ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
               else
                 ! for other levels, interpolate momentum weights to get thermo amplitudes
-                ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
-                ensAmplitude_M_oneLevP1 => ens_getOneLev_r8(ensAmplitude_M,lev+1)
-                ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   = &
-                     ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
-                ensAmplitude_M_oneLevP1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                     ensAmplitude_M_oneLevP1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,lev)
+                ensAmplitude_oneLevP1 => ens_getOneLev_r8(ensAmplitude,lev+1)
+                ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   = &
+                     ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
+                ensAmplitude_oneLevP1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                     ensAmplitude_oneLevP1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
               end if
 
             else
@@ -2374,15 +2408,15 @@ CONTAINS
             end if
 
           else if (vnl_varLevelFromVarname(varName) == 'SF') then
+            ! Surface variable cases
 
-            ! surface variable
             if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,bEns(instanceIndex)%nLevEns_M)
+              ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
             else ! vco_anl%Vcode == 0
-              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,1)
+              ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
             end if
-            ensAmplitude_M_oneLev (1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
-                 ensAmplitude_M_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+            ensAmplitude_oneLev (1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                 ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           end if
           if (omp_get_thread_num() == 0) call tmg_stop(68)

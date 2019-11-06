@@ -400,11 +400,6 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
-    !- Setup observation operators
-    !
-    call oop_setup(varMode) ! IN
-
-    !
     !- Basic setup of columnData module
     !
     call col_setup

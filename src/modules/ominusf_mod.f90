@@ -130,25 +130,22 @@ module oMinusF_mod
       !- 1.10 Setup and read observations
       call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
 
-      !- 1.11 Setup observation operators
-      call oop_setup(trim(varMode)) ! IN
-
-      !- 1.12 Basic setup of columnData module
+      !- 1.11 Basic setup of columnData module
       call col_setup
 
-      !- 1.13 Memory allocation for background column data
+      !- 1.12 Memory allocation for background column data
       if ( addHBHT ) then
         call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
       end if
 
       if ( addSigmaO ) then
-        !- 1.14 Initialize the observation error covariances
+        !- 1.13 Initialize the observation error covariances
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding sigma_O'
         call oer_setObsErrors(obsSpaceData, trim(varMode))
       end if
 
-      !- 1.15 Reading, horizontal interpolation and unit conversions of the 3D background fields
+      !- 1.14 Reading, horizontal interpolation and unit conversions of the 3D background fields
       call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
       write(*,*)

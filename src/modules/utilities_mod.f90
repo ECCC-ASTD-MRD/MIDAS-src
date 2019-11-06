@@ -19,6 +19,7 @@ module utilities_mod
   !
   ! :Purpose: A place to collect numerous simple utility routines
   !
+  use clib_interfaces_mod
   implicit none
   save
   private
@@ -28,7 +29,7 @@ module utilities_mod
   public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
-  public :: utl_get_stringId, utl_get_Id
+  public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
@@ -2157,5 +2158,54 @@ contains
     write(*,*)  'utl_stringArrayToIntegerArray: integerArray = ', integerArray(:)
 
   end subroutine utl_stringArrayToIntegerArray
+
+  !--------------------------------------------------------------------------
+  ! utl_isNamelistPresent
+  !--------------------------------------------------------------------------
+  function utl_isNamelistPresent(namelistSectionName, namelistFileName) result(found)
+    !
+    ! :Purpose: To find if a namelist name tag is present in a namelist file
+    ! 
+    implicit none
+    logical :: found
+    character(len=*), intent(in) :: namelistSectionName
+    character(len=*), intent(in) :: namelistFileName
+
+    integer :: unit, fnom, fclos, ierr
+    character (len=1000) :: text
+    character (len=100)  :: word, namelistSectionNameUpper
+    logical :: namelistExist
+
+    ! Check if namelistFileName is present
+    inquire(file=namelistFileName,exist=namelistExist)
+    if (.not. namelistExist) then
+      call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
+    end if
+
+    ! Open the namelist file
+    unit=0
+    ierr=fnom(unit,namelistFileName,'FTN+SEQ+R/O',0)
+
+    ! Search for namelistSectionName
+    found = .false.
+    namelistSectionNameUpper = namelistSectionName
+    ierr = clib_toUpper(namelistSectionNameUpper)
+    namelistLoop : do
+      read (unit,"(a)",iostat=ierr) text ! read line into character variable
+      if (ierr /= 0) exit
+      if (trim(text) == "") cycle ! skip empty lines
+      read (text,*) word ! read first word of line
+      ierr = clib_toUpper(word)
+      if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+        ! found search string at beginning of line
+        found = .true.
+        exit
+      end if
+    end do namelistLoop
+
+    ! Close the namelist file
+    ierr=fclos(unit)
+
+  end function utl_isNamelistPresent
 
 end module utilities_mod

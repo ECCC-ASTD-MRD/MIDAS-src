@@ -40,7 +40,6 @@ program midas_letkf
   use obsSpaceData_mod
   use obsErrors_mod
   use obsFilter_mod
-  use obsOperators_mod
   use innovation_mod
   use gridVariableTransforms_mod
   use physicsFunctions_mod
@@ -90,6 +89,7 @@ program midas_letkf
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
   character(len=4)   :: memberIndexStr
+  character(len=4), pointer :: varNames(:)
   character(len=12)  :: etiketMean='', etiketStd=''
 
   logical :: deterministicStateExists
@@ -110,8 +110,6 @@ program midas_letkf
   logical  :: huberize            ! apply huber norm quality control procedure
   logical  :: rejectHighLatIR     ! reject all IR observations at high latitudes
   logical  :: rejectRadNearSfc    ! reject radiance observations near the surface
-  logical  :: updateMembers       ! true means compute and write out members analyses/increments
-  logical  :: writeIncrements     ! write ens of increments and mean increment
   logical  :: writeSubSample      ! write sub-sample members for initializing medium-range fcsts
   real(8)  :: hLocalize           ! horizontal localization radius (in km)
   real(8)  :: vLocalize           ! vertical localization radius (in units of ln(Pressure in Pa))
@@ -127,7 +125,7 @@ program midas_letkf
   NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     updateMembers, writeIncrements, writeSubSample,  &
+                     writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
                      etiket0, mpiDistribution
@@ -177,8 +175,6 @@ program midas_letkf
   huberize              = .false.
   rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
-  updateMembers         = .false.
-  writeIncrements       = .false.
   writeSubSample        = .false.
   hLocalize             = 500.0D0
   vLocalize             = -1.0D0
@@ -262,9 +258,6 @@ program midas_letkf
   ! Read the observations
   call inn_setupObs( obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
                      obsClean_opt = .false. )
-
-  ! Set up the obs operators
-  call oop_setup(midasMode)
 
   ! Initialize obs error covariances and set flag using 'util' column of stats_tovs
   call oer_setObsErrors(obsSpaceData, midasMode, useTovsUtil_opt=.true.) ! IN
@@ -520,7 +513,7 @@ program midas_letkf
                           stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                           stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
                           wInterpInfo, maxNumLocalObs,  &
-                          hLocalize, vLocalize, updateMembers, alphaRTPP, mpiDistribution)
+                          hLocalize, vLocalize, alphaRTPP, mpiDistribution)
   call tmg_stop(3)
 
   !- 5.2 Compute ensemble spread stddev Trl and Anl
@@ -685,7 +678,30 @@ program midas_letkf
   !
   call tmg_start(4,'LETKF-writeOutput')
 
-  !- 7.0 Prepare stateVector with only MeanAnl surface pressure and surface height
+  !- 7.0 Output obs files with mean OMP and OMA
+
+  ! Compute Y-H(Xa_mean) in OBS_OMA
+  write(*,*) ''
+  write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean analysis'
+  write(*,*) ''
+  if (tim_nstepobsinc < tim_nstepobs) then
+    ! meanAnl is only 3D, so need to make 4D for s2c_nl
+    middleStepIndex = (tim_nstepobs + 1) / 2
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
+    call gsv_3dto4d(stateVectorWithZandP4D)
+  else
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true.)
+  end if
+  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )
+  call tmg_start(6,'LETKF-obsOperators')
+  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
+  call tmg_stop(6)
+
+  ! Write (update) observation files
+  call obsf_writeFiles( obsSpaceData )
+
+  !- 7.1 Prepare stateVector with only MeanAnl surface pressure and surface height
   call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -702,7 +718,7 @@ program midas_letkf
   call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
   call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
 
-  !- 7.1 Output ens stddev and mean in trialrms, analrms and analpertrms files
+  !- 7.2 Output ens stddev and mean in trialrms, analrms and analpertrms files
 
   ! determine middle timestep for output of these files
   middleStepIndex = (tim_nstepobsinc + 1) / 2
@@ -746,20 +762,34 @@ program midas_letkf
                        typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                        stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
 
-  !- 7.2 Output the ensemble mean increment (include MeanAnl Psfc)
-  if (writeIncrements) then
-    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
-    do stepIndex = 1, tim_nstepobsinc
-      call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
-                           typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
-                           stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-      call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
-                           typvar_opt='A', writeHeightSfc_opt=.true., &
-                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-    end do
-  end if
+  !- 7.3 Output the ensemble mean increment (include MeanAnl Psfc) and analysis
 
-  !- 7.3 Output the ensemble mean analysis state
+  ! convert transformed to model variables for ensemble mean of analysis and trial
+  call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  ! and recompute mean increment for converted model variables (e.g. VIS and PR)
+  nullify(varNames)
+  call gsv_varNamesList(varNames, stateVectorMeanAnl)
+  call gsv_deallocate( stateVectorMeanInc )
+  call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+  call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+  call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+  deallocate(varNames)
+
+  ! output ensemble mean increment
+  call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+  do stepIndex = 1, tim_nstepobsinc
+    call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
+                         typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=stepIndex, containsFullField_opt=.false.)
+    call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+                         typvar_opt='A', writeHeightSfc_opt=.true., &
+                         stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+  end do
+
+  ! output ensemble mean analysis state
   call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
   do stepIndex = 1, tim_nstepobsinc
     call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
@@ -767,21 +797,34 @@ program midas_letkf
                          stepIndex_opt=stepIndex, containsFullField_opt=.true.)
   end do
 
+  !- 7.4 Output the deterministic increment (include MeanAnl Psfc) and analysis
   if (deterministicStateExists) then
-    !- 7.4 Output the deterministic increment (include MeanAnl Psfc)
-    if (writeIncrements) then
-      call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
-                             typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-        call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'DETER_INC',  &
-                             typvar_opt='A', writeHeightSfc_opt=.true., numBits_opt=16, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-      end do
-    end if
+    ! convert transformed to model variables for deterministic analysis and trial
+    call gvt_transform(stateVectorDeterAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(stateVectorDeterTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    ! and recompute mean increment for converted model variables (e.g. VIS and PR)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorDeterAnl)
+    call gsv_deallocate( stateVectorDeterInc )
+    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+    call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
+    call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
+    deallocate(varNames)
 
-    !- 7.5 Output the deterministic analysis state
+    ! output the deterministic increment
+    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
+                           typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.false.)
+      call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'DETER_INC',  &
+                           typvar_opt='A', writeHeightSfc_opt=.true., numBits_opt=16, &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+    end do
+
+    ! output the deterministic analysis state
     call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
     do stepIndex = 1, tim_nstepobsinc
       call gsv_writeToFile(stateVectorDeterAnl, outFileName, 'DETER_ANL',  &
@@ -790,31 +833,29 @@ program midas_letkf
     end do
   end if
 
-  !- 7.6 Output all ensemble member analyses
-  if (updateMembers) then
-    call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
-                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                           containsFullField_opt=.true.)
-    call tmg_stop(104)
-  end if
+  !- 7.5 Output all ensemble member analyses and increments
+  ! convert transformed to model variables for analysis and trial ensembles
+  call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+  call tmg_start(104,'LETKF-writeEns')
+  call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
+                         numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                         containsFullField_opt=.true.)
+  call tmg_stop(104)
 
-  !- 7.7 Output all ensemble member increments (include MeanAnl Psfc)
-  if (writeIncrements) then
-    ! WARNING: Increment put in ensembleTrl for output
-    call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
-    call tmg_start(104,'LETKF-writeEns')
-    call ens_writeEnsemble(ensembleTrl, '.', '', ' ', 'ENS_INC', 'R',  &
-                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                           containsFullField_opt=.false.)
-    ! Also write the reference (analysis) surface pressure to increment files
-    call writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                           etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
-                           ensPath='.')
-    call tmg_stop(104)
-  end if
+  ! WARNING: Increment put in ensembleTrl for output
+  call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
+  call tmg_start(104,'LETKF-writeEns')
+  call ens_writeEnsemble(ensembleTrl, '.', '', ' ', 'ENS_INC', 'R',  &
+                         numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                         containsFullField_opt=.false.)
+  ! Also write the reference (analysis) surface pressure to increment files
+  call writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
+                         etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                         ensPath='.')
+  call tmg_stop(104)
 
-  !- 7.8 Output the sub-sampled ensemble analyses and increments
+  !- 7.6 Output the sub-sampled ensemble analyses and increments
   if (writeSubSample) then
 
     ! Output the ensemble mean increment (include MeanAnl Psfc)
@@ -858,34 +899,12 @@ program midas_letkf
     call tmg_stop(104)
   end if
 
-  !- 7.9 Output obs files with mean OMP and OMA
-
-  ! Compute Y-H(Xa_mean) in OBS_OMA
-  write(*,*) ''
-  write(*,*) 'midas-letkf: apply nonlinear H to ensemble mean analysis'
-  write(*,*) ''
-  if (tim_nstepobsinc < tim_nstepobs) then
-    ! meanAnl is only 3D, so need to make 4D for s2c_nl
-    middleStepIndex = (tim_nstepobs + 1) / 2
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
-    call gsv_3dto4d(stateVectorWithZandP4D)
-  else
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowMismatch_opt=.true.)
-  end if
-  call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
-  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )
-  call tmg_start(6,'LETKF-obsOperators')
-  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
-  call tmg_stop(6)
-
-  ! Write (update) observation files
-  call obsf_writeFiles( obsSpaceData )
+  call tmg_stop(4)
 
   !
   !- 8. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(4)
   call tmg_stop(1)
 
   call tmg_terminate(mpi_myid, 'TMG_LETKF' )

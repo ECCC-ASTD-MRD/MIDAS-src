@@ -38,7 +38,7 @@ module obsVariableTransforms_mod
   public :: ovt_getDestinationBufrCode, ovt_getSourceBufrCode, ovt_bufrCodeSkipped
   public :: ovt_isWindObs, ovt_isTransformedVariable, ovt_adjustHumGZ
 
-  integer, parameter :: nTransformSupported  = 2
+  integer, parameter :: nTransformSupported  = 3
 
   type :: struct_transform
     character(len=48)    :: name
@@ -96,6 +96,16 @@ contains
     transform(transformIndex)%destinationBufrCode(:) = (/bufr_logVis/) ! log(visibility)
     transform(transformIndex)%wind = .false.
 
+    ! log of precipitation rate
+    transformIndex = 3
+    transform(transformIndex)%name = 'precipToLogPrecip'
+    transform(transformIndex)%nBufrCode = 1
+    allocate(transform(transformIndex)%sourceBufrCode     (transform(transformIndex)%nBufrCode))
+    allocate(transform(transformIndex)%destinationBufrCode(transform(transformIndex)%nBufrCode))
+    transform(transformIndex)%sourceBufrCode     (:) = (/bufr_radarPrecip   /) ! precipitation
+    transform(transformIndex)%destinationBufrCode(:) = (/bufr_logRadarPrecip/) ! log(precipitation)
+    transform(transformIndex)%wind = .false.
+
     ! Skipped variables
     nSkippedBufrCodes   = 2
     skippedBufrCodes(1) = bufr_neff  ! because we still want to be able ...
@@ -140,7 +150,7 @@ contains
     
       ! Check if a transform is neeeded
       if (filt_bufrCodeAssimilated(bufrCodeRead(readBufrCodeIndex)) .or. &
-          bufrCodeRead(readBufrCodeIndex) == bufr_neff             .or. &
+          bufrCodeRead(readBufrCodeIndex) == bufr_neff              .or. &
           bufrCodeRead(readBufrCodeIndex) == bufr_nefs ) then
         cycle ! No transformation needed. Move on.
               ! Note that this is where we decide that wind speed will be ignored, 
@@ -417,6 +427,8 @@ contains
           call ovt_windSpeedDirectionToUV(obsSpaceData, headerIndexStart, headerIndexEnd)
         case ('visToLogVis')
           call ovt_visToLogVis           (obsSpaceData, headerIndexStart, headerIndexEnd)
+        case ('precipToLogPrecip')
+          call ovt_precipToLogPrecip     (obsSpaceData, headerIndexStart, headerIndexEnd)
         case default
           call utl_abort('ovt_transformObsValues: Unsupported function ' // trim(transform(transformIndex)%name))
         end select
@@ -451,9 +463,11 @@ contains
       if (transform(transformIndex)%active) then
         select case(trim(transform(transformIndex)%name))
         case ('windSpeedDirectionToUV')
-            call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
-          case ('visToLogVis') 
-            call ovt_visToLogVis_residual           (obsSpaceData, residualTypeID)
+          call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
+        case ('visToLogVis') 
+          call ovt_visToLogVis_residual           (obsSpaceData, residualTypeID)
+        case ('precipToLogPrecip') 
+          call ovt_precipToLogPrecip_residual     (obsSpaceData, residualTypeID)
         case default
           call utl_abort('ovt_transformResiduals: Unsupported function ' // trim(transform(transformIndex)%name))
         end select
@@ -853,7 +867,7 @@ contains
   end subroutine ovt_visToLogVis
 
   !--------------------------------------------------------------------------
-  ! ovt_visToLogVis_redidual
+  ! ovt_visToLogVis_residual
   !--------------------------------------------------------------------------
   subroutine ovt_visToLogVis_residual(obsSpaceData, residualTypeID)
     !
@@ -918,6 +932,145 @@ contains
     end do body
 
   end subroutine ovt_visToLogVis_residual
+
+  !--------------------------------------------------------------------------
+  ! ovt_precipToLogPrecip
+  !--------------------------------------------------------------------------
+  subroutine ovt_precipToLogPrecip(obsSpaceData, headerIndexStart, headerIndexEnd)
+    !
+    ! :Purpose: To transform precipitation observation to log(precipitation)
+    !
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData      ! The observation database
+    integer          , intent(in)    :: headerIndexStart  ! The initial header index to analyse
+    integer          , intent(in)    :: headerIndexEnd    ! The final header index to analyse
+
+    ! Locals:
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
+    integer        :: precipFlag, logPrecipFlag
+    real(obs_real) :: precipObs, precipLevel, logPrecipObs, level
+    logical        :: logPrecipFound
+
+    ! Loop through headers
+    header: do headerIndex = headerIndexStart, headerIndexEnd
+      
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      ! Find each precipitation report
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+
+        if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_radarPrecip) cycle body
+
+        precipObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        precipFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+        precipLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+
+        ! Find the associated logPrecip body created earlier in the proper reading routine
+        logPrecipFound = .false.
+        body2: do bodyIndex2 = bodyIndex, bodyIndexEnd
+
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+
+          if ( level /= precipLevel ) cycle body2
+
+          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_logRadarPrecip) cycle body2
+
+          if (precipObs == obs_missingValue_R) then
+            logPrecipObs = precipObs
+          else
+            ! precip -> log(precip)
+            logPrecipObs = log(MPC_MINIMUM_PR_R8 + max(0.0d0,precipObs))
+          end if
+          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex2, logPrecipObs)
+
+          logPrecipFlag  = precipFlag
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logPrecipFlag )
+
+          logPrecipFound = .true.
+          exit body2
+
+        end do body2
+
+        if (.not. logPrecipFound) then
+          call utl_abort('ovt_precipToLogPrecip: logPrecip bodyIndex not found!')
+        end if
+
+      end do body
+
+    end do header
+
+  end subroutine ovt_precipToLogPrecip
+
+  !--------------------------------------------------------------------------
+  ! ovt_precipToLogPrecip_residual
+  !--------------------------------------------------------------------------
+  subroutine ovt_precipToLogPrecip_residual(obsSpaceData, residualTypeID)
+    !
+    ! :Purpose: To transform log(precip) residuals to precip
+    !
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData    ! The observation database
+    integer          , intent(in)    :: residualTypeID  ! The residual type ID (o-p or o-a)
+
+    ! Locals:
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
+    real(obs_real) :: precipObs, logPrecipLevel, logPrecipObs, level
+    real(obs_real) :: precipResidual, logPrecipResidual
+    logical        :: precipFound
+
+    ! Find each log of precipitation assimilated observations
+    body: do bodyIndex = 1, obs_numBody(obsSpaceData)
+      
+      if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
+           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logRadarPrecip ) cycle
+
+      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
+      logPrecipLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
+
+      logPrecipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+      logPrecipResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex )
+
+      ! Find the associated precip body
+      precipFound = .false.
+      body2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+
+        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+
+        if (level /= logPrecipLevel) cycle body2
+        if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_radarPrecip) cycle body2
+
+        ! log(precip) -> precip
+        precipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+        precipResidual = precipObs - max(0.0D0,  &               ! o-p or o-a
+                         exp(logPrecipObs - logPrecipResidual - MPC_MINIMUM_PR_R8))
+        call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, precipResidual)
+
+        ! Set the obs error to missing
+        call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, obs_missingValue_R)
+
+        ! Set flags
+        call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
+        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, 0)
+
+        precipFound = .true.
+        exit body2
+
+      end do body2
+      
+      if (.not. precipFound) then
+        call utl_abort('ovt_precipToLogPrecip_residual: precip bodyIndex not found!')
+      end if
+
+    end do body
+
+  end subroutine ovt_precipToLogPrecip_residual
 
   !--------------------------------------------------------------------------
   ! ovt_adjustHumGZ

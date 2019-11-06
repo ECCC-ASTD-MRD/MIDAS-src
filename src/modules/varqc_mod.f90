@@ -52,8 +52,8 @@ module varqc_mod
     integer jdata, jjo, idata, idatend, idburp
     integer ityp, iass, iother, jj, istyp, ilev
 
-    real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice
-    real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice
+    real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice, zapr
+    real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice, zdpr
     real(8) zattra, zauvra, zattsym, zdvis, zavis
     real(8) zslev, zlev, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
     real(8) zfcst, zlat, zlon, zprior
@@ -81,11 +81,10 @@ module varqc_mod
     zach  = 1.0d-3
     zatm  = 1.0d-12
     zaice = 0.0d0
+    zapr  = 0.0d0
 
-!    zattra = 1.d-2
     zattra = 0.005d0
     zattsym = 1.d-1
-!    zauvra = 1.d-3
     zauvra = 1.d-5
     zavis= 1.0d-3
 
@@ -101,6 +100,7 @@ module varqc_mod
     zdch  = 1.d1
     zdtm  = 5.d0
     zdice = 5.d2
+    zdpr  = 5.d2
     zdvis= 5.d0
 
     do jjo = 1, obs_numheader(obsSpaceData)
@@ -279,6 +279,12 @@ module varqc_mod
                 !
                 call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zaice *  &
                     sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
+             else if (ityp == BUFR_radarPrecip ) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR RADAR PRECIPITATION
+                !
+                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zapr *  &
+                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zapr ) * ( 2.d0 * zdpr )))
              else if (ityp == bufr_gust ) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR WIND GUST
