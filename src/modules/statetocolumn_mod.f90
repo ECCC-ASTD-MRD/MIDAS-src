@@ -255,7 +255,7 @@ contains
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     logical :: thisProcIsAsender(mpi_nprocs)
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
-    integer :: codtyp, nlev_T, nlev_M, levIndex 
+    integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: maxkcount, numkToSend 
     integer :: firstHeaderIndexUsed(mpi_nprocs)
     logical :: doSlantPath, firstHeaderSlantPath 
@@ -519,9 +519,9 @@ contains
           if (lon_r4 <  0.0          ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
           if (lon_r4 >= 2.0*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
-          codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+          codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if ( tvs_isIdBurpTovs(codtyp) ) then
+          if ( tvs_isIdBurpTovs(codeType) ) then
             if ( firstHeaderSlantPath ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex=',stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPath = .false.
@@ -2264,6 +2264,7 @@ contains
     !          In the case of bilinear horizontal interpolation,
     !          the returned footprint is zero (default).
     !          To indicate lake operator, the returned footprint is -1.0.
+    !          To indicate nearest neighbor, the returned footprint is -2.0.
     !
     implicit none
     real(4)                       :: fpr
@@ -2275,6 +2276,7 @@ contains
     ! locals
     character(len=2)  :: obsFamily
     character(len=12) :: cstnid
+    integer           :: codeType
 
     fpr = 0.0
 
@@ -2282,6 +2284,7 @@ contains
     if ( obsFamily == 'GL' ) then
 
       cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
+      codeType = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
 
       if (index(cstnid,'DMSP') == 1) then
 
@@ -2314,9 +2317,7 @@ contains
 
         fpr = 0.0
 
-      else if (index(cstnid,'Lake')   /= 0 .or.   &
-               index(cstnid,'Lac')    /= 0 .or.   &
-               index(cstnid,'Reserv') /= 0) then
+      else if ( codeType ==  178 ) then ! lake ice
 
         fpr = -1.0
 
@@ -2337,7 +2338,7 @@ contains
     else
 
       fpr = 0.0  ! bilinear
-      
+
     end if
 
   end function s2c_getFootprintRadius
@@ -2542,7 +2543,7 @@ contains
           bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
           bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
           do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           end do
           call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
        ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
@@ -2776,7 +2777,7 @@ contains
           bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
           bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
           do bodyIndex = bodyIndexBeg, bodyIndexEnd
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           end do
           call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
                              ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
@@ -2821,16 +2822,149 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_interpInfo), intent(in)    :: interpInfo
+    type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
+    ! Locals:
+    integer :: localHeaderIndex, bodyIndex, depotIndex
+    integer :: ierr
+    integer :: bodyIndexBeg, bodyIndexEnd
+    integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
+    integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
+    real(4) :: lon_deg_r4, lat_deg_r4
+    real(8) :: lon_rad, lat_rad
+    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    integer :: ipoint, gridptCount
+    integer :: lakeCount
+    integer :: lonIndex, latIndex, lakeIndex
+    integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
+    logical :: reject, lake(statevector%ni,statevector%nj)
+    integer :: k, l
+
+    reject = .false.
+
     numGridpt(:) = 0
 
-    call utl_abort('s2c_setupLakeInterp: no code yet')
+    ! Determine the grid point nearest the observation.
+
+    lat_rad = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
+    lon_rad = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+    lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
+    lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
+    ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex )
+
+    lonIndexCentre = nint(xpos_r4)
+    latIndexCentre = nint(ypos_r4)
+    lonIndexCentre2 = nint(xpos2_r4)
+    latIndexCentre2 = nint(ypos2_r4)
+
+    if ( subGridIndex == 3 ) then
+      write(*,*) 's2c_setupLakeInterp: revise code'
+      call utl_abort('s2c_setupLakeInterp: both subGrids involved in interpolation.')
+      numSubGridsForInterp = 2
+      subGridIndex = 1
+    else
+      ! only 1 subGrid involved in interpolation
+      numSubGridsForInterp = 1
+    end if
+
+    do subGridForInterp = 1, numSubGridsForInterp
+
+      gridptCount = 0
+
+!     It happens that the lake location is closest to a grid point
+!     where MASK(I,J) = 0 while there are other grid points for the
+!     same lake where MASK(I,J) = 1. Code needs modifications
+!     for this case.
+
+      ! If observation is not on the grid, don't use it.
+      if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
+           latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) reject = .true.
+
+      if ( allocated(stateVector%hco%mask) ) then
+        if ( stateVector%hco%mask(lonIndexCentre,latIndexCentre) == 0 ) reject = .true.
+      end if
+
+      if ( .not. reject ) then
+
+        lake(:,:) = .false.
+        lake(lonIndexCentre,latIndexCentre) = .true.
+        gridptCount = 1
+        lonIndexVec(gridptCount) = lonIndexCentre
+        latIndexVec(gridptCount) = latIndexCentre
+
+        lakeCount = 0
+
+        do while(lakeCount /= gridptCount)
+
+          do lakeIndex = lakeCount+1, gridptCount
+
+            if(lakeIndex == lakeCount+1) lakeCount = gridptCount
+
+            k = lonIndexVec(lakeIndex)
+            l = latIndexVec(lakeIndex)
+
+            do latIndex = max(1,l-1),min(l+1,statevector%nj)
+              do lonIndex = max(1,k-1),min(k+1,statevector%ni)
+                if(stateVector%hco%mask(lonIndex,latIndex) == 1 .and. .not. lake(lonIndex,latIndex)) then
+                  lake(lonIndex,latIndex) = .true.
+                  gridptCount = gridptCount + 1
+                  lonIndexVec(gridptCount) = lonIndex
+                  latIndexVec(gridptCount) = latIndex
+                end if
+              end do
+            end do
+
+          end do
+
+        end do
+
+        if ( allocated(interpInfo%interpWeightDepot) ) then
+
+          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+
+          do ipoint=1,gridptCount
+
+            interpInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
+            interpInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+            interpInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+            depotIndex = depotIndex + 1
+
+          end do
+
+        end if
+
+        numGridpt(subGridIndex) = gridptCount
+
+      else
+
+        if ( procIndex == mpi_myid + 1 ) then
+
+          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+
+          write(*,*) 's2c_setupLakeInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
+          write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
+          write(*,*) ' grid index : ',lonIndexCentre, latIndexCentre
+          write(*,*) ' mask : ',stateVector%hco%mask(lonIndexCentre,latIndexCentre)
+          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+          end do
+          call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
+                             ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
+
+        end if
+
+      end if ! not reject
+
+    end do ! subGrid
 
   end subroutine s2c_setupLakeInterp
 
@@ -2894,7 +3028,7 @@ contains
         bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, localHeaderIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, localHeaderIndex) + bodyIndexBeg -1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, 0)
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
         end do
         call obs_headSet_i(obsSpaceData, OBS_ST1, localHeaderIndex,  &
              ibset( obs_headElem_i(obsSpaceData, OBS_ST1, localHeaderIndex), 05))
