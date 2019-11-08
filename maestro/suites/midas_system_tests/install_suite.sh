@@ -11,7 +11,7 @@ $(git rev-parse --show-toplevel)/set_resources_def.sh
 
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
 which maestro     1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/19.1
+which r.date      1>/dev/null 2>&1 || . ssmuse-sh -d eccc/mrd/rpn/utils/19.5
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 

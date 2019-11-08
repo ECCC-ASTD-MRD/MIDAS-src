@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
+    with `code-tools/01.3` (#275 and !257)
  * The automated (CI) system tests now runs on both available platforms: HPCR-U0 and HPCR-U1 (#270 and !250)
  * The observation variable transforms was generalized and modernized (#247 and !239).
     * Previously only wind (speed,direction) -> (u,v) was supported. Now users can add (relatively) easily any type of variable transform. For now, only visibility -> log(visibility) was added.
@@ -96,6 +98,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.4.2]
+
+ * Using `rpn/libs/19.5` instead of `rpn/libs/19.4` (no impact of the results) (#272 and !253)
+
+## [3.4.1]
+
+ * Using `rpn/libs/19.4` instead of `rpn/libs/19.2` (no impact of the results) (#269 and !251)
+
+## [3.4.0]
+
+### Fixed
+
+ * Fixed bugs, compilation procedure and system tests to allow
+   compatibility on new machines (ppp3/4, banting/daley) - note, only
+   the latest version of the reference results are available on the
+   new machines (#234 and !244)
+	* This work is aimed to be introduced in a new release branch
+	`v_3.4` which origins from `v_3.3.5`.
 
 ## [3.3.5]
 
@@ -341,7 +362,10 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...HEAD
+[3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
+[3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
+[3.4.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...v_3.4.0
 [3.3.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.4...v_3.3.5
 [3.3.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.3...v_3.3.4
 [3.3.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.2...v_3.3.3

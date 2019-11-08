@@ -1352,7 +1352,6 @@ module ObsSpaceData_mod
    public obs_numHeader  ! returns the number of headers recorded
    public obs_numHeader_max ! returns the dimensioned number of headers
    public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
-   public obs_sethind    ! initialize the value of OBS_HIND
    public obs_order      ! put obs data in the order required for assimilation
    public obs_print      ! obs_enkf_prnthdr & obs_enkf_prntbdy for each station
    public obs_prnt_csv   ! call obs_tosqlhdr and obs_tosqlbdy for each station
@@ -1368,6 +1367,7 @@ module ObsSpaceData_mod
    public obs_set_current_body_list   ! set a body list for a family as current
    public obs_set_current_header_list ! set a header list for a family as current
    public obs_setFamily  ! set the family of a datum
+   public obs_sethind    ! set the header index in body table
    public obs_famExist   ! checks if a family is present in the observation set
    public obs_status     ! returns the values of the object's status variables
    public obs_write      ! write the observation data to binary files
@@ -4387,28 +4387,6 @@ contains
    end function obs_numHeader_mpiglobal
 
 
-   subroutine obs_sethind(obsdat)
-     !
-     ! :Purpose: Set the header index in the body of obsSpaceData
-     !
-
-     implicit none
-
-     type(struct_obs), intent(inout) :: obsdat
-
-     integer :: ij,idata,idatend,bodyIndex,headerIndex
-     ij=0
-     do headerIndex = 1, obs_numheader(obsdat)
-       idata   = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
-       idatend = obs_headElem_i(obsdat,OBS_NLV,headerIndex) + idata - 1
-       do bodyIndex= idata, idatend
-         ij   = ij+1
-         call obs_bodySet_i(obsdat,OBS_HIND,IJ, headerIndex)
-       end do
-     end do
-   end subroutine obs_sethind
-
-
    subroutine obs_order(obsdat)
       !
       ! :Purpose:
@@ -6372,6 +6350,28 @@ contains
       endif
 
    end subroutine obs_setFamily
+
+
+   subroutine obs_sethind(obsSpaceData)
+     !
+     ! :PURPOSE: Set the header index in the body table
+     !
+     implicit none
+     type(struct_obs) :: obsSpaceData
+     integer :: ij,idata,idatend,bodyIndex,headerIndex
+     !
+     ! Set the header index in the body of obsSpaceData
+     !
+     ij=0
+     do headerIndex = 1, obs_numheader(obsSpaceData)
+        idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+        idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
+        do bodyIndex= idata, idatend
+           ij   = ij+1
+           call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+        end do
+     end do
+   end subroutine obs_sethind
 
 
    subroutine obs_status(obsdat, obs_full, numstns_out, numobs_out, kulout)
