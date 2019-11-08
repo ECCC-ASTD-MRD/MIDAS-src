@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+  * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
+    with `code-tools/01.3` (#275 and !257)
 
 ### Fixed
 
@@ -25,8 +26,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [3.4.2]
 
  * Using `rpn/libs/19.5` instead of `rpn/libs/19.4` (no impact of the results) (#272 and !253)
-   * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
-     with `code-tools/01.3` (#275 and !257)
 
 ## [3.4.1]
 
