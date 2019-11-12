@@ -85,6 +85,11 @@ module stateToColumn_mod
 
   character(len=20), parameter :: timeInterpType_tlad = 'LINEAR' ! hardcoded type of time interpolation for increment
 
+  ! "special" values of the footprint radius
+  real(4), parameter :: nearestNeighbourFootprint = -2.0
+  real(4), parameter ::             lakeFootprint = -1.0
+  real(4), parameter ::         bilinearFootprint =  0.0
+
   integer, external    :: get_max_rss
   logical, save :: slantPath_nl
   logical, save :: slantPath_tlad
@@ -365,7 +370,7 @@ contains
     interpInfo%allHeaderIndex(:,:,:) = 0
     interpInfo%allLat(:,:,:,:) = 0.0d0
     interpInfo%allLon(:,:,:,:) = 0.0d0
-    allFootprintRadius_r4(:,:,:) = 0.0
+    allFootprintRadius_r4(:,:,:) = bilinearFootprint
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
@@ -473,7 +478,7 @@ contains
     step_loop2: do stepIndex = 1, numStep
       numHeaderUsed = 0
 
-      footprintRadiusVec_r4(:) = 0.0
+      footprintRadiusVec_r4(:) = bilinearFootprint
 
       header_loop2: do headerIndex = 1, numHeader
 
@@ -2234,15 +2239,15 @@ contains
 
       call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == 0.0 ) then
+    else if ( footprintRadius_r4 == bilinearFootprint ) then
 
       call s2c_setupBilinearInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == -1.0 ) then
+    else if ( footprintRadius_r4 == lakeFootprint ) then
 
       call s2c_setupLakeInterp(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == -2.0 ) then
+    else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
 
       call s2c_setupNearestNeighbor(interpInfo, obsSpaceData, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
 
@@ -2263,8 +2268,6 @@ contains
     !:Purpose: To determine the footprint radius (metres) of the observation.
     !          In the case of bilinear horizontal interpolation,
     !          the returned footprint is zero (default).
-    !          To indicate lake operator, the returned footprint is -1.0.
-    !          To indicate nearest neighbor, the returned footprint is -2.0.
     !
     implicit none
     real(4)                       :: fpr
@@ -2278,7 +2281,7 @@ contains
     character(len=12) :: cstnid
     integer           :: codeType
 
-    fpr = 0.0
+    fpr = bilinearFootprint
 
     obsFamily = obs_getFamily ( obsSpaceData, headerIndex )
     if ( obsFamily == 'GL' ) then
@@ -2311,19 +2314,19 @@ contains
 
       else if (cstnid == 'CIS_DAILY') then
 
-        fpr = 0.0
+        fpr = bilinearFootprint
 
       else if (cstnid == 'RS1_IMG') then
 
-        fpr = 0.0
+        fpr = bilinearFootprint
 
-      else if ( codeType ==  178 ) then ! lake ice
+      else if (codtyp_get_name(codeType) == 'iceclake') then
 
-        fpr = -1.0
+        fpr = lakeFootprint
 
       else if (cstnid == 'CIS_REGIONAL') then
 
-        fpr = 0.0
+        fpr = bilinearFootprint
 
       else
 
@@ -2333,11 +2336,11 @@ contains
 
     else if (obsFamily == 'HY') then
 
-      fpr = -2.0 ! Nearest neighbor
+      fpr = nearestNeighbourFootprint
 
     else
 
-      fpr = 0.0  ! bilinear
+      fpr = bilinearFootprint
 
     end if
 
@@ -2844,6 +2847,12 @@ contains
     integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
     logical :: reject, lake(statevector%ni,statevector%nj)
     integer :: k, l
+
+    if ( stateVector%hco%grtyp == 'U' ) then
+      call utl_abort('s2c_setupLakeInterp: Yin-Yang grid not supported')
+    end if
+
+    numGridpt(:) = 0
 
     reject = .false.
 
