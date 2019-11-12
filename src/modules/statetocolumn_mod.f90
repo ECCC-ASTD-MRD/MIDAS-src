@@ -41,6 +41,7 @@ module stateToColumn_mod
   use timeCoord_mod
   use slantprofilelatlon_mod
   use tovs_nl_mod
+  use codtyp_mod
 
   implicit none
   save
