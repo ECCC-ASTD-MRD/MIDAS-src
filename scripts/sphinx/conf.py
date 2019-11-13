@@ -22,7 +22,7 @@ import sphinxfortran.fortran_autodoc
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 
-fortran_src = '_src_files/*.f*90'
+fortran_src = ['_src_files/*.f*90']
 
 # -- General configuration ------------------------------------------------
 
