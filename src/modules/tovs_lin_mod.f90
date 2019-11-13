@@ -23,7 +23,7 @@ module tovs_lin_mod
   use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance
-  use rttov_const, only : gas_unit_specconc
+  use rttov_const, only : gas_unit_specconc, sensor_id_mw
   use parkind1, only : jpim, jprb
   use verticalCoord_mod
   use tovs_nl_mod
@@ -189,7 +189,7 @@ contains
     integer :: sensorType   !sensor type(1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
     integer :: errorstatus
     integer,allocatable :: sensorBodyIndexes(:)
-    real(8), allocatable :: surfem1(:) 
+    real(8), allocatable :: surfem1(:)
     type(rttov_emissivity), pointer :: emissivity_local(:)
     type(rttov_emissivity), pointer :: emissivity_tl(:)
     type(rttov_radiance) :: radiancedata_d   ! radiances full structure buffer used in rttov calls
@@ -598,9 +598,12 @@ contains
            iptobs_cma_opt=sensorBodyIndexes)
 
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-      
-      emissivity_local(:)%emis_in = surfem1(:)
 
+      if (sensorType == sensor_id_mw) then
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
+      else
+        emissivity_local(:)%emis_in = surfem1(:)
+      end if
  
       !  2.3  Compute tl radiance with rttov_tl
       
@@ -955,13 +958,16 @@ contains
       !     get non Hyperspectral IR emissivities
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
 
-      emissivity_local(:)%emis_in = surfem1(:)
+      if (sensorType == sensor_id_mw) then
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
+      else
+        emissivity_local(:)%emis_in = surfem1(:)
+      end if
         
       do btIndex = 1, btCount
         bodyIndex = sensorBodyIndexes(btIndex)
         radiancedata_ad % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
       end do
-
 
       !  2.3  Compute ad radiance with rttov_ad
 
