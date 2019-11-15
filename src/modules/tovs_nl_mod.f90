@@ -146,8 +146,9 @@ module tovs_nl_mod
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
-  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
+  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
+                                                   
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
@@ -2407,7 +2408,8 @@ contains
           if (chanprof(btIndex)%prof==profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
-            if (tvs_profiles(jj)% skin % surftype == surftype_land ) then
+            if ( tvs_profiles(jj)% skin % surftype == surftype_land .and. &
+                 mWAtlasSurfaceEmissivity(btIndex) > 0. ) then ! check for missing values
               updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
             else
               updatedEmissivity(btIndex)%emis_in = originalEmissivity(btIndex)
