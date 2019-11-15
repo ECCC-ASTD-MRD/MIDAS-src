@@ -672,7 +672,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=12), intent(in) :: cstnid ! station id
+    character(len=*), intent(in) :: cstnid ! station id
     integer, intent(in)           :: varno  ! BUFR element
     integer, intent(in)           :: ivco
     integer, intent(in)           :: nlev   ! number of levels in the observation
@@ -932,7 +932,7 @@ contains
     integer :: ISTNID ! Index of averaging kernel in chm_avgkern if found. Zero indicates  averaging kernel not found.
 
     ! Arguments:
-    character(len=12), intent(in) :: cstnid ! station id
+    character(len=*), intent(in) :: cstnid ! station id
     integer, intent(in) :: varno ! BUFR descriptor element
     integer, intent(in) :: nlev  ! number of levels in the observation
 

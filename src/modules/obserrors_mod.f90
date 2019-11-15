@@ -1243,9 +1243,7 @@ contains
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 6 ) )
             else if (cstnid == 'RS1_IMG') then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 7 ) )
-            else if (index(cstnid,'Lake')   /= 0 .or.   &
-                     index(cstnid,'Lac')    /= 0 .or.   &
-                     index(cstnid,'Reserv') /= 0) then
+            else if ( codeType ==  178 ) then ! lake ice
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 8 ) )
             else if (cstnid == 'CIS_REGIONAL') then
               call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, xstd_sic( 9 ) )

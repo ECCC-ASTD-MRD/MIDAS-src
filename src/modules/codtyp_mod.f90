@@ -334,8 +334,8 @@ contains
        if ( trim(ctempo) == trim(cnames(i)) ) then
           codtyp_get_codtyp = icod(i)
           exit
-       endif
-    enddo
+       end if
+    end do
     
   end function codtyp_get_codtyp
 
@@ -347,7 +347,7 @@ contains
     !
     use mpi_mod
     implicit none
-    Integer,intent(in) :: codtyp
+    integer,intent(in) :: codtyp
     
     integer :: i
     
@@ -357,8 +357,8 @@ contains
        if ( icod(i) == codtyp ) then
           codtyp_get_name = trim(cnames(i))
           exit
-       endif
-    enddo
+       end if
+    end do
     
   end function codtyp_get_name
 
