@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module LamBMatrixHI_mod
-  ! MODULE LamBMatrixHI_mod (prefix='lbhi' category='5. B and R matrices')
+module lamBMatrixHI_mod
+  ! MODULE lamBMatrixHI_mod (prefix='lbhi' category='5. B and R matrices')
   !
   ! :Purpose: Performs transformation from control vector to analysis increment 
   !           using the homogeneous and isotropic background error covariance 
@@ -90,9 +90,9 @@ module LamBMatrixHI_mod
 
 contains
 
-!--------------------------------------------------------------------------
-! LBHI_SETUP
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_SETUP
+  !--------------------------------------------------------------------------
   subroutine lbhi_Setup( hco_anl_in, vco_anl_in, cvDim_out )
     implicit none
 
@@ -264,9 +264,9 @@ contains
 
   end subroutine lbhi_Setup
 
-!--------------------------------------------------------------------------
-! LBHI_GetControlVariableInfo
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_GetControlVariableInfo
+  !--------------------------------------------------------------------------
   subroutine lbhi_GetControlVariableInfo( iu_bstats )
     implicit none
 
@@ -403,13 +403,6 @@ contains
     !
     !- 4. Error traps
     !
-    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
-       if ( UWindID == -1 .or. VWindID == -1) then
-          write(*,*)
-          write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
-          call utl_abort('lbhi_GetControlVariableInfo')
-       end if
-    end if
 
     !- Make sure that all the control variables are present in GridStateVector
     do var = 1, nControlVariable
@@ -424,7 +417,7 @@ contains
     !
     !- 5.  Set the type of momentum control variables
     !
-    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
+    if (UWindID /= -1 .and. VWindID /= -1) then
        if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
             trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'PP' .and. &
             trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
@@ -453,9 +446,9 @@ contains
 
   end subroutine lbhi_GetControlVariableInfo
 
-!--------------------------------------------------------------------------
-! LBHI_GetHorizGridInfo
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_GetHorizGridInfo
+  !--------------------------------------------------------------------------
   subroutine lbhi_GetHorizGridInfo()
     implicit none
 
@@ -465,15 +458,7 @@ contains
     !
     !- 1.  Get horizontal grid parameters
     !
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
-    if      ( anlVar(1) == ControlVariable(UWindID)%nomvar(cv_model) ) then
-      varName = ControlVariable(UWindID)%nomvar(cv_bhi)
-    else if ( anlVar(1) == ControlVariable(VWindID)%nomvar(cv_model) ) then
-      varName = ControlVariable(VWindID)%nomvar(cv_bhi)
-    else
-      varName = anlVar(1)
-    end if
+    varName = ControlVariable(1)%nomvar(cv_bhi)
 
     call hco_setupFromFile(hco_bstats, BStatsFilename, ' ', 'bstats', &  ! IN
                            varName_opt=varName)                          ! IN
@@ -491,9 +476,9 @@ contains
 
   end subroutine lbhi_GetHorizGridInfo
 
-!--------------------------------------------------------------------------
-! LBHI_READSTATS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_READSTATS
+  !--------------------------------------------------------------------------
   subroutine lbhi_ReadStats( iu_bstats )
     implicit none
 
@@ -518,9 +503,9 @@ contains
 
   end subroutine lbhi_ReadStats
 
-!--------------------------------------------------------------------------
-! LBHI_ReadBSqrt
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_ReadBSqrt
+  !--------------------------------------------------------------------------
   subroutine lbhi_ReadBSqrt( iu_bstats )
     implicit none
 
@@ -614,9 +599,9 @@ contains
 
   end subroutine lbhi_ReadBSqrt
 
-!--------------------------------------------------------------------------
-! LBHI_ReadGridPointStdDev
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_ReadGridPointStdDev
+  !--------------------------------------------------------------------------
   subroutine lbhi_ReadGridPointStdDev(iu_bstats)
     implicit none
 
@@ -712,9 +697,9 @@ contains
 
   end subroutine lbhi_ReadGridPointStdDev
 
-!--------------------------------------------------------------------------
-! LBHI_bSqrt
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_bSqrt
+  !--------------------------------------------------------------------------
   subroutine lbhi_bSqrt(controlVector_in, statevector, stateVectorRef_opt)
     implicit none
 
@@ -775,9 +760,9 @@ contains
 
   end subroutine lbhi_bSqrt
 
-!--------------------------------------------------------------------------
-! LBHI_bSqrtAdj
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_bSqrtAdj
+  !--------------------------------------------------------------------------
   subroutine lbhi_bSqrtAdj(statevector, controlVector_out, stateVectorRef_opt)
     implicit none
 
@@ -839,9 +824,9 @@ contains
 
   end subroutine lbhi_bSqrtAdj
 
-!--------------------------------------------------------------------------
-! LBHI_cv2gd
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_cv2gd
+  !--------------------------------------------------------------------------
   subroutine lbhi_cv2gd(hiControlVector_in, gd_out)
     implicit none
 
@@ -874,13 +859,13 @@ contains
     !
     !- 3.  Multiply by the grid point standard deviations
     !
-!$OMP PARALLEL DO PRIVATE(var,kstart,kend)
+    !$OMP PARALLEL DO PRIVATE(var,kstart,kend)
     do var = 1, nControlVariable
       kstart = ControlVariable(var)%kDimStart
       kend   = ControlVariable(var)%kDimEnd
       gd_out(:,:,kstart:kend) = gd_out(:,:,kstart:kend) * ControlVariable(var)%GpStdDev(myLonBeg:myLonEnd,myLatBeg:myLatEnd,:)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 4.  Momentum variables transform
@@ -943,9 +928,9 @@ contains
 
   end subroutine lbhi_cv2gd
 
-!--------------------------------------------------------------------------
-! LBHI_cv2gdAdj
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_cv2gdAdj
+  !--------------------------------------------------------------------------
   subroutine lbhi_cv2gdAdj(hiControlVector_out, gd_in)
     implicit none
 
@@ -1020,13 +1005,13 @@ contains
     !- 3.  Multiply by the grid point standard deviations
     !
 
-!$OMP PARALLEL DO PRIVATE(var,kstart,kend)
+    !$OMP PARALLEL DO PRIVATE(var,kstart,kend)
     do var = 1, nControlVariable
       kstart = ControlVariable(var)%kDimStart
       kend   = ControlVariable(var)%kDimEnd
       gd_in(:,:,kstart:kend) = gd_in(:,:,kstart:kend) * ControlVariable(var)%GpStdDev(myLonBeg:myLonEnd,myLatBeg:myLatEnd,:)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 2. Grid Point Space -> Spectral Space
@@ -1042,11 +1027,11 @@ contains
     !
     call lbhi_bSqrtXi( hiControlVector_out )    ! INOUT
 
- end subroutine lbhi_cv2gdAdj
+  end subroutine lbhi_cv2gdAdj
 
-!--------------------------------------------------------------------------
-! LBHI_bSqrtXi
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lbhi_bSqrtXi
+  !--------------------------------------------------------------------------
   subroutine lbhi_bSqrtXi(hiControlVector_in)
     implicit none
 
@@ -1115,10 +1100,10 @@ contains
 
   end subroutine lbhi_bSqrtXi
 
-!--------------------------------------------------------------------------
-! LBHI_cain
-!--------------------------------------------------------------------------
-   SUBROUTINE LBHI_cain(controlVector_in, hiControlVector_out)
+  !--------------------------------------------------------------------------
+  ! lbhi_cain
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_cain(controlVector_in, hiControlVector_out)
     implicit none
 
     real(8), intent(in)    :: controlVector_in(cvDim)
@@ -1137,12 +1122,12 @@ contains
       end do
     end do
 
-  end SUBROUTINE LBHI_cain
+  end SUBROUTINE lbhi_cain
 
-!--------------------------------------------------------------------------
-! LBHI_cainAdj
-!--------------------------------------------------------------------------
-  SUBROUTINE LBHI_cainAdj(controlVector_out, hiControlVector_in)
+  !--------------------------------------------------------------------------
+  ! lbhi_cainAdj
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_cainAdj(controlVector_out, hiControlVector_in)
     implicit none
 
     real(8), intent(out)   :: controlVector_out(cvDim)
@@ -1161,11 +1146,11 @@ contains
       end do
     end do
 
-  end SUBROUTINE LBHI_cainAdj
+  end SUBROUTINE lbhi_cainAdj
 
-!--------------------------------------------------------------------------
-! StatevectorInterface
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! StatevectorInterface
+  !--------------------------------------------------------------------------
   subroutine StatevectorInterface(statevector, gd, Direction)
     implicit none
 
@@ -1218,7 +1203,7 @@ contains
       end if
 
       if ( ToStateVector ) then
-!$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+        !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
          do kgd = kgdStart, kgdEnd
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
@@ -1227,9 +1212,9 @@ contains
                end do
             end do
          end do
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
       else
-!$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+        !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
          do kgd = kgdStart, kgdEnd
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
@@ -1238,16 +1223,16 @@ contains
                end do
             end do
          end do
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
       end if
    end do
 
   end subroutine StatevectorInterface
 
-!--------------------------------------------------------------------------
-! LBHI_reduceToMPILocal
-!--------------------------------------------------------------------------
-  SUBROUTINE LBHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! lbhi_reduceToMPILocal
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim)
     real(8), intent(in)  :: cv_mpiglobal(:)
@@ -1295,7 +1280,7 @@ contains
 
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           
@@ -1308,8 +1293,8 @@ contains
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'LBHI_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1319,13 +1304,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
                    
                    cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -1334,7 +1319,7 @@ contains
              end do
           end do
        end do
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -1345,12 +1330,12 @@ contains
 
     !- Distribute
     allocate(displs(mpi_nprocs))
-!$OMP PARALLEL DO PRIVATE(jproc)
+    !$OMP PARALLEL DO PRIVATE(jproc)
     do jproc = 0, (mpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
                            cv_mpiLocal      , cvDim , "mpi_double_precision", &
@@ -1361,12 +1346,12 @@ contains
    deallocate(cvDim_allMpiLocal)
 
 
-  END SUBROUTINE LBHI_reduceToMPILocal
+  END SUBROUTINE lbhi_reduceToMPILocal
 
-!--------------------------------------------------------------------------
-! LBHI_reduceToMPILocal_r4
-!--------------------------------------------------------------------------
-  SUBROUTINE LBHI_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! lbhi_reduceToMPILocal_r4
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim)
     real(4), intent(in)  :: cv_mpiglobal(:)
@@ -1414,7 +1399,7 @@ contains
 
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           
@@ -1427,8 +1412,8 @@ contains
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'LBHI_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1438,13 +1423,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_reduceToMPILocal')
+                      call utl_abort('lbhi_reduceToMPILocal')
                    end if
                    
                    cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -1453,7 +1438,7 @@ contains
              end do
           end do
        end do
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -1464,12 +1449,12 @@ contains
 
     !- Distribute
     allocate(displs(mpi_nprocs))
-!$OMP PARALLEL DO PRIVATE(jproc)
+    !$OMP PARALLEL DO PRIVATE(jproc)
     do jproc = 0, (mpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
                            cv_mpiLocal      , cvDim , "mpi_real4", &
@@ -1480,12 +1465,12 @@ contains
    deallocate(cvDim_allMpiLocal)
 
 
-  END SUBROUTINE LBHI_reduceToMPILocal_r4
+  END SUBROUTINE lbhi_reduceToMPILocal_r4
 
-!--------------------------------------------------------------------------
-! LBHI_expandToMPIGlobal
-!--------------------------------------------------------------------------
-  SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! lbhi_expandToMPIGlobal
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim)
     real(8), intent(out) :: cv_mpiglobal(:)
@@ -1555,7 +1540,7 @@ contains
     if (mpi_myid == 0) then
        cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           do k = 1, nksdim
              do ila = 1, allnlaLocal(jproc+1)
@@ -1566,8 +1551,8 @@ contains
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'LBHI_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      write(*,*) 'lbhi_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1577,13 +1562,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
                    
                    cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -1592,7 +1577,7 @@ contains
              end do
           end do
        end do
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     end if
 
@@ -1601,12 +1586,12 @@ contains
     deallocate(cv_allmaxmpilocal)
     deallocate(cvDim_allMpiLocal)
 
-  end SUBROUTINE LBHI_expandToMPIGlobal
+  end SUBROUTINE lbhi_expandToMPIGlobal
 
-!--------------------------------------------------------------------------
-! LBHI_expandToMPIGlobal_r4
-!--------------------------------------------------------------------------
-  SUBROUTINE LBHI_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
+  !--------------------------------------------------------------------------
+  ! lbhi_expandToMPIGlobal_r4
+  !--------------------------------------------------------------------------
+  SUBROUTINE lbhi_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(in)  :: cv_mpilocal(cvDim)
     real(4), intent(out) :: cv_mpiglobal(:)
@@ -1676,7 +1661,7 @@ contains
     if (mpi_myid == 0) then
        cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mpi_nprocs-1)
           do k = 1, nksdim
              do ila = 1, allnlaLocal(jproc+1)
@@ -1687,8 +1672,8 @@ contains
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'LBHI_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      write(*,*) 'lbhi_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1698,13 +1683,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('LBHI_expandToMPIGlobal')
+                      call utl_abort('lbhi_expandToMPIGlobal')
                    end if
                    
                    cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -1713,7 +1698,7 @@ contains
              end do
           end do
        end do
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
     end if
 
@@ -1722,12 +1707,12 @@ contains
     deallocate(cv_allmaxmpilocal)
     deallocate(cvDim_allMpiLocal)
 
-  end SUBROUTINE LBHI_expandToMPIGlobal_r4
+  end SUBROUTINE lbhi_expandToMPIGlobal_r4
 
-!--------------------------------------------------------------------------
-! LBHI_Finalize
-!--------------------------------------------------------------------------
-  subroutine LBHI_Finalize
+  !--------------------------------------------------------------------------
+  ! lbhi_Finalize
+  !--------------------------------------------------------------------------
+  subroutine lbhi_Finalize
     implicit none
 
     integer :: var
@@ -1740,6 +1725,6 @@ contains
        end do
     end if
 
-  end subroutine LBHI_Finalize
+  end subroutine lbhi_Finalize
 
-end module LamBMatrixHI_mod
+end module lamBMatrixHI_mod

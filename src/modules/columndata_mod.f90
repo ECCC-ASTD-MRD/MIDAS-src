@@ -639,17 +639,23 @@ contains
     real(8)                             :: height
     integer                             :: ilev1
 
-    if ( varLevel == 'TH' .and. col_varExist(column,'Z_T') ) then
+    if (varLevel == 'TH') then
+      if (.not. col_varExist(column,'Z_T') ) then
+        call utl_abort('col_getHeight: Z_T not found!')
+      end if
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
       height = column%all(ilev1+ilev-1,headerIndex)
-    elseif (varLevel == 'MM' .and. col_varExist(column,'Z_M') ) then
+    else if (varLevel == 'MM') then
+      if (.not. col_varExist(column,'Z_M') ) then
+        call utl_abort('col_getHeight: Z_M not found!')
+      end if 
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
-    elseif (varLevel == 'SF' ) then
+    else if (varLevel == 'SF' ) then
       height = column%HeightSfc(1,headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
-    endif
+    end if
 
   end function col_getHeight
 
