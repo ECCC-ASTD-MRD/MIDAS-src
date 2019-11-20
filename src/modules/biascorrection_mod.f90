@@ -103,7 +103,7 @@ MODULE biasCorrection_mod
   integer :: bitListGeo(10)
   integer :: bitListTovs(10)
   integer :: bitListSsmis(10)
-  integer, external            :: fnom,fclos 
+  integer, external            :: fnom, fclos 
   namelist /nambias/ lvarbc,biasMode,bg_stddev,removeBiasCorrection,refreshBiasCorrection
   namelist /nambias/ centerPredictors,doRegression, scanBiasCorLength,  lMimicSatbcor, lweightedEstimate
   namelist /nambias/ cglobal, cinst, nbscan,filterObs ,loutstats,loutCoeffCov
@@ -560,13 +560,11 @@ CONTAINS
         idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-        indxtovs = tvs_ltovsno(headerIndex)
-        if ( indxtovs == 0 ) then
-          call utl_abort('bias_computePredictorBiases')
-        end if
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if ( indxtovs < 0 ) cycle HEADER
 
         iobs = iobs + 1
-        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        iSensor = tvs_lsensor( indxTovs )
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
@@ -675,13 +673,11 @@ CONTAINS
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-      indxtovs = tvs_ltovsno(headerIndex)
-      if ( indxtovs == 0 ) then
-        call utl_abort('bias_calcBias')
-      end if
+      indxtovs = tvs_tovsIndex(headerIndex)
+      if ( indxtovs < 0 ) cycle HEADER
 
       iobs = iobs + 1
-      iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+      iSensor = tvs_lsensor( indxTovs )
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
@@ -780,8 +776,8 @@ CONTAINS
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if ( headerIndex < 0 ) exit HEADER
-
-        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER
+        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
         if (iSensor /= sensorIndex) cycle HEADER
           
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
@@ -915,8 +911,8 @@ CONTAINS
       HEADER1: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if ( headerIndex < 0 ) exit HEADER1
-
-        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        if ( tvs_tovsIndex(headerIndex) < 0 ) cycle HEADER1
+        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
         if (iSensor /= sensorIndex) cycle HEADER1
 
         call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -996,8 +992,8 @@ CONTAINS
         HEADER2: do
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if ( headerIndex < 0 ) exit HEADER2
-
-          iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+          if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER2
+          iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
           if (iSensor /= sensorIndex) cycle HEADER2
 
           call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -1113,13 +1109,11 @@ CONTAINS
       
       indxtovs = tvs_tovsIndex(headerIndex)
 
-      if ( indxtovs == 0 ) then
-        call utl_abort('bias_calcBias_tl')
-      end if
+      if ( indxtovs < 0 ) cycle HEADER
 
       iobs = iobs + 1
 
-      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      iSensor = tvs_lsensor( indxTovs )
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
@@ -1382,12 +1376,12 @@ CONTAINS
 !        predictor(iPredictor) = trialTG(index_obs)
       else if ( iPredictor == 6 ) then
         ! SV secant of satellite zenith angle minus one
-        predictor(iPredictor) = (1.d0/cos((0.01d0*obs_headElem_i(obsSpaceData,OBS_SZA,headerIndex)-90.) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+        predictor(iPredictor) = (1.d0/cos( obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
       end if
 
     end do
 
-    iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+    iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
     do  iPredictor = 1,  bias(iSensor)%chans(chanIndx)%numActivePredictors
       jPredictor = bias(iSensor)%chans(chanIndx)%predictorIndex(iPredictor)
       predictor(jPredictor) =  predictor(jPredictor) - bias(iSensor)%chans(chanindx)%coeff_offset(iPredictor)
@@ -1423,7 +1417,7 @@ CONTAINS
 !      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 !      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
 !      iobs = iobs + 1
-!      iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+!      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
 !      BODY: do
 !        bodyIndex = obs_getBodyIndex(obsSpaceData)
 !        if ( bodyIndex < 0 ) exit BODY
@@ -1501,9 +1495,8 @@ CONTAINS
       if ( headerIndex < 0 ) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
-
+      if ( tvs_tovsIndex(headerIndex) < 0 ) cycle HEADER
       iobs = iobs + 1
-      if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER
       iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1642,11 +1635,11 @@ CONTAINS
     real(8), pointer :: cv_bias(:)
     real(8), target  :: dummy4Pointer(1)
     character(len=80) :: BgFileName
-    real(8)           :: biasCoeff_bg(tvs_nSensors,maxNumChannels,NumPredictors)
+!    real(8)           :: biasCoeff_bg(tvs_nSensors,maxNumChannels,NumPredictors)
 
     !for background coeff and write out
     integer             :: iInstr
-    real(8)             :: fovbias_bg(tvs_nSensors,maxNumChannels,maxfov)
+!    real(8)             :: fovbias_bg(tvs_nSensors,maxNumChannels,maxfov)
     integer             :: numCoefFile,jCoef,kCoef
     character(len=10)   :: coefInstrName(tvs_nSensors), temp_instrName
     character(len=25)   :: filecoeff
@@ -2005,7 +1998,7 @@ CONTAINS
           
           write(iuncoef, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
                satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, bias(sensorIndex) % chans(jChan) %coeff_nobs, numPred, nfov
-          write(iuncoef, '(A7,6(1X,A2))') 'PTYPES:',  ( predtab(bias(sensorIndex) % chans(jChan) %predictorIndex(kPred)) , kPred=2,numPred-1 )
+          write(iuncoef, '(A7,6(1X,A2))') 'PTYPES:',  ( predtab(bias(sensorIndex) % chans(jChan) %predictorIndex(kPred) - 1) , kPred=2, numPred )
           write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff_fov(kFov),kFov=1,nfov)
           write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff(kPred),kPred=1,numPred)
 
@@ -2251,6 +2244,9 @@ CONTAINS
     real(8) :: biascor, Obs
     integer :: flag
 
+    if ( .not. lvarbc ) return
+    if ( trim(biasMode) /= "apply") return
+
     if ( mpi_myid == 0 ) write(*,*) 'bias_applyBiasCorrection starting'
 
     nbcor = 0
@@ -2442,16 +2438,12 @@ CONTAINS
         idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER1
       
-        indxtovs = tvs_ltovsno(headerIndex)
-        if ( indxtovs == 0 ) then
-          call utl_abort('bias_do_regression')
-        end if
-       
-        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if ( indxtovs < 0 ) cycle HEADER1
 
-        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        iSensor = tvs_lsensor( indxTovs )
         if (iSensor /= sensorIndex) cycle HEADER1
-          
+        iobs = iobs + 1
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
         if ( nscan > 1 ) then
           iScan = iFov
@@ -2521,16 +2513,13 @@ CONTAINS
         idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
       
-        indxtovs = tvs_ltovsno(headerIndex)
-        if ( indxtovs == 0 ) then
-          call utl_abort('bias_do_regression')
-        end if
-        
-        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if ( indxtovs < 0 ) cycle HEADER2
 
-        iSensor = tvs_lsensor(tvs_ltovsno(headerIndex))
+        iSensor = tvs_lsensor( indxTovs )
         if (iSensor /= sensorIndex) cycle HEADER2
           
+        iobs = iobs + 1
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
         if ( nscan > 1 ) then

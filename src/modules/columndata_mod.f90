@@ -211,7 +211,7 @@ contains
     character(len=*),optional :: varNames_opt(:)
 
     ! locals
-    integer :: iloc, jvar, jvar2
+    integer :: iloc, varIndex, varIndex2, numVar
     logical :: beSilent, setToZero
 
     if ( present(beSilent_opt) ) then
@@ -226,8 +226,17 @@ contains
       setToZero = .true.
     end if
 
-    ! set the variable list using the global ExistList
-    column%varExistList(:) = varExistList(:)
+    if ( present(varNames_opt) ) then      
+      column%varExistList(:) = .false.
+      numVar = size( varNames_opt ) 
+      do varIndex2 = 1, numVar
+        varIndex = vnl_varListIndex(varNames_opt(varIndex2))
+        column%varExistList(varIndex) = .true.
+      end do
+    else
+      ! set the variable list using the global ExistList
+      column%varExistList(:) = varExistList(:)
+    end if
 
     if ( column%varExistList(vnl_varListIndex('TT')) .and. &
          column%varExistList(vnl_varListIndex('HU')) .and. &
@@ -253,38 +262,24 @@ contains
       call utl_abort('col_allocate: VerticalCoord has not been initialized!')
     endif
 
-
-    if ( present(varNames_opt) ) then      
-      column%varExistList(:) = .false.
-      numvar = size( varNames_opt ) 
-      do varIndex2 = 1, numvar
-        varIndex = vnl_varListIndex(varNames_opt(varIndex2))
-        column%varExistList(varIndex) = .true.
-      end do
-    else
-      ! use the global variable list
-      column%varExistList(:) = varExistList(:)
-      numvar = vnl_numvarmax
-    end if
-
     allocate(column%varOffset(vnl_numvarmax))
     column%varOffset(:)=0
     allocate(column%varNumLev(vnl_numvarmax))
     column%varNumLev(:)=0
 
     iloc = 0
-    do jvar = 1, vnl_numvarmax3d
-      if(column%varExistList(jvar)) then
-        column%varOffset(jvar)=iloc
-        column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-        iloc = iloc + column%varNumLev(jvar)
+    do varIndex = 1, vnl_numvarmax3d
+      if(column%varExistList(varIndex)) then
+        column%varOffset(varIndex)=iloc
+        column%varNumLev(varIndex)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+        iloc = iloc + column%varNumLev(varIndex)
       endif
     enddo
-    do jvar2 = 1, vnl_numvarmax2d
-      jvar=jvar2+vnl_numvarmax3d
-      if(column%varExistList(jvar)) then
-        column%varOffset(jvar)=iloc
-        column%varNumLev(jvar)=1
+    do varIndex2 = 1, vnl_numvarmax2d
+      varIndex=varIndex2+vnl_numvarmax3d
+      if(column%varExistList(varIndex)) then
+        column%varOffset(varIndex)=iloc
+        column%varNumLev(varIndex)=1
         iloc = iloc + 1
       endif
     enddo

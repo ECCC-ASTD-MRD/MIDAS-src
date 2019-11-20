@@ -116,7 +116,6 @@ contains
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
-
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
     character(len=1)  :: grtyp

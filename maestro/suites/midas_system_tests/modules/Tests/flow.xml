@@ -14,8 +14,9 @@
   <SUBMITS sub_name="obsIO"/>
   <SUBMITS sub_name="bgckMW"/>
   <SUBMITS sub_name="bgckAtms"/>
+  <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
-  <SUBMITS sub_name="diagBmatrix"/> 
+  <SUBMITS sub_name="diagBmatrix"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>

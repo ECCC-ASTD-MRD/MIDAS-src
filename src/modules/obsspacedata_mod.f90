@@ -1007,7 +1007,7 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
               OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_PRM,&
-              (0,ii=15,100) /)
+              OBS_BCOR, (0,ii=16,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1982,7 +1982,7 @@ contains
       integer         , intent(in)  :: row_index
 
       real(OBS_REAL) :: value_r         ! not used
-
+      
       call odc_columnElem(obsdat%intBodies, column_index, row_index, &
                           value_i, value_r)
    end function obs_bodyElem_i
@@ -2002,7 +2002,7 @@ contains
       integer         , intent(in)  :: row_index
 
       integer :: value_i                ! not used
-
+     
       call odc_columnElem(obsdat%realBodies, column_index, row_index, &
                           value_i, value_r)
    end function obs_bodyElem_r
@@ -4046,7 +4046,7 @@ contains
       integer         , intent(in)  :: row_index
 
       real(OBS_REAL) :: value_r         ! not used
-
+     
       call odc_columnElem(obsdat%intHeaders, column_index, row_index, &
                           value_i, value_r)
    end function obs_headElem_i
@@ -4066,7 +4066,7 @@ contains
       integer         , intent(in)  :: row_index
 
       integer :: value_i                ! unused
-
+     
       call odc_columnElem(obsdat%realHeaders, column_index, row_index, &
                           value_i, value_r)
    end function obs_headElem_r

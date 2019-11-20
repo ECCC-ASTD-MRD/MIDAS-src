@@ -42,8 +42,6 @@ program midas_gencoeff
   use innovation_mod
   use tovs_nl_mod
   use obsErrors_mod
-  use variableTransforms_mod
-  use obsOperators_mod
   use statetocolumn_mod
   use biasCorrection_mod
   use increment_mod
@@ -280,7 +278,7 @@ contains
     !
     !- Setup observation operators
     !
-    call oop_setup(varMode) ! IN
+!    call oop_setup(varMode) ! IN
 
     !
     !- Basic setup of columnData module

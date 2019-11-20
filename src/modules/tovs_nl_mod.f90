@@ -194,8 +194,8 @@ contains
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
     integer :: tovsIndex, idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
-    integer :: errorstatus(1)
-    integer :: headerIndex, bodyIndex
+    integer :: errorStatus(1)
+    integer :: headerIndex, bodyIndex, taskIndex
     logical,allocatable ::logicalBuffer(:)
 
     if (tvs_nsensors == 0) return
@@ -310,9 +310,9 @@ contains
 
     write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
 
-    do ji = 1, tvs_nsensors
-      call tvs_getCommonChannelSet(tvs_ichan(:,ji),tvs_nchanMpiGlobal(ji), tvs_ichanMpiGlobal(:,ji))
-      print *, "ji,tvs_nchan(ji),tvs_nchanMpiGlobal(ji)", ji, tvs_nchan(ji),tvs_nchanMpiGlobal(ji)
+    do sensorIndex = 1, tvs_nsensors
+      call tvs_getCommonChannelSet(tvs_ichan(:,sensorIndex),tvs_nchanMpiGlobal(sensorIndex), tvs_ichanMpiGlobal(:,sensorIndex))
+      print *, "sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)", sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
     end do
 
 
@@ -322,15 +322,15 @@ contains
       allocate(logicalBuffer(1))
     end if
 
-    do ji = 1, tvs_nsensors
-      call RPN_COMM_gather( tvs_isReallyPresent ( ji ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, "GRID", ierr )
+    do sensorIndex = 1, tvs_nsensors
+      call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, "GRID", errorStatus(1) )
       if (mpi_myid ==0) then
-        tvs_isReallyPresentMpiGlobal ( ji ) =.false.
-        do itask=1, mpi_nprocs
-          tvs_isReallyPresentMpiGlobal ( ji ) =  tvs_isReallyPresentMpiGlobal ( ji ) .or. logicalBuffer(itask)
+        tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
+        do taskIndex=1, mpi_nprocs
+          tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
-      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( ji ), 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
     end do
 
     deallocate(logicalBuffer)
@@ -382,12 +382,14 @@ contains
         tvs_opts(sensorIndex) % rt_ir % co_data  = .false.
         tvs_opts(sensorIndex) % rt_ir % ch4_data = .false.
 
-        errorstatus = errorstatus_success
+        errorStatus = errorStatus_success
 
         call tmg_start(83,'RTTOV_SETUP')
-        call tvs_rttov_read_coefs(errorstatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
-        if (errorstatus(1) /= errorstatus_success) then
-          write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorstatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
+
+        write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
+        call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
+        if (errorStatus(1) /= errorStatus_success) then
+          write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
         call tmg_stop(83)
@@ -395,9 +397,9 @@ contains
         tvs_opts(sensorIndex) % rt_ir % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 
         ! Ensure the options and coefficients are consistent
-        call rttov_user_options_checkinput(errorstatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
-        if (errorstatus(1) /= errorstatus_success) then
-          write(*,*) 'error in rttov options',errorstatus
+        call rttov_user_options_checkinput(errorStatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
+        if (errorStatus(1) /= errorStatus_success) then
+          write(*,*) 'error in rttov options',errorStatus
           call utl_abort('tvs_setupAlloc')
         end if
        
@@ -415,9 +417,9 @@ contains
         sensorIndex = tvs_lsensor(tovsIndex)
         if (sensorIndex > -1) then
           ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-          call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(tovsIndex),  tvs_coefs(sensorIndex) % coef % nlevels  , &    ! 1 = nprofiles un profil a la fois
+          call rttov_alloc_prof(errorStatus(1),1,tvs_profiles(tovsIndex),  tvs_coefs(sensorIndex) % coef % nlevels  , &    ! 1 = nprofiles un profil a la fois
                tvs_opts(sensorIndex),asw=1,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =1 allocation
-          call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+          call utl_checkAllocationStatus(errorStatus(1:1), " tvs_setupAlloc tvs_profiles 2")
         end if
       end do
 
@@ -586,12 +588,12 @@ contains
 
   subroutine tvs_cleanup
     implicit none
-    integer :: alloc_status(8)
+    integer :: allocStatus(8)
     integer :: iSensor,iObs,nChans,nl
 
     Write(*,*) "Entering tvs_cleanup"
 
-    alloc_status(:) = 0
+    allocStatus(:) = 0
 
     if ( radiativeTransferCode == 'RTTOV' ) then
 
@@ -601,49 +603,49 @@ contains
         iSensor = tvs_lsensor(iObs)
         nchans = tvs_nchan(isensor)
         ! deallocate BT equivalent to total direct, tl and ad radiance output
-        deallocate( tvs_radiance(iObs)  % bt ,stat= alloc_status(1))
-        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_cleanup radiances 1",.false.)
+        deallocate( tvs_radiance(iObs)  % bt ,stat= allocStatus(1))
+        call utl_checkAllocationStatus(allocStatus(1:1), " tvs_cleanup radiances 1",.false.)
       end do
 
-      deallocate( tvs_radiance ,stat= alloc_status(1))
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvs_cleanup radiances 2")
+      deallocate( tvs_radiance ,stat= allocStatus(1))
+      call utl_checkAllocationStatus(allocStatus(1:1), " tvs_cleanup radiances 2")
 
       do iObs = 1, tvs_nobtov
         iSensor = tvs_lsensor(iObs)
         nl = tvs_coefs(iSensor) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(alloc_status(1),1,tvs_profiles(iObs),nl, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus(1),1,tvs_profiles(iObs),nl, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
-        call utl_checkAllocationStatus(alloc_status(1:1), "profile deallocation in tvs_cleanup",.false.)
+        call utl_checkAllocationStatus(allocStatus(1:1), "profile deallocation in tvs_cleanup",.false.)
       end do
 
-      deallocate(tvs_profiles, stat=alloc_status(1) )
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_profiles 1")
+      deallocate(tvs_profiles, stat=allocStatus(1) )
+      call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_profiles 1")
 
       do iSensor = tvs_nsensors,1,-1
-        call rttov_dealloc_coefs(alloc_status(1),  tvs_coefs(iSensor) )
+        call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
         Write(*,*) "Deallocating coefficient structure for instrument", iSensor
-        call utl_checkAllocationStatus(alloc_status(1:1), " rttov_dealloc_coefs in tvs_cleanup", .false.)
+        call utl_checkAllocationStatus(allocStatus(1:1), " rttov_dealloc_coefs in tvs_cleanup", .false.)
       end do
 
-      deallocate (tvs_coefs       ,stat= alloc_status(1))
-      deallocate (tvs_listSensors ,stat= alloc_status(2))
-      deallocate (tvs_opts        ,stat= alloc_status(3))
+      deallocate (tvs_coefs       ,stat= allocStatus(1))
+      deallocate (tvs_listSensors ,stat= allocStatus(2))
+      deallocate (tvs_opts        ,stat= allocStatus(3))
 
-      call utl_checkAllocationStatus(alloc_status(1:3), " tvs_cleanup", .false.)
+      call utl_checkAllocationStatus(allocStatus(1:3), " tvs_cleanup", .false.)
 
     end if
 
-    deallocate (tvs_nchan,          stat= alloc_status(1))
-    deallocate (tvs_ichan,          stat= alloc_status(2))
-    deallocate (tvs_lsensor,        stat= alloc_status(3))
-    deallocate (tvs_lobsno ,        stat= alloc_status(4))
-    deallocate (tvs_ltovsno,        stat= alloc_status(5))
-    deallocate (tvs_isReallyPresent,stat= alloc_status(6))
-    deallocate (tvs_nchanMpiGlobal, stat= alloc_status(7))
-    deallocate (tvs_ichanMpiGlobal, stat= alloc_status(8))
+    deallocate (tvs_nchan,          stat= allocStatus(1))
+    deallocate (tvs_ichan,          stat= allocStatus(2))
+    deallocate (tvs_lsensor,        stat= allocStatus(3))
+    deallocate (tvs_headerIndex,    stat= allocStatus(4))
+    deallocate (tvs_tovsIndex,      stat= allocStatus(5))
+    deallocate (tvs_isReallyPresent,stat= allocStatus(6))
+    deallocate (tvs_nchanMpiGlobal, stat= allocStatus(7))
+    deallocate (tvs_ichanMpiGlobal, stat= allocStatus(8))
 
-    call utl_checkAllocationStatus(alloc_status, " tvs_cleanup", .false.)
+    call utl_checkAllocationStatus(allocStatus, " tvs_cleanup", .false.)
 
     Write(*,*) "Exiting tvs_cleanup"
 
@@ -1086,6 +1088,59 @@ contains
     end do
 
   end function tvs_isInstrumHyperSpectral
+
+
+  logical function tvs_isNameHyperSpectral(cinstrum)
+    !
+    ! :Purpose: given an instrument name
+    ! return if it is an hyperspectral one
+    ! information from namelist NAMHYPER
+
+    implicit none
+    character(len=*),intent(in) :: cinstrum
+!******************************************
+    integer ,parameter :: maxsize = 20
+    integer :: nulnam, ierr, i 
+    integer ,save :: ninst_hir
+    logical, save :: lfirst = .true.
+    integer ,external :: fclos, fnom
+    character (len=7),save  :: name_inst(maxsize)
+    character (len=7) :: name2
+    namelist /NAMHYPER/ name_inst
+
+    if (lfirst) then
+      nulnam = 0
+      ninst_hir = 0
+      name_inst(:) = "XXXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namhyper, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namhyper)
+      ierr = fclos(nulnam)
+      do i=1, maxsize
+        if (name_inst(i) == "XXXXXXX") then
+          ninst_hir = i -1
+          exit
+        end if
+      end do
+      lfirst = .false.
+      if (ninst_hir == 0) then
+        write(*,*) "tvs_isNameHyperSpectral: Warning : empty namhyper namelist !"
+      end if
+    end if
+
+    tvs_isNameHyperSpectral = .false.
+
+    call up2low(cinstrum, name2)
+
+    do i=1, ninst_hir
+      if ( trim(name2) == name_inst(i)) then
+        tvs_isNameHyperSpectral = .true.
+        exit
+      end if
+    end do
+
+  end function tvs_isNameHyperSpectral
 
   !--------------------------------------------------------------------------
   !  tvs_isInstrumGeostationary

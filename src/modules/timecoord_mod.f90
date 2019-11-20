@@ -80,7 +80,7 @@ contains
     real(8) :: dstepobs,dstepobsinc,dwindowsize
     character(len=6) :: dreferencetime
 
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date,dreferencetime
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, dreferencetime
 
     if ( initialized ) then
       write(*,*) 'tim_setup: already initialized, just return'
@@ -303,10 +303,8 @@ contains
 
 
   subroutine tim_getStampList(datestamplist, numStep, referenceDateStamp)
-    implicit none
     !
     ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
-    !           implicit none
     !
     implicit none
 
@@ -350,8 +348,6 @@ contains
 
 
   subroutine tim_getStepObsIndex(dnstepobs, referenceDateStamp, obsYYYMMDD, obsHHMM, numStep)
-    implicit none
-    ! Author : Mark Buehner (based on stepobs.ftn90)
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
@@ -360,7 +356,7 @@ contains
 
     ! arguments
     real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
-    integer, intent(in)  :: middleDateStamp    ! Synop CMC date-time stamp
+    integer, intent(in)  :: referenceDateStamp    ! Synop CMC date-time stamp
     integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
     integer, intent(in)  :: obsHHMM            ! Obs time HHMM
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
@@ -397,6 +393,7 @@ contains
         dnstepobs = dnstepobs + 1.d0
       end if
       if (dnstepobs < 0.5d0.or.dnstepobs > (0.5d0+real(numStep,8))) dnstepobs = -1.0d0
+
     else
       ! 3D: only 1 trial field in time window
       if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then

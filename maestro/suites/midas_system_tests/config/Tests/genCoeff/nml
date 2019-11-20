@@ -117,14 +117,14 @@
   NLISTFLG(3)=5,
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
-  LTOPOFILT=.TRUE.,
+  list_topoFilt(1) = 'TO'
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
    rmat_lnonDiagR=.false.
 /
  &NAMSTATE
-   AddGZSfcOffset = .false.
+   addHeightSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
