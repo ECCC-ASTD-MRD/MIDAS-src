@@ -37,7 +37,11 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList
 
-  integer, parameter          :: vnl_numvarmax3D = 37, vnl_numvarmax2D = 32
+  ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
+  ! and an infinite loop
+  integer, parameter          :: VNLnumvarmax3D = 37,  VNLnumvarmax2D = 32
+
+  integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -81,7 +85,7 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
                                  'MT',  'MT',  'MT',  'MT',  'HY'/)
 
-  integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
+  integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D
 
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
   character(len=2), parameter :: varLevelList   (vnl_numvarmax) = (/ varLevelList3D   , varLevelList2D    /)
