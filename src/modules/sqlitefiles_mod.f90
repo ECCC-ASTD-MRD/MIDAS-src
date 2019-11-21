@@ -34,7 +34,7 @@ module sqliteFiles_mod
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles, sqlf_cldprmsFile
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -231,6 +231,42 @@ module sqliteFiles_mod
     write(*,*)myName//': Finished'
     call tmg_stop(96)
   end subroutine sqlf_cleanFile
+
+
+  subroutine sqlf_cldprmsFile(obsSpaceData, fileName, familyType, fileIndex)
+    !
+    ! :Purpose: To output cld parameters in obsspace data to sqlite table
+    !
+    implicit none
+
+    ! arguments
+    type (struct_obs), intent(inout) :: obsSpaceData
+    character(len=*),  intent(in) :: fileName
+    character(len=*),  intent(in) :: familyType
+    integer,           intent(in) :: fileIndex
+
+    ! locals
+    character(len=*), parameter :: myName = 'sqlf_cldprmsFile'
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+    write(*,*) myName//': FileName   : ',trim(fileName)
+    write(*,*) myName//': FamilyType : ',FamilyType
+    call fSQL_open( db, fileName, statusSqlite )
+    if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
+      write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
+      write(*,*) myError, fSQL_errmsg(statusSqlite )
+    end if
+
+    call sqlr_cldparams(db, obsSpaceData, familyType, fileName, fileIndex )
+    write(*,*)'  closed database -->', trim(FileName)
+    call fSQL_close( db, statusSqlite )
+
+    write(*,*)' '
+    write(*,*)'================================================='
+    write(*,*)'                '//trim(myName)//'    END               '
+    write(*,*)'================================================='
+    write(*,*)' '
+  end subroutine sqlf_cldprmsFile
 
 
   subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )

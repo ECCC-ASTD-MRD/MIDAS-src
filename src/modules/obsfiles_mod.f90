@@ -238,8 +238,10 @@ contains
       else if ( obsFileType == 'SQLITE' ) then
         call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                               fileIndex )
+        if ( trim(obsFileMode) == 'bgck' ) then
+          call sqlf_cldprmsFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        end if
       end if
-
     end do
 
     if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then

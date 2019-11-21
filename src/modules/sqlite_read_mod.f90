@@ -42,7 +42,7 @@ save
 
 private
 public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr
+public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_cldparams
 
 contains
   
@@ -210,17 +210,17 @@ contains
     avhrrSqliteCharacter = sqlr_query(db,"select time('now')")
     write(*,'(4a)') myName//' START OF  avhrr QUERY TIME IS = ', avhrrSqliteCharacter
 
-    querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'Observation_avhrr_cloud' ;"
+    querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like 'avhrr' ;"
     avhrrSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
     read( avhrrSqliteCharacter, * ) avhrrSqlite 
     if (   avhrrSqlite ==1 ) then
-       write(*,*)myName//' Table Observation_avhrr_cloud exists: insert contents into obsdat '
+       write(*,*)myName//' Table avhrr exists: insert contents into obsdat '
     else
-       write(*,*)myName//' Table Observation_avhrr_cloud does not exist :  ... return  '
+       write(*,*)myName//' Table avhrr does not exist :  ... return  '
        return
     endif
 
-    querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from Observation_avhrr_cloud where id_obs = ? '
+    querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare( db, querySqlite , stmt, stat )
     write(*,*)myName//' obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
@@ -917,7 +917,7 @@ contains
     character(len = 128)             :: query
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
-    real                             :: romp, obsValue
+    real                             :: romp, obsValue, scalfact
     character(len=*), parameter      :: myName = 'sqlr_updateSqlite:'
     character(len=*), parameter      :: myError = myName //' ERROR: '
     namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
@@ -1007,7 +1007,9 @@ contains
             if ( romp == obs_missingValue_R ) then
               call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1                  )  ! sql null values
             else
-              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp )
+              scalfact=1.0
+              if (   updateList(itemId) == OBS_SEM ) scalfact=100.0
+              call fSQL_bind_param(stmt, PARAM_INDEX = itemId + 1, REAL_VAR = romp*scalfact )
             end if
           end if
 
@@ -1049,6 +1051,84 @@ contains
     write(*,*) myName//' End ===================  ', trim(familyType)
 
   end subroutine sqlr_updateSqlite
+
+
+  subroutine sqlr_cldparams( db, obsdat, familyType, fileName, fileNumber )
+    implicit none
+    ! arguments
+    type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
+    type(struct_obs)       :: obsdat
+    character(len=*)       :: familyType
+    character(len=*)       :: fileName
+    integer                :: fileNumber
+    type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
+    type(fSQL_STATUS)      :: stat !type for error status
+
+    character(len = 256)   :: query
+    integer                :: numberInsert, headerIndex, obsIdo, obsIdf
+    integer                :: NCO2
+    real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
+    character(len=*), parameter :: myName    = 'sqlr_cldparams'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+
+     write(*,*)' filename fileNumber familyType=',fileName,fileNumber,familyType
+    query = 'create table if not exists cld_params(id_obs integer,ETOP real,VTOP real,ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
+    query=trim(query)
+    write(*,*) ' create query = ', trim(query)
+
+    call fSQL_do( db, trim(query), stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_do : ')
+
+    query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    query=trim(query)
+
+    write(*,*) ' === Family Type === ',trim(familyType)
+    write(*,*) ' Insert query = ', trim(query)
+
+    call fSQL_prepare( db, query, stmt, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    call fSQL_begin(db)
+    numberInsert=0
+    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
+
+      obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
+      if ( obsIdf /= fileNumber ) cycle HEADER
+      obsIdo   = obs_headPrimaryKey(obsdat, headerIndex)
+      ETOP = obs_headElem_r(obsdat, OBS_ETOP, headerIndex )
+      VTOP = obs_headElem_r(obsdat, OBS_VTOP, headerIndex )
+      ECF  = obs_headElem_r(obsdat, OBS_ECF,  headerIndex )
+      VCF  = obs_headElem_r(obsdat, OBS_VCF,  headerIndex )
+      HE   = obs_headElem_r(obsdat, OBS_HE,   headerIndex )
+      ZTSR = obs_headElem_r(obsdat, OBS_ZTSR, headerIndex )
+      NCO2 = obs_headElem_i(obsdat, OBS_NCO2, headerIndex )
+      ZTM  = obs_headElem_r(obsdat, OBS_ZTM,  headerIndex )
+      ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex )
+      ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex )
+      ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex )
+!
+      call fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = obsIdo )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 2, REAL_VAR = ETOP   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = VTOP   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = ECF    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = VCF    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = HE     )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = ZTSR   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 8, INT_VAR  = NCO2   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = ZTM    )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = ZTGM   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 11,REAL_VAR = ZLQM   )
+      call fSQL_bind_param( stmt, PARAM_INDEX = 12,REAL_VAR = ZPS    )
+!
+      call fSQL_exec_stmt ( stmt )
+      numberInsert=numberInsert +1
+    end do HEADER
+
+    call fSQL_finalize( stmt )
+    call fSQL_commit(db)
+    write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+
+  end subroutine sqlr_cldparams
 
 
   subroutine sqlr_insertSqlite( db, obsdat, familyType, fileName, fileNumber )
