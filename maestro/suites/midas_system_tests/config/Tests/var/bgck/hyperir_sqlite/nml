@@ -403,6 +403,8 @@
   TYPE_RESUME='BGCKALT'
 /
   &NAMSQLiasi
+  listElem='12163'
+  numberElem=1
 /
   &NAMSQLUPDATE
   numberUpdateItems=2
