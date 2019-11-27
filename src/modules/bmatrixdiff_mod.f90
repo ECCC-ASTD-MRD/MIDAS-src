@@ -37,7 +37,7 @@ MODULE BmatrixDiff_mod
 
   ! public procedures
   public :: bdiff_Setup, bdiff_BSqrt, bdiff_BSqrtAd, bdiff_Finalize
-  public :: bdiff_getScaleFactor
+  !public :: bdiff_getScaleFactor
 
   logical             :: initialized = .false.
   integer             :: nj_l, ni_l
@@ -74,7 +74,7 @@ MODULE BmatrixDiff_mod
 
 CONTAINS
 
-  SUBROUTINE BDIFF_setup(hco_in, vco_in, CVDIM_OUT, mode_opt)
+  subroutine bdiff_setup ( hco_in, vco_in, CVDIM_OUT, mode_opt )
     implicit none
 
     type(struct_hco), pointer :: hco_in
@@ -86,7 +86,7 @@ CONTAINS
 
     integer :: nulnam, ierr, fnom, fclos
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
-    integer :: jvar
+    integer :: variableIndex
 
     type(struct_vco), pointer :: vco_anl
 
@@ -100,69 +100,75 @@ CONTAINS
     ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
     ! the explicit version (.false.).
     logical :: limplicit(maxNumVars)
-
+    character(len=*), parameter :: myName = 'bdiff_setup'
+    
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, limplicit, scaleFactor, stddevMode, homogeneous_std
 
     call tmg_start(17,'BDIFF_SETUP')
-    if(mpi_myid == 0) write(*,*) 'bdiff_setup: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) myName//': starting'
+    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(mode_opt) ) then
-       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
-         bdiff_mode = trim(mode_opt)
-         if(mpi_myid == 0) write(*,*)
-         if(mpi_myid == 0) write(*,*) 'bmatrixDiff: Mode activated = ', trim(bdiff_mode)
-       else
-          write(*,*)
-          write(*,*) 'mode = ', trim(mode_opt)
-          call utl_abort('bmatrixDiff: unknown mode')
-       end if
+    if ( present( mode_opt ) ) then
+      if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck') then
+        bdiff_mode = trim( mode_opt )
+        if( mpi_myid == 0 ) write(*,*)
+        if( mpi_myid == 0 ) write(*,*) myName//': Mode activated = ', trim(bdiff_mode)
+      else
+        write(*,*)
+        write(*,*)  myName//'mode = ', trim(mode_opt)
+        call utl_abort( myName//': unknown mode' )
+      end if
     else
-       bdiff_mode = 'Analysis'
-       if(mpi_myid == 0) write(*,*)
-       if(mpi_myid == 0) write(*,*) 'bmatrixDiff: Analysis mode activated (by default)'
+      bdiff_mode = 'Analysis'
+      if( mpi_myid == 0 ) write(*,*)
+      if( mpi_myid == 0 ) write(*,*) myName//': analysis mode activated (by default)'
     end if
 
     vco_anl => vco_in
-    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0) then
-      write(*,*) 'vco_anl%Vcode = ', vco_anl%Vcode
-      call utl_abort('bmatrixDiff: unknown vertical coordinate type!')
+    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0 ) then
+      write(*,*)  myName//'vco_anl%Vcode = ', vco_anl%Vcode
+      call utl_abort( myName//': unknown vertical coordinate type!')
     end if
 
     numvar2d = 0
 
-    allocate(bdiff_varNameList(vnl_numvarmax))
-    bdiff_varNameList(:)=''
-    allocate(nsposit(vnl_numvarmax+1))
+    allocate( bdiff_varNameList( vnl_numvarmax ) )
+    bdiff_varNameList( : )=''
+    allocate( nsposit( vnl_numvarmax + 1 ) )
     nsposit(1) = 1
 
     ! Find the 2D variables (within NAMSTATE namelist)
 
-    if(gsv_varExist(varName='GL  ')) then
+    if ( gsv_varExist( varName = 'GL  ' )) then
 
-       numvar2d = numvar2d + 1
-       nsposit(numvar2d+1) = nsposit(numvar2d)+1
-       bdiff_varNameList(numvar2d) = 'GL  '
-
-    end if
-    if(gsv_varExist(varName='TM  ')) then
-
-       numvar2d = numvar2d + 1
-       nsposit(numvar2d+1) = nsposit(numvar2d)+1
-       bdiff_varNameList(numvar2d) = 'TM  '
+      numvar2d = numvar2d + 1
+      nsposit( numvar2d + 1 ) = nsposit( numvar2d ) + 1
+      bdiff_varNameList( numvar2d ) = 'GL  '
 
     end if
+   
+    if ( gsv_varExist( varName = 'TM  ')) then
 
-    if (numvar2d == 0) then    
-       if(mpi_myid == 0) then
-          write(*,*) 'Bdiff matrix not produced.'
-          write(*,*) 'END OF BDIFF_SETUP'
-       end if
-       call tmg_stop(17)
-       cvdim_out = 0
-       return
+      numvar2d = numvar2d + 1
+      nsposit( numvar2d + 1 ) = nsposit( numvar2d ) + 1
+      bdiff_varNameList( numvar2d ) = 'TM  '
+
+    end if
+
+    if ( numvar2d == 0) then
+       
+      if ( mpi_myid == 0) then
+        write(*,*) myName//': Bdiff matrix not produced.'
+        write(*,*) myName//': END'
+      end if
+      call tmg_stop(17)
+      cvdim_out = 0
+      return
+      
     else if (mpi_myid == 0) then
-       write(*,*) 'BDIFF_setup: Number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)
+
+      write(*,*) myName//': number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
+
     end if
 
     ! default values for namelist variables
@@ -175,193 +181,176 @@ CONTAINS
     homogeneous_std(:) = -1.0d0
 
     nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambdiff,iostat=ierr)
-    if(ierr /= 0) call utl_abort('bdiff_setup: Error reading namelist')
-    if(mpi_myid == 0) write(*,nml=nambdiff)
-    ierr = fclos(nulnam)
+    ierr = fnom( nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read( nulnam, nml = nambdiff, iostat = ierr )
+    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
+    if ( mpi_myid == 0) write( *, nml = nambdiff )
+    ierr = fclos( nulnam )
 
-    if (sum(scaleFactor(:)) == 0.0d0 ) then
-       if(mpi_myid == 0) write(*,*) 'bmatrixDiff: scaleFactor=0, skipping rest of setup'
-       cvdim_out = 0
-       call tmg_stop(17)
-       return
+    if ( sum(scaleFactor(:) ) == 0.0d0 ) then
+      if( mpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
+      cvdim_out = 0
+      call tmg_stop(17)
+      return
     end if
 
     if ( trim(bdiff_mode) == 'BackgroundCheck' ) then
-       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
-                        ! that Diff is used
-       call tmg_stop(17)
-       return
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+                       ! that Diff is used
+      call tmg_stop(17)
+      return
     end if
 
     ! Assumes the input 'scalefactor' is a scaling factor of the variances.
 
-    do jvar = 1, numvar2d
-       if(scaleFactor(jvar) > 0.0d0) then 
-          scaleFactor_sigma(jvar) = sqrt(scaleFactor(jvar))
-       else
-          scaleFactor_sigma(jvar) = 0.0d0
-       end if
+    do variableIndex = 1, numvar2d
+      if ( scaleFactor( variableIndex ) > 0.0d0 ) then 
+        scaleFactor_sigma( variableIndex ) = sqrt( scaleFactor( variableIndex ) )
+      else
+        scaleFactor_sigma( variableIndex ) = 0.0d0
+      end if
     end do
 
     ni_l = hco_in%ni
     nj_l = hco_in%nj
 
-    allocate(diffID(numvar2d))
-    do jvar = 1, numvar2d
-       diffID(jvar) = diff_setup(hco_in, corr_len(jvar), stab(jvar), nsamp(jvar), limplicit(jvar))
+    allocate( diffID( numvar2d ) )
+    do variableIndex = 1, numvar2d
+      write(*,*) myName//': setup the diffusion operator for the variable ', bdiff_varNameList( variableIndex ) 
+      diffID( variableIndex ) = diff_setup ( variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, corr_len( variableIndex ), &
+                                             stab( variableIndex ), nsamp( variableIndex ), limplicit( variableIndex ) )
     end do
 
-    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mpivar_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
+    call mpivar_setup_lonbands( ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
 
     ! compute mpilocal control vector size
-    cvDim_mpilocal = ni_l*nj_l*numvar2d
+    cvDim_mpilocal = ni_l *nj_l * numvar2d
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+    call rpn_comm_allreduce( cvDim_mpilocal, cvDim_mpiglobal, 1, "mpi_integer", "mpi_sum", "GRID", ierr )
 
-    allocate(stddev(ni_l, nj_l, numvar2d))
+    allocate(stddev(ni_l, nj_l, numvar2d ))
 
-    call BDIFF_rdstats
+    call bdiff_rdstats( hco_in, vco_in )
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if(mpi_myid == 0) write(*,*) 'END OF BDIFF_SETUP'
+    if(mpi_myid == 0) write(*,*) myName//': END'
 
     initialized = .true.
 
     call tmg_stop(17)
 
-  END SUBROUTINE BDIFF_setup
+  end subroutine bdiff_setup
 
 
-  subroutine bdiff_getScaleFactor(scaleFactor_out)
-    implicit none
-
-    real(8), intent(out) :: scaleFactor_out(:)
-
-    integer :: jvar
-
-    do jvar = 1, numvar2d
-       scaleFactor_out(jvar) = scaleFactor(jvar)
-    end do
-
-  end subroutine bdiff_getScaleFactor
-
-
-  subroutine bdiff_rdstats
+  subroutine bdiff_rdstats( hco_in, vco_in )
     !
     !:Purpose: To read background-error stats file.
     !
     implicit none
-
+    
+    type(struct_hco), pointer :: hco_in
+    type(struct_vco), pointer :: vco_in
+    
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
-    integer :: jvar
+    integer :: variableIndex
     logical :: lExists
     character(len=12) :: bFileName1 = './bgstddev'
     character(len=8)  :: bFileName2 = './bgcov'
+    character(len=*), parameter :: myName = 'bdiff_rdstats'
+    
+    write(*,*) myName//': stddevMode is ', stddevMode
+    write(*,*) myName//': Number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
+    
+    if ( stddevMode == 'GD2D' ) then
 
-    if(stddevMode == 'GD2D') then
-
-       inquire(file=bFileName1, exist=lExists)
-       if ( lexists ) then
-          ierr = fnom(nulbgst, bFileName1, 'RND+OLD+R/O', 0)
+      inquire( file = bFileName1, exist = lExists )
+       
+      if ( lexists ) then
+        ierr = fnom(nulbgst, bFileName1, 'RND+OLD+R/O', 0)
+        if ( ierr == 0 ) then
+          nmax = fstouv(nulbgst, 'RND+OLD')
+        else
+          call utl_abort( myName//': error opening file '//trim(bFileName1))
+        end if
+      else
+        ! Assume background-error stats in file bgcov. 
+        inquire( file = bFileName2, exist = lExists )  
+        if ( lexists ) then 
+          ierr = fnom( nulbgst, bFileName2, 'RND+OLD+R/O', 0 )
           if ( ierr == 0 ) then
-             nmax = fstouv(nulbgst, 'RND+OLD')
+            nmax = fstouv(nulbgst, 'RND+OLD')
           else
-             call utl_abort('BDIFF_RDSTATS: ERROR OPENING FILE '//trim(bFileName1))
+            call utl_abort( myName//': error opening file '//trim(bFileName2) )
           end if
-       else
-          ! Assume background-error stats in file bgcov. 
-          inquire(file=bFileName2, exist=lExists)  
-          if (lexists) then 
-             ierr = fnom(nulbgst, bFileName2, 'RND+OLD+R/O', 0)
-             if ( ierr == 0 ) then
-                nmax = fstouv(nulbgst, 'RND+OLD')
-             else
-                call utl_abort('BDIFF_RDSTATS: ERROR OPENING FILE '//trim(bFileName2))
-             end if
-          else
-             call utl_abort('BDIFF_RDSTATS: NO BACKGROUND-ERROR STAT FILE!!')
-          end if
-       end if
+        else
+          call utl_abort( myName//': no background error statistics file found!!' )
+        end if
+      end if
 
-       call BDIFF_rdstd
+      call bdiff_readBGstdField( hco_in, vco_in )
 
-       ierr = fstfrm(nulbgst)
-       ierr = fclos(nulbgst)
+      ierr = fstfrm(nulbgst)
+      ierr = fclos(nulbgst)
 
-    elseif(stddevMode == 'HOMO') then
+    else if ( stddevMode == 'HOMO' ) then
 
-       do jvar = 1, numvar2d
-          stddev(:,:,jvar) = homogeneous_std(jvar)
-       end do
+      do variableIndex = 1, numvar2d
+        write(*,*) myName//': stdev = ', homogeneous_std( variableIndex ), ' for variable ', bdiff_varNameList( variableIndex )    
+        stddev( :, :, variableIndex) = homogeneous_std( variableIndex )
+      end do
        
     else
 
-       call utl_abort('BDIFF_RDSTATS: unknown stddevMode: '//trim(stddevMode))
+      call utl_abort( myName//': unknown stddevMode: '//trim(stddevMode) )
 
     end if
 
-    call BDIFF_scalestd
+    call bdiff_scalestd
 
+    write(*,*) myName//': END '
+    
   end subroutine bdiff_rdstats
 
-  subroutine bdiff_rdstd
+  subroutine bdiff_readBGstdField( hco_in, vco_in )
     !
-    !:Purpose: To read 2D stddev and store as 3D
+    !:Purpose: to read 2D background error standard deviation field
+    !          stored on Z, U or G grid and interpolate it to the analysis grid
     !
     implicit none
+    
+    ! Arguments
+    type(struct_hco), pointer, intent(in) :: hco_in 
+    type(struct_vco), pointer, intent(in) :: vco_in
 
-    integer :: jvar
-    integer :: ikey
-    real(8), allocatable :: rgsig2d(:,:)
+    ! locals
+    integer                     :: variableIndex, i, j
+    type(struct_gsv)            :: statevector
+    real(4),pointer             :: field3D_r4_ptr(:,:,:)
+    character(len=*), parameter :: myName = 'bdiff_readBGstdField'
 
-    ! standard file variables
-    integer :: ini,inj,ink
-    integer :: ip1,ip2,ip3
-    integer :: idate(100)
-    character(len=2)  :: cltypvar
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
+    write(*,*) myName//': Reading 2D fields from ./bgstddev...'
+    write(*,*) myName//': Number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
 
-!   Reading the data
+    call gsv_allocate( statevector, 1, hco_in, vco_in, dateStamp_opt = -1, dataKind_opt = 4, &
+                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = bdiff_varNameList( 1 : numvar2d ) )
+    call gsv_zero( statevector )
+    call gsv_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
 
-    idate(1) = -1
-    ip1      = -1
-    ip2      = -1
-    ip3      = -1
-
-    cletiket = 'STDDEV'
-    cltypvar = ' '
-
-    ! Reading for 2D variables
-
-    do jvar = 1, numvar2d
-
-       clnomvar = bdiff_varNameList(jvar)
-
-       allocate(rgsig2d(ni_l,nj_l))
-       rgsig2d(:,:) = 0.0D0
-
-       ikey = utl_fstlir(rgsig2d(:,:),nulbgst,ini,inj,ink, &
-                         idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-
-       if (ikey < 0) then
-          write(*,*) 'BDIFF_RDSTD: ',jvar, clnomvar, ikey
-          call utl_abort(': BDIFF_RDSTD record not found')
-       end if
-
-       stddev(:,:,jvar) = rgsig2d(:,:)
-
-       deallocate(rgsig2d)
-
+    do variableIndex = 1, numvar2d
+      field3D_r4_ptr   => gsv_getField3D_r4( statevector, bdiff_varNameList( variableIndex ) )
+      stddev( :, :, variableIndex ) = dble( field3D_r4_ptr( :, :, 1 ) )
+      write(*,*) myName//': variable ', bdiff_varNameList( variableIndex ),' min/max: ', &
+                 minval( stddev(:,:,variableIndex) ), maxval( stddev(:,:,variableIndex) )
     end do
+   
+    call gsv_deallocate( statevector )
 
-  end subroutine bdiff_rdstd
+  end subroutine bdiff_readBGstdField
+
 
   subroutine bdiff_scalestd
     !
@@ -369,60 +358,65 @@ CONTAINS
     !
     implicit none
 
-    integer :: jlon, jlat, jvar
-
-    do jvar = 1, numvar2d
-       do jlat = 1, nj_l
-          do jlon = 1, ni_l
-             stddev(jlon,jlat,jvar) = scaleFactor_sigma(jvar)*       &
-               stddev(jlon,jlat,jvar)
-          end do
-       end do
+    integer :: variableIndex
+    character(len=*), parameter :: myName = 'bdiff_scalestd'
+    
+    do variableIndex = 1, numvar2d
+       
+      write(*,*) myName//': scaling ', bdiff_varNameList( variableIndex ), ' STD field with the factor ',  scaleFactor_sigma( variableIndex )
+       
+      stddev( :, :, variableIndex ) = scaleFactor_sigma( variableIndex ) * stddev( : , : , variableIndex )
+      
     end do
 
   end subroutine bdiff_scalestd
 
 
-  SUBROUTINE BDIFF_bSqrt(controlVector_in, statevector)
+  subroutine bdiff_bSqrt( controlVector_in, statevector )
+    
     implicit none
 
-    real(8),          intent(in)    :: controlVector_in(cvDim_mpilocal)
+    real(8),          intent(in)    :: controlVector_in( cvDim_mpilocal )
     type(struct_gsv), intent(inout) :: statevector
 
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
-    integer :: jvar
-
-    if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bdiff_bsqrt: bMatrixDIFF not initialized'
+    integer :: variableIndex
+    character(len=*), parameter :: myName = 'bdiff_bSqrt'
+    
+    if( .not. initialized) then
+      if( mpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
       return
     end if
 
-    if(mpi_myid == 0) write(*,*) 'bdiff_bsqrt: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) myName//': starting'
+    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call bdiff_cain(controlVector_in, gd_in)
+    call bdiff_cain( controlVector_in, gd_in )
 
-    do jvar = 1, numvar2d
+    do variableIndex = 1, numvar2d
 
-       ! Apply square root of the diffusion operator.
-       call diff_Csqrt(diffID(jvar), gd_in(:,:,jvar), gd_out(:,:,jvar))
+      ! Apply square root of the diffusion operator.
+      write(*,*) myName//': applying square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
+      call diff_Csqrt( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex ) )
 
-       ! Multiply by the diagonal matrix of background-error standard deviations.
-       gd_out(:,:,jvar) = gd_out(:,:,jvar)*stddev(:,:,jvar)
+      ! Multiply by the diagonal matrix of background error standard deviations.
+      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
+      gd_out( :, :, variableIndex ) = gd_out( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
     end do
 
-    call copyToStatevector(statevector, gd_out)
+    call bdiff_copyToStatevector( statevector, gd_out )
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bdiff_bsqrt: done'
+    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) myName//': done'
 
-  END SUBROUTINE BDIFF_bSqrt
+  end subroutine bdiff_bSqrt
 
 
-  SUBROUTINE BDIFF_bSqrtAd(statevector, controlVector_out)
+  subroutine bdiff_bSqrtAd( statevector, controlVector_out )
+    
     implicit none
 
     type(struct_gsv), intent(in)  :: statevector
@@ -431,101 +425,110 @@ CONTAINS
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
-    integer :: jvar
+    integer :: variableIndex
+    character(len=*), parameter :: myName = 'bdiff_bSqrtAd'
 
-    if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bdiff_bsqrtad: bMatrixDIFF not initialized'
+    if ( .not. initialized ) then
+      if ( mpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
       return
     end if
 
-    if(mpi_myid == 0) write(*,*) 'bdiff_bsqrtad: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*)  myName//': starting'
+    if(mpi_myid == 0) write(*,*)  myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call copyFromStatevector(statevector, gd_in)
+    call bdiff_copyFromStatevector( statevector, gd_in )
 
-    do jvar = 1, numvar2d
+    do variableIndex = 1, numvar2d
 
-       ! Multiply by the diagonal matrix of background-error standard deviations.
-       gd_in(:,:,jvar) = gd_in(:,:,jvar)*stddev(:,:,jvar)
+      ! Multiply by the diagonal matrix of background-error standard deviations.
+      write(*,*) myName//': multiplying by the diagonal matrix of background error standard deviations.', bdiff_varNameList( variableIndex ) 
+      gd_in( :, :, variableIndex ) = gd_in( :, :, variableIndex ) * stddev( :, :, variableIndex )
 
-       ! Apply the adjoint of the square root of the diffusion operator.
-       call diff_Csqrtadj(diffID(jvar), gd_in(:,:,jvar), gd_out(:,:,jvar))
+      ! Apply the adjoint of the square root of the diffusion operator.
+      write(*,*) myName//': applying the adjoint of the square root of the diffusion operator, variable: ', bdiff_varNameList( variableIndex )
+      call diff_Csqrtadj( diffID( variableIndex ), gd_in( :, :, variableIndex ), gd_out( :, :, variableIndex) )
 
     end do
 
     call bdiff_cainad(gd_out, controlVector_out)
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bdiff_bsqrtad: done'
+    if ( mpi_myid == 0) write(*,*) myName//': Memory Used: ', get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0) write(*,*) myNAme//': done'
 
-  END SUBROUTINE BDIFF_bSqrtAd
+  end subroutine bdiff_bSqrtAd
 
 
-  SUBROUTINE copyToStatevector(statevector, gd)
+  subroutine bdiff_copyToStatevector ( statevector, gd )
+    
     implicit none
 
-    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
+    real(8),          intent(in)    :: gd( myLonBeg :myLonEnd, myLatBeg : myLatEnd, numvar2d )
     type(struct_gsv), intent(inout) :: statevector
 
-    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
+    integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
+    character(len=*), parameter :: myName = 'bdiff_copyToStatevector'
+    
+    do variableIndex = 1, numvar2d
 
-    do jvar = 1, numvar2d
+      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      field => gsv_getField3D_r8( statevector, bdiff_varNameList( variableIndex ) )
+      if(mpi_myid == 0) write(*,*) myName//': gsv_getField3D_r8 done.'
 
-       if(mpi_myid == 0) write(*,*) 'copyToStatevector: ',bdiff_varNameList(jvar)
-       field => gsv_getField3D_r8(statevector, bdiff_varNameList(jvar))
-       if(mpi_myid == 0) write(*,*) 'copyToStatevector: gsv_getField3D_r8 done.'
-
-       ilev1 = nsposit(jvar)
-       ilev2 = nsposit(jvar+1)-1 
+      ilev1 = nsposit( variableIndex )
+      ilev2 = nsposit( variableIndex + 1 ) - 1 
 
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-       do jlev = ilev1, ilev2
-          jlev2 = jlev-ilev1+1
-          do jlat = myLatBeg, myLatEnd
-             do jlon = myLonBeg, myLonEnd
-                field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
-             end do
+      do jlev = ilev1, ilev2
+        jlev2 = jlev-ilev1+1
+        do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd
+            field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
           end do
-       end do
+        end do
+      end do
 !!!$OMP END PARALLEL DO
     end do
 
-  END SUBROUTINE copyToStatevector
+  end subroutine bdiff_copyToStatevector
 
 
-  SUBROUTINE copyFromStatevector(statevector, gd)
+  subroutine bdiff_copyFromStatevector( statevector, gd )
+    
     implicit none
 
     type(struct_gsv), intent(in)  :: statevector
     real(8),          intent(out) :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
-    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
+    integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
+    character(len=*), parameter :: myName = 'bdiff_copyFromStatevector'
 
-    do jvar = 1, numvar2d
+    do variableIndex = 1, numvar2d
 
-       field => gsv_getField3D_r8(statevector, bdiff_varNameList(jvar))
-
-       ilev1 = nsposit(jvar)
-       ilev2 = nsposit(jvar+1)-1 
+      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      field => gsv_getField3D_r8(statevector, bdiff_varNameList( variableIndex ))
+      
+      ilev1 = nsposit( variableIndex )
+      ilev2 = nsposit( variableIndex + 1 ) - 1 
 
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-       do jlev = ilev1, ilev2
-          jlev2 = jlev-ilev1+1
-          do jlat = myLatBeg, myLatEnd
-             do jlon = myLonBeg, myLonEnd
-                gd(jlon,jlat,jlev) = field(jlon,jlat,jlev2)
-             end do
+      do jlev = ilev1, ilev2
+        jlev2 = jlev-ilev1+1
+        do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd
+            gd( jlon, jlat, jlev ) = field( jlon, jlat, jlev2 )
           end do
-       end do
+        end do
+      end do
 !!!$OMP END PARALLEL DO
     end do
 
-  END SUBROUTINE copyFromStatevector
+  end subroutine bdiff_copyFromStatevector
 
 
-  SUBROUTINE BDIFF_cain(controlVector_in, gd_out)
+  subroutine bdiff_cain( controlVector_in, gd_out )
+    
     implicit none
 
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
@@ -537,16 +540,17 @@ CONTAINS
     do jlev = 1, numvar2d
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-           jn = jn + 1
-           gd_out(jlon,jlat,jlev) = ControlVector_in(jn)
+          jn = jn + 1
+          gd_out( jlon, jlat, jlev ) = ControlVector_in( jn )
         end do
       end do
     end do
 
-  end SUBROUTINE BDIFF_cain
+  end subroutine bdiff_cain
 
 
-  SUBROUTINE BDIFF_cainAd(gd_in, diffControlVector_out)
+  subroutine bdiff_cainAd( gd_in, diffControlVector_out )
+    
     implicit none
 
     real(8), intent(in)  :: gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
@@ -558,27 +562,28 @@ CONTAINS
     do jlev = 1, numvar2d
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-           jn = jn + 1
-           diffControlVector_out(jn) = gd_in(jlon,jlat,jlev)
+          jn = jn + 1
+          diffControlVector_out(jn) = gd_in(jlon,jlat,jlev)
         end do
       end do
     end do
 
-  END SUBROUTINE BDIFF_cainAd
+  end subroutine bdiff_cainAd
 
 
-  SUBROUTINE BDIFF_Finalize()
+  subroutine bdiff_Finalize()
+    
     implicit none
 
-    if (initialized) then
-       initialized = .false.
-       deallocate(stddev)
-       deallocate(diffID)
-       deallocate(nsposit)
-       deallocate(bdiff_varNameList)
+    if ( initialized ) then
+      initialized = .false.
+      deallocate( stddev )
+      deallocate( diffID )
+      deallocate( nsposit )
+      deallocate( bdiff_varNameList )
     end if
 
-  END SUBROUTINE BDIFF_Finalize
+  end subroutine bdiff_Finalize
 
 
-END MODULE BmatrixDiff_mod
+end module BmatrixDiff_mod

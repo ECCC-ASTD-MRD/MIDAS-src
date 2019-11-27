@@ -25,7 +25,7 @@ module utilities_mod
   private
 
   ! public procedures
-  public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir, utl_fstecr
+  public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
@@ -546,6 +546,48 @@ contains
 
   end function utl_fstlir
 
+  function utl_fstlir_r4(fld_r4, iun, ni, nj, nk, datev, etiket, &
+       ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
+    implicit none
+
+    integer :: vfstlir
+    real(4) :: fld_r4(*)
+    integer :: iun, ni, nj, nk, datev, ip1, ip2, ip3
+    character(len=*) :: etiket
+    character(len=*) :: nomvar
+    character(len=*) :: typvar
+
+    integer :: key1,key2, ilen, jk1, jk2, jk3, la
+    real(4), allocatable :: buffer_r4(:)
+
+    integer :: fstluk, fstinf
+
+    !     Get field dimensions.
+    key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
+         ip1, ip2, ip3, typvar, nomvar)
+
+    if(key1 >= 0) then
+       ilen = ni*nj*nk
+       allocate(buffer_r4(ilen))
+       !     Read field
+       key2 = fstluk(buffer_r4, key1, ni, nj, nk)
+       if(key2 >= 0) then
+          do jk3 = 1,nk
+             do jk2 = 1,nj
+                do jk1 = 1,ni
+                   la=jk1+(jk2-1)*ni+(jk3-1)*ni*nj
+                   fld_r4(la) = buffer_r4(la)
+                end do
+             end do
+          end do
+       end if
+
+       deallocate(buffer_r4)
+    end if
+
+    vfstlir=key1
+
+  end function utl_fstlir_r4
 
   function utl_fstecr(fld8, npak, iun, dateo, deet, &
        npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
@@ -1801,7 +1843,7 @@ contains
     else
       found = .false.
     end if
-    
+
     if (openFile) then
       ierr =  fstfrm(unit)
       ierr =  fclos (unit)
