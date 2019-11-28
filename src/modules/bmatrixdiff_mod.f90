@@ -37,7 +37,7 @@ MODULE BmatrixDiff_mod
 
   ! public procedures
   public :: bdiff_Setup, bdiff_BSqrt, bdiff_BSqrtAd, bdiff_Finalize
-  !public :: bdiff_getScaleFactor
+  public :: bdiff_getScaleFactor
 
   logical             :: initialized = .false.
   integer             :: nj_l, ni_l
@@ -245,6 +245,23 @@ CONTAINS
 
   end subroutine bdiff_setup
 
+  
+  subroutine bdiff_getScaleFactor( scaleFactor_out )
+    
+    implicit none
+
+    real(8), intent(out) :: scaleFactor_out(:)
+
+    integer :: variableIndex
+
+    do variableIndex = 1, numvar2d
+       
+      scaleFactor_out( variableIndex ) = scaleFactor( variableIndex )
+       
+    end do
+
+  end subroutine bdiff_getScaleFactor
+  
 
   subroutine bdiff_rdstats( hco_in, vco_in )
     !
