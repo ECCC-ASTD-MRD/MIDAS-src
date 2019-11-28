@@ -183,8 +183,23 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    ! Do the background check and output the observation data files
+    ! Do the IR background check 
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
+
+    !  Write out contents of obsSpaceData into BURP files
+    call obsf_writeFiles(obsSpaceData)
+
+    !  Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+
+    do headerIndex =1, min(1,obs_numHeader(obsSpaceData))
+      call obs_prnthdr(obsSpaceData,headerIndex)
+      call obs_prntbdy(obsSpaceData,headerIndex)
+    end do
+
+    ! Deallocate obsSpaceData
+    call obs_finalize(obsSpaceData)
+
 
   ! ---ANALYSIS MODE--- !
   else if ( trim(varMode) == 'analysis' ) then
