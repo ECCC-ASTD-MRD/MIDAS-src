@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
- * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274, !262)
  * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to assimilate (log-transformed) precipitation in EnVar and LETKF (#267 and !252)
