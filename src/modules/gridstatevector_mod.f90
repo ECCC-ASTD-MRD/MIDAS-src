@@ -3080,7 +3080,7 @@ module gridStateVector_mod
         ! special case when only TM (Surface Temperature) is in the file:
         if ( .not. foundVarNameInFile ) then
           varname = 'TM'
-          if ( gsv_varExist( statevector_out, varname ) .and. &
+          if ( gsv_varExist( statevector, varname ) .and. &
                utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
             foundVarNameInFile = .true.
         end if   
