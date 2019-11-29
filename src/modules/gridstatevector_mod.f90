@@ -2548,17 +2548,26 @@ module gridStateVector_mod
       foundVarNameInFile = .true.
 
       exit
+      
     end do
+
+    ! to be safe for situations where, e.g. someone wants to only read MG from a file
+    if ( .not. foundVarNameInFile ) then
+      varname = 'P0'
+      if ( gsv_varExist( statevector_out, varname ) .and. &
+           utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+        foundVarNameInFile = .true.
+    end if   
 
     ! special case when only TM (Surface Temperature) is in the file:
     if ( .not. foundVarNameInFile ) then
       varname = 'TM'
       if ( gsv_varExist( statevector_out, varname ) .and. &
            utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
-      foundVarNameInFile = .true.
+        foundVarNameInFile = .true.
     end if   
     
-    if ( .not. foundVarNameInFile)  call utl_abort('gsv_readFromFile: NO variables found in the file!!!')
+    if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: NO variables found in the file!!!')
     
     write(*,*) 'gsv_readFromFile: defining hco by varname= ', varName
 
@@ -2974,6 +2983,10 @@ module gridStateVector_mod
       stepIndexEnd = statevector%numStep
     end if
 
+    if ( .not. associated( statevector % datestamplist )) then
+      call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
+    end if   
+
     !- Open input field
     nulfile = 0
     write(*,*) 'gsv_readFile: file name = ',trim(fileName)
@@ -3036,10 +3049,6 @@ module gridStateVector_mod
       end if
     end if
 
-    if ( .not. associated( statevector % datestamplist )) then
-      call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
-    end if   
-
     nullify(hco_file)
     nullify(gd2d_file_r4)
     if ( statevector%mykCount > 0 ) then
@@ -3061,6 +3070,14 @@ module gridStateVector_mod
 
           exit
         end do
+
+        ! to be safe for situations where, e.g. someone wants to only read MG from a file
+        if ( .not. foundVarNameInFile ) then
+          varname = 'P0'
+          if ( gsv_varExist( statevector_out, varname ) .and. &
+               utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+            foundVarNameInFile = .true.
+        end if 
 
         ! special case when only TM (Surface Temperature) is in the file:
         if ( .not. foundVarNameInFile ) then

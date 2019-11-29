@@ -344,7 +344,7 @@ CONTAINS
     type(struct_vco), pointer, intent(in) :: vco_in
 
     ! locals
-    integer                     :: variableIndex, i, j
+    integer                     :: variableIndex
     type(struct_gsv)            :: statevector
     real(4),pointer             :: field3D_r4_ptr(:,:,:)
     character(len=*), parameter :: myName = 'bdiff_readBGstdField'
