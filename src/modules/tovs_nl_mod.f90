@@ -4066,10 +4066,12 @@ contains
       count = 0
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if (bodyIndex < 0 ) then
-          if (count > 0 .and. rmat_lnondiagr) then
-            call rmat_sqrtRm1(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
-            dlsum =  dlsum + 0.5d0*dot_product(y(1:count),y(1:count))
+        if (bodyIndex < 0) then
+          if (count >0) then
+            if (rmat_lnondiagr) then
+              call rmat_sqrtRm1(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
+            end if
+            dlsum =  dlsum + 0.5d0 * dot_product(y(1:count), y(1:count))
           end if
           exit BODY
         end if
@@ -4104,19 +4106,20 @@ contains
         ! only needed for use of nonlinear obs operator in minimization, which is not yet
         ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
         !if (.not. min_lvarqc .or. obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex).eq.0.0d0) then
-        dlsum =  dlsum &
-             + (zdtb * zdtb) / (2.d0 * sigmaObs * sigmaObs)
+        !dlsum =  dlsum &
+        !     + (zdtb * zdtb) / (2.d0 * sigmaObs * sigmaObs)
         !else
         !  compute contribution of data with varqc
- 
         !   zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex)
         !   zjon = (zdtb* &
         !           zdtb)/2.d0
         !   zqcarg = zgami + exp(-1.0d0*zjon)
         !   dlsum= dlsum - log(zqcarg/(zgami+1.d0))
         !end if
+
         count = count + 1
         x(count) = zdtb
+        if (.not. rmat_lnondiagr) y(count) = x(count) / sigmaObs
         list_chan(count) = channelNumber
 
         inobsjo = inobsjo + 1
