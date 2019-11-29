@@ -3082,7 +3082,7 @@ module gridStateVector_mod
           varname = 'TM'
           if ( gsv_varExist( statevector_out, varname ) .and. &
                utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
-          foundVarNameInFile = .true.
+            foundVarNameInFile = .true.
         end if   
 
         if ( .not. foundVarNameInFile) call utl_abort('gsv_readFile: NO variable is in the file')
