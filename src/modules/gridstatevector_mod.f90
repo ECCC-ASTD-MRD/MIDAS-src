@@ -2554,8 +2554,7 @@ module gridStateVector_mod
     ! to be safe for situations where, e.g. someone wants to only read MG from a file
     if ( .not. foundVarNameInFile ) then
       varname = 'P0'
-      if ( gsv_varExist( statevector_out, varname ) .and. &
-           utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+      if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
         foundVarNameInFile = .true.
     end if   
 
@@ -3074,8 +3073,7 @@ module gridStateVector_mod
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
         if ( .not. foundVarNameInFile ) then
           varname = 'P0'
-          if ( gsv_varExist( statevector_out, varname ) .and. &
-               utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
             foundVarNameInFile = .true.
         end if 
 
