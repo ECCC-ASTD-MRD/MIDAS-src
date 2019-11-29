@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
+ * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274, !262)
+ * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to assimilate (log-transformed) precipitation in EnVar and LETKF (#267 and !252)
  * Add new functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
  * Add ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
