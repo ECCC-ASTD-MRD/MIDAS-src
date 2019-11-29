@@ -38,7 +38,8 @@ module obsFiles_mod
   use obsSubSpaceData_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
-
+  use burpread_mod
+   
   implicit none
   save
   private
@@ -49,6 +50,7 @@ module obsFiles_mod
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update, obsf_thinFiles
+  public :: obsf_addCloudParametersAndEmissivity
 
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
@@ -837,5 +839,38 @@ contains
     end if
 
   end function obsf_obsSub_update
+
+
+  !--------------------------------------------------------------------------
+  ! obsf_addCloudParametersAndEmissivity
+  !--------------------------------------------------------------------------
+  subroutine obsf_addCloudParametersAndEmissivity(obsSpaceData)
+    !
+    ! :Purpose: Loop on observation files to add cloud parameters and emissivity
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs)  :: obsSpaceData
+
+    ! Locals:
+    integer           :: fileIndex
+    character(len=10) :: obsFileType
+    
+    ! If obs files not split and I am not task 0, then return
+    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+    do fileIndex = 1, obsf_nfiles
+
+      write(*,*) 'INPUT FILE TO  obsf_addCloudParametersAndEmissivity= ', trim( obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( trim(obsFileType) /= 'BURP' ) then
+        write(*,*) 'obsFileType = ',obsFileType
+        call utl_abort('obsf_addCloudParametersAndEmissivity: this s/r is currently only compatible with BURP files')
+      else
+        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+      end if
+    end do
+
+  end subroutine obsf_addCloudParametersAndEmissivity
 
 end module obsFiles_mod
