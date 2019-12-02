@@ -25,6 +25,8 @@ module rMatrix_mod
   use mpivar_mod
   use rttov_const, only  : errorstatus_success
   use utilities_mod
+  use obsSpaceData_mod
+  use tovs_nl_mod
   implicit none
   private
   save
@@ -32,7 +34,7 @@ module rMatrix_mod
   ! public variables
   public :: rmat_lnondiagr
   ! public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1, rmat_RsqrtInverse
 
  type rmat_matrix
     real(8) ,pointer     :: Rmat(:,:)=>null()
@@ -324,5 +326,78 @@ module rMatrix_mod
     call tmg_stop(96)
 
   end subroutine rmat_sqrtRm1
+
+
+  !--------------------------------------------------------------------------
+  ! rmat_RsqrtInverse
+  !--------------------------------------------------------------------------
+  subroutine rmat_RsqrtInverse( obsSpaceData, elem_dest_i, elem_src_i )
+    !
+    !:Purpose: To apply observation-error variances to ROBDATA8(k_src,*) and to
+    !          store it in the elem_src_s of obsspacedata
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsspacedata
+    integer, intent(in)  :: elem_dest_i ! destination index
+    integer, intent(in)  :: elem_src_i  ! source index
+
+    ! Locals:
+    integer :: bodyIndex, headerIndex
+    integer :: idata, idatend, idatyp, count, ichn
+    real(8) :: x( tvs_maxChannelNumber ), y( tvs_maxChannelNumber )
+    integer :: list_chan( tvs_maxChannelNumber )
+
+    ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
+    do headerIndex =1, obs_numHeader(obsspacedata)
+
+      idata   = obs_headElem_i( obsspacedata, OBS_RLN, headerIndex )
+      idatend = obs_headElem_i( obsspacedata, OBS_NLV, headerIndex ) + idata - 1
+      idatyp  = obs_headElem_i( obsspacedata, OBS_ITY, headerIndex )
+
+      if ( tvs_isIdBurpTovs(idatyp) .and. rmat_lnondiagr ) then
+
+        count = 0
+
+        do bodyIndex = idata, idatend
+
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+            ichn = nint( obs_bodyElem_r( obsspacedata, OBS_PPP, bodyIndex ))
+            ichn = max( 0, min( ichn, tvs_maxChannelNumber + 1 ))
+            count = count + 1
+            list_chan( count ) = ichn
+            x( count ) = obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex )
+          end if
+        
+        end do
+
+        if ( count > 0 .and. tvs_tovsIndex( headerIndex ) > 0 ) then
+
+          call rmat_sqrtRm1( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_tovsIndex(headerIndex) )
+
+          count = 0
+          do bodyIndex = idata, idatend
+
+            if ( obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+              count = count + 1
+              call obs_bodySet_r(obsspacedata, elem_dest_i, bodyIndex,y(count))
+            end if
+          end do
+
+        end if
+
+      else
+
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+            call obs_bodySet_r( obsspacedata, elem_dest_i, bodyIndex, &
+                     obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex) / obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex ))
+          end if
+        end do
+       end if
+
+    end do
+
+  end subroutine rmat_RsqrtInverse
 
 end module rMatrix_mod
