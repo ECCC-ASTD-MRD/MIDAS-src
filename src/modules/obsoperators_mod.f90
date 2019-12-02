@@ -1710,7 +1710,9 @@ contains
     jobs = 0.0d0
 
     if ( beSilent ) llprint = .false.
-    call tvs_calc_jo(jobs,llprint,obsSpaceData,destObs)
+    call tvs_computeNlTovsJo(jobs, obsSpaceData, destObs)
+    if (llprint) call tvs_printDetailledOmfStatistics(obsSpaceData)
+
 
   end subroutine oop_tovs_nl
 
