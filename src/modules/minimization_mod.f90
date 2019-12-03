@@ -1037,7 +1037,7 @@ CONTAINS
 
        call bias_calcbias_tl(da_v,nvadim_mpilocal,OBS_OMA,obsSpaceData,columng)
 
-       call rmat_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
 
        call cfn_calcJo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
 
@@ -1056,7 +1056,7 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call rmat_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
           call vqc_ad(obsSpaceData)

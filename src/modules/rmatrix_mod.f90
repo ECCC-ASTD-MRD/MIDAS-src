@@ -34,7 +34,7 @@ module rMatrix_mod
   ! public variables
   public :: rmat_lnondiagr
   ! public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1, rmat_RsqrtInverse
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
 
  type rmat_matrix
     real(8) ,pointer     :: Rmat(:,:)=>null()
@@ -251,7 +251,7 @@ module rMatrix_mod
   end subroutine rmat_readCMatrixByFileName
 
 
-  subroutine rmat_sqrtRm1(sensor_id,nsubset,x,y,list_sub,indexTovs)
+  subroutine rmat_RsqrtInverseOneObs(sensor_id,nsubset,x,y,list_sub,indexTovs)
     !
     ! :Purpose: Apply the operator R**-1/2 to x
     !           result in y for the subset of channels specified
@@ -279,7 +279,7 @@ module rMatrix_mod
         R => R_inst(sensor_id)
       else 
         write(*,*) "invalid sensor_id",sensor_id,size(R_inst)
-        call utl_abort('rmat_sqrtRm1')
+        call utl_abort('rmat_RsqrtInverseOneObs')
       end if
 
       index = -1
@@ -295,7 +295,7 @@ module rMatrix_mod
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
         write(*,*) index(:)
-        call utl_abort('rmat_sqrtRm1')
+        call utl_abort('rmat_RsqrtInverseOneObs')
       end if
       R_tovs(indexTovs)%nchans = nsubset
       allocate(R_tovs(indexTovs)%listChans(nsubset))
@@ -325,13 +325,13 @@ module rMatrix_mod
     call dsymv("L", nsubset, alpha, R_tovs(indexTovs)%Rmat, nsubset,x, 1, beta, y, 1)
     call tmg_stop(96)
 
-  end subroutine rmat_sqrtRm1
+  end subroutine rmat_RsqrtInverseOneObs
 
 
   !--------------------------------------------------------------------------
-  ! rmat_RsqrtInverse
+  ! rmat_RsqrtInverseAllObs
   !--------------------------------------------------------------------------
-  subroutine rmat_RsqrtInverse( obsSpaceData, elem_dest_i, elem_src_i )
+  subroutine rmat_RsqrtInverseAllObs( obsSpaceData, elem_dest_i, elem_src_i )
     !
     !:Purpose: To apply observation-error variances to ROBDATA8(k_src,*) and to
     !          store it in the elem_src_s of obsspacedata
@@ -373,7 +373,7 @@ module rMatrix_mod
 
         if ( count > 0 .and. tvs_tovsIndex( headerIndex ) > 0 ) then
 
-          call rmat_sqrtRm1( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_tovsIndex(headerIndex) )
+          call rmat_RsqrtInverseOneObs( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_tovsIndex(headerIndex) )
 
           count = 0
           do bodyIndex = idata, idatend
@@ -398,6 +398,6 @@ module rMatrix_mod
 
     end do
 
-  end subroutine rmat_RsqrtInverse
+  end subroutine rmat_RsqrtInverseAllObs
 
 end module rMatrix_mod

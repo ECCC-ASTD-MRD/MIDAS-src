@@ -283,7 +283,7 @@ contains
         if (bodyIndex < 0) then
           if (count >0) then
             if (rmat_lnondiagr) then
-              call rmat_sqrtRm1(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
+              call rmat_RsqrtInverseOneObs(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
             end if
             dlsum =  dlsum + 0.5d0 * dot_product(y(1:count), y(1:count))
           end if
