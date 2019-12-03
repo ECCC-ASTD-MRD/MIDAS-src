@@ -3452,27 +3452,27 @@ CONTAINS
                   call utl_abort('brpr_addCloudParametersandEmissivity')
                 end if
 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ETOP,idata2),nbele+1,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ETOP,idata2)),nbele+1,1,k)
 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_VTOP,idata2),nbele+2,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VTOP,idata2)),nbele+2,1,k)
 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ECF,idata2),nbele+3,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ECF,idata2)),nbele+3,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_VCF,idata2),nbele+4,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_VCF,idata2)),nbele+4,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_HE,idata2),nbele+5,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_HE,idata2)),nbele+5,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTSR,idata2),nbele+6,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTSR,idata2)),nbele+6,1,k)
                 
                 call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_NCO2,idata2),nbele+7,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTM,idata2),nbele+8,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTM,idata2)),nbele+8,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2),nbele+9,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZTGM,idata2)),nbele+9,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2),nbele+10,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZLQM,idata2)),nbele+10,1,k)
                 
-                call Insert_into_burp_r8(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2),nbele+11,1,k)
+                call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_ZPS,idata2)),nbele+11,1,k)
                 
                 call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,k)
                                 
@@ -3481,7 +3481,7 @@ CONTAINS
               else
 
                 do i = 1, 11
-                  call Insert_into_burp_r8(-1.d0,nbele + i,1,k)
+                  call Insert_into_burp_r4(-1.0,nbele + i,1,k)
                 end do
 
                 call Insert_into_burp_i(-1,ind008012,1,k)
@@ -3532,7 +3532,7 @@ CONTAINS
                          NVAL_IND = l,                &
                          NT_IND   = k)
                     if (ichn==ichnb) then
-                      call Insert_into_burp_r8(emisfc,nbele+1,l,k)
+                      call Insert_into_burp_r4(sngl(emisfc), nbele+1, l, k)
                       exit bl
                     end if
                   end do bl
@@ -3684,23 +3684,23 @@ CONTAINS
     end subroutine handle_error
 
 
-    subroutine Insert_into_burp_r8( r8val, pele, pval, pt )
+    subroutine Insert_into_burp_r4( r4val, pele, pval, pt )
 
       implicit none
 
-      real(8), intent(in) :: r8val
+      real(4), intent(in) :: r4val
       integer, intent(in) :: pele
       integer, intent(in) :: pval
       integer, intent(in) :: pt
 
       integer :: error
       
-      if ( r8val >= 0.d0 ) then
+      if ( r4val >= 0. ) then
         call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
-             RVAL     = sngl(r8val), &
+             RVAL     = r4val, &
              iostat   = error)
       else
         call BURP_Set_Rval(inputBlock, &
@@ -3711,11 +3711,11 @@ CONTAINS
              iostat   = error)
       end if
       if (error/=burp_noerr) then
-        Write(*,*) "r8val,pele,pval,pt",r8val,pele,pval,pt
-        call handle_error("Insert_into_burp_r8")
+        Write(*,*) "r4val,pele,pval,pt",r4val,pele,pval,pt
+        call handle_error("Insert_into_burp_r4")
       end if
 
-    end subroutine Insert_into_burp_r8
+    end subroutine Insert_into_burp_r4
 
     subroutine Insert_into_burp_i( ival, pele, pval, pt )
       !
