@@ -37,7 +37,7 @@ module obsOperators_mod
   use chem_obsoperators_mod
   use verticalCoord_mod
   use varNameList_mod
-
+  use costfunction_mod
   implicit none
   save
   private
@@ -1709,8 +1709,9 @@ contains
     end if
     jobs = 0.0d0
 
+    call cfn_computeNlTovsJo(jobs, obsSpaceData, destObs)
     if ( beSilent ) llprint = .false.
-    call tvs_calc_jo(jobs,llprint,obsSpaceData,destObs)
+    if (llprint) call tvs_printDetailledOmfStatistics(obsSpaceData)
 
   end subroutine oop_tovs_nl
 

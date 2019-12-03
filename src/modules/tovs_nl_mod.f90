@@ -71,7 +71,6 @@ module tovs_nl_mod
   use presProfileOperators_mod
   use tovs_extrap_mod
   use mod_rttov_emis_atlas
-  use rMatrix_mod 
   use verticalCoord_mod
   use codePrecision_mod
 
@@ -103,7 +102,7 @@ module tovs_nl_mod
   public :: tvs_radiance, tvs_surfaceParameters
 
   ! public procedures
-  public :: tvs_fillProfiles, tvs_rttov, tvs_calc_jo, tvs_allocTransmission
+  public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
@@ -3997,47 +3996,38 @@ contains
   end subroutine broadcastI41dArray
 
   !--------------------------------------------------------------------------
-  !  tvs_calc_jo
+  !   tvs_printDetailledOmfStatistics
   !--------------------------------------------------------------------------
-  subroutine tvs_calc_jo(pjo,llprint,obsSpaceData,dest_obs)
+  subroutine tvs_printDetailledOmfStatistics(obsSpaceData)
     !
-    ! *Purpose*: Computation of Jo and the residuals to the tovs observations
+    ! *Purpose*: Print channel by channnel O-F statistics fro radiances
     !
     implicit none
 
     !Arguments:
-    real(8),          intent(out)   :: pjo          ! Computed Tovs observation cost fucntion
-    logical,          intent(in)    :: llprint      ! Logical flag to control printout by channel
     type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
-    integer,          intent(in)    :: dest_obs     ! obsSpaceData body destinationcolumn (ex: OBS_OMP or OBS_OMA)
 
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(OBS_REAL) :: zdtb
-    integer j, i, nchanperline, indxs, indxe
-    integer inobsjo, incanjo
+    integer nchanperline, startChannel, endChannel
+    integer count, incanjo
     integer idatyp
-    integer channelNumber, ichobs_a
+    integer rttovChannelNumber, bufrChannelNumber
     integer inobsch(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer lcanjo(tvs_maxChannelNumber)
     integer :: headerIndex, bodyIndex
-    real(8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
-    real(8) :: sigmaObs, dlsum
-    integer :: list_chan(tvs_maxChannelNumber)
-    integer :: count
+    real(8) :: sigmaObs
 
-    if ( llprint ) write(*,*) "Entering tvs_calc_jo subroutine"
-
-    pjo = 0.d0
+    write(*,*) "Entering  tvs_printDetailledOmfStatistics subroutine"
 
     if ( tvs_nobtov == 0) return    ! exit if there are not tovs data
 
     ! 1.  Computation of (hx - z)/sigma for tovs data only
 
-    dlsum    = 0.d0
-    inobsjo  = 0
+    count  = 0
     inobsch(:,:) = 0
     zjoch  (:,:) = 0.0d0
     zavgnrm(:,:) = 0.0d0
@@ -4066,66 +4056,39 @@ contains
       count = 0
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if (bodyIndex < 0 ) then
-          if (count > 0 .and. rmat_lnondiagr) then
-            call rmat_sqrtRm1(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
-            dlsum =  dlsum + 0.5d0*dot_product(y(1:count),y(1:count))
-          end if
-          exit BODY
-        end if
-
+        if (bodyIndex < 0) exit BODY
+        
         ! Only consider if flagged for assimilation
         if ( obs_bodyElem_i(obsSpaceData,obs_aSS,bodyIndex) /= obs_assimilated ) cycle BODY                
 
-        channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
-        ichobs_a = channelNumber
-        channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
+        bufrChannelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+        bufrChannelNumber = max( 0 , min( bufrChannelNumber , tvs_maxChannelNumber + 1))
+        rttovChannelNumber = bufrChannelNumber - tvs_channelOffset(sensorIndex)
+        channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex), tvs_nchan(sensorIndex),  rttovChannelNumber)
         if ( channelIndex == 0 ) then
-          write(*,'(A)') ' tvs_calc_jo: error with channel number'
-          call utl_abort('tvs_calc_jo')
+          write(*,'(A)') '  tvs_printDetailledOmfStatistics: error with channel number'
+          call utl_abort(' tvs_printDetailledOmfStatistics')
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance (tovsIndex) % bt(channelIndex)
         if ( tvs_debug ) then
-          write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
-               channelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
+          write(*,'(a,i4,2f8.2,f6.2)') ' rttovChannelNumber,sim,obs,diff= ', &
+               rttovChannelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
                obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex), -zdtb
         end if
-        call obs_bodySet_r(obsSpaceData,dest_obs,bodyIndex, zdtb)
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
         if ( sigmaObs == MPC_missingValue_R8) cycle body
 
-        ! Comment out the modification of Jobs due to varqc for now, since this is probably
-        ! only needed for use of nonlinear obs operator in minimization, which is not yet
-        ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
-        !if (.not. min_lvarqc .or. obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex).eq.0.0d0) then
-        dlsum =  dlsum &
-             + (zdtb * zdtb) / (2.d0 * sigmaObs * sigmaObs)
-        !else
-        !  compute contribution of data with varqc
- 
-        !   zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,bodyIndex)
-        !   zjon = (zdtb* &
-        !           zdtb)/2.d0
-        !   zqcarg = zgami + exp(-1.0d0*zjon)
-        !   dlsum= dlsum - log(zqcarg/(zgami+1.d0))
-        !end if
         count = count + 1
-        x(count) = zdtb
-        list_chan(count) = channelNumber
-
-        inobsjo = inobsjo + 1
-        inobsch(ichobs_a,SensorIndex) = inobsch(ichobs_a,SensorIndex) + 1
-        zjoch(ichobs_a,SensorIndex)   = &
-             zjoch(ichobs_a,SensorIndex) &
+        inobsch(bufrChannelNumber,sensorIndex) = inobsch(bufrChannelNumber,sensorIndex) + 1
+        zjoch(bufrChannelNumber,sensorIndex)   = &
+             zjoch(bufrChannelNumber,sensorIndex) &
              + zdtb * zdtb / (sigmaObs * sigmaObs)
-        zavgnrm(ichobs_a,SensorIndex)   = &
-             zavgnrm(ichobs_a,SensorIndex) - &
+        zavgnrm(bufrChannelNumber,sensorIndex)   = &
+             zavgnrm(bufrChannelNumber,sensorIndex) - &
              zdtb / sigmaObs
       end do BODY
 
@@ -4134,60 +4097,50 @@ contains
     !   2.  Close up, print summary
     !   .   -----------------------
 
-    pjo = dlsum
-
-    if ( pjo == 0.d0) return
-
 
     ! printout of mean jo and normalized average for each sensor.
 
     nchanperline = 18
-    if ( llprint .and. inobsjo > 0 ) then
+    if ( count > 0 ) then
       write(*,*)
       write(*,*)
-      write(*,'(10x,A)') "-tvs_calc_jo: computing jo and residuals to tovs  observations"
+      write(*,'(10x,A)') "- tvs_printDetailledOmfStatistics: computing jo and residuals to tovs  observations"
 
       do sensorIndex = 1, tvs_nsensors
-        do i = 1, tvs_maxChannelNumber
-          inobsch(0,sensorIndex) = inobsch(0,sensorIndex) + &
-               inobsch(i,sensorIndex)
-          zjoch(0,sensorIndex)   = zjoch(0,sensorIndex) + &
-               zjoch(i,sensorIndex)
-          zavgnrm(0,sensorIndex) = zavgnrm(0,sensorIndex) + &
-               zavgnrm(i,sensorIndex)
-        end do
+        inobsch(0,sensorIndex) = sum ( inobsch(1:,sensorIndex) )
+        zjoch(0,sensorIndex) = sum( zjoch(1:,sensorIndex) )
+        zavgnrm(0,sensorIndex) = sum( zavgnrm(1:,sensorIndex) )
       end do
 
       do sensorIndex = 1, tvs_nsensors
         incanjo = 0
-        do i = 0, tvs_maxChannelNumber
-          if ( inobsch(i,sensorIndex) /= 0 ) then
+        do channelIndex = 0, tvs_maxChannelNumber
+          if ( inobsch(channelIndex, sensorIndex) /= 0 ) then
             incanjo = incanjo + 1
-            lcanjo(incanjo) = i
+            lcanjo(incanjo) = channelIndex
           end if
         end do
         if ( incanjo /= 0 ) then
           write(*,'(/1x,"sensor #",i2,". platform: ",a, "instrument: ",a)') &
                sensorIndex, tvs_satelliteName(sensorIndex), tvs_instrumentName(sensorIndex)
-          do j = 1, incanjo, nchanperline
-            indxs = j
-            indxe = min(j + nchanperline - 1 , incanjo)
-            if ( j == 1 ) then
-              write(*,'(1x,"channel",t13,"   all",17i6)') (lcanjo(i),i=indxs+1,indxe)
+          do startChannel = 1, incanjo, nchanperline
+            endChannel = min(startChannel + nchanperline - 1 , incanjo)
+            if ( startChannel == 1 ) then
+              write(*,'(1x,"channel",t13,"   all",17i6)') (lcanjo(channelIndex), channelIndex=startChannel+1, endChannel)
             else
-              write(*,'(1x,"channel",t13,18i6)') (lcanjo(i),i=indxs,indxe)
+              write(*,'(1x,"channel",t13,18i6)') (lcanjo(channelIndex), channelIndex=startChannel, endChannel)
             end if
-            write(*,'(1x,"no. obs.",t13,18i6)') (inobsch(lcanjo(i),sensorIndex),i=indxs,indxe)
+            write(*,'(1x,"no. obs.",t13,18i6)') (inobsch(lcanjo(channelIndex),sensorIndex), channelIndex=startChannel, endChannel)
             write(*,'(1x,"mean jo",t13,18f6.2)') &
-                 (zjoch(lcanjo(i),sensorIndex)/max(1,inobsch(lcanjo(i),sensorIndex)) ,i=indxs,indxe)
+                 (zjoch(lcanjo(channelIndex),sensorIndex)/max(1,inobsch(lcanjo(channelIndex),sensorIndex)), channelIndex=startChannel,endChannel)
             write(*,'(1x,"norm. bias",t13,18f6.2,/)') &
-                 (zavgnrm(lcanjo(i),sensorIndex)/max(1,inobsch(lcanjo(i),sensorIndex)) ,i=indxs,indxe)
+                 (zavgnrm(lcanjo(channelIndex),sensorIndex)/max(1,inobsch(lcanjo(channelIndex), sensorIndex)) , channelIndex=startChannel, endChannel)
           end do
         end if
       end do
     end if
 
-  end subroutine tvs_calc_jo
+  end subroutine  tvs_printDetailledOmfStatistics
 
   !--------------------------------------------------------------------------
   !  tvs_getChannelIndexFromChannelNumber
