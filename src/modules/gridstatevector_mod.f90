@@ -2523,16 +2523,17 @@ module gridStateVector_mod
       if ( readSubsetOfLevels ) then
         ! use the output vertical grid provided to read only a subset of the verical levels
         write(*,*)
-        write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels'
+        write(*,*) 'gsv_readFromFile: read only a subset of the vertical levels', trim(fileName)
         call vco_deallocate(vco_file)
         vco_file => statevector_out%vco
       else
         write(*,*)
-        write(*,*) 'gsv_readFromFile: all the vertical levels will be read'
+        write(*,*) 'gsv_readFromFile: all the vertical levels will be read from ', trim(fileName) 
       end if
     end if
 
     foundVarNameInFile = .false.
+
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
 
@@ -2547,15 +2548,29 @@ module gridStateVector_mod
       foundVarNameInFile = .true.
 
       exit
+      
     end do
 
-    if ( .not. foundVarNameInFile) then
-      varName = 'P0'
-      if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) call utl_abort('gsv_readFromFile: variable does not exist to read from file')
-    end if
+    ! special case when only TM (Surface Temperature) is in the file:
+    if ( .not. foundVarNameInFile ) then
+      varname = 'TM'
+      if ( gsv_varExist( statevector_out, varname ) .and. &
+           utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+        foundVarNameInFile = .true.
+    end if   
+     
+    ! to be safe for situations where, e.g. someone wants to only read MG from a file
+    if ( .not. foundVarNameInFile ) then
+      varname = 'P0'
+      if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+        foundVarNameInFile = .true.
+    end if   
+
+    if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: NO variables found in the file!!!')
+    
     write(*,*) 'gsv_readFromFile: defining hco by varname= ', varName
 
-    call hco_setupFromFile(hco_file,trim(fileName), ' ',gridName_opt='FILEGRID',varName_opt=varName)
+    call hco_setupFromFile( hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName )
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     if (readSubsetOfLevels) then
@@ -2967,6 +2982,10 @@ module gridStateVector_mod
       stepIndexEnd = statevector%numStep
     end if
 
+    if ( .not. associated( statevector % datestamplist )) then
+      call utl_abort('gsv_readFile: datestamplist of statevector is not associated with a target!')
+    end if   
+
     !- Open input field
     nulfile = 0
     write(*,*) 'gsv_readFile: file name = ',trim(fileName)
@@ -3018,7 +3037,7 @@ module gridStateVector_mod
         ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                     -1,etiket_in,ip1,-1,-1,  &
                     typvar_var,varName)
-        if (ierr.lt.0) then
+        if ( ierr < 0 ) then
           write(*,*) 'ip1 = ',ip1
           write(*,*) 'etiket_in = ',etiket_in
           write(*,*) 'typvar_var = ',typvar_var
@@ -3043,7 +3062,7 @@ module gridStateVector_mod
           ! make sure variable is in the file
           if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
 
-          ! adopt a variable on the full/dynamic LAM grid
+          !! adopt a variable on the full/dynamic LAM grid
           if ( (trim(varName) == 'TM'   .or. trim(varName) == 'MG' ) ) cycle
 
           foundVarNameInFile = .true.
@@ -3051,9 +3070,26 @@ module gridStateVector_mod
           exit
         end do
 
-        if ( .not. foundVarNameInFile) call utl_abort('gsv_readFile: variable does not exist to read from file')
+        ! special case when only TM (Surface Temperature) is in the file:
+        if ( .not. foundVarNameInFile ) then
+          varname = 'TM'
+          if ( gsv_varExist( statevector, varname ) .and. &
+               utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+            foundVarNameInFile = .true.
+        end if   
+
+
+        ! to be safe for situations where, e.g. someone wants to only read MG from a file
+        if ( .not. foundVarNameInFile ) then
+          varname = 'P0'
+          if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+            foundVarNameInFile = .true.
+        end if 
+
+        if ( .not. foundVarNameInFile) call utl_abort('gsv_readFile: NO variable is in the file')
 
         call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
+        
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
         hco_file => statevector%hco
