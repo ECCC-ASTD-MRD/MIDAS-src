@@ -2551,13 +2551,6 @@ module gridStateVector_mod
       
     end do
 
-    ! to be safe for situations where, e.g. someone wants to only read MG from a file
-    if ( .not. foundVarNameInFile ) then
-      varname = 'P0'
-      if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
-        foundVarNameInFile = .true.
-    end if   
-
     ! special case when only TM (Surface Temperature) is in the file:
     if ( .not. foundVarNameInFile ) then
       varname = 'TM'
@@ -2565,7 +2558,14 @@ module gridStateVector_mod
            utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
         foundVarNameInFile = .true.
     end if   
-    
+     
+    ! to be safe for situations where, e.g. someone wants to only read MG from a file
+    if ( .not. foundVarNameInFile ) then
+      varname = 'P0'
+      if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+        foundVarNameInFile = .true.
+    end if   
+
     if ( .not. foundVarNameInFile) call utl_abort('gsv_readFromFile: NO variables found in the file!!!')
     
     write(*,*) 'gsv_readFromFile: defining hco by varname= ', varName
@@ -3070,13 +3070,6 @@ module gridStateVector_mod
           exit
         end do
 
-        ! to be safe for situations where, e.g. someone wants to only read MG from a file
-        if ( .not. foundVarNameInFile ) then
-          varname = 'P0'
-          if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
-            foundVarNameInFile = .true.
-        end if 
-
         ! special case when only TM (Surface Temperature) is in the file:
         if ( .not. foundVarNameInFile ) then
           varname = 'TM'
@@ -3084,6 +3077,14 @@ module gridStateVector_mod
                utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
             foundVarNameInFile = .true.
         end if   
+
+
+        ! to be safe for situations where, e.g. someone wants to only read MG from a file
+        if ( .not. foundVarNameInFile ) then
+          varname = 'P0'
+          if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+            foundVarNameInFile = .true.
+        end if 
 
         if ( .not. foundVarNameInFile) call utl_abort('gsv_readFile: NO variable is in the file')
 
