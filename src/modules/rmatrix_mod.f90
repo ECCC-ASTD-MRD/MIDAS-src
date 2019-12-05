@@ -34,7 +34,7 @@ module rMatrix_mod
   ! public variables
   public :: rmat_lnondiagr
   ! public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
 
  type rmat_matrix
     real(8) ,pointer     :: Rmat(:,:)=>null()
@@ -42,8 +42,7 @@ module rMatrix_mod
     integer              :: nchans=0
  END type rmat_matrix
 
-  type(rmat_matrix),target,allocatable  :: R_inst(:) ! non diagonal Covariance matrices (R) for each instrument
-  type(rmat_matrix),target,allocatable  :: C_inst(:) ! non diagonal Correlation matrices for each instrument
+  type(rmat_matrix),target,allocatable  :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
   type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances
  
   logical :: rmat_lnondiagr
@@ -74,8 +73,7 @@ module rMatrix_mod
     if (mpi_myid == 0) write(*,nml=namrmat)
     ierr = fclos(nulnam)
     if (rmat_lnonDiagR) then
-      allocate(R_inst(nsensors))
-      allocate(C_inst(nsensors))
+      allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(nobtovs))
     end if
 
@@ -84,8 +82,7 @@ module rMatrix_mod
   subroutine rmat_cleanup()
     implicit none
     if (rmat_lnondiagr) then
-      deallocate(R_inst)
-      deallocate(C_inst)
+      deallocate(Rcorr_inst)
       deallocate(R_tovs)
     end if
   end subroutine rmat_cleanup
@@ -107,59 +104,13 @@ module rMatrix_mod
     
     if (err == errorstatus_success) then
        filename = trim(filename) // ".dat"
-       call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
+       call rmat_readCMatrixByFileName(filename,Rcorr_inst(sensor_id), ichan )
     else
       write(*,*) "Unknown instrument ",instrument(:)
       call utl_abort("rmat_read_C_matrix")
     end if
     
   end subroutine rmat_readCMatrix
-
-  subroutine rmat_setFullRMatrix(sigma,sensor_id,offset)
-    implicit none
-   
-    ! Arguments:
-    integer, intent (in) :: sensor_id
-    integer, intent (in) :: offset
-    real(8), intent (in) :: sigma(:)
-
-    ! locals
-    integer :: i,j,ii,jj,nsigma
-    real (8) :: product
-
-    write(*,*) "rmat_setFullRMatrix: "
-
-    write(*,*) "sensor_id:",sensor_id
-
-    nsigma = size( sigma )
-    if (nsigma < 1) then
-      write(*,*) "rmat_setFullRMatrix: Strange sigma array size",nsigma
-      write(*,*) "Please check !"
-      return
-    end if
-
-    R_inst(sensor_id) % nchans  =  C_inst(sensor_id) % nchans
-    if ( R_inst(sensor_id) % nchans == 0) return  
-    allocate( R_inst(sensor_id)%Rmat(R_inst(sensor_id) % nchans,R_inst(sensor_id) % nchans) )
-    allocate( R_inst(sensor_id)%listChans(R_inst(sensor_id) % nchans) )
-    
-    R_inst(sensor_id)%listChans(:) = C_inst(sensor_id)%listChans(:)
-
-    do i=1,C_inst(sensor_id)%nchans
-      ii = R_inst(sensor_id)%listChans(i) + offset
-      do j=1,C_inst(sensor_id)%nchans
-        jj = R_inst(sensor_id)%listChans(j) + offset
-        product = sigma(ii) * sigma(jj)
-        if (product <= 0.) then
-          write(*,*) "Invalid variance: missing channel in stat_tovs !"
-          write(*,*) ii,jj,offset,sigma(ii),sigma(jj)
-          call utl_abort('rmat_setFullRMatrix')
-        end if
-        R_inst(sensor_id)%Rmat(i,j) = product * C_inst(sensor_id)%Rmat(i,j)
-      end do
-    end do
-
-  end subroutine rmat_setFullRMatrix
 
 
   subroutine rmat_readCMatrixByFileName(infile,C,chanList_opt)
@@ -251,7 +202,7 @@ module rMatrix_mod
   end subroutine rmat_readCMatrixByFileName
 
 
-  subroutine rmat_RsqrtInverseOneObs(sensor_id,nsubset,x,y,list_sub,indexTovs)
+  subroutine rmat_RsqrtInverseOneObs(sensor_id,nsubset,x,y,list_sub,list_oer,indexTovs)
     !
     ! :Purpose: Apply the operator R**-1/2 to x
     !           result in y for the subset of channels specified
@@ -263,29 +214,27 @@ module rMatrix_mod
     integer , intent (in) :: sensor_id
     integer , intent (in) :: nsubset
     integer , intent(in)  :: list_sub(nsubset)
+    real(8) , intent(in)  :: list_oer(nsubset)
     real(8) , intent(in)  :: x(nsubset)
     real(8) , intent(out) :: y(nsubset)
     integer , intent(in)  :: indexTovs
 
     ! locals
-    real (8) :: Rsub(nsubset,nsubset),alpha,beta
+    real (8) :: Rsub(nsubset,nsubset), alpha, beta, product 
     integer :: index(nsubset)
     integer :: i,j
-    type(rmat_matrix),pointer :: R
 
     if (R_tovs(indexTovs)%nchans == 0) then
 
-      if (sensor_id > 0 .and. sensor_id <= size(R_inst)) then
-        R => R_inst(sensor_id)
-      else 
-        write(*,*) "invalid sensor_id",sensor_id,size(R_inst)
+      if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
+        write(*,*) "invalid sensor_id",sensor_id,size(Rcorr_inst)
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
 
       index = -1
       do i=1,nsubset
-        bj: do j=1,R%nchans
-          if (list_sub(i) == R%listChans(j)) then
+        bj: do j = 1, Rcorr_inst(sensor_id)%nchans
+          if (list_sub(i) == Rcorr_inst(sensor_id)%listChans(j)) then
             index(i) = j
             exit bj 
           end if
@@ -302,10 +251,11 @@ module rMatrix_mod
       R_tovs(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
       do j=1,nsubset
         do i=1,nsubset
-          Rsub(i,j) = R%Rmat(index(i),index(j))
+          product = list_oer(i) * list_oer(j)
+          Rsub(i,j) = product * Rcorr_inst(sensor_id)%Rmat(index(i),index(j))
         end do
       end do
-      ! Calculation of R**-1/2
+      ! Calculation of Rcorr**-1/2
       call tmg_start(95,'RMAT_MATSQRT')
       call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call tmg_stop(95)
@@ -347,6 +297,7 @@ module rMatrix_mod
     integer :: idata, idatend, idatyp, count, ichn
     real(8) :: x( tvs_maxChannelNumber ), y( tvs_maxChannelNumber )
     integer :: list_chan( tvs_maxChannelNumber )
+    real(8) :: list_OER( tvs_maxChannelNumber )
 
     ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
     do headerIndex =1, obs_numHeader(obsspacedata)
@@ -366,6 +317,7 @@ module rMatrix_mod
             ichn = max( 0, min( ichn, tvs_maxChannelNumber + 1 ))
             count = count + 1
             list_chan( count ) = ichn
+            list_OER( count ) = obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex )
             x( count ) = obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex )
           end if
         
@@ -373,7 +325,7 @@ module rMatrix_mod
 
         if ( count > 0 .and. tvs_tovsIndex( headerIndex ) > 0 ) then
 
-          call rmat_RsqrtInverseOneObs( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), tvs_tovsIndex(headerIndex) )
+          call rmat_RsqrtInverseOneObs( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, x(1:count), y(1:count), list_chan(1:count), list_OER(1:count), tvs_tovsIndex(headerIndex) )
 
           count = 0
           do bodyIndex = idata, idatend

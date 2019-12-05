@@ -245,6 +245,7 @@ contains
     real(8) :: x(tvs_maxChannelNumber), y(tvs_maxChannelNumber)
     real(8) :: sigmaObs, dlsum
     integer :: list_chan(tvs_maxChannelNumber)
+    real(8) :: list_oer(tvs_maxChannelNumber)
     integer :: count
 
     pjo = 0.d0
@@ -280,15 +281,7 @@ contains
       count = 0
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if (bodyIndex < 0) then
-          if (count >0) then
-            if (rmat_lnondiagr) then
-              call rmat_RsqrtInverseOneObs(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),tovsIndex)
-            end if
-            dlsum =  dlsum + 0.5d0 * dot_product(y(1:count), y(1:count))
-          end if
-          exit BODY
-        end if
+        if ( bodyIndex < 0 ) exit BODY
 
         ! Only consider if flagged for assimilation
         if ( obs_bodyElem_i(obsSpaceData,obs_aSS,bodyIndex) /= obs_assimilated ) cycle BODY                
@@ -335,8 +328,16 @@ contains
         x(count) = zdtb
         if (.not. rmat_lnondiagr) y(count) = x(count) / sigmaObs
         list_chan(count) = channelNumber
+        list_oer(count) = sigmaObs
        
       end do BODY
+
+      if (count >0) then
+        if (rmat_lnondiagr) then
+          call rmat_RsqrtInverseOneObs(sensorIndex,count,x(1:count),y(1:count),list_chan(1:count),list_oer(1:count),tovsIndex)
+        end if
+        dlsum =  dlsum + 0.5d0 * dot_product(y(1:count), y(1:count))
+      end if
 
     end do HEADER
 
