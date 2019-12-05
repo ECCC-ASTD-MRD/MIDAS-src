@@ -323,9 +323,6 @@ contains
               TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
             end do
-            if ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
-              call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
-            end if
             if ( trim(obserrorMode) == 'bgckIR' .or. useTovsUtil ) THEN
               do JI = 1, tvs_maxChannelNumber
                 tovutil(JI,JL) =  IUTILST(JI,JM)
