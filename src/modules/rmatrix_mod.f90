@@ -255,7 +255,7 @@ module rMatrix_mod
           Rsub(i,j) = product * Rcorr_inst(sensor_id)%Rmat(index(i),index(j))
         end do
       end do
-      ! Calculation of Rcorr**-1/2
+      ! Calculation of R**-1/2
       call tmg_start(95,'RMAT_MATSQRT')
       call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call tmg_stop(95)
