@@ -45,7 +45,7 @@ stages:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl000/public_html/midas-sphinx-doc
+    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
   script:
   - cd scripts/sphinx
   - ./build_html.sh ../../src $midasdoc/$docname
