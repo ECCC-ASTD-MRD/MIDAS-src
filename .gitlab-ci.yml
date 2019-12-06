@@ -1,6 +1,6 @@
 variables:
     # CI_DEBUG_TRACE: "true"
-    MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
 
 stages:
