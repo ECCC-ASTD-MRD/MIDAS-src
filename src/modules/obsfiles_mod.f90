@@ -455,6 +455,9 @@ contains
     clvalu(93) = 'obsradar'
     clvalu(94) = 'obssst'
     clvalu(95) = 'obshydro'
+    clvalu(96) = 'obsmwhs2'
+    clvalu(97) = 'brpmwhs2'
+
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -552,6 +555,8 @@ contains
     cfami(93)  = 'RA'
     cfami(94)  = 'TM'
     cfami(95)  = 'HY'
+    cfami(96)  = 'TO'
+    cfami(97)  = 'TO'
 
     obsDirectory = 'obs'
 

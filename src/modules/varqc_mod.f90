@@ -248,9 +248,11 @@ module varqc_mod
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABT*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
-                if (IDBURP == 181 .or. IDBURP == 182) then
+                if (IDBURP == 181 .or. IDBURP == 182 .or. &
+                    IDBURP == 200) then
                   !
                   ! INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
+                  ! AND MWHS2(200)
                   !
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABTB*  &
                         SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
