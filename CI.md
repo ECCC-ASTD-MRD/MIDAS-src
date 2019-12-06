@@ -41,7 +41,7 @@ execute that command:
          --non-interactive                                    \
          --url https://gitlab.science.gc.ca/ci                \
          --registration-token ${GITLAB_CI_TOKEN}              \
-         --description "Some phrase describing the runner"    \
+         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}'."    \
          --run-untagged                                       \
          --executor shell                                     \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
