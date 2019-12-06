@@ -630,25 +630,29 @@ contains
       LFIRST = .false.
     end if
 
-!*    .  1.1 Set platforms and satellites
-!     .      ----------------------------
-!
-!** N.B.: Special cases for satellites TERRA and AQUA.
-!**       For consistency with the RTTOV-10 nomenclature, rename:
-!**       TERRA  to  EOS1
-!**       AQUA   to  EOS2
-!**       NPP    to  NPP0
-    do J = 1, tvs_nsensors
-      if    ( tvs_satelliteName(J) == 'TERRA' ) THEN
-        TEMPOCSATID = 'eos1'
-      else if ( tvs_satelliteName(J) == 'AQUA'  ) THEN
-        TEMPOCSATID = 'eos2'
-      else if ( tvs_satelliteName(J) == 'NPP'  ) THEN
-        TEMPOCSATID = 'jpss0'
-      else if ( tvs_satelliteName(J) == 'JPSS'  ) THEN
-        TEMPOCSATID = 'jpss0'
-      else if ( tvs_satelliteName(J)(1:6) == 'HMWARI'  ) THEN
-        TEMPOCSATID = 'himawari' // trim(tvs_satelliteName(J) (7:15))
+    !  1.1 Set platforms and satellites
+
+    ! N.B.: Special cases for satellites TERRA and AQUA.
+    !       For consistency with the RTTOV-10 nomenclature, rename:
+    !       TERRA  to  eos1
+    !       AQUA   to  eos2
+    !       NPP    to  jpss0
+    !       JPSS    to  jpss0
+    !       HMWARI    to  himawari
+    !       FY-3C    to  FY3-3
+    do sensorIndex = 1, tvs_nsensors
+      if    ( tvs_satelliteName(sensorIndex) == 'TERRA' ) then
+        tempocsatid = 'eos1'
+      else if ( tvs_satelliteName(sensorIndex) == 'AQUA'  ) then
+        tempocsatid = 'eos2'
+      else if ( tvs_satelliteName(sensorIndex) == 'NPP'  ) then
+        tempocsatid = 'jpss0'
+      else if ( tvs_satelliteName(sensorIndex) == 'JPSS'  ) then
+        tempocsatid = 'jpss0'
+      else if ( tvs_satelliteName(sensorIndex)(1:6) == 'HMWARI'  ) then
+        tempocsatid = 'himawari' // trim(tvs_satelliteName(sensorIndex) (7:15))
+      else if ( tvs_satelliteName(sensorIndex) == 'FY-3C'  ) then
+        TEMPOCSATID = 'FY3-3'
       else
         call up2low(tvs_satelliteName(J),TEMPOCSATID)
       end if
