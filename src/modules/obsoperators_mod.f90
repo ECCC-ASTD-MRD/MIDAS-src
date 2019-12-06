@@ -2841,14 +2841,10 @@ contains
                      spB=sqrt(sumSquare)
                      du_column(nlev) = du_column(nlev) + deltaSp*col_getElem(columng,nlev,headerIndex,'UU')/spB
                      dv_column(nlev) = dv_column(nlev) + deltaSp*col_getElem(columng,nlev,headerIndex,'VV')/spB
-
-                     !du_column(nlev-1) = du_column(nlev-1) + deltaSp*col_getElem(columng,nlev-1,headerIndex,'UU')/spB
-                     !dv_column(nlev-1) = dv_column(nlev-1) + deltaSp*col_getElem(columng,nlev-1,headerIndex,'VV')/spB
                    else
                      spB=0.
                    end if
                else if ( bufrCode == BUFR_NEPS .or. bufrCode == BUFR_NEPN ) then
-
                  tt_column  => col_getColumn(column,headerIndex,'TT')
                  hu_column  => col_getColumn(column,headerIndex,'HU')
                  ps_column  => col_getColumn(column,headerIndex,'P0')

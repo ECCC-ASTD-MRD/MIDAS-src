@@ -203,7 +203,6 @@ module varNameList_mod
       integer, intent(in), optional :: varNumberChm_opt
       character(len=4)    :: varName
       
-
       varName='    '
       select case (varNumber)
       case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )

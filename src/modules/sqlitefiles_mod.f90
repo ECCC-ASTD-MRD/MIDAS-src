@@ -53,7 +53,7 @@ module sqliteFiles_mod
     real(8)             :: delhh
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
-    character(len=256)    :: datetimeSqliteCharacter 
+    character(len=256)  :: datetimeSqliteCharacter 
 
     ier = mrfopc('MSGLVL','FATAL')
     ivals = 8
