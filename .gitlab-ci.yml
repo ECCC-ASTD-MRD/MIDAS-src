@@ -54,13 +54,13 @@ stages:
   only:
     - master
 
-.ssm: &ssm_template
-  stage: deploy
-  script:
-    - cd ssm
-    - ./publish
-  only:
-    - tags
+#.ssm: &ssm_template
+#  stage: deploy
+#  script:
+#    - cd ssm
+#    - ./publish
+#  only:
+#    - tags
 
 build:hpcr-u1:
   <<: *build_template
@@ -76,3 +76,8 @@ doc_sphinx:hpcr-u1:
   <<: *doc_sphinx_template
   tags:
     - hpcr-u1
+
+#ssm:hpcr-u1:
+#  <<: *ssm_template
+#  tags:
+#    - hpcr-u1
