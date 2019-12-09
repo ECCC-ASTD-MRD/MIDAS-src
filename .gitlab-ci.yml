@@ -33,7 +33,7 @@ stages:
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - ./collect_unittest_listings
+     - collect_unittest_listings_output=/home/sanl888/data_maestro/ords/midas/gitlab-ci/listings/UnitTests ./collect_unittest_listings
      - . ./set_machine_list.dot ${suite}
      - clean_suite -y ${suite}
      - rm ~/.suites/${suite}
