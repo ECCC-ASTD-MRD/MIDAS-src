@@ -26,7 +26,7 @@ program midas_bgckmw
   INTEGER EXDB,EXFIN 
   INTEGER NPOSIT, IER,IREC,IREC2,JUNK
   INTEGER I,ILNMX, NELE, J, JN, JL
-  INTEGER IUNENT, IUNSRT, IUNGEO, IUNSTAT, INUMSAT
+  INTEGER IUNENT, IUNSRT, IUNGEO, IUNSTAT, INUMSAT, nulnam 
   INTEGER INO,INOMP,INOMPNA,INOSAT
   INTEGER IDUM,IDUM1,IDUM2,IDUM3,IDUM4,IDUM5,IDUM6,IDUM7
   INTEGER IDUM8,IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -56,8 +56,6 @@ program midas_bgckmw
   INTEGER ICHKPRF   (MXNT)
   INTEGER IMARQ     (MXVAL*MXNT)
 
-  CHARACTER(len=9)   CLIST(NCLES)
-  CHARACTER(len=128) CDEF1(NCLES), CDEF2(NCLES) 
   CHARACTER(len=9)   STNID
   CHARACTER(len=9)   CSATID(MXSAT)
 
@@ -98,16 +96,6 @@ program midas_bgckmw
 
   LOGICAL RESETQC, SKIPENR
 
-  DATA CLIST /'L'       ,'I'      ,'IXENT.'   ,'OXSRT.'           ,&
-              'DEBUG.'  ,'ETIKRESU.' ,'IRGEO.'   ,'ISSTAT.'       ,&
-              'RESETQC.' /
-  DATA CDEF1 /'$OUT'    ,'$IN'    ,'tovs_ent' ,'tovs_srt'         ,&
-              'NON'    ,'>>BGCKALT'    ,'geo' ,'stats_tovs_errtot',&
-              'NON'       /
-  DATA CDEF2 /'$OUT'   ,'$IN'    ,'tovs_ent' ,'tovs_srt',          &
-              'NON'    ,'>>BGCKALT'    ,'geo' ,'stats_tovs_errtot',&
-              'NON'       /
-
   DATA IUNENT  / 10 /
   DATA IUNSRT  / 20 /
   DATA IUNGEO  / 50 /
@@ -116,40 +104,37 @@ program midas_bgckmw
   DATA DLAT   / 0.4 /
   DATA DLON   / 0.6 /
 
-  EXTERNAL CCARD,EXDB,EXFIN
+  EXTERNAL EXDB,EXFIN
   EXTERNAL FCLOS,FNOM
 
   LOGICAL DEBUG
   COMMON /DBGCOM/ DEBUG
 
+  namelist /nambgck/ debug, RESETQC, ETIKRESU 
+
   ! 1) Debut
-      NPOSIT = -1 
-      CALL CCARD(CLIST,CDEF1,CDEF2,NCLES,NPOSIT)
-      IER = FNOM(5     ,CDEF2(2) ,'SEQ'    ,0) 
-      IER = FNOM(6     ,CDEF2(1) ,'SEQ'    ,0) 
-      IER = FNOM(IUNGEO,CDEF2(7) ,'STD+RND+R/O',0)
+      IER = FNOM(6     ,'./out.txt' ,'SEQ'    ,0) 
+      IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
 
       JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
 
-      ! debug mode?
-      DEBUG = .FALSE.
-      IF ( CDEF2(5) .EQ. 'OUI' .OR. &
-          CDEF2(5) .EQ. 'oui'     ) THEN
-         DEBUG = .TRUE.
-      ENDIF
+  debug = .false.
+  RESETQC = .FALSE.
+  ETIKRESU = '>>BGCKALT'
 
-      ! Etiquette de l enregistrement resume.
-      ETIKRESU = CDEF2(6)
-
-      ! resetqc mode?
-      RESETQC = .FALSE.
-      IF ( CDEF2(9) .EQ. 'OUI' .OR. &
-           CDEF2(9) .EQ. 'oui'     ) THEN
-         RESETQC = .TRUE.
-      ENDIF
+  ! reading namelist
+  nulnam = 0
+  ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read(nulnam, nml=nambgck, iostat=ier)
+  if ( ier /= 0 ) then 
+    write(*,*) 'midas_bgckmw: Error reading namelist'
+    call abort()
+  end if 
+  write(*,nml=nambgck)
+  ier = fclos(nulnam)
 
       ! ouverture du fichier entree burp en mode lecture
-      IER = FNOM(IUNENT,CDEF2(3),'RND',0)
+      IER = FNOM(IUNENT,'./obsto_amsua','RND',0)
       IF(IER .NE. 0) THEN
          PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
          STOP
@@ -158,7 +143,7 @@ program midas_bgckmw
       ISTAT =	MRFOPC('MSGLVL','ERROR')
 
       ! ouverture du fichier sortie burp 
-      IER = FNOM(IUNSRT,CDEF2(4),'RND',0)
+      IER = FNOM(IUNSRT,'./output','RND',0)
       IF(IER .NE. 0) THEN
          PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
          STOP
@@ -180,11 +165,10 @@ program midas_bgckmw
       ENDIF
 
       ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
-      IER = FNOM(IUNSTAT,CDEF2(8) ,'SEQ+FMT',0)
+      IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
       IF(IER.LT.0)THEN
-         WRITE ( 6, '(" SATQC_AMSUA: Problem opening ", &
-               "TOVS total error statistics file ", A)' ) &
-               CDEF2(8)
+         WRITE (6,*) '(" SATQC_AMSUA: Problem opening ", &
+               "TOVS total error statistics file ", stats_amsua_assim)'               
          CALL ABORT ()
       END IF
       CALL SUTOVST2(IUNSTAT,INUMSAT,CSATID)

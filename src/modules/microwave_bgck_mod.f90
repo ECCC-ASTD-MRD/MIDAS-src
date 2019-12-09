@@ -26,6 +26,9 @@ module microwave_bgck_mod
   ! Public functions (methods)
   public :: SUTOVST2, READTOVS2, TOVCHECK_AMSUA, QCSTATS_AMSUA, UPDATFLG, ADDTRRN  
 
+  integer, PARAMETER :: MXVAL = 50
+  integer, PARAMETER :: MXNT = 2000
+
 contains
 
 
@@ -58,7 +61,7 @@ contains
   END
 
 
-  INTEGER FUNCTION ISRCHEQI (KLIST, KLEN, KENTRY)
+  FUNCTION ISRCHEQI (KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
 
 !OBJET          Rechercher un element dans une liste (valeurs entieres).
 !ARGUMENTS      indx    - output -  position de l'element recherche:
@@ -70,15 +73,16 @@ contains
 
   IMPLICIT NONE
 
+  integer :: ISRCHEQI_out
   INTEGER  KLEN, JI
 
   INTEGER  KLIST(KLEN)
   INTEGER  KENTRY
 
-  ISRCHEQI = 0
+  ISRCHEQI_out = 0
   DO JI=1,KLEN
      IF ( KLIST(JI) .EQ. KENTRY ) THEN
-        ISRCHEQI = JI
+        ISRCHEQI_out = JI
         RETURN
      ENDIF
   ENDDO
@@ -328,8 +332,8 @@ contains
   END
 
 
-  SUBROUTINE TOVCHECK_AMSUA(KSAT,KTERMER,KORBIT,KCANO,KCANOMP, &
-                          PTBO,PTBCOR,PTBOMP,ICHECK,KNO,KNOMP, &
+  SUBROUTINE TOVCHECK_AMSUA(KSAT,KTERMER,KORBIT,ICANO,ICANOMP, &
+                          ZO,ZCOR,ZOMP,ICHECK,KNO,KNOMP, &
                           KNT,PMISG,KNOSAT,KCHKPRF,ISCNPOS, &
                           MGINTRP,MTINTRP,GLINTRP,ITERRAIN, &
                           SATZEN,IMARQ,STNID, &
@@ -338,11 +342,11 @@ contains
 !ARGUMENTS      ksat    - input  -  numero d'identificateur du satellite
 !               ktermer - input  -  indicateur terre/mer
 !               korbit  - input  -  numero d'orbite
-!               kcano   - input  -  canaux des observations
-!               kcanomp - input  -  canaux des residus (o-p)
-!               ptbcor  - input  -  correction aux radiances
-!               ptbo    - input  -  radiances
-!               ptbomp  - input  -  residus (o-p)
+!               icano   - input  -  canaux des observations
+!               icanomp - input  -  canaux des residus (o-p)
+!               zcor    - input  -  correction aux radiances
+!               zo      - input  -  radiances
+!               zomp    - input  -  residus (o-p)
 !               icheck  - output -  indicateur controle de qualite tovs par canal 
 !                                   =0, ok,
 !                                   >0, rejet,
@@ -418,19 +422,22 @@ contains
     COMMON /COMTOVST/ NCHNA, MLISCHNA, TOVERRST, IUTILST
 
     INTEGER KNO,KNOMP,KNT,KNOSAT,MAXVAL
-    INTEGER JI,JJ,INDX8,INDX12,ISRCHEQI,INO,ICHN
+    INTEGER JI,JJ,INDX8,INDX12,INO,ICHN
     INTEGER JK,IBIT,JC,INDX,INDXCAN
     INTEGER ITRN
 
     INTEGER KSAT    (KNT)
-    INTEGER KTERMER (KNT)
-    INTEGER ISCNPOS (KNT)
+    INTEGER KTERMER (*)
+    INTEGER ISCNPOS (*)
     INTEGER KORBIT  (KNT)
+    INTEGER ICANO   (MXVAL*MXNT)
     INTEGER KCANO   (KNO  ,KNT)
+    INTEGER ICANOMP (MXVAL*MXNT)
     INTEGER KCANOMP (KNOMP,KNT)
     INTEGER ICHECK  (KNO  ,KNT)
     INTEGER KCHKPRF (KNT)
-    INTEGER IMARQ   (KNO  ,KNT)
+    INTEGER IMARQ    (MXVAL*MXNT)
+    INTEGER KMARQ   (KNO  ,KNT)
     INTEGER ITERRAIN(KNT)
     INTEGER ICLWREJ (MXCLWREJ)
     INTEGER ISFCREJ (MXSFCREJ)
@@ -439,14 +446,17 @@ contains
 
     REAL  PMISG,ZSEUILCLW,EPSILON,MISGINT,ZANGL,MISGRODY,ZSEUILSCAT
     REAL  APPROXIM, ANGDIF, XCHECKVAL
+    REAL  ZO      (MXVAL*MXNT)
     REAL  PTBO    (KNO    ,KNT)
+    REAL  ZCOR    (MXVAL*MXNT)
     REAL  PTBCOR  (KNO    ,KNT)
+    REAL  ZOMP    (MXVAL*MXNT)
     REAL  PTBOMP  (KNOMP  ,KNT)
-    REAL  MGINTRP (KNT)
-    REAL  MTINTRP (KNT)
-    REAL  GLINTRP (KNT)
-    REAL  SATZEN  (KNT)
-    REAL  ZLAT    (KNT)
+    REAL  MGINTRP (*)
+    REAL  MTINTRP (*)
+    REAL  GLINTRP (*)
+    REAL  SATZEN  (*)
+    REAL  ZLAT    (*)
     REAL  GROSSMIN(MXCHN)
     REAL  GROSSMAX(MXCHN) 
     REAL  ROGUEFAC(MXCHN)
@@ -510,6 +520,25 @@ contains
                     310., 310., 300., 300., 260., 250., 250., &
                     250., 260., 260., 270., 280., 290., 330./  
 
+    DO JJ=1,KNT
+      DO JI=1,KNO
+        INDX = (JJ-1)*KNO + JI 
+        KCANO(JI,JJ) = ICANO(INDX)
+        PTBCOR(JI,JJ) = ZCOR(INDX)  
+        PTBO(JI,JJ) = ZO(INDX)  
+        KMARQ(JI,JJ) = IMARQ(INDX)  
+      end do
+    end do
+
+    DO JJ=1,KNT
+      DO JI=1,KNOMP
+        INDX = (JJ-1)*KNOMP + JI 
+        KCANOMP(JI,JJ) = ICANOMP(INDX)
+        PTBOMP(JI,JJ) = ZOMP(INDX)  
+      end do
+    end do
+
+
 ! Initialisation, la premiere fois seulement!
     IF (LLFIRST) THEN
        DO JI = 1, JPMXREJ
@@ -532,7 +561,7 @@ contains
 
     DO JJ=1,KNT
        DO JI=1,KNO
-          IF ( KCANO(JI,JJ) .NE .KCANOMP(JI,JJ) ) THEN
+          IF ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) THEN
              WRITE(6,*)'INCONSISTENT CHANNEL LISTS FOR TOVS DATA'
              CALL ABORT()
           ENDIF
@@ -543,7 +572,7 @@ contains
     DO JJ=1,KNT
        DO JI=1,KNO
           ICHECK(JI,JJ) = 0
-          IF ( RESETQC ) IMARQ(JI,JJ) = 0
+          IF ( RESETQC ) KMARQ(JI,JJ) = 0
        ENDDO
     ENDDO
 
@@ -598,16 +627,16 @@ contains
        DO JJ=1,KNT
           DO JI=1,KNO
             IF ( KCANO(JI,JJ) .NE. 20 ) THEN
-               IBIT = AND(IMARQ(JI,JJ), 2**9)
+               IBIT = AND(KMARQ(JI,JJ), 2**9)
                IF ( IBIT .NE. 0  ) THEN
                   ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                  IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                  KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                   IF (DEBUG) THEN
                      WRITE(6,*)STNID(2:9),' RTTOV REJECT.', &
                               'CHANNEL=', KCANO(JI,JJ), &
-                              ' IMARQ= ',IMARQ(JI,JJ)
+                              ' IMARQ= ',KMARQ(JI,JJ)
                   ENDIF
                ENDIF
             ENDIF
@@ -624,8 +653,8 @@ contains
          IF ( KCANO(JI,JJ) .EQ. 33 ) THEN
             IF ( MTINTRP(JJ) .GE. 250.  ) THEN
                ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-               IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-               IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**18)
+               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**18)
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                     MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                IF (DEBUG) THEN
@@ -637,8 +666,8 @@ contains
          ELSEIF ( KCANO(JI,JJ) .EQ. 34 ) THEN
             IF ( MTINTRP(JJ) .GE. 2000.  ) THEN
                ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-               IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-               IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**18)
+               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**18)
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                     MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                IF (DEBUG) THEN
@@ -661,8 +690,8 @@ contains
            KTERMER(JJ) .GT.  2        ) THEN
           DO JI=1,KNO
              ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
              MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
@@ -684,8 +713,8 @@ contains
               ITERRAIN(JJ) .GT.  1        ) THEN
              DO JI=1,KNO
                 ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
              ENDDO
@@ -706,8 +735,8 @@ contains
           IF ( ISCNPOS(JJ) .LT. 1          .OR. &
               ISCNPOS(JJ) .GT. MXSCANAMSU       ) THEN
              ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
              MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
              IF (DEBUG) THEN
@@ -728,8 +757,8 @@ contains
               SATZEN(JJ) .GT. 60.       ) THEN
              DO JI=1,KNO
                 ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
              ENDDO
@@ -756,8 +785,8 @@ contains
           IF ( ANGDIF .GT. 1.8 ) THEN 
              DO JI=1,KNO
                 ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
              ENDDO
@@ -787,8 +816,8 @@ contains
           ELSE
              DO JI=1,KNO
                 ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
              ENDDO
@@ -882,16 +911,16 @@ contains
     DO JJ=1,KNT
        DO JI=1,KNO
          IF ( KCANO(JI,JJ) .NE. 20 ) THEN
-            IBIT = AND(IMARQ(JI,JJ), 2**6)
+            IBIT = AND(KMARQ(JI,JJ), 2**6)
             IF ( IBIT .EQ. 0  ) THEN
                ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-               IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**11)
+               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**11)
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                     MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                IF (DEBUG) THEN
                   WRITE(6,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
                            'CHANNEL=', KCANO(JI,JJ), &
-                           ' IMARQ= ',IMARQ(JI,JJ)
+                           ' IMARQ= ',KMARQ(JI,JJ)
                ENDIF
             ENDIF
          ENDIF
@@ -913,8 +942,8 @@ contains
              PTBO(JI,JJ).GT.GROSSMAX(KCANO(JI,JJ))     ) ) THEN
              GROSSERROR = .TRUE.
              ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
              MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                     MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
              IF (DEBUG) THEN
@@ -938,8 +967,8 @@ contains
                 INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
                 IF ( INDXCAN.NE.0 )  THEN
                    ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                    MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                            MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                 ENDIF
@@ -967,8 +996,8 @@ contains
                 INDXCAN = ISRCHEQI (ISCATREJ,MXSCATREJ,KCANO(JI,JJ))
                 IF ( INDXCAN.NE.0 )  THEN
                    ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
                    MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                            MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                 ENDIF
@@ -997,8 +1026,8 @@ contains
              IF ( PTBOMP(JI,JJ)      .NE. PMISG    .AND. &
                   ABS(PTBOMP(JI,JJ)) .GE. XCHECKVAL     ) THEN
                 ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**16)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**16)
                 MREJCOD(INO,ICHN,KNOSAT) = &
                     MREJCOD(INO,ICHN,KNOSAT) + 1 
                 IF (DEBUG) THEN
@@ -1023,8 +1052,8 @@ contains
              IF ( INDXCAN .NE. 0 )  THEN
                 IF ( ICHECK(JI,JJ) .NE. INO ) THEN
                    ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                   IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**16)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                   KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**16)
                    MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                             MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
                 ENDIF
@@ -1059,20 +1088,20 @@ contains
           INDXCAN = ISRCHEQI (ISFCREJ2,MXSFCREJ2,ICHN)
           IF ( INDXCAN .NE. 0 )  THEN
             IF ( KTERMER (JJ) .EQ. 0 .OR. ITRN .EQ. 0 )  THEN
-              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+              KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+              KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
             ENDIF
           ENDIF
           IF ( IUTILST(ICHN,KNOSAT) .NE. 1 ) THEN
             SFCREJCT = .FALSE.
             IF ( IUTILST(ICHN,KNOSAT) .EQ. 0 ) THEN
               SFCREJCT = .TRUE.
-              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**11)
+              KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**11)
             ELSE 
               IF ( KTERMER (JJ) .EQ. 0 .OR. ITRN .EQ. 0 )  THEN
                 SFCREJCT = .TRUE.
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
-                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**7)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**9)
+                KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
               ENDIF
             ENDIF
             IF ( SFCREJCT ) THEN
@@ -1109,6 +1138,14 @@ contains
        WRITE(6,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
     ENDIF 
 
+    ! update IMARQ
+    DO JJ=1,KNT
+      DO JI=1,KNO
+        INDX = (JJ-1)*KNO + JI 
+        IMARQ(INDX) = KMARQ(JI,JJ)
+      end do
+    end do
+
     RETURN
   END
 
@@ -1141,7 +1178,6 @@ contains
 
     INTEGER  JI, JJ, JK, KNO, KNT, KNOSAT
     INTEGER  INTOTOBS, INTOTACC, INUMSAT
-    INTEGER  ISRCHEQI
 
     INTEGER  ICHECK (KNO,KNT)
     INTEGER  KCANO  (KNO,KNT)
@@ -2159,28 +2195,28 @@ contains
 
     integer ni, i
 
-    integer ier    (ni)
-    integer ilansea(ni)
-    integer rain   (ni)
-    integer snow   (ni)
+    integer ier    (*)
+    integer ilansea(*)
+    integer rain   (*)
+    integer snow   (*)
 
     real zmisg, siw, sil, df1, df2, df3, a, b, c, d, e23
     real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real sc50, par, t53
     real dif285t23, dif285t31, epsilon
 
-    real tb23  (ni)
-    real tb31  (ni)
-    real tb50  (ni)
-    real tb53  (ni)
-    real tb89  (ni)
-    real pangl (ni)
-    real plat  (ni)
-    real ice   (ni)
-    real tpw   (ni)
-    real clw   (ni)
-    real scatl (ni)
-    real scatw (ni)
+    real tb23  (*)
+    real tb31  (*)
+    real tb50  (*)
+    real tb53  (*)
+    real tb89  (*)
+    real pangl (*)
+    real plat  (*)
+    real ice   (*)
+    real tpw   (*)
+    real clw   (*)
+    real scatl (*)
+    real scatw (*)
 
     data zmisg   / -99.     /
     data epsilon /   1.E-30 /
