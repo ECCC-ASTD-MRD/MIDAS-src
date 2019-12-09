@@ -343,7 +343,7 @@ contains
         end if
       end if
       if ( ivnm == BUFR_NEFS ) then 
-        if ( idburp .ne. codtyp_get_codtyp('sarwinds') ) then 
+        if ( idburp .ne. 204 ) then 
           llok = .false.
         end if
       end if
