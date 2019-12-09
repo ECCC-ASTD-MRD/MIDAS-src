@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module microwave_bgck_mod
-  ! MODULE microwave_bgck_mod (prefix='mwbg' category='1. High-level functionality')
+module bgckmicrowave_mod
+  ! MODULE bgckmicrowave_mod (prefix='mwbg' category='1. High-level functionality')
   !
   ! :Purpose: Variables for microwave background check and quality control.
   !
@@ -24,7 +24,7 @@ module microwave_bgck_mod
   save
   private
   ! Public functions (methods)
-  public :: SUTOVST2, READTOVS2, TOVCHECK_AMSUA, QCSTATS_AMSUA, UPDATFLG, ADDTRRN  
+  public :: mwbg_readStatTovs, mwbg_readTovs, mwbg_tovCheckAmsua, mwbg_qcStatsAmsua, mwbg_UPDATFLG, mwbg_ADDTRRN  
 
   integer, PARAMETER :: MXVAL = 50
   integer, PARAMETER :: MXNT = 2000
@@ -108,17 +108,17 @@ contains
 
   IMPLICIT NONE
 
-  INTEGER KBUF    (*)
-  INTEGER KLISTE  (*)
-  INTEGER KDLISTE (*)
-  INTEGER KTBLVAL (*)
+  INTEGER KBUF    (:)
+  INTEGER KLISTE  (:)
+  INTEGER KDLISTE (:)
+  INTEGER KTBLVAL (:)
 
   INTEGER KBLKNO,KNELE,KNVAL,KNT,KBTYP,ISTAT
   INTEGER MRBLOC,MRBXTR,MRBTYP,MRBCVT,MRBDCL,MRBPRM
   INTEGER IBFAM,IBDESC,IBTYP,INBIT,IBIT0,IDATYP
   INTEGER IBKNAT,IBKTYP,IBKSTP,JN,KBFAM
 
-  REAL PRVAL(*)
+  REAL PRVAL(:)
 
   LOGICAL DEBUG
   COMMON /DBGCOM/ DEBUG
@@ -172,7 +172,7 @@ contains
 !               kbuf    - in/out -  tableau contenant le rapport
   IMPLICIT NONE
 
-  INTEGER KBUF    (*)
+  INTEGER KBUF    (:)
 
   INTEGER KBLKNO,KBTYP,ISTAT,KBFAM
   INTEGER MRBLOC,MRBDEL
@@ -221,12 +221,12 @@ contains
 !                                   >0, pointeur de l'element.
   IMPLICIT NONE
 
-  INTEGER KDLISTE (*)
-  INTEGER KTBLVAL (*)
-  INTEGER KDATA(*)
+  INTEGER KDLISTE (:)
+  INTEGER KTBLVAL (:)
+  INTEGER KDATA(:)
 
-  REAL PRVAL(*)
-  REAL PDATA(*)
+  REAL PRVAL(:)
+  REAL PDATA(:)
 
   INTEGER KNELE,KNVAL,KNT,JI,KPNTR
   INTEGER INDX,KELEM,JJ,IPOS
@@ -292,9 +292,9 @@ contains
 !                                   >0, pointeur de l'element.
     IMPLICIT NONE
 
-    INTEGER KDLISTE (*)
-    INTEGER KTBLVAL (*)
-    INTEGER KDATA(*)
+    INTEGER KDLISTE (:)
+    INTEGER KTBLVAL (:)
+    INTEGER KDATA(:)
 
     INTEGER KNELE,KNVAL,KNT,JI,KPNTR
     INTEGER INDX,KELEM,JJ,IPOS
@@ -332,7 +332,7 @@ contains
   END
 
 
-  SUBROUTINE TOVCHECK_AMSUA(KSAT,KTERMER,KORBIT,ICANO,ICANOMP, &
+  SUBROUTINE mwbg_tovCheckAmsua(KSAT,KTERMER,KORBIT,ICANO,ICANOMP, &
                           ZO,ZCOR,ZOMP,ICHECK,KNO,KNOMP, &
                           KNT,PMISG,KNOSAT,KCHKPRF,ISCNPOS, &
                           MGINTRP,MTINTRP,GLINTRP,ITERRAIN, &
@@ -427,8 +427,8 @@ contains
     INTEGER ITRN
 
     INTEGER KSAT    (KNT)
-    INTEGER KTERMER (*)
-    INTEGER ISCNPOS (*)
+    INTEGER KTERMER (:)
+    INTEGER ISCNPOS (:)
     INTEGER KORBIT  (KNT)
     INTEGER ICANO   (MXVAL*MXNT)
     INTEGER KCANO   (KNO  ,KNT)
@@ -452,11 +452,11 @@ contains
     REAL  PTBCOR  (KNO    ,KNT)
     REAL  ZOMP    (MXVAL*MXNT)
     REAL  PTBOMP  (KNOMP  ,KNT)
-    REAL  MGINTRP (*)
-    REAL  MTINTRP (*)
-    REAL  GLINTRP (*)
-    REAL  SATZEN  (*)
-    REAL  ZLAT    (*)
+    REAL  MGINTRP (:)
+    REAL  MTINTRP (:)
+    REAL  GLINTRP (:)
+    REAL  SATZEN  (:)
+    REAL  ZLAT    (:)
     REAL  GROSSMIN(MXCHN)
     REAL  GROSSMAX(MXCHN) 
     REAL  ROGUEFAC(MXCHN)
@@ -520,6 +520,7 @@ contains
                     310., 310., 300., 300., 260., 250., 250., &
                     250., 260., 260., 270., 280., 290., 330./  
 
+    ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     DO JJ=1,KNT
       DO JI=1,KNO
         INDX = (JJ-1)*KNO + JI 
@@ -1138,7 +1139,7 @@ contains
        WRITE(6,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
     ENDIF 
 
-    ! update IMARQ
+    ! Copy the modified FLAG to the 1D array, used outside this s/r. 
     DO JJ=1,KNT
       DO JI=1,KNO
         INDX = (JJ-1)*KNO + JI 
@@ -1150,7 +1151,7 @@ contains
   END
 
 
-  SUBROUTINE QCSTATS_AMSUA (INUMSAT,ICHECK,KCANO,KNOSAT, &
+  SUBROUTINE mwbg_qcStatsAmsua(INUMSAT,ICHECK,KCANO,KNOSAT, &
                         CSATID,KNO,KNT,LDPRINT)
 ! OBJET          Cumuler ou imprimer des statistiques decriptives
 !                des rejets tovs.
@@ -1295,7 +1296,7 @@ contains
   END
 
 
-  SUBROUTINE UPDATFLG (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+  SUBROUTINE mwbg_UPDATFLG(KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
                       KDATA,PDATA,KCHKPRF,KTERMER,ICHECK, &
                       RESETQC,IMARQ)
 !OBJET          Allumer les bits des marqueurs pour les tovs rejetes.
@@ -1304,7 +1305,7 @@ contains
 !               Modifier le bktyp des donnees, marqueurs et (O-P) pourt
 !               signifier "vu par AO". 
 !
-!APPEL          CALL   UPDATFLG (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL,
+!APPEL          CALL   mwbg_UPDATFLG (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL,
 !                                KDATA,PDATA,KCHKPRF,KTERMER,ICHECK,
 !                                RESETQC,IMARQ)
 !
@@ -1322,19 +1323,19 @@ contains
 !               icheck  - input  -  indicateur controle de qualite tovs au 
 !                                   niveau de chaque canal
 !               resetqc - input  -  reset the quality control flags before adding the new ones ? 
-!               imarq   - input  -  modified flag values from TOVCHECK_AMSUA
+!               imarq   - input  -  modified flag values from mwbg_tovCheckAmsua
 !!
     IMPLICIT NONE
 
-    INTEGER KBUF1   (*)
-    INTEGER KDLISTE (*)
-    INTEGER KLISTE  (*)
-    INTEGER KTBLVAL (*)
-    INTEGER KDATA   (*)
-    INTEGER KCHKPRF (*)
-    INTEGER KTERMER (*)
-    INTEGER ICHECK  (*)
-    INTEGER IMARQ   (*)
+    INTEGER KBUF1   (:)
+    INTEGER KDLISTE (:)
+    INTEGER KLISTE  (:)
+    INTEGER KTBLVAL (:)
+    INTEGER KDATA   (:)
+    INTEGER KCHKPRF (:)
+    INTEGER KTERMER (:)
+    INTEGER ICHECK  (:)
+    INTEGER IMARQ   (:)
 
     INTEGER IDUM1,IDUM2,IDUM3,IBFAM
     INTEGER IBDESC,IBTYP,INBIT,IBIT0,IDATYP
@@ -1343,8 +1344,8 @@ contains
     INTEGER INELE,INVAL,INT,JI,IPNTR,MRBREP,MRBLOC
     INTEGER JJ,IBLKNO,ISTAT,IMELERAD
 
-    REAL PRVAL (*)
-    REAL PDATA (*)
+    REAL PRVAL (:)
+    REAL PDATA (:)
 
     LOGICAL RESETQC
 
@@ -1555,7 +1556,7 @@ contains
   END
 
 
-  SUBROUTINE READTOVS2(IUNENT,HANDLE,ISAT,ZMISG,BUF1,TBLVAL, &
+  SUBROUTINE mwbg_readTovs(IUNENT,HANDLE,ISAT,ZMISG,BUF1,TBLVAL, &
        LSTELE,ELDALT,IDATA,ICANO,ICANOMP,ICANOMPNA,INO, &
        INOMP,INOMPNA,DONIALT,ZDATA,ZO,ZCOR,ZOMP,STNID, &
        ZOMPNA,IMARQ,MXELM,MXVAL,MXNT,NELE,NVAL,NT, &
@@ -1616,7 +1617,7 @@ contains
     INTEGER FLGS,SUP,XAUX
     INTEGER I,JJ,IPNTR,NELE,INO,INOMP,INOMPNA
 
-    INTEGER BUF1     (*)
+    INTEGER BUF1     (:)
     INTEGER TBLVAL   (MXELM*MXVAL*MXNT)
     INTEGER LSTELE   (MXELM)
     INTEGER ELDALT   (MXELM)
@@ -1937,7 +1938,7 @@ contains
   END
 
 
-  SUBROUTINE ADDTRRN (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+  SUBROUTINE mwbg_ADDTRRN(KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
                      KDATA,PDATA,KTERMER,ITERRAIN, &
                      GLINTRP,KTBLVALN,KLISTEN,PRVALN)
 !OBJET          Ajouter l'element "terrain type" au bloc info d'un
@@ -1958,15 +1959,15 @@ contains
 !               prvaln  - in/out -  nouveau champ de donnees (valeurs reelles)
     IMPLICIT NONE
 
-    INTEGER KBUF1    (*)
-    INTEGER KDLISTE  (*)
-    INTEGER KLISTE   (*)
-    INTEGER KLISTEN  (*)
-    INTEGER KTBLVAL  (*)
-    INTEGER KTBLVALN (*)
-    INTEGER KDATA    (*)
-    INTEGER KTERMER  (*)
-    INTEGER ITERRAIN (*)
+    INTEGER KBUF1    (:)
+    INTEGER KDLISTE  (:)
+    INTEGER KLISTE   (:)
+    INTEGER KLISTEN  (:)
+    INTEGER KTBLVAL  (:)
+    INTEGER KTBLVALN (:)
+    INTEGER KDATA    (:)
+    INTEGER KTERMER  (:)
+    INTEGER ITERRAIN (:)
 
     INTEGER INELE,INVAL,INT,JI,IPNTR,MRBREP
     INTEGER JJ,IBLKNO,ISTAT,INELEN
@@ -1974,10 +1975,10 @@ contains
     INTEGER IBDESC,IBTYP,INBIT,IBIT0,IDATYP   
     INTEGER MRBPRM, MRBDEL, MRBADD
 
-    REAL PRVAL   (*)
-    REAL PRVALN  (*)
-    REAL PDATA   (*)
-    REAL GLINTRP (*)
+    REAL PRVAL   (:)
+    REAL PRVALN  (:)
+    REAL PDATA   (:)
+    REAL GLINTRP (:)
 
     LOGICAL DEBUG
     COMMON /DBGCOM/ DEBUG
@@ -2089,19 +2090,19 @@ contains
 !                                   =1, mrbcvt appele (ajoute pdata).
     IMPLICIT NONE
 
-    INTEGER KLISTE   (*)
-    INTEGER KTBLVAL  (*)
-    INTEGER KLISTEN  (*)
-    INTEGER KTBLVALN (*)
-    INTEGER KDATA    (*)
+    INTEGER KLISTE   (:)
+    INTEGER KTBLVAL  (:)
+    INTEGER KLISTEN  (:)
+    INTEGER KTBLVALN (:)
+    INTEGER KDATA    (:)
 
     INTEGER KNELE,KNVAL,KNT,JI,MRBCVT,KNELEN
     INTEGER INDX,KELEM,JJ,IPOS,ISTAT,JK,INDXP,MRBCOL
     INTEGER KMODE
 
-    REAL PDATA (*)
-    REAL PRVAL (*)
-    REAL PRVALN(*)
+    REAL PDATA (:)
+    REAL PRVAL (:)
+    REAL PRVALN(:)
 
     LOGICAL DEBUG
 
@@ -2195,28 +2196,28 @@ contains
 
     integer ni, i
 
-    integer ier    (*)
-    integer ilansea(*)
-    integer rain   (*)
-    integer snow   (*)
+    integer ier    (:)
+    integer ilansea(:)
+    integer rain   (:)
+    integer snow   (:)
 
     real zmisg, siw, sil, df1, df2, df3, a, b, c, d, e23
     real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real sc50, par, t53
     real dif285t23, dif285t31, epsilon
 
-    real tb23  (*)
-    real tb31  (*)
-    real tb50  (*)
-    real tb53  (*)
-    real tb89  (*)
-    real pangl (*)
-    real plat  (*)
-    real ice   (*)
-    real tpw   (*)
-    real clw   (*)
-    real scatl (*)
-    real scatw (*)
+    real tb23  (:)
+    real tb31  (:)
+    real tb50  (:)
+    real tb53  (:)
+    real tb89  (:)
+    real pangl (:)
+    real plat  (:)
+    real ice   (:)
+    real tpw   (:)
+    real clw   (:)
+    real scatl (:)
+    real scatw (:)
 
     data zmisg   / -99.     /
     data epsilon /   1.E-30 /
@@ -2450,7 +2451,7 @@ contains
   end
 
 
-  SUBROUTINE SUTOVST2(ILUTOV,INUMSAT,CSATID)
+  SUBROUTINE mwbg_readStatTovs(ILUTOV,INUMSAT,CSATID)
 !OBJET          Lire les statistiques de l'erreur totale pour les TOVS.
 !
 !ARGUMENTS      ilutov  - input  -  unite logique du fichier stats des TOVS
@@ -2491,7 +2492,7 @@ contains
     DATA CTYPSTAT     / 'Monitoring',  'Assimilation'  /  
 
     WRITE(NULOUT,FMT=9000)
- 9000 FORMAT(//,10x,"-SUTOVST2: reading total error statistics" &
+ 9000 FORMAT(//,10x,"-mwbg_readStatTovs: reading total error statistics" &
           ," required for TOVS processing")
 !
 ! 1. Initialize
@@ -2552,7 +2553,7 @@ contains
            CSATID(JL) = CSATSTR(1:IPOS)
          ENDIF
        ELSE
-         WRITE ( NULOUT, '(" SUTOVST2: Non-AMSUA ", &
+         WRITE ( NULOUT, '(" mwbg_readStatTovs: Non-AMSUA ", &
                     "instrument found in stats file!")' )
          WRITE ( NULOUT,'(A)' ) CLDUM
          CALL ABORT ()
@@ -2610,7 +2611,7 @@ contains
 
 ! Read error
 
-900   WRITE ( NULOUT, '(" SUTOVST2: Problem reading ", &
+900   WRITE ( NULOUT, '(" mwbg_readStatTovs: Problem reading ", &
                      "TOVS total error stats file ")' ) 
     CALL ABORT ()
 
@@ -2618,4 +2619,4 @@ contains
   END
       
 
-end module microwave_bgck_mod
+end module bgckmicrowave_mod
