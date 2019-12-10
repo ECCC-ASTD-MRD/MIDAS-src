@@ -76,13 +76,15 @@ for unittest in ${unittests}; do
 set -e
 
 if [ -d '${results_path}' ]; then
-    if [ -f ${results_path}/listings_${gittag}.ca -a "${overwrite_listings}" = yes ]; then
-        echo "Since 'overwrite_listings=yes', we erase '${results_path}/listings_${gittag}.ca'"
-        chmod u+rw ${results_path}/listings_${gittag}.ca
-        rm -v ${results_path}/listings_${gittag}.ca
-    else
-        echo "Cannot overwrite the listings at ${results_path}/listings_${gittag}.ca"
-        exit 1
+    if [ -f ${results_path}/listings_${gittag}.ca ]; then
+        if [ "${overwrite_listings}" = yes ]; then
+            echo "Since 'overwrite_listings=yes', we erase '${results_path}/listings_${gittag}.ca'"
+            chmod u+rw ${results_path}/listings_${gittag}.ca
+            rm -v ${results_path}/listings_${gittag}.ca
+        else
+            echo "Cannot overwrite the listings at ${results_path}/listings_${gittag}.ca"
+            exit 1
+        fi
     fi
 else
     mkdir -pv ${results_path}
@@ -93,13 +95,15 @@ EOF
         ssh "${results_mach}" "chmod -wx ${results_path}/listings_${gittag}.ca"
     else
         if [ -d "${results}" ]; then
-            if [ -f ${results}/listings_${gittag}.ca -a "${overwrite_listings}" = yes ]; then
-                echo "Since 'overwrite_listings=yes', we erase '${results}/listings_${gittag}.ca'"
-                chmod u+rw ${results}/listings_${gittag}.ca
-                rm -v ${results}/listings_${gittag}.ca
-            else
-                echo "Cannot overwrite the listings at ${results}/listings_${gittag}.ca"
-                exit 1
+            if [ -f ${results}/listings_${gittag}.ca ]; then
+                if [ "${overwrite_listings}" = yes ]; then
+                    echo "Since 'overwrite_listings=yes', we erase '${results}/listings_${gittag}.ca'"
+                    chmod u+rw ${results}/listings_${gittag}.ca
+                    rm -v ${results}/listings_${gittag}.ca
+                else
+                    echo "Cannot overwrite the listings at ${results}/listings_${gittag}.ca"
+                    exit 1
+                fi
             fi
         else
             mkdir -pv ${results}
