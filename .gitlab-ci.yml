@@ -62,26 +62,6 @@ stages:
   only:
     - tags
 
-build:hpcr-u0:
-  <<: *build_template
-  tags:
-    - hpcr-u0
-
-runtests:hpcr-u0:
-  <<: *runtests_template
-  tags:
-    - hpcr-u0
-
-doc_sphinx:hpcr-u0:
-  <<: *doc_sphinx_template
-  tags:
-    - hpcr-u0
-
-ssm:hpcr-u0:
-  <<: *ssm_template
-  tags:
-    - hpcr-u0
-
 build:hpcr-u1:
   <<: *build_template
   tags:
