@@ -131,10 +131,10 @@ program midas_bgckmw
   namelist /nambgck/ debug, RESETQC, ETIKRESU 
 
   ! 1) Debut
-      IER = FNOM(6     ,'./out.txt' ,'SEQ'    ,0) 
-      IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
+  IER = FNOM(6     ,'./out.txt' ,'SEQ'    ,0) 
+  IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
 
-      JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
+  JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
 
   debug = .false.
   RESETQC = .FALSE.
@@ -154,8 +154,8 @@ program midas_bgckmw
   ! ouverture du fichier entree burp en mode lecture
   IER = FNOM(IUNENT,'./obsto_amsua','RND',0)
   IF(IER .NE. 0) THEN
-     PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
-     STOP
+    PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
+    STOP
   ENDIF
   NOMBRE =	MRFOPN(IUNENT,'READ')
   ISTAT =	MRFOPC('MSGLVL','ERROR')
@@ -163,15 +163,15 @@ program midas_bgckmw
   ! ouverture du fichier sortie burp 
   IER = FNOM(IUNSRT,'./obsto_amsua.out','RND',0)
   IF(IER .NE. 0) THEN
-     PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
-     STOP
+    PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
+    STOP
   ENDIF
   NOMBRE =	MRFOPN(IUNSRT,'CREATE')
 
   ! Lecture du fichier burp entree
   ILNMX = MRFMXL(IUNENT)
   IF (DEBUG) THEN
-     WRITE(6,*)'MRFMXL: ILNMX =',ILNMX
+    WRITE(6,*)'MRFMXL: ILNMX =',ILNMX
   ENDIF
   ALLOCATE ( buf1(ILNMX*2), STAT=ier)
   BUF1(1) = ILNMX*2
@@ -179,20 +179,20 @@ program midas_bgckmw
   ! Valeur manquante burp
   ISTAT = MRFOPR('MISSING',ZMISG)
   IF (DEBUG) THEN
-     WRITE(6,*)' MISSING VALUE =', ZMISG
+    WRITE(6,*)' MISSING VALUE =', ZMISG
   ENDIF
 
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-     WRITE (6,*) '(" SATQC_AMSUA: Problem opening ", &
+    WRITE (6,*) '(" SATQC_AMSUA: Problem opening ", &
            "TOVS total error statistics file ", stats_amsua_assim)'               
-     CALL ABORT ()
+    CALL ABORT ()
   END IF
   CALL mwbg_readStatTovs(IUNSTAT,INUMSAT,CSATID)
   WRITE(6,*) " SATID's = "
   DO I = 1, INUMSAT
-     WRITE(6,*) '  ', CSATID(I)
+    WRITE(6,*) '  ', CSATID(I)
   ENDDO
 
   ! 3) Lecture des champs geophysiques (GL,MG,MT) du modele
@@ -200,8 +200,8 @@ program midas_bgckmw
   ! MG
   IREC = FSTINF(IUNGEO,NIMG,NJMG,NK,-1,' ',-1,-1,-1,' ','MG')
   IF (IREC .LT. 0) THEN
-     WRITE (6,*) ' LE MASQUE TERRE-MER EST INEXISTANT' 
-     CALL ABORT()
+    WRITE (6,*) ' LE MASQUE TERRE-MER EST INEXISTANT' 
+    CALL ABORT()
   ENDIF
 
   ALLOCATE ( mg(NIMG*NJMG), STAT=ier)
@@ -221,13 +221,13 @@ program midas_bgckmw
   IREC = FSTINF(IUNGEO,NIMT,NJMT,NK,-1,' ',-1,-1,-1,' ','ME')
   CLNOMVAR = 'ME'
   IF (IREC .LT. 0) THEN
-     TOPOFACT = 9.80616
-     IREC = FSTINF(IUNGEO,NIMT,NJMT,NK,-1,' ',-1,-1,-1,' ','MX')
-     CLNOMVAR = 'MX'
+    TOPOFACT = 9.80616
+    IREC = FSTINF(IUNGEO,NIMT,NJMT,NK,-1,' ',-1,-1,-1,' ','MX')
+    CLNOMVAR = 'MX'
   ENDIF
   IF (IREC .LT. 0) THEN
-     WRITE (6,*) ' LA TOPOGRAPHIE EST INEXISTANTE' 
-     CALL ABORT()
+    WRITE (6,*) ' LA TOPOGRAPHIE EST INEXISTANTE' 
+    CALL ABORT()
   ENDIF
 
   ALLOCATE ( MT(NIMT*NJMT), STAT=ier)
@@ -243,8 +243,8 @@ program midas_bgckmw
   ! GL
   IREC = FSTINF(IUNGEO,NIGL,NJGL,NK,-1,' ',-1,-1,-1,' ','GL')
   IF (IREC .LT. 0) THEN
-     WRITE (6,*) 'LE CHAMP GL EST INEXISTANT' 
-     CALL ABORT()
+    WRITE (6,*) 'LE CHAMP GL EST INEXISTANT' 
+    CALL ABORT()
   ENDIF
 
   ALLOCATE ( gl(NIGL*NJGL), STAT=ier)
@@ -283,9 +283,9 @@ program midas_bgckmw
 
   ! Enregistrement resume?
   IF ( STNID(1:2) .EQ. '>>' ) THEN   
-     IER=MRBUPD(IUNSRT,BUF1,-1,-1,ETIKRESU,-1,-1,-1,-1,-1, &
+    IER=MRBUPD(IUNSRT,BUF1,-1,-1,ETIKRESU,-1,-1,-1,-1,-1, &
               -1,-1,-1,-1,-1,-1,0,-1,0)                                            
-     ISTAT = MRFPUT(IUNSRT,0,BUF1)
+    ISTAT = MRFPUT(IUNSRT,0,BUF1)
   ENDIF  
 
   ! Sauter l'enregistrement?
@@ -294,9 +294,9 @@ program midas_bgckmw
   ! trouver l'indice du satellite
   INOSAT = 0
   DO I = 1,MXSAT
-     IF ( STNID .EQ. '^'//CSATID(I) ) THEN
-        INOSAT = I
-     ENDIF
+    IF ( STNID .EQ. '^'//CSATID(I) ) THEN
+      INOSAT = I
+    ENDIF
   ENDDO
   IF ( INOSAT .EQ. 0 ) THEN
     WRITE(6,*) 'SATELLITE ',TRIM(STNID), &
@@ -309,69 +309,69 @@ program midas_bgckmw
   NLAT = (MXLAT-1)/2
   NLON = (MXLON-1)/2
   DO JN = 1, NT
-     INDX = 0
-     DO I = -NLAT, NLAT
-        XLAT = ZLAT(JN) +I*DLAT
-        XLAT = MAX(-90.0,MIN(90.0,XLAT))
-        DO J = -NLON, NLON
-           INDX = INDX + 1
-           XLON = ZLON(JN) +J*DLON
-           IF ( XLON .LT. -180. ) XLON = XLON + 360.
-           IF ( XLON .GT.  180. ) XLON = XLON - 360.
-           IF ( XLON .lt.    0. ) XLON = XLON + 360.
-           ZLATBOX(INDX,JN) = XLAT
-           ZLONBOX(INDX,JN) = XLON
-        ENDDO
-     ENDDO
+    INDX = 0
+    DO I = -NLAT, NLAT
+      XLAT = ZLAT(JN) +I*DLAT
+      XLAT = MAX(-90.0,MIN(90.0,XLAT))
+      DO J = -NLON, NLON
+        INDX = INDX + 1
+        XLON = ZLON(JN) +J*DLON
+        IF ( XLON .LT. -180. ) XLON = XLON + 360.
+        IF ( XLON .GT.  180. ) XLON = XLON - 360.
+        IF ( XLON .lt.    0. ) XLON = XLON + 360.
+        ZLATBOX(INDX,JN) = XLAT
+        ZLONBOX(INDX,JN) = XLON
+      ENDDO
+    ENDDO
   ENDDO
 
   ier = gdllsval(gdmg,mgintbox,mg,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
   IF (ier .lt. 0) THEN
-     WRITE(*,*) 'ERROR in the interpolation of MG'
-     CALL ABORT()
+    WRITE(*,*) 'ERROR in the interpolation of MG'
+    CALL ABORT()
   ENDIF
   ier = gdllsval(gdmt,mtintbox,mt,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
   IF (ier .lt. 0) THEN
-     WRITE(*,*) 'ERROR in the interpolation of MT'
-     CALL ABORT()
+    WRITE(*,*) 'ERROR in the interpolation of MT'
+    CALL ABORT()
   ENDIF
   ier = gdllsval(gdgl,glintbox,gl,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
   IF (ier .lt. 0) THEN
-     WRITE(*,*) 'ERROR in the interpolation of GL'
-     CALL ABORT()
+    WRITE(*,*) 'ERROR in the interpolation of GL'
+    CALL ABORT()
   ENDIF
 
   DO JN = 1, NT
-     IF (DEBUG) THEN
-        PRINT *, ' ------------------  '
-        PRINT *, ' JN = ', JN
-        PRINT *, '   '
-        PRINT *, ' zlat,zlon = ', zlat(jn), zlon(jn)
-        PRINT *, '   '
-        PRINT *, ' ZLATBOX = '
-        PRINT *,  (ZLATBOX(I,JN),I=1,MXLAT*MXLON)
-        PRINT *, ' ZLONBOX = '
-        PRINT *,  (ZLONBOX(I,JN),I=1,MXLAT*MXLON)
-        PRINT *, ' MGINTBOX = '
-        PRINT *,  (MGINTBOX(I,JN),I=1,MXLAT*MXLON)
-        PRINT *, ' MTINTBOX = '
-        PRINT *,  (MTINTBOX(I,JN),I=1,MXLAT*MXLON)
-        PRINT *, ' GLINTBOX = '
-        PRINT *,  (GLINTBOX(I,JN),I=1,MXLAT*MXLON)
-     ENDIF
-     MGINTRP(JN) = 0.0
-     MTINTRP(JN) = 0.0
-     GLINTRP(JN) = 0.0
-     DO I=1,MXLAT*MXLON
-        MGINTRP(JN) = MAX(MGINTRP(JN),MGINTBOX(I,JN))
-        MTINTRP(JN) = MAX(MTINTRP(JN),MTINTBOX(I,JN)/TOPOFACT)
-        GLINTRP(JN) = MAX(GLINTRP(JN),GLINTBOX(I,JN))
-     ENDDO
-     IF (DEBUG) THEN
-        PRINT *, ' MGINTRP = ', MGINTRP(JN)
-        PRINT *, ' MTINTRP = ', MTINTRP(JN)
-        PRINT *, ' GLINTRP = ', GLINTRP(JN)
-     ENDIF
+    IF (DEBUG) THEN
+      PRINT *, ' ------------------  '
+      PRINT *, ' JN = ', JN
+      PRINT *, '   '
+      PRINT *, ' zlat,zlon = ', zlat(jn), zlon(jn)
+      PRINT *, '   '
+      PRINT *, ' ZLATBOX = '
+      PRINT *,  (ZLATBOX(I,JN),I=1,MXLAT*MXLON)
+      PRINT *, ' ZLONBOX = '
+      PRINT *,  (ZLONBOX(I,JN),I=1,MXLAT*MXLON)
+      PRINT *, ' MGINTBOX = '
+      PRINT *,  (MGINTBOX(I,JN),I=1,MXLAT*MXLON)
+      PRINT *, ' MTINTBOX = '
+      PRINT *,  (MTINTBOX(I,JN),I=1,MXLAT*MXLON)
+      PRINT *, ' GLINTBOX = '
+      PRINT *,  (GLINTBOX(I,JN),I=1,MXLAT*MXLON)
+    ENDIF
+    MGINTRP(JN) = 0.0
+    MTINTRP(JN) = 0.0
+    GLINTRP(JN) = 0.0
+    DO I=1,MXLAT*MXLON
+      MGINTRP(JN) = MAX(MGINTRP(JN),MGINTBOX(I,JN))
+      MTINTRP(JN) = MAX(MTINTRP(JN),MTINTBOX(I,JN)/TOPOFACT)
+      GLINTRP(JN) = MAX(GLINTRP(JN),GLINTBOX(I,JN))
+    ENDDO
+    IF (DEBUG) THEN
+      PRINT *, ' MGINTRP = ', MGINTRP(JN)
+      PRINT *, ' MTINTRP = ', MTINTRP(JN)
+      PRINT *, ' GLINTRP = ', GLINTRP(JN)
+    ENDIF
   ENDDO
 
   ! 6) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
@@ -413,6 +413,7 @@ program midas_bgckmw
 
   ! fermeture des fichiers 
 9999  CONTINUE
+
   JUNK  = EXFIN('SATQC_AMSUA',' ','NON')
   ISTAT = MRFCLS(IUNENT)
   ISTAT = MRFCLS(IUNSRT)
