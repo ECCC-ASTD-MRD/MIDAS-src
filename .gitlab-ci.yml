@@ -34,7 +34,7 @@ stages:
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
+     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - . ./set_machine_list.dot ${suite}
      - clean_suite -y ${suite}
      - rm ~/.suites/${suite}

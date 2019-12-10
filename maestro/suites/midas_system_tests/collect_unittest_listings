@@ -4,7 +4,6 @@ set -e
 
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which nodelister 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which cmcarc
 
 export SEQ_EXP_HOME=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 unittests=${*}
@@ -36,7 +35,14 @@ if [[ -z "${unittests}" ]]; then
     unittests=$(cd ${SEQ_EXP_HOME}/resources/Tests; find . -name UnitTest | xargs -L1 dirname | cut -c3-)
 fi
 
-cd ${collect_unittest_listings_workdir:-${TMPDIR}}
+if [ -n "${collect_unittest_listings_workdir}" ]; then
+    if [ ! -d "${collect_unittest_listings_workdir}" ]; then
+        mkdir -p ${collect_unittest_listings_workdir}
+    fi
+    cd ${collect_unittest_listings_workdir}
+else
+    cd ${TMPDIR}
+fi
 
 for unittest in ${unittests}; do
     if [ -n "${collect_unittest_listings_output}" ]; then
