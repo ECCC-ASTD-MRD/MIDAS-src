@@ -27,7 +27,7 @@ module bgckmicrowave_mod
   public :: mwbg_debug
 
   ! Public functions
-  public :: mwbg_readStatTovs, mwbg_readTovs, mwbg_tovCheckAmsua, mwbg_qcStatsAmsua, mwbg_UPDATFLG, mwbg_ADDTRRN  
+  public :: mwbg_readStatTovs, mwbg_readStatTovsAtms, mwbg_readTovs, mwbg_readTovsAtms, mwbg_tovCheckAmsua, mwbg_tovCheckAtms, mwbg_qcStatsAmsua, mwbg_qcStatsAtms, mwbg_UPDATFLG, mwbg_updatFlgAtms, mwbg_ADDTRRN  
 
   logical :: mwbg_debug
 
@@ -2537,6 +2537,1321 @@ contains
 
     RETURN
   END
+
+
+  SUBROUTINE mwbg_tovCheckAtms(KSAT,KORBIT,KCANO,KCANOMP, &
+                      PTBO,PTBCOR,PTBOMP,ICHECK,KNO,KNOMP, &
+                      KNT,PMISG,KNOSAT,IDENTF,KCHKPRF,ISCNPOS, &
+                      MTINTRP,IMARQ,STNID,RESETQC)
+
+    !OBJET          Effectuer le controle de qualite des radiances tovs.
+    !
+    !
+    !ARGUMENTS      ksat    - input  -  numero d'identificateur du satellite
+    !               korbit  - input  -  numero d'orbite
+    !               kcano   - input  -  canaux des observations
+    !               kcanomp - input  -  canaux des residus (o-p)
+    !               ptbcor  - input  -  correction aux radiances
+    !               ptbo    - input  -  radiances
+    !               ptbomp  - input  -  residus (o-p)
+    !               icheck  - output -  indicateur controle de qualite tovs par canal 
+    !                                   =0, ok,
+    !                                   >0, rejet,
+    !               kno     - input  -  nombre de canaux des observations
+    !               knomp   - input  -  nombre de canaux des residus (o-p)
+    !               knt     - input  -  nombre de tovs
+    !               pmisg   - input  -  valeur manquante burp
+    !               knosat  - input  -  numero de satellite (i.e. indice)
+    !               identf  - input  -  special ATMS QC integer flag
+    !               kchkprf - output -  indicateur global controle de qualite tovs. Code:
+    !                                   =0, ok,
+    !                                   >0, rejet d'au moins un canal.
+    !               iscnpos - input  -  position sur le "scan"
+    !               mtintrp - input  -  topographie du modele
+    !               imarq   - in/out -  marqueurs des radiances
+    !               stnid   - input  -  identificateur du satellite
+    !               resetqc - input  -  reset du controle de qualite?
+    !
+    !NOTES  
+    !        5 tests are done:  
+    !          1) check for data rejected by SATQC_ATMS (QC flag bit 7 ON)          --> bit 9(,7)
+    !          2) topography rejection for low-peaking channels (with MF/MX field), --> bits 9,18
+    !          3) check for uncorrected radiance (QC flag bit 6 OFF),               --> bit 11           
+    !          4) Innovation (O-P) based QC                                         --> bit 9
+    !         5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
+    IMPLICIT NONE
+
+    INTEGER     MXNT
+    PARAMETER ( MXNT   =  3000 )
+
+    INTEGER MXCHN, MXSAT, MXSCAN
+    INTEGER MXSCANAMSU, MXSFCREJ, MXCH2OMPREJ,  MXTOPO
+    PARAMETER  ( MXCHN      = 22 )
+    PARAMETER  ( MXSAT      =  3 )
+    PARAMETER  ( MXSCAN     = 96 )
+    PARAMETER  ( MXSCANAMSU = 96 )
+    PARAMETER  ( MXSFCREJ   =  8 )
+    PARAMETER  ( MXCH2OMPREJ=  6 )
+    PARAMETER  ( MXTOPO     =  5 )
+
+    !   Number of tests
+    INTEGER     JPMXREJ
+    PARAMETER ( JPMXREJ = 5)
+
+    INTEGER JPNSAT,JPCH
+ 
+    PARAMETER (JPNSAT =  3) 
+    PARAMETER (JPCH   = 22)
+    
+    INTEGER NCHNA    (JPNSAT)
+    INTEGER MLISCHNA (JPCH,JPNSAT)
+    REAL    TOVERRST (JPCH,JPNSAT)
+    INTEGER IUTILST  (JPCH,JPNSAT)
+    COMMON /COMTOVST/ NCHNA, MLISCHNA, TOVERRST, IUTILST
+
+    INTEGER KNO,KNOMP,KNT,KNOSAT,MAXVAL
+    INTEGER JI,JJ,INDX8,INDX12,INO,ICHN
+    INTEGER JK,IBIT,JC,INDX,INDXCAN,INDXTOPO
+    INTEGER MISGINT
+
+    INTEGER KSAT    (KNT)
+    INTEGER ISCNPOS (KNT)
+    INTEGER KORBIT  (KNT)
+    INTEGER KCANO   (KNO  ,KNT)
+    INTEGER KCANOMP (KNOMP,KNT)
+    INTEGER ICHECK  (KNO  ,KNT)
+    INTEGER KCHKPRF (KNT)
+    INTEGER IMARQ   (KNO  ,KNT)
+    INTEGER ISFCREJ (MXSFCREJ)
+    INTEGER ICH2OMPREJ(MXCH2OMPREJ)
+    INTEGER IDENTF  (KNT)
+    INTEGER B7CHCK  (KNO  ,KNT)
+
+    REAL  PMISG
+    REAL  APPROXIM, XCHECKVAL
+    REAL  PTBO    (KNO    ,KNT)
+    REAL  PTBCOR  (KNO    ,KNT)
+    REAL  PTBOMP  (KNOMP  ,KNT)
+    REAL  MTINTRP (KNT)
+    REAL  ROGUEFAC(MXCHN)
+
+    INTEGER ITEST  (JPMXREJ)
+
+    INTEGER ICHTOPO (MXTOPO)
+    REAL    ZCRIT   (MXTOPO)
+
+    CHARACTER *9   STNID
+
+    LOGICAL LLFIRST,GROSSERROR,FULLREJCT,RESETQC,SFCREJCT,CH2OMPREJCT
+
+    INTEGER  MREJCOD,INTOT,INTOTRJF,INTOTRJP,MREJCOD2
+    COMMON /STATS/  MREJCOD(JPMXREJ,MXCHN,MXSAT), &
+                   INTOT(MXSAT), &
+                   INTOTRJF(MXSAT),INTOTRJP(MXSAT), &
+                   MREJCOD2(JPMXREJ,MXCHN,MXSAT)
+
+    LOGICAL DEBUG
+    COMMON /DBGCOM/ DEBUG
+
+    SAVE LLFIRST
+
+    DATA  LLFIRST / .TRUE. /
+    DATA  MISGINT / -1     /
+
+    DATA  ROGUEFAC / 2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
+                    4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 2.0, &
+                    2.0, 4.0, 4.0, 4.0, 4.0, 4.0 /
+
+    ! Channel sets for rejection in test 9 
+    ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
+    DATA  ISFCREJ    / 1, 2, 3, 4, 5, 6, 16, 17 /
+    !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
+    DATA  ICH2OMPREJ / 17, 18, 19, 20, 21, 22 /
+
+    !  Data for TOPOGRAPHY CHECK
+    !   Channel AMSUA-6 (atms ch 7) is rejected for topography  >  250m.
+    !   Channel AMSUA-7 (atms ch 8) is rejected for topography  > 2000m.
+    !   Channel AMSUB-3 (atms ch 22) is rejected for topography > 2500m.
+    !                    atms ch 21  is rejected for topography > 2250m.
+    !   Channel AMSUB-4 (atms ch 20) is rejected for topography > 2000m.
+    DATA ICHTOPO  /     7,     8,    20,    21,    22  /
+    DATA ZCRIT    /   250., 2000., 2000., 2250., 2500. /
+
+    !  Test selection (0=skip test, 1=do test)
+    !             1  2  3  4  5 
+    DATA ITEST  / 1, 1, 1, 1, 1 /
+       
+    ! Initialisation, la premiere fois seulement!
+    IF (LLFIRST) THEN
+      DO JI = 1, JPMXREJ
+        DO JJ = 1, MXCHN
+          DO JK = 1, MXSAT
+            MREJCOD(JI,JJ,JK)  = 0
+            MREJCOD2(JI,JJ,JK) = 0
+          ENDDO
+        ENDDO
+      ENDDO
+      LLFIRST = .FALSE.
+    ENDIF
+
+    !  Verification de l'integrite des donnees, c'est-a-dire que:
+    !         i)  les dimensions des divers blocs de donnees concordent,
+    !         ii) les listes de canaux concordent.
+    IF ( KNO .NE. KNOMP     ) THEN
+      WRITE(6,*)'ERROR IN DIMENSIONS OF TOVS DATA'
+      CALL ABORT()
+    ENDIF
+
+    DO JJ=1,KNT
+      DO JI=1,KNO
+        IF ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) THEN
+          WRITE(6,*)'INCONSISTENT CHANNEL LISTS FOR TOVS DATA'
+          CALL ABORT()
+        ENDIF
+      ENDDO
+    ENDDO
+
+    !  Initialisations
+    DO JJ=1,KNT
+      DO JI=1,KNO
+        ICHECK(JI,JJ) = 0
+        B7CHCK(JI,JJ) = 0
+        IF ( RESETQC ) IMARQ(JI,JJ) = 0
+      ENDDO
+    ENDDO
+
+    ! 1) test 1: Check flag bit 7 on from SATQC_ATMS
+    !  Includes observations flagged for cloud liquid water, scattering index,
+    !  dryness index plus failure of several QC checks.
+    INO = 1
+    if ( itest(ino) .eq. 1 ) then
+      DO JJ=1,KNT
+        DO JI=1,KNO
+          IBIT = AND(IMARQ(JI,JJ), 2**7)
+          IF ( IBIT .NE. 0  ) THEN
+            ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+            B7CHCK(JI,JJ) = 1
+            IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
+            MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+            IF (DEBUG) THEN
+              WRITE(6,*)STNID(2:9),' SATQC_ATMS REJECT.', &
+                        'CHANNEL=', KCANO(JI,JJ), &
+                        ' IMARQ= ',IMARQ(JI,JJ)
+            ENDIF
+          ENDIF
+        ENDDO
+      ENDDO
+    endif
+
+    ! 2) test 2: Topography check (partial)
+    INO = 2
+    if ( itest(ino) .eq. 1 ) then
+      DO JJ=1,KNT
+        DO JI=1,KNO
+          INDXTOPO = ISRCHEQI(ICHTOPO, MXTOPO, KCANO(JI,JJ))
+          IF ( INDXTOPO .GT. 0 ) THEN
+            IF ( MTINTRP(JJ) .GE. ZCRIT(INDXTOPO) ) THEN
+              ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
+              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**18)
+              MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+              IF ( B7CHCK(JI,JJ) .EQ. 0 ) THEN
+                MREJCOD2(INO,KCANO(JI,JJ),KNOSAT) = &
+                   MREJCOD2(INO,KCANO(JI,JJ),KNOSAT)+ 1                 
+              ENDIF
+              IF (DEBUG) THEN
+                WRITE(6,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
+                          'CHANNEL=', KCANO(JI,JJ), &
+                          ' TOPO= ',MTINTRP(JJ)
+              ENDIF
+            ENDIF
+          ENDIF
+        ENDDO
+      ENDDO
+    endif
+
+    ! 3) test 3: Uncorrected Tb check (single)
+    !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
+    IF (.NOT.RESETQC) THEN
+      INO = 3
+      if ( itest(ino) .eq. 1 ) then
+        DO JJ=1,KNT
+          DO JI=1,KNO
+            IBIT = AND(IMARQ(JI,JJ), 2**6)
+            IF ( IBIT .EQ. 0  ) THEN
+              ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+              IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**11)
+              MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                 MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+              IF ( B7CHCK(JI,JJ) .EQ. 0 ) THEN
+                MREJCOD2(INO,KCANO(JI,JJ),KNOSAT) = &
+                    MREJCOD2(INO,KCANO(JI,JJ),KNOSAT)+ 1                 
+              ENDIF
+              IF (DEBUG) THEN
+                WRITE(6,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
+                          'CHANNEL=', KCANO(JI,JJ), &
+                          ' IMARQ= ',IMARQ(JI,JJ)
+              ENDIF
+            ENDIF
+          ENDDO
+        ENDDO
+      endif
+    ENDIF
+
+    ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
+    !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
+    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac) 
+    !   l'erreur totale des TOVS.
+    !  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
+    !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
+    !  OVER OPEN WATER
+    !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
+    INO = 4
+    if ( itest(ino) .eq. 1 ) then
+      DO JJ=1,KNT
+        SFCREJCT = .FALSE.
+        CH2OMPREJCT = .FALSE.
+        DO JI=1,KNO
+          ICHN = KCANO(JI,JJ)
+          XCHECKVAL = ROGUEFAC(ICHN) * &
+                     TOVERRST(ICHN,KNOSAT) 
+          IF ( PTBOMP(JI,JJ)      .NE. PMISG    .AND. &
+              ABS(PTBOMP(JI,JJ)) .GE. XCHECKVAL     ) THEN
+            ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+            IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
+            IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**16)
+            MREJCOD(INO,KCANO(JI,JJ),KNOSAT) =  &
+               MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
+            IF ( B7CHCK(JI,JJ) .EQ. 0 ) THEN
+              MREJCOD2(INO,KCANO(JI,JJ),KNOSAT) = &
+                 MREJCOD2(INO,KCANO(JI,JJ),KNOSAT)+ 1                 
+            ENDIF
+            IF (DEBUG) THEN
+              WRITE(6,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
+                     ' OBS = ',JJ, &
+                     ' CHANNEL= ',KCANO(JI,JJ), &
+                     ' CHECK VALUE= ',XCHECKVAL, &
+                     ' TBOMP= ',PTBOMP(JI,JJ)
+            ENDIF
+            IF ( ICHN .EQ. 1 .OR. &
+                ICHN .EQ. 2 .OR. &
+                ICHN .EQ. 3    ) THEN
+              SFCREJCT = .TRUE.
+            ENDIF
+          ENDIF
+          IF ( ICHN .EQ. 17 .AND. PTBOMP(JI,JJ) .NE. PMISG .AND. &
+              ABS(PTBOMP(JI,JJ)) .GT. 5.0 ) THEN
+            CH2OMPREJCT = .TRUE.
+          ENDIF
+        ENDDO
+
+        IF ( SFCREJCT ) THEN
+          DO JI=1,KNO
+            INDXCAN = ISRCHEQI (ISFCREJ,MXSFCREJ,KCANO(JI,JJ))
+            IF ( INDXCAN .NE. 0 )  THEN
+              IF ( ICHECK(JI,JJ) .NE. INO ) THEN
+                ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
+                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**16)
+                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+                IF ( B7CHCK(JI,JJ) .EQ. 0 ) THEN
+                  MREJCOD2(INO,KCANO(JI,JJ),KNOSAT) = &
+                     MREJCOD2(INO,KCANO(JI,JJ),KNOSAT)+ 1                 
+                ENDIF
+              ENDIF
+            ENDIF
+          ENDDO
+        ENDIF
+
+        !  amsub channels 17-22 obs are rejected if, for ch17 ABS(O-P) > 5K
+        !    Apply over open water only (bit 0 ON in QC integer identf).
+        !    Only apply if obs not rejected in this test already.
+        IBIT = AND(IDENTF(JJ), 2**0)
+        IF ( CH2OMPREJCT .AND. (IBIT .NE. 0) ) THEN
+          DO JI=1,KNO
+            INDXCAN = ISRCHEQI (ICH2OMPREJ,MXCH2OMPREJ,KCANO(JI,JJ))
+            IF ( INDXCAN .NE. 0 )  THEN
+              IF ( ICHECK(JI,JJ) .NE. INO ) THEN
+                ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
+                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**9)
+                IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**16)
+                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+                IF ( B7CHCK(JI,JJ) .EQ. 0 ) THEN
+                  MREJCOD2(INO,KCANO(JI,JJ),KNOSAT) = &
+                     MREJCOD2(INO,KCANO(JI,JJ),KNOSAT)+ 1                 
+                ENDIF
+              ENDIF
+            ENDIF
+          ENDDO
+        ENDIF
+
+      ENDDO
+    endif
+
+    ! 5) test 5: Channel selection using array IUTILST(chan,sat)
+    !  IUTILST = 0 (blacklisted)
+    !            1 (assmilate)
+    INO = 5
+    if ( itest(ino) .eq. 1 ) then
+      DO JJ=1,KNT
+        DO JI=1,KNO
+           ICHN = KCANO(JI,JJ)
+           IF ( IUTILST(ICHN,KNOSAT) .EQ. 0 ) THEN
+             IMARQ(JI,JJ) = OR(IMARQ(JI,JJ),2**8)
+             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
+                   MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
+             IF (DEBUG) THEN
+               WRITE(6,*)STNID(2:9),'CHANNEL REJECT: ', &
+                      ' OBS = ',JJ, &
+                      ' CHANNEL= ',ICHN                  
+             ENDIF
+           ENDIF
+        ENDDO
+      ENDDO      
+    endif
+
+    IF (DEBUG) THEN
+      WRITE(6,*) 'ICHECK = ',((ICHECK(JI,JJ),JI=1,KNO),JJ=1,KNT)
+    ENDIF
+
+    !  Synthese de la controle de qualite au niveau de chaque point
+    !  d'observation. Code:
+    !            =0, aucun rejet,
+    !            >0, au moins un canal rejete.
+    DO JJ=1,KNT
+      KCHKPRF(JJ) = 0
+      DO JI=1,KNO 
+        KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
+      ENDDO
+    ENDDO
+
+    IF (DEBUG) THEN
+      WRITE(6,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
+    ENDIF 
+
+    RETURN
+  END
+
+
+  SUBROUTINE mwbg_qcStatsAtms (INUMSAT,ICHECK,KCANO,KNOSAT, &
+                     CSATID,KNO,KNT,LDPRINT)
+    !OBJET          Cumuler ou imprimer des statistiques decriptives
+    !               des rejets tovs.
+    !
+    !ARGUMENTS      
+    !               inumsat - input  -  nombre actuel de satellites
+    !               icheck  - input  -  indicateur controle de qualite tovs par canal 
+    !                                   =0, ok,
+    !                                   >0, rejet,
+    !               kcano   - input  -  canaux des observations
+    !               knosat  - input  -  numero du satellite (i.e. index) 
+    !               csatid  - input  -  liste des noms de satellite 
+    !               kno     - input  -  nombre de canaux des observations
+    !               knt     - input  -  nombre de tovs
+    !               ldprint - input  -  mode: imprimer ou cumuler? 
+    IMPLICIT NONE
+
+    INTEGER MXCHN, MXSAT
+    PARAMETER  ( MXCHN = 22 )
+    PARAMETER  ( MXSAT =  3 )
+
+    INTEGER     JPMXREJ
+    PARAMETER ( JPMXREJ = 5)
+
+    CHARACTER*9   CSATID (MXSAT)
+
+    INTEGER  JI, JJ, JK, KNO, KNT, KNOSAT
+    INTEGER  INTOTOBS, INTOTACC, INUMSAT
+
+    INTEGER  ICHECK (KNO,KNT)
+    INTEGER  KCANO  (KNO,KNT)
+
+    INTEGER  MREJCOD,INTOT,INTOTRJF,INTOTRJP,MREJCOD2
+    COMMON /STATS/  MREJCOD(JPMXREJ,MXCHN,MXSAT), &
+                   INTOT(MXSAT), &
+                   INTOTRJF(MXSAT),INTOTRJP(MXSAT), &
+                   MREJCOD2(JPMXREJ,MXCHN,MXSAT)
+
+    LOGICAL LLFIRST, LDPRINT, FULLREJCT, FULLACCPT
+
+    SAVE  LLFIRST
+
+    DATA  LLFIRST / .TRUE. /
+
+    ! Initialize
+    IF ( LLFIRST ) THEN
+      DO JJ = 1, MXSAT
+        INTOTRJF(JJ) = 0
+        INTOTRJP(JJ) = 0
+        INTOT(JJ)  = 0
+        LLFIRST = .FALSE.
+      ENDDO
+    ENDIF
+
+    IF (.NOT. LDPRINT ) THEN
+
+      ! Accumulate statistics on rejects
+      DO JJ = 1, KNT
+        INTOT(KNOSAT) = INTOT(KNOSAT) + 1
+
+        ! Full accepted, fully rejected or partially rejected?
+        FULLREJCT = .TRUE.
+        FULLACCPT = .TRUE.
+        DO JI = 1, KNO
+           IF ( ICHECK(JI,JJ) .NE. 0 ) THEN
+              FULLACCPT = .FALSE.
+           ELSE
+              FULLREJCT = .FALSE.
+           ENDIF
+        ENDDO
+        IF ( FULLREJCT ) THEN
+           INTOTRJF(KNOSAT) = INTOTRJF(KNOSAT) + 1
+        ENDIF
+        IF ( .NOT.FULLREJCT .AND. .NOT.FULLACCPT ) THEN
+           INTOTRJP(KNOSAT) = INTOTRJP(KNOSAT) + 1
+        ENDIF
+      ENDDO
+
+    ELSE
+      ! Print statistics
+      DO JK = 1, INUMSAT
+
+        INTOTOBS = INTOT(JK)
+        INTOTACC = INTOTOBS - INTOTRJF(JK) - INTOTRJP(JK)
+
+        WRITE(6,'(/////50("*"))')
+        WRITE(6,'(     50("*")/)')
+        WRITE(6,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
+         A8)') CSATID(JK) 
+        WRITE(6,'(T5,"------------------------------------- ",/)')
+        WRITE(6,'( &
+        "   TOTAL NUMBER OF ATMS    = ",I10,/ &
+        " - TOTAL FULL REJECTS      = ",I10,/ &
+        " - TOTAL PARTIAL REJECTS   = ",I10,/ &
+        "   ------------------------------------",/ &
+        "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
+          INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
+
+        WRITE(6,'(//,1x,59("-"))')
+        WRITE(6,'(t10,"|",t19,"1. REJECTION CATEGORIES")')
+        WRITE(6,'(" CHANNEL",t10,"|",50("-"))')
+        WRITE(6,'(t10,"|",5i7)') (JI,JI=1,JPMXREJ)
+        WRITE(6,'(1x,"--------|",50("-"))')
+        DO JJ = 1, MXCHN
+          WRITE(6,'(3X,I2,t10,"|",5I7)') JJ,(MREJCOD(JI,JJ,JK), &
+                                      JI=1,JPMXREJ)
+        ENDDO
+        WRITE(6,'(1x,59("-"))')
+
+        WRITE(6,'(//,1x,59("-"))')
+        WRITE(6,'(t10,"|",t19,"2. QC2 REJECT CATEGORIES")')
+        WRITE(6,'(" CHANNEL",t10,"|",50("-"))')
+        WRITE(6,'(t10,"|",5i7)') (JI,JI=1,JPMXREJ)
+        WRITE(6,'(1x,"--------|",50("-"))')
+        DO JJ = 1, MXCHN
+          WRITE(6,'(3X,I2,t10,"|",5I7)') JJ,(MREJCOD2(JI,JJ,JK), &
+                                      JI=1,JPMXREJ)
+        ENDDO
+        WRITE(6,'(1x,59("-"))')
+      ENDDO
+
+      ! Print legend
+      PRINT *, ' '
+      PRINT *, ' '
+      PRINT *, ' -----------------------------------------------------'
+      PRINT *, ' Definition of rejection categories: '
+      PRINT *, ' -----------------------------------------------------'
+      PRINT *, '  1 - SATQC_ATMS reject [bit 7]'
+      PRINT *, '  2 - topography reject'
+      PRINT *, '  3 - uncorrected radiance'
+      PRINT *, '  4 - innovation (O-P) based reject'
+      PRINT *, '  5 - rejection by channel selection'
+      PRINT *, ' -----------------------------------------------------'
+      PRINT *, ' '
+      PRINT *, ' QC2 REJECT numbers in Table 2 are for data that '
+      PRINT *, ' passed test 1 (data with QC flag bit 7 OFF)'
+      PRINT *, ' '
+
+    ENDIF
+
+    RETURN
+  END
       
+
+  SUBROUTINE mwbg_updatFlgAtms (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+                      KDATA,PDATA,KCHKPRF,ICHECK, &
+                      RESETQC,IMARQ)
+    !OBJET          Allumer les bits des marqueurs pour les tovs rejetes.
+    !               Modifier le bktyp des donnees, marqueurs et (O-P) pourt
+    !               signifier "vu par AO". 
+    !
+    !APPEL          CALL   mwbg_updatFlgAtms (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL,
+    !                                KDATA,PDATA,KCHKPRF,ICHECK,
+    !                                RESETQC,IMARQ)
+    !
+    !ARGUMENTS      kbuf1   - in/out -  tableau contenant le rapport
+    !               kliste  - input  -  liste des noms d'elements
+    !               ktblval - input  -  champ de donnees (valeurs entieres)
+    !               kdliste - input  -  liste des noms d'elements (decodes)
+    !               prval   - input  -  champ de donnees (valeurs reelles)
+    !               kdata   - input  -  donnees extraites (valeurs entieres)
+    !               pdata   - input  -  donnees extraites (valeurs reelles)
+    !               kchprf  - input  -  indicateur global controle de qualite tovs. Code:
+    !                                   =0, ok,
+    !                                   >0, rejet,
+    !               icheck  - input  -  indicateur controle de qualite tovs au 
+    !                                   niveau de chaque canal
+    !               resetqc - input  -  reset the quality control flags before adding the new ones ? 
+    !               imarq   - input  -  modified flag values from mwbg_tovCheckAtms
+    IMPLICIT NONE
+
+    INTEGER KBUF1   (:)
+    INTEGER KDLISTE (:)
+    INTEGER KLISTE  (:)
+    INTEGER KTBLVAL (:)
+    INTEGER KDATA   (:)
+    INTEGER KCHKPRF (:)
+    INTEGER ICHECK  (:)
+    INTEGER IMARQ   (:)
+
+    INTEGER IDUM1,IDUM2,IDUM3,IBFAM
+    INTEGER IBDESC,IBTYP,INBIT,IBIT0,IDATYP
+    INTEGER IBKNAT,IBKTYP,IBKSTP 
+    INTEGER MRBPRM, MRBDEL, MRBADD, MRBTYP,MRBXTR
+    INTEGER INELE,INVAL,INT,JI,IPNTR,MRBREP,MRBLOC
+    INTEGER JJ,IBLKNO,ISTAT,IMELERAD
+
+    REAL PRVAL (:)
+    REAL PDATA (:)
+
+    LOGICAL RESETQC
+
+    LOGICAL DEBUG
+    COMMON /DBGCOM/ DEBUG
+
+    ! 1) Bloc info 3d: bloc 5120.
+    !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
+
+    ! extraire le bloc
+    CALL XTRBLK (5120,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+                INELE,INVAL,INT,IBLKNO)    
+    IF(IBLKNO .LE. 0) THEN
+      WRITE(6,*)'3D INFO BLOCK NOT FOUND'
+      CALL ABORT()
+    ENDIF
+
+    ! extraire les marqueurs globaux de 24bits; element 55200
+    CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
+                 55200,KDATA,PDATA,IPNTR)    
+    IF(IPNTR .EQ. 0) THEN
+      WRITE(6,*)'GLOBAL FLAGS MISSING'
+      CALL ABORT()
+    ENDIF
+    IF (DEBUG) THEN
+      WRITE(6,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    ENDIF
+
+    ! allumer la bit (6) indiquant que l'observation a un element
+    ! rejete par le controle de qualite de l'AO.
+    !  N.B.: si on est en mode resetqc, on remet le marqueur global a
+    !        sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
+    DO JI = 1, INT
+      IF (RESETQC) THEN
+        KDATA(JI) = 1024  
+      ENDIF
+      IF ( KCHKPRF(JI).NE.0  ) THEN
+        KDATA(JI) = OR (KDATA(JI),2**6)
+      ENDIF
+    ENDDO
+    IF (DEBUG) THEN
+      WRITE(6,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    ENDIF
+
+    ! Remplacer les nouveaux marqueurs dans le tableau.
+    CALL REPDATA (KDLISTE,KTBLVAL,INELE,INVAL,INT, &
+                         55200,KDATA,IPNTR)
+
+    ! Remplacer le bloc.
+    ISTAT = MRBREP (KBUF1,IBLKNO,KTBLVAL)
+
+    ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
+    !    Modifier le bktyp pour signifier "vu par AO".
+
+    ! localiser le bloc
+    IBLKNO =  MRBLOC(KBUF1,-1,-1,9218,0)   
+    IF(IBLKNO .LE. 0) THEN
+      IBLKNO =  MRBLOC(KBUF1,-1,-1,9248,0)  
+    ENDIF          
+    IF(IBLKNO .LE. 0) THEN
+      IBLKNO =  MRBLOC(KBUF1,-1,-1,9264,0)  
+    ENDIF        
+    IF(IBLKNO .LE. 0) THEN
+      WRITE(6,*)'RADIANCE DATA BLOCK NOT FOUND'
+      CALL ABORT()
+    ENDIF
+
+    ! extraction du bloc
+
+    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
+    ISTAT = MRBXTR(KBUF1,IBLKNO,KLISTE,KTBLVAL)
+    ISTAT = MRBPRM (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
+    ISTAT = MRBDEL(KBUF1,IBLKNO)
+
+    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+    IBKTYP = IBKTYP + 4
+    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
+    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
+                   KLISTE,KTBLVAL)
+
+    ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
+    !    Modifier les marqueurs de 13bits associes a chaque radiance.
+    !    Modifier le bktyp pour signifier "vu par AO".
+
+    ! extraire le bloc
+    CALL XTRBLK (15362,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+                INELE,INVAL,INT,IBLKNO)    
+    IF(IBLKNO .LE. 0) THEN
+      CALL XTRBLK (15392,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+                   INELE,INVAL,INT,IBLKNO)    
+    ENDIF        
+    IF(IBLKNO .LE. 0) THEN
+      CALL XTRBLK (15408,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
+                   INELE,INVAL,INT,IBLKNO)    
+    ENDIF    
+    IF(IBLKNO .LE. 0) THEN
+      WRITE(6,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
+      CALL ABORT()
+    ENDIF
+
+    ! extraire les marqueurs de 13bits des radiances; element 212163 (LEVEL 1B)
+    IMELERAD =  212163 
+    CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
+                 IMELERAD,KDATA,PDATA,IPNTR) 
+    IF(IPNTR .EQ. 0) THEN
+      WRITE(6,*)'RADIANCE DATA FLAGS MISSING'
+      CALL ABORT()
+    ENDIF
+    IF (DEBUG) THEN
+      WRITE(6,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    ENDIF
+
+    ! update data flags
+    DO JI = 1, INVAL*INT
+      KDATA(JI) = IMARQ(JI)
+    ENDDO
+    IF (DEBUG) THEN
+      WRITE(6,*) ' ICHECK = ', (ICHECK(JJ),JJ=1,INVAL*INT)
+      WRITE(6,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    ENDIF
+
+    ! Remplacer les nouveaux marqueurs dans le tableau.
+    CALL REPDATA (KDLISTE,KTBLVAL,INELE,INVAL,INT, &
+                   IMELERAD,KDATA,IPNTR)
+
+    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
+    ISTAT = MRBPRM (KBUF1,IBLKNO,IDUM1,IDUM2,IDUM3,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
+    ISTAT = MRBDEL(KBUF1,IBLKNO)
+
+    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+    IBKTYP = IBKTYP + 4
+    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
+    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
+                   KLISTE,KTBLVAL)
+
+    ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
+    !    Modifier le bktyp pour signifier "vu par AO".
+
+    ! localiser le bloc
+    IBLKNO =  MRBLOC(KBUF1,-1,-1,9322,0)   
+    IF(IBLKNO .LE. 0) THEN
+      IBLKNO =  MRBLOC(KBUF1,-1,-1,9226,0)  
+    ENDIF          
+    IF(IBLKNO .LE. 0) THEN
+      IBLKNO =  MRBLOC(KBUF1,-1,-1,9258,0)  
+    ENDIF        
+    IF(IBLKNO .LE. 0) THEN
+      IBLKNO =  MRBLOC(KBUF1,-1,-1,9274,0)  
+    ENDIF   
+    IF(IBLKNO .LE. 0) THEN
+      WRITE(6,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
+      CALL ABORT()
+    ENDIF
+
+    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
+    ISTAT = MRBXTR(KBUF1,IBLKNO,KLISTE,KTBLVAL)
+    ISTAT = MRBPRM (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
+    ISTAT = MRBDEL(KBUF1,IBLKNO)
+
+    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+    IBKTYP = IBKTYP + 4
+    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
+    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
+                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
+                   KLISTE,KTBLVAL)
+
+    RETURN
+  END
+
+
+  SUBROUTINE mwbg_readTovsAtms(IUNENT,HANDLE,ISAT,ZMISG,BUF1,TBLVAL, &
+       LSTELE,ELDALT,IDATA,ICANO,ICANOMP,ICANOMPNA,INO, &
+       INOMP,INOMPNA,DONIALT,ZDATA,ZO,ZCOR,ZOMP,STNID, &
+       ZOMPNA,IMARQ,MXELM,MXVAL,MXNT,NELE,NVAL,NT, &
+       ISCNCNT,ISCNPOS,MXSCAN,ZLAT,ZLON,ITERMER, &
+       IORBIT,SATZEN,ITERRAIN,SKIPENR,IDENTF)
+    !OBJET          Lire les donnees ATOVS.
+    !
+    !ARGUMENTS      iunent    - input  -  unite logique du fichier burp
+    !               handle    - in/out -  "handle" du fichier burp
+    !               isat      - output -  numero d'identificateur du satellite 
+    !               zmisg     - input  -  valeur manquante burp 
+    !               buf1      - input  -  tableau contenant le rapport burp
+    !               tblval    - input  -  champ de donnees (valeurs entieres)
+    !               lstele    - input  -  liste des noms d'elements
+    !               eldalt    - input  -  liste des noms d'elements (decodes)
+    !               idata     - input  -  vecteur de travail
+    !               icano     - output -  canaux des radiances
+    !               icanomp   - output -  canaux des residus
+    !               icanompna - output -  canaux des residus au nadir
+    !               ino       - output -  nombre de canaux (radiances)
+    !               inomp     - output -  nombre de canaux (residus)
+    !               inompna   - output -  nombre de canaux (residus au nadir)
+    !               donialt   - input  -  champ de donnees (valeurs reelles)
+    !               zdata     - input  -  vecteur de travail
+    !               zo        - output -  radiances
+    !               zcor      - output -  correction aux radiances
+    !               zomp      - output -  residus des radiances
+    !               stnid     - output -  etiquette du satellite
+    !               zompna    - output -  residus des radiances au nadir
+    !               imarq     - output -  marqueurs des radiances
+    !               mxelm     - input  -  nombre maximum d'elements
+    !               mxval     - input  -  nombre maximum de donnees par element
+    !               mxnt      - input  -  nombre maximum de groupes mxelm X mxval
+    !               nele      - output -  nombre d'elements
+    !               nval      - output -  nombre de donnees par element
+    !               nt        - output -  nombre de groupes NELE X NVAL
+    !               iscncnt   - output -  satellite location counter
+    !               iscnpos   - output -  position sur le "scan"
+    !               mxscan    - input  -  limite superieure
+    !               zlat      - output -  latitude
+    !               zlon      - output -  longitude
+    !               itermer   - output -  indicateur terre/mer
+    !               iorbit    - output -  numero d'orbite
+    !               satzen    - output -  angle zenith du satellite (deg.)
+    !               iterrain  - output -  indicateur du type de terrain
+    !               skipenr   - output -  sauter l'enregistrement?
+    !               identf    - output -  ATMS special QC flag integer (ele 025174)
+    IMPLICIT NONE
+
+    INTEGER MXELM, MXVAL, MXNT, MXSCAN
+
+    INTEGER  IUNENT, HANDLE
+
+    INTEGER MRFGET
+    INTEGER MRBHDR,MRFLOC
+    INTEGER TEMPS,DATE,OARS,RUNN
+    INTEGER IDTYP,LATI,LONG,DX,DY,ELEV,DRND,NBLOCS,BLKNO
+    INTEGER ISTAT,NVAL,NT,MISGINT
+    INTEGER FLGS,SUP,XAUX
+    INTEGER I,JJ,IPNTR,NELE,INO,INOMP,INOMPNA
+
+    INTEGER BUF1     (:)
+    INTEGER TBLVAL   (MXELM*MXVAL*MXNT)
+    INTEGER LSTELE   (MXELM)
+    INTEGER ELDALT   (MXELM)
+    INTEGER IDATA    (MXVAL*MXNT)
+    INTEGER ISCNCNT  (MXNT)
+    INTEGER ISCNPOS  (MXNT)
+    INTEGER ICANO    (MXVAL*MXNT)
+    INTEGER ICANOMP  (MXVAL*MXNT)
+    INTEGER ICANOMPNA(MXVAL*MXNT)
+    INTEGER IMARQ    (MXVAL*MXNT)
+    INTEGER ISAT     (MXNT)
+    INTEGER ITERMER  (MXNT)
+    INTEGER IORBIT   (MXNT)
+    INTEGER ITERRAIN (MXNT)
+    INTEGER IDENTF   (MXNT)
+
+    REAL ZMISG
+
+    REAL  DONIALT (MXELM*MXVAL*MXNT)
+    REAL  ZDATA   (MXVAL*MXNT)
+    REAL  ZO      (MXVAL*MXNT)
+    REAL  ZCOR    (MXVAL*MXNT)
+    REAL  ZOMP    (MXVAL*MXNT)
+    REAL  ZOMPNA  (MXVAL*MXNT)
+    REAL  ZLAT    (MXNT)
+    REAL  ZLON    (MXNT)
+    REAL  SATZEN  (MXNT)
+
+    CHARACTER*9 STNID 
+
+    LOGICAL  SKIPENR
+
+    DATA MISGINT  /   -1    /
+
+    LOGICAL DEBUG
+    COMMON /DBGCOM/ DEBUG
+
+    SKIPENR = .FALSE.
+
+    HANDLE = MRFLOC(IUNENT,HANDLE,'*********',-1,-1,-1,-1, &
+                   -1,SUP,0)
+
+    IF(HANDLE .GT. 0) THEN
+      IF (DEBUG) THEN
+        WRITE(6,*)'PROCESSING BRP FILE:HANDLE=',HANDLE
+      ENDIF
+      ISTAT = MRFGET(HANDLE,BUF1)
+
+      ! obtenir les parametres descripteurs de l'enregistrement lu
+      ISTAT = MRBHDR(BUF1,TEMPS,FLGS,STNID,IDTYP,LATI,LONG,DX,DY, &
+              ELEV,DRND,DATE,OARS,RUNN,NBLOCS,SUP,0,XAUX,0)
+
+      ! sauter les enregistrements resume
+      IF ( STNID(1:2) .EQ. '>>' ) THEN
+        SKIPENR = .TRUE.
+        RETURN
+      ENDIF
+     
+      ! initialisation
+      DO I = 1,MXELM*MXVAL*MXNT
+        DONIALT(I) = ZMISG
+      ENDDO
+   
+      DO  I = 1,MXNT
+        SATZEN  (I) = ZMISG
+        ITERRAIN(I) = MISGINT
+        ISAT(I)     = MISGINT
+      ENDDO
+
+      ! 1) Bloc info 3d: bloc 5120
+
+      ! extraire le bloc
+      CALL XTRBLK (5120,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                  NELE,NVAL,NT,BLKNO)    
+      IF(BLKNO .LE. 0) THEN
+        WRITE(6,*)'3D INFO BLOCK NOT FOUND'
+        CALL ABORT()
+      ENDIF
+
+      ! extraire la latitude; element 5002
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   5002,IDATA,ZLAT,IPNTR)    
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'LATITUDE MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' LATITUDE = ', (ZLAT(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire la longitude; element 6002
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   6002,IDATA,ZLON,IPNTR)    
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'LONGITUDE MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' LONGITUDE = ', (ZLON(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! 2) Bloc info (general): bloc 3072
+
+      ! extraire le bloc
+      CALL XTRBLK (3072,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                  NELE,NVAL,NT,BLKNO)    
+      IF(BLKNO .LE. 0) THEN
+        WRITE(6,*)'GENERAL INFO BLOCK NOT FOUND'
+        CALL ABORT()
+      ENDIF
+
+      ! extraire l'indicateur d'identification du satellite; element 0 01 007.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   1007,ISAT,ZDATA,IPNTR) 
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)' SATELLITE IDENTIFIER MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ISAT = ', (ISAT(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire l'indicateur terre/mer; element 8012.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   8012,ITERMER,ZDATA,IPNTR)    
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'LAND/SEA INDICATOR MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ITERMER = ', (ITERMER(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire technique de traitement.
+      !       not done anymore, j.h. june 2001
+      ! extraire le "beam position (field of view no.)"; element 5043.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   5043,ISCNPOS,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'INFORMATION ON SCAN POSITION MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ISCNPOS = ', (ISCNPOS(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire le "satellite zenith angle"; element 7024.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   7024,IDATA,SATZEN,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'SATELLITE ZENITH ANGLE MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' SATZEN = ', (SATZEN(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! le "terrain type": pour les donnees 1b; element 13039.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   13039,ITERRAIN,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0 .AND. DEBUG) THEN
+        WRITE(6,*)'WARNING: TERRAIN TYPE MISSING'
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ITERRAIN = ', (ITERRAIN(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire le numero d'orbite; element 05040.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   05040,IORBIT,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'ORBIT NUMBER MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' IORBIT = ', (IORBIT(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire le special qc flag integer; element 25174.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   25174,IDENTF,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'SPECIAL QC FLAG INTEGER MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' IDENTF = ', (IDENTF(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
+
+      ! extraire le bloc
+      CALL XTRBLK (9218,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                  NELE,NVAL,NT,BLKNO)     
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (9248,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)     
+      ENDIF       
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (9264,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)     
+      ENDIF  
+      IF(BLKNO .LE. 0) THEN
+        WRITE(6,*)'RADIANCE DATA BLOCK NOT FOUND'
+        CALL ABORT()
+      ENDIF
+
+      ! extraire les canaux; element 2150 or 5042 
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   2150,ICANO,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   5042,ICANO,ZDATA,IPNTR)
+      ENDIF
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'CHANNELS FOR RADIANCE OBS. MISSING'
+        CALL ABORT()
+      ENDIF
+      INO = NVAL
+      IF (DEBUG) THEN
+        WRITE(6,*) ' INO  = ',  INO
+        WRITE(6,*) ' ICANO= ', (ICANO(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire les radiances.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   12163,IDATA,ZO,IPNTR) 
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'RADIANCE OBS. MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ZO = ', (ZO(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire la correction aux radiances, element 012233.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   012233,IDATA,ZCOR,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        IF (DEBUG) THEN
+          WRITE(6,*)'RADIANCE CORRECTION MISSING'
+        ENDIF
+        DO I = 1, NVAL*NT
+          ZCOR(I) = ZMISG
+        ENDDO
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ZCOR = ', (ZCOR(JJ),JJ=1,NVAL*NT)
+      ENDIF                                
+
+      ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
+
+      ! extraire le bloc
+      CALL XTRBLK (15362,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                  NELE,NVAL,NT,BLKNO)    
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (15392,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)    
+      ENDIF        
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (15408,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)    
+      ENDIF    
+      IF(BLKNO .LE. 0) THEN
+        WRITE(6,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
+        CALL ABORT()
+      ENDIF
+
+      ! extraire les marqueurs de 13bits des radiances; element 212163 
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   212163,IMARQ,ZDATA,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'RADIANCE DATA FLAGS MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' RADIANCE FLAGS = ', (IMARQ(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
+
+      ! extraire le bloc
+      CALL XTRBLK (9322,14,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                  NELE,NVAL,NT,BLKNO)  
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (9226,14,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)  
+      ENDIF 
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (9258,14,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)  
+      ENDIF 
+      IF(BLKNO .LE. 0) THEN
+        CALL XTRBLK (9274,14,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
+                     NELE,NVAL,NT,BLKNO)  
+      ENDIF
+      IF(BLKNO .LE. 0) THEN
+        WRITE(6,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
+        SKIPENR = .TRUE.
+        RETURN
+      ENDIF
+
+      ! extraire les canaux; element 2150 or 5042
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   2150,ICANOMP,ZDATA,IPNTR) 
+      IF(IPNTR .EQ. 0) THEN
+        CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   5042,ICANOMP,ZDATA,IPNTR)
+      ENDIF
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'CHANNELS FOR (O-P) RADIANCE MISSING'
+        CALL ABORT()
+      ENDIF
+      INOMP = NVAL
+      IF (DEBUG) THEN
+        WRITE(6,*) ' INOMP   = ',  INOMP
+        WRITE(6,*) ' ICANOMP = ', (ICANOMP(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! extraire les residus (O-P) en radiances.
+      CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
+                   12163,IDATA,ZOMP,IPNTR)
+      IF(IPNTR .EQ. 0) THEN
+        WRITE(6,*)'(O-P) RADIANCES MISSING'
+        CALL ABORT()
+      ENDIF
+      IF (DEBUG) THEN
+        WRITE(6,*) ' ZOMP = ', (ZOMP(JJ),JJ=1,NVAL*NT)
+      ENDIF
+
+      ! 6) Bloc multi niveaux de residus de radiances (O-P) au nadir: bloc 9322 ou 9226, bfam 32.
+
+      ! not done any more, j.h. june 2001
+    ENDIF
+
+    RETURN
+  END
+
+
+  SUBROUTINE mwbg_readStatTovsAtms(ILUTOV,INUMSAT,CSATID)
+    !OBJET          Read stats_atms_assim file
+    !
+    !ARGUMENTS      ilutov  - input  -  unite logique du fichier stats des TOVS
+    !               inumsat - output -  nombre de satellites
+    !               csatid  - output -  identificateur de satellite 
+    IMPLICIT NONE
+
+    INTEGER JPNSAT,JPCH
+ 
+    PARAMETER (JPNSAT =  3) 
+    PARAMETER (JPCH = 22)
+
+    INTEGER NCHNA    (JPNSAT)
+    INTEGER MLISCHNA (JPCH,JPNSAT)
+    REAL    TOVERRST (JPCH,JPNSAT)
+    INTEGER IUTILST  (JPCH,JPNSAT)
+    COMMON /COMTOVST/ NCHNA, MLISCHNA, TOVERRST, IUTILST
+
+    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ICHN, NULOUT
+    INTEGER INUMSAT, INDX, IPOS
+
+    INTEGER NUMCHNIN(JPNSAT), ISATID(JPNSAT)
+
+    REAL*8  TOVERRIN(JPCH,2,JPNSAT)
+    REAL*8  ZDUM
+
+    CHARACTER*132  CLDUM
+    CHARACTER*17   CSATSTR
+
+    CHARACTER*9   CSATID(JPNSAT)
+    CHARACTER*12  CTYPSTAT(2)
+
+    DATA NULOUT /  6 /
+
+    DATA CTYPSTAT     / 'Monitoring',  'Assimilation'  /  
+
+    WRITE(NULOUT,FMT=9000)
+9000 FORMAT(//,10x,"-mwbg_readStatTovsAtms: reading total error statistics" &
+          ," required for TOVS processing")
+
+    ! 1. Initialize
+100  CONTINUE
+    DO JL = 1, JPNSAT
+      NCHNA(JL) = 0
+      NUMCHNIN(JL) = 0
+      ISATID(JL) = 0
+      DO JI = 1, JPCH
+        TOVERRIN(JI,1,JL) = 0.0
+        TOVERRIN(JI,2,JL) = 0.0
+        IUTILST (JI,JL) = 0
+        TOVERRST(JI,JL) = 0.0
+      ENDDO
+    ENDDO
+
+200  CONTINUE
+
+    ! 3. Print the file contents
+300  CONTINUE
+
+    WRITE(NULOUT,'(20X,"ASCII dump of stats_tovs file: "//)')
+    DO JI = 1, 9999999
+      READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
+      WRITE(NULOUT,'(A)')   CLDUM
+    ENDDO
+
+    ! 4. Read number of satellites
+400  CONTINUE
+
+    REWIND(ILUTOV)
+    READ (ILUTOV,*,ERR=900)
+    READ (ILUTOV,*,ERR=900) INUMSAT
+    READ (ILUTOV,*,ERR=900)
+
+    ! 5. Read the satellite identification, the number of channels,
+    !    .  the observation errors and the utilization flags
+500  CONTINUE
+
+    DO JL = 1, INUMSAT
+      READ (ILUTOV,*,ERR=900)
+      READ (ILUTOV,'(A)',ERR=900) CLDUM
+      CSATSTR = TRIM(ADJUSTL(CLDUM))
+
+      !        Get satellite (e.g. NPP) from satellite/instrument (e.g. NPP ATMS)
+      INDX = INDEX(CSATSTR,'ATMS')
+      IF ( INDX .GT. 3 ) THEN
+        IPOS = INDX-2
+        CSATID(JL) = CSATSTR(1:IPOS)
+      ELSE
+        WRITE ( NULOUT, '(" mwbg_readStatTovsAtms: Non-ATMS ", &
+                   "instrument found in stats file!")' )
+        WRITE ( NULOUT,'(A)' ) CLDUM
+        CALL ABORT ()
+      ENDIF
+      READ (ILUTOV,*,ERR=900)
+      READ (ILUTOV,*,ERR=900) ISATID(JL), NUMCHNIN(JL)
+      DO JI = 1, 3
+        READ (ILUTOV,*,ERR=900)
+      ENDDO
+
+      ! Set errors to ERRBGCK column values
+      DO JI = 1, NUMCHNIN(JL)
+        READ (ILUTOV,*,ERR=900) ICHN, &
+                  TOVERRIN(ICHN,1,JL), &
+                  TOVERRIN(ICHN,2,JL), &
+                  IUTILST (ICHN,JL), ZDUM
+        TOVERRST(ICHN,JL) = TOVERRIN(ICHN,1,JL)
+      ENDDO
+      READ (ILUTOV,*,ERR=900)
+    ENDDO
+
+510  CONTINUE
+
+    ! 6. Print error stats for assimilated channels
+600  CONTINUE
+
+    WRITE(NULOUT,'(//5X,"Total errors for TOVS data"/)') 
+    DO JL = 1, INUMSAT
+      INDX = 0
+      DO JI = 1, JPCH
+        IF ( IUTILST(JI,JL) .NE. 0 ) THEN
+          NCHNA(JL) = NCHNA(JL) + 1
+          INDX = INDX + 1
+          MLISCHNA(INDX,JL) = JI
+        ENDIF
+      ENDDO
+      DO JK = 1, 2
+        WRITE(NULOUT,'(/7X,"Satellite: ",A,5X,A)')  &
+          CSATID(JL), CTYPSTAT(JK)
+        WRITE(NULOUT,'(7X,"Channels   : ",30(T22,27I4/))') &
+         (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
+        WRITE(NULOUT,'(7X,"Total errors: ",30(T22,27f4.1/))') &
+         (TOVERRIN(MLISCHNA(JI,JL),JK,JL), &
+          JI=1,NCHNA(JL))
+      ENDDO
+    ENDDO
+     
+700  CONTINUE
+
+    RETURN
+
+    ! Read error
+900   WRITE ( NULOUT, '(" mwbg_readStatTovsAtms: Problem reading ", &
+                       "TOVS total error stats file ")' ) 
+    CALL ABORT ()
+
+    RETURN
+  END
+
 
 end module bgckmicrowave_mod
