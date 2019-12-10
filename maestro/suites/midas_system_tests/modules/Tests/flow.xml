@@ -13,6 +13,7 @@
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="obsIO"/>
   <SUBMITS sub_name="bgckMW"/>
+  <SUBMITS sub_name="satQCATMS"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
 
@@ -276,6 +277,11 @@
   </FAMILY>
 
   <FAMILY  name="bgckMW">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="satQCATMS">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
