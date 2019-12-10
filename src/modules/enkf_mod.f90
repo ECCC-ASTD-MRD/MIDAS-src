@@ -1583,7 +1583,8 @@ contains
       codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
       lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
       if ( abs(lat_obs) < 40. .and. (codeType == codtyp_get_codtyp('amsub') .or.  &
-                                     codeType == codtyp_get_codtyp('mhs')) ) then
+                                     codeType == codtyp_get_codtyp('mhs') .or.  &
+                                     codeType == codtyp_get_codtyp('mwhs2')) ) then
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd

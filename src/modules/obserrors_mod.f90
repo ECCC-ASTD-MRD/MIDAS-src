@@ -279,6 +279,11 @@ contains
         READ (ILUTOV,*)
       end do
 
+      IF ( CPLATF .EQ. 'FY-3C' ) THEN 
+         CPLATF = 'FY3-3'
+         CINSTR = 'MWHS2'
+      END IF
+
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
 
       if ( IPLATFORM(JL) == -1 ) THEN
