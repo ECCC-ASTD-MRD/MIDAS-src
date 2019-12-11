@@ -111,23 +111,23 @@ gitlabrunner_exists=true
 jobst -c \${runhost} -q \${qname} -u \${USER} | grep gitlab_runner || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
-    cat > ${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
+    cat > \${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
 #!/bin/bash
 
-    cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
+    cat > \\\${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
 #!/bin/bash
 set -ex
 
 env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
 ENDOFGITLABRUNNER
 
-    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
-    rm \${TMPDIR}/gitlab_runner
+    ord_soumet \\\${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
+    rm \\\${TMPDIR}/gitlab_runner
 ENDOFGITLABRUNNERSUBMIT
 
-    cat ${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
+    cat \${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
 
-    rm ${TMPDIR}/gitlab_runner_submit
+    rm \${TMPDIR}/gitlab_runner_submit
 fi
 EOF
 chmod +x ~/bin/gitlab_runner.sh
