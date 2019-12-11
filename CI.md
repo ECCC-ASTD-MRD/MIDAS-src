@@ -118,7 +118,7 @@ if [ "\${gitlabrunner_exists}" != true ]; then
 #!/bin/bash
 set -ex
 
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
+env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
 ENDOFGITLABRUNNER
 
     ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
