@@ -126,12 +126,10 @@ program midas_bgckmw
   EXTERNAL FCLOS,FNOM
 
   LOGICAL DEBUG
-  COMMON /DBGCOM/ DEBUG
 
   namelist /nambgck/ debug, RESETQC, ETIKRESU 
 
   ! 1) Debut
-  IER = FNOM(6     ,'./out.txt' ,'SEQ'    ,0) 
   IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
 
   JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
@@ -150,6 +148,8 @@ program midas_bgckmw
   end if 
   write(*,nml=nambgck)
   ier = fclos(nulnam)
+
+  mwbg_debug = debug
 
   ! ouverture du fichier entree burp en mode lecture
   IER = FNOM(IUNENT,'./obsto_amsua','RND',0)
@@ -171,7 +171,7 @@ program midas_bgckmw
   ! Lecture du fichier burp entree
   ILNMX = MRFMXL(IUNENT)
   IF (DEBUG) THEN
-    WRITE(6,*)'MRFMXL: ILNMX =',ILNMX
+    WRITE(*,*)'MRFMXL: ILNMX =',ILNMX
   ENDIF
   ALLOCATE ( buf1(ILNMX*2), STAT=ier)
   BUF1(1) = ILNMX*2
@@ -179,20 +179,20 @@ program midas_bgckmw
   ! Valeur manquante burp
   ISTAT = MRFOPR('MISSING',ZMISG)
   IF (DEBUG) THEN
-    WRITE(6,*)' MISSING VALUE =', ZMISG
+    WRITE(*,*)' MISSING VALUE =', ZMISG
   ENDIF
 
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-    WRITE (6,*) '(" SATQC_AMSUA: Problem opening ", &
+    WRITE (*,*) '(" SATQC_AMSUA: Problem opening ", &
            "TOVS total error statistics file ", stats_amsua_assim)'               
     CALL ABORT ()
   END IF
   CALL mwbg_readStatTovs(IUNSTAT,INUMSAT,CSATID)
-  WRITE(6,*) " SATID's = "
+  WRITE(*,*) " SATID's = "
   DO I = 1, INUMSAT
-    WRITE(6,*) '  ', CSATID(I)
+    WRITE(*,*) '  ', CSATID(I)
   ENDDO
 
   ! 3) Lecture des champs geophysiques (GL,MG,MT) du modele
@@ -200,7 +200,7 @@ program midas_bgckmw
   ! MG
   IREC = FSTINF(IUNGEO,NIMG,NJMG,NK,-1,' ',-1,-1,-1,' ','MG')
   IF (IREC .LT. 0) THEN
-    WRITE (6,*) ' LE MASQUE TERRE-MER EST INEXISTANT' 
+    WRITE (*,*) ' LE MASQUE TERRE-MER EST INEXISTANT' 
     CALL ABORT()
   ENDIF
 
@@ -226,7 +226,7 @@ program midas_bgckmw
     CLNOMVAR = 'MX'
   ENDIF
   IF (IREC .LT. 0) THEN
-    WRITE (6,*) ' LA TOPOGRAPHIE EST INEXISTANTE' 
+    WRITE (*,*) ' LA TOPOGRAPHIE EST INEXISTANTE' 
     CALL ABORT()
   ENDIF
 
@@ -243,7 +243,7 @@ program midas_bgckmw
   ! GL
   IREC = FSTINF(IUNGEO,NIGL,NJGL,NK,-1,' ',-1,-1,-1,' ','GL')
   IF (IREC .LT. 0) THEN
-    WRITE (6,*) 'LE CHAMP GL EST INEXISTANT' 
+    WRITE (*,*) 'LE CHAMP GL EST INEXISTANT' 
     CALL ABORT()
   ENDIF
 
@@ -299,7 +299,7 @@ program midas_bgckmw
     ENDIF
   ENDDO
   IF ( INOSAT .EQ. 0 ) THEN
-    WRITE(6,*) 'SATELLITE ',TRIM(STNID), &
+    WRITE(*,*) 'SATELLITE ',TRIM(STNID), &
                ' NOT FOUND IN STATS FILE!'
     CALL ABORT()
   ENDIF

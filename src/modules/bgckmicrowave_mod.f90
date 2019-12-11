@@ -19,15 +19,31 @@ module bgckmicrowave_mod
   !
   ! :Purpose: Variables for microwave background check and quality control.
   !
-  !use 
   implicit none
   save
   private
-  ! Public functions (methods)
+
+  ! public variables
+  public :: mwbg_debug
+
+  ! Public functions
   public :: mwbg_readStatTovs, mwbg_readTovs, mwbg_tovCheckAmsua, mwbg_qcStatsAmsua, mwbg_UPDATFLG, mwbg_ADDTRRN  
+
+  logical :: mwbg_debug
 
   integer, PARAMETER :: MXVAL = 50
   integer, PARAMETER :: MXNT = 2000
+
+  integer, parameter :: JPNSAT = 9
+  integer, parameter :: JPCH = 50
+  integer, parameter :: MXCHN = 42 
+  integer, parameter :: JPMXREJ = 15
+  integer, parameter :: MXSAT = 9
+
+  INTEGER :: NCHNA(JPNSAT), MLISCHNA(JPCH,JPNSAT), IUTILST(JPCH,JPNSAT)
+  REAL    :: TOVERRST(JPCH,JPNSAT)
+
+  INTEGER :: MREJCOD(JPMXREJ,MXCHN,MXSAT), INTOT(MXSAT), INTOTRJF(MXSAT), INTOTRJP(MXSAT)
 
 contains
 
@@ -118,14 +134,11 @@ contains
 
     REAL PRVAL(:)
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     KBLKNO = 0
     KBLKNO =  MRBLOC(KBUF,KBFAM,-1,KBTYP,KBLKNO)
     IF(KBLKNO .GT. 0) THEN
-      IF ( DEBUG) THEN
-         WRITE(6,*)'FOUND BLOCK WITH BTYP = ',KBTYP
+      IF ( mwbg_debug ) THEN
+         WRITE(*,*)'FOUND BLOCK WITH BTYP = ',KBTYP
       ENDIF
 
       ! extraction du bloc
@@ -137,10 +150,10 @@ contains
 
       ! extrait bktyp et btyp
       ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
-      IF ( DEBUG) THEN
-         WRITE(6,*)'IBTYP=',IBTYP
-         WRITE(6,*)'IBKNAT,IBKTYP,IBKSTP=',IBKNAT,IBKTYP,IBKSTP
-         WRITE(6,*)'KNELE,KNVAL,KNT,INBIT,IBDESC,IBFAM,IDATYP=' &
+      IF ( mwbg_debug ) THEN
+         WRITE(*,*)'IBTYP=',IBTYP
+         WRITE(*,*)'IBKNAT,IBKTYP,IBKSTP=',IBKNAT,IBKTYP,IBKSTP
+         WRITE(*,*)'KNELE,KNVAL,KNT,INBIT,IBDESC,IBFAM,IDATYP=' &
                   ,KNELE,KNVAL,KNT,INBIT,IBDESC,IBFAM,IDATYP
       ENDIF
 
@@ -150,11 +163,11 @@ contains
                     KNVAL,KNT,0)
       ISTAT = MRBDCL(KLISTE,KDLISTE,KNELE)
 
-      IF ( DEBUG) THEN
-         WRITE(6,*) 'PRVAL:'
-         WRITE(6,*) (PRVAL(JN),JN=1,KNELE*KNVAL*KNT)
-         WRITE(6,*) 'KDLISTE:'
-         WRITE(6,*) (KDLISTE(JN), JN=1,KNELE)
+      IF ( mwbg_debug ) THEN
+         WRITE(*,*) 'PRVAL:'
+         WRITE(*,*) (PRVAL(JN),JN=1,KNELE*KNVAL*KNT)
+         WRITE(*,*) 'KDLISTE:'
+         WRITE(*,*) (KDLISTE(JN), JN=1,KNELE)
       ENDIF
 
     ENDIF
@@ -175,23 +188,20 @@ contains
     INTEGER KBLKNO,KBTYP,ISTAT,KBFAM
     INTEGER MRBLOC,MRBDEL
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     KBLKNO = 0
     KBLKNO =  MRBLOC(KBUF,KBFAM,-1,KBTYP,KBLKNO)
     IF(KBLKNO .GT. 0) THEN
-      IF ( DEBUG) THEN
-        WRITE(6,*)'FOUND BLOCK WITH BTYP = ',KBTYP
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*)'FOUND BLOCK WITH BTYP = ',KBTYP
       ENDIF
 
       ! enlever le bloc
       ISTAT = MRBDEL(KBUF,KBLKNO)
       IF(ISTAT .NE. 0) THEN
-        WRITE(6,*)' PROBLEME AVEC RMBLK - BLOC ',KBLKNO,' ENLEVE'
+        WRITE(*,*)' PROBLEME AVEC RMBLK - BLOC ',KBLKNO,' ENLEVE'
       ENDIF
-      IF ( DEBUG) THEN
-        WRITE(6,*)'MRBDEL ISTAT = ',ISTAT
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*)'MRBDEL ISTAT = ',ISTAT
       ENDIF
 
     ENDIF
@@ -229,9 +239,6 @@ contains
     INTEGER KNELE,KNVAL,KNT,JI,KPNTR
     INTEGER INDX,KELEM,JJ,IPOS
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     KPNTR = 0
     DO JI = 1, KNELE
       IF ( KDLISTE(JI) .EQ. KELEM ) THEN
@@ -244,8 +251,8 @@ contains
 100  CONTINUE
 
     IF ( KPNTR .EQ. 0  ) THEN
-      IF (DEBUG) THEN
-        WRITE(6,*) ' XTRDATA: No data for element ',KELEM
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' XTRDATA: No data for element ',KELEM
       ENDIF
       RETURN
     ELSE 
@@ -258,10 +265,10 @@ contains
           PDATA(IPOS) = PRVAL  (INDX)
         ENDDO
       ENDDO
-      IF (DEBUG) THEN
-        WRITE(6,*) ' XTRDATA: kdata =  ',(KDATA(JJ), &
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' XTRDATA: kdata =  ',(KDATA(JJ), &
                   JJ=1,KNVAL*KNT)
-        WRITE(6,*) ' XTRDATA: pdata =  ',(PDATA(JJ), &
+        WRITE(*,*) ' XTRDATA: pdata =  ',(PDATA(JJ), &
                   JJ=1,KNVAL*KNT)
       ENDIF
     ENDIF
@@ -297,9 +304,6 @@ contains
     INTEGER KNELE,KNVAL,KNT,JI,KPNTR
     INTEGER INDX,KELEM,JJ,IPOS
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     KPNTR = 0
     DO JI = 1, KNELE
       IF ( KDLISTE(JI) .EQ. KELEM ) KPNTR = JI
@@ -307,8 +311,8 @@ contains
 
     ! any missing elements?
     IF ( KPNTR .EQ. 0  ) THEN
-      IF (DEBUG) THEN
-        WRITE(6,*) ' XTRDATA: No data for element ',KELEM
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' XTRDATA: No data for element ',KELEM
       ENDIF
       RETURN
     ELSE 
@@ -320,8 +324,8 @@ contains
           KTBLVAL(INDX) =  KDATA(IPOS) 
         ENDDO
       ENDDO
-      IF (DEBUG) THEN
-        WRITE(6,*) ' REPDATA: ktblval =  ',(KTBLVAL(JJ), &
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' REPDATA: ktblval =  ',(KTBLVAL(JJ), &
                    JJ=1,KNELE*KNVAL*KNT)
       ENDIF
     ENDIF
@@ -389,10 +393,8 @@ contains
     INTEGER     MXNT
     PARAMETER ( MXNT   =  2000 )
 
-    INTEGER MXCHN, MXSAT, MXSCAN, MXCLWREJ, MXCANPRED, MXSFCREJ2
+    INTEGER MXSCAN, MXCLWREJ, MXCANPRED, MXSFCREJ2
     INTEGER MXSCANHIRS, MXSCANAMSU, MXSCATREJ, MXSFCREJ, NTESTS
-    PARAMETER  ( MXCHN     = 42 )
-    PARAMETER  ( MXSAT     =  9 )
     PARAMETER  ( MXSCAN    = 56 )
     PARAMETER  ( MXSCANHIRS= 56 )
     PARAMETER  ( MXSCANAMSU= 30 )
@@ -402,23 +404,9 @@ contains
     PARAMETER  ( MXSCATREJ =  7 )
     PARAMETER  ( MXCANPRED =  9 )
 
-
-    INTEGER JPNSAT,JPCH
-
-    PARAMETER (JPNSAT =  9) 
-    PARAMETER (JPCH = 50)
-
-    INTEGER JPMXSFC, JPMXREJ
+    INTEGER JPMXSFC
     PARAMETER (JPMXSFC =  2)
-    PARAMETER (JPMXREJ = 15)
     
-    INTEGER NCHNA   (     JPNSAT)
-    INTEGER MLISCHNA(JPCH,JPNSAT)
-    INTEGER IUTILST (JPCH,JPNSAT)
-    REAL    TOVERRST(JPCH,JPNSAT)
-    
-    COMMON /COMTOVST/ NCHNA, MLISCHNA, TOVERRST, IUTILST
-
     INTEGER KNO,KNOMP,KNT,KNOSAT,MAXVAL
     INTEGER JI,JJ,INDX8,INDX12,INO,ICHN
     INTEGER JK,IBIT,JC,INDX,INDXCAN
@@ -477,14 +465,6 @@ contains
     CHARACTER *9   STNID
 
     LOGICAL LLFIRST,GROSSERROR,FULLREJCT,RESETQC,SFCREJCT
-
-    INTEGER  MREJCOD,INTOT,INTOTRJF, INTOTRJP
-    COMMON /STATS/  MREJCOD(JPMXREJ,MXCHN,MXSAT), &
-                   INTOT(MXSAT), &
-                   INTOTRJF(MXSAT),INTOTRJP(MXSAT)
-
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
 
     SAVE LLFIRST
 
@@ -554,14 +534,14 @@ contains
     !         i)  les dimensions des divers blocs de donnees concordent,
     !         ii) les listes de canaux concordent.
     IF ( KNO .NE. KNOMP     ) THEN
-      WRITE(6,*)'ERROR IN DIMENSIONS OF TOVS DATA'
+      WRITE(*,*)'ERROR IN DIMENSIONS OF TOVS DATA'
       CALL ABORT()
     ENDIF
 
     DO JJ=1,KNT
       DO JI=1,KNO
         IF ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) THEN
-          WRITE(6,*)'INCONSISTENT CHANNEL LISTS FOR TOVS DATA'
+          WRITE(*,*)'INCONSISTENT CHANNEL LISTS FOR TOVS DATA'
           CALL ABORT()
         ENDIF
       ENDDO
@@ -632,8 +612,8 @@ contains
               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
               MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                    MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
-              IF (DEBUG) THEN
-                WRITE(6,*)STNID(2:9),' RTTOV REJECT.', &
+              IF ( mwbg_DEBUG ) THEN
+                WRITE(*,*)STNID(2:9),' RTTOV REJECT.', &
                           'CHANNEL=', KCANO(JI,JJ), &
                           ' IMARQ= ',KMARQ(JI,JJ)
               ENDIF
@@ -656,8 +636,8 @@ contains
             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**18)
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                  MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
-            IF (DEBUG) THEN
-              WRITE(6,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
+            IF ( mwbg_DEBUG ) THEN
+              WRITE(*,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
                         'CHANNEL=', KCANO(JI,JJ), &
                         ' TOPO= ',MTINTRP(JJ)
             ENDIF
@@ -669,8 +649,8 @@ contains
             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**18)
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                  MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
-            IF (DEBUG) THEN
-              WRITE(6,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
+            IF ( mwbg_DEBUG ) THEN
+              WRITE(*,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
                         'CHANNEL=', KCANO(JI,JJ), &
                         ' TOPO= ',MTINTRP(JJ)
             ENDIF
@@ -694,8 +674,8 @@ contains
           MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
         ENDDO
-        IF (DEBUG) THEN
-          WRITE(6,*) STNID(2:9),'LAND/SEA QUALIFIER CODE', &
+        IF ( mwbg_DEBUG ) THEN
+          WRITE(*,*) STNID(2:9),'LAND/SEA QUALIFIER CODE', &
                    ' REJECT. KTERMER=', KTERMER(JJ)
         ENDIF
       ENDIF
@@ -717,8 +697,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
               MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),'TERRAIN TYPE CODE', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),'TERRAIN TYPE CODE', &
                      ' REJECT. TERRAIN=', ITERRAIN(JJ)
           ENDIF
         ENDIF
@@ -738,8 +718,8 @@ contains
           KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
           MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),'FIELD OF VIEW NUMBER', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),'FIELD OF VIEW NUMBER', &
                       ' REJECT. FIELD OF VIEW= ', ISCNPOS(JJ)
           ENDIF
         ENDIF
@@ -760,8 +740,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' SATELLITE ZENITH ANGLE', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' SATELLITE ZENITH ANGLE', &
                       ' REJECT. SATZEN= ', &
                       SATZEN(JJ)
           ENDIF
@@ -788,8 +768,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' ANGLE/FIELD OF VIEW', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' ANGLE/FIELD OF VIEW', &
                       ' INCONSISTENCY REJECT. SATZEN= ', &
                       SATZEN(JJ), ' FIELD OF VIEW= ',ISCNPOS(JJ), &
                       ' ANGDIF= ',ANGDIF  
@@ -818,8 +798,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' LAND/SEA QUALIFIER', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' LAND/SEA QUALIFIER', &
                       ' INCONSISTENCY REJECT. KTERMER= ', &
                       KTERMER(JJ), ' MODEL MASK= ',MGINTRP(JJ)
           ENDIF
@@ -847,8 +827,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' TERRAIN TYPE/MODEL ICE', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' TERRAIN TYPE/MODEL ICE', &
                       ' INCONSISTENCY REJECT. TERRAIN= ', &
                       ITERRAIN(JJ), ' MODEL ICE= ',GLINTRP(JJ)
           ENDIF
@@ -860,8 +840,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' TERRAIN TYPE/LAND?SEA QUAL.', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' TERRAIN TYPE/LAND?SEA QUAL.', &
                       ' INCONSISTENCY REJECT. TERRAIN= ', &
                       ITERRAIN(JJ), ' LAND/SEA= ',KTERMER(JJ)
           ENDIF
@@ -873,8 +853,8 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
           ENDDO
-          IF (DEBUG) THEN
-            WRITE(6,*)STNID(2:9),' TERRAIN TYPE/LAND?SEA QUAL.', &
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*)STNID(2:9),' TERRAIN TYPE/LAND?SEA QUAL.', &
                       ' INCONSISTENCY REJECT. TERRAIN= ', &
                       ITERRAIN(JJ), ' LAND/SEA= ',KTERMER(JJ)
           ENDIF
@@ -887,8 +867,8 @@ contains
   !                MREJCOD(INO,KCANO(JI,JJ),KNOSAT) =
   !                  MREJCOD(INO,KCANO(JI,JJ),KNOSAT) + 1
   !             ENDDO
-           IF (DEBUG) THEN
-              WRITE(6,*)STNID(2:9),' TERRAIN TYPE MSG/MODEL ICE', &
+           IF ( mwbg_debug ) THEN
+              WRITE(*,*)STNID(2:9),' TERRAIN TYPE MSG/MODEL ICE', &
                        ' INCONSISTENCY REJECT. TERRAIN= ', &
                        ITERRAIN(JJ), &
                        ' LAND/SEA= ',KTERMER(JJ)
@@ -911,8 +891,8 @@ contains
               KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**11)
               MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                     MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
-              IF (DEBUG) THEN
-                WRITE(6,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
+              IF ( mwbg_debug ) THEN
+                WRITE(*,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
                            'CHANNEL=', KCANO(JI,JJ), ' IMARQ= ',KMARQ(JI,JJ)
               ENDIF
             ENDIF
@@ -939,8 +919,8 @@ contains
             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**7)
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                    MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
-            IF (DEBUG) THEN
-              WRITE(6,*)STNID(2:9),' GROSS CHECK REJECT.', &
+            IF ( mwbg_debug ) THEN
+              WRITE(*,*)STNID(2:9),' GROSS CHECK REJECT.', &
                         'CHANNEL=', KCANO(JI,JJ), ' TB= ',PTBO(JI,JJ)
             ENDIF
           ENDIF
@@ -965,9 +945,9 @@ contains
                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
             ENDIF
           ENDDO
-          IF (DEBUG) THEN
+          IF ( mwbg_debug ) THEN
   !          IF (.true.) THEN
-            WRITE(6,*)STNID(2:9),'Grody cloud liquid water check', &
+            WRITE(*,*)STNID(2:9),'Grody cloud liquid water check', &
                       ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',ZSEUILCLW
           ENDIF
         ENDIF
@@ -993,9 +973,9 @@ contains
                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
             ENDIF
           ENDDO
-          IF (DEBUG) THEN
+          IF ( mwbg_debug ) THEN
   !          IF (.true.) THEN
-            WRITE(6,*)STNID(2:9),'Grody scattering index check', &
+            WRITE(*,*)STNID(2:9),'Grody scattering index check', &
                        ' REJECT. SCATW= ',SCATW(JJ), ' SEUIL= ',ZSEUILSCAT
           ENDIF
         ENDIF
@@ -1020,8 +1000,8 @@ contains
             KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**16)
             MREJCOD(INO,ICHN,KNOSAT) = &
                 MREJCOD(INO,ICHN,KNOSAT) + 1 
-            IF (DEBUG) THEN
-              WRITE(6,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
+            IF ( mwbg_debug ) THEN
+              WRITE(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                       ' OBS = ',JJ, &
                       ' CHANNEL= ',ICHN, &
                       ' CHECK VALUE= ',XCHECKVAL, &
@@ -1098,8 +1078,8 @@ contains
               ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
               MREJCOD(INO,ICHN,KNOSAT) = & 
                  MREJCOD(INO,ICHN,KNOSAT) + 1 
-              IF (DEBUG) THEN
-                 WRITE(6,*)STNID(2:9),'CHANNEL REJECT: ', &
+              IF ( mwbg_debug ) THEN
+                 WRITE(*,*)STNID(2:9),'CHANNEL REJECT: ', &
                         ' OBS = ',JJ, &
                         ' CHANNEL= ',ICHN
               ENDIF
@@ -1108,8 +1088,8 @@ contains
         ENDDO
     ENDDO
 
-    IF (DEBUG) THEN
-       WRITE(6,*)'ICHECK = ',((ICHECK(JI,JJ),JI=1,KNO),JJ=1,KNT)
+    IF ( mwbg_debug ) THEN
+       WRITE(*,*)'ICHECK = ',((ICHECK(JI,JJ),JI=1,KNO),JJ=1,KNT)
     ENDIF
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -1124,8 +1104,8 @@ contains
       ENDDO
     ENDDO
 
-    IF (DEBUG) THEN
-      WRITE(6,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
     ENDIF 
 
     ! Copy the modified FLAG to the 1D array, used outside this s/r. 
@@ -1157,13 +1137,6 @@ contains
     !               ldprint - input  -  mode: imprimer ou cumuler? 
     IMPLICIT NONE
 
-    INTEGER MXCHN, MXSAT
-    PARAMETER  ( MXCHN = 42 )
-    PARAMETER  ( MXSAT =  9 )
-
-    INTEGER     JPMXREJ
-    PARAMETER ( JPMXREJ = 15)
-
     CHARACTER*9   CSATID (MXSAT)
 
     INTEGER  JI, JJ, JK, KNO, KNT, KNOSAT
@@ -1171,11 +1144,6 @@ contains
 
     INTEGER  ICHECK (KNO,KNT)
     INTEGER  KCANO  (KNO,KNT)
-
-    INTEGER  MREJCOD,INTOT,INTOTRJF,INTOTRJP
-    COMMON /STATS/  MREJCOD(JPMXREJ,MXCHN,MXSAT), &
-                   INTOT(MXSAT), &
-                   INTOTRJF(MXSAT),INTOTRJP(MXSAT)
 
     LOGICAL LLFIRST, LDPRINT, FULLREJCT, FULLACCPT
 
@@ -1228,12 +1196,12 @@ contains
         INTOTOBS = INTOT(JK)
         INTOTACC = INTOTOBS - INTOTRJF(JK) - INTOTRJP(JK)
 
-        WRITE(6,'(/////50("*"))')
-        WRITE(6,'(     50("*")/)')
-        WRITE(6,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
+        WRITE(*,'(/////50("*"))')
+        WRITE(*,'(     50("*")/)')
+        WRITE(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
          A8)') CSATID(JK) 
-        WRITE(6,'(T5,"------------------------------------- ",/)')
-        WRITE(6,'( &
+        WRITE(*,'(T5,"------------------------------------- ",/)')
+        WRITE(*,'( &
          "   TOTAL NUMBER OF AMSU-A  = ",I10,/ &
          " - TOTAL FULL REJECTS      = ",I10,/ &
          " - TOTAL PARTIAL REJECTS   = ",I10,/ &
@@ -1241,16 +1209,16 @@ contains
          "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
           INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
 
-        WRITE(6,'(//,1x,114("-"))')
-        WRITE(6,'(t10,"|",t47,"REJECTION CATEGORIES")')
-        WRITE(6,'(" CHANNEL",t10,"|",105("-"))')
-        WRITE(6,'(t10,"|",15i7)') (JI,JI=1,JPMXREJ)
-        WRITE(6,'(1x,"--------|",105("-"))')
+        WRITE(*,'(//,1x,114("-"))')
+        WRITE(*,'(t10,"|",t47,"REJECTION CATEGORIES")')
+        WRITE(*,'(" CHANNEL",t10,"|",105("-"))')
+        WRITE(*,'(t10,"|",15i7)') (JI,JI=1,JPMXREJ)
+        WRITE(*,'(1x,"--------|",105("-"))')
         DO JJ = 1, MXCHN
-           WRITE(6,'(3X,I2,t10,"|",15I7)') JJ,(MREJCOD(JI,JJ,JK), &
+           WRITE(*,'(3X,I2,t10,"|",15I7)') JJ,(MREJCOD(JI,JJ,JK), &
                                       JI=1,JPMXREJ)
         ENDDO
-        WRITE(6,'(1x,114("-"))')
+        WRITE(*,'(1x,114("-"))')
       ENDDO
 
       ! Print legend
@@ -1336,9 +1304,6 @@ contains
 
     LOGICAL RESETQC
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     ! 1) Bloc info 3d: bloc 5120.
     !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
 
@@ -1346,7 +1311,7 @@ contains
     CALL XTRBLK (5120,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
                 INELE,INVAL,INT,IBLKNO)    
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'3D INFO BLOCK NOT FOUND'
+      WRITE(*,*)'3D INFO BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1354,11 +1319,11 @@ contains
     CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
                  55200,KDATA,PDATA,IPNTR)    
     IF(IPNTR .EQ. 0) THEN
-      WRITE(6,*)'GLOBAL FLAGS MISSING'
+      WRITE(*,*)'GLOBAL FLAGS MISSING'
       CALL ABORT()
     ENDIF
-    IF (DEBUG) THEN
-      WRITE(6,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     !  allumer la bit (6) indiquant que l'observation a un element
@@ -1373,8 +1338,8 @@ contains
         KDATA(JI) = OR (KDATA(JI),2**6)
       ENDIF
     ENDDO
-    IF (DEBUG) THEN
-       WRITE(6,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+       WRITE(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! Remplacer les nouveaux marqueurs dans le tableau.
@@ -1392,7 +1357,7 @@ contains
     CALL XTRBLK (3072,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
                 INELE,INVAL,INT,IBLKNO)    
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'INFO BLOCK NOT FOUND'
+      WRITE(*,*)'INFO BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1400,16 +1365,16 @@ contains
     CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
                  8012,KDATA,PDATA,IPNTR)    
     IF(IPNTR .EQ. 0) THEN
-      WRITE(6,*)'LAND/SEA INDICATOR MISSING'
+      WRITE(*,*)'LAND/SEA INDICATOR MISSING'
       CALL ABORT()
     ENDIF
-    IF (DEBUG) THEN
-      WRITE(6,*) ' OLD LAND/SEA = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' OLD LAND/SEA = ', (KDATA(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! les indicateurs terre/mer corriges
-    IF (DEBUG) THEN
-      WRITE(6,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! Remplacer les nouveaux indicateurs terre/mer dans le tableau.
@@ -1431,7 +1396,7 @@ contains
       IBLKNO =  MRBLOC(KBUF1,-1,-1,9264,0)  
     ENDIF        
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'RADIANCE DATA BLOCK NOT FOUND'
+      WRITE(*,*)'RADIANCE DATA BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1466,7 +1431,7 @@ contains
                    INELE,INVAL,INT,IBLKNO)    
     ENDIF    
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
+      WRITE(*,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1475,20 +1440,20 @@ contains
     CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
                  IMELERAD,KDATA,PDATA,IPNTR) 
     IF(IPNTR .EQ. 0) THEN
-      WRITE(6,*)'RADIANCE DATA FLAGS MISSING'
+      WRITE(*,*)'RADIANCE DATA FLAGS MISSING'
       CALL ABORT()
     ENDIF
-    IF (DEBUG) THEN
-       WRITE(6,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+       WRITE(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! update data flags
     DO JI = 1, INVAL*INT
       KDATA(JI) = IMARQ(JI)
     ENDDO
-    IF (DEBUG) THEN
-      WRITE(6,*) ' ICHECK = ', (ICHECK(JJ),JJ=1,INVAL*INT)
-      WRITE(6,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' ICHECK = ', (ICHECK(JJ),JJ=1,INVAL*INT)
+      WRITE(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! Remplacer les nouveaux marqueurs dans le tableau.
@@ -1522,7 +1487,7 @@ contains
       IBLKNO =  MRBLOC(KBUF1,-1,-1,9274,0)  
     ENDIF   
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
+      WRITE(*,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1638,17 +1603,14 @@ contains
 
     DATA MISGINT  /   -1    /
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     SKIPENR = .FALSE.
 
     HANDLE = MRFLOC(IUNENT,HANDLE,'*********',-1,-1,-1,-1, &
                    -1,SUP,0)
 
     IF(HANDLE .GT. 0) THEN
-      IF (DEBUG) THEN
-         WRITE(6,*)'PROCESSING BRP FILE:HANDLE=',HANDLE
+      IF ( mwbg_debug ) THEN
+         WRITE(*,*)'PROCESSING BRP FILE:HANDLE=',HANDLE
       ENDIF
       ISTAT = MRFGET(HANDLE,BUF1)
 
@@ -1678,7 +1640,7 @@ contains
       CALL XTRBLK (5120,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
                   NELE,NVAL,NT,BLKNO)    
       IF(BLKNO .LE. 0) THEN
-        WRITE(6,*)'3D INFO BLOCK NOT FOUND'
+        WRITE(*,*)'3D INFO BLOCK NOT FOUND'
         CALL ABORT()
       ENDIF
 
@@ -1686,22 +1648,22 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    5002,IDATA,ZLAT,IPNTR)    
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'LATITUDE MISSING'
+        WRITE(*,*)'LATITUDE MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' LATITUDE = ', (ZLAT(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' LATITUDE = ', (ZLAT(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire la longitude; element 6002
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    6002,IDATA,ZLON,IPNTR)    
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'LONGITUDE MISSING'
+        WRITE(*,*)'LONGITUDE MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' LONGITUDE = ', (ZLON(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' LONGITUDE = ', (ZLON(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! 2) Bloc info (general): bloc 3072
@@ -1710,7 +1672,7 @@ contains
       CALL XTRBLK (3072,-1,BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
                   NELE,NVAL,NT,BLKNO)    
       IF(BLKNO .LE. 0) THEN
-        WRITE(6,*)'GENERAL INFO BLOCK NOT FOUND'
+        WRITE(*,*)'GENERAL INFO BLOCK NOT FOUND'
         CALL ABORT()
       ENDIF
 
@@ -1718,22 +1680,22 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    1007,ISAT,ZDATA,IPNTR) 
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)' SATELLITE IDENTIFIER MISSING'
+        WRITE(*,*)' SATELLITE IDENTIFIER MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ISAT = ', (ISAT(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ISAT = ', (ISAT(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire l'indicateur terre/mer; element 8012.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    8012,ITERMER,ZDATA,IPNTR)    
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'LAND/SEA INDICATOR MISSING'
+        WRITE(*,*)'LAND/SEA INDICATOR MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ITERMER = ', (ITERMER(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ITERMER = ', (ITERMER(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire technique de traitement.
@@ -1744,43 +1706,43 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    5043,ISCNPOS,ZDATA,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'INFORMATION ON SCAN POSITION MISSING'
+        WRITE(*,*)'INFORMATION ON SCAN POSITION MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ISCNPOS = ', (ISCNPOS(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ISCNPOS = ', (ISCNPOS(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire le "satellite zenith angle"; element 7024.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    7024,IDATA,SATZEN,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'SATELLITE ZENITH ANGLE MISSING'
+        WRITE(*,*)'SATELLITE ZENITH ANGLE MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' SATZEN = ', (SATZEN(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' SATZEN = ', (SATZEN(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! le "terrain type": pour les donnees 1b; element 13039.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    13039,ITERRAIN,ZDATA,IPNTR)
-      IF(IPNTR .EQ. 0 .AND. DEBUG) THEN
-        WRITE(6,*)'WARNING: TERRAIN TYPE MISSING'
+      IF(IPNTR .EQ. 0 .AND. mwbg_debug ) THEN
+        WRITE(*,*)'WARNING: TERRAIN TYPE MISSING'
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ITERRAIN = ', (ITERRAIN(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ITERRAIN = ', (ITERRAIN(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire le numero d'orbite; element 05040.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    05040,IORBIT,ZDATA,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'ORBIT NUMBER MISSING'
+        WRITE(*,*)'ORBIT NUMBER MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' IORBIT = ', (IORBIT(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' IORBIT = ', (IORBIT(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
@@ -1797,7 +1759,7 @@ contains
                      NELE,NVAL,NT,BLKNO)     
       ENDIF  
       IF(BLKNO .LE. 0) THEN
-        WRITE(6,*)'RADIANCE DATA BLOCK NOT FOUND'
+        WRITE(*,*)'RADIANCE DATA BLOCK NOT FOUND'
         CALL ABORT()
       ENDIF
 
@@ -1805,39 +1767,39 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    2150,ICANO,ZDATA,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'CHANNELS FOR RADIANCE OBS. MISSING'
+        WRITE(*,*)'CHANNELS FOR RADIANCE OBS. MISSING'
         CALL ABORT()
       ENDIF
       INO = NVAL
-      IF (DEBUG) THEN
-        WRITE(6,*) ' INO  = ',  INO
-        WRITE(6,*) ' ICANO= ', (ICANO(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' INO  = ',  INO
+        WRITE(*,*) ' ICANO= ', (ICANO(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire les radiances.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    12163,IDATA,ZO,IPNTR) 
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'RADIANCE OBS. MISSING'
+        WRITE(*,*)'RADIANCE OBS. MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ZO = ', (ZO(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ZO = ', (ZO(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire la correction aux radiances, element 012233.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    012233,IDATA,ZCOR,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        IF (DEBUG) THEN
-          WRITE(6,*)'RADIANCE CORRECTION MISSING'
+        IF ( mwbg_debug ) THEN
+          WRITE(*,*)'RADIANCE CORRECTION MISSING'
         ENDIF
         DO I = 1, NVAL*NT
           ZCOR(I) = ZMISG
         ENDDO
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ZCOR = ', (ZCOR(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ZCOR = ', (ZCOR(JJ),JJ=1,NVAL*NT)
       ENDIF                                
 
       ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
@@ -1854,7 +1816,7 @@ contains
                      NELE,NVAL,NT,BLKNO)    
       ENDIF    
       IF(BLKNO .LE. 0) THEN
-        WRITE(6,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
+        WRITE(*,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
         CALL ABORT()
       ENDIF
 
@@ -1862,11 +1824,11 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    212163,IMARQ,ZDATA,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'RADIANCE DATA FLAGS MISSING'
+        WRITE(*,*)'RADIANCE DATA FLAGS MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' RADIANCE FLAGS = ', (IMARQ(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' RADIANCE FLAGS = ', (IMARQ(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
@@ -1887,7 +1849,7 @@ contains
                      NELE,NVAL,NT,BLKNO)  
       ENDIF
       IF(BLKNO .LE. 0) THEN
-        WRITE(6,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
+        WRITE(*,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
         SKIPENR = .TRUE.
         RETURN
       ENDIF
@@ -1896,24 +1858,24 @@ contains
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    2150,ICANOMP,ZDATA,IPNTR) 
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'CHANNELS FOR (O-P) RADIANCE MISSING'
+        WRITE(*,*)'CHANNELS FOR (O-P) RADIANCE MISSING'
         CALL ABORT()
       ENDIF
       INOMP = NVAL
-      IF (DEBUG) THEN
-        WRITE(6,*) ' INOMP   = ',  INOMP
-        WRITE(6,*) ' ICANOMP = ', (ICANOMP(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' INOMP   = ',  INOMP
+        WRITE(*,*) ' ICANOMP = ', (ICANOMP(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! extraire les residus (O-P) en radiances.
       CALL XTRDATA (ELDALT,TBLVAL,DONIALT,NELE,NVAL,NT, &
                    12163,IDATA,ZOMP,IPNTR)
       IF(IPNTR .EQ. 0) THEN
-        WRITE(6,*)'(O-P) RADIANCES MISSING'
+        WRITE(*,*)'(O-P) RADIANCES MISSING'
         CALL ABORT()
       ENDIF
-      IF (DEBUG) THEN
-        WRITE(6,*) ' ZOMP = ', (ZOMP(JJ),JJ=1,NVAL*NT)
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' ZOMP = ', (ZOMP(JJ),JJ=1,NVAL*NT)
       ENDIF
 
       ! 6) Bloc multi niveaux de residus de radiances (O-P) au nadir: bloc 9322 ou 9226, bfam 32.
@@ -1967,9 +1929,6 @@ contains
     REAL PDATA   (:)
     REAL GLINTRP (:)
 
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
     ! 1) Bloc info (general): bloc 3072
     !    Ajouter le "terrain type".
 
@@ -1977,7 +1936,7 @@ contains
     CALL XTRBLK (3072,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
                 INELE,INVAL,INT,IBLKNO)    
     IF(IBLKNO .LE. 0) THEN
-      WRITE(6,*)'INFO BLOCK NOT FOUND'
+      WRITE(*,*)'INFO BLOCK NOT FOUND'
       CALL ABORT()
     ENDIF
 
@@ -1986,12 +1945,12 @@ contains
     !      2) le "terrain type" est manquant (iterrain=-1),
     !      3) le modele indique de la glace (gl >= 0.01),
     !  on specifie "sea ice" pour le "terrain type" (iterrain=0).
-    IF (DEBUG) THEN
-      WRITE(6,*) ' OLD TERRAIN TYPE = ', &
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' OLD TERRAIN TYPE = ', &
                 (ITERRAIN(JJ),JJ=1,INT)
-      WRITE(6,*) ' KTERMER = ', &
+      WRITE(*,*) ' KTERMER = ', &
                 (KTERMER(JJ),JJ=1,INT)
-      WRITE(6,*) ' GLINTRP = ', &
+      WRITE(*,*) ' GLINTRP = ', &
                 (GLINTRP(JJ),JJ=1,INT)
     ENDIF
     DO JI = 1, INT
@@ -2001,8 +1960,8 @@ contains
         ITERRAIN(JI) = 0
       ENDIF
     ENDDO
-    IF (DEBUG) THEN
-      WRITE(6,*) ' NEW TERRAIN TYPE = ', &
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' NEW TERRAIN TYPE = ', &
                   (ITERRAIN(JJ),JJ=1,INT)
     ENDIF
 
@@ -2012,16 +1971,16 @@ contains
     CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
                  13039,KDATA,PDATA,IPNTR)    
     IF(IPNTR .EQ. 0) THEN
-      IF (DEBUG) THEN
-        WRITE(6,*)'TERRAIN TYPE MISSING IN BLOCK. ADD IT'
-        WRITE(6,*) ' KTBLVAL  = ', (KTBLVAL (JJ),JJ=1, &
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*)'TERRAIN TYPE MISSING IN BLOCK. ADD IT'
+        WRITE(*,*) ' KTBLVAL  = ', (KTBLVAL (JJ),JJ=1, &
                                       INELE*INVAL*INT)
       ENDIF
       CALL ADDDAT (KLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
                   13039,ITERRAIN,PDATA, &
                   KLISTEN,KTBLVALN,PRVALN,INELEN,0)
-      IF (DEBUG) THEN
-        WRITE(6,*) ' KTBLVALN = ', (KTBLVALN(JJ),JJ=1, &
+      IF ( mwbg_debug ) THEN
+        WRITE(*,*) ' KTBLVALN = ', (KTBLVALN(JJ),JJ=1, &
                                        INELEN*INVAL*INT)
       ENDIF
       ISTAT = MRBPRM (KBUF1,IBLKNO,IDUM1,IDUM2,IDUM3,IBFAM, &
@@ -2037,8 +1996,8 @@ contains
     ENDIF
 
     ! les indicateurs terre/mer corriges
-    IF (DEBUG) THEN
-      WRITE(6,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,INVAL*INT)
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,INVAL*INT)
     ENDIF
 
     ! Remplacer le bloc.
@@ -2089,10 +2048,6 @@ contains
     REAL PRVAL (:)
     REAL PRVALN(:)
 
-    LOGICAL DEBUG
-
-    DATA  DEBUG /.FALSE./
-
     KNELEN = KNELE + 1
     DO JK = 1, KNELE 
       KLISTEN(JK) =  KLISTE(JK)
@@ -2126,8 +2081,8 @@ contains
       ISTAT = MRBCVT(KLISTEN,KTBLVALN,PRVALN,KNELEN, &
                      KNVAL,KNT,1)
     ENDIF
-    IF (DEBUG) THEN
-      WRITE(6,*) ' ADDDAT: KTBLVALN =  ',(KTBLVALN(JJ), &
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' ADDDAT: KTBLVALN =  ',(KTBLVALN(JJ), &
                  JJ=1,KNELEN*KNVAL*KNT)
     ENDIF
 
@@ -2442,19 +2397,8 @@ contains
     !               csatid  - output -  identificateur de satellite 
     IMPLICIT NONE
 
-    INTEGER JPNSAT,JPCH
- 
-    PARAMETER (JPNSAT =  9) 
-    PARAMETER (JPCH = 50)
-
     INTEGER JPMXSFC
     PARAMETER (JPMXSFC =  2)
-
-    INTEGER NCHNA    (JPNSAT)
-    INTEGER MLISCHNA (JPCH,JPNSAT)
-    REAL    TOVERRST (JPCH,JPNSAT)
-    INTEGER IUTILST  (JPCH,JPNSAT)
-    COMMON /COMTOVST/ NCHNA, MLISCHNA, TOVERRST, IUTILST
 
     INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ICHN, NULOUT
     INTEGER INUMSAT, INDX, IPOS
