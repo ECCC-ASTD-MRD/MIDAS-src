@@ -104,13 +104,13 @@ cat > ~/bin/gitlab_runner.sh <<EOF
 #!/bin/bash
 set -ex
 
-runhost=${1:-ppp1}
+runhost=\${1:-ppp4}
 qname=dev_daemon
 
 gitlabrunner_exists=true
-jobst -c ${runhost} -q ${qname} -u ${USER} | grep gitlab_runner || gitlabrunner_exists=false
+jobst -c \${runhost} -q \${qname} -u \${USER} | grep gitlab_runner || gitlabrunner_exists=false
 
-if [ "${gitlabrunner_exists}" != true ]; then
+if [ "\${gitlabrunner_exists}" != true ]; then
     cat > ${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
 #!/bin/bash
 
@@ -121,14 +121,15 @@ set -ex
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
 ENDOFGITLABRUNNER
 
-    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-${runhost} -queue ${qname} -cpus 1 -w $((90*24*60))
+    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
     rm \${TMPDIR}/gitlab_runner
 ENDOFGITLABRUNNERSUBMIT
 
-    cat ${TMPDIR}/gitlab_runner_submit | ssh eccc-${runhost} bash --login
+    cat ${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
 
     rm ${TMPDIR}/gitlab_runner_submit
 fi
+EOF
 chmod +x ~/bin/gitlab_runner.sh
 ~/bin/gitlab_runner.sh
 ```
@@ -152,5 +153,5 @@ when_hour=*
 when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-ssh hcron-dev1 hcron-reload
+ssh hcron-dev1 hcron reload
 ```
