@@ -7,7 +7,8 @@
 
 The documentation for officially supported branches is available:
 * [`master` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
-* [`v_3.3` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.3)
+* [`v_3.3` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.3)
+* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4)
 
 # Contributing
 
