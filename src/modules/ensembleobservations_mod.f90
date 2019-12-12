@@ -30,6 +30,7 @@ MODULE ensembleObservations_mod
   use mpi_mod
   use mpivar_mod
   use obsSpaceData_mod
+  use randomNumber_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use utilities_mod
@@ -47,6 +48,7 @@ MODULE ensembleObservations_mod
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy, eob_zero
+  public :: eob_calcRandPert
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_writeToFiles, eob_readFromFiles
 
@@ -55,17 +57,18 @@ MODULE ensembleObservations_mod
 
   type struct_eob
     logical                       :: allocated = .false.
-    integer                       :: numMembers     ! number of ensemble members
-    integer                       :: numObs         ! number of observations
-    type(struct_obs), pointer     :: obsSpaceData   ! pointer to obsSpaceData object
-    real(8), allocatable          :: lat(:), lon(:) ! lat/lon of observation
-    real(8), allocatable          :: logPres(:)     ! ln(pres) of obs, used for localization
-    real(8), allocatable          :: obsErrInv(:)   ! inverse of obs error variances
-    real(4), allocatable          :: Yb_r4(:,:)     ! background ensemble perturbation in obs space
-    real(8), allocatable          :: meanYb(:)      ! ensemble mean background state in obs space
-    real(8), allocatable          :: deterYb(:)     ! deterministic background state in obs space
-    real(8), allocatable          :: obsValue(:)    ! the observed value
-    integer, allocatable          :: assFlag(:)     ! assimilation flag
+    integer                       :: numMembers       ! number of ensemble members
+    integer                       :: numObs           ! number of observations
+    type(struct_obs), pointer     :: obsSpaceData     ! pointer to obsSpaceData object
+    real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
+    real(8), allocatable          :: logPres(:)       ! ln(pres) of obs, used for localization
+    real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
+    real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
+    real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
+    real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
+    real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
+    real(8), allocatable          :: obsValue(:)      ! the observed value
+    integer, allocatable          :: assFlag(:)       ! assimilation flag
   end type struct_eob
 
   type(kdtree2), pointer :: tree => null()
@@ -102,6 +105,7 @@ CONTAINS
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%obsErrInv(ensObs%numObs) )
     allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
+    allocate( ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
     allocate( ensObs%assFlag(ensObs%numObs) )
@@ -129,6 +133,7 @@ CONTAINS
     deallocate( ensObs%obsValue )
     deallocate( ensObs%obsErrInv )
     deallocate( ensObs%Yb_r4 )
+    deallocate( ensObs%randPert_r4 )
     deallocate( ensObs%meanYb )
     deallocate( ensObs%deterYb )
     deallocate( ensObs%assFlag )
@@ -153,15 +158,16 @@ CONTAINS
       call utl_abort('eob_zero: this object is not allocated')
     end if
 
-    ensObs%lat(:)       = 0.0d0
-    ensObs%lon(:)       = 0.0d0
-    ensObs%logPres(:)   = 0.0d0
-    ensObs%obsValue(:)  = 0.0d0
-    ensObs%obsErrInv(:) = 0.0d0
-    ensObs%Yb_r4(:,:)   = 0.0
-    ensObs%meanYb(:)    = 0.0d0
-    ensObs%deterYb(:)   = 0.0d0
-    ensObs%assFlag(:)   = 0
+    ensObs%lat(:)        = 0.0d0
+    ensObs%lon(:)        = 0.0d0
+    ensObs%logPres(:)    = 0.0d0
+    ensObs%obsValue(:)   = 0.0d0
+    ensObs%obsErrInv(:)  = 0.0d0
+    ensObs%Yb_r4(:,:)    = 0.0
+    ensObs%randPert_r4(:,:) = 0.0
+    ensObs%meanYb(:)     = 0.0d0
+    ensObs%deterYb(:)    = 0.0d0
+    ensObs%assFlag(:)    = 0
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -202,15 +208,16 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       if (ensObs%assFlag(obsIndex) == 1) then
         obsCleanIndex = obsCleanIndex + 1
-        ensObsClean%lat(obsCleanIndex)       = ensObs%lat(obsIndex)
-        ensObsClean%lon(obsCleanIndex)       = ensObs%lon(obsIndex)
-        ensObsClean%logPres(obsCleanIndex)   = ensObs%logPres(obsIndex)
-        ensObsClean%obsErrInv(obsCleanIndex) = ensObs%obsErrInv(obsIndex)
-        ensObsClean%Yb_r4(:,obsCleanIndex)   = ensObs%Yb_r4(:,obsIndex)
-        ensObsClean%meanYb(obsCleanIndex)    = ensObs%meanYb(obsIndex)
-        ensObsClean%deterYb(obsCleanIndex)   = ensObs%deterYb(obsIndex)
-        ensObsClean%obsValue(obsCleanIndex)  = ensObs%obsValue(obsIndex)
-        ensObsClean%assFlag(obsCleanIndex)   = ensObs%assFlag(obsIndex)
+        ensObsClean%lat(obsCleanIndex)        = ensObs%lat(obsIndex)
+        ensObsClean%lon(obsCleanIndex)        = ensObs%lon(obsIndex)
+        ensObsClean%logPres(obsCleanIndex)    = ensObs%logPres(obsIndex)
+        ensObsClean%obsErrInv(obsCleanIndex)  = ensObs%obsErrInv(obsIndex)
+        ensObsClean%Yb_r4(:,obsCleanIndex)    = ensObs%Yb_r4(:,obsIndex)
+        ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
+        ensObsClean%meanYb(obsCleanIndex)     = ensObs%meanYb(obsIndex)
+        ensObsClean%deterYb(obsCleanIndex)    = ensObs%deterYb(obsIndex)
+        ensObsClean%obsValue(obsCleanIndex)   = ensObs%obsValue(obsIndex)
+        ensObsClean%assFlag(obsCleanIndex)    = ensObs%assFlag(obsIndex)
       end if
     end do
 
@@ -234,15 +241,16 @@ CONTAINS
     type(struct_eob) :: ensObsIn
     type(struct_eob) :: ensObsOut
 
-    ensObsOut%lat(:)       = ensObsIn%lat(:)
-    ensObsOut%lon(:)       = ensObsIn%lon(:)
-    ensObsOut%logPres(:)   = ensObsIn%logPres(:)
-    ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv(:)
-    ensObsOut%Yb_r4(:,:)   = ensObsIn%Yb_r4(:,:)
-    ensObsOut%meanYb(:)    = ensObsIn%meanYb(:)
-    ensObsOut%deterYb(:)   = ensObsIn%deterYb(:)
-    ensObsOut%obsValue(:)  = ensObsIn%obsValue(:)
-    ensObsOut%assFlag(:)   = ensObsIn%assFlag(:)
+    ensObsOut%lat(:)        = ensObsIn%lat(:)
+    ensObsOut%lon(:)        = ensObsIn%lon(:)
+    ensObsOut%logPres(:)    = ensObsIn%logPres(:)
+    ensObsOut%obsErrInv(:)  = ensObsIn%obsErrInv(:)
+    ensObsOut%Yb_r4(:,:)    = ensObsIn%Yb_r4(:,:)
+    ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
+    ensObsOut%meanYb(:)     = ensObsIn%meanYb(:)
+    ensObsOut%deterYb(:)    = ensObsIn%deterYb(:)
+    ensObsOut%obsValue(:)   = ensObsIn%obsValue(:)
+    ensObsOut%assFlag(:)    = ensObsIn%assFlag(:)
 
   end subroutine eob_copy
 
@@ -320,6 +328,11 @@ CONTAINS
                              ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
     end do
+    do memberIndex = 1, ensObs%numMembers
+      call rpn_comm_gatherv( ensObs%randPert_r4(memberIndex,:)          , ensObs%numObs, 'mpi_real4', &
+                             ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                             0, 'GRID', ierr )
+    end do
 
     call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
@@ -339,6 +352,10 @@ CONTAINS
                         0, 'GRID', ierr)
     do memberIndex = 1, ensObs%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
+                          0, 'GRID', ierr)
+    end do
+    do memberIndex = 1, ensObs%numMembers
+      call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
 
@@ -706,6 +723,34 @@ CONTAINS
     end do
 
   end subroutine eob_calcAndRemoveMeanYb
+
+  !--------------------------------------------------------------------------
+  ! eob_calcRandPert
+  !--------------------------------------------------------------------------
+  subroutine eob_calcRandPert(ensObs, randomSeed)
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+    integer          :: randomSeed
+
+    ! locals
+    integer :: obsIndex, memberIndex
+    real(4) :: meanRandPert, sigObs
+
+    call rng_setup(abs(randomSeed))
+
+    do obsIndex = 1, ensObs%numObs
+      sigObs = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex)
+      do memberIndex = 1, ensObs%numMembers
+        ensObs%randPert_r4(memberIndex,obsIndex) = sigObs * rng_gaussian()
+      end do
+
+      meanRandPert = sum(ensObs%randPert_r4(:,obsIndex)) / real(ensObs%numMembers,4)
+      ensObs%randPert_r4(:,obsIndex) = ensObs%randPert_r4(:,obsIndex) - meanRandPert
+    end do
+
+  end subroutine eob_calcRandPert
 
   !--------------------------------------------------------------------------
   ! eob_setMeanOMP

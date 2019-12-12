@@ -79,7 +79,7 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, middleStepIndex, randomSeed2
+  integer :: memberIndex, stepIndex, middleStepIndex, randomSeed2, randomSeedObs
   integer :: nulnam, dateStamp, datePrint, timePrint, imode, ierr
   integer :: get_max_rss, fclos, fnom, fstopc, newdate
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
@@ -203,7 +203,8 @@ program midas_letkf
   if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
   if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
   if (alphaRandomPertSubSample < 0.0D0) alphaRandomPertSubSample = 0.0D0
-  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF') then
+  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
+      trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
@@ -267,6 +268,7 @@ program midas_letkf
 
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_zero(ensObs)
 
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs(ensObs)
@@ -425,7 +427,7 @@ program midas_letkf
   !- 3.3 Set some additional information in ensObs and additional quality 
   !      control before finally communicating ensObs globally
 
-  !  Compute and remove the mean of Yb
+  ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
 
   ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
@@ -433,6 +435,12 @@ program midas_letkf
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
+
+  ! Compute random observation perturbations
+  if (trim(algorithm) == 'CVLETKF-PERTOBS') then
+    randomSeedObs = 1 + mpi_myid
+    call eob_calcRandPert(ensObs, randomSeedObs)
+  end if
 
   ! Apply obs operators to ensemble mean background for several purposes
   write(*,*) ''
