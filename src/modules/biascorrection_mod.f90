@@ -428,8 +428,8 @@ CONTAINS
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
         satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(iSensor)) 
 
-        dynamicCoeffFile = "coeffs_" // trim( instrName )
-        staticCoeffFile = "coeff_file_" // trim(instrName)
+        dynamicCoeffFile =  "coeff_file_" // trim(instrName)
+        staticCoeffFile = "static_coeff_file_" // trim(instrName)
 
         if (  tvs_isNameGeostationary(instrName) ) then
           dynamicCoeffFile = trim(dynamicCoeffFile) // "." // trim( satNamecoeff )
