@@ -6,8 +6,9 @@
 # MIDAS Fortran code documentation:
 
 The documentation for officially supported branches is available:
-* [`master` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-master)
+* [`master` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
 * [`v_3.3` branch](http://hpfx.science.gc.ca/~sanl000/midas-sphinx-doc/latest-v_3.3)
+* [`v_3.4` branch](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.4)
 
 # Contributing
 
@@ -20,7 +21,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the master branch
@@ -30,14 +31,8 @@ clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-as
 
 ## Getting code related to operational system
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
-clone_projet --no-central -c v_3.2 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.2
-```
-
-## Getting code related to the latest final cycle version or installed in parallel run
-```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
-clone_projet --no-central -c v_3.3 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.3
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
+clone_projet --no-central -c v_3.4 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.4
 ```
 
 # Compiling a single program

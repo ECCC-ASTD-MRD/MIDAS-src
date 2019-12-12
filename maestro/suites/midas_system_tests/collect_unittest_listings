@@ -4,7 +4,6 @@ set -e
 
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which nodelister 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-which cmcarc
 
 export SEQ_EXP_HOME=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 unittests=${*}
@@ -36,30 +35,35 @@ if [[ -z "${unittests}" ]]; then
     unittests=$(cd ${SEQ_EXP_HOME}/resources/Tests; find . -name UnitTest | xargs -L1 dirname | cut -c3-)
 fi
 
+if [ -n "${collect_unittest_listings_workdir}" ]; then
+    if [ ! -d "${collect_unittest_listings_workdir}" ]; then
+        mkdir -p ${collect_unittest_listings_workdir}
+    fi
+    cd ${collect_unittest_listings_workdir}
+else
+    cd ${TMPDIR}
+fi
+
 for unittest in ${unittests}; do
-    config=${SEQ_EXP_HOME}/config/Tests/${unittest}.cfg
-    if [[ ! -f "${config}" ]]; then
-	echo "Le fichier '${config}' n'existe pas (ce doit etre le path complet vers un fichier de configuration)"
-	continue
-    fi
-    unset UnitTest_reference
-    eval $(grep UnitTest_reference ${config})
-    if [ -z "${UnitTest_reference}" ]; then
-	echo "La variable 'UnitTest_reference' n'a pas ete initialisee dans le fichier ${config}"
-	continue
-    fi
-    results=${collect_unittest_listings_output:-${UnitTest_reference##*:}}
-    cd ${results}
-    if [ -f listings_${gittag}.ca ]; then
-	if [ "${overwrite_listings}" != 'yes' ]; then
-	    echo "Le fichier '$PWD/listings_${gittag}.ca' existe deja.  On ne l'efface pas"
-	    cmcarc -f listings_${gittag}.ca -t -v
+    if [ -n "${collect_unittest_listings_output}" ]; then
+        results=${collect_unittest_listings_output}/${unittest}
+    else
+        config=${SEQ_EXP_HOME}/config/Tests/${unittest}.cfg
+        if [[ ! -f "${config}" ]]; then
+	    echo "Le fichier '${config}' n'existe pas (ce doit etre le path complet vers un fichier de configuration)"
 	    continue
-	else
-	    rm -v listings_${gittag}.ca
-	fi
+        fi
+        eval $(grep UnitTest_reference ${config})
+        if [ -z "${UnitTest_reference}" ]; then
+	    echo "La variable 'UnitTest_reference' n'a pas ete initialisee dans le fichier ${config}"
+	    continue
+        fi
+        results=${UnitTest_reference}
+        unset UnitTest_reference
     fi
-    echo "travail avec '${unittest}' (tag ${gittag}) dans le repertoire $PWD"
+
+    echo "travail avec '${unittest}' (tag ${gittag}) dans le repertoire ${results}"
+    [ -f listings_${gittag}.ca ] && rm listings_${gittag}.ca
     for task in ${tasks}; do
 	nodename=/Tests/${unittest}/UnitTest/${task}
 	filename=$(echo ${nodename} | cut -c2- | sed 's!/!\.!g')
@@ -68,5 +72,51 @@ for unittest in ${unittests}; do
 	rm ${filename}
     done
     cmcarc -f listings_${gittag}.ca -t -v
-    chmod -wx listings_${gittag}.ca
+
+    if [[ "${results}" = *:* ]]; then
+        results_mach=${results%%:*}
+        results_path=${results##*:}
+        cat <<EOF | ssh "${results_mach}" bash
+#!/bin/bash
+
+set -e
+
+if [ -d '${results_path}' ]; then
+    if [ -f ${results_path}/listings_${gittag}.ca ]; then
+        if [ "${overwrite_listings}" = yes ]; then
+            echo "Since 'overwrite_listings=yes', we erase '${results_path}/listings_${gittag}.ca'"
+            chmod u+rw ${results_path}/listings_${gittag}.ca
+            rm -v ${results_path}/listings_${gittag}.ca
+        else
+            echo "Cannot overwrite the listings at ${results_path}/listings_${gittag}.ca"
+            exit 1
+        fi
+    fi
+else
+    mkdir -pv ${results_path}
+fi
+
+EOF
+        sscp listings_${gittag}.ca ${results}
+        ssh "${results_mach}" "chmod -wx ${results_path}/listings_${gittag}.ca"
+    else
+        if [ -d "${results}" ]; then
+            if [ -f ${results}/listings_${gittag}.ca ]; then
+                if [ "${overwrite_listings}" = yes ]; then
+                    echo "Since 'overwrite_listings=yes', we erase '${results}/listings_${gittag}.ca'"
+                    chmod u+rw ${results}/listings_${gittag}.ca
+                    rm -v ${results}/listings_${gittag}.ca
+                else
+                    echo "Cannot overwrite the listings at ${results}/listings_${gittag}.ca"
+                    exit 1
+                fi
+            fi
+        else
+            mkdir -pv ${results}
+        fi
+        cp listings_${gittag}.ca ${results}
+        chmod -wx ${results}/listings_${gittag}.ca
+    fi
+
+    rm listings_${gittag}.ca
 done

@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * The GitLab runner which runs the continuous integration process is now executed under user `sanl888` (#288 and !277)
  * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
     with `code-tools/01.3` (#275 and !257)
  * The automated (CI) system tests now runs on both available platforms: HPCR-U0 and HPCR-U1 (#270 and !250)

@@ -7,8 +7,8 @@ TO VIEW THE AUTOMATIC DOCUMENTATION RESULTING FROM A SINGLE FILE:
 
 The result will appear here (as html files):  ~/public_html/midas_sphinx
 
-View the result here:  http://hpfx.science.gc.ca/<your home>/midas_sphinx/
-     (e.g. http://hpfx.science.gc.ca/~jbl001/midas_sphinx/
+View the result here:  http://goc-dx.science.gc.ca/<your home>/midas_sphinx/
+     (e.g. http://goc-dx.science.gc.ca/~jbl001/midas_sphinx/
 
 
 PROGRAMS:  completed

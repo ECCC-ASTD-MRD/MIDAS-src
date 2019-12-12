@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
-    MIDAS_ABS: /home/sanl000/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
 
 stages:
@@ -27,13 +28,13 @@ stages:
    variables:
      SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.0
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
-     - ./collect_unittest_listings
+     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - . ./set_machine_list.dot ${suite}
      - clean_suite -y ${suite}
      - rm ~/.suites/${suite}
@@ -45,7 +46,7 @@ stages:
   stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl000/public_html/midas-sphinx-doc
+    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
   script:
   - cd scripts/sphinx
   - ./build_html.sh ../../src $midasdoc/$docname
@@ -54,13 +55,13 @@ stages:
   only:
     - master
 
-.ssm: &ssm_template
-  stage: deploy
-  script:
-    - cd ssm
-    - ./publish
-  only:
-    - tags
+#.ssm: &ssm_template
+#  stage: deploy
+#  script:
+#    - cd ssm
+#    - ./publish
+#  only:
+#    - tags
 
 build:hpcr-u1:
   <<: *build_template
@@ -72,7 +73,12 @@ runtests:hpcr-u1:
   tags:
     - hpcr-u1
 
-ssm:hpcr-u1:
-  <<: *ssm_template
+doc_sphinx:hpcr-u1:
+  <<: *doc_sphinx_template
   tags:
     - hpcr-u1
+
+#ssm:hpcr-u1:
+#  <<: *ssm_template
+#  tags:
+#    - hpcr-u1

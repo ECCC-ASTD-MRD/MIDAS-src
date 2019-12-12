@@ -41,7 +41,7 @@ execute that command:
          --non-interactive                                    \
          --url https://gitlab.science.gc.ca/ci                \
          --registration-token ${GITLAB_CI_TOKEN}              \
-         --description "Some phrase describing the runner"    \
+         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}'."    \
          --run-untagged                                       \
          --executor shell                                     \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
@@ -108,18 +108,26 @@ runhost=\${1:-ppp4}
 qname=dev_daemon
 
 gitlabrunner_exists=true
-jobst -c \${runhost} -q \${qname} | grep "gitlab_runner *\${USER}" || gitlabrunner_exists=false
+jobst -c \${runhost} -q \${qname} -u \${USER} | grep gitlab_runner || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
-    cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
+    cat > \${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
+#!/bin/bash
+
+    cat > \\\${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
 #!/bin/bash
 set -ex
 
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
+env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run --log-level debug run 2>&1 | ts "%F %T%z"
 ENDOFGITLABRUNNER
 
-    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
-    rm \${TMPDIR}/gitlab_runner
+    ord_soumet \\\${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
+    rm \\\${TMPDIR}/gitlab_runner
+ENDOFGITLABRUNNERSUBMIT
+
+    cat \${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
+
+    rm \${TMPDIR}/gitlab_runner_submit
 fi
 EOF
 chmod +x ~/bin/gitlab_runner.sh
@@ -132,7 +140,7 @@ This script will launch a job on the queue `dev_daemon` (which has no time limit
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp4
+mkdir -pv ~/.hcron/hcron-dev1.science.gc.ca/events/eccc-ppp4
 cat > ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp4/gitlab-runner <<EOF
 as_user=
 host=\$HCRON_EVENT_NAME[1]
@@ -145,5 +153,5 @@ when_hour=*
 when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-ssh hcron1 hcron-reload
+ssh hcron-dev1 hcron reload
 ```
