@@ -27,7 +27,7 @@
 <!--if changes are relevant for CHANGELOG.md, please add yours the 'Unreleased' section.-->
 
 **Don't forget to add a description of your changes in the
-  'Unreleased' section of [`CHANGELOG`](CHANGELOG.md).**
+  'Unreleased' section of `CHANGELOG.md`.**
 
 ### Resolved issues:
 
