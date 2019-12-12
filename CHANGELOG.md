@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * The GitLab runner which runs the continuous integration process is now executed under user `sanl888` (#288 and !277)
  * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
     with `code-tools/01.3` (#275 and !257)
  * The automated (CI) system tests now runs on both available platforms: HPCR-U0 and HPCR-U1 (#270 and !250)
@@ -89,7 +90,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * Small change to results for most applications and some increases in time and memory requirements
  * Use constituent BUFR elements from official tableburp file released 30 Sept 2018 (#150 and !137)
  * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
- * The GitLab runner which runs the continuous integration process is now executed under user `sanl888` (#288 and !277)
 
 ### Fixed
  * Correction to the surface humidity (BUFR element 13214) writen in BURP files info block during hyperspectral IR background check. Due to the error introduced in !111 exp(HU) was written instead of HU. (#257 and !247)
