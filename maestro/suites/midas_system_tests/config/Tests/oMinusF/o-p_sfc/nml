@@ -13,7 +13,7 @@
   DSTEPOBS = 0.25D0
 /
  &NAMFILT
-  NELEMS = 17,
+  NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -30,7 +30,6 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NLIST(17)=11012,
   NFLAGS=3,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
@@ -336,23 +335,4 @@
   BITEMLIST(2)='OMA',
   BITEMLIST(3)='FGE',
   TYPE_RESUME='DERIALT'
-/
- &NAMSQLsfc
-  numberElem=11
-  listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035"
-  sqlExtraDat=" order by id_obs "
-  sqlNull=" and obsvalue is not null " 
-/
- &namSQLInsert
-  numberInsertItems=4
-  itemInsertList(1)=11215
-  itemInsertList(2)=11216
-  itemInsertList(3)=11003
-  itemInsertList(4)=11004
-
-/
- &namSQLUpdate
- numberUpdateItems=2
- itemUpdateList(1)='OMP'
- itemUpdateList(2)='OMA'
 /

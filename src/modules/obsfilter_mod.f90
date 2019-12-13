@@ -274,8 +274,7 @@ contains
     integer idburp,ivnm,iflg,ibad,iknt,iknt_mpiglobal
     integer ilansea
     logical llok,llrej,llbogus
-    real*8 obs_sarwinds 
- 
+
     if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
     iknt = 0
