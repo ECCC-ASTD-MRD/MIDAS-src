@@ -1119,7 +1119,7 @@ contains
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 10.D0 )
               end if
               if ( ityp == BUFR_NERF ) then
-                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 1001.D0 )
+                call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 500.D0 )
               end if
               if ( ityp == BUFR_NEBD ) then
                 call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 0.08D0 )
