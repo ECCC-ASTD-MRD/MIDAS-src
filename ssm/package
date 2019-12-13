@@ -8,6 +8,39 @@ set -e
 
 SECONDS=0
 
+getArg () {
+    set -e
+    if [ $# -le 1 ]; then
+        echo "ssm/package: The option '$1' expects an argument" >&2
+        exit 1
+    fi
+    if [[ "$2" == -* ]]; then
+        echo "ssm/package: The option '$1' expects an argument but have '$2'" >&2
+        exit 1
+    fi
+    echo $2
+} ## End of function 'getArg'
+
+compiled_programs=
+ssmuser=
+
+args=
+while [ $# -gt 0 ]; do
+    if [ "${1}" = --midas-abs ]; then
+        compiled_programs=$(getArg $1 $2)
+    elif [ "${1}" = --user ]; then
+        ssmuser=$(getArg $1 $2)
+    else
+        args="${args} ${1}"
+    fi
+done
+
+if [ -z "${compiled_programs}" ]; then
+    echo "ssm/package: You must provide a path for the programs with '--midas-abs'" >&2
+fi
+
+set ${args}
+
 if [ $# -ge 1 ]; then
     BHSCRIPTS=$@
 else
