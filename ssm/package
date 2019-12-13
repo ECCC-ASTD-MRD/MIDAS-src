@@ -222,14 +222,14 @@ for bhscript in ${BHSCRIPTS}; do
 	## puisque cela interfere avec la separation des plateformes.
 	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
 	set -x
-	./${bhscript} -w /tmp/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
+	./${bhscript} -w ${PWD}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
             -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
             -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
             -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
             -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
             ${other_bh_args}
 	set +x
-	rm -rf /tmp/bh-${pkgname}-${platform}-$$
+	rm -rf ${PWD}/bh-${pkgname}-${platform}-$$
 
 	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
 
