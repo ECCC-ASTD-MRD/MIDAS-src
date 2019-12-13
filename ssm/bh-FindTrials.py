@@ -46,6 +46,7 @@ def _make(b):
     \"summary\": \"Script to find trials in the assimilation window\",
     \"build_info\": \"'envar.findTrials' from ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"
 }
+EOF
            )""")
 
 def _install(b):
