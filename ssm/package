@@ -28,7 +28,7 @@ args=
 while [ $# -gt 0 ]; do
     if [ "${1}" = --midas-abs ]; then
         midasabs=$(getArg $1 $2)
-    if [ "${1}" = --packages ]; then
+    elif [ "${1}" = --packages ]; then
         packages=$(getArg $1 $2)
     elif [ "${1}" = --user ]; then
         ssmuser=$(getArg $1 $2)
@@ -209,6 +209,9 @@ for bhscript in ${BHSCRIPTS}; do
 	    fi
 	fi
 
+        if [ "${pkgname}" = midas ]; then
+	    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
+        fi
 	## Un package SSM ne peut contenir de caractere '_' dans le nom
 	## puisque cela interfere avec la separation des plateformes.
 	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
