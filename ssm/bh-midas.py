@@ -206,8 +206,6 @@ if __name__ == "__main__":
     b.actions.set("package", actions.package.to_ssm)
  
     b.supported_platforms = [
-        "ubuntu-14.04-amd64-64",
-        "sles-11-broadwell-64-xc40",
         "ubuntu-18.04-skylake-64",
         "sles-15-skylake-64-xc50",
         "all"

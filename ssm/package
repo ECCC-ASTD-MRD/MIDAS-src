@@ -30,6 +30,10 @@ while [ $# -gt 0 ]; do
         compiled_programs=$(getArg $1 $2)
     elif [ "${1}" = --user ]; then
         ssmuser=$(getArg $1 $2)
+    elif [ "${1}" = --frontend ]; then
+        frontend=$(getArg $1 $2)
+    elif [ "${1}" = --backend ]; then
+        backend=$(getArg $1 $2)
     else
         args="${args} ${1}"
     fi
@@ -37,6 +41,15 @@ done
 
 if [ -z "${compiled_programs}" ]; then
     echo "ssm/package: You must provide a path for the programs with '--midas-abs'" >&2
+    exit 1
+fi
+if [ -z "${frontend}" ]; then
+    echo "ssm/package: You must provide a frontend machine with '--frontend'" >&2
+    exit 1
+fi
+if [ -z "${backend}" ]; then
+    echo "ssm/package: You must provide a backend machine with '--backend'" >&2
+    exit 1
 fi
 
 set ${args}
@@ -95,10 +108,10 @@ for bhscript in ${BHSCRIPTS}; do
     pkgname=$(basename ${bhscript} .py | cut -c4-)
     case "${pkgname}" in
 	FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
-	    platforms="ubuntu-14.04-amd64-64 sles-11-broadwell-64-xc40"
+	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
 	midas)
-	    platforms="all ubuntu-14.04-amd64-64 sles-11-broadwell-64-xc40"
+	    platforms="all ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
 	    ;;
         VarScripts|FindTrials)
             platforms=all
@@ -152,13 +165,13 @@ for bhscript in ${BHSCRIPTS}; do
 	    all)
 		compiler=
 		;;
-	    ubuntu-14.04-amd64-64)
-		compiler=intel-2016.1.156
-		ssmhost=eccc-ppp1
+	    ubuntu-18.04-skylake-64)
+		compiler=intel-19.0.3.199
+		ssmhost=${frontend}
 		;;
-	    sles-11-broadwell-64-xc40)
-		compiler=PrgEnv-intel-5.2.82
-		ssmhost=hare
+	    sles-15-skylake-64-xc50)
+		compiler=PrgEnv-intel-6.0.5
+		ssmhost=${backend}
 		;;
 	esac
 

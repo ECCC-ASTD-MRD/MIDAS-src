@@ -81,10 +81,7 @@ if __name__ == "__main__":
     b.actions.set("package", actions.package.to_ssm)
  
     b.supported_platforms = [
-        "aix-7.1-ppc7-64",
-        "ubuntu-10.04-amd64-64",
-        "ubuntu-12.04-amd64-64",
-        "ubuntu-14.04-amd64-64",
-        "sles-11-broadwell-64-xc40"
+        "ubuntu-18.04-skylake-64",
+        "sles-15-skylake-64-xc50"
     ]
     dr.run(b)
