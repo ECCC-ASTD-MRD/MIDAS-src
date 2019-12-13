@@ -106,34 +106,6 @@ EOF
             ## Recompile 'obsIO' without erasing compiling directory.
             ## We will need some files to build the library.
             ./compile_program.sh obsIO full no
-
-            BH_POST_FILE=${CONTROL_DIR}/post-install
-            echo \"#!/bin/bash\n\"                                      > ${BH_POST_FILE}
-            echo \"domainHome=\$1\"                                    >> ${BH_POST_FILE}
-            echo \"packageHome=\$2\"                                   >> ${BH_POST_FILE}
-
-            echo \"# create profiles\"                                 >> ${BH_POST_FILE}
-            echo \"packageName=\$(basename \${packageHome})\"          >> ${BH_POST_FILE}
-            echo \"profileDirPath=\${packageHome}/etc/profile.d\"      >> ${BH_POST_FILE}
-            echo \"profilePath=\${profileDirPath}/\${packageName}.sh\" >> ${BH_POST_FILE}
-            echo \"loginPath=\${profileDirPath}/\${packageName}.csh\"  >> ${BH_POST_FILE}
-
-            echo \"# expect default to point to the real VarData dir\" >> ${BH_POST_FILE}
-            echo \"rm -f \${profilePath} \${loginPath}\"               >> ${BH_POST_FILE}
-            echo \"mkdir -p \${profileDirPath}\"                       >> ${BH_POST_FILE}
-
-            echo \"cat > \${profilePath} << EOF\"                      >> ${BH_POST_FILE}
-            echo \"if [[ -z \\\\\${AFSISIO} ]]; then\"                 >> ${BH_POST_FILE}
-            echo \"export AFSISIO=${AFSISIO_MAKESHIFT}\"               >> ${BH_POST_FILE}
-            echo \"fi\"                                                >> ${BH_POST_FILE}
-            echo \"EOF\"                                               >> ${BH_POST_FILE}
-
-            echo \"cat > \${loginPath} << EOF\"                        >> ${BH_POST_FILE}
-            echo \"if [[ -z \\\\\${AFSISIO} ]]; then\"                 >> ${BH_POST_FILE}
-            echo \"setenv AFSISIO '${AFSISIO_MAKESHIFT}'\"             >> ${BH_POST_FILE}
-            echo \"fi\"                                                >> ${BH_POST_FILE}
-            echo \"EOF\"                                               >> ${BH_POST_FILE}
-            chmod +x ${BH_POST_FILE}
            )""")
 
 
