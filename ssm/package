@@ -28,17 +28,23 @@ args=
 while [ $# -gt 0 ]; do
     if [ "${1}" = --midas-abs ]; then
         midasabs=$(getArg $1 $2)
+        shift
     elif [ "${1}" = --packages ]; then
         packages=$(getArg $1 $2)
+        shift
     elif [ "${1}" = --user ]; then
         ssmuser=$(getArg $1 $2)
+        shift
     elif [ "${1}" = --frontend ]; then
         frontend=$(getArg $1 $2)
+        shift
     elif [ "${1}" = --backend ]; then
         backend=$(getArg $1 $2)
+        shift
     else
         args="${args} ${1}"
     fi
+    shift
 done
 
 if [ -z "${midasabs}" ]; then
@@ -76,11 +82,11 @@ fi
 
 MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
 
-VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.1.0}
-OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v2}
-SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.1}
-REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.6}
-WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.4}
+VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.3}
+OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v3}
+SPLITOBS_REVISION=${SPLITOBS_REVISION:-v_7.3.4}
+REUNIROBS_REVISION=${REUNIROBS_REVISION:-v6.11}
+WRITESUBDOMAINS_REVISION=${WRITESUBDOMAINS_REVISION:-v2.2.9}
 FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 
 ## If MIDAS_SOURCE is not yet defined we use the git repository itself.
