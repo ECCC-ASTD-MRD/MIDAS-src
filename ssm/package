@@ -27,7 +27,9 @@ ssmuser=
 args=
 while [ $# -gt 0 ]; do
     if [ "${1}" = --midas-abs ]; then
-        compiled_programs=$(getArg $1 $2)
+        midasabs=$(getArg $1 $2)
+    if [ "${1}" = --packages ]; then
+        packages=$(getArg $1 $2)
     elif [ "${1}" = --user ]; then
         ssmuser=$(getArg $1 $2)
     elif [ "${1}" = --frontend ]; then
@@ -39,8 +41,12 @@ while [ $# -gt 0 ]; do
     fi
 done
 
-if [ -z "${compiled_programs}" ]; then
-    echo "ssm/package: You must provide a path for the programs with '--midas-abs'" >&2
+if [ -z "${midasabs}" ]; then
+    echo "ssm/package: You must provide a path for the MIDAS programs with '--midas-abs'" >&2
+    exit 1
+fi
+if [ -z "${packages}" ]; then
+    echo "ssm/package: You must provide a path to put the SSM packages with '--packages'" >&2
     exit 1
 fi
 if [ -z "${frontend}" ]; then
@@ -58,6 +64,14 @@ if [ $# -ge 1 ]; then
     BHSCRIPTS=$@
 else
     BHSCRIPTS=$(/bin/ls bh-*.py)
+fi
+
+if [ -d "${packages}" ]; then
+    echo "ssm/package: The destination path '${packages}' already exists!" >&2
+    exit 1
+else
+    echo "ssm/package: Creating destination path '${packages}'"
+    mkdir -p ${packages}
 fi
 
 MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
@@ -112,7 +126,7 @@ whichPlatforms () {
             platforms=all
             ;;
 	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte.  On passe au suivant."
+	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte." >&2
             return 1
 	    ;;
     esac
@@ -147,7 +161,7 @@ whichPlatforms () {
 	    BH_PULL_SOURCE=${OAVARMONITOR_SOURCE}
 	    ;;
 	*)
-	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte.  On passe au suivant."
+	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte." >&2
             return 1
 	    ;;
     esac
@@ -159,7 +173,7 @@ for bhscript in ${BHSCRIPTS}; do
 
     whichPlatforms ${bhscript}
 
-    echo Executing the script ${bhscript} to create the package ${pkgname}.ssm to be installed under ${DOMAIN_PATH}
+    echo Executing the script ${bhscript} to create the package ${pkgname}.ssm
     for platform in ${platforms}; do
 	ssmbuildhost=host:
 	ssmhost=
@@ -209,9 +223,17 @@ for bhscript in ${BHSCRIPTS}; do
 	rm -rf /tmp/bh-${pkgname}-${platform}-$$
 
 	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
-	mv ${ssmpkgname}.ssm ${DOMAIN_PATH}
+
+        ## check if the package contains a 'post-install' script
+        postinstall_exists=true
+        tar tf ${ssmpkgname}.ssm | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
+        if [ "${postinstall_exists}" = true ]; then
+            echo "ssm/package: Warning! The SSM package ${PWD}/${ssmpkgname}.ssm contains a 'post-install' script !" >&2
+        fi
+
+	mv ${ssmpkgname}.ssm ${packages}
     done
 
 done
 
-echo "ssm/packge: L'execution de ce script a pris ${SECONDS} secondes."
+echo "ssm/package: L'execution de ce script a pris ${SECONDS} secondes."

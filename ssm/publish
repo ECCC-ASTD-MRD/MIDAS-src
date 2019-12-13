@@ -2,19 +2,16 @@
 
 set -e
 
-DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
-DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
-
 SECONDS=0
 
 getArg () {
     set -e
     if [ $# -le 1 ]; then
-        echo "ssm/package: The option '$1' expects an argument" >&2
+        echo "ssm/publish: The option '$1' expects an argument" >&2
         exit 1
     fi
     if [[ "$2" == -* ]]; then
-        echo "ssm/package: The option '$1' expects an argument but have '$2'" >&2
+        echo "ssm/publish: The option '$1' expects an argument but have '$2'" >&2
         exit 1
     fi
     echo $2
@@ -22,16 +19,27 @@ getArg () {
 
 packages=
 domainpath=
+postinstall=
+workdir=${TMPDIR}
 
 args=
 while [ $# -gt 0 ]; do
     if [ "${1}" = --packages ]; then
         packages=$(getArg $1 $2)
+        shift
     elif [ "${1}" = --domainpath ]; then
         domainpath=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --post-install ]; then
+        postinstall=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --workdir ]; then
+        workdir=$(getArg $1 $2)
+        shift
     else
         args="${args} ${1}"
     fi
+    shift
 done
 
 if [ -n "${args}" ]; then
@@ -58,18 +66,44 @@ if [ -d "${domainpath}" ]; then
     exit 1
 fi
 
+cd ${workdir}
+
 echo "Creating the domain ${domainpath}"
 ssm created -d ${domainpath}
 
 for package in ${packages}/*.ssm; do
-    ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
-    platform=$(echo ${package} | cut -d_ -f3)
+    ## check if the package contains a 'post-install' script
+    postinstall_exists=true
+    tar tf ${package} | grep -sq "/.ssm.d/post-install$" || postinstall_exists=false
+    if [ "${postinstall_exists}" = true ]; then
+        echo "ssm/publish: Warning! The SSM package ${package} contains a 'post-install' script !" >&2
+        exit 1
+    fi
+
+    pkgname=$(basename ${package} .ssm)
+
+    if [ -n "${postinstall}" ]; then
+        if [ -f "${postinstall}" ]; then
+            if [ ! -x "${postinstall}" ]; then
+                echo "ssm/publish: Warning! The post-install script '${postinstall}' is not executable!" >&2
+            fi
+            ## add the post-install script
+            tar zxf ${package}
+            cp ${postinstall} ${pkgname}/.ssm.d/post-install
+            tar czf ${pkgname}.ssm ${pkgname}
+            cp ${pkgname}.ssm ${domainpath}
+            rm -r ${pkgname} ${pkgname}.ssm
+        else
+            echo "ssm/publish: Warning! The post-install script '${postinstall}' is not available!" >&2
+        fi
+    fi
 
     ssmpublish_args=
+    platform=$(echo ${pkgname} | cut -d_ -f3)
     [ "${platform}" = all ] && ssmpublish_args="-pp all"
 
-    ssm install -d ${domainpath} -p ${ssmpkgname} -r ${domainpath}
-    ssm publish -d ${domainpath} -p ${ssmpkgname} ${ssmpublish_args}
+    ssm install -d ${domainpath} -p ${pkgname} -r ${domainpath}
+    ssm publish -d ${domainpath} -p ${pkgname} ${ssmpublish_args}
 done
 
 ## Freeze the domain
