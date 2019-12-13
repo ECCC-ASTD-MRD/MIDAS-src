@@ -60,8 +60,6 @@ else
     BHSCRIPTS=$(/bin/ls bh-*.py)
 fi
 
-DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
-DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
 MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.1.0}
@@ -86,26 +84,23 @@ WRITESUBDOMAINS_SOURCE=${WRITESUBDOMAINS_SOURCE:-git@gitlab.science.gc.ca:atmosp
 
 export BH_MAIL_RECIPIENTS=${BH_MAIL_RECIPIENTS:-ervig.lapalme@canada.ca}
 
-if [ ! -d "$(dirname ${DOMAIN_PATH})" ]; then
-    mkdir -pv $(dirname ${DOMAIN_PATH})
-fi
-
-if [ ! -d "${DOMAIN_PATH}" ]; then
-    echo Creating the domain ${DOMAIN_PATH}
-    ssm created -d ${DOMAIN_PATH}
-else
-    echo The directory ${DOMAIN_PATH} alread exists.
-    echo You should erase it before continuing
-    exit 1
-fi
-
 ## loading the BH scripts
 . ssmuse-sh -x hpco/exp/bh-test/bh-1.2
 export BH_PROFILE=eccc
 
-echo BHSCRIPTS=${BHSCRIPTS}
-for bhscript in ${BHSCRIPTS}; do
-    pkgname=$(basename ${bhscript} .py | cut -c4-)
+whichPlatforms () {
+    ## this function returns:
+    ##    pkgname: name of the package
+    ##    platforms: platforms supported for each package
+    ##    BH_PULL_SOURCE_GIT_BRANCH: version of the package
+    ##    BH_PULL_SOURCE: path to the git depot for this package
+
+    set -e
+
+    __whichPlatforms_bhscript__=${1}
+    pkgname=$(basename ${__whichPlatforms_bhscript__} .py | cut -c4-)
+    unset __whichPlatforms_bhscript__
+
     case "${pkgname}" in
 	FstdWriteSubdomains|ReunirObs|SplitObs|OavarMonitor)
 	    platforms="ubuntu-18.04-skylake-64 sles-15-skylake-64-xc50"
@@ -117,8 +112,8 @@ for bhscript in ${BHSCRIPTS}; do
             platforms=all
             ;;
 	*)
-	    echo "The package '${pkgname}' n'est pas supporte.  On passe au suivant."
-            continue
+	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est pas supporte.  On passe au suivant."
+            return 1
 	    ;;
     esac
 
@@ -152,10 +147,17 @@ for bhscript in ${BHSCRIPTS}; do
 	    BH_PULL_SOURCE=${OAVARMONITOR_SOURCE}
 	    ;;
 	*)
-	    echo "The package '${pkgname}' n'est supporte.  On passe au suivant."
-            continue
+	    echo "ssm/package(whichPlatforms): The package '${pkgname}' n'est supporte.  On passe au suivant."
+            return 1
 	    ;;
     esac
+
+} ## End of function 'whichPlatforms'
+
+echo BHSCRIPTS=${BHSCRIPTS}
+for bhscript in ${BHSCRIPTS}; do
+
+    whichPlatforms ${bhscript}
 
     echo Executing the script ${bhscript} to create the package ${pkgname}.ssm to be installed under ${DOMAIN_PATH}
     for platform in ${platforms}; do
@@ -208,27 +210,8 @@ for bhscript in ${BHSCRIPTS}; do
 
 	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
 	mv ${ssmpkgname}.ssm ${DOMAIN_PATH}
-	if [ -d ${DOMAIN_PATH}/${ssmpkgname} ]; then
-	    echo "Unpublish and uninstall ${ssmpkgname} from ${DOMAIN_PATH}"
-	    ssm unpublish -d ${DOMAIN_PATH} -p ${ssmpkgname}
-	    ssm uninstall -d ${DOMAIN_PATH} -p ${ssmpkgname}
-	fi
-
-	ssmpublish_args=
-        if [[ "$(ssm version)" = 11.* ]]; then
-	    ssm install -d ${DOMAIN_PATH} -p ${ssmpkgname} -r ${DOMAIN_PATH}
-            [ "${platform}" = all ] && ssmpublish_args="-pp all"
-        else
-	    ssm install -d ${DOMAIN_PATH} -p ${ssmpkgname} -u ${DOMAIN_PATH}
-        fi
-	ssm publish -d ${DOMAIN_PATH} -p ${ssmpkgname} ${ssmpublish_args}
     done
 
 done
 
-## Freeze the domain
-ssm freezed -d ${DOMAIN_PATH}
-## remove write permission on the domain to prevent unintended modifications or erases
-chmod -R ugo-w ${DOMAIN_PATH}
-
-echo "L'execution de ce script a pris ${SECONDS} secondes pour publier le domaine '${DOMAIN_PATH}'"
+echo "ssm/packge: L'execution de ce script a pris ${SECONDS} secondes."

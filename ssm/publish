@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set -e
+
+DOMAIN_REVISION=${DOMAIN_REVISION:-$(git describe)}
+DOMAIN_PATH=${DOMAIN_PATH:-/fs/ssm/eccc/mrd/rpn/anl/midas/${DOMAIN_REVISION}}
+
+SECONDS=0
+
+getArg () {
+    set -e
+    if [ $# -le 1 ]; then
+        echo "ssm/package: The option '$1' expects an argument" >&2
+        exit 1
+    fi
+    if [[ "$2" == -* ]]; then
+        echo "ssm/package: The option '$1' expects an argument but have '$2'" >&2
+        exit 1
+    fi
+    echo $2
+} ## End of function 'getArg'
+
+packages=
+domainpath=
+
+args=
+while [ $# -gt 0 ]; do
+    if [ "${1}" = --packages ]; then
+        packages=$(getArg $1 $2)
+    elif [ "${1}" = --domainpath ]; then
+        domainpath=$(getArg $1 $2)
+    else
+        args="${args} ${1}"
+    fi
+done
+
+if [ -n "${args}" ]; then
+    echo "ssm/publish: You gave arguments that have not been consumed: '${args}'" >&2
+    exit 1
+fi
+
+if [ -z "${packages}" ]; then
+    echo "ssm/publish: You must provide a path for the packages with '--packages'" >&2
+    exit 1
+fi
+if [ -z "${domainpath}" ]; then
+    echo "ssm/publish: You must provide a domain path with '--domainpath'" >&2
+    exit 1
+fi
+
+if [ ! -d "$(dirname ${domainpath})" ]; then
+    mkdir -pv $(dirname ${domainpath})
+fi
+
+if [ -d "${domainpath}" ]; then
+    echo "The directory ${domainpath} already exists." >&2
+    echo "You should erase it before continuing" >&2
+    exit 1
+fi
+
+echo "Creating the domain ${domainpath}"
+ssm created -d ${domainpath}
+
+for package in ${packages}/*.ssm; do
+    ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
+    platform=$(echo ${package} | cut -d_ -f3)
+
+    ssmpublish_args=
+    [ "${platform}" = all ] && ssmpublish_args="-pp all"
+
+    ssm install -d ${domainpath} -p ${ssmpkgname} -r ${domainpath}
+    ssm publish -d ${domainpath} -p ${ssmpkgname} ${ssmpublish_args}
+done
+
+## Freeze the domain
+ssm freezed -d ${domainpath}
+## remove write permission on the domain to prevent unintended modifications or erases
+chmod -R ugo-w ${domainpath}
+
+echo "ssm/publish: L'execution de ce script a pris ${SECONDS} secondes pour publier le domaine '${domainpath}'"
