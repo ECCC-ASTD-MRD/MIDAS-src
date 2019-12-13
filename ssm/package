@@ -87,7 +87,8 @@ else
 fi
 
 ## loading the BH scripts
-. ssmuse-sh -x main/opt/bh/bh-0.19
+. ssmuse-sh -x hpco/exp/bh-test/bh-1.2
+export BH_PROFILE=eccc
 
 echo BHSCRIPTS=${BHSCRIPTS}
 for bhscript in ${BHSCRIPTS}; do
