@@ -128,6 +128,12 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+
+    <SUBMITS sub_name="bgckIasiwBcor"/>
+      <FAMILY  name="bgckIasiwBcor">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="vbc"/>
     <FAMILY  name="vbc">
