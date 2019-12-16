@@ -6,7 +6,7 @@ variables:
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
 
 stages:
-   #- build
+   - build
    #- test
    #- doc
    - deploy
@@ -59,22 +59,19 @@ stages:
 .ssm: &ssm_template
   stage: deploy
   script:
-    #- . maestro/suites/midas_system_tests/set_machine_list.dot
-    #- VERSION=$(git describe --abbrev=7 --always)
-    - MACHINE_PPP=eccc-ppp3
-    - MACHINE_SUPER=daley
-    - VERSION=v_3.4.2-1006-gbdecea1
     - ./set_resources_def.sh
+    - . maestro/suites/midas_system_tests/set_machine_list.dot
+    - VERSION=$(git describe --abbrev=7 --always)
     - cd ssm
     - ./package --midas-abs $MIDAS_ABS --packages $SSM_PACKAGES/$VERSION --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
     - ssh sanl000@${MACHINE_PPP} midas $VERSION $SSM_PACKAGES/$VERSION
   only:
     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
-#build:hpcr-u1:
-#  <<: *build_template
-#  tags:
-#    - hpcr-u1
+build:hpcr-u1:
+  <<: *build_template
+  tags:
+    - hpcr-u1
 
 #runtests:hpcr-u1:
 #  <<: *runtests_template
