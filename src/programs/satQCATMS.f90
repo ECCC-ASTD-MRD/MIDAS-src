@@ -19,7 +19,7 @@ program midas_satQCATMS
   ! :Purpose: Main program for background check of microwave instruments. 
   !
   use burp_module
-  use bgcksatqc_mod
+  use bgckmicrowave_mod
 
   !  Object: This program is applied to ATMS derialt data.  The processing applied in this
   !          program includes:
@@ -176,14 +176,13 @@ program midas_satQCATMS
 
   ! These arrays are for subroutine GETBC, called to get bias corrections
   integer, dimension(mxsat)            ::  numor, numan
-  integer, dimension(mxan,mxsat)       ::  listan
+  integer, dimension(nchanAtms,mxsat)       ::  listan
 
-  real, dimension(mxor,mxan,mxsat)     ::  amcoeff
-  real, dimension(mxan,mxscan,mxsat)   ::  glbscanb, dglbscanb
+  real, dimension(nchanAtms,mxscan,mxsat)   ::  glbscanb, dglbscanb
 
   character(len=9), dimension(mxsat)   ::  csatid
 
-  real, dimension(nchan,mxscan)        ::  zbcor
+  real, dimension(nchanAtms,mxscan)        ::  zbcor
   real, dimension(mxval*mxnt)          ::  ztbcor
   
   real, dimension(5)                   ::  ztb183
@@ -219,17 +218,17 @@ program midas_satQCATMS
   logical, allocatable, dimension(:)   :: cloudobs,iwvreject,precipobs,grossrej
   logical, allocatable, dimension(:,:) :: lflagchn, lqc
 
-  ! For s/r READ_COEFF
+  ! For s/r mwbg_readCoeff
   INTEGER                                         :: NSAT, NFOV
   INTEGER, PARAMETER                              :: maxpred=6
   character(len=90)                               :: coef_in
   character(len=9), dimension(mxsat)              :: SATNAMES
   integer, dimension(mxsat)                       :: RCNCHAN
-  integer, dimension(mxsat,nchan)                 :: CHANNUMS, NPRED
-  real,dimension(mxsat,nchan,maxpred+1)           :: COEFF
-  real,dimension(mxsat,nchan,mxscan)              :: FOVBIAS
+  integer, dimension(mxsat,nchanAtms)                 :: CHANNUMS, NPRED
+  real,dimension(mxsat,nchanAtms,maxpred+1)           :: COEFF
+  real,dimension(mxsat,nchanAtms,mxscan)              :: FOVBIAS
   character(len=5)                                :: CF_INSTRUM
-  character(len=2),dimension(mxsat,nchan,maxpred) :: PTYPES
+  character(len=2),dimension(mxsat,nchanAtms,maxpred) :: PTYPES
 
   logical :: sp_adj_tb, debug, modlsqtt, useUnbiasedObsForClw
   logical :: bad_report, lutb, resume_report
@@ -267,14 +266,14 @@ program midas_satQCATMS
   write(*,nml=nambgck)
   ierr = fclos(nulnam)
 
-  satqc_debug = debug
-  satqc_modlsqtt = modlsqtt
-  satqc_useUnbiasedObsForClw = useUnbiasedObsForClw 
+  mwbg_debug = debug
+  mwbg_modlsqtt = modlsqtt
+  mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw 
 
   ! Optional adjustment of Tb for scan-position dependency before computing CLW.
   ! Open and read new UBCOR system ascii file containing mean O-P for each scan position (FOVBIAS).
   if ( sp_adj_tb ) then
-    !call read_coeff(SATNAMES,CHANNUMS,FOVBIAS,COEFF,NSAT,RCNCHAN,NFOV,NPRED,CF_INSTRUM,maxpred,iunbc,coef_in,PTYPES)
+    !call mwbg_readCoeff(SATNAMES,CHANNUMS,FOVBIAS,COEFF,NSAT,RCNCHAN,NFOV,NPRED,CF_INSTRUM,maxpred,iunbc,coef_in,PTYPES)
     !if ( NSAT == 0 ) then
     !  write(*,*) 'ERROR: Cannot apply scan position bias correction -- error reading bcor file ', coef_in
     !  call abort()
@@ -344,7 +343,7 @@ program midas_satQCATMS
   iRej = 0
 
   ! Optional scan position adjustment of Tb: 
-  !    -- Get global scan bias array glbscanb(nchan,nscan,nsat) from 
+  !    -- Get global scan bias array glbscanb(nchanAtms,nscan,nsat) from 
   !       bias correction file
   !        numan(numbsat) = number of channels (out)
   !        listan = list of channel numbers (out)
@@ -356,15 +355,15 @@ program midas_satQCATMS
     csatid(:) = 'XXXXXXXXX'
     numbsat = NSAT
     numan(:) = 0
-    do j = 1, mxan
+    do j = 1, nchanAtms
       listan(j,:) = j
     end do
 
     do ii = 1,NSAT
       csatid(ii) = SATNAMES(ii)
       numan(ii)  = RCNCHAN(ii)
-      if ( numan(ii) /= nchan ) then
-        write(*,*) 'INFO:',csatid(ii),': Number of channels in coeff file is less than ', nchan
+      if ( numan(ii) /= nchanAtms ) then
+        write(*,*) 'INFO:',csatid(ii),': Number of channels in coeff file is less than ', nchanAtms
         write(*,*) '      Channels are ', CHANNUMS(ii,1:rcnchan(ii))
       endif
 
@@ -383,7 +382,7 @@ program midas_satQCATMS
         write(*,*) csatid(kk)
         write(*,*) '  Channels are ', CHANNUMS(kk,1:rcnchan(ii))
         write(*,*) '  Scan biases for each channel are:'
-        do j = 1, nchan
+        do j = 1, nchanAtms
           write(*,*) j, dglbscanb(j,:,kk)
         end do
       end do
@@ -490,7 +489,7 @@ program midas_satQCATMS
       allocate( grossrej(nt), stat=alloc_status(3) )
       allocate( cloudobs(nt), stat=alloc_status(4) )
       allocate( iwvreject(nt),stat=alloc_status(5) )
-      allocate( lflagchn(nt,nchan), stat=alloc_status(6) )
+      allocate( lflagchn(nt,nchanAtms), stat=alloc_status(6) )
       allocate( rclw(nt),     stat=alloc_status(7) )
       allocate( riwv(nt),     stat=alloc_status(8) )
       !allocate( isecs(nt),    stat=alloc_status(9) )
@@ -522,7 +521,7 @@ program midas_satQCATMS
       allocate( scatec(nt),   stat=alloc_status(28) )
       allocate( scatbg(nt),   stat=alloc_status(29) )
       allocate( SeaIce(nt),   stat=alloc_status(30) )
-      allocate( lqc(nt,nchan), stat=alloc_status(31) )
+      allocate( lqc(nt,nchanAtms), stat=alloc_status(31) )
      
       if( any(alloc_status /= 0) ) then
         write(*,*) ' midas_satQCATMS: Memory allocation error '
@@ -549,7 +548,7 @@ program midas_satQCATMS
 
 
       !  Get all the required data from the blocks in the report (Rpt_in)
-      call satqc_getData(Rpt_in)
+      call mwbg_getData(Rpt_in)
 
 
       ! Initialize internal land/sea qualifier and terrain type arrays to values
@@ -566,50 +565,50 @@ program midas_satQCATMS
       !  LG = ice fraction field  (0.0 - 1.0)
       !  lsq = 0 (land), 1 (water)
       !  trn = -1 (no ice/snow),  0 (ice)
-      !  NOTE: satqc_landIceMaskAtms redefines lsq and trn based on interpolated 
+      !  NOTE: mwbg_landIceMaskAtms redefines lsq and trn based on interpolated 
       !  MG, LG fields so that
       !    lsq = 1 (point over water away from land/coast), 0 (land/coast) otherwise
       !    trn = 0 (point over or near sea-ice),           -1 (ice free) otherwise
       !
       !  waterobs(:)=.true. at points where lsq = 1 and trn = -1
-      call satqc_landIceMaskAtms(mglg_file,nt,zlat,zlon,lsq,trn,waterobs)
+      call mwbg_landIceMaskAtms(mglg_file,nt,zlat,zlon,lsq,trn,waterobs)
 
       ! Check for values of TB that are missing or outside physical limits.
       ! **NOTE: REJECT ALL CHANNELS IF ONE IS FOUND TO BE BAD.
 
       grossrej(:)  = .false.
-      call satqc_grossValueCheck(nt,ztb,grossrej)
+      call mwbg_grossValueCheck(nt,ztb,grossrej)
       
       if ( ANY(grossrej) ) then
-        write(*,*) ' satqc_grossValueCheck has detected bad Tb data. Number of affected locations = ', COUNT(grossrej)
+        write(*,*) ' mwbg_grossValueCheck has detected bad Tb data. Number of affected locations = ', COUNT(grossrej)
         write(*,*) '   Box lat, lon = ', blat, blon
       endif
 
-      ! Preliminary QC checks --> set lqc(nt,nchan)=.true. for data that fail QC
+      ! Preliminary QC checks --> set lqc(nt,nchanAtms)=.true. for data that fail QC
 
       lqc(:,:) = .false.  ! Flag for preliminary QC checks
-      call satqc_firstQcCheckAtms(zenith,ilq,itt,zlat,zlon,ztb,scanpos,stnid,nval,nt,lqc, &
+      call mwbg_firstQcCheckAtms(zenith,ilq,itt,zlat,zlon,ztb,scanpos,stnid,mwbg_nval,nt,lqc, &
       &            grossrej,lsq,trn,qcflag1,qcflag2,ican,blat,blon,lutb)
 
       if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
 
-      ! Output of satqc_firstQcCheckAtms
+      ! Output of mwbg_firstQcCheckAtms
       !   lqc=true (entire array) --> problem with channels (number of channels or the channel numbers)
       !                               file could be corrupted [abort]
-      !   ztb(nchan) = zmisg  (at locations with bad zenith angle and/or lat,lon)
+      !   ztb(nchanAtms) = zmisg  (at locations with bad zenith angle and/or lat,lon)
       !   zenith     = zmisg  (if bad zenith angle)
       !   lutb=true  (if ztb set to zmisg at 1 or more locations)
       ! All channels are flagged for all checks except the "data level" QC flag check.
 
       !if ( lutb ) then
-      !  write(*,*) ' Number of Tb data = zmisg after satqc_firstQcCheckAtms = ', COUNT(ztb == zmisg)
+      !  write(*,*) ' Number of Tb data = zmisg after mwbg_firstQcCheckAtms = ', COUNT(ztb == zmisg)
       !  write(*,*) ' Number of Tb data = 330.04              = ', COUNT(ztb == 330.04)
       !  write(*,*) ' Total number of data                    = ', nval*nt
       !endif
 
       bad_report = .false.
-      if ( COUNT(lqc) == nt*nchan ) then
-        write(*,*) ' satqc_firstQcCheckAtms has detected a problem with data in this report!'
+      if ( COUNT(lqc) == nt*nchanAtms ) then
+        write(*,*) ' mwbg_firstQcCheckAtms has detected a problem with data in this report!'
         write(*,*) '   Report box lat, lon = ', blat, blon
         bad_report = .true.
         n_bad_reps = n_bad_reps + 1
@@ -620,7 +619,7 @@ program midas_satQCATMS
         !  Exclude problem points from further calculations
 
         do kk = 1,nt
-          if ( COUNT(lqc(kk,:)) == nchan ) grossrej(kk) = .true.
+          if ( COUNT(lqc(kk,:)) == nchanAtms ) grossrej(kk) = .true.
         enddo
 
         where ( grossrej ) ident = IBSET(ident,11)
@@ -651,7 +650,7 @@ program midas_satQCATMS
           end if
 
           ! Extract the Tb adjustments for each channel for this satellite
-          do kk = 1, nchan
+          do kk = 1, nchanAtms
             zbcor(kk,:) = dglbscanb(kk,:,ii)
             if ( debug ) &
               write(*,*) 'Scan bias adjustments for channel ', kk, ' : ', zbcor(kk,:)
@@ -660,11 +659,11 @@ program midas_satQCATMS
           ! Adjust Tb for for each channel according to scan position
           indx1 = 1
           do kk = 1, nt   !  loop over NT locations in report
-            indx2 = kk*nchan
+            indx2 = kk*nchanAtms
             if ( debug ) then
               write(*,*) 'location, indx1, indx2 = ', kk, indx1, indx2
             end if
-            do jj = 1, nchan
+            do jj = 1, nchanAtms
               ztbcor(indx1+jj-1) = ztb(indx1+jj-1) - zbcor(jj,scanpos(kk))
               if ( debug ) then
                 write(*,*) 'scanpos, ztb index = ', scanpos(kk), indx1+jj-1
@@ -693,7 +692,7 @@ program midas_satQCATMS
 
         indx1 = 1
         do ii = 1, nt
-          indx2 = ii*nchan
+          indx2 = ii*nchanAtms
           tb23(ii)      = ztbcor(indx1)
           bcor23(ii)    = biasCorr(indx1)
           tb31(ii)      = ztbcor(indx1+1)
@@ -713,12 +712,12 @@ program midas_satQCATMS
           indx1 = indx2 + 1
         end do
 
-        !  satqc_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice detection
+        !  mwbg_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice detection
         !  Missing value for  rclw, scatec, scatbg  is -99.0 (e.g. over land or sea-ice).
         !  Sets trn=0 (sea ice) for points where retrieved SeaIce>=0.55.
         !  Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
 
-        call satqc_nrlFilterAtms(err,nt,tb23,bcor23,tb31,bcor31,tb50,bcor50, &
+        call mwbg_nrlFilterAtms(err,nt,tb23,bcor23,tb31,bcor31,tb50,bcor50, &
                         tb89,bcor89,ztb150,bcor150,zenith,zlat,lsq,trn, &
                         waterobs,grossrej,rclw,scatec,scatbg,iNumSeaIce,iRej,SeaIce)
         
@@ -728,7 +727,7 @@ program midas_satQCATMS
         riwv = -99.0
         indx1 = 1
         do ii = 1, nt
-          indx2 = ii*nchan
+          indx2 = ii*nchanAtms
           if (.not.grossrej(ii)) then
             if ( useUnbiasedObsForClw ) then
               ztb183(1) = ztbcor(indx1+17)
@@ -793,7 +792,7 @@ program midas_satQCATMS
         !   waterobs()  = .true. if open water point
         !   iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
 
-        lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in satqc_firstQcCheckAtms
+        lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
         do kk = 1, nt
           ! Reject all channels if gross Tb error detected in any channel or other problems 
           if ( grossrej(kk) ) then
@@ -892,7 +891,7 @@ program midas_satQCATMS
         ! - Update Tb data in DATA block 9248/9264 (if Tb was modified).
         ! - Add new elements to INFO block 3072.
         ! - Modify 24bit global flags in 3D block 5120 (if any data rejected).
-        call satqc_writeBlocks(lsq,trn,riwv,rclw,ident,lflagchn,lutb,Rpt_in,Rpt_out)
+        call mwbg_writeBlocks(lsq,trn,riwv,rclw,ident,lflagchn,lutb,Rpt_in,Rpt_out)
 
       ENDIF
 

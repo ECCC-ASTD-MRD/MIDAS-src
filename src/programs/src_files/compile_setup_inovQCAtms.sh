@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL=""
+LIBAPPL="burp_module"
 

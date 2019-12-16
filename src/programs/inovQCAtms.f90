@@ -71,13 +71,9 @@ program midas_inovQCAtms
 
   IMPLICIT NONE
 
-  INTEGER MXELM, MXVAL, MXNT, MXSAT, MXSCAN
+  INTEGER MXELM
   INTEGER MXLAT, MXLON
   PARAMETER ( MXELM  =    30 )
-  PARAMETER ( MXVAL  =    22 )
-  PARAMETER ( MXNT   =  3000 )
-  PARAMETER ( MXSAT  =     3 )
-  PARAMETER ( MXSCAN =    96 )
   PARAMETER ( MXLAT  =     5 )
   PARAMETER ( MXLON  =     5 )
 
@@ -136,8 +132,6 @@ program midas_inovQCAtms
   REAL  DONIALT (MXELM*MXVAL*MXNT)
   REAL  PRVALN  (MXELM*MXVAL*MXNT)
   REAL  ZDATA   (MXVAL*MXNT)
-  REAL  ZLAT    (MXNT)
-  REAL  ZLON    (MXNT)
   REAL  SATZEN  (MXNT)
   REAL  MTINTRP (MXNT)
   REAL  ZO      (MXVAL*MXNT)
@@ -149,7 +143,7 @@ program midas_inovQCAtms
   REAL  MTINTBOX(MXLAT*MXLON,MXNT)
   REAL  XLAT,XLON
 
-  REAL  ZMISG, DLAT, DLON, TOPOFACT
+  REAL  DLAT, DLON, TOPOFACT
 
   LOGICAL RESETQC, SKIPENR
 
@@ -157,7 +151,6 @@ program midas_inovQCAtms
   DATA IUNSRT  / 20 /
   DATA IUNGEO  / 50 /
   DATA IUNSTAT / 60 /
-  DATA ZMISG  /9.9E09 /
   DATA DLAT   / 0.4 /
   DATA DLON   / 0.6 /
 
@@ -170,7 +163,6 @@ program midas_inovQCAtms
   namelist /nambgck/ debug, RESETQC, ETIKRESU 
 
   ! 1) Debut
-  IER = FNOM(6,'out.txt','SEQ',0) 
   IER = FNOM(IUNGEO,'./fstgzmx','STD+RND+R/O',0)
 
   JUNK = EXDB('ATMS_INOVQC','30NOV13','NON')
@@ -210,7 +202,7 @@ program midas_inovQCAtms
   ! Lecture du fichier burp entree
   ILNMX = MRFMXL(IUNENT)
   IF (DEBUG) THEN
-     WRITE(6,*)'MRFMXL: ILNMX =',ILNMX
+     write(*,*)'MRFMXL: ILNMX =',ILNMX
   ENDIF
   ALLOCATE ( buf1(ILNMX*2), STAT=ier)
   BUF1(1) = ILNMX*2
@@ -218,20 +210,20 @@ program midas_inovQCAtms
   ! Valeur manquante burp
   ISTAT = MRFOPR('MISSING',ZMISG)
   IF (DEBUG) THEN
-    WRITE(6,*)' MISSING VALUE =', ZMISG
+    write(*,*)' MISSING VALUE =', ZMISG
   ENDIF
 
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_atms_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-    WRITE (6,*) '(" ATMS_INOVQC: Problem opening ", &
+    write(*,*) '(" ATMS_INOVQC: Problem opening ", &
           "ATMS total error statistics file ", stats_atms_assim)'
     CALL ABORT ()
   END IF
   CALL mwbg_readStatTovsAtms(IUNSTAT,INUMSAT,CSATID)
-  WRITE(6,*) " SATID's = "
+  write(*,*) " SATID's = "
   DO I = 1, INUMSAT
-    WRITE(6,*) '  ', CSATID(I)
+    write(*,*) '  ', CSATID(I)
   ENDDO
 
   ! 3) Lecture des champs geophysiques (MF/MX) du modele
@@ -249,7 +241,7 @@ program midas_inovQCAtms
     CLNOMVAR = 'MX'
   ENDIF
   IF (IREC .LT. 0) THEN
-    WRITE (6,*) ' LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE' 
+    write(*,*) ' LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE' 
     CALL ABORT()
   ELSE
     ALLOCATE ( MT(NI*NJ), STAT=ier)
@@ -263,7 +255,7 @@ program midas_inovQCAtms
       IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
       IDUM15, IDUM16, IDUM17, IDUM18 )
   
-  WRITE (6,*) ' GRTYP = ', grtyp 
+  write(*,*) ' GRTYP = ', grtyp 
 
   ! 4) Lire les donnees TOVS
   HANDLE = 0
@@ -295,7 +287,7 @@ program midas_inovQCAtms
     ENDIF
   ENDDO
   IF ( INOSAT .EQ. 0 ) THEN
-    WRITE(6,*)'SATELLITE NON-VALIDE', STNID
+    write(*,*)'SATELLITE NON-VALIDE', STNID
     CALL ABORT()
   ENDIF
 
