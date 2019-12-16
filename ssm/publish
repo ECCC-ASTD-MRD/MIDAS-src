@@ -76,6 +76,10 @@ if [ -n "${postinstall}" ]; then
     fi
 fi
 
+if [ ! -d "${workdir}" ]; then
+    echo "ssm/publish: creating the directory ${workdir}"
+    mkdir -p ${workdir}
+fi
 cd ${workdir}
 
 echo "Creating the domain ${domainpath}"
@@ -117,5 +121,8 @@ done
 ssm freezed -d ${domainpath}
 ## remove write permission on the domain to prevent unintended modifications or erases
 chmod -R ugo-w ${domainpath}
+
+cd
+rm -rf ${workdir}
 
 echo "ssm/publish: L'execution de ce script a pris ${SECONDS} secondes pour publier le domaine '${domainpath}'"
