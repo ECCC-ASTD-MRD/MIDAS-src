@@ -23,6 +23,7 @@ getArg () {
 
 compiled_programs=
 ssmuser=
+workdir=${PWD}
 
 args=
 while [ $# -gt 0 ]; do
@@ -34,6 +35,9 @@ while [ $# -gt 0 ]; do
         shift
     elif [ "${1}" = --user ]; then
         ssmuser=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --workdir ]; then
+        workdir=$(getArg $1 $2)
         shift
     elif [ "${1}" = --frontend ]; then
         frontend=$(getArg $1 $2)
@@ -222,14 +226,14 @@ for bhscript in ${BHSCRIPTS}; do
 	## puisque cela interfere avec la separation des plateformes.
 	BH_PACKAGE_VERSION=$(echo ${BH_PULL_SOURCE_GIT_BRANCH} | sed 's/_//g')
 	set -x
-	./${bhscript} -w ${PWD}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
+	./${bhscript} -w ${workdir}/bh-${pkgname}-${platform}-$$ -p ${ssmbuildhost}${platform} \
             -v BH_PACKAGE_VERSION=${BH_PACKAGE_VERSION} \
             -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
             -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
             -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
             ${other_bh_args}
 	set +x
-	rm -rf ${PWD}/bh-${pkgname}-${platform}-$$
+	rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
 
 	ssmpkgname=${pkgname}${compiler_string}_${BH_PACKAGE_VERSION}_${platform}
 
