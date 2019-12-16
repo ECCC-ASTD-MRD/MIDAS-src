@@ -101,6 +101,8 @@ for package in ${packages}/*.ssm; do
             cp ${pkgname}.ssm ${domainpath}
             rm -r ${pkgname} ${pkgname}.ssm
         fi
+    else
+        cp ${package} ${domainpath}
     fi
 
     ssmpublish_args=
