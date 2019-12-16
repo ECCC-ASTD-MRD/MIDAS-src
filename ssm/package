@@ -84,7 +84,7 @@ else
     mkdir -p ${packages}
 fi
 
-MIDAS_REVISION=${MIDAS_REVISION:-${DOMAIN_REVISION}}
+MIDAS_REVISION=${MIDAS_REVISION:-$(git describe --abbrev=7 --always)}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.3}
 OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v3}
@@ -231,6 +231,7 @@ for bhscript in ${BHSCRIPTS}; do
             -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
             -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
             -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
+            -v MIDAS_VERSION=${MIDAS_REVISION} \
             ${other_bh_args}
 	set +x
 	rm -rf ${workdir}/bh-${pkgname}-${platform}-$$

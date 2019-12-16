@@ -117,9 +117,10 @@ EOF
     else:
         b.shell("""
         (set -ex
+
          INSTALL_DIR=${BH_INSTALL_DIR}/bin
          mkdir -p ${INSTALL_DIR}
-         for absname in ${BH_MIDAS_ABS}/*.Abs; do
+         for absname in ${BH_MIDAS_ABS}/midas-*_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs; do
              cp ${absname} ${INSTALL_DIR}
              babsname=$(basename ${absname})
              program=$(echo ${babsname} | cut -d_ -f1)
@@ -129,11 +130,11 @@ EOF
          INCLUDE_DIR=${BH_INSTALL_DIR}/include
          LIB_DIR=${BH_INSTALL_DIR}/lib
          mkdir -p ${INCLUDE_DIR} ${LIB_DIR}
-         for fmod in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_$(cd ${BH_MIDAS_TOP_LEVEL_DIR}; git describe --abbrev=7 --always ${BH_PULL_SOURCE_GIT_BRANCH})/*.mod; do
+         for fmod in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_${MIDAS_VERSION}/*.mod; do
              cp ${fmod} ${INCLUDE_DIR}
          done
          [ -f ${LIB_DIR}/libmidas.a ] && rm ${LIB_DIR}/libmidas.a
-         for obj in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_$(cd ${BH_MIDAS_TOP_LEVEL_DIR}; git describe --abbrev=7 --always ${BH_PULL_SOURCE_GIT_BRANCH})/*.o; do
+         for obj in ${BH_MIDAS_TOP_LEVEL_DIR}/compiledir/compiledir-obsIO-${ORDENV_PLAT}_${MIDAS_VERSION}/*.o; do
              [ ${obj} = obsIO.o ] && continue
              if [ -f ${obj} ]; then
                  ar cru ${LIB_DIR}/libmidas.a ${obj}
