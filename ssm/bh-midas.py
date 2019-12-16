@@ -74,8 +74,6 @@ EOF
 
             cd ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs
 
-            MIDAS_ABS=${BH_MIDAS_ABS} ./check_if_all_programs_compiled.sh ${ORDENV_PLAT}
-
             ## Compile 'obsIO' without erasing compiling directory.
             ## We will need some files to build the library.
             ./compile_program.sh obsIO full no
@@ -120,7 +118,9 @@ EOF
 
          INSTALL_DIR=${BH_INSTALL_DIR}/bin
          mkdir -p ${INSTALL_DIR}
-         for absname in ${BH_MIDAS_ABS}/midas-*_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs; do
+         for prog in ${BH_MIDAS_TOP_LEVEL_DIR}/src/programs/*.f90; do
+             progname=$(basename ${prog} .f90)
+             absname=${BH_MIDAS_ABS}/midas-${progname}_${ORDENV_PLAT}-${MIDAS_VERSION}.Abs
              cp ${absname} ${INSTALL_DIR}
              babsname=$(basename ${absname})
              program=$(echo ${babsname} | cut -d_ -f1)

@@ -220,7 +220,7 @@ for bhscript in ${BHSCRIPTS}; do
 	fi
 
         if [ "${pkgname}" = midas ]; then
-	    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
+	    other_bh_args="-v BH_MIDAS_ABS=${midasabs} -v MIDAS_VERSION=${MIDAS_REVISION} -v BH_MIDAS_TOP_LEVEL_DIR=$(git rev-parse --show-toplevel) ${other_bh_args}"
         fi
 	## Un package SSM ne peut contenir de caractere '_' dans le nom
 	## puisque cela interfere avec la separation des plateformes.
@@ -231,7 +231,6 @@ for bhscript in ${BHSCRIPTS}; do
             -v BH_PULL_SOURCE_GIT_BRANCH=${BH_PULL_SOURCE_GIT_BRANCH} \
             -v BH_PULL_SOURCE=${BH_PULL_SOURCE} \
             -v BH_PACKAGE_NAMES=${pkgname}${compiler_string} \
-            -v MIDAS_VERSION=${MIDAS_REVISION} \
             ${other_bh_args}
 	set +x
 	rm -rf ${workdir}/bh-${pkgname}-${platform}-$$
