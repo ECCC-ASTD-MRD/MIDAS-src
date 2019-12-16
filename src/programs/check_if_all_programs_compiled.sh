@@ -14,7 +14,7 @@ if [ -z "${COMPILING_MACHINE_PPP}" ]; then
     COMPILING_MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
 fi
 
-absdir=${MIDAS_ABS:-${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}/midas_abs}
+absdir=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}/midas_abs
 revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh ${COMPILING_MACHINE_PPP} "cd $PWD; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 
 program_missing=0
