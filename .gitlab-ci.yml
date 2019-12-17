@@ -66,6 +66,7 @@ stages:
     - cd ssm
     - ./package --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
     - ssh sanl000@${MACHINE_PPP} midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
+    - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
