@@ -48,7 +48,7 @@ MODULE ensembleObservations_mod
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setLogPres, eob_copy, eob_zero
-  public :: eob_calcRandPert
+  public :: eob_calcRandPert, eob_setSigiSigo
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_writeToFiles, eob_readFromFiles
 
@@ -551,7 +551,8 @@ CONTAINS
     ! :Purpose: Set the ln(pressure) value for each observation that 
     !           will be used when doing vertical localization. For
     !           radiance observations, the level of the maximum value
-    !           of the derivative of transmission is used.
+    !           of the derivative of transmission is used. This value
+    !           is also written in obsSpaceData in the OBS_ZHA column.
     !
     implicit none
 
@@ -656,6 +657,13 @@ CONTAINS
         call utl_abort('eob_setLogPres')
 
       end if
+
+      ! write the value into obsSpaceData for later diagnostics
+      if (ensObs%assFlag(obsIndex)==1) then
+        call obs_bodySet_r(ensObs%obsSpaceData, OBS_ZHA, obsIndex,  &
+                           ensObs%logPres(obsIndex))
+      end if
+
     end do
 
   end subroutine eob_setLogPres
@@ -765,6 +773,7 @@ CONTAINS
     integer :: obsIndex
 
     do obsIndex = 1, ensObs%numObs
+      if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, obsIndex) == obs_notAssimilated) cycle
       call obs_bodySet_r(ensObs%obsSpaceData, OBS_OMP, obsIndex,  &
                          ensObs%obsValue(obsIndex)-ensObs%meanYb(obsIndex))
     end do
@@ -785,6 +794,7 @@ CONTAINS
     real(8) :: hpht, sigo, sigi
 
     do obsIndex = 1, ensObs%numObs
+      if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, obsIndex) == obs_notAssimilated) cycle
       hpht = 0.0d0
       do memberIndex = 1, ensObs%numMembers
         hpht = hpht + ensObs%Yb_r4(memberIndex,obsIndex)**2 / ensObs%numMembers
@@ -796,11 +806,6 @@ CONTAINS
       end if
       call obs_bodySet_r(ensObs%obsSpaceData, OBS_HPHT, obsIndex, hpht)
 
-      ! also set 'sigi' and 'sigo'
-      sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex)
-      sigi = (sigo**2 + hpht**2)**0.5
-      call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGI, obsIndex, sigi)
-      call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGO, obsIndex, sigo)
     end do
 
   end subroutine eob_setHPHT
@@ -891,11 +896,43 @@ CONTAINS
   end subroutine eob_backgroundCheck
 
   !--------------------------------------------------------------------------
+  ! eob_setSigiSigo
+  !--------------------------------------------------------------------------
+  subroutine eob_setSigiSigo(ensObs)
+    !
+    ! :Purpose: Apply huber norm quality control procedure. This modifies
+    !           the OBS_OER value, but before that its value is copied into
+    !           OBS_SIGO and also OBS_SIGI computed
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob) :: ensObs
+
+    ! locals
+    integer        :: bodyIndex
+    real(obs_real) :: sigo, sigb, sigi
+
+    ! Set 'sigi' and 'sigo' before oer is modified by Huber norm
+    do bodyIndex = 1, obs_numbody(ensObs%obsSpaceData)
+      sigb = obs_bodyElem_r(ensObs%obsSpaceData, OBS_HPHT, bodyIndex)
+      sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, bodyIndex)
+      if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
+        sigi = (sigo**2 + sigb**2)**0.5
+        call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGI, bodyIndex, sigi)
+        call obs_bodySet_r(ensObs%obsSpaceData, OBS_SIGO, bodyIndex, sigo)
+      end if
+    end do
+
+  end subroutine eob_setSigiSigo
+
+  !--------------------------------------------------------------------------
   ! eob_huberNorm
   !--------------------------------------------------------------------------
   subroutine eob_huberNorm(ensObs)
     !
-    ! :Purpose: Apply huber norm quality control procedure.
+    ! :Purpose: Apply huber norm quality control procedure. This modifies
+    !           the OBS_OER value.
     !
     implicit none
 
@@ -910,7 +947,7 @@ CONTAINS
 
     c_limit = 2.0
     huberCount = 0
-    do headerIndex = 1,obs_numheader(ensObs%obsSpaceData)
+    do headerIndex = 1, obs_numheader(ensObs%obsSpaceData)
       bodyIndexBeg = obs_headElem_i(ensObs%obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(ensObs%obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
       reject_wind = .false.

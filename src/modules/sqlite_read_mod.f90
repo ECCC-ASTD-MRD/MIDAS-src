@@ -39,10 +39,10 @@ implicit none
  
 type struct_diagFiles
   character(len=2)     :: obsFamily
-  integer              :: codeType(30) 
+  integer              :: codeTypes(30) 
   integer              :: codeTypeSize
-  character(len=30)    :: codeTypeName(30)
-  character(len=5)     :: fileName(30)
+  character(len=30)    :: codeTypeNames(30)
+  character(len=20)    :: fileNames(30)
   integer              :: fileNameSize  
 end type struct_diagFiles
 
@@ -1083,15 +1083,15 @@ contains
     integer                :: familyIndex, headerIndex, codeType, codeTypeIndex, fileIndex
     character(len=2)       :: currentObsFamily, obsFamilyList(50)
     integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
-    character(len=5)       :: fileName
+    character(len=20)      :: fileName
 
     type(struct_diagFiles), allocatable   :: diagFiles(:)
 
     obsFamilyListSize = 0
-    obsFamilyList = 'XX'
+    obsFamilyList(:) = 'XX'
     HEADERloopIni: do headerIndex = 1, obs_numHeader( obsdat )
       currentObsFamily = obs_getFamily( obsdat, headerIndex ) 
-      if ( any( obsFamilyList == currentObsFamily ) ) cycle HEADERloopIni
+      if ( any( obsFamilyList(:) == currentObsFamily ) ) cycle HEADERloopIni
       obsFamilyListSize = obsFamilyListSize + 1
       obsFamilyList( obsFamilyListSize ) = currentObsFamily
     end do HEADERloopIni
@@ -1103,9 +1103,9 @@ contains
     
     FAMILY: do familyIndex = 1, obsFamilyListSize 
 
-      diagFiles( familyIndex ) % codeType     = MPC_missingValue_INT
+      diagFiles( familyIndex ) % codeTypes(:) = MPC_missingValue_INT
       diagFiles( familyIndex ) % codeTypeSize = 0
-      diagFiles( familyIndex ) % fileName     = 'XXXXX'
+      diagFiles( familyIndex ) % fileNames(:)  = 'XXXXX'
       diagFiles( familyIndex ) % fileNameSize = 0
 
       call obs_set_current_header_list( obsdat, diagFiles( familyIndex ) % obsFamily )
@@ -1116,20 +1116,22 @@ contains
         if ( headerIndex < 0 ) exit HEADERloop
 
         codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
-        if ( any( diagFiles( familyIndex ) % codeType == codeType ) ) cycle HEADERloop
+        if ( any( diagFiles( familyIndex ) % codeTypes(:) == codeType ) ) cycle HEADERloop
 
-        diagFiles( familyIndex ) % codeTypeSize                                            = diagFiles( familyIndex ) % codeTypeSize + 1
-        diagFiles( familyIndex ) % codeType( diagFiles( familyIndex ) % codeTypeSize )     = codeType
-        diagFiles( familyIndex ) % codeTypeName( diagFiles( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
+        diagFiles( familyIndex ) % codeTypeSize                                             = diagFiles( familyIndex ) % codeTypeSize + 1
+        diagFiles( familyIndex ) % codeTypes( diagFiles( familyIndex ) % codeTypeSize )     = codeType
+        diagFiles( familyIndex ) % codeTypeNames( diagFiles( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
 
         if ( diagFiles( familyIndex ) % obsFamily /= 'TO' ) then
           call up2low( diagFiles( familyIndex ) % obsFamily, fileName )
-          if ( fileName == 'sf' ) fileName = 'sfc'
+          if ( fileName == 'ra' ) fileName = 'radar'
         else
           if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
             fileName  = 'csr' 
-          else if ( codtyp_get_name( codeType ) == 'mhs' ) then
-            fileName = 'amsub'
+          else if ( codtyp_get_name( codeType ) == 'mhs' .or. codtyp_get_name( codeType ) == 'amsub' ) then
+            fileName = 'to_amsub'
+          else if ( codtyp_get_name( codeType ) == 'amsua' ) then
+            fileName = 'to_amsua'
           else if ( codtyp_get_name( codeType ) == 'ssmi' ) then
             fileName = 'ssmis'   
           else
@@ -1137,9 +1139,9 @@ contains
           end if   
         end if
 
-        if ( any( diagFiles( familyIndex ) % fileName  == fileName )) cycle HEADERloop
+        if ( any( diagFiles( familyIndex ) % fileNames(:)  == fileName )) cycle HEADERloop
         diagFiles( familyIndex ) % fileNameSize = diagFiles( familyIndex ) % fileNameSize + 1
-        diagFiles( familyIndex ) % fileName( diagFiles( familyIndex ) % codeTypeSize ) = fileName
+        diagFiles( familyIndex ) % fileNames( diagFiles( familyIndex ) % codeTypeSize ) = fileName
 
       end do HEADERloop
 
@@ -1151,9 +1153,9 @@ contains
       write(*,*) myName//' Family: ', familyIndex, diagFiles( familyIndex ) % obsFamily
       write(*,*) myName//' Contains ', diagFiles( familyIndex ) % codeTypeSize, ' instruments:'
       do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
-        write(*,*) codeTypeIndex, diagFiles( familyIndex ) % codeType    ( codeTypeIndex ), &
-                                  diagFiles( familyIndex ) % codeTypeName( codeTypeIndex ), &
-                                  diagFiles( familyIndex ) % fileName    ( codeTypeIndex )
+        write(*,*) codeTypeIndex, diagFiles( familyIndex ) % codeTypes    ( codeTypeIndex ), &
+                                  diagFiles( familyIndex ) % codeTypeNames( codeTypeIndex ), &
+                                  diagFiles( familyIndex ) % fileNames    ( codeTypeIndex )
       end do
 
       if ( diagFiles( familyIndex ) % obsFamily == 'TO' ) then
@@ -1161,17 +1163,17 @@ contains
         do fileIndex = 1, diagFiles( familyIndex ) % fileNameSize
           codeTypeSize = 0 
           do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
-            if ( diagFiles( familyIndex ) % fileName( codeTypeIndex ) == diagFiles( familyIndex ) % fileName( fileIndex )) then 
+            if ( diagFiles( familyIndex ) % fileNames( codeTypeIndex ) == diagFiles( familyIndex ) % fileNames( fileIndex )) then 
               codeTypeSize = codeTypeSize + 1 
-              codeTypeList( codeTypeSize ) = diagFiles( familyIndex ) % codeType( codeTypeIndex )
+              codeTypeList( codeTypeSize ) = diagFiles( familyIndex ) % codeTypes( codeTypeIndex )
             end if
           end do
-          call sqlr_writeSqlDiagFile( obsdat, 'TO', diagFiles(familyIndex)%fileName(fileIndex), codeTypeList(1:codeTypeSize)) 
+          call sqlr_writeSqlDiagFile( obsdat, 'TO', diagFiles(familyIndex)%fileNames(fileIndex), codeTypeList(1:codeTypeSize)) 
         end do
 
       else
 
-        call sqlr_writeSqlDiagFile( obsdat, diagFiles( familyIndex ) % obsFamily, diagFiles( familyIndex ) % fileName(1) ) 
+        call sqlr_writeSqlDiagFile( obsdat, diagFiles( familyIndex ) % obsFamily, diagFiles( familyIndex ) % fileNames(1) ) 
 
       end if   
       
@@ -1200,7 +1202,7 @@ contains
     type(fSQL_STATUS)      :: stat                 ! type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
-    real                   :: ensInnovStdDev, ensObsErrStdDev
+    real                   :: ensInnovStdDev, ensObsErrStdDev, zhad
     integer                :: numberInsertions, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
@@ -1238,13 +1240,13 @@ contains
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    &codtyp integer, date integer, time integer, elev real); &
                    &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
-                   &vcoord_type integer, obsvalue real, flag integer, oma real, omp real, fg_error real, &
-                   &obs_error real, sigi real, sigo real);'
+                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
+                   &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
     call tmg_stop(181)
 
-    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,omp,fg_error,obs_error,sigi,sigo) values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo,zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
@@ -1316,6 +1318,11 @@ contains
         else
           ensObsErrStdDev = obs_missingValue_R
         end if
+        if ( obs_columnActive_RB(obsdat, OBS_ZHA) ) then
+          zhad = obs_bodyElem_r(obsdat, OBS_ZHA, bodyIndex)
+        else
+          zhad = obs_missingValue_R
+        end if
 
         select case( obsFamily )
           case ( 'UA', 'AI', 'SW' )
@@ -1332,6 +1339,7 @@ contains
             vertCoordType = MPC_missingValue_INT 
         end select
 
+        ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo
         call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
         call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
         call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           )
@@ -1371,6 +1379,11 @@ contains
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensObsErrStdDev )
+        end if 
+        if ( zhad == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = zhad )
         end if 
 
         call fSQL_exec_stmt ( stmtData )

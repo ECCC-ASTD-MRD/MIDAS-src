@@ -430,9 +430,6 @@ program midas_letkf
   ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
 
-  ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
-  call eob_setMeanOMP(ensObs)
-
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
 
@@ -454,6 +451,9 @@ program midas_letkf
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
 
+  ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
+  call eob_setMeanOMP(ensObs)
+
   ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
   call eob_setLogPres(ensObs, column)
 
@@ -462,6 +462,9 @@ program midas_letkf
 
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
+
+  ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
+  call eob_setSigiSigo(ensObs)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
   if (huberize) call eob_huberNorm(ensObs)
