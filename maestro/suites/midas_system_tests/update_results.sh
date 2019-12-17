@@ -8,19 +8,15 @@ version=${2}
 SEQ_EXP_HOME=${SEQ_EXP_HOME:-$(dirname $(true_path ${0}))}
 export SEQ_EXP_HOME
 
-gitworkdir=$(dirname $(true_path ${SEQ_EXP_HOME}))/../..
+toplevel=$(git rev-parse --show-toplevel)
 
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
-if [ -z "${MACHINE_PPP}" ]; then
-    MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
-fi
+${toplevel}/set_resources_def.sh
 
 if [ -z "${version}" ]; then
-    gitdescribe="cd ${gitworkdir}; git describe --always --abbrev=7 --dirty=_M 2>/dev/null"
-    version=$( eval ${gitdescribe}  || ssh ${MACHINE_PPP} "${gitdescribe}" || echo unkown revision)
+    version=$(${toplevel}/midas.version.sh)
 fi
 
 if [ "${version}" = 'unknown revision' ]; then
@@ -34,7 +30,7 @@ if [ "${UnitTest_name}" = all ]; then
     for unittest in $(grep SUBMITS ${SEQ_EXP_HOME}/modules/Tests/flow.xml | grep -v '<SUBMITS sub_name="UnitTest"/>' | awk -F\" '{print $2}'); do
 	${0} ${unittest} ${version}
     done
-    git --git-dir=${gitworkdir}/.git --work-tree=${gitworkdir} commit -F - <<EOF
+    git --git-dir=${toplevel}/.git --work-tree=${level} commit -F - <<EOF
 Update the results for all Unit Tests with version=${version}
 EOF
 else
@@ -96,9 +92,9 @@ else
 
 	echo "Update UnitTest configuration to compare with these results"
 	echo "UnitTest_results=${output_results}" >> ${SEQ_EXP_HOME}/${cfg}
-	git --git-dir=${gitworkdir}/.git --work-tree=${gitworkdir} add "*/${cfg}"
+	git --git-dir=${toplevel}/.git --work-tree=${toplevel} add "*/${cfg}"
 	if [ "${__oavar_tests_update_results_do_commit__}" = yes ]; then
-	    git --git-dir=${gitworkdir}/.git --work-tree=${gitworkdir} commit -F - <<EOF
+	    git --git-dir=${toplevel}/.git --work-tree=${toplevel} commit -F - <<EOF
 Update the results for unittest '${Unittest_name}'
 EOF
 	fi

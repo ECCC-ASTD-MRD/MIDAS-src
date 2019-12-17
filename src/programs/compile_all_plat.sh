@@ -19,15 +19,19 @@ else
     exit 1
 fi
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
-which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+toplevel=$(git rev-parse --show-toplevel)
+suite=${toplevel}/maestro/suites/midas_system_tests
 
-suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
-if [ -z "${COMPILING_MACHINE_PPP}" ]; then
-    COMPILING_MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
-fi
-if [ -z "${COMPILING_MACHINE_SUPER}" ]; then
-    COMPILING_MACHINE_SUPER=$(cd ${suite}; getdef --exp ${suite} resources/resources.def BACKEND)
+if [ -z "${COMPILING_MACHINE_PPP}" -o -z "${COMPILING_MACHINE_SUPER}" ]; then
+    ${toplevel}/set_resources_def.sh
+    . ${suite}/set_machine_list.dot
+
+    if [ -z "${COMPILING_MACHINE_PPP}" ]; then
+        COMPILING_MACHINE_PPP=${MACHINE_PPP}
+    fi
+    if [ -z "${COMPILING_MACHINE_SUPER}" ]; then
+        COMPILING_MACHINE_SUPER=${MACHINE_SUPER}
+    fi
 fi
 
 if [ "${COMPILING_MACHINE_SUPER}" = brooks -o "${COMPILING_MACHINE_SUPER}" = hare ]; then
@@ -36,7 +40,7 @@ else
     PLAT_SUPER=sles-15-skylake-64-xc50
 fi
 
-rev=${CI_BUILD_REF:-$(git describe)}
+rev=${CI_BUILD_REF:-$(${toplevel}/midas.version.sh)}
 jobname=${rev}_midasCompile
 
 ## get the number of programs

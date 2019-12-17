@@ -9,7 +9,7 @@ midas_abs=${2}
 toplevel=$(git rev-parse --show-toplevel)
 
 absdir=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}/midas_abs
-revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh ${COMPILING_MACHINE_PPP} "cd $PWD; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(${toplevel}/midas.version.sh)
 
 program_missing=0
 

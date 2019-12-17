@@ -86,7 +86,8 @@ else
     mkdir -p ${packages}
 fi
 
-MIDAS_REVISION=${MIDAS_REVISION:-$(git describe --abbrev=7 --always)}
+toplevel=$(git rev-parse --show-toplevel)
+MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
 
 VARSCRIPTS_REVISION=${VARSCRIPTS_REVISION:-2.2.3}
 OAVARMONITOR_REVISION=${OAVARMONITOR_REVISION:-v3}
@@ -98,7 +99,10 @@ FINDTRIALS_REVISION=${FINDTRIALS_REVISION:-1.0}
 ## If MIDAS_SOURCE is not yet defined we use the git repository itself.
 ## If this script is run from elsewhere, then we use the path to the GitLab project
 if [ -z "${MIDAS_SOURCE}" ]; then
-    MIDAS_SOURCE=$(git rev-parse --show-toplevel 2>/dev/null) || MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+    MIDAS_SOURCE=$(${toplevel}/midas.version.sh) || true
+    if [ -z "${MIDAS_SOURCE}" ]; then
+        MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
+    fi
 fi
 
 VARSCRIPTS_SOURCE=${VARSCRIPTS_SOURCE:-git@gitlab.science.gc.ca:atmospheric-data-assimilation/oavar_scripts.git}

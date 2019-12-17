@@ -62,7 +62,7 @@ stages:
     - ./set_resources_def.sh
     - . maestro/suites/midas_system_tests/set_machine_list.dot
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
-    - VERSION=$(git describe --abbrev=7 --always | cut -c3-)
+    - VERSION=$(./midas.version.sh | cut -c3-)
     - cd ssm
     - ./package --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
