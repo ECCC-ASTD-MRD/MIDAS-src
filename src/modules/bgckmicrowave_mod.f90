@@ -38,6 +38,11 @@ module bgckmicrowave_mod
   integer, parameter :: MXCHN = 42 
   integer, parameter :: JPMXREJ = 15
   integer, parameter :: MXSAT = 9
+  integer, PARAMETER :: MXVAL = 22
+  integer, PARAMETER :: MXNT = 3000
+  integer, parameter :: nchanAtms=22
+  integer, parameter :: mxscan=96
+  real, parameter    :: zmisg=9.9e09
 
   INTEGER :: NCHNA(JPNSAT), MLISCHNA(JPCH,JPNSAT), IUTILST(JPCH,JPNSAT)
   REAL    :: TOVERRST(JPCH,JPNSAT)
@@ -46,9 +51,6 @@ module bgckmicrowave_mod
 
   ! ATMS QC programs
   ! public variables
-  public :: scanpos, ztb, biasCorr, zlat,zlon,zenith, ilq,itt, ican, qcflag2, qcflag1
-  public :: mxval, mxnt, nchanAtms, mxsat, mxscan, zmisg
-  public :: reportIndex
   public :: mwbg_nval
   public :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
 
@@ -56,23 +58,7 @@ module bgckmicrowave_mod
   public :: mwbg_getData, mwbg_landIceMaskAtms, mwbg_grossValueCheck
   public :: mwbg_firstQcCheckAtms, mwbg_nrlFilterAtms, mwbg_writeBlocks
 
-  ! Set array limits (ATMS: 22 chan, 96 FOV):
-  integer, PARAMETER :: MXVAL = 22
-  integer, PARAMETER :: MXNT = 3000
-  integer, parameter :: nchanAtms=22
-  integer, parameter :: mxscan=96
-
-  ! Other variables:
-  real, parameter    :: zmisg=9.9e09
-
-  integer  :: error, reportIndex, mwbg_nval
-
-  integer, dimension(mxnt)             :: scanpos
-  real, dimension(mxval*mxnt)          :: ztb, biasCorr
-  real, dimension(mxnt)                :: zlat,zlon,zenith
-  integer, dimension(mxnt)             :: ilq,itt
-  integer, dimension(mxval*mxnt)       :: ican, qcflag2
-  integer, dimension(mxnt,3)           :: qcflag1
+  integer  :: error, mwbg_nval
 
   logical :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
 
@@ -421,12 +407,8 @@ contains
     !                 15) channel reject (channel selection).
     IMPLICIT NONE
 
-    INTEGER     MXNT
-    PARAMETER ( MXNT   =  2000 )
-
-    INTEGER MXSCAN, MXCLWREJ, MXCANPRED, MXSFCREJ2
+    INTEGER MXCLWREJ, MXCANPRED, MXSFCREJ2
     INTEGER MXSCANHIRS, MXSCANAMSU, MXSCATREJ, MXSFCREJ, NTESTS
-    PARAMETER  ( MXSCAN    = 56 )
     PARAMETER  ( MXSCANHIRS= 56 )
     PARAMETER  ( MXSCANAMSU= 30 )
     PARAMETER  ( MXCLWREJ  =  6 )
@@ -2172,7 +2154,7 @@ contains
     integer rain   (:)
     integer snow   (:)
 
-    real zmisg, siw, sil, df1, df2, df3, a, b, c, d, e23
+    real zmisgLocal, siw, sil, df1, df2, df3, a, b, c, d, e23
     real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real sc50, par, t53
     real dif285t23, dif285t31, epsilon
@@ -2190,18 +2172,18 @@ contains
     real scatl (:)
     real scatw (:)
 
-    data zmisg   / -99.     /
+    data zmisgLocal   / -99.     /
     data epsilon /   1.E-30 /
 
     ! 1) Initialise output parameters:
     do i = 1, ni
-      ice  (i) = zmisg
-      tpw  (i) = zmisg
-      clw  (i) = zmisg
-      scatl(i) = zmisg
-      scatw(i) = zmisg
-      rain (i) = nint(zmisg)
-      snow (i) = nint(zmisg)
+      ice  (i) = zmisgLocal
+      tpw  (i) = zmisgLocal
+      clw  (i) = zmisgLocal
+      scatl(i) = zmisgLocal
+      scatw(i) = zmisgLocal
+      rain (i) = nint(zmisgLocal)
+      snow (i) = nint(zmisgLocal)
     enddo
 
     ! 2) Validate input parameters:
@@ -2286,7 +2268,7 @@ contains
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
               df1    .gt.  0.2        ) then  
-            tpw(i) = zmisg
+            tpw(i) = zmisgLocal
           else
             a =  247.920  - (69.235 - 44.177*cosz)*cosz
             b = -116.270
@@ -2302,7 +2284,7 @@ contains
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
               df1    .gt.  0.0        ) then  
-            clw(i) = zmisg
+            clw(i) = zmisgLocal
           else
             a =  8.240 - (2.622 - 1.846*cosz)*cosz
             b =  0.754
@@ -2318,7 +2300,7 @@ contains
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
               df1    .gt.  0.0        ) then  
-            rain(i) = nint(zmisg)
+            rain(i) = nint(zmisgLocal)
           else                                   ! remove non-precipitating clouds
             if ( clw(i) .gt. 0.3 .or. &
                 siw    .gt. 9.0      ) then 
@@ -2612,14 +2594,9 @@ contains
     !         5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
     IMPLICIT NONE
 
-    INTEGER     MXNT
-    PARAMETER ( MXNT   =  3000 )
-
-    INTEGER MXCHN, MXSAT, MXSCAN
+    INTEGER MXCHN
     INTEGER MXSCANAMSU, MXSFCREJ, MXCH2OMPREJ,  MXTOPO
     PARAMETER  ( MXCHN      = 22 )
-    PARAMETER  ( MXSAT      =  3 )
-    PARAMETER  ( MXSCAN     = 96 )
     PARAMETER  ( MXSCANAMSU = 96 )
     PARAMETER  ( MXSFCREJ   =  8 )
     PARAMETER  ( MXCH2OMPREJ=  6 )
@@ -2986,9 +2963,8 @@ contains
     !               ldprint - input  -  mode: imprimer ou cumuler? 
     IMPLICIT NONE
 
-    INTEGER MXCHN, MXSAT
+    INTEGER MXCHN
     PARAMETER  ( MXCHN = 22 )
-    PARAMETER  ( MXSAT =  3 )
 
     INTEGER     JPMXREJ
     PARAMETER ( JPMXREJ = 5)
@@ -3885,7 +3861,8 @@ contains
   END
 
 
-  subroutine mwbg_getData(rpt)
+  subroutine mwbg_getData(reportIndex,rpt,zenith,ilq,itt,zlat,zlon,ztb,biasCorr,scanpos, &
+                        qcflag1,qcflag2,ican)
     !--------------------------------------------------------------------------------------
     ! Object:   This routine extracts the needed data from the blocks in the report:
     !             zenith(nt)       = satellite zenith angle (btyp=3072,ele=7024)
@@ -3905,7 +3882,15 @@ contains
     !       kk = variable for loops over locations (nt)
     !        j = variable for loops over nval (nval = 1 or nchanAtms)
 
+    integer :: reportIndex
     type(BURP_RPT)         :: rpt
+    integer, dimension(:)             :: scanpos
+    real, dimension(:)          :: ztb, biasCorr
+    real, dimension(:)                :: zlat,zlon,zenith
+    integer, dimension(:)             :: ilq,itt
+    integer, dimension(:)       :: ican, qcflag2
+    integer, dimension(:,:)           :: qcflag1
+
     type(BURP_BLOCK)       :: blk
 
     integer :: error, ref_blk, my_nt,  my_nval, my_nele, my_idtyp
@@ -4106,8 +4091,11 @@ contains
   end subroutine mwbg_getData
 
 
-  subroutine mwbg_writeBlocks(lsq,trn,riwv,rclw,ident,logicalFlags,lutb,rpt,rpt_out)
+  subroutine mwbg_writeBlocks(reportIndex,ztb,lsq,trn,riwv,rclw,ident,logicalFlags,lutb, &
+                              rpt,rpt_out)
     ! Object:   This routine modifies the blocks in the input Report (rpt) 
+    integer :: reportIndex
+    real, dimension(:)          :: ztb
     integer, intent(in), dimension(:)   :: lsq
     integer, intent(in), dimension(:)   :: trn
     real,    intent(in), dimension(:)   :: riwv

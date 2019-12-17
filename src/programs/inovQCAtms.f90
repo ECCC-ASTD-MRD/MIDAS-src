@@ -76,6 +76,12 @@ program midas_inovQCAtms
   PARAMETER ( MXELM  =    30 )
   PARAMETER ( MXLAT  =     5 )
   PARAMETER ( MXLON  =     5 )
+  integer, parameter :: MXSAT = 9
+  integer, PARAMETER :: MXVAL = 22
+  integer, PARAMETER :: MXNT = 3000
+  integer, parameter :: nchanAtms=22
+  integer, parameter :: mxscan=96
+  real, parameter    :: zmisg=9.9e09
 
   integer ezsetopt, ezqkdef
   integer gdllsval, gdmg
@@ -132,6 +138,8 @@ program midas_inovQCAtms
   REAL  DONIALT (MXELM*MXVAL*MXNT)
   REAL  PRVALN  (MXELM*MXVAL*MXNT)
   REAL  ZDATA   (MXVAL*MXNT)
+  REAL  ZLAT    (MXNT)
+  REAL  ZLON    (MXNT)
   REAL  SATZEN  (MXNT)
   REAL  MTINTRP (MXNT)
   REAL  ZO      (MXVAL*MXNT)

@@ -161,6 +161,12 @@ program midas_satQCATMS
   character(len=90)      :: brp_in,brp_out
   character(len=9)       :: id
 
+  integer, parameter :: MXSAT = 9
+  integer, PARAMETER :: MXVAL = 22
+  integer, PARAMETER :: MXNT = 3000
+  integer, parameter :: nchanAtms=22
+  integer, parameter :: mxscan=96
+  real, parameter    :: zmisg=9.9e09
   integer, parameter :: iunbc=30
 
   integer :: ierr,ilnmx,status
@@ -182,10 +188,18 @@ program midas_satQCATMS
 
   character(len=9), dimension(mxsat)   ::  csatid
 
-  real, dimension(nchanAtms,mxscan)        ::  zbcor
+  real, dimension(nchanAtms,mxscan)    ::  zbcor
   real, dimension(mxval*mxnt)          ::  ztbcor
   
   real, dimension(5)                   ::  ztb183
+
+  integer, dimension(mxnt)             :: scanpos
+  real, dimension(mxval*mxnt)          :: ztb, biasCorr
+  real, dimension(mxnt)                :: zlat,zlon,zenith
+  integer, dimension(mxnt)             :: ilq,itt
+  integer, dimension(mxval*mxnt)       :: ican, qcflag2
+  integer, dimension(mxnt,3)           :: qcflag1
+  integer :: reportIndex
 
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
   real, parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
@@ -548,7 +562,8 @@ program midas_satQCATMS
 
 
       !  Get all the required data from the blocks in the report (Rpt_in)
-      call mwbg_getData(Rpt_in)
+      call mwbg_getData(reportIndex,Rpt_in,zenith,ilq,itt,zlat,zlon,ztb,biasCorr,scanpos, &
+                        qcflag1,qcflag2,ican)
 
 
       ! Initialize internal land/sea qualifier and terrain type arrays to values
@@ -891,7 +906,8 @@ program midas_satQCATMS
         ! - Update Tb data in DATA block 9248/9264 (if Tb was modified).
         ! - Add new elements to INFO block 3072.
         ! - Modify 24bit global flags in 3D block 5120 (if any data rejected).
-        call mwbg_writeBlocks(lsq,trn,riwv,rclw,ident,lflagchn,lutb,Rpt_in,Rpt_out)
+        call mwbg_writeBlocks(reportIndex,ztb,lsq,trn,riwv,rclw,ident,lflagchn,lutb, &
+                              Rpt_in,Rpt_out)
 
       ENDIF
 
