@@ -1,4 +1,4 @@
-#!/bin/bash --login
+#!/bin/bash
 
 ## This script is supposed to be used by the user who publishes the SSM domain
 
@@ -17,7 +17,7 @@ die () {
 [ $# -eq 3 ] || die "This tool accepts only three and only three arguments but you gave '${*}'"
 
 product=${1}
-[ "${product}" = midas -o "${product}" = verdict ]|| die "The argument can only be 'midas' or 'verdict' but you gave '${product}'"
+[ "${product}" = midas -o "${product}" = verdict ] || die "The argument can only be 'midas' or 'verdict' but you gave '${product}'"
 
 version=${2}
 
