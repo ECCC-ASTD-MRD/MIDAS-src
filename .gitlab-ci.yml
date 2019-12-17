@@ -65,6 +65,8 @@ stages:
     - VERSION=$(git describe --abbrev=7 --always | cut -c3-)
     - cd ssm
     - ./package --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+    ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
+    ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/ssm/ssm_publish ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
     - ssh sanl000@${MACHINE_PPP} midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
     - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
