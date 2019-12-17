@@ -6,13 +6,7 @@ set -e
 platform=${1:-${ORDENV_PLAT}}
 midas_abs=${2}
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
-which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
-
-suite=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
-if [ -z "${COMPILING_MACHINE_PPP}" ]; then
-    COMPILING_MACHINE_PPP=$(cd ${suite}; getdef --exp ${suite} resources/resources.def FRONTEND)
-fi
+toplevel=$(git rev-parse --show-toplevel)
 
 absdir=${COMPILEDIR_MIDAS_MAIN:-"../../compiledir"}/midas_abs
 revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh ${COMPILING_MACHINE_PPP} "cd $PWD; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
