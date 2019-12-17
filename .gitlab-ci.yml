@@ -7,8 +7,8 @@ variables:
 
 stages:
    - build
-   #- test
-   #- doc
+   - test
+   - doc
    - deploy
 
 ## The program 'gitlab-runner' must be found in the PATH to get the artifacts collecting working.
@@ -24,37 +24,37 @@ stages:
   only:
     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
-#.runtests: &runtests_template
-#   stage: test
-#   variables:
-#     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
-#   script:
-#     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
-#     - cd maestro/suites/midas_system_tests
-#     - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
-#     - ./install_suite.sh $suite run $MIDAS_ABS
-#     - ./wait4tests.sh $suite
-#     - ./extractRunTime.sh $suite
-#     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
-#     - . ./set_machine_list.dot
-#     - clean_suite -y ${suite}
-#     - rm ~/.suites/${suite}
-#     - rmdir ~/data_maestro/ords/maestro/$suite
-#   only:
-#     - master
-#
-#.doc_sphinx: &doc_sphinx_template
-#  stage: doc
-#  variables:
-#    docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-#    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
-#  script:
-#  - cd scripts/sphinx
-#  - ./build_html.sh ../../src $midasdoc/$docname
-#  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-#  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
-#  only:
-#    - master
+.runtests: &runtests_template
+   stage: test
+   variables:
+     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
+   script:
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.1
+     - cd maestro/suites/midas_system_tests
+     - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
+     - ./install_suite.sh $suite run $MIDAS_ABS
+     - ./wait4tests.sh $suite
+     - ./extractRunTime.sh $suite
+     - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
+     - . ./set_machine_list.dot
+     - clean_suite -y ${suite}
+     - rm ~/.suites/${suite}
+     - rmdir ~/data_maestro/ords/maestro/$suite
+   only:
+     - master
+
+.doc_sphinx: &doc_sphinx_template
+  stage: doc
+  variables:
+    docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
+  script:
+  - cd scripts/sphinx
+  - ./build_html.sh ../../src $midasdoc/$docname
+  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+  only:
+    - master
 
 .ssm: &ssm_template
   stage: deploy
@@ -75,15 +75,15 @@ build:hpcr-u1:
   tags:
     - hpcr-u1
 
-#runtests:hpcr-u1:
-#  <<: *runtests_template
-#  tags:
-#    - hpcr-u1
-#
-#doc_sphinx:hpcr-u1:
-#  <<: *doc_sphinx_template
-#  tags:
-#    - hpcr-u1
+runtests:hpcr-u1:
+  <<: *runtests_template
+  tags:
+    - hpcr-u1
+
+doc_sphinx:hpcr-u1:
+  <<: *doc_sphinx_template
+  tags:
+    - hpcr-u1
 
 ssm:hpcr-u1:
   <<: *ssm_template
