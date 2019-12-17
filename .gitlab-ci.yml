@@ -61,10 +61,11 @@ stages:
   script:
     - ./set_resources_def.sh
     - . maestro/suites/midas_system_tests/set_machine_list.dot
-    - VERSION=$(git describe --abbrev=7 --always)
+    ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
+    - VERSION=$(git describe --abbrev=7 --always | cut -c3-)
     - cd ssm
-    - ./package --midas-abs $MIDAS_ABS --packages $SSM_PACKAGES/$VERSION --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
-    - ssh sanl000@${MACHINE_PPP} midas $VERSION $SSM_PACKAGES/$VERSION
+    - ./package --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+    - ssh sanl000@${MACHINE_PPP} midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
   only:
     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
