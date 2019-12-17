@@ -41,7 +41,7 @@ stages:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - master
+     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
 .doc_sphinx: &doc_sphinx_template
   stage: doc
@@ -54,7 +54,7 @@ stages:
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
-    - master
+    - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
 
 .ssm: &ssm_template
   stage: deploy
