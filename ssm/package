@@ -68,7 +68,9 @@ if [ -z "${backend}" ]; then
     exit 1
 fi
 
-set ${args}
+if [ -n "${args}" ]; then
+    set ${args}
+fi
 
 if [ $# -ge 1 ]; then
     BHSCRIPTS=$@
