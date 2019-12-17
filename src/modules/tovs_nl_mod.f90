@@ -2409,7 +2409,8 @@ contains
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
             if ( tvs_profiles(jj)% skin % surftype == surftype_land .and. &
-                 mWAtlasSurfaceEmissivity(btIndex) > 0. ) then ! check for missing values
+                 mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
+                 mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
               updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
             else
               updatedEmissivity(btIndex)%emis_in = originalEmissivity(btIndex)
