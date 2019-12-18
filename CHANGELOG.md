@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * Add stochastic LETKF with cross validation algorithm (#276 and !282)
  * An SSM domain is created if a tag is pushed (#292 and !281)
  * Add ability to assimilate of SAR wind speed (#218 and !272)
  * Add ability to assimilate MWHS2 data (#287 and !274)
