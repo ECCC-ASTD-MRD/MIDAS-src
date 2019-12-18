@@ -30,7 +30,6 @@ module increment_mod
   use utilities_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
-  use chem_postproc_mod
   use varNamelist_mod
   implicit none
   save
@@ -393,14 +392,27 @@ CONTAINS
                       varNames_opt=varNames )
 
     !
-    !- Impose limits on humidity analysis and recompute increment
+    !- Impose limits on humidity analysis
     !
     call tmg_start(182,'INC_QLIMITS')
     write(*,*) 'inc_computeAndWriteAnalysis: calling qlim_saturationLimit'
     call qlim_saturationLimit(statevector_analysis)
     if( imposeRttovHuLimits ) call qlim_rttovLimit(statevector_analysis)
+
+    if (gsv_varKindExist('CH')) then
+      !
+      !- Apply boundaries to analysis of CH kind variables as needed.
+      !
+      write(*,*) 'inc_computeAndWriteAnalysis: applying minimum values to analysis for variables of CH kind'
+      call gvt_transform(stateVector_analysis,'CH_bounds')
+    end if
+    
+    !
+    !- Recompute increments
+    !
     call gsv_copy(statevector_analysis, statevector_incHighRes)
     call gsv_add(statevector_trial, statevector_incHighRes, -1.0d0)
+
     call tmg_stop(182)
 
     !
@@ -507,6 +519,9 @@ CONTAINS
 
   end subroutine inc_computeAndWriteAnalysis
 
+  !--------------------------------------------------------------------------
+  ! inc_getIncrement
+  !--------------------------------------------------------------------------
   subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal)
 
     implicit none
@@ -533,12 +548,11 @@ CONTAINS
        end if
     end if
 
-    ! Adjust and or transform chemical constituent concentration increments as needed.
-    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
-    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr)
-
   end subroutine inc_getIncrement
 
+  !--------------------------------------------------------------------------
+  ! inc_writeIncrement
+  !--------------------------------------------------------------------------
   subroutine inc_writeIncrement(statevector_incr)
 
     implicit none

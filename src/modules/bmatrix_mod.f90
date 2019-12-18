@@ -313,8 +313,9 @@ contains
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         call tmg_start(123,'B_CHM')
         if ( globalGrid ) then
-          call bchm_bsqrt( subVector,        & ! IN
-                           statevector_temp )  ! OUT
+          call bchm_bsqrt( subVector,        &  ! IN
+                           statevector_temp, &  ! OUT
+                           stateVectorRef_opt ) ! IN
         end if
         call tmg_stop(123)
 
@@ -412,8 +413,9 @@ contains
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         call tmg_start(124,'B_CHM_T')
         if ( globalGrid ) then
-          call bchm_bsqrtad( statevector_temp, & ! IN
-                             subVector )         ! OUT
+          call bchm_bsqrtad( statevector_temp, &  ! IN
+                             subVector,        &  ! OUT
+                             stateVectorRef_opt ) ! IN
         end if
         call tmg_stop(124)
 

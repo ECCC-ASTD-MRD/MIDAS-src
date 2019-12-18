@@ -35,6 +35,8 @@ module gridVariableTransforms_mod
   use utilities_mod
   use varNameList_mod
   use tt2phi_mod
+  use utilities_mod
+  
   implicit none
   save
   private
@@ -43,11 +45,13 @@ module gridVariableTransforms_mod
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
 
   logical                   :: huTrialsInitialized  = .false.
+  logical                   :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
   logical                   :: heightTrialsInitialized  = .false.
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
 
   type(struct_gsv), target :: stateVectorTrialHU
+  type(struct_gsv), target :: stateVectorTrialvarKindCH(vnl_numVarMax)
   type(struct_gsv), target :: stateVectorTrialHeight
 
   ! module interfaces
@@ -58,6 +62,9 @@ module gridVariableTransforms_mod
 
 CONTAINS
 
+  !--------------------------------------------------------------------------
+  ! gvt_setup
+  !--------------------------------------------------------------------------
   subroutine gvt_setup(hco_in,vco_in)
     ! 
     ! :Purpose: To set up a variable transformation object
@@ -73,6 +80,7 @@ CONTAINS
     
     if (huTrialsInitialized) return
     if (heightTrialsInitialized) return
+    if (any(varKindCHTrialsInitialized(:))) return
 
     write(*,*) 'gvt_setup: starting'
 
@@ -83,14 +91,21 @@ CONTAINS
 
   end subroutine gvt_setup
 
-
-  subroutine gvt_setupTrials(varName)
+  !--------------------------------------------------------------------------
+  ! gvt_setupTrials
+  !--------------------------------------------------------------------------
+  subroutine gvt_setupTrials(varName, varKind_opt)
 
     implicit none
 
-    type(struct_gsv) :: statevector_noZnoP
+    !Arguments:
     character(len=*), intent(in) :: varName
+    character(len=*), optional   :: varKind_opt
 
+    !Locals:
+    type(struct_gsv) :: statevector_noZnoP
+    integer :: varIndex
+    
     select case ( trim(varName) )
     case ('HU')
       ! initialize stateVectorTrialHU on analysis grid
@@ -131,14 +146,38 @@ CONTAINS
 
       heightTrialsInitialized = .true.
     case default
-      call utl_abort('gvt_setupTrials: unknown variable ='//trim(varName))
+      if ( present(varKind_opt) ) then
+        if (varKind_opt == 'CH' .and. vnl_varKindFromVarname(varName) == varKind_opt ) then
+        
+          varIndex = vnl_varListIndex(varName)
+          
+          ! initialize stateVectorTrialvarKindCH(varIndex) on analysis grid
+          
+          call gsv_allocate(stateVectorTrialvarKindCH(varIndex), tim_nstepobsinc, hco_anl, vco_anl,   &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                        varNames_opt=(/trim(varName),'P0'/) )
+
+          ! read trial files using default horizontal interpolation degree
+          call gsv_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
+
+          varKindCHTrialsInitialized(varIndex) = .true.
+           
+        else
+          call utl_abort('gvt_setupTrials: unknown variable ='//trim(varName))
+        end if 
+      else
+        call utl_abort('gvt_setupTrials: unknown variable ='//trim(varName))
+      end if
     end select
 
   end subroutine gvt_setupTrials
 
-
+  !--------------------------------------------------------------------------
+  ! gvt_transform_gsv
+  !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
-                               stateVectorRef_opt, allowOverWrite_opt)
+                               stateVectorRef_opt, varName_opt, allowOverWrite_opt)
     implicit none
    
     ! Arguments
@@ -147,6 +186,7 @@ CONTAINS
     type(struct_gsv), optional :: statevectorOut_opt
     type(struct_gsv), optional :: statevectorRef_opt
     logical, optional          :: allowOverWrite_opt
+    character(len=*), optional :: varName_opt
 
     select case(trim(transform))
 
@@ -218,7 +258,7 @@ CONTAINS
         call utl_abort('gvt_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
+        call utl_abort('gvt_transform: for HUtoLQ_tlm, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector, stateVectorRef_opt)
 
@@ -359,6 +399,44 @@ CONTAINS
       end if
       call PsfcToP_ad(statevector)
 
+    case ('expCH_tlm')
+      if ( .not. gsv_varKindExist('CH')  ) then
+        call utl_abort('gvt_transform: for expCH_tlm, variables of CH kind must be allocated in gridstatevector')
+      else if ( .not.present(varName_opt) ) then
+        call utl_abort('gvt_transform: for expCH_tlm, missing variable name')
+      else  if ( .not. gsv_varExist(statevector,trim(varName_opt)) ) then
+        call utl_abort('gvt_transform: for expCH_tlm, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
+      else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
+        call utl_abort('gvt_transform: Invalid kind of varName for expCH_tlm')
+      else if (present(statevectorRef_opt)) then
+        call utl_abort('gvt_transform: for expCH_tlm, the option statevectorRef_opt must be present')
+      else if (present(statevectorOut_opt)) then
+        call utl_abort('gvt_transform: for expCH_tlm, the option statevectorOut_opt is not yet available')
+      end if
+      call expCH_tlm(statevector, varName_opt, stateVectorRef_opt)
+
+   case ('expCH_ad')
+      if ( .not. gsv_varKindExist('CH')  ) then
+        call utl_abort('gvt_transform: for expCH_ad, variables of CH kind must be allocated in gridstatevector')
+      else if ( .not.present(varName_opt) ) then
+        call utl_abort('gvt_transform: for expCH_ad missing variable name')
+      else  if ( .not. gsv_varExist(statevector,trim(varName_opt)) ) then
+        call utl_abort('gvt_transform: for expCH_ad, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
+      else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
+        call utl_abort('gvt_transform: Invalid kind of varName for expCH_ad')
+      else if (present(statevectorRef_opt)) then
+        call utl_abort('gvt_transform: for expCH_ad, the option statevectorRef_opt must be present')
+      else if (present(statevectorOut_opt)) then
+        call utl_abort('gvt_transform: for expCH_ad, the option statevectorOut_opt is not yet available')
+      end if
+      call expCH_tlm(statevector, varName_opt, stateVectorRef_opt) ! self-adjoint
+      
+    case ('CH_bounds')
+      if ( .not. gsv_varKindExist('CH')  ) then
+        call utl_abort('gvt_transform: for CH_bounds, variables of CH kind must be allocated in gridstatevector')
+      end if
+      call CH_bounds(statevector)
+      
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
@@ -367,14 +445,17 @@ CONTAINS
 
   end subroutine gvt_transform_gsv
 
-
-  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt)
+  !--------------------------------------------------------------------------
+  ! gvt_transform_ens
+  !--------------------------------------------------------------------------
+  subroutine gvt_transform_ens(ens,transform, allowOverWrite_opt, varName_opt)
     implicit none
    
     ! Arguments
     type(struct_ens)  :: ens
     character(len=*), intent(in) :: transform
     logical, optional :: allowOverWrite_opt
+    character(len=*), optional :: varName_opt
 
     select case(trim(transform))
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
@@ -390,6 +471,13 @@ CONTAINS
       call UVtoPsiChi_ens(ens)
     case ('UVtoVortDiv')
       call UVtoVortDiv_ens(ens)
+    case ('logCH')
+      if ( .not.present(varName_opt) ) then
+        call utl_abort('gvt_transform: for logCH missing variable name')
+      else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
+        call utl_abort('gvt_transform: Invalid kind of varName for logCH')
+      end if 
+      call logCH_ens(ens,varName_opt)
     case default
       call utl_abort('gvt_transform_ens: Unsupported function '//trim(transform))
     end select
@@ -453,7 +541,9 @@ CONTAINS
 
   end subroutine LQtoHU
 
-
+  !--------------------------------------------------------------------------
+  ! HUtoLQ_gsv
+  !--------------------------------------------------------------------------
   subroutine HUtoLQ_gsv(statevector)
     implicit none
 
@@ -501,7 +591,9 @@ CONTAINS
 
   end subroutine HUtoLQ_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! HUtoLQ_ens
+  !--------------------------------------------------------------------------
   subroutine HUtoLQ_ens(ens)
     implicit none
 
@@ -537,7 +629,9 @@ CONTAINS
 
   end subroutine HUtoLQ_ens
 
-
+  !--------------------------------------------------------------------------
+  ! LQtoHU_tlm
+  !--------------------------------------------------------------------------
   subroutine LQtoHU_tlm(statevector, stateVectorRef_opt)
     implicit none
 
@@ -573,7 +667,9 @@ CONTAINS
 
   end subroutine LQtoHU_tlm
 
-
+  !--------------------------------------------------------------------------
+  ! HUtoLQ_tlm
+  !--------------------------------------------------------------------------
   subroutine HUtoLQ_tlm(statevector, stateVectorRef_opt)
     implicit none
 
@@ -870,7 +966,9 @@ CONTAINS
 
   end subroutine PRtoLPR_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! LVIStoVIS
+  !--------------------------------------------------------------------------
   subroutine LVIStoVIS(statevector_in, statevectorOut_opt, allowOverWrite_opt)
     implicit none
 
@@ -1102,7 +1200,9 @@ CONTAINS
 
   end subroutine UVtoVortDiv_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! vortDivtoPsiChi_gsv
+  !--------------------------------------------------------------------------
   subroutine vortDivToPsiChi_gsv(statevector)
     implicit none
    
@@ -1172,7 +1272,9 @@ CONTAINS
 
   end subroutine VortDivToPsiChi_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! UVtoPsiChi_gsv
+  !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_gsv(statevector)
     implicit none
    
@@ -1258,7 +1360,9 @@ CONTAINS
 
   end subroutine UVtoPsiChi_gsv
   
-
+  !--------------------------------------------------------------------------
+  ! UVtoPsiChi_ens
+  !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_ens(ens)
     implicit none
    
@@ -1309,7 +1413,9 @@ CONTAINS
 
   end subroutine UVtoPsiChi_ens
 
-
+  !--------------------------------------------------------------------------
+  ! UVtoVorDiv_ens
+  !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_ens(ens)
     implicit none
    
@@ -1722,5 +1828,139 @@ CONTAINS
     deallocate(Psfc)
 
   end subroutine calcPressure_ad
+
+  !--------------------------------------------------------------------------
+  ! logCH_ens
+  !--------------------------------------------------------------------------
+  subroutine logCH_ens(ens,varName)
+    implicit none
+
+    !Arguments:
+    type(struct_ens) :: ens
+    character(len=4) :: varName
+
+    !Locals:
+    integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
+    character(len=4) :: varName_ens
+    real(4) :: minVal
+
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+
+    call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+
+    do levIndex = 1, ens_getNumK(ens)
+
+      varName_ens = ens_getVarNameFromK(ens,levIndex)
+      if ( trim(varName_ens) /= trim(varName) ) cycle
+
+      ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)
+      minVal=real(gsv_minValVarKindCH(vnl_varListIndex(varName)),4)
+    
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do stepIndex = 1, ens_getNumStep(ens)
+            do memberIndex = 1, ens_getNumMembers(ens)
+              ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = log(max(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),minVal))
+            end do
+          end do
+        end do
+      end do
+
+    end do
+
+  end subroutine logCH_ens
+
+  !--------------------------------------------------------------------------
+  ! expCH_tlm
+  !--------------------------------------------------------------------------
+  subroutine expCH_tlm(statevector, varName, stateVectorRef_opt)
+    ! 
+    ! :Purpose: Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
+    !           the input 'statevector' component is d[log(x)] and
+    !           the output 'statevector' component is dx.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv) :: statevector
+    character(len=*) :: varName
+    type(struct_gsv), optional :: statevectorRef_opt
+    
+    ! Locals:
+    integer :: lonIndex,latIndex,levIndex,stepIndex,varIndex
+    real(8), pointer :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:), var_trial(:,:,:,:)
+    real(8) :: minVal
+
+    if ( present(statevectorRef_opt) ) then
+      var_trial  => gsv_getField_r8(stateVectorRef_opt,trim(varName))
+    else
+      varIndex = vnl_varListIndex(varName)
+      if ( .not. varKindCHTrialsInitialized(varIndex) ) call gvt_setupTrials(trim(varName),varKind_opt='CH')
+      var_trial => gsv_getField_r8(stateVectorTrialvarKindCH(varIndex),trim(varName))
+    end if
+
+    var_ptr    => gsv_getField_r8(statevector,trim(varName))
+    logVar_ptr => gsv_getField_r8(statevector,trim(varName))
+
+    minVal=gsv_minValVarKindCH(vnl_varListIndex(varName))
+
+    do stepIndex = 1, statevector%numStep
+      !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+      do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
+                     *max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    end do
+
+  end subroutine expCH_tlm
+
+  !--------------------------------------------------------------------------
+  ! CH_bounds
+  !--------------------------------------------------------------------------
+  subroutine CH_bounds(statevector)
+    ! 
+    ! :Purpose: Impose boundary values to variables of CH kind.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv) :: statevector
+    
+    ! Locals:
+    integer :: varIndex,lonIndex,latIndex,levIndex,stepIndex
+    real(8), pointer :: var_ptr(:,:,:,:)
+    real(8) :: minVal
+    character(len=4) :: varName
+
+    do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not.gsv_varExist(varName=trim(varName)) ) cycle
+      if ( vnl_varKindFromVarname(trim(varName)) /= 'CH' ) cycle
+
+      var_ptr    => gsv_getField_r8(statevector,trim(varName))
+
+      minVal=gsv_minValVarKindCH(vnl_varListIndex(varName))
+
+      do stepIndex = 1, statevector%numStep
+        !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
+        do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(trim(varName)))
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+              var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+       
+    end do
+
+  end subroutine CH_bounds
 
 end module gridVariableTransforms_mod

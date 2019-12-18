@@ -23,6 +23,8 @@ module varNameList_mod
   !
   use bufr_mod
   use utilities_mod
+  use MathPhysConstants_mod
+  
   implicit none
   save
   private
@@ -35,11 +37,11 @@ module varNameList_mod
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
-  public :: vnl_varNamesFromExistList
+  public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
 
   ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 37,  VNLnumvarmax2D = 32
+  integer, parameter          :: VNLnumvarmax3D = 38,  VNLnumvarmax2D = 32
 
   integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
 
@@ -47,25 +49,25 @@ module varNameList_mod
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
                                  'TT  ','HU  ','LQ  ','ES  ','VT  ',                             &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
-                                 'TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2',        &
-                                 'TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS','HR  ',        &
-                                 'TD  ','ALFT'/)
+                                 'TO3 ','TO3L','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
+                                 'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',      &
+                                 'HR  ','TD  ','ALFT'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
                                  'TH',  'TH',  'TH',  'TH',  'TH',                               &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
-                                 'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',          &
-                                 'TH',  'TH'/)
+                                 'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
+                                 'TH',  'TH',  'TH'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
                                  'MT',  'MT',  'MT',  'MT',  'MT',                               &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
-                                 'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',  'MT',          &
-                                 'MT',  'MT'/)
+                                 'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
+                                 'MT',  'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
@@ -93,6 +95,9 @@ module varNameList_mod
 
   contains
 
+   !--------------------------------------------------------------------------
+   ! vnl_varListIndex3d
+   !--------------------------------------------------------------------------
     function vnl_varListIndex3d(varName) result(listIndex)
       !
       ! :Purpose: To get the 3d list index from the variable name
@@ -100,8 +105,12 @@ module varNameList_mod
 
       implicit none
 
+      ! Arguments:
       character(len=*), intent(in) :: varName
-      integer                      :: jvar,listIndex
+      integer                      :: listIndex
+      
+      !Local:
+      integer                      :: jvar
 
       listIndex=-1
       do jvar=1,vnl_numvarmax3D
@@ -117,7 +126,9 @@ module varNameList_mod
 
     end function vnl_varListIndex3d
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varListIndex2d
+   !--------------------------------------------------------------------------
     function vnl_varListIndex2d(varName) result(listIndex)
       !
       ! :Purpose: To get the 2d list index from the variable name
@@ -125,9 +136,12 @@ module varNameList_mod
 
       implicit none
 
+      ! Arguments:
       character(len=*), intent(in) :: varName
+      integer                      :: listIndex
 
-      integer                      :: jvar,listIndex
+      !Local:
+      integer                      :: jvar
 
       listIndex=-1
       do jvar = 1, vnl_numvarmax2D
@@ -143,15 +157,22 @@ module varNameList_mod
 
     end function vnl_varListIndex2d
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varListIndex
+   !--------------------------------------------------------------------------
     function vnl_varListIndex(varName) result(listIndex)
       !
       ! :Purpose: To get the varlist index from the variable name
       !
 
       implicit none
+      
+      !Arguments:
       character(len=*), intent(in) :: varName
-      integer                      :: jvar,listIndex
+      integer                      :: listIndex
+      
+      !Local:
+      integer                      :: jvar
 
       listIndex=-1
       do jvar=1,vnl_numvarmax
@@ -167,14 +188,17 @@ module varNameList_mod
 
     end function vnl_varListIndex
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varnameFromVarnum
+   !--------------------------------------------------------------------------
     function vnl_varnameFromVarnum( varNumber, varNumberChm_opt ) result(varName)
       !
       ! :Purpose: To get the variable name from the variable number
       !
 
-
       implicit none
+      
+      !Arguments:
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=4)    :: varName
@@ -220,7 +244,7 @@ module varNameList_mod
         if (present(varNumberChm_opt)) then 
            select case (varNumberChm_opt)
               case(BUFR_NECH_O3)
-                 varname='TO3'
+                 varname='TO3'  ! Could also be 'TO3L'. Code to account for this when needed.
               case(BUFR_NECH_H2O)
                  varname='HU'
               case(BUFR_NECH_CH4)
@@ -257,7 +281,9 @@ module varNameList_mod
 
     end function vnl_varnameFromVarnum
 
- 
+   !--------------------------------------------------------------------------
+   ! vnl_varnumFromVarName
+   !--------------------------------------------------------------------------
     function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
       !
       ! :Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
@@ -271,10 +297,9 @@ module varNameList_mod
 
       implicit none
 
+      !Arguments:
       character(len=*),  intent(in) :: varName
-
       character(len=*),  intent(in), optional :: varKind_opt
-
       integer    :: varNumber
       
       varNumber=0
@@ -333,7 +358,7 @@ module varNameList_mod
         varNumber=bufr_vis
 
       ! Atmospheric constituents other than HU
-      case('TO3')
+      case('TO3','TO3L')
         varNumber=BUFR_NECH_O3
       case('TH2O')
         varNumber=BUFR_NECH_H2O
@@ -366,13 +391,16 @@ module varNameList_mod
       
     end function vnl_varnumFromVarname
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varLevelFromVarname
+   !--------------------------------------------------------------------------
     function vnl_varLevelFromVarname(varName) result(varLevel)
       !
       ! :Purpose: To get variable level list from variable name 
       !
       implicit none
 
+      !Arguments:
       character(len=*), intent(in)   :: varName
       character(len=2)               :: varLevel
 
@@ -380,16 +408,21 @@ module varNameList_mod
 
     end function vnl_varLevelFromVarname
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varLevelFromVarnum
+   !--------------------------------------------------------------------------
     function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt) result(varLevel)
       !
       ! :Purpose: To get variable level list from the variable number 
       !
       implicit none
 
+      !Arguments:
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=2)              :: varLevel
+
+      !Local:
       character(len=4)              :: varName
 
       varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt)
@@ -397,15 +430,17 @@ module varNameList_mod
 
     end function vnl_varLevelFromVarnum
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varKindFromVarname
+   !--------------------------------------------------------------------------
     function vnl_varKindFromVarname(varName) result(varKind)
       !
       ! :Purpose: To get variable kind list from the variable number 
       !
-      
 
       implicit none
 
+      !Arguments:
       character(len=*), intent(in) :: varName
       character(len=2) :: varKind
       
@@ -413,7 +448,9 @@ module varNameList_mod
 
     end function vnl_varKindFromVarname
 
-
+   !--------------------------------------------------------------------------
+   ! vnl_varNamesFromExistList
+   !--------------------------------------------------------------------------
     subroutine vnl_varNamesFromExistList(varNames,varExistList)
       !
       ! :Purpose: To get variable names from the variable existList 
@@ -421,11 +458,11 @@ module varNameList_mod
 
       implicit none
 
-      ! arguments
+      !Arguments:
       logical :: varExistList(:)
       character(len=4), pointer :: varNames(:)
 
-      ! locals
+      !Local:
       integer :: varIndex, numFound
 
       if (associated(varNames)) then
@@ -447,5 +484,95 @@ module varNameList_mod
       end do
 
     end subroutine vnl_varNamesFromExistList
+ 
+   !--------------------------------------------------------------------------
+   ! vnl_varMassFromVarNum
+   !--------------------------------------------------------------------------
+    function vnl_varMassFromVarNum(varNumber) result(varMass)
+      !
+      ! :Purpose: Identifies constituent molar mass from varNum for use in conversions for the CH family.   
+      !
+
+      implicit none
+
+      !Arguments:
+      integer, intent(in) :: varNumber
+      real(8)             :: varMass
+
+      if ( varNumber == BUFR_NECH_O3 ) then
+        varMass = MPC_MOLAR_MASS_O3_R8
+      else if ( varNumber == BUFR_NECH_H2O ) then
+        varMass = MPC_MOLAR_MASS_VAPOUR_R8
+      else if ( varNumber == BUFR_NECH_CH4 ) then
+        varMass = MPC_MOLAR_MASS_CH4_R8
+      else if ( varNumber == BUFR_NECH_CO2 ) then
+        varMass = MPC_MOLAR_MASS_CO2_R8
+      else if ( varNumber == BUFR_NECH_CO ) then
+        varMass = MPC_MOLAR_MASS_CO_R8
+      else if ( varNumber == BUFR_NECH_NO2 ) then
+        varMass = MPC_MOLAR_MASS_NO2_R8
+      else if ( varNumber == BUFR_NECH_HCHO ) then
+        varMass = MPC_MOLAR_MASS_HCHO_R8
+      else if ( varNumber == BUFR_NECH_SO2 ) then
+        varMass = MPC_MOLAR_MASS_SO2_R8
+      else if ( varNumber == BUFR_NECH_NH3 ) then
+        varMass = MPC_MOLAR_MASS_NH3_R8
+      else if ( varNumber == BUFR_NECH_NO ) then
+        varMass = MPC_MOLAR_MASS_NO_R8
+      else if ( varNumber == BUFR_NECH_PM25 ) then
+        varMass = 1.0d0 ! no scaling
+      else if ( varNumber == BUFR_NECH_PM10 ) then
+        varMass = 1.0d0 ! no scaling
+      else
+        call utl_abort('vnl_varMassFromVarNum: Constituent id number ' // &
+                       utl_str(varNumber) // ' not recognized' )
+      end if
+      
+    end function vnl_varMassFromVarNum
+
+   !--------------------------------------------------------------------------
+   ! vnl_varMassFromVarName
+   !--------------------------------------------------------------------------
+    function vnl_varMassFromVarName(varName) result(varMass)
+      !
+      ! :Purpose: Identifies constituent molar mass from varName for use in conversions for the CH family.   
+      !
+
+      implicit none
+
+      !Arguments:
+      character(len=*),  intent(in) :: varName
+      real(8)                       :: varMass
+
+      if ( varName == 'TO3' .or. varName == 'TO3L'  ) then
+        varMass = MPC_MOLAR_MASS_O3_R8
+      else if ( varName == 'LQ' .or.  varName == 'HU' ) then
+        varMass = MPC_MOLAR_MASS_VAPOUR_R8
+      else if ( varName == 'TCH4' ) then
+        varMass = MPC_MOLAR_MASS_CH4_R8
+      else if ( varName == 'TCO2' ) then
+        varMass = MPC_MOLAR_MASS_CO2_R8
+      else if ( varName == 'TCO' ) then
+        varMass = MPC_MOLAR_MASS_CO_R8
+      else if ( varName == 'TNO2' ) then
+        varMass = MPC_MOLAR_MASS_NO2_R8
+      else if ( varName == 'THCH' ) then
+        varMass = MPC_MOLAR_MASS_HCHO_R8
+      else if ( varName == 'TSO2' ) then
+        varMass = MPC_MOLAR_MASS_SO2_R8
+      else if ( varName == 'TNH3' ) then
+        varMass = MPC_MOLAR_MASS_NH3_R8
+      else if ( varName == 'TNO' ) then
+        varMass = MPC_MOLAR_MASS_NO_R8
+      else if ( varName == 'AF' ) then
+        varMass = 1.0d0 ! no scaling
+      else if ( varName == 'AC' ) then
+        varMass = 1.0d0 ! no scaling
+      else
+        call utl_abort('vnl_varMassFromVarName: Molar mass not found for varName ' // &
+                       trim(varName) )
+      end if
+      
+    end function vnl_varMassFromVarName
 
 end module varNameList_mod

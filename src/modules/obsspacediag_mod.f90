@@ -43,13 +43,11 @@ module obsSpaceDiag_mod
   use randomNumber_mod
   use obsOperators_mod
   use utilities_mod
-  use chem_setup_mod, only: chm_add_efftemp_obsfile, &
-                            chm_diagn_only
-  use chem_obsoperators_mod
   use physicsfunctions_mod
   use burpfiles_mod
   use obsSubSpaceData_mod
   use obsfiles_mod
+  use obsOperatorsChem_mod
   
   implicit none
   save
@@ -745,7 +743,7 @@ contains
     ! If needed, add effective temperature values in CH family obs file 
     ! for total column measurements
 
-    if (obs_famExist(obsSpaceData,'CH')) call chm_add_efftemp_obsfile()
+    if (obs_famExist(obsSpaceData,'CH')) call oopc_add_efftemp_obsfile()
 
   end subroutine osd_update_obsfile
 
@@ -1003,7 +1001,7 @@ contains
              iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
              ! Indicates if diagnostics are to be calculated but observation not assimilated
-             diagn_only = chm_diagn_only(obsfam,stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
+             diagn_only = oopc_diagn_only(obsfam,stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
 
              assim_obs = ((.not.diagn_only).and.anlm_mode) .or. assim_obs
 

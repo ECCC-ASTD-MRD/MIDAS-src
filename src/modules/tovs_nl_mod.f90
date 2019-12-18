@@ -1472,6 +1472,7 @@ contains
     real(8), allocatable :: ozone(:,:)
     real(8), allocatable :: ozoneExtrapolated(:,:)
     real(8), allocatable :: ozoneInterpolated(:,:)
+    character(len=4) :: ozoneVarName
     
     real(8) :: modelTopPressure
  
@@ -1480,8 +1481,14 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') ) then
-      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE. ')
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'TO3L') ) then
+      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE. ')
+    else if (.not.tvs_useO3Climatology) then 
+      if (col_varExist(columnghr,'TO3') ) then
+        ozoneVarName = 'TO3'
+      else
+        ozoneVarName = 'TO3L'
+      end if 
     end if
 
     !  1.    Set index for model's lowest level and model top
@@ -1627,7 +1634,7 @@ contains
             do levelIndex = 1, nlv_T
               ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.
               ! Conversion to kg/kg for use by RTTOV in done later
-              ozone(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TO3') * 1.0D-9 * o3Mixratio2ppmv
+              ozone(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,trim(ozoneVarName)) * 1.0D-9 * o3Mixratio2ppmv
             end do
           end if
         end if
@@ -1794,7 +1801,7 @@ contains
           ! Conversion to mass mixing ratio (kg/kg)
           tvs_profiles(tovsIndex) % o3(:) = ozoneExtrapolated(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
           if (.not.tvs_useO3Climatology)  then
-            tvs_profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,'TO3') * 1.0d-9 ! Assumes model ozone in ug/kg
+            tvs_profiles(tovsIndex) % s2m % o  = col_getElem(columnghr,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
