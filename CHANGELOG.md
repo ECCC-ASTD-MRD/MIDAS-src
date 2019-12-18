@@ -8,20 +8,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
- * Add ability to assimilate of SAR wind speed (#218, !272)
- * Add ability to assimilate MWHS2 data (#287, !274)
- * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274, !270)
+ * An SSM domain is created if a tag is pushed (#292 and !281)
+ * Add ability to assimilate of SAR wind speed (#218 and !272)
+ * Add ability to assimilate MWHS2 data (#287 and !274)
+ * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274 and !270)
  * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to assimilate (log-transformed) precipitation in EnVar and LETKF (#267 and !252)
  * Add new functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
  * Add ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
  * Add many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
    * Also includes Yin-Yang grid compatibility and additional procedures for quality control, data selection and modification of obs error to facilitate comparison with the current EnKF
- * Add new variables to varnamelist_mod useful for ensManip to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236, !240)
- * Implementation of the slant-path radiative transfer for the radiance observations, on background and analysis increment states (#243, !238).
+ * Add new variables to varnamelist_mod useful for ensManip to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236 and !240)
+ * Implementation of the slant-path radiative transfer for the radiance observations, on background and analysis increment states (#243 and !238).
    * Two new namelists are added: nams2c activates the slant-path calculation for background and/or analysis increment states, namSlantPath defines the parameters for iterations to resolve the slant line-of-sight.
- * Add first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245, !233)
- * Add footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197, !222)
+ * Add first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245 and !233)
+ * Add footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197 and !222)
  * The environment variable `MIDAS_MAKE_LINKS_MACHINE_LIST` can be
    used to control the hosts on which links will be created by
    `install_suite.sh` in the maestro test suite.  By default, only the
@@ -206,7 +207,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Add a 2D mode (#32, #51, !45)
 * Add assimilation of SST observations (code is `22042`) (#111 and !123)
 * Add a `thinning_mod` fortran module (#110 and !120)
-* First step towards controlling precision (#47, !46)
+* First step towards controlling precision (#47 and !46)
 * Benjamin Menetrier's localization lengthscale diagnostics is now
   available in global and lam mode in calcstats (#31 and !34)
 * Add a new type of global static B matrix with some latitudinal heterogeneity of the
@@ -239,8 +240,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * Using RTTOV-12 v1.1 from which `lapack.o` has been removed to use
   the system library which is faster
-* The directories have been reorganized (#50, !42)
-* Relax constraints on MPI topology (#49, !44)
+* The directories have been reorganized (#50 and !42)
+* Relax constraints on MPI topology (#49 and !44)
 * Make the Bnmc-LAM 2D mode fullly functionnal (#62 and !50)
 * Make `controlVector_mod` more general (#73 and !58)
 * Refactor all system tests to test directly all the programs (#59 and !60)
