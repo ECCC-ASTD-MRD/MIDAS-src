@@ -22,7 +22,7 @@ stages:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
-    - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
+    - master
 
 .runtests: &runtests_template
    stage: test
@@ -41,7 +41,7 @@ stages:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
+     - master
 
 .doc_sphinx: &doc_sphinx_template
   stage: doc
@@ -54,7 +54,7 @@ stages:
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
-    - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
+    - master
 
 .ssm: &ssm_template
   stage: deploy
@@ -70,7 +70,7 @@ stages:
     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
     - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
-    - 292-generate-a-ssm-domain-as-soon-as-a-tag-is-pushed-on-master-branch
+    - tags
 
 build:hpcr-u1:
   <<: *build_template
