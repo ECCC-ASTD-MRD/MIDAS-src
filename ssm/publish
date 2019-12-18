@@ -77,7 +77,7 @@ if [ -n "${postinstall}" ]; then
 fi
 
 if [ ! -d "${workdir}" ]; then
-    echo "ssm/publish: creating the directory ${workdir}"
+    echo "ssm/publish: creating the working directory ${workdir}"
     mkdir -p ${workdir}
 fi
 cd ${workdir}
@@ -95,9 +95,11 @@ for package in ${packages}/*.ssm; do
     fi
 
     pkgname=$(basename ${package} .ssm)
+    echo "Working with package ${pkgname}"
 
     if [ -n "${postinstall}" ]; then
         if [ -f "${postinstall}" ]; then
+            echo "Insert '${postinstall}' in ${pkgname}.ssm"
             ## add the post-install script
             tar zxf ${package}
             cp ${postinstall} ${pkgname}/.ssm.d/post-install
@@ -113,8 +115,11 @@ for package in ${packages}/*.ssm; do
     platform=$(echo ${pkgname} | cut -d_ -f3)
     [ "${platform}" = all ] && ssmpublish_args="-pp all"
 
+    echo "Install package ${pkgname} in domain ${domainpath}"
     ssm install -d ${domainpath} -p ${pkgname} -r ${domainpath}
+    echo "Publish package ${pkgname} in domain ${domainpath}"
     ssm publish -d ${domainpath} -p ${pkgname} ${ssmpublish_args}
+    echo "Done with package ${pkgname} in domain ${domainpath}"
 done
 
 ## Freeze the domain
