@@ -29,7 +29,7 @@ module bgckmicrowave_mod
   public :: mwbg_debug
 
   ! Public functions
-  public :: mwbg_readStatTovs, mwbg_readStatTovsAtms, mwbg_readTovs, mwbg_readTovsAtms, mwbg_tovCheckAmsua, mwbg_tovCheckAtms, mwbg_qcStatsAmsua, mwbg_qcStatsAtms, mwbg_UPDATFLG, mwbg_updatFlgAtms, mwbg_updatFlgAtmsF90, mwbg_ADDTRRN  
+  public :: mwbg_readStatTovs, mwbg_readStatTovsAtms, mwbg_readTovs, mwbg_readTovsAtms, mwbg_tovCheckAmsua, mwbg_tovCheckAtms, mwbg_qcStatsAmsua, mwbg_qcStatsAtms, mwbg_UPDATFLG, mwbg_updatFlgAtms, mwbg_ADDTRRN  
 
   logical :: mwbg_debug
 
@@ -3085,229 +3085,9 @@ contains
 
     RETURN
   END
-      
-
-  SUBROUTINE mwbg_updatFlgAtms (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
-                      KDATA,PDATA,KCHKPRF,ICHECK, &
-                      RESETQC,IMARQ)
-    !OBJET          Allumer les bits des marqueurs pour les tovs rejetes.
-    !               Modifier le bktyp des donnees, marqueurs et (O-P) pourt
-    !               signifier "vu par AO". 
-    !
-    !APPEL          CALL   mwbg_updatFlgAtms (KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL,
-    !                                KDATA,PDATA,KCHKPRF,ICHECK,
-    !                                RESETQC,IMARQ)
-    !
-    !ARGUMENTS      kbuf1   - in/out -  tableau contenant le rapport
-    !               kliste  - input  -  liste des noms d'elements
-    !               ktblval - input  -  champ de donnees (valeurs entieres)
-    !               kdliste - input  -  liste des noms d'elements (decodes)
-    !               prval   - input  -  champ de donnees (valeurs reelles)
-    !               kdata   - input  -  donnees extraites (valeurs entieres)
-    !               pdata   - input  -  donnees extraites (valeurs reelles)
-    !               kchprf  - input  -  indicateur global controle de qualite tovs. Code:
-    !                                   =0, ok,
-    !                                   >0, rejet,
-    !               icheck  - input  -  indicateur controle de qualite tovs au 
-    !                                   niveau de chaque canal
-    !               resetqc - input  -  reset the quality control flags before adding the new ones ? 
-    !               imarq   - input  -  modified flag values from mwbg_tovCheckAtms
-    IMPLICIT NONE
-
-    INTEGER KBUF1   (:)
-    INTEGER KDLISTE (:)
-    INTEGER KLISTE  (:)
-    INTEGER KTBLVAL (:)
-    INTEGER KDATA   (:)
-    INTEGER KCHKPRF (:)
-    INTEGER ICHECK  (:)
-    INTEGER IMARQ   (:)
-
-    INTEGER IDUM1,IDUM2,IDUM3,IBFAM
-    INTEGER IBDESC,IBTYP,INBIT,IBIT0,IDATYP
-    INTEGER IBKNAT,IBKTYP,IBKSTP 
-    INTEGER MRBPRM, MRBDEL, MRBADD, MRBTYP,MRBXTR
-    INTEGER INELE,INVAL,INT,JI,IPNTR,MRBREP,MRBLOC
-    INTEGER JJ,IBLKNO,ISTAT,IMELERAD
-
-    REAL PRVAL (:)
-    REAL PDATA (:)
-
-    LOGICAL RESETQC
-
-    LOGICAL DEBUG
-    COMMON /DBGCOM/ DEBUG
-
-    ! 1) Bloc info 3d: bloc 5120.
-    !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
-
-    ! extraire le bloc
-    CALL XTRBLK (5120,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
-                INELE,INVAL,INT,IBLKNO)    
-    IF(IBLKNO .LE. 0) THEN
-      write(*,*)'3D INFO BLOCK NOT FOUND'
-      CALL ABORT()
-    ENDIF
-
-    ! extraire les marqueurs globaux de 24bits; element 55200
-    CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
-                 55200,KDATA,PDATA,IPNTR)    
-    IF(IPNTR .EQ. 0) THEN
-      write(*,*)'GLOBAL FLAGS MISSING'
-      CALL ABORT()
-    ENDIF
-    IF (DEBUG) THEN
-      write(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
-    ENDIF
-
-    ! allumer la bit (6) indiquant que l'observation a un element
-    ! rejete par le controle de qualite de l'AO.
-    !  N.B.: si on est en mode resetqc, on remet le marqueur global a
-    !        sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
-    DO JI = 1, INT
-      IF (RESETQC) THEN
-        KDATA(JI) = 1024  
-      ENDIF
-      IF ( KCHKPRF(JI).NE.0  ) THEN
-        KDATA(JI) = OR (KDATA(JI),2**6)
-      ENDIF
-    ENDDO
-    IF (DEBUG) THEN
-      write(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
-    ENDIF
-
-    ! Remplacer les nouveaux marqueurs dans le tableau.
-    CALL REPDATA (KDLISTE,KTBLVAL,INELE,INVAL,INT, &
-                         55200,KDATA,IPNTR)
-
-    ! Remplacer le bloc.
-    ISTAT = MRBREP (KBUF1,IBLKNO,KTBLVAL)
-
-    ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
-    !    Modifier le bktyp pour signifier "vu par AO".
-
-    ! localiser le bloc
-    IBLKNO =  MRBLOC(KBUF1,-1,-1,9218,0)   
-    IF(IBLKNO .LE. 0) THEN
-      IBLKNO =  MRBLOC(KBUF1,-1,-1,9248,0)  
-    ENDIF          
-    IF(IBLKNO .LE. 0) THEN
-      IBLKNO =  MRBLOC(KBUF1,-1,-1,9264,0)  
-    ENDIF        
-    IF(IBLKNO .LE. 0) THEN
-      write(*,*)'RADIANCE DATA BLOCK NOT FOUND'
-      CALL ABORT()
-    ENDIF
-
-    ! extraction du bloc
-
-    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
-    ISTAT = MRBXTR(KBUF1,IBLKNO,KLISTE,KTBLVAL)
-    ISTAT = MRBPRM (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
-    ISTAT = MRBDEL(KBUF1,IBLKNO)
-
-    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
-    IBKTYP = IBKTYP + 4
-    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
-    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
-                   KLISTE,KTBLVAL)
-
-    ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
-    !    Modifier les marqueurs de 13bits associes a chaque radiance.
-    !    Modifier le bktyp pour signifier "vu par AO".
-
-    ! extraire le bloc
-    CALL XTRBLK (15362,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
-                INELE,INVAL,INT,IBLKNO)    
-    IF(IBLKNO .LE. 0) THEN
-      CALL XTRBLK (15392,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
-                   INELE,INVAL,INT,IBLKNO)    
-    ENDIF        
-    IF(IBLKNO .LE. 0) THEN
-      CALL XTRBLK (15408,-1,KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
-                   INELE,INVAL,INT,IBLKNO)    
-    ENDIF    
-    IF(IBLKNO .LE. 0) THEN
-      write(*,*)'RADIANCE DATA FLAG BLOCK NOT FOUND'
-      CALL ABORT()
-    ENDIF
-
-    ! extraire les marqueurs de 13bits des radiances; element 212163 (LEVEL 1B)
-    IMELERAD =  212163 
-    CALL XTRDATA (KDLISTE,KTBLVAL,PRVAL,INELE,INVAL,INT, &
-                 IMELERAD,KDATA,PDATA,IPNTR) 
-    IF(IPNTR .EQ. 0) THEN
-      write(*,*)'RADIANCE DATA FLAGS MISSING'
-      CALL ABORT()
-    ENDIF
-    IF (DEBUG) THEN
-      write(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
-    ENDIF
-
-    ! update data flags
-    DO JI = 1, INVAL*INT
-      KDATA(JI) = IMARQ(JI)
-    ENDDO
-    IF (DEBUG) THEN
-      write(*,*) ' ICHECK = ', (ICHECK(JJ),JJ=1,INVAL*INT)
-      write(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,INVAL*INT)
-    ENDIF
-
-    ! Remplacer les nouveaux marqueurs dans le tableau.
-    CALL REPDATA (KDLISTE,KTBLVAL,INELE,INVAL,INT, &
-                   IMELERAD,KDATA,IPNTR)
-
-    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
-    ISTAT = MRBPRM (KBUF1,IBLKNO,IDUM1,IDUM2,IDUM3,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
-    ISTAT = MRBDEL(KBUF1,IBLKNO)
-
-    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
-    IBKTYP = IBKTYP + 4
-    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
-    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
-                   KLISTE,KTBLVAL)
-
-    ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
-    !    Modifier le bktyp pour signifier "vu par AO".
-
-    ! localiser le bloc
-    IBLKNO =  MRBLOC(KBUF1,-1,-1,9322,0)   
-    IF(IBLKNO .LE. 0) THEN
-      IBLKNO =  MRBLOC(KBUF1,-1,-1,9226,0)  
-    ENDIF          
-    IF(IBLKNO .LE. 0) THEN
-      IBLKNO =  MRBLOC(KBUF1,-1,-1,9258,0)  
-    ENDIF        
-    IF(IBLKNO .LE. 0) THEN
-      IBLKNO =  MRBLOC(KBUF1,-1,-1,9274,0)  
-    ENDIF   
-    IF(IBLKNO .LE. 0) THEN
-      write(*,*)'WARNING: (O-P) RADIANCE BLOCK NOT FOUND'
-      CALL ABORT()
-    ENDIF
-
-    ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
-    ISTAT = MRBXTR(KBUF1,IBLKNO,KLISTE,KTBLVAL)
-    ISTAT = MRBPRM (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP)
-    ISTAT = MRBDEL(KBUF1,IBLKNO)
-
-    ISTAT = MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
-    IBKTYP = IBKTYP + 4
-    IBTYP = MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
-    ISTAT = MRBADD (KBUF1,IBLKNO,INELE,INVAL,INT,IBFAM, &
-                   IBDESC,IBTYP,INBIT,IBIT0,IDATYP, &
-                   KLISTE,KTBLVAL)
-
-    RETURN
-  END
 
 
-  SUBROUTINE mwbg_updatFlgAtmsF90(KCHKPRF, ICHECK, RESETQC, IMARQ, rpt)
+  SUBROUTINE mwbg_updatFlgAtms(KCHKPRF, ICHECK, RESETQC, IMARQ, rpt)
     !OBJET          Allumer les bits des marqueurs pour les tovs rejetes.
     !               Modifier le bktyp des donnees, marqueurs et (O-P) pourt
     !               signifier "vu par AO". 
@@ -3621,7 +3401,7 @@ contains
     Call BURP_Write_Block(rpt,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
     if (error /= burp_noerr)  call abort()
 
-  END subroutine mwbg_updatFlgAtmsF90
+  END subroutine mwbg_updatFlgAtms
 
 
   SUBROUTINE mwbg_readTovsAtms(IUNENT,HANDLE,ISAT,ZMISG,BUF1,TBLVAL, &

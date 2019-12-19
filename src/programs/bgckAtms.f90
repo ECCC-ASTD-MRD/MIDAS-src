@@ -1151,7 +1151,7 @@ program midas_bgckAtms
                               NT, .FALSE.)
 
         ! 7) Mise a jour des marqueurs.
-        CALL mwbg_updatFlgAtmsF90(ICHKPRF, ICHECK, RESETQC, IMARQ, Rpt_out)
+        CALL mwbg_updatFlgAtms(ICHKPRF, ICHECK, RESETQC, IMARQ, Rpt_out)
       ENDIF
 
       alloc_status(:) = 0

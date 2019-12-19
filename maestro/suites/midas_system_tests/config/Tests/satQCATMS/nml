@@ -1,5 +1,0 @@
- & NAMBGCK
-  DEBUG = .FALSE.
-  SP_ADJ_TB = .FALSE.
-  MODLSQTT = .FALSE.
-/
