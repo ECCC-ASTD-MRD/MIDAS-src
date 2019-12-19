@@ -23,6 +23,7 @@ stages:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
+    - tags
 
 .runtests: &runtests_template
    stage: test
@@ -42,6 +43,7 @@ stages:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
+     - tags
 
 .doc_sphinx: &doc_sphinx_template
   stage: doc
@@ -55,6 +57,7 @@ stages:
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - master
+    - tags
 
 .ssm: &ssm_template
   stage: deploy
