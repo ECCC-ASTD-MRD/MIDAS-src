@@ -253,6 +253,54 @@ program midas_bgckAtms
   character(len=*), parameter :: VERSION = '2.12'
 
   ! inovQCAtms program
+  !OBJET          Effectuer le controle de qualite des radiances level 1b 
+  !               ATMS de NPP.
+  !
+  !CLES           IXENT   - FICHIER BURP CONTENANT LES DONNEES
+  !                         TOVS REGROUPES                               (ENTREE)
+  !               IRGEO   - FICHIER STANDARD CONTENANT LES CHAMPS 
+  !                         GEOPHYSIQUES MF/MX                           (ENTREE)
+  !               ISSTAT  - FICHIER SEQUENTIEL CONTENANT LES STATISTIQUES 
+  !                         D'ERREUR TOTALE DES TOVS (NEW 2013 FORMAT)   (ENTREE)
+  !               OXSRT   - FICHIER BURP CONTENANT LES DONNEES
+  !                         TOVS REGROUPES AVEC MARQUEURS QC RAJOUTES    (SORTIE)
+  !               DEBUG   - ACTIONNER LE MODE DEBUG
+  !NOTES
+  !
+  !  Must be run after satqc_atms, satbcor and 3D-Var (O-P mode)
+  !
+  !        5 tests are done:                                                      QC flag bits set
+  !          1) check for data rejected by SATQC_ATMS (QC flag bit 7 ON)          --> bit 9(,7)
+  !          2) topography rejection for low-peaking channels (with MF/MX field), --> bits 9,18
+  !          3) check for uncorrected radiance (QC flag bit 6 OFF),               --> bit 11           
+  !          4) Innovation (O-P) based QC                                         --> bit 9,16
+  !         5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
+  !
+  !       *** Array ITEST(5) in SUBROUTINE mwbg_tovCheckAtms used to select tests. ***
+
+  !  (i)   Basic QC tests plus filtering for surface-sensitive channels, cloud water (CLW), 
+  !         scattering index, Dryness Index are done in first QC program SATQC_ATMS.
+  !         QC flag bit 7 is set for the rejected data. Test 1 of this program checks
+  !         for such data and sets bit 9 ON (for 3D-Var rejection).
+  !
+  ! (ii)   This program sets data QC flag bit 9 ON in all "data reject" cases except
+  !         for test 12 (blacklisting) where bit 8 is set ON.
+  !
+  !  To compile on Linux (pgi9xx) (on arxt10):
+  !
+  ! >  s.compile -src atms_inovqc.f -o atms_inovqc_Linux -librmn rmn_014_rc2 {-debug}
+  !
+  !  To RUN :
+  ! 
+  ! >  atms_inovqc_Linux -IXENT burpin -IRGEO MT_fst -ISSTAT stats_atms_assim -OXSRT burpout { -DEBUG oui }
+  !
+  !       burpin            =  BURP file containing ATMS Tb (Sat_QCd, bias corrected, and O-P) [bits 7 and 6 set]
+  !       MT_fst            =  Standard file containing filtered model topo fields MF or MX (for TOPO check)
+  !                            NOTE: GEM analysis (_000) and 3h trial (_180m) files contain these fields.
+  !       stats_atms_assim  =  ATMS observation error file (new 2013 format)
+  !                            NOTE: ERBGCK used for rogue O-P check, UTIL column for channel selection
+  !       burpout           =  BURP file containing ATMS Tb [with bits 8, 9 and 11 set for 3dvar reject]
+  !
   INTEGER MXELM
   INTEGER MXLAT, MXLON
   PARAMETER ( MXELM  =    30 )
@@ -262,15 +310,12 @@ program midas_bgckAtms
   integer ezsetopt, ezqkdef
   integer gdllsval, gdmg
 
-!  INTEGER FNOM,MRFOPN,MRFCLS,MRFPUT,MRBUPD
-!  INTEGER FCLOS,MRFOPR,FSTOUV
   integer :: FSTOUV
   INTEGER FSTINF,FSTPRM,FSTLIR,FSTFRM
-!  INTEGER MRFOPC,MRFMXL
-  INTEGER NVAL
+  INTEGER NVAL, nvalOut , ntOut
   INTEGER IER,IREC,IREC2,JUNK
   INTEGER JN, JL
-  INTEGER IUNENT, IUNSRT, IUNGEO, IUNSTAT, INUMSAT
+  INTEGER IUNGEO, IUNSTAT, INUMSAT
   INTEGER INO,INOMP,INOMPNA,INOSAT
   INTEGER IDUM,IDUM1,IDUM2,IDUM3,IDUM4,IDUM5,IDUM6,IDUM7
   INTEGER IDUM8,IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -285,16 +330,10 @@ program midas_bgckAtms
   INTEGER KLISTEN   (MXELM)
   INTEGER ELDALT    (MXELM)
   INTEGER IDATA     (MXVAL*MXNT)
-  INTEGER ITERMER   (MXNT)
-  INTEGER ITERRAIN  (MXNT)
   INTEGER ISCNCNT   (MXNT)
-  INTEGER ISCNPOS   (MXNT)
   INTEGER ISAT      (MXNT)
   INTEGER IORBIT    (MXNT)
-  INTEGER IDENTF    (MXNT)
-  INTEGER ICANO     (MXVAL*MXNT)
   INTEGER ICANOMP   (MXVAL*MXNT)
-  INTEGER ICANOMPNA (MXVAL*MXNT)
   INTEGER ICHECK    (MXVAL*MXNT)
   INTEGER ICHKPRF   (MXNT)
   INTEGER IMARQ     (MXVAL*MXNT)
@@ -311,10 +350,7 @@ program midas_bgckAtms
   REAL  DONIALT (MXELM*MXVAL*MXNT)
   REAL  PRVALN  (MXELM*MXVAL*MXNT)
   REAL  ZDATA   (MXVAL*MXNT)
-  REAL  SATZEN  (MXNT)
   REAL  MTINTRP (MXNT)
-  REAL  ZO      (MXVAL*MXNT)
-  REAL  ZCOR    (MXVAL*MXNT)
   REAL  ZOMP    (MXVAL*MXNT)
   REAL  ZOMPNA  (MXVAL*MXNT)
   REAL  ZLATBOX (MXLAT*MXLON,MXNT)
@@ -326,9 +362,7 @@ program midas_bgckAtms
 
   LOGICAL RESETQC, SKIPENR
 
-  DATA IUNENT  / 10 /
-  DATA IUNSRT  / 20 /
-  DATA IUNGEO  / 50 /
+  DATA IUNGEO  / 55 /
   DATA IUNSTAT / 60 /
   DATA DLAT   / 0.4 /
   DATA DLON   / 0.6 /
@@ -337,7 +371,7 @@ program midas_bgckAtms
   namelist /nambgck/ debug, sp_adj_tb, modlsqtt, useUnbiasedObsForClw, RESETQC, ETIKRESU 
 
   brp_in = './obsSatQC.in'
-  brp_out = './obsSatQC.out'
+  brp_out = './obsInovQC.out'
 
   mglg_file  = './fstmglg'
   coef_in = './bcor'
@@ -390,6 +424,52 @@ program midas_bgckAtms
     write(*,*) '  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
   endif
 
+  IER = FNOM(IUNGEO,'./fstgzmx','STD+RND+R/O',0)
+
+  ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
+  IER = FNOM(IUNSTAT,'./stats_atms_assim','SEQ+FMT',0)
+  IF(IER.LT.0)THEN
+    write(*,*) '(" ATMS_INOVQC: Problem opening ", &
+          "ATMS total error statistics file ", stats_atms_assim)'
+    CALL ABORT ()
+  END IF
+  CALL mwbg_readStatTovsAtms(IUNSTAT,INUMSAT,CSATID)
+  write(*,*) " SATID's = "
+  DO I = 1, INUMSAT
+    write(*,*) '  ', CSATID(I)
+  ENDDO
+
+  ! 3) Lecture des champs geophysiques (MF/MX) du modele
+  IER = FSTOUV(IUNGEO,'RND')
+
+  ! TOPOGRAPHIE (MF ou MX).
+  !     MF est la topographie filtree avec unites en metres (filtered ME).
+  !     MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
+  TOPOFACT = 1.0
+  IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MF')
+  CLNOMVAR = 'MF'
+  IF (IREC .LT. 0) THEN
+    TOPOFACT = 9.80616
+    IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MX')
+    CLNOMVAR = 'MX'
+  ENDIF
+  IF (IREC .LT. 0) THEN
+    write(*,*) ' LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE' 
+    CALL ABORT()
+  ELSE
+    ALLOCATE ( MT(NI*NJ), STAT=ier)
+    IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
+         ' ',CLNOMVAR)
+  ENDIF
+      
+  IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
+      IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
+      IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
+      IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
+      IDUM15, IDUM16, IDUM17, IDUM18 )
+  
+  write(*,*) ' GRTYP = ', grtyp 
+
   ! initialisation
   Call BURP_Init(File_in,  F2=File_out,  IOSTAT=error)
   Call BURP_Init(Rpt_in,   R2=Rpt_out,   IOSTAT=error)
@@ -417,7 +497,7 @@ program midas_bgckAtms
   write(*,*)
 
   ! Add nsize to report size to accomodate modified (larger) data blocks
-  nsize = nsize*2
+  nsize = nsize*3
 
   allocate(adresses(nb_rpts), stat=alloc_status(1))
   
@@ -552,6 +632,10 @@ program midas_bgckAtms
 
     if ( id(1:2) .eq. ">>" ) then
       resume_report = .true.
+
+      ! change the header
+      Call BURP_Set_Property(Rpt_in,STNID=ETIKRESU)  
+
       Call BURP_Write_Report(File_out,Rpt_in,IOSTAT=error)
       if (error /= burp_noerr)  call handle_error()
       CYCLE REPORTS
@@ -645,9 +729,9 @@ program midas_bgckAtms
 
 
       !  Get all the required data from the blocks in the report (Rpt_in)
-      call mwbg_getData(reportIndex,Rpt_in,zenith,ilq,itt,zlat,zlon,ztb,biasCorr,scanpos, &
-                        qcflag1,qcflag2,ican)
-
+      call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
+                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
+                        ican, icanomp, IMARQ, IORBIT)
 
       ! Initialize internal land/sea qualifier and terrain type arrays to values
       ! read from file
@@ -685,8 +769,9 @@ program midas_bgckAtms
       ! Preliminary QC checks --> set lqc(nt,nchanAtms)=.true. for data that fail QC
 
       lqc(:,:) = .false.  ! Flag for preliminary QC checks
-      call mwbg_firstQcCheckAtms(zenith,ilq,itt,zlat,zlon,ztb,scanpos,stnid,mwbg_nval,nt,lqc, &
-      &            grossrej,lsq,trn,qcflag1,qcflag2,ican,blat,blon,lutb)
+      call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid, &
+                                 nvalOut, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
+                                 ican, blat, blon, lutb)
 
       if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
 
@@ -815,9 +900,10 @@ program midas_bgckAtms
         !  Sets trn=0 (sea ice) for points where retrieved SeaIce>=0.55.
         !  Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
 
-        call mwbg_nrlFilterAtms(err,nt,tb23,bcor23,tb31,bcor31,tb50,bcor50, &
-                        tb89,bcor89,ztb150,bcor150,zenith,zlat,lsq,trn, &
-                        waterobs,grossrej,rclw,scatec,scatbg,iNumSeaIce,iRej,SeaIce)
+        call mwbg_nrlFilterAtms(err, nt, tb23, bcor23, tb31, bcor31, tb50, bcor50, &
+                                tb89, bcor89, ztb150, bcor150, zenith, zlat, lsq, trn, &
+                                waterobs, grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, &
+                                SeaIce)
         
         ! Flag data using NRL criteria
 
@@ -982,6 +1068,7 @@ program midas_bgckAtms
         where (rclw == -99. ) rclw = zmisg
         where (riwv == -99. ) riwv = zmisg
 
+
         ! Modify the blocks in Rpt_in and write to Rpt_out
         ! - Modify flag values so that the obs identified above as being over land/ice,
         !   or in cloudy/precip regions, etc. are not assimilated (FLAG block 15392/15408).
@@ -989,9 +1076,82 @@ program midas_bgckAtms
         ! - Update Tb data in DATA block 9248/9264 (if Tb was modified).
         ! - Add new elements to INFO block 3072.
         ! - Modify 24bit global flags in 3D block 5120 (if any data rejected).
-        call mwbg_writeBlocks(reportIndex,ztb,lsq,trn,riwv,rclw,ident,lflagchn,lutb, &
-                              Rpt_in,Rpt_out)
+        call mwbg_writeBlocks(reportIndex, ztb, lsq, trn, riwv, rclw, ident, &
+                              lflagchn, IMARQ, lutb, Rpt_in, Rpt_out)
 
+        !** start second quality control (inovQC) **
+        !
+        ! trouver l'indice du satellite
+        INOSAT = 0
+        DO I = 1,MXSAT
+          IF ( STNID .EQ. '^'//CSATID(I) ) THEN
+            INOSAT = I
+          ENDIF
+        ENDDO
+        IF ( INOSAT .EQ. 0 ) THEN
+          write(*,*)'SATELLITE NON-VALIDE', STNID
+          CALL ABORT()
+        ENDIF
+
+        ! 5) Interpolation de le champ MF/MX (topogrpahy) aux pts TOVS.
+        !    N.B.: on examine ce champ sur une boite centree sur chaque obs.
+        NLAT = (MXLAT-1)/2
+        NLON = (MXLON-1)/2
+        DO JN = 1, NT
+          INDX = 0
+          DO I = -NLAT, NLAT
+            XLAT = ZLAT(JN) +I*DLAT
+            XLAT = MAX(-90.0,MIN(90.0,XLAT))
+            DO J = -NLON, NLON
+              INDX = INDX + 1
+              XLON = ZLON(JN) +J*DLON
+              IF ( XLON .LT. -180. ) XLON = XLON + 360.
+              IF ( XLON .GT.  180. ) XLON = XLON - 360.
+              IF ( XLON .lt.    0. ) XLON = XLON + 360.
+              ZLATBOX(INDX,JN) = XLAT
+              ZLONBOX(INDX,JN) = XLON
+            ENDDO
+          ENDDO
+        ENDDO
+
+        ier  = ezsetopt('INTERP_DEGREE','LINEAR')
+        gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
+        ier  = gdllsval (gdmg,mtintbox,mt,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
+
+        DO JN = 1, NT
+          IF (DEBUG) THEN
+            PRINT *, ' ------------------  '
+            PRINT *, ' JN = ', JN
+            PRINT *, '   '
+            PRINT *, ' zlat,zlon = ', zlat(jn), zlon(jn)
+            PRINT *, '   '
+            PRINT *, ' ZLATBOX = '
+            PRINT *,  (ZLATBOX(I,JN),I=1,MXLAT*MXLON)
+            PRINT *, ' ZLONBOX = '
+            PRINT *,  (ZLONBOX(I,JN),I=1,MXLAT*MXLON)
+            PRINT *, ' MTINTBOX = '
+            PRINT *,  (MTINTBOX(I,JN),I=1,MXLAT*MXLON)
+          ENDIF
+          MTINTRP(JN) = 0.0
+          DO I=1,MXLAT*MXLON
+            MTINTRP(JN) = MAX(MTINTRP(JN),MTINTBOX(I,JN)/TOPOFACT)
+          ENDDO
+          IF (DEBUG) THEN
+            PRINT *, ' MTINTRP = ', MTINTRP(JN)
+          ENDIF
+        ENDDO
+
+        ! 6) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
+        CALL mwbg_tovCheckAtms(ISAT, IORBIT, ican, ICANOMP, ztb, biasCorr, &
+                               ZOMP, ICHECK, nvalOut, nvalOut, NT, ZMISG, INOSAT, ident, &
+                               ICHKPRF, scanpos, MTINTRP, IMARQ, STNID, RESETQC)
+
+        ! Accumuler Les statistiques sur les rejets
+        CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, INO, &
+                              NT, .FALSE.)
+
+        ! 7) Mise a jour des marqueurs.
+        CALL mwbg_updatFlgAtmsF90(ICHKPRF, ICHECK, RESETQC, IMARQ, Rpt_out)
       ENDIF
 
       alloc_status(:) = 0
@@ -1096,207 +1256,18 @@ program midas_bgckAtms
   write(*,*) '   New Element 25174 in BURP file = IDENT flag'
   write(*,*) ' '
 
+  ! 9) Fin
+  ! Imprimer les statistiques sur les rejets
+  CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, INO, &
+                        NT, .TRUE.)
 
   Deallocate(adresses)
 
-  Call BURP_Free(File_in,F2=File_out,IOSTAT=error)
-  Call BURP_Free(Rpt_in,R2=Rpt_out,IOSTAT=error)
-
-  ! inovQCAtms program
-
-  ! 1) Debut
-  IER = FNOM(IUNGEO,'./fstgzmx','STD+RND+R/O',0)
-
-  ! ouverture du fichier entree burp en mode lecture
-  IER = FNOM(IUNENT,'obsInovQC.in','RND',0)
-  IF(IER .NE. 0) THEN
-     PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
-     STOP
-  ENDIF
-  NOMBRE =	MRFOPN(IUNENT,'READ')
-  ISTAT =	MRFOPC('MSGLVL','ERROR')
-
-  ! ouverture du fichier sortie burp 
-  IER = FNOM(IUNSRT,'obsInovQC.out','RND',0)
-  IF(IER .NE. 0) THEN
-     PRINT *,' ERREUR D ASSOCIATION DE FICHIER'
-     STOP
-  ENDIF
-  NOMBRE =	MRFOPN(IUNSRT,'CREATE')
-
-  ! Lecture du fichier burp entree
-  ILNMX = MRFMXL(IUNENT)
-  IF (DEBUG) THEN
-     write(*,*)'MRFMXL: ILNMX =',ILNMX
-  ENDIF
-  ALLOCATE ( buf1(ILNMX*2), STAT=ier)
-  BUF1(1) = ILNMX*2
-
-  ! Valeur manquante burp
-  ISTAT = MRFOPR('MISSING',ZMISG)
-  IF (DEBUG) THEN
-    write(*,*)' MISSING VALUE =', ZMISG
-  ENDIF
-
-  ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
-  IER = FNOM(IUNSTAT,'./stats_atms_assim','SEQ+FMT',0)
-  IF(IER.LT.0)THEN
-    write(*,*) '(" ATMS_INOVQC: Problem opening ", &
-          "ATMS total error statistics file ", stats_atms_assim)'
-    CALL ABORT ()
-  END IF
-  CALL mwbg_readStatTovsAtms(IUNSTAT,INUMSAT,CSATID)
-  write(*,*) " SATID's = "
-  DO I = 1, INUMSAT
-    write(*,*) '  ', CSATID(I)
-  ENDDO
-
-  ! 3) Lecture des champs geophysiques (MF/MX) du modele
-  IER = FSTOUV(IUNGEO,'RND')
-
-  ! TOPOGRAPHIE (MF ou MX).
-  !     MF est la topographie filtree avec unites en metres (filtered ME).
-  !     MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
-  TOPOFACT = 1.0
-  IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MF')
-  CLNOMVAR = 'MF'
-  IF (IREC .LT. 0) THEN
-    TOPOFACT = 9.80616
-    IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MX')
-    CLNOMVAR = 'MX'
-  ENDIF
-  IF (IREC .LT. 0) THEN
-    write(*,*) ' LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE' 
-    CALL ABORT()
-  ELSE
-    ALLOCATE ( MT(NI*NJ), STAT=ier)
-    IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
-         ' ',CLNOMVAR)
-  ENDIF
-      
-  IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
-      IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
-      IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
-      IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
-      IDUM15, IDUM16, IDUM17, IDUM18 )
-  
-  write(*,*) ' GRTYP = ', grtyp 
-
-  ! 4) Lire les donnees TOVS
-  HANDLE = 0
-1000 CALL mwbg_readTovsAtms(IUNENT,HANDLE,ISAT,ZMISG,BUF1,TBLVAL, &
-           LSTELE,ELDALT,IDATA,ICANO,ICANOMP,ICANOMPNA,INO, &
-           INOMP,INOMPNA,DONIALT,ZDATA,ZO,ZCOR,ZOMP,STNID, &
-           ZOMPNA,IMARQ,MXELM,MXVAL,MXNT,NELE,NVAL,NT, &
-           ISCNCNT,ISCNPOS,MXSCAN,ZLAT,ZLON,ITERMER, &
-           IORBIT,SATZEN,ITERRAIN,SKIPENR,IDENTF)
-
-  ! All data read?
-  IF ( HANDLE .LE. 0 ) GO TO 2500
-
-  ! Enregistrement resume?
-  IF ( STNID(1:2) .EQ. '>>' ) THEN   
-    IER=MRBUPD(IUNSRT,BUF1,-1,-1,ETIKRESU,-1,-1,-1,-1,-1, &
-            -1,-1,-1,-1,-1,-1,0,-1,0)                                            
-    ISTAT = MRFPUT(IUNSRT,0,BUF1)
-  ENDIF  
-
-  ! Sauter l'enregistrement?
-  IF ( SKIPENR ) GO TO 1000
-     
-  ! trouver l'indice du satellite
-  INOSAT = 0
-  DO I = 1,MXSAT
-    IF ( STNID .EQ. '^'//CSATID(I) ) THEN
-      INOSAT = I
-    ENDIF
-  ENDDO
-  IF ( INOSAT .EQ. 0 ) THEN
-    write(*,*)'SATELLITE NON-VALIDE', STNID
-    CALL ABORT()
-  ENDIF
-
-  ! 5) Interpolation de le champ MF/MX (topogrpahy) aux pts TOVS.
-  !    N.B.: on examine ce champ sur une boite centree sur chaque obs.
-  NLAT = (MXLAT-1)/2
-  NLON = (MXLON-1)/2
-  DO JN = 1, NT
-    INDX = 0
-    DO I = -NLAT, NLAT
-      XLAT = ZLAT(JN) +I*DLAT
-      XLAT = MAX(-90.0,MIN(90.0,XLAT))
-      DO J = -NLON, NLON
-        INDX = INDX + 1
-        XLON = ZLON(JN) +J*DLON
-        IF ( XLON .LT. -180. ) XLON = XLON + 360.
-        IF ( XLON .GT.  180. ) XLON = XLON - 360.
-        IF ( XLON .lt.    0. ) XLON = XLON + 360.
-        ZLATBOX(INDX,JN) = XLAT
-        ZLONBOX(INDX,JN) = XLON
-      ENDDO
-    ENDDO
-  ENDDO
-
-  ier  = ezsetopt('INTERP_DEGREE','LINEAR')
-  gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-  ier  = gdllsval (gdmg,mtintbox,mt,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
-
-  DO JN = 1, NT
-    IF (DEBUG) THEN
-      PRINT *, ' ------------------  '
-      PRINT *, ' JN = ', JN
-      PRINT *, '   '
-      PRINT *, ' zlat,zlon = ', zlat(jn), zlon(jn)
-      PRINT *, '   '
-      PRINT *, ' ZLATBOX = '
-      PRINT *,  (ZLATBOX(I,JN),I=1,MXLAT*MXLON)
-      PRINT *, ' ZLONBOX = '
-      PRINT *,  (ZLONBOX(I,JN),I=1,MXLAT*MXLON)
-      PRINT *, ' MTINTBOX = '
-      PRINT *,  (MTINTBOX(I,JN),I=1,MXLAT*MXLON)
-    ENDIF
-    MTINTRP(JN) = 0.0
-    DO I=1,MXLAT*MXLON
-      MTINTRP(JN) = MAX(MTINTRP(JN),MTINTBOX(I,JN)/TOPOFACT)
-    ENDDO
-    IF (DEBUG) THEN
-      PRINT *, ' MTINTRP = ', MTINTRP(JN)
-    ENDIF
-  ENDDO
-
-  ! 6) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
-  CALL mwbg_tovCheckAtms(ISAT,IORBIT,ICANO,ICANOMP,ZO,ZCOR, &
-               ZOMP,ICHECK,INO,INOMP,NT,ZMISG,INOSAT,IDENTF, &
-               ICHKPRF,ISCNPOS,MTINTRP,IMARQ,STNID,RESETQC)
-
-  ! Accumuler Les statistiques sur les rejets
-  CALL mwbg_qcStatsAtms (INUMSAT,ICHECK,ICANO, &
-                INOSAT,CSATID,INO, NT, .FALSE.)
-
-  ! 7) Mise a jour des marqueurs.
-  CALL mwbg_updatFlgAtms (BUF1,LSTELE,TBLVAL,ELDALT,DONIALT, &
-                 IDATA,ZDATA,ICHKPRF,ICHECK, & 
-                 RESETQC,IMARQ)
-
-  ! Ecriture de l'enregistrement sur le fichier burp de sortie
-  ISTAT = MRFPUT(IUNSRT,0,BUF1) 
-
-  GO TO 1000  
-     
-  ! All data read!
-
-2500  continue
-
-  ! 9) Fin
-  ! Imprimer les statistiques sur les rejets
-  CALL mwbg_qcStatsAtms (INUMSAT,ICHECK,ICANO, &
-               INOSAT,CSATID,INO, NT, .TRUE.)
+  istat=exfin('midas_bgckAtms',VERSION,'NON')
 
   ! fermeture des fichiers 
-9999  CONTINUE
-  istat=exfin('midas_bgckAtms',VERSION,'NON')
-  ISTAT = MRFCLS(IUNENT)
-  ISTAT = MRFCLS(IUNSRT)
+  Call BURP_Free(File_in,F2=File_out,IOSTAT=error)
+  Call BURP_Free(Rpt_in,R2=Rpt_out,IOSTAT=error)
   ISTAT = FSTFRM(IUNGEO)
   ISTAT = FCLOS (IUNGEO)
   ISTAT = FCLOS (IUNSTAT)
