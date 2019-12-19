@@ -1066,7 +1066,7 @@ contains
   end subroutine sqlr_thinSqlite
 
 
-  subroutine sqlr_writeAllSqlDiagFiles( obsdat )
+  subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !  
@@ -1074,7 +1074,8 @@ contains
 
     ! arguments
     type(struct_obs)       :: obsdat ! obsSpaceData object
-
+    character(len=*)       :: sfFileName ! fileName acronym used for surface obs file
+    
     ! locals
     character(len=*), parameter :: myName    = 'sqlr_writeAllSqlDiagFiles'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -1125,6 +1126,10 @@ contains
         if ( diagFiles( familyIndex ) % obsFamily /= 'TO' ) then
           call up2low( diagFiles( familyIndex ) % obsFamily, fileName )
           if ( fileName == 'ra' ) fileName = 'radar'
+          if ( fileName == 'sf' ) then
+            ! use either 'sf' or 'sfc' for filename with surface obs
+            fileName = sfFileName
+          end if
         else
           if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
             fileName  = 'csr' 

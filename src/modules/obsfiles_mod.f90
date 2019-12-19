@@ -175,7 +175,7 @@ contains
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
-  character(len=10) :: obsFileType
+  character(len=10) :: obsFileType, sfFileName
   logical           :: lwritediagsql
   character(len=*), parameter :: myName = 'obsf_writeFiles'
   character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
@@ -225,7 +225,12 @@ contains
 
   end if
 
-  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData )
+  if ( index(obsf_get_filename('SF'), 'sfc') > 0 ) then
+    sfFileName = 'sfc'
+  else
+    sfFileName = 'sf'
+  end if
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then
