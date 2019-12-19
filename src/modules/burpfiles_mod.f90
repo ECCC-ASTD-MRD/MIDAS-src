@@ -42,7 +42,7 @@ module burpFiles_mod
 
   ! public procedures
   public :: brpf_getDateStamp, brpf_readfile, brpf_updatefile
-  public :: brpf_obsSub_read, brpf_obsSub_update
+  public :: brpf_obsSub_read, brpf_obsSub_update, brpf_addCloudParametersandEmissivity
 
 contains
 
@@ -803,5 +803,16 @@ contains
     Call BURP_Free(blk,iostat=error)
     
   end function brpf_obsSub_update
+
+
+  subroutine brpf_addCloudParametersandEmissivity(obsdat, fileIndex, filename  )
+
+    type (struct_obs),intent(inout) :: obsdat
+    character(len=*) ,intent(in)    :: fileName
+    integer, intent(in) :: fileIndex
+
+    call brpr_addCloudParametersandEmissivity(obsdat, fileIndex, trim(filename)  )
+
+  end subroutine brpf_addCloudParametersandEmissivity
 
 end module burpFiles_mod
