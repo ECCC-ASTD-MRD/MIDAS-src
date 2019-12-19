@@ -44,7 +44,6 @@ module innovation_mod
   use tovs_nl_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
-  use chem_setup_mod
   use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod
@@ -137,12 +136,7 @@ contains
     ! Initialize TOVS processing
     !
     if (obs_famExist(obsSpaceData,'TO')) call tvs_setup
-    !
-    ! Read the NAMELIST NAMCHEM and set up additional constituent
-    ! obs related info not found in obsSpaceData.
-    !
-    if (obs_famExist(obsSpaceData,'CH')) call chm_setup
-
+    
     !
     ! Filter out data from CMA
     !
@@ -336,13 +330,24 @@ contains
       if ( .not. col_varExist(columng,vnl_varNameList3D(jvar)) ) cycle
       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar), useColumnPressure_opt=.false. )
 
-      ! Imposing a minimum value for HU
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
+        ! Imposing a minimum value for HU
         do columnIndex = 1, col_getNumCol(columng)
           columng_ptr => col_getColumn(columng,columnIndex,'HU')
           do jlev=1,col_getNumLev(columng,'TH')
             columng_ptr(jlev) = max(columng_ptr(jlev),col_rhumin)
           enddo
+        end do
+      else if (trim(vnl_varKindFromVarname(vnl_varNameList3D(jvar))) == 'CH') then
+        ! Imposing boundary values for CH kind variables. This is to prevent
+        ! undesired values usually from vertical extrapolation.
+        do columnIndex = 1, col_getNumCol(columng)
+          columng_ptr => col_getColumn(columng,columnIndex,trim(vnl_varNameList3D(jvar)))
+          if ( col_minValVarKindCH(vnl_varListIndex(vnl_varNameList3D(jvar))) > 1.01*MPC_missingValue_R8 ) then
+            do jlev=1,col_getNumLev(columng,'TH')
+              columng_ptr(jlev) = max(columng_ptr(jlev),col_minValVarKindCH(vnl_varListIndex(vnl_varNameList3D(jvar))))
+            enddo
+          end if
         end do
       end if
     end do

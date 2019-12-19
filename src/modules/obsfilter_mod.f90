@@ -1441,7 +1441,7 @@ end subroutine filt_topoAISW
     integer :: ivnm, countAssim, jl, icount,unit,ier
     real(8) :: zlev,zPtop,zP0
     real(8) :: zStnAlt,zModAlt,zpb,zpt
-    logical :: list_is_empty,warn_suspicious
+    logical :: list_is_empty
 
     integer, parameter :: Nmax=100
     integer :: Num_stnid_chm,nobslev,Num_chm
@@ -1498,8 +1498,6 @@ end subroutine filt_topoAISW
       call utl_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
 
-      warn_suspicious = .false.
-
       ! Loop over all body indices (still in the 'CH' family)
       icount=0
       BODY: do
@@ -1515,10 +1513,8 @@ end subroutine filt_topoAISW
         icount=icount+1
 
         ! Check for bit 4 of OBS_FLG, indicating a 'Suspicious element'
-        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) then
+        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) &
            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-           warn_suspicious = .true.
-        end if
 
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) then
 
@@ -1568,17 +1564,6 @@ end subroutine filt_topoAISW
         end if
 
       end do BODY
-
-!!$      if (warn_suspicious) then
-!!$         call utl_open_asciifile(chm_setup_get_str('message'),unit)
-!!$         write(unit,'(A)') "filt_topoChemistry: Number of levels mismatch between mantissa and exponent for observation"
-!!$         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
-!!$              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
-!!$         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
-!!$              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-!!$         write(unit,*)
-!!$         ier = fclos(unit)
-!!$      end if
 
     end do HEADER
 

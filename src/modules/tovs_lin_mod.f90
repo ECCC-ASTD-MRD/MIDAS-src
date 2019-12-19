@@ -175,6 +175,7 @@ contains
     real(8), allocatable :: ozoneInterpolated_tl(:,:)
     real(8), allocatable :: ozoneExtrapolated(:,:)
     real(8), allocatable :: ozoneExtrapolated_tl(:,:)
+    character(len=4) :: ozoneVarName
     
     real(8) :: topPressure
     real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
@@ -203,7 +204,13 @@ contains
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
     if (.not. tvs_useO3Climatology .and. ( .not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3') ) ) then
-      call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE.')
+      call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+    else if (.not.tvs_useO3Climatology) then 
+      if (col_varExist(columng,'TO3')) then
+        ozoneVarName = 'TO3'
+      else
+        ozoneVarName = 'TO3L'
+      end if 
     end if
 
     !  1.  Set index for model's lowest level and model top
@@ -375,8 +382,8 @@ contains
         end do
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-            delO3 => col_getColumn(column,headerIndex,'TO3')
-            O3b => col_getColumn(columng,headerIndex,'TO3')
+            delO3 => col_getColumn(column,headerIndex,trim(ozoneVarName))
+            O3b => col_getColumn(columng,headerIndex,trim(ozoneVarName))
 
             ozone_tl(1:nlv_T,profileCount) =  delO3(1:nlv_T) * 1.0d-9 ! Assuimes model ozone in ug/kg
             ozone(1:nlv_T,profileCount) =  O3b(1:nlv_T) * 1.0d-9
@@ -519,7 +526,7 @@ contains
             profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           else
             profilesdata_tl(profileIndex) % o3(1:nRttovLevels) = ozoneExtrapolated_tl(1:nRttovLevels,profileIndex)
-            profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),'TO3') * 1.0d-9 ! Assumes model ozone in ug/kg
+            profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
         
@@ -724,6 +731,7 @@ contains
     real(8), allocatable :: ozoneInterpolated_ad(:,:)
     real(8), allocatable :: ozoneExtrapolated_ad(:,:)
     real(8), allocatable :: ozoneExtrapolated(:,:)
+    character(len=4) :: ozoneVarName
 
     real(8) :: topPressure
    
@@ -754,7 +762,13 @@ contains
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
     if (.not. tvs_useO3Climatology .and. (.not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3')) ) then
-      call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable TO3 must be included as an analysis variable in NAMSTATE.')
+      call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+    else if (.not.tvs_useO3Climatology) then 
+      if (col_varExist(columng,'TO3')) then
+        ozoneVarName = 'TO3'
+      else
+        ozoneVarName = 'TO3L'
+      end if 
     end if
 
     !     1.    Set index for model's lowest level and model top
@@ -880,7 +894,7 @@ contains
         
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-            O3b => col_getColumn(columng,headerIndex,'TO3')
+            O3b => col_getColumn(columng,headerIndex,trim(ozoneVarName))
             ! Model-based values are converted to the units required by RTTOV (kg/kg)
             ozone(1:nlv_T,profileCount) = O3b(1:nlv_T) * 1.0d-9 ! Assumes model (trial) ozone in ug/kg
           end if
@@ -1011,8 +1025,8 @@ contains
 
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-            ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...'TO3')  
-            o3_column => col_getColumn(column,headerIndex,'TO3')
+            ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
+            o3_column => col_getColumn(column,headerIndex,trim(ozoneVarName))
             o3_column(ilowlvl_T) =  profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
             
             ozoneExtrapolated_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
@@ -1182,7 +1196,7 @@ contains
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           do  profileIndex = 1 , profileCount 
-            o3_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'TO3')
+            o3_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
             do levelIndex = 1, col_getNumLev(column,'TH')
               o3_column(levelIndex) = o3_column(levelIndex) +  ozone_ad(levelIndex,profileIndex) * 1.0d-9
             end do

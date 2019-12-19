@@ -38,11 +38,12 @@ module computeHBHT_mod
   use gps_mod
   use codtyp_mod
   use bmatrixchem_mod
-  use chem_obsoperators_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use bMatrixEnsemble_mod
   use varNameList_mod
+  use obsOperatorsChem_mod
+
   implicit none
   private
 
@@ -676,7 +677,7 @@ module computeHBHT_mod
      return
   end if
           
-  call chm_observation_operators(lcolumng,lobsSpaceData,kmode=1) ! kmode=1 for background check to compute HBH^T
+  call oopc_CHobsoperators(lcolumng,lobsSpaceData,kmode=1) ! kmode=1 for background check to compute HBH^T
   
   write(*,*)
   write(*,*) 'Computing H*B*H^T using B_static_chm - End'

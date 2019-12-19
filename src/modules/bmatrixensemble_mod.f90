@@ -152,6 +152,7 @@ module BmatrixEnsemble_mod
     real(8)             :: footprintTopoThreshold
     logical             :: useCmatrixOnly
     integer             :: ensDateOfValidity
+    character(len=20)   :: transformVarKindCH
   end type struct_bEns
 
   integer :: nInstance = 0 ! The number of Bens instances
@@ -170,7 +171,9 @@ module BmatrixEnsemble_mod
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
   integer, external    :: get_max_rss, omp_get_thread_num
-  
+
+  character(len=20)   :: transformVarKindCH                                   
+
 CONTAINS
 
   !--------------------------------------------------------------------------
@@ -233,7 +236,7 @@ CONTAINS
          ctrlVarHumidity, advectFactorFSOFcst, advectFactorAssimWindow, removeSubEnsMeans,    &
          keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar,&
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,    &
-         useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity
+         useCmatrixOnly, waveBandIndexSelected, ensDateOfValidity,transformVarKindCH
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -290,6 +293,7 @@ CONTAINS
       footprintTopoThreshold =  200.0d0 ! 200 m
       useCmatrixOnly        = .false.
       ensDateOfValidity     = MPC_missingValue_INT ! i.e. undefined
+      transformVarKindCH = ''
       
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
@@ -354,6 +358,7 @@ CONTAINS
       bEns(nInstance)%footprintTopoThreshold     = footprintTopoThreshold
       bEns(nInstance)%useCmatrixOnly             = useCmatrixOnly
       bEns(nInstance)%ensDateOfValidity          = ensDateOfValidity
+      bEns(nInstance)%transformVarKindCH         = transformVarKindCH
 
       bEns(nInstance)%hco_anl => hco_anl_in
       bEns(nInstance)%vco_anl => vco_anl_in
@@ -1134,9 +1139,10 @@ CONTAINS
 
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: multFactor
-    integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex
+    integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex,varIndex
     logical :: makeBiPeriodic
-    character(len=4) :: varName
+    character(len=4)  :: varName
+    character(len=30) :: transform
 
     write(*,*) 'setupEnsemble: Start'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1160,6 +1166,14 @@ CONTAINS
     if ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1),'HU') .and. &
          bEns(instanceIndex)%ensContainsFullField ) then
       call gvt_transform(bEns(instanceIndex)%ensPerts(1),'HUtoLQ')
+    else if ( trim(bEns(instanceIndex)%transformVarKindCH) /= '' ) then
+      do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
+        if ( vnl_varKindFromVarname(bEns(instanceIndex)%includeAnlVar(varIndex)) /= 'CH' ) cycle            
+
+        transform = trim(bens(instanceIndex)%transformVarKindCH)//'CH'
+        call gvt_transform( bEns(instanceIndex)%ensPerts(1), trim(transform), &          
+                            varName_opt=bEns(instanceIndex)%includeAnlVar(varIndex) ) 
+      end do
     end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS

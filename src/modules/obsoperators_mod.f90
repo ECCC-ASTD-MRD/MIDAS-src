@@ -34,11 +34,12 @@ module obsOperators_mod
   use tovs_nl_mod
   use utilities_mod
   use tovs_lin_mod
-  use chem_obsoperators_mod
   use verticalCoord_mod
   use varNameList_mod
   use costfunction_mod
-  implicit none
+  use obsOperatorsChem_mod
+  
+ implicit none
   save
   private
 
@@ -1748,7 +1749,7 @@ contains
       call utl_abort('oop_chm_nl: the ability to store results in an obs column other than OBS_OMP is not yet implemented.')
     end if
 
-    call chm_observation_operators(columnhr,obsSpaceData,kmode=0,jobs_opt=jobs) ! kmode=0 for general operator
+    call oopc_CHobsoperators(columnhr,obsSpaceData,kmode=0,jobs_opt=jobs) ! kmode=0 for general operator
 
   end subroutine oop_chm_nl
 
@@ -2544,7 +2545,7 @@ contains
 
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
-      call chm_observation_operators(columng,obsSpaceData,kmode=2,columnInc_opt=column) ! kmode=2 for tangent linear operator
+      call oopc_CHobsoperators(columng,obsSpaceData,kmode=2,columnInc_opt=column) ! kmode=2 for tangent linear operator
 
     end subroutine oop_Hchm
 
@@ -3333,7 +3334,7 @@ contains
       
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
-      call chm_observation_operators(columng,obsSpaceData,kmode=3,columnInc_opt=column) ! kmode=3 for adjoint of the tangent linear operator
+      call oopc_CHobsoperators(columng,obsSpaceData,kmode=3,columnInc_opt=column) ! kmode=3 for adjoint of the tangent linear operator
 
     end subroutine oop_HTchm
 
@@ -3355,7 +3356,7 @@ contains
 
     real(8) :: husat, td
 
-    ! get the saturated vapor pressure from lq (log of specific humidity)
+    ! get the saturated vapor pressure from specific humidity
     husat = foefq8(hu,pressure)
 
     ! now the dewpoint temperature
@@ -3816,6 +3817,5 @@ contains
     return
 
   end subroutine oop_calcGPSGBJacobian
-
 
 end module obsOperators_mod

@@ -37,6 +37,7 @@ module gridStateVector_mod
 
   ! public structure definition
   public :: gsv_rhumin, struct_gsv
+  public :: gsv_minValVarKindCH
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
@@ -107,10 +108,14 @@ module gridStateVector_mod
   integer, external :: get_max_rss
   real(8) :: rhumin, gsv_rhumin
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
-
-  ! Logical to turn on unit conversion for variables of CH kind when unitConversion=.true.
-  logical :: unitConversion_varKindCH
   
+  ! Min values imposed for input trial and output analysis (and related increment)
+  ! for variables of CH kind of the AnlVar list.
+  real(8) :: minValVarKindCH(vnl_numVarMax), gsv_minValVarKindCH(vnl_numVarMax)
+  ! Logical to turn on unit conversion for variables of CH kind of the AnlVar list
+  ! when unitConversion=.true.
+  logical :: conversionVarKindCHtoMicrograms
+     
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:)
   real(8), allocatable :: gd_send_varsLevs_r8(:,:,:,:), gd_recv_varsLevs_r8(:,:,:,:)
@@ -359,9 +364,10 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_setup
     implicit none
-    integer :: varIndex, fnom, fclos, nulnam, ierr
+    integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
     CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
-    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,unitConversion_varKindCH
+    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
+                       minValVarKindCH
 
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -373,8 +379,9 @@ module gridStateVector_mod
     ANLTIME_BIN = 'MIDDLE'
     rhumin = MPC_MINIMUM_HU_R8
     addHeightSfcOffset = .false.
-    unitConversion_varKindCH = .false.
-
+    conversionVarKindCHtoMicrograms = .false.
+    minValVarKindCH(:) = MPC_missingValue_R8
+    
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
@@ -403,6 +410,36 @@ module gridStateVector_mod
       end if
     end do
 
+    ! Setup to assign min values to apply
+    
+    ! Check for input values only for variables of CH kind
+    do varIndex = 1, vnl_numvarmax
+      if ( trim(AnlVar(varIndex)) == '' ) exit
+      if ( vnl_varKindFromVarname(AnlVar(varIndex)) == 'CH' ) then
+        if ( minValVarKindCH(varIndex) < 1.01*MPC_missingValue_R8 ) then
+          if ( trim(AnlVar(varIndex)) == 'AF' .or. trim(AnlVar(varIndex)) == 'AC' ) then
+            ! Set for particulate matter in micrograms/cm^3
+            minValVarKindCH(varIndex) = MPC_MINIMUM_PM_R8
+          else
+            ! Set for concentrations in micrograms/kg
+            minValVarKindCH(varIndex) = MPC_MINIMUM_CH_R8
+          end if
+        end if
+      end if
+    end do
+
+    ! Assign min values to apply
+    gsv_minValVarKindCH(:) = MPC_missingValue_R8
+    do varIndex = 1, vnl_numvarmax
+      if ( varExistList(varIndex) ) then
+        do loopIndex = 1, vnl_numvarmax
+          if ( trim(AnlVar(loopIndex)) == '' ) exit
+          if ( trim(vnl_varNameList(varIndex)) == trim(AnlVar(loopIndex)) ) &
+             gsv_minValVarKindCH(varIndex) = minValVarKindCH(loopIndex)
+        end do
+      end if 
+    end do
+    
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: global varExistList =',varExistList
 
     ! Check value for ANLTIME_BIN
@@ -424,7 +461,7 @@ module gridStateVector_mod
         do varIndex=1,VNL_NUMVARMAX
           if (trim(varName) == trim(anlvar(varIndex))) then
             varneed=.true.
-          end if
+         end if
         end do
 
       end function varneed
@@ -3276,9 +3313,16 @@ module gridStateVector_mod
           multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
         else if ( trim(varName) == 'P0' ) then
           multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
-        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. unitConversion_varKindCH ) then 
-          if ( trim(varName) == 'TO3' ) then
-            multFactor = 1.0d9*48.0d0/MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
+          if ( conversionVarKindCHtoMicrograms ) then
+            if ( trim(varName) == 'TO3' .or. trim(varName) == 'TO3L' ) then
+              ! Convert from volume mixing ratio to micrograms/kg
+              ! Standard ozone input would not require this conversion as it is already in micrograms/kg
+              multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
+                           /MPC_MOLAR_MASS_DRY_AIR_R8 ! vmr -> micrograms/kg
+            else
+              multFactor = 1.0d0 ! no conversion
+            end if
           else
             multFactor = 1.0d0 ! no conversion
           end if
@@ -3296,6 +3340,12 @@ module gridStateVector_mod
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
+        end if
+        
+        if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
+          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*MPC_missingValue_R8 ) &
+            field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
+              real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
         end if
 
         if ( trim(varName) == 'PR' .and. containsFullField ) then
@@ -4990,7 +5040,7 @@ module gridStateVector_mod
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
-                  work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                             statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
                     gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
                                1:statevector%allLatPerPE(youridy+1), yourid+1)
@@ -5023,20 +5073,33 @@ module gridStateVector_mod
                if ( HUcontainsLQ_opt ) nomvar = 'LQ'
             end if
 
+            if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField ) then 
+              ! Impose lower limits
+              if ( gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01*MPC_missingValue_R8 ) &
+                work2d_r4(:,:) = max( work2d_r4(:,:), real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))) )
+            end if
+ 
             ! Set the conversion factor
             if ( unitConversion ) then
+
               if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
               else if ( trim(nomvar) == 'P0' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
-              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. unitConversion_varKindCH ) then 
-                if ( trim(nomvar) == 'TO3' ) then
-                  factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4/48.0 ! micrograms/kg -> vmr
+              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
+                if ( conversionVarKindCHtoMicrograms ) then
+                  ! Apply inverse transform of unit conversion
+                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'TO3L' ) then
+                    factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4 &
+                              /vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+                  else
+                    factor_r4 = 1.0d0 ! no conversion
+                  end if
                 else
-                  factor_r4 = 1.0 ! no conversion
+                  factor_r4 = 1.0d0 ! no conversion
                 end if
               else
-                factor_r4 = 1.0
+                factor_r4 = 1.0d0 ! no conversion
               end if
             else
               factor_r4 = 1.0

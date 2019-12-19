@@ -61,6 +61,16 @@ MODULE MathPhysConstants_mod
 ! *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***
    real(8)            ::MPC_MOLAR_MASS_DRY_AIR_R8         =  2.896440000000000D+01 ! g/mol - dry-air molar mass
    real(8)            ::MPC_MOLAR_MASS_VAPOUR_R8          =  1.801530000000000D+01 ! g/mol - water-vapour molar mass
+   real(8)            ::MPC_MOLAR_MASS_O3_R8              =  4.799820000000000D+01 ! g/mol - ozone molar mass
+   real(8)            ::MPC_MOLAR_MASS_CH4_R8             =  1.604246000000000D+01 ! g/mol - methane molar mass
+   real(8)            ::MPC_MOLAR_MASS_CO2_R8             =  4.400950000000000D+01 ! g/mol - CO2 molar mass
+   real(8)            ::MPC_MOLAR_MASS_CO_R8              =  2.801010000000000D+01 ! g/mol - CO molar mass
+   real(8)            ::MPC_MOLAR_MASS_NO2_R8             =  4.600550000000000D+01 ! g/mol - NO2 molar mass
+   real(8)            ::MPC_MOLAR_MASS_NO_R8              =  3.000610000000000D+01 ! g/mol - NO molar mass
+   real(8)            ::MPC_MOLAR_MASS_N2O_R8             =  4.401280000000000D+01 ! g/mol - N2O molar mass
+   real(8)            ::MPC_MOLAR_MASS_HCHO_R8            =  3.002598000000000D+01 ! g/mol - Formaldehyde molar mass
+   real(8)            ::MPC_MOLAR_MASS_SO2_R8             =  6.406380000000000D+01 ! g/mol - SO2 molar mass
+   real(8)            ::MPC_MOLAR_MASS_NH3_R8             =  1.703052000000000D+01 ! g/mol - NH3 molar mass
 !
 ! *** THERMODYNAMIC CONSTANTS (SPECIFIC HEATS) ***
    real(8)            ::MPC_CV_DRY_AIR_R8                 =  7.184100000000001D+02 ! J kg-1 K-1 - sp. heat(V) of dry air
@@ -101,6 +111,8 @@ MODULE MathPhysConstants_mod
    real(8)            ::MPC_MINIMUM_VIS_R8                =  1.000000000000000D+00 !
    real(8)            ::MPC_MAXIMUM_VIS_R8                =  1.500000000000000D+04 ! 15km
    real(8)            ::MPC_MINIMUM_PR_R8                 =  1.000000000000000D-04 ! 0.1 mm/h = 0.0001 m/h
+   real(8)            ::MPC_MINIMUM_CH_R8                 =  1.000000000000000D-01 ! 0.1 micrograms/kg (for constituents)
+   real(8)            ::MPC_MINIMUM_PM_R8                 =  0.000000000000000D+00 ! 0 micrograms/m^3 (for particulate matter)
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
    real(4), parameter ::MPC_PI_R4                         =  3.141592653589793D+00 ! (unitless)
@@ -148,6 +160,16 @@ MODULE MathPhysConstants_mod
 ! *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***
    real(4)            ::MPC_MOLAR_MASS_DRY_AIR_R4         =  2.896440000000000D+01 ! g/mol - dry-air molar mass
    real(4)            ::MPC_MOLAR_MASS_VAPOUR_R4          =  1.801530000000000D+01 ! g/mol - water-vapour molar mass
+   real(4)            ::MPC_MOLAR_MASS_O3_R4              =  4.799820000000000D+01 ! g/mol - ozone molar mass
+   real(4)            ::MPC_MOLAR_MASS_CH4_R4             =  1.604246000000000D+01 ! g/mol - methane molar mass
+   real(4)            ::MPC_MOLAR_MASS_CO2_R4             =  4.400950000000000D+01 ! g/mol - CO2 molar mass
+   real(4)            ::MPC_MOLAR_MASS_CO_R4              =  2.801010000000000D+01 ! g/mol - CO molar mass
+   real(4)            ::MPC_MOLAR_MASS_NO2_R4             =  4.600550000000000D+01 ! g/mol - NO2 molar mass
+   real(4)            ::MPC_MOLAR_MASS_NO_R4              =  3.000610000000000D+01 ! g/mol - NO molar mass
+   real(4)            ::MPC_MOLAR_MASS_N2O_R4             =  4.401280000000000D+01 ! g/mol - N2O molar mass
+   real(4)            ::MPC_MOLAR_MASS_HCHO_R4            =  3.002598000000000D+01 ! g/mol - Formaldehyde molar mass
+   real(4)            ::MPC_MOLAR_MASS_SO2_R4             =  6.406380000000000D+01 ! g/mol - SO2 molar mass
+   real(4)            ::MPC_MOLAR_MASS_NH3_R4             =  1.703052000000000D+01 ! g/mol - NH3 molar mass
 !
 ! *** THERMODYNAMIC CONSTANTS (SPECIFIC HEATS) ***
    real(4)            ::MPC_CV_DRY_AIR_R4                 =  7.184100000000001D+02 ! J kg-1 K-1 - sp. heat(V) of dry air
@@ -188,6 +210,8 @@ MODULE MathPhysConstants_mod
    real(4)            ::MPC_MINIMUM_VIS_R4                =  1.000000000000000D+00 !
    real(4)            ::MPC_MAXIMUM_VIS_R4                =  1.500000000000000D+04 ! 15km
    real(4)            ::MPC_MINIMUM_PR_R4                 =  1.000000000000000D-04 ! 0.1 mm/h = 0.0001 m/h
+   real(4)            ::MPC_MINIMUM_CH_R4                 =  1.000000000000000D-01 ! 0.1 micrograms/kg (for constituents)
+   real(4)            ::MPC_MINIMUM_PM_R4                 =  0.000000000000000D+00 ! 0 micrograms/m^3 (for particulate matter)
 
 ! <<<<<< OBS FILE CONSTANTS
    real(4), parameter :: MPC_missingValue_R4 = -999.
@@ -296,6 +320,16 @@ contains
      write(kulout,*) " *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***"
      write(kulout,"(A36, D22.15, A)") "         MPC_MOLAR_MASS_DRY_AIR_R8= ", MPC_MOLAR_MASS_DRY_AIR_R8   , " g/mol - dry-air molar mass"
      write(kulout,"(A36, D22.15, A)") "          MPC_MOLAR_MASS_VAPOUR_R8= ", MPC_MOLAR_MASS_VAPOUR_R8   , " g/mol - water-vapour molar mass"
+     write(kulout,"(A36, D22.15, A)") "              MPC_MOLAR_MASS_O3_R8= ", MPC_MOLAR_MASS_O3_R8   , " g/mol - ozone molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_CH4_R8= ", MPC_MOLAR_MASS_CH4_R8   , " g/mol - methane molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_CO2_R8= ", MPC_MOLAR_MASS_CO2_R8   , " g/mol - CO2 molar mass"
+     write(kulout,"(A36, D22.15, A)") "              MPC_MOLAR_MASS_CO_R8= ", MPC_MOLAR_MASS_CO_R8   , " g/mol - CO molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_NO2_R8= ", MPC_MOLAR_MASS_NO2_R8   , " g/mol - NO2 molar mass"
+     write(kulout,"(A36, D22.15, A)") "              MPC_MOLAR_MASS_NO_R8= ", MPC_MOLAR_MASS_NO_R8   , " g/mol - NO molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_N2O_R8= ", MPC_MOLAR_MASS_N2O_R8   , " g/mol - N2O molar mass"
+     write(kulout,"(A36, D22.15, A)") "            MPC_MOLAR_MASS_HCHO_R8= ", MPC_MOLAR_MASS_HCHO_R8   , " g/mol - Formaldehyde molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_SO2_R8= ", MPC_MOLAR_MASS_SO2_R8   , " g/mol - SO2 molar mass"
+     write(kulout,"(A36, D22.15, A)") "             MPC_MOLAR_MASS_NH3_R8= ", MPC_MOLAR_MASS_NH3_R8   , " g/mol - NH3 molar mass"
      write(kulout,*) ""
      write(kulout,*) " *** THERMODYNAMIC CONSTANTS (SPECIFIC HEATS) ***"
      write(kulout,"(A36, D22.15, A)") "                 MPC_CV_DRY_AIR_R8= ", MPC_CV_DRY_AIR_R8   , " J kg-1 K-1 - sp. heat(V) of dry air"
@@ -333,6 +367,8 @@ contains
      write(kulout,*) " <<<<<< C O N S T A N T S   C O N C E R N I N G   T H E   L I M I T A T I O N S   O F   D I G I T A L   C A L C U L A T I O N >>>>>>"
      write(kulout,"(A36, D22.15, A)") "                 MPC_MINIMUM_HU_R8= ", MPC_MINIMUM_HU_R8   , "  "
      write(kulout,"(A36, D22.15, A)") "                 MPC_MAXIMUM_ES_R8= ", MPC_MAXIMUM_ES_R8   , "  "
+     write(kulout,"(A36, D22.15, A)") "                 MPC_MINIMUM_CH_R8= ", MPC_MINIMUM_CH_R8   , "  "
+     write(kulout,"(A36, D22.15, A)") "                 MPC_MINIMUM_PM_R8= ", MPC_MINIMUM_PM_R8   , "  "
      write(kulout,*) "\n\n"
   end subroutine mpc_printConstants
 end MODULE MathPhysConstants_mod

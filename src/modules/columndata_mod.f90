@@ -35,7 +35,7 @@ module columnData_mod
   private
 
   ! public variables and types
-  public :: col_rhumin, struct_columnData
+  public :: col_rhumin, col_minValVarKindCH, struct_columnData
 
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
@@ -61,18 +61,24 @@ module columnData_mod
   logical varExistList(vnl_numvarmax)
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
+  ! Minimum values for variables of CH kind
+  real(8) :: minValVarKindCH(vnl_numVarMax), col_minValVarKindCH(vnl_numVarMax)
+
 contains
 
-
+  !--------------------------------------------------------------------------
+  ! col_setup
+  !--------------------------------------------------------------------------
   subroutine col_setup
     implicit none
-    integer :: jvar
+    integer :: varIndex, loopIndex
     integer :: fnom,fclos,nulnam,ierr
     integer :: numVar3D, numVar2D
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
-    logical :: unitConversion_varKindCH
-    namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,unitConversion_varKindCH
+    logical :: conversionVarKindCHtoMicrograms
+    namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
+                       minValVarKindCH
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -85,7 +91,8 @@ contains
     rhumin = MPC_MINIMUM_HU_R8
     anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
-    unitConversion_varKindCH = .false.
+    conversionVarKindCHtoMicrograms = .false.
+    minValVarKindCH(:) = MPC_missingValue_R8
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -95,6 +102,7 @@ contains
     ierr=fclos(nulnam)
 
     col_rhumin = rhumin
+    col_minValVarKindCH(:)=minValVarKindCH(:)
 
     if( varneed('Z_T') .or. varneed('Z_M') ) call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
     if( varneed('P_T') .or. varneed('P_M') ) call utl_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
@@ -102,23 +110,53 @@ contains
     numVar3D = 0
     numVar2D = 0
 
-    do jvar = 1, vnl_numvarmax3D
-      if (varneed(vnl_varNameList3D(jvar))) then
-        varExistList(jvar) = .true.
+    do varIndex = 1, vnl_numvarmax3D
+      if (varneed(vnl_varNameList3D(varIndex))) then
+        varExistList(varIndex) = .true.
         numVar3D = numVar3D + 1
       else
-        varExistList(jvar) = .false.
+        varExistList(varIndex) = .false.
       endif
     enddo
 
-    do jvar = 1, vnl_numvarmax2D
-      if (varneed(vnl_varNameList2D(jvar))) then
-        varExistList(jvar+vnl_numvarmax3D) = .true.
+    do varIndex = 1, vnl_numvarmax2D
+      if (varneed(vnl_varNameList2D(varIndex))) then
+        varExistList(varIndex+vnl_numvarmax3D) = .true.
         numVar2D = numVar2D + 1
       else
-        varExistList(jvar+vnl_numvarmax3D) = .false.
+        varExistList(varIndex+vnl_numvarmax3D) = .false.
       endif
     enddo
+
+    ! Setup to assign min values to apply
+    
+    ! Check for input values only for variables of CH kind
+    do varIndex = 1, vnl_numvarmax
+      if ( trim(AnlVar(varIndex)) == '' ) exit
+      if ( vnl_varKindFromVarname(AnlVar(varIndex)) == 'CH' ) then
+        if ( minValVarKindCH(varIndex) < 1.01*MPC_missingValue_R8 ) then
+          if ( trim(AnlVar(varIndex)) == 'AF' .or. trim(AnlVar(varIndex)) == 'AC' ) then
+            ! Set for particulate matter in micrograms/cm^3
+            minValVarKindCH(varIndex) = MPC_MINIMUM_PM_R8
+          else
+            ! Set for concentrations in micrograms/kg
+            minValVarKindCH(varIndex) = MPC_MINIMUM_CH_R8
+          end if
+        end if
+      end if
+    end do
+
+    ! Assign min values to apply
+    col_minValVarKindCH(:) = MPC_missingValue_R8
+    do varIndex = 1, vnl_numvarmax
+      if ( varExistList(varIndex) ) then
+        do loopIndex = 1, vnl_numvarmax
+          if ( trim(AnlVar(loopIndex)) == '' ) exit
+          if ( trim(vnl_varNameList(varIndex)) == trim(AnlVar(loopIndex)) ) &
+             col_minValVarKindCH(varIndex) = minValVarKindCH(loopIndex)
+        end do
+      end if 
+    end do
 
     if(mpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D = ', numVar3D, numVar2D
     if(mpi_myid == 0) write(*,*) 'col_setup: varExistList (no Z_T/Z_M/P_T/P_M included) = ',varExistList
@@ -144,7 +182,9 @@ contains
 
   end subroutine col_setup
 
-
+  !--------------------------------------------------------------------------
+  ! col_zero
+  !--------------------------------------------------------------------------
   subroutine col_zero(column)
     implicit none
     type(struct_columnData) :: column
@@ -156,7 +196,9 @@ contains
 
   end subroutine col_zero
 
-
+  !--------------------------------------------------------------------------
+  ! col_allocate
+  !--------------------------------------------------------------------------
   subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
     implicit none
 
@@ -262,7 +304,9 @@ contains
 
   end subroutine col_allocate
 
-
+  !--------------------------------------------------------------------------
+  ! col_deallocate
+  !--------------------------------------------------------------------------
   subroutine col_deallocate(column)
     implicit none
 
@@ -281,7 +325,9 @@ contains
 
   end subroutine col_deallocate
 
-
+  !--------------------------------------------------------------------------
+  ! col_varExist
+  !--------------------------------------------------------------------------
   function col_varExist(column_opt,varName) result(varExist)
     implicit none
     type(struct_columnData), optional :: column_opt
@@ -304,7 +350,9 @@ contains
 
   end function col_varExist
 
-
+  !--------------------------------------------------------------------------
+  ! col_getOffsetFromVarno
+  !--------------------------------------------------------------------------
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
     implicit none
     type(struct_columnData) :: column
@@ -316,6 +364,9 @@ contains
 
   end function col_getOffsetFromVarno
 
+  !--------------------------------------------------------------------------
+  ! col_getVarNameFromK
+  !--------------------------------------------------------------------------
   function col_getVarNameFromK(column,kIndex) result(varName)
     implicit none
     type(struct_columnData) :: column
@@ -338,6 +389,9 @@ contains
 
   end function col_getVarNameFromK
 
+  !--------------------------------------------------------------------------
+  ! col_calcPressure
+  !--------------------------------------------------------------------------
   subroutine col_calcPressure(column, beSilent_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column
@@ -393,6 +447,9 @@ contains
 
   end subroutine col_calcPressure
 
+  !--------------------------------------------------------------------------
+  ! col_vintprof
+  !--------------------------------------------------------------------------
   subroutine col_vintprof(column_in,column_out,varName,useColumnPressure_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
@@ -583,7 +640,9 @@ contains
 
   end subroutine col_vintprof
 
-
+  !--------------------------------------------------------------------------
+  ! col_getPressure
+  !--------------------------------------------------------------------------
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column
@@ -630,7 +689,9 @@ contains
 
   end function col_getPressureDeriv
 
-
+  !--------------------------------------------------------------------------
+  ! col_getHeight
+  !--------------------------------------------------------------------------
   function col_getHeight(column,ilev,headerIndex,varLevel) result(height)
     implicit none
     type(struct_columnData), intent(in) :: column
@@ -659,7 +720,9 @@ contains
 
   end function col_getHeight
 
-
+  !--------------------------------------------------------------------------
+  ! col_setHeightsSfc
+  !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
     implicit none
     type(struct_columnData)             :: column
@@ -670,7 +733,9 @@ contains
 
   end subroutine col_setHeightSfc
 
-
+  !--------------------------------------------------------------------------
+  ! col_getAllColumns
+  !--------------------------------------------------------------------------
   function col_getAllColumns(column,varName_opt) result(allColumns)
     implicit none
     type(struct_columnData), intent(in)    :: column
@@ -696,7 +761,9 @@ contains
 
   end function col_getAllColumns
 
-
+  !--------------------------------------------------------------------------
+  ! col_getColumn
+  !--------------------------------------------------------------------------
   function col_getColumn(column,headerIndex,varName_opt) result(onecolumn)
     implicit none
     type(struct_columnData), intent(in)    :: column
@@ -719,7 +786,9 @@ contains
 
   end function col_getColumn
 
-
+  !--------------------------------------------------------------------------
+  ! col_getElem
+  !--------------------------------------------------------------------------
   function col_getElem(column,ilev,headerIndex,varName_opt) result(value)
     implicit none
     type(struct_columnData), intent(in)    :: column
@@ -737,7 +806,9 @@ contains
 
   end function col_getElem
 
-
+  !--------------------------------------------------------------------------
+  ! col_getNumLev
+  !--------------------------------------------------------------------------
   function col_getNumLev(column,varLevel) result(nlev)
     implicit none
     type(struct_columnData), intent(in) :: column
@@ -748,7 +819,9 @@ contains
 
   end function col_getNumLev
 
-
+  !--------------------------------------------------------------------------
+  ! col_getNumCol
+  !--------------------------------------------------------------------------
   function col_getNumCol(column) result(numColumn)
     implicit none
     type(struct_columnData), intent(in) :: column
@@ -758,7 +831,9 @@ contains
 
   end function col_getNumCol
 
-
+  !--------------------------------------------------------------------------
+  ! col_getVco
+  !--------------------------------------------------------------------------
   function col_getVco(column) result(vco_ptr)
     implicit none
     type(struct_columnData)   :: column
@@ -768,7 +843,9 @@ contains
 
   end function col_getVco
 
-
+  !--------------------------------------------------------------------------
+  ! col_setVco
+  !--------------------------------------------------------------------------
   subroutine col_setVco(column,vco_ptr)
     implicit none
     type(struct_columnData)   :: column

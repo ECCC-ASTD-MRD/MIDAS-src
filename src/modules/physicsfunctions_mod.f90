@@ -43,11 +43,10 @@ module physicsFunctions_mod
 
   contains
 
-!
-! ==============================================================================
-!
-
-     subroutine tetens_coefs_switch
+  !--------------------------------------------------------------------------
+  ! tetens_coefs_switch
+  !--------------------------------------------------------------------------
+   subroutine tetens_coefs_switch
 
       INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
       CHARACTER *256 :: NAMFILE
@@ -68,12 +67,12 @@ module physicsFunctions_mod
       write(*,*) 'new_tetens_coefs = ',new_tetens_coefs
       initialized = .true.
 
-     end subroutine tetens_coefs_switch
+   end subroutine tetens_coefs_switch
 
-!
-! ==============================================================================
-!
-      real*8 function FOEW8(TTT)
+  !--------------------------------------------------------------------------
+  ! FOEW8
+  !--------------------------------------------------------------------------
+   real*8 function FOEW8(TTT)
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE (TETENS) - EW OU EI SELON TT
         !
@@ -82,9 +81,12 @@ module physicsFunctions_mod
         FOEW8 = 610.78D0*EXP( MIN(SIGN(17.269D0,TTT-MPC_TRIPLE_POINT_R8),SIGN &
           (21.875D0,TTT-MPC_TRIPLE_POINT_R8))*ABS(TTT-MPC_TRIPLE_POINT_R8)/ &
           (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
-      end function foew8
-!
-      real*8 function FODLE8(TTT)
+    end function foew8
+
+  !--------------------------------------------------------------------------
+  ! FODLE8
+  !--------------------------------------------------------------------------
+  real*8 function FODLE8(TTT)
         !
         !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE  LN EW (OU LN EI)
         !
@@ -93,64 +95,85 @@ module physicsFunctions_mod
         FODLE8=(4097.93D0+MAX(0.D0,SIGN(1709.88D0,MPC_TRIPLE_POINT_R8-TTT))) &
          /((TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT)))*  &
          (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
-      end function FODLE8
-!
-      real*8 function FOQST8(TTT,PRS) 
+  end function FODLE8
+
+  !--------------------------------------------------------------------------
+  ! FOQST8
+  !--------------------------------------------------------------------------
+  real*8 function FOQST8(TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT)
         !
         implicit none
         real*8 TTT,PRS
         FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/FOEW8(TTT))-MPC_EPS2_R8)
-      end function FOQST8
-!
-      real*8 function FODQS8(QST,TTT) 
+  end function FOQST8
+
+  !--------------------------------------------------------------------------
+  ! FODQS8
+  !--------------------------------------------------------------------------
+  real*8 function FODQS8(QST,TTT) 
         !
         !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
         !
         implicit none
         real*8 TTT,QST
         FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*FODLE8(TTT)
-      end function FODQS8
-!     QST EST LA SORTIE DE FOQST
-!
-      real*8 function FOEFQ8(QQQ,PRS)  
+  end function FODQS8
+  ! QST EST LA SORTIE DE FOQST
+
+  !--------------------------------------------------------------------------
+  ! FOEFQ8
+  !--------------------------------------------------------------------------
+  real*8 function FOEFQ8(QQQ,PRS)  
         !
         !:Purpose: FONCTION CALCULANT TENSION VAP (EEE) FN DE HUM SP (QQQ) ET PRS
         !
         implicit none
         real*8 QQQ,PRS
         FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
-      end function FOEFQ8
-!
-      real*8 function FOQFE8(EEE,PRS)  
+  end function FOEFQ8
+
+  !--------------------------------------------------------------------------
+  ! FOQFE8
+  !--------------------------------------------------------------------------
+  real*8 function FOQFE8(EEE,PRS)  
         !
         !:Purpose: FONCTION CALCULANT HUM SP (QQQ) DE TENS. VAP (EEE) ET PRES (PRS)
         !
         implicit none
         real*8 EEE,PRS
         FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
-      end function FOQFE8
-!
-      real*8 function FOTVT8(TTT,QQQ)  
+  end function FOQFE8
+
+  !--------------------------------------------------------------------------
+  ! FOTVT8
+  !--------------------------------------------------------------------------
+  real*8 function FOTVT8(TTT,QQQ)  
         !
         !:Purpose: FONCTION CALCULANT TEMP VIRT. (TVI) DE TEMP (TTT) ET HUM SP (QQQ)
         !
         implicit none
         real*8 TTT,QQQ
         FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
-      end function FOTVT8
-!
-      real*8 function FOTTV8(TVI,QQQ)  
+   end function FOTVT8
+
+  !--------------------------------------------------------------------------
+  ! FOTTV8
+  !--------------------------------------------------------------------------
+  real*8 function FOTTV8(TVI,QQQ)  
         !
         !:Purpose: FONCTION CALCULANT TTT DE TEMP VIRT. (TVI) ET HUM SP (QQQ)
         !
         implicit none
         real*8 TVI,QQQ
         FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
-      end function FOTTV8
-!
-      real*8 function FOHR8(QQQ,TTT,PRS) 
+  end function FOTTV8
+
+  !--------------------------------------------------------------------------
+  ! FOHR8
+  !--------------------------------------------------------------------------
+  real*8 function FOHR8(QQQ,TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT HUM REL DE HUM SP (QQQ), TEMP (TTT) ET PRES (PRS). 
         !          Where HR = E/ESAT
@@ -158,62 +181,80 @@ module physicsFunctions_mod
         implicit none
         real*8 QQQ,TTT,PRS
         FOHR8 = MIN(PRS,FOEFQ8(QQQ,PRS)) / FOEW8(TTT)
-      end function FOHR8
-!
-!     LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
-!     NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
-!     DE SATURATION.
-!
-      real*8 function FOEWA8(TTT) 
+  end function FOHR8
+
+  ! LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
+  ! NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
+  ! DE SATURATION.
+  
+  !--------------------------------------------------------------------------
+  ! FOEWA8
+  !--------------------------------------------------------------------------
+  real*8 function FOEWA8(TTT) 
         !
         !:Purpose: FONCTION DE VAPEUR SATURANTE (TETENS)
         !
         implicit none
         real*8 TTT
         FOEWA8=610.78D0*EXP(17.269D0*(TTT-MPC_TRIPLE_POINT_R8)/(TTT-35.86D0))
-      end function FOEWA8
-!
-      real*8 function FODLA8(TTT) 
+  end function FOEWA8
+
+  !--------------------------------------------------------------------------
+  ! FODLA8
+  !--------------------------------------------------------------------------
+  real*8 function FODLA8(TTT) 
         !
         !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE LN EW
         !
         implicit none
         real*8 TTT
         FODLA8=17.269D0*(MPC_TRIPLE_POINT_R8-35.86D0)/(TTT-35.86D0)**2
-      end function FODLA8
-!
-      real*8 function FOQSA8(TTT,PRS) 
+  end function FODLA8
+
+  !--------------------------------------------------------------------------
+  ! FOQSA8
+  !--------------------------------------------------------------------------
+  real*8 function FOQSA8(TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE
         !
         implicit none
         real*8 TTT,PRS
         FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/FOEWA8(TTT))-MPC_EPS2_R8)
-      end function FOQSA8
-!
-      real*8 function FODQA8(QST,TTT) 
+  end function FOQSA8
+
+  !--------------------------------------------------------------------------
+  ! FODQA8
+  !--------------------------------------------------------------------------
+   real*8 function FODQA8(QST,TTT) 
         !
         !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
         !
         implicit none
         real*8 QST,TTT
         FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*FODLA8(TTT)
-      end function FODQA8
-!
-      real*8 function FOHRA8(QQQ,TTT,PRS) 
+  end function FODQA8
+
+  !--------------------------------------------------------------------------
+  ! FOHRA8
+  !--------------------------------------------------------------------------
+  real*8 function FOHRA8(QQQ,TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE RELATIVE
         !
         implicit none
         real*8 QQQ,TTT,PRS
         FOHRA8=MIN(PRS,FOEFQ8(QQQ,PRS))/FOEWA8(TTT)
-      end function FOHRA8
-!
-!     LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
-!     EN FONCTION DE LA TENSION DE VAPEUR SATURANTE.
-!     (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
-!
-      real*8 function FOTW8(EEE) 
+  end function FOHRA8
+
+  ! LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
+  ! EN FONCTION DE LA TENSION DE VAPEUR SATURANTE.
+  ! (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+
+  !--------------------------------------------------------------------------
+  ! FOTW8
+  !--------------------------------------------------------------------------
+  real*8 function FOTW8(EEE) 
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EW.
@@ -230,21 +271,26 @@ module physicsFunctions_mod
               (LOG(EEE/610.78D0)-17.269D0)
         endif
 
-      end function FOTW8
-!
-!     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
-!     SATURANTE PAR RAPPORT A EI.
-      real*8 function FOTI8(EEE) 
+   end function FOTW8
+
+  !--------------------------------------------------------------------------
+  ! FOTI8
+  !--------------------------------------------------------------------------
+  real*8 function FOTI8(EEE) 
         !
-        !:Purpose: 
+        !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+        !          SATURANTE PAR RAPPORT A EI.
         !
         implicit none
         real*8 EEE
         FOTI8=(7.66D0*LOG(EEE/610.78D0)-21.875D0*MPC_TRIPLE_POINT_R8)/ &
              (LOG(EEE/610.78D0)-21.875D0)
-      end function FOTI8
-!
-      real*8 function FODTW8(TTT,EEE) 
+  end function FOTI8
+
+  !--------------------------------------------------------------------------
+  ! FODTH8
+  !--------------------------------------------------------------------------
+  real*8 function FODTW8(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EW).
@@ -259,9 +305,12 @@ module physicsFunctions_mod
          FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
         endif
 
-      end function FODTW8
-!
-      real*8 function FODTI8(TTT,EEE) 
+  end function FODTW8
+
+  !--------------------------------------------------------------------------
+  ! FODTI8
+  !--------------------------------------------------------------------------
+  real*8 function FODTI8(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EI).
@@ -270,9 +319,12 @@ module physicsFunctions_mod
         real*8 TTT,EEE
         FODTI8=(7.66D0-TTT)/EEE  &
                       /(LOG(EEE/610.78D0)-21.875D0)
-      end function FODTI8
-!
-      real*8 function FOTWI8(TTT,EEE) 
+ end function FODTI8
+
+  !--------------------------------------------------------------------------
+  ! FOTWI8
+  !--------------------------------------------------------------------------
+   real*8 function FOTWI8(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
         !
@@ -280,9 +332,12 @@ module physicsFunctions_mod
         real*8 TTT,EEE
         FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FOTW8(EEE)  &
                      -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FOTI8(EEE)
-      end function FOTWI8
-!
-      real*8 function FODTWI8(TTT,EEE) 
+   end function FOTWI8
+
+  !--------------------------------------------------------------------------
+  ! FODWTI8
+  !--------------------------------------------------------------------------
+  real*8 function FODTWI8(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
         !
@@ -290,30 +345,39 @@ module physicsFunctions_mod
         real*8 TTT,EEE
         FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FODTW8(TTT,EEE)  &
                       -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FODTI8(TTT,EEE)
-      end function FODTWI8
-!
-!     LES 7 FONCTIONS SUIVANTES POUR EW-EI SONT REQUISES POUR LES MODELES
-!     CMAM ET CGCM. (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
-!
-      real*8 function FOEW8_CMAM(TTT)  
+  end function FODTWI8
+
+  ! LES 7 FONCTIONS SUIVANTES POUR EW-EI SONT REQUISES POUR LES MODELES
+  ! CMAM ET CGCM. (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+  
+  !--------------------------------------------------------------------------
+  ! FOEW8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOEW8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EW
         !
         implicit none
         real*8 TTT
         FOEW8_CMAM= 100.D0*EXP(21.656D0-5418.D0/TTT)
-      end function FOEW8_CMAM
+  end function FOEW8_CMAM
 
-      real*8 function FOEI8_CMAM(TTT)  
+  !--------------------------------------------------------------------------
+  ! FOEI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOEI8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EI
         !
         implicit none
         real*8 TTT
         FOEI8_CMAM= 100.D0*EXP(24.292D0-6141.D0/TTT)
-      end function FOEI8_CMAM
-!
-      real*8 function FOERAT8_CMAM(TTT) 
+  end function FOEI8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FOERAT8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOERAT8_CMAM(TTT) 
         !
         !:Purpose: FONCTION DE LA PROPORTION DE LA CONTRIBUTION DE EW VS EI
         !
@@ -321,9 +385,12 @@ module physicsFunctions_mod
         real*8 TTT
         FOERAT8_CMAM=MIN(1.0D0,0.0059D0+0.9941D0*EXP(-0.003102D0*  &
             MIN(0.0D0,TTT-MPC_TRIPLE_POINT_R8)**2))
-      end function FOERAT8_CMAM
-!
-      real*8 function FOEWI8_CMAM(TTT)  
+  end function FOERAT8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FOEWI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOEWI8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE RESULTANTE - EW et EI
         !
@@ -331,9 +398,12 @@ module physicsFunctions_mod
         real*8 TTT
         FOEWI8_CMAM= FOEW8_CMAM(TTT)*FOERAT8_CMAM(TTT)  &
          +(1.0D0-FOERAT8_CMAM(TTT))*FOEI8_CMAM(TTT)
-      end function FOEWI8_CMAM
-!
-      real*8 function FODLE8_CMAM(TTT)  
+  end function FOEWI8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FODLE8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FODLE8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE LA DERIVE DE LN(E) PAR RAPPORT A LA TEMPERATURE
         !
@@ -341,9 +411,12 @@ module physicsFunctions_mod
         real*8 TTT
         FODLE8_CMAM= FOERAT8_CMAM(TTT)*5418.D0/TTT/TTT  &
          +(1.0D0-FOERAT8_CMAM(TTT))*6141.D0/TTT/TTT
-      end function FODLE8_CMAM
-!
-      real*8 function FOQST8_CMAM(TTT,PRS) 
+  end function FODLE8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FOQST8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOQST8_CMAM(TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT).
         !          PREND EN COMPTE LES PHASES GLACE ET EAU.
@@ -352,13 +425,16 @@ module physicsFunctions_mod
         real*8 TTT,PRS
         FOQST8_CMAM=MPC_EPS1_R8/(MAX(1.0D0,PRS/  &
                            FOEWI8_CMAM(TTT))-MPC_EPS2_R8)
-      end function FOQST8_CMAM
-!
-!     LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
-!     EN FONCTION DE LA TENSION DE VAPEUR SATURANTE POUR CMAM/CGCM
-!     (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
-!
-      real*8 function FOTW8_CMAM(EEE) 
+  end function FOQST8_CMAM
+
+  ! LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
+  ! EN FONCTION DE LA TENSION DE VAPEUR SATURANTE POUR CMAM/CGCM
+  ! (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+
+  !--------------------------------------------------------------------------
+  ! FOTW8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOTW8_CMAM(EEE) 
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EW.
@@ -366,9 +442,12 @@ module physicsFunctions_mod
         implicit none
         real*8 EEE
         FOTW8_CMAM=5418.D0/(21.656D0-LOG(EEE/100.0D0))
-      end function FOTW8_CMAM
-!
-      real*8 function FOTI8_CMAM(EEE) 
+  end function FOTW8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FOTI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOTI8_CMAM(EEE) 
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EI.
@@ -376,9 +455,12 @@ module physicsFunctions_mod
         implicit none
         real*8 EEE
         FOTI8_CMAM=6141.D0/(24.292D0-LOG(EEE/100.0D0))
-      end function FOTI8_CMAM
-!
-      real*8 function FODTW8_CMAM(TTT,EEE) 
+  end function FOTI8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FODTW8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FODTW8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EW).
@@ -386,9 +468,12 @@ module physicsFunctions_mod
         implicit none
         real*8 TTT,EEE
         FODTW8_CMAM=TTT/EEE/(21.656D0-LOG(EEE/100.0D0))
-      end function FODTW8_CMAM
-!
-      real*8 function FODTI8_CMAM(TTT,EEE) 
+  end function FODTW8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FODTI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FODTI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EI).
@@ -396,9 +481,12 @@ module physicsFunctions_mod
         implicit none
         real*8 TTT,EEE
         FODTI8_CMAM=TTT/EEE/(24.292D0-LOG(EEE/100.0D0))
-      end function FODTI8_CMAM
-!
-      real*8 function FOTWI8_CMAM(TTT,EEE) 
+  end function FODTI8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FOTWI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FOTWI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
         !
@@ -406,9 +494,12 @@ module physicsFunctions_mod
         real*8 TTT,EEE
         FOTWI8_CMAM= FOERAT8_CMAM(TTT)*FOTW8_CMAM(EEE)+ &
                    (1.0D0-FOERAT8_CMAM(TTT))*FOTI8_CMAM(EEE)
-      end function FOTWI8_CMAM
-!
-      real*8 function FODTWI8_CMAM(TTT,EEE) 
+  end function FOTWI8_CMAM
+
+  !--------------------------------------------------------------------------
+  ! FODTWI8_CMAM
+  !--------------------------------------------------------------------------
+  real*8 function FODTWI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
         !
@@ -416,11 +507,13 @@ module physicsFunctions_mod
         real*8 TTT,EEE
         FODTWI8_CMAM= FOERAT8_CMAM(TTT)*FODTW8_CMAM(TTT,EEE)+  &
                     (1.0D0-FOERAT8_CMAM(TTT))*FODTI8_CMAM(TTT,EEE)
-      end function FODTWI8_CMAM
-!
+  end function FODTWI8_CMAM
 
-!
-      real*8 function FQBRANCH(QQQ)  
+
+  !--------------------------------------------------------------------------
+  ! FOBRANCH
+  !--------------------------------------------------------------------------
+  real*8 function FQBRANCH(QQQ)  
         !
         !:Purpose: function returning 0/1 depending on the minimum q branch condition
         !          as discussed by Brunet (1996) to prevent getting a vapour pressure that exceeds
@@ -429,16 +522,19 @@ module physicsFunctions_mod
         implicit none
         real*8 QQQ
         FQBRANCH= 0.5D0+SIGN(0.5D0,1.D0-(QQQ))
-      end function FQBRANCH
+  end function FQBRANCH
 
-!=============================================================================
-!
-!     TLM  of  THERMODYNAMIC FUNCTIONS USED IN 3DVAR
-!     CONSTANTS FROM COMMON /CTESDYN/
-!     NOTE: ALL FUNCTIONS WORK IN  S.I. UNITS
-!           I.E PRS IN PA, QQQ IN KG/KG
-!
-      real*8 function FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
+  !=============================================================================
+  !
+  !     TLM  of  THERMODYNAMIC FUNCTIONS USED IN 3DVAR
+  !     CONSTANTS FROM COMMON /CTESDYN/
+  !     NOTE: ALL FUNCTIONS WORK IN  S.I. UNITS
+  !           I.E PRS IN PA, QQQ IN KG/KG 
+  
+  !--------------------------------------------------------------------------
+  ! FOEFQL
+  !--------------------------------------------------------------------------
+   real*8 function FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
         !
         !:Purpose: TLM  OF FUNCTION CALCULATING VAPOUR PRESSURE
         !
@@ -460,9 +556,12 @@ module physicsFunctions_mod
            * ((QQL*MPC_EPS1_R8*PRS*QQQ/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ)  &
            +  PRSL*PNETA*QQQ)/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))  &
            + (1.0D0 - FQBRANCH(QQQ))*PRSL*PNETA
-      end function FOEFQL
-!
-      real*8 function fotvvl(qqq,ttt,ttl,plnql) 
+  end function FOEFQL
+
+  !--------------------------------------------------------------------------
+  ! FOTVVL
+  !--------------------------------------------------------------------------
+   real*8 function fotvvl(qqq,ttt,ttl,plnql) 
         !
         !:Purpose: Tangent-linear operator of virtual temperature 
         !
@@ -472,16 +571,20 @@ module physicsFunctions_mod
         real*8 ttl   ! temperature increment
         real*8 plnql ! increment of logarithm specific humidity  (del(ln q))
         fotvvl=(1 + MPC_DELTA_R8*qqq)*ttl + MPC_DELTA_R8*qqq*ttt*plnql
-      end function fotvvl
+  end function fotvvl
 
-!=============================================================================
-!
-!   DEFINITION OF ADJOINTS OF THERMODYNAMIC  FUNCTIONS
-!   CONSTANTS AS IN COMMON /CTESDYN/
-!     NOTE: ALL  UNITS S.I.
-!           I.E. PADES IN DEG K, PRS EN PA, QQQ EN KG/KG
-!
-      real*8 function FOEFQA(PADES,PGAMMA,QQQ,PRS)  
+  !=============================================================================
+  !
+  !   DEFINITION OF ADJOINTS OF THERMODYNAMIC  FUNCTIONS
+  !   CONSTANTS AS IN COMMON /CTESDYN/
+  !     NOTE: ALL  UNITS S.I.
+  !           I.E. PADES IN DEG K, PRS EN PA, QQQ EN KG/KG
+  !
+
+  !--------------------------------------------------------------------------
+  ! FOEFQA
+  !--------------------------------------------------------------------------
+  real*8 function FOEFQA(PADES,PGAMMA,QQQ,PRS)  
         !
         !:Purpose: ADJOINT OF LN SPECIFIC  HUM (QQQ) DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
@@ -492,9 +595,12 @@ module physicsFunctions_mod
         real*8 PRS    ! PRESSURE
         FOEFQA= PADES*PGAMMA*MPC_EPS1_R8*PRS*QQQ/  &
                 ((MPC_EPS1_R8+MPC_EPS2_R8*QQQ)*(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))
-      end function FOEFQA
-!
-      real*8 function FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
+  end function FOEFQA
+
+  !--------------------------------------------------------------------------
+  ! FOEFQPSA
+  !--------------------------------------------------------------------------
+  real*8 function FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
         !
         !:Purpose: ADJOINT OF SURFACE PRESSURE  DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
@@ -505,9 +611,12 @@ module physicsFunctions_mod
         real*8 PNETA  ! VALUE OF NETA
         FOEFQPSA = PADES*PGAMMA*QQQ*PNETA/  &
                    (MPC_EPS1_R8+MPC_EPS2_R8*QQQ)
-      end function FOEFQPSA
-!
-      real*8 function fottva(qqq,tva)  
+  end function FOEFQPSA
+
+  !--------------------------------------------------------------------------
+  ! FOTTVa
+  !--------------------------------------------------------------------------
+  real*8 function fottva(qqq,tva)  
         !
         !:Purpose: Adjoint of temperature due to virtual temperature correction
         !
@@ -515,9 +624,12 @@ module physicsFunctions_mod
         real*8 qqq ! background specific humidity
         real*8 tva ! adjoint variable of virtual temperature
         fottva= (1D0 + MPC_DELTA_R8*qqq)*tva
-      end function fottva
-!
-      real*8 function folnqva(qqq,ttt,tva) 
+  end function fottva
+
+  !--------------------------------------------------------------------------
+  ! FOLNQVA
+  !--------------------------------------------------------------------------
+  real*8 function folnqva(qqq,ttt,tva) 
         !
         !:Purpose:  Adjoint of logarithm of specific humidity due to virtual temperature correction
         !
@@ -526,10 +638,13 @@ module physicsFunctions_mod
         real*8 ttt ! background temperature
         real*8 tva ! adjoint variable of virtual temperature
         folnqva = MPC_DELTA_R8*qqq*ttt*tva
-      end function folnqva
+  end function folnqva
 
   !-------------------------------------------------------------------------------------------
 
+  !--------------------------------------------------------------------------
+  ! PHF_CONVERT_Z_TO_PRESSURE
+  !--------------------------------------------------------------------------
   function  phf_convert_z_to_pressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
     !          
     !:Purpose: Converts an array of (geometric) altitudes to pressures. Uses linear interpolation
@@ -548,8 +663,7 @@ module physicsFunctions_mod
     real(8) :: rgz(nlev)
     integer :: ilev,ilev_mod
 
-    ! Check model geopotential heights and pressures
-    if (any(rgz_mod.lt.0.0D0)) call utl_abort("phf_compute_z_to_pressure: Invalid model GZ.")
+    ! Check model pressures
     if (any(press_mod.lt.0.0D0)) call utl_abort("phf_compute_z_to_pressure: Invalid model pressure.")
     
     ! Convert altitudes to geopotential heights
@@ -584,8 +698,9 @@ module physicsFunctions_mod
 
   end function phf_convert_z_to_pressure
 
-  !----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! PHF_CONVERT_Z_TO_GZ
+  !--------------------------------------------------------------------------
   function phf_convert_z_to_gz(altitude,lat,nlev) result(rgz)
     !          
     !:Purpose: Converts altitudes to geopotential heights. Uses the Helmert formula to
@@ -604,9 +719,10 @@ module physicsFunctions_mod
     rgz = (RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * RA*altitude/(RA+altitude)
 
   end function phf_convert_z_to_gz
- 
-  !----------------------------------------------------------------------------------------
 
+  !--------------------------------------------------------------------------
+  ! PHF_GET_TROPOPAUSE
+  !--------------------------------------------------------------------------
   function phf_get_tropopause(nmodlev,pressmod,tt,height,hu_opt) result(tropo_press)
     !          
     !:Purpose: Determines pressure level of tropopause. 
@@ -660,7 +776,7 @@ module physicsFunctions_mod
     enddo
     tropo_press=pressmod(i)
     
-   ! Improve on tropopause pressure levels using specific humidity if available,
+    ! Improve on tropopause pressure levels using specific humidity if available,
 
     if (present(hu_opt)) then
     
@@ -722,8 +838,9 @@ module physicsFunctions_mod
     
   end function phf_get_tropopause
 
-  !----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! PHF_GET_PBL
+  !--------------------------------------------------------------------------
   function phf_get_pbl(nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(pbl_press)
     ! 
     !:Purpose: Determines pressure level of planetary boundary layer using 
@@ -821,10 +938,11 @@ module physicsFunctions_mod
        end if
        us = uu_opt(size(uu_opt))
        vs = vv_opt(size(vv_opt))
-!   us,vs set to 0.0
-!      us=0.0
-!      vs=0.0
-
+       
+!      us,vs set to 0.0
+!       us=0.0
+!       vs=0.0
+ 
        ! Calc RiB from near-surface to level attaining RiB_threshold
  
        do i=nmodlev-1,itop,-1
@@ -932,7 +1050,7 @@ module physicsFunctions_mod
   end function phf_get_pbl
 
   !--------------------------------------------------------------------------
-  ! calcDistance
+  ! phf_calcDistance
   !--------------------------------------------------------------------------
   function phf_calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
     !
@@ -961,7 +1079,7 @@ module physicsFunctions_mod
   end function phf_calcDistance
 
   !--------------------------------------------------------------------------
-  ! calcDistanceFast
+  ! phf_calcDistanceFast
   !--------------------------------------------------------------------------
   function phf_calcDistanceFast(lat2, lon2, lat1, lon1) result(distanceInM)
     !
@@ -985,7 +1103,9 @@ module physicsFunctions_mod
 
   end function phf_calcDistanceFast
 
-
+  !--------------------------------------------------------------------------
+  ! PHF_GRAVITYSRF
+  !--------------------------------------------------------------------------
   function phf_gravitysrf(sLat)
     !
     !:Purpose: Normal gravity on ellipsoidal surface
@@ -1002,7 +1122,9 @@ module physicsFunctions_mod
     phf_gravitysrf = WGS_GammaE * (1.D0 + ks2) / sqrt(e2s)
   end function phf_gravitysrf
 
-
+  !--------------------------------------------------------------------------
+  ! PHF_GRAVITYALT
+  !--------------------------------------------------------------------------
   function phf_gravityalt(sLat, Altitude)
     !
     !:Purpose: Normal gravity above the ellipsoidal surface
@@ -1021,6 +1143,9 @@ module physicsFunctions_mod
          (1.D0 + C1 * Altitude + C2 * Altitude**2)
   end function phf_gravityalt
 
+  !--------------------------------------------------------------------------
+  ! PHF_HEIGHT2GEOPOTENTIAL
+  !--------------------------------------------------------------------------
   subroutine phf_height2geopotential(altitude, latitude, geopotential, &
                                      printHeight)
     !
@@ -1099,7 +1224,6 @@ module physicsFunctions_mod
     endif
 
   end subroutine phf_height2geopotential
-
   
 end module physicsFunctions_mod
 
