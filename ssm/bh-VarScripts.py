@@ -3,8 +3,9 @@
 
 from os import environ
 import sys
-from bh import bhlib, actions
 import os
+from bh import bhlib
+from bh.actions import package as actions
 
 
 def _init(b):
@@ -31,10 +32,21 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: arma (E. Lapalme, J. Blezius)\" >> ${CONTROL_FILE}
-            echo \"BuildInfo: Copied from \${ARMNLIB}/modeles/ANAL_shared/scripts/env/r.tripotenml,\" >> ${CONTROL_FILE}
-            echo \"           and ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"        >> ${CONTROL_FILE}
-            echo \"Description:  Scripts for Variational Assimilation Code\"         >> ${CONTROL_FILE}
+            echo \"Maintainer: RPN-AD\" >> ${CONTROL_FILE}
+            echo \"BuildInfo: Scripts from ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"        >> ${CONTROL_FILE}
+            echo \"Description: Scripts for running Variational Assimilation Code\"         >> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Scripts for running Variational Assimilation Code\",
+    \"build_info\": \"Scripts from ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"
+}
+EOF
+
            )""")
 
 def _install(b):

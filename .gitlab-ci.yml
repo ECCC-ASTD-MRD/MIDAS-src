@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"
 
@@ -22,6 +23,7 @@ stages:
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
     - master
+    - tags
 
 .runtests: &runtests_template
    stage: test
@@ -35,12 +37,13 @@ stages:
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh $suite
      - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
-     - . ./set_machine_list.dot ${suite}
+     - . ./set_machine_list.dot
      - clean_suite -y ${suite}
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - master
+     - tags
 
 .doc_sphinx: &doc_sphinx_template
   stage: doc
@@ -54,14 +57,23 @@ stages:
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
     - master
+    - tags
 
-#.ssm: &ssm_template
-#  stage: deploy
-#  script:
-#    - cd ssm
-#    - ./publish
-#  only:
-#    - tags
+.ssm: &ssm_template
+  stage: deploy
+  script:
+    - ./set_resources_def.sh
+    - . maestro/suites/midas_system_tests/set_machine_list.dot
+    ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
+    - VERSION=$(./midas.version.sh | cut -c3-)
+    - cd ssm
+    - ./package --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --frontend ${MACHINE_PPP} --backend ${MACHINE_SUPER}
+    ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
+    ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
+    - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
+    - rm -rf ${SSM_PACKAGES}/${VERSION}
+  only:
+    - tags
 
 build:hpcr-u1:
   <<: *build_template
@@ -78,7 +90,7 @@ doc_sphinx:hpcr-u1:
   tags:
     - hpcr-u1
 
-#ssm:hpcr-u1:
-#  <<: *ssm_template
-#  tags:
-#    - hpcr-u1
+ssm:hpcr-u1:
+  <<: *ssm_template
+  tags:
+    - hpcr-u1

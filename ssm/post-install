@@ -1,0 +1,26 @@
+#!/bin/bash
+
+domainHome=$1
+packageHome=$2
+
+# create profiles
+packageName=$(basename ${packageHome})
+profileDirPath=${packageHome}/etc/profile.d
+profilePath=${profileDirPath}/${packageName}.sh
+loginPath=${profileDirPath}/${packageName}.csh
+
+# expect default to point to the real VarData dir
+rm -f ${profilePath} ${loginPath}
+mkdir -p ${profileDirPath}
+
+cat > ${profilePath} << EOF
+if [[ -z \${AFSISIO} ]]; then
+    export AFSISIO=/home/smco502/env_${ORDENV_PLAT}
+fi
+EOF
+
+cat > ${loginPath} << EOF
+if [[ -z \${AFSISIO} ]]; then
+    setenv AFSISIO '/home/smco502/env_${ORDENV_PLAT}'
+fi
+EOF

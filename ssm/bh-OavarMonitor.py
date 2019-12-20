@@ -3,8 +3,9 @@
 
 from os import environ
 import sys
-from bh import bhlib, actions
 import os
+from bh import bhlib
+from bh.actions import package as actions
 
 
 def _init(b):
@@ -38,10 +39,21 @@ def _make(b):
             echo \"Package:  x\"                                > ${CONTROL_FILE}
             echo \"Version:  x\"                               >> ${CONTROL_FILE}
             echo \"Platform:  x\"                              >> ${CONTROL_FILE}
-            echo \"Maintainer: arma (E. Lapalme, J. Blezius)\" >> ${CONTROL_FILE}
+            echo \"Maintainer: RPN-AD\"                        >> ${CONTROL_FILE}
             echo \"BuildInfo: Compiled with 'gcc oavar.monitor.c -o oavar.monitor.Abs'\" >> ${CONTROL_FILE}
             echo \"           with source ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\" >> ${CONTROL_FILE}
             echo \"Description:  Monitor the file 'VAR3D_STATUS.dot' to detect when 'rebm' files are ready to be processed.\">> ${CONTROL_FILE}
+
+            cat > ${CONTROL_DIR}/control.json <<EOF
+{
+    \"package\": \"x\",
+    \"version\": \"x\",
+    \"platform\": \"x\",
+    \"maintainer\": \"RPN-AD\",
+    \"summary\": \"Monitor the file 'VAR3D_STATUS.dot' to detect when 'rebm' files are ready to be processed\",
+    \"build_info\": \"Compiled with 'gcc oavar.monitor.c -o oavar.monitor.Abs' with source ${BH_PULL_SOURCE} for version ${BH_PULL_SOURCE_GIT_BRANCH}\"
+}
+EOF
 
             cd ${BH_TOP_BUILD_DIR}
             gcc oavar.monitor.c -o oavar.monitor.Abs
@@ -69,10 +81,7 @@ if __name__ == "__main__":
     b.actions.set("package", actions.package.to_ssm)
  
     b.supported_platforms = [
-        "aix-7.1-ppc7-64",
-        "ubuntu-10.04-amd64-64",
-        "ubuntu-12.04-amd64-64",
-        "ubuntu-14.04-amd64-64",
-        "sles-11-broadwell-64-xc40"
+        "ubuntu-18.04-skylake-64",
+        "sles-15-skylake-64-xc50"
     ]
     dr.run(b)
