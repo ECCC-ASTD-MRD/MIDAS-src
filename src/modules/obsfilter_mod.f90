@@ -341,6 +341,9 @@ contains
           if (ilansea < 0 .or. ilansea > 2  ) llok = .false.
         end if
       end if
+      !
+      ! SAR winds: assimilates wind speed only for SAR winds
+      !
       if ( ivnm == BUFR_NEFS ) then 
         if ( idburp .ne. 204 ) then 
           llok = .false.
