@@ -1,3 +1,4 @@
 *~
+*.swp
 compiledir
 maestro/suites/midas_system_tests/resources/resources.def
