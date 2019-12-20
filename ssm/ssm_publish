@@ -8,26 +8,47 @@ echo "Executing: ${0} ${*}"
 
 script=$0
 
+SSM_PUBLISH_ALLOWED_PROJECTS=${SSM_PUBLISH_ALLOWED_PROJECTS-"midas verdict 1DvarTskin"}
+
 die () {
     set -e
     echo "${script}: ${*}" >&2
     exit 1
 }
 
+check_project () {
+    set -e
+    if [ $# -ne 1 ]; then
+        die "check_project: this function only accepts one and only one argument!  '${*}' was given"
+    fi
+    __this_project__=$1
+    __project_found__=false
+    for __project__ in ${SSM_PUBLISH_ALLOWED_PROJECTS}; do
+        if [ "${__this_project__}" = "${__project__}" ]; then
+            __project_found__=true
+            break
+        fi
+    done
+    if [ "${__project_found__}" = false ]; then
+        die "The project '${__this_project__}' cannot be found in the list '${SSM_PUBLISH_ALLOWED_PROJECTS}' of allowed projects"
+    fi
+    unset __project_found__ __this_project__ __project__
+}
+
 [ $# -eq 3 ] || die "This tool accepts only three and only three arguments but you gave '${*}'"
 
-product=${1}
-[ "${product}" = midas -o "${product}" = verdict ] || die "The argument can only be 'midas' or 'verdict' but you gave '${product}'"
+project=${1}
+check_project ${project}
 
 version=${2}
 
 packages=${3}
 [ -d "${packages}" ] || die "Cannot find the directory '${packages}"
 
-command="${HOME}/ssm/${product}/publish --post-install ${HOME}/ssm/${product}/post-install --packages ${packages} --workdir ${HOME}/data_maestro/ords/ssm_tmpdir/midas"
-command="${command} --domainpath /fs/ssm/eccc/mrd/rpn/anl/${product}/${version}"
+command="${HOME}/ssm/${project}/publish --post-install ${HOME}/ssm/${project}/post-install --packages ${packages} --workdir ${HOME}/data_maestro/ords/ssm_tmpdir/midas"
+command="${command} --domainpath /fs/ssm/eccc/mrd/rpn/anl/${project}/${version}"
 ## To test, uncomment this line and comment the line just above
-## command="${command} --domainpath ${HOME}/SSM/${product}/${version}"
+## command="${command} --domainpath ${HOME}/SSM/${project}/${version}"
 
 echo "Launching ${command}"
 ${command}
