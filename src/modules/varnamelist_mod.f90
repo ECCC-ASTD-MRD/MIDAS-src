@@ -41,7 +41,7 @@ module varNameList_mod
 
   ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 38,  VNLnumvarmax2D = 32
+  integer, parameter          :: VNLnumvarmax3D = 39,  VNLnumvarmax2D = 32
 
   integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
 
@@ -51,7 +51,7 @@ module varNameList_mod
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'TO3 ','TO3L','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
                                  'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',      &
-                                 'HR  ','TD  ','ALFT'/)
+                                 'HR  ','TD  ','ALFT','UV  '/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -59,7 +59,7 @@ module varNameList_mod
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
-                                 'TH',  'TH',  'TH'/)
+                                 'TH',  'TH',  'TH',  'MM'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -67,7 +67,7 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
-                                 'MT',  'MT',  'MT'/)
+                                 'MT',  'MT',  'MT',  'MT'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
@@ -237,6 +237,8 @@ module varNameList_mod
         varname='WGE'
       case ( bufr_riverFlow )
         varname='QO1'
+      case ( BUFR_NEFS ) 
+        varname='UV'
       case default
         !
         ! Search for constituents. Identification depends on value and presence of second parameter.
@@ -330,6 +332,8 @@ module varNameList_mod
         varNumber=BUFR_NEGZ
       case('DZ')
         varNumber=BUFR_NEDZ
+      case('UV')
+        varNumber=BUFR_NEFS 
       case('HU')
         if (present(varKind_opt)) then
            if (varKind_opt == 'CH') then

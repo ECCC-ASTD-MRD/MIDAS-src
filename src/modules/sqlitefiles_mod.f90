@@ -53,7 +53,7 @@ module sqliteFiles_mod
     real(8)             :: delhh
     integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
     character(len=128)  :: querySqlite
-    character(len=9)    :: datetimeSqliteCharacter
+    character(len=256)  :: datetimeSqliteCharacter 
 
     ier = mrfopc('MSGLVL','FATAL')
     ivals = 8
@@ -66,7 +66,7 @@ module sqliteFiles_mod
       call fSQL_open( db, trim(sqliteFileName), statusSqlite )
       querySqlite = "select date from resume;"
       datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite) )
-      read(datetimeSqliteCharacter,*)  dateSqlite
+      read(datetimeSqliteCharacter(1:8),*)  dateSqlite
       kdate = dateSqlite
       querySqlite = "select time from resume;"
       datetimeSqliteCharacter = sqlr_query( db, trim( querySqlite ) )
