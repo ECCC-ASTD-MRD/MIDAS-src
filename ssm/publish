@@ -97,16 +97,14 @@ for package in ${packages}/*.ssm; do
     pkgname=$(basename ${package} .ssm)
     echo "Working with package ${pkgname}"
 
-    if [ -n "${postinstall}" ]; then
-        if [ -f "${postinstall}" ]; then
-            echo "Insert '${postinstall}' in ${pkgname}.ssm"
-            ## add the post-install script
-            tar zxf ${package}
-            cp ${postinstall} ${pkgname}/.ssm.d/post-install
-            tar czf ${pkgname}.ssm ${pkgname}
-            cp ${pkgname}.ssm ${domainpath}
-            rm -r ${pkgname} ${pkgname}.ssm
-        fi
+    if [ -n "${postinstall}" -a -f "${postinstall}" ]; then
+        echo "Insert '${postinstall}' in ${pkgname}.ssm"
+        ## add the post-install script
+        tar zxf ${package}
+        cp ${postinstall} ${pkgname}/.ssm.d/post-install
+        tar czf ${pkgname}.ssm ${pkgname}
+        cp ${pkgname}.ssm ${domainpath}
+        rm -r ${pkgname} ${pkgname}.ssm
     else
         cp ${package} ${domainpath}
     fi
