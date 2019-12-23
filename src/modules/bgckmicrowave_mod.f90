@@ -2585,11 +2585,11 @@ contains
     !
     !NOTES  
     !        5 tests are done:  
-    !          1) check for data rejected by SATQC_ATMS (QC flag bit 7 ON)          --> bit 9(,7)
+    !          1) check for data rejected by first bgckAtms program (SATQC_ATMS standalone program) (QC flag bit 7 ON)          --> bit 9(,7)
     !          2) topography rejection for low-peaking channels (with MF/MX field), --> bits 9,18
     !          3) check for uncorrected radiance (QC flag bit 6 OFF),               --> bit 11           
     !          4) Innovation (O-P) based QC                                         --> bit 9
-    !         5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
+    !          5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
     IMPLICIT NONE
 
     INTEGER MXCHN
@@ -2726,7 +2726,7 @@ contains
       ENDDO
     ENDDO
 
-    ! 1) test 1: Check flag bit 7 on from SATQC_ATMS
+    ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
     INO = 1
@@ -2741,7 +2741,7 @@ contains
             MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                  MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
             IF (DEBUG) THEN
-              write(*,*)STNID(2:9),' SATQC_ATMS REJECT.', &
+              write(*,*)STNID(2:9),' first bgckAtms program REJECT.', &
                         'CHANNEL=', KCANO(JI,JJ), &
                         ' IMARQ= ',IMARQ(JI,JJ)
             ENDIF
@@ -3070,7 +3070,7 @@ contains
       PRINT *, ' -----------------------------------------------------'
       PRINT *, ' Definition of rejection categories: '
       PRINT *, ' -----------------------------------------------------'
-      PRINT *, '  1 - SATQC_ATMS reject [bit 7]'
+      PRINT *, '  1 - first bgckAtms program reject [bit 7]'
       PRINT *, '  2 - topography reject'
       PRINT *, '  3 - uncorrected radiance'
       PRINT *, '  4 - innovation (O-P) based reject'

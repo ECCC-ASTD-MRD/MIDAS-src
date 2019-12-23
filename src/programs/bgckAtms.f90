@@ -47,7 +47,7 @@ program midas_bgckAtms
   !                 7) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
   !              o  Set data QC flag bit 7 ON for all filtered/rejected data
   !
-  !  Program atms_inovqc.f does O-P based rejections, topography filtering, channel selection and 
+  !  Second part of bgckAtms does O-P based rejections, topography filtering, channel selection and 
   !  some other checks and sets 3D-Var rejection bits in data QC flags (bits 8,9,11). Data with QC flag
   !  bit 7 ON from this program will have bit 9 set ON.
   !
@@ -86,19 +86,12 @@ program midas_bgckAtms
   ! lsq          -internal-  array holding land/sea qualifier values computed from model MG field
   ! trn          -internal-  array holding terrain-type values computed from analysis MG field and SeaIce
   !
-  !  To compile on AIX:
   !
-  !    >  . s.ssmuse.dot Xlf13.108 rmnlib-dev devtools cmda
-  !    >  s.compile -src satqc_atms.ftn90 -o satqc_atms -libpriv burp_module -librmn rmn_014_rc1
+  ! Description of input/output files:
   !
-  !  To RUN:
-  !
-  ! >  satqc_atms  -IXENT burpin  -OXSRT burpout  { -SPADJUST -IRBC coeff_file_atms } -MGLGFILE mglg_file
-  ! >  satqc_atms  -IXENT atms_deri_so  -OXSRT atms_deri_so_qc1  -MGLGFILE fstglmg { -MODLSQ }
-  !
-  !    burpin    =  DERIALT-type ATMS data BURP file
-  !    burpout   =  DERIALT-type ATMS data BURP file with data FLAG block QC flag bit 7 set for data 
-  !                 rejected for CLW, precip, surface-type, dryness, etc. 
+  !    burp input  =  DERIALT-type ATMS data BURP file
+  !    burp output =  BGCKALT-type ATMS data BURP file containing ATMS Tb [with bits 8, 9 and 11 set for 3dvar reject]
+  !                 Data FLAG block QC flag bit 7 set for data rejected for CLW, precip, surface-type, dryness, etc. 
   !                 Also contains 3 new INFO block (btyp=3072) elements that can be plotted with SATPLOT
   !                  - cloud water field CLW (13209) over water,
   !                  - ECMWF scattering index (13208) over water, and
@@ -108,6 +101,12 @@ program midas_bgckAtms
   !    mglg_file =  standard file (FST) containing model MG and LG fields (from GEM analysis/trial)
   !                  - can contain GL (discontinuous ice fraction) instead of LG (continuous ice fraction)
   !                    although discontinuities in GL field may cause interpolation issues.
+
+  !
+  !    MT_fst    =  Standard file containing filtered model topo fields MF or MX (for TOPO check)
+  !                            NOTE: GEM analysis (_000) and 3h trial (_180m) files contain these fields.
+  ! stats_atms_assim  =  ATMS observation error file (new 2013 format)
+  !                            NOTE: ERBGCK used for rogue O-P check, UTIL column for channel selection
   !
   !   OPTIONS:
   !    -SPADJUST              = scan bias adjust the Tb data before using the data in algorithms
@@ -250,56 +249,30 @@ program midas_bgckAtms
   ! External functions
   integer, external :: exdb,exfin
 
-  character(len=*), parameter :: VERSION = '2.12'
-
-  ! inovQCAtms program
+  ! Second part of bgckAtms program (atms_inovqc standalone program)
   !OBJET          Effectuer le controle de qualite des radiances level 1b 
   !               ATMS de NPP.
   !
-  !CLES           IXENT   - FICHIER BURP CONTENANT LES DONNEES
-  !                         TOVS REGROUPES                               (ENTREE)
-  !               IRGEO   - FICHIER STANDARD CONTENANT LES CHAMPS 
-  !                         GEOPHYSIQUES MF/MX                           (ENTREE)
-  !               ISSTAT  - FICHIER SEQUENTIEL CONTENANT LES STATISTIQUES 
-  !                         D'ERREUR TOTALE DES TOVS (NEW 2013 FORMAT)   (ENTREE)
-  !               OXSRT   - FICHIER BURP CONTENANT LES DONNEES
-  !                         TOVS REGROUPES AVEC MARQUEURS QC RAJOUTES    (SORTIE)
-  !               DEBUG   - ACTIONNER LE MODE DEBUG
   !NOTES
   !
-  !  Must be run after satqc_atms, satbcor and 3D-Var (O-P mode)
+  !  Must be run after satbcor and 3D-Var (O-P mode)
   !
   !        5 tests are done:                                                      QC flag bits set
-  !          1) check for data rejected by SATQC_ATMS (QC flag bit 7 ON)          --> bit 9(,7)
+  !          1) check for data rejected by first bgckAtms program (QC flag bit 7 ON)          --> bit 9(,7)
   !          2) topography rejection for low-peaking channels (with MF/MX field), --> bits 9,18
   !          3) check for uncorrected radiance (QC flag bit 6 OFF),               --> bit 11           
   !          4) Innovation (O-P) based QC                                         --> bit 9,16
-  !         5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
+  !          5) channel blacklisting (from UTIL column in stats_atms_assim file)  --> bit 8
   !
   !       *** Array ITEST(5) in SUBROUTINE mwbg_tovCheckAtms used to select tests. ***
 
   !  (i)   Basic QC tests plus filtering for surface-sensitive channels, cloud water (CLW), 
-  !         scattering index, Dryness Index are done in first QC program SATQC_ATMS.
+  !         scattering index, Dryness Index are done in first bgckAtms program.
   !         QC flag bit 7 is set for the rejected data. Test 1 of this program checks
   !         for such data and sets bit 9 ON (for 3D-Var rejection).
   !
   ! (ii)   This program sets data QC flag bit 9 ON in all "data reject" cases except
   !         for test 12 (blacklisting) where bit 8 is set ON.
-  !
-  !  To compile on Linux (pgi9xx) (on arxt10):
-  !
-  ! >  s.compile -src atms_inovqc.f -o atms_inovqc_Linux -librmn rmn_014_rc2 {-debug}
-  !
-  !  To RUN :
-  ! 
-  ! >  atms_inovqc_Linux -IXENT burpin -IRGEO MT_fst -ISSTAT stats_atms_assim -OXSRT burpout { -DEBUG oui }
-  !
-  !       burpin            =  BURP file containing ATMS Tb (Sat_QCd, bias corrected, and O-P) [bits 7 and 6 set]
-  !       MT_fst            =  Standard file containing filtered model topo fields MF or MX (for TOPO check)
-  !                            NOTE: GEM analysis (_000) and 3h trial (_180m) files contain these fields.
-  !       stats_atms_assim  =  ATMS observation error file (new 2013 format)
-  !                            NOTE: ERBGCK used for rogue O-P check, UTIL column for channel selection
-  !       burpout           =  BURP file containing ATMS Tb [with bits 8, 9 and 11 set for 3dvar reject]
   !
   INTEGER MXELM
   INTEGER MXLAT, MXLON
@@ -370,13 +343,20 @@ program midas_bgckAtms
   integer :: nulnam
   namelist /nambgck/ debug, sp_adj_tb, modlsqtt, useUnbiasedObsForClw, RESETQC, ETIKRESU 
 
-  brp_in = './obsSatQC.in'
-  brp_out = './obsInovQC.out'
+  brp_in = './obsatms'
+  brp_out = './obsatms.out'
 
   mglg_file  = './fstmglg'
   coef_in = './bcor'
 
-  istat=exdb('midas_bgckAtms',VERSION,'NON')
+  istat = exdb('midas_bgckAtms','DEBUT','NON')
+
+  write(*,'(/,' //                                                &
+            '3(" *****************"),/,' //                       &
+            '14x,"-- START OF MAIN PROGRAM MIDAS-BGCKATMS: --",/,' //   &
+            '14x,"-- BACKGROUND CHECK FOR ATMS OBSERVATIONS --",/, ' //&
+            '14x,"-- Revision : ",a," --",/,' //       &
+            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   debug = .false.
   sp_adj_tb = .false.
@@ -429,7 +409,7 @@ program midas_bgckAtms
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_atms_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-    write(*,*) '(" ATMS_INOVQC: Problem opening ", &
+    write(*,*) '(" bgckAtms: Problem opening ", &
           "ATMS total error statistics file ", stats_atms_assim)'
     CALL ABORT ()
   END IF
@@ -1079,7 +1059,7 @@ program midas_bgckAtms
         call mwbg_writeBlocks(reportIndex, ztb, lsq, trn, riwv, rclw, ident, &
                               lflagchn, IMARQ, lutb, Rpt_in, Rpt_out)
 
-        !** start second quality control (inovQC) **
+        !** start second quality control (atms_inovqc standalone program) **
         !
         ! trouver l'indice du satellite
         INOSAT = 0
@@ -1263,7 +1243,7 @@ program midas_bgckAtms
 
   Deallocate(adresses)
 
-  istat=exfin('midas_bgckAtms',VERSION,'NON')
+  istat = exfin('midas_bgckAtms','FIN','NON')
 
   ! fermeture des fichiers 
   Call BURP_Free(File_in,F2=File_out,IOSTAT=error)

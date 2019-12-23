@@ -129,10 +129,17 @@ program midas_bgckmw
 
   namelist /nambgck/ debug, RESETQC, ETIKRESU 
 
+  JUNK = EXDB('BGCKMW','DEBUT','NON')
+
+  write(*,'(/,' //                                                &
+            '3(" *****************"),/,' //                       &
+            '14x,"-- START OF MAIN PROGRAM MIDAS-BGCKMW: --",/,' //   &
+            '14x,"-- BACKGROUND CHECK FOR MW OBSERVATIONS --",/, ' //&
+            '14x,"-- Revision : ",a," --",/,' //       &
+            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
   ! 1) Debut
   IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
-
-  JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
 
   debug = .false.
   RESETQC = .FALSE.
@@ -185,7 +192,7 @@ program midas_bgckmw
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-    WRITE (*,*) '(" SATQC_AMSUA: Problem opening ", &
+    WRITE (*,*) '(" bgckMW: Problem opening ", &
            "TOVS total error statistics file ", stats_amsua_assim)'               
     CALL ABORT ()
   END IF
@@ -414,7 +421,7 @@ program midas_bgckmw
   ! fermeture des fichiers 
 9999  CONTINUE
 
-  JUNK  = EXFIN('SATQC_AMSUA',' ','NON')
+  JUNK  = EXFIN('bgckMW','FIN','NON')
   ISTAT = MRFCLS(IUNENT)
   ISTAT = MRFCLS(IUNSRT)
   ISTAT = FSTFRM(IUNGEO)
