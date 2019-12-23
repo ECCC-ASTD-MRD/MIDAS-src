@@ -22,16 +22,17 @@ program midas_bgckmw
 
   implicit none
 
-  INTEGER MXELM, MXVAL, MXNT, NCLES, MXSAT, MXSCAN
+  INTEGER MXELM
   INTEGER MXLAT, MXLON
-  PARAMETER ( NCLES  =     9 )
   PARAMETER ( MXELM  =    40 )
-  PARAMETER ( MXVAL  =    50 )
-  PARAMETER ( MXNT   =  2000 )
-  PARAMETER ( MXSAT  =     9 )
-  PARAMETER ( MXSCAN =    56 )
   PARAMETER ( MXLAT  =     5 )
   PARAMETER ( MXLON  =     5 )
+  integer, parameter :: MXSAT = 9
+  integer, PARAMETER :: MXVAL = 22
+  integer, PARAMETER :: MXNT = 3000
+  integer, parameter :: nchanAtms=22
+  integer, parameter :: mxscan=96
+  real, parameter    :: zmisg=9.9e09
 
   integer ezsetopt, ezsetval, ezqkdef
   integer gdllsval, gdxyfll, gdmg, gdmt, gdgl
@@ -110,7 +111,7 @@ program midas_bgckmw
   REAL  GLINTBOX(MXLAT*MXLON,MXNT)
   REAL  XLAT,XLON
 
-  REAL  ZMISG, DLAT, DLON, TOPOFACT
+  REAL  DLAT, DLON, TOPOFACT
 
   LOGICAL RESETQC, SKIPENR
 
@@ -118,7 +119,6 @@ program midas_bgckmw
   DATA IUNSRT  / 20 /
   DATA IUNGEO  / 50 /
   DATA IUNSTAT / 60 /
-  DATA ZMISG  /9.9E09 /
   DATA DLAT   / 0.4 /
   DATA DLON   / 0.6 /
 
@@ -129,10 +129,17 @@ program midas_bgckmw
 
   namelist /nambgck/ debug, RESETQC, ETIKRESU 
 
+  JUNK = EXDB('BGCKMW','DEBUT','NON')
+
+  write(*,'(/,' //                                                &
+            '3(" *****************"),/,' //                       &
+            '14x,"-- START OF MAIN PROGRAM MIDAS-BGCKMW: --",/,' //   &
+            '14x,"-- BACKGROUND CHECK FOR MW OBSERVATIONS --",/, ' //&
+            '14x,"-- Revision : ",a," --",/,' //       &
+            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
   ! 1) Debut
   IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
-
-  JUNK = EXDB('SATQC_AMSUA','07MAR14','NON')
 
   debug = .false.
   RESETQC = .FALSE.
@@ -185,7 +192,7 @@ program midas_bgckmw
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
   IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-    WRITE (*,*) '(" SATQC_AMSUA: Problem opening ", &
+    WRITE (*,*) '(" bgckMW: Problem opening ", &
            "TOVS total error statistics file ", stats_amsua_assim)'               
     CALL ABORT ()
   END IF
@@ -414,7 +421,7 @@ program midas_bgckmw
   ! fermeture des fichiers 
 9999  CONTINUE
 
-  JUNK  = EXFIN('SATQC_AMSUA',' ','NON')
+  JUNK  = EXFIN('bgckMW','FIN','NON')
   ISTAT = MRFCLS(IUNENT)
   ISTAT = MRFCLS(IUNSRT)
   ISTAT = FSTFRM(IUNGEO)
