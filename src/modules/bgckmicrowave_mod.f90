@@ -1508,7 +1508,7 @@ contains
   END
 
 
-  SUBROUTINE mwbg_updatFlgAmsua(KCHKPRF, KTERMER, ICHECK, RESETQC, IMARQ, rpt)
+  SUBROUTINE mwbg_updatFlgAmsua(KCHKPRF, KTERMER, ITERRAIN, GLINTRP, ICHECK, RESETQC, IMARQ, rpt)
     !OBJET          Allumer les bits des marqueurs pour les tovs rejetes.
     !               Mettre a jour l'indicateur terre/mer qui a
     !               possiblement ete corrige pour la glace marine.
@@ -1519,6 +1519,8 @@ contains
     !                                   =0, ok,
     !                                   >0, rejet,
     !               ktermer - input  -  indicateur terre/mer
+    !               iterrain- input  -  indicateur du type de terrain
+    !               glintrp - input  -  etendue de glace du modele
     !               icheck  - input  -  indicateur controle de qualite tovs au 
     !                                   niveau de chaque canal
     !               resetqc - input  -  reset the quality control flags before adding the new ones ? 
@@ -1527,7 +1529,9 @@ contains
     IMPLICIT NONE
 
     INTEGER :: KCHKPRF (:)
+    INTEGER :: ITERRAIN(:)
     INTEGER :: KTERMER (:)
+    REAL    :: GLINTRP (:)
     INTEGER :: ICHECK  (:)
     LOGICAL :: RESETQC
     INTEGER :: IMARQ   (:)
@@ -1541,7 +1545,94 @@ contains
     integer :: indice, indice1, indice2, kk, jj, JI, j, ipos, idata  
     integer :: bktyp, new_bktyp 
 
-    Call BURP_Init(blk, IOSTAT=error)
+    Call BURP_Init(blk, B2=blk_copy, IOSTAT=error)
+
+    ! 2) Bloc info (general): bloc 3072
+    !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
+    !    marine.
+
+    !  extraire le bloc
+    ref_blk = 0
+    ref_blk = BURP_Find_Block(rpt, &
+                    BLOCK       = blk, &
+                    SEARCH_FROM = ref_blk, &
+                    BFAM        = 0, &
+                    BTYP        = 3072, &
+                    IOSTAT      = error)
+    if (error /= burp_noerr) call abort()
+    if (ref_blk < 0) then
+      write(*,*) 'ERREUR -  INFO block (btyp=3072) not found.'
+      call abort()
+    endif
+
+    call BURP_Get_Property(blk, &
+                     NELE = my_nele, &
+                     NT   = my_nt, &    ! number of locations in the box (report)
+                     NVAL = my_nval, &
+                     IOSTAT=error)
+    if (error /= burp_noerr)  call abort()
+
+    ! extraire l'indicateur terre/mer; element 8012
+    indice = BURP_Find_Element(blk,8012,IOSTAT=error)
+    if ( indice > 0 ) then
+      j = 1
+      do kk = 1, my_nt
+        kdata(kk) = BURP_Get_Tblval(blk,indice,j,kk,error)
+      end do
+    else
+      write(*,*) 'LAND/SEA INDICATOR MISSING in INFO block (btyp=3072).'
+      call abort()
+    endif
+    IF (mwbg_debug) THEN
+      write(*,*) ' OLD LAND/SEA = ', (KDATA(JJ),JJ=1,my_nt)
+      WRITE(*,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,my_nt)
+    ENDIF
+
+    ! Remplacer les nouveaux indicateurs terre/mer dans le tableau.
+    j = 1
+    do kk = 1, my_nt
+      idata = KTERMER(kk)
+      Call BURP_Set_Tblval(blk,indice,j,kk,idata)
+    end do
+
+    !  Dans les conditions suivantes:
+    !      1) l'indicateur terre/mer indique l'ocean (ktermer=1),
+    !      2) le "terrain type" est manquant (iterrain=-1),
+    !      3) le modele indique de la glace (gl >= 0.01),
+    !  on specifie "sea ice" pour le "terrain type" (iterrain=0).
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' OLD TERRAIN TYPE = ', (ITERRAIN(JJ),JJ=1,my_nt)
+      WRITE(*,*) ' KTERMER = ', (KTERMER(JJ),JJ=1,my_nt)
+      WRITE(*,*) ' GLINTRP = ', (GLINTRP(JJ),JJ=1,my_nt)
+    ENDIF
+    DO JI = 1, my_nt
+      IF ( KTERMER (JI) == 1 .and. ITERRAIN(JI) == -1 .and. GLINTRP (JI) >= 0.01 ) &
+            ITERRAIN(JI) = 0
+    ENDDO
+    IF ( mwbg_debug ) THEN
+      WRITE(*,*) ' NEW TERRAIN TYPE = ', (ITERRAIN(JJ),JJ=1,my_nt)
+    ENDIF
+
+    indice = BURP_Find_Element(blk,13039,IOSTAT=error)
+    if ( indice <= 0 ) then
+      write(*,*) 'TERRAIN TYPE MISSING in INFO block (btyp=3072).'
+      call abort()
+    endif
+
+    ! Update terrain type dans le tableau.
+    j = 1
+    do kk = 1, my_nt
+      idata = ITERRAIN(kk)
+      Call BURP_Set_Tblval(blk,indice,j,kk,idata)
+    end do
+
+    blk_copy = blk
+
+    Call BURP_Delete_Block(rpt,BLOCK=blk,IOSTAT = error)
+    if (error /= burp_noerr)  call abort()
+
+    Call BURP_Write_Block(rpt,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
+    if (error /= burp_noerr)  call abort()
 
     ! 1) Bloc info 3d: bloc 5120.
     !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
@@ -1611,61 +1702,6 @@ contains
     if (error /= burp_noerr)  call abort()
 
     Call BURP_Write_Block(rpt,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
-    if (error /= burp_noerr)  call abort()
-
-    ! 2) Bloc info (general): bloc 3072
-    !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
-    !    marine.
-
-    !  extraire le bloc
-    ref_blk = 0
-    ref_blk = BURP_Find_Block(rpt, &
-                    BLOCK       = blk, &
-                    SEARCH_FROM = ref_blk, &
-                    BFAM        = 0, &
-                    BTYP        = 3072, &
-                    IOSTAT      = error)
-    if (error /= burp_noerr) call abort()
-    if (ref_blk < 0) then
-      write(*,*) 'ERREUR -  INFO block (btyp=3072) not found.'
-      call abort()
-    endif
-
-    call BURP_Get_Property(blk, &
-                     NELE = my_nele, &
-                     NT   = my_nt, &    ! number of locations in the box (report)
-                     NVAL = my_nval, &
-                     IOSTAT=error)
-    if (error /= burp_noerr)  call abort()
-
-    ! extraire l'indicateur terre/mer; element 8012
-    indice = BURP_Find_Element(blk,8012,IOSTAT=error)
-    if ( indice > 0 ) then
-      j = 1
-      do kk = 1, my_nt
-        kdata(kk) = BURP_Get_Tblval(blk,indice,j,kk,error)
-      end do
-    else
-      write(*,*) 'LAND/SEA INDICATOR MISSING in INFO block (btyp=3072).'
-      call abort()
-    endif
-    IF (mwbg_debug) THEN
-      write(*,*) ' OLD LAND/SEA = ', (KDATA(JJ),JJ=1,my_nt)
-      WRITE(*,*) ' NEW LAND/SEA = ', (KTERMER(JJ),JJ=1,my_nt)
-    ENDIF
-
-    ! Remplacer les nouveaux indicateurs terre/mer dans le tableau.
-    j = 1
-    do kk = 1, my_nt
-      idata = KTERMER(kk)
-      Call BURP_Set_Tblval(blk,indice,j,kk,idata)
-    end do
-    blk_copy = blk
-
-    Call BURP_Delete_Block(rpt,BLOCK=blk,IOSTAT = error)
-    if (error /= burp_noerr)  call abort()
-
-    Call BURP_Write_Block(rpt,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
     if (error /= burp_noerr)  call abort()
 
     ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
@@ -5485,7 +5521,8 @@ contains
 
       ! OTHER BLOCK 
       else 
-        Call BURP_Write_Block(rpt_out,BLOCK=blk,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
         if (error /= burp_noerr)  call abort() 
         
       endif      

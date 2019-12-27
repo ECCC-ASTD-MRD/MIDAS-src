@@ -45,6 +45,7 @@ program midas_bgckmw
   integer, parameter :: nchanAtms=22
   integer, parameter :: mxscan=96
   real, parameter    :: zmisg=9.9e09
+  integer, parameter :: MISGINT = -1
 
   integer ezsetopt, ezsetval, ezqkdef
   integer gdllsval, gdxyfll, gdmg, gdmt, gdgl
@@ -389,9 +390,16 @@ program midas_bgckmw
       call mwbg_getDataAmsua(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                         biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag2, &
                         ican, icanomp, IMARQ, IORBIT, bad_report)
-      if ( bad_report ) cycle REPORTS
+      if ( bad_report ) then
+        n_bad_reps = n_bad_reps + 1  
 
-      ! write the block
+        Call BURP_Free(Rpt_out,IOSTAT=error)
+        if (error /= burp_noerr)  call handle_error()
+
+        cycle REPORTS
+      end if
+
+      ! Copy the original block to the report
       call mwbg_writeBlocksAmsua(reportIndex, Rpt_in, Rpt_out)
 
       ! trouver l'indice du satellite
@@ -488,10 +496,7 @@ program midas_bgckmw
                              ntOut, .FALSE.)
 
       ! 7) Mise a jour des marqueurs.
-      CALL mwbg_updatFlgAmsua(ICHKPRF, ilq, ICHECK, RESETQC, IMARQ, Rpt_out)
-
-      ! 8) Remplacer le terrain type en fichier burp.
-      CALL mwbg_ADDTRRNF90(ilq, itt, GLINTRP, Rpt_out)
+      CALL mwbg_updatFlgAmsua(ICHKPRF, ilq, itt, GLINTRP, ICHECK, RESETQC, IMARQ, Rpt_out)
 
     end if
 
@@ -506,6 +511,10 @@ program midas_bgckmw
     ENDIF
 
   end do REPORTS
+
+  write(*,*) ' Number of obs pts read from BURP file              = ', nobs_tot
+  write(*,*) ' Number of BURP file reports                        = ', n_reps
+  write(*,*) ' Number of bad BURP file reports (all data flagged) = ', n_bad_reps
 
   ! 10) Fin
   ! Imprimer les statistiques sur les rejets
