@@ -1574,11 +1574,58 @@ contains
                   IOSTAT = error)
       if (error /= burp_noerr) call abort()
 
+      ! 1) Bloc info 3d: bloc 5120.
+      !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
+      if (my_btyp == 5120) then     
+
+        ! extraire les marqueurs globaux de 24bits; element 55200
+        indice = BURP_Find_Element(blk,55200,IOSTAT=error)
+        if ( indice > 0 ) then
+          j = 1
+          do kk = 1, my_nt
+            kdata(kk) = BURP_Get_Tblval(blk,indice,j,kk,error)
+          end do
+        else
+          write(*,*) 'GLOBAL FLAGS missing in 3D block (btyp=5120).'
+          call abort()
+        endif
+        IF (mwbg_debug) THEN
+          write(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,my_nt)
+        ENDIF
+
+        ! allumer la bit (6) indiquant que l'observation a un element
+        ! rejete par le controle de qualite de l'AO.
+        !  N.B.: si on est en mode resetqc, on remet le marqueur global a
+        !        sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
+        DO JI = 1, my_nt
+          IF (RESETQC) THEN
+            KDATA(JI) = 1024  
+          ENDIF
+          IF ( KCHKPRF(JI).NE.0  ) THEN
+            KDATA(JI) = OR (KDATA(JI),2**6)
+          ENDIF
+        ENDDO
+        IF (mwbg_debug) THEN
+          write(*,*) ' KCHKPRF   = ', (KCHKPRF(JJ),JJ=1,my_nt)
+          write(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,my_nt)
+        ENDIF
+
+        ! Remplacer les nouveaux marqueurs dans le tableau.
+        j = 1
+        do kk = 1, my_nt
+          idata = kdata(kk)
+          Call BURP_Set_Tblval(blk,indice,j,kk,idata)
+        end do
+
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort()
+
       ! 2) Bloc info (general): bloc 3072
       !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
       !    marine.
       !    Add new elements CLW and scatw
-      if (my_btyp == 3072) then
+      else if (my_btyp == 3072) then
 
         ! Add new elements CLW and scatw
         Call BURP_Resize_Block(blk, ADD_NELE = 2, IOSTAT = error)
@@ -1653,56 +1700,9 @@ contains
         Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
         if (error /= burp_noerr)  call abort()
 
-      ! 1) Bloc info 3d: bloc 5120.
-      !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
-      else if (my_btyp == 5120) then     
-
-        ! extraire les marqueurs globaux de 24bits; element 55200
-        indice = BURP_Find_Element(blk,55200,IOSTAT=error)
-        if ( indice > 0 ) then
-          j = 1
-          do kk = 1, my_nt
-            kdata(kk) = BURP_Get_Tblval(blk,indice,j,kk,error)
-          end do
-        else
-          write(*,*) 'GLOBAL FLAGS missing in 3D block (btyp=5120).'
-          call abort()
-        endif
-        IF (mwbg_debug) THEN
-          write(*,*) ' OLD FLAGS = ', (KDATA(JJ),JJ=1,my_nt)
-        ENDIF
-
-        ! allumer la bit (6) indiquant que l'observation a un element
-        ! rejete par le controle de qualite de l'AO.
-        !  N.B.: si on est en mode resetqc, on remet le marqueur global a
-        !        sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
-        DO JI = 1, my_nt
-          IF (RESETQC) THEN
-            KDATA(JI) = 1024  
-          ENDIF
-          IF ( KCHKPRF(JI).NE.0  ) THEN
-            KDATA(JI) = OR (KDATA(JI),2**6)
-          ENDIF
-        ENDDO
-        IF (mwbg_debug) THEN
-          write(*,*) ' KCHKPRF   = ', (KCHKPRF(JJ),JJ=1,my_nt)
-          write(*,*) ' NEW FLAGS = ', (KDATA(JJ),JJ=1,my_nt)
-        ENDIF
-
-        ! Remplacer les nouveaux marqueurs dans le tableau.
-        j = 1
-        do kk = 1, my_nt
-          idata = kdata(kk)
-          Call BURP_Set_Tblval(blk,indice,j,kk,idata)
-        end do
-
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort()
-
       ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
       !    Modifier le bktyp pour signifier "vu par AO".
-      elseif ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
+      else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
                 my_bfam == 0 ) then 
 
         ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
@@ -1716,7 +1716,7 @@ contains
       ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
       !    Modifier les marqueurs de 13bits associes a chaque radiance.
       !    Modifier le bktyp pour signifier "vu par AO".
-      elseif ( (my_btyp == 15362 .or. my_btyp == 15392 .or. my_btyp == 15408) .and. &
+      else if ( (my_btyp == 15362 .or. my_btyp == 15392 .or. my_btyp == 15408) .and. &
                 my_bfam == 0 ) then 
 
         ! extraire les marqueurs de 13bits des radiances; element 212163 (LEVEL 1B)
@@ -1766,7 +1766,7 @@ contains
 
       ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
       !    Modifier le bktyp pour signifier "vu par AO".
-      elseif ( (my_btyp == 9322 .or. my_btyp == 9226 .or. my_btyp == 9258 .or. &
+      else if ( (my_btyp == 9322 .or. my_btyp == 9226 .or. my_btyp == 9258 .or. &
                 my_btyp == 9274) .and. my_bfam == 14 ) then 
 
         ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
