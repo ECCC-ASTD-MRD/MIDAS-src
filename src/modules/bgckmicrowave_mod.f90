@@ -354,7 +354,7 @@ contains
   SUBROUTINE mwbg_tovCheckAmsua(KSAT, KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                IMARQ, STNID, RESETQC, ZLAT)
+                                IMARQ, clw, scatw, STNID, RESETQC, ZLAT)
     !OBJET          Effectuer le controle de qualite des radiances tovs.
     !ARGUMENTS      ksat    - input  -  numero d'identificateur du satellite
     !               ktermer - input  -  indicateur terre/mer
@@ -381,6 +381,8 @@ contains
     !               iterrain- input  -  indicateur du type de terrain
     !               satzen  - input  -  angle zenith du satellite (deg.)
     !               imarq   - in/out -  marqueurs des radiances
+    !               clw     - output -  retrieved cloud liquid water
+    !               scatw   - output -  scattering index over water
     !               stnid   - input  -  identificateur du satellite
     !               resetqc - input  -  reset du controle de qualite?
     !               zlat    - input  -  latitude
@@ -5412,9 +5414,10 @@ contains
   end subroutine mwbg_writeBlocks
 
 
-  subroutine mwbg_writeBlocksAmsua(reportIndex, rpt, rpt_out)
+  subroutine mwbg_writeBlocksAmsua(clw, scatw, reportIndex, rpt, rpt_out)
     ! Object:   This routine modifies the blocks in the input Report (rpt) 
-    integer :: reportIndex
+    real, dimension(:)     :: clw, scatw
+    integer                :: reportIndex
     type(BURP_RPT)         :: rpt
     type(BURP_RPT)         :: rpt_out
 
@@ -5451,55 +5454,20 @@ contains
 
       ! INFO block (mix of integer and real data)
       elseif (my_btyp == 3072) then
+        ! Add new elements CLW and scatw
+        Call BURP_Resize_Block(blk, ADD_NELE = 2, IOSTAT = error)
+        if (error /= burp_noerr)  call abort()
+        
+        Call BURP_Set_Element(blk,NELE_IND=my_nele+1,ELEMENT=13209,IOSTAT=error)
+        Call BURP_Set_Element(blk,NELE_IND=my_nele+2,ELEMENT=13208,IOSTAT=error)
+        Call BURP_Encode_Block(blk)   ! encode the element numbers in the block
 
-
-        ! Add new elements QC indent flag (ident), CLW (rclw) and ECMWF_SI (riwv)
-        !   OPTION: replace land-sea qualifier (lsq) and terrain type (trn) with internal values
-        !   NOTE: after setting real values (Rval), call BURP_Convert_Block()!!
-
-        !Call BURP_Resize_Block(blk, ADD_NELE = 3, IOSTAT = error)
-        !if (error /= burp_noerr)  call abort()
-        !
-        !Call BURP_Set_Element(blk, NELE_IND = my_nele+1, ELEMENT = 25174, IOSTAT = error)
-        !Call BURP_Set_Element(blk, NELE_IND = my_nele+2, ELEMENT = 13209, IOSTAT = error)
-        !Call BURP_Set_Element(blk, NELE_IND = my_nele+3, ELEMENT = 13208, IOSTAT = error)
-        !Call BURP_Encode_Block(blk)   ! encode the element numbers in the block
-
-        !j = 1
-        !do kk =1, my_nt
-        !  iidata = ident(kk)
-        !  Call BURP_Set_Rval  (blk, NELE_IND=my_nele+2,NVAL_IND=j,NT_IND=kk, RVAL=rclw(kk),IOSTAT=error)
-        !  Call BURP_Set_Rval  (blk, NELE_IND=my_nele+3,NVAL_IND=j,NT_IND=kk, RVAL=riwv(kk),IOSTAT=error)
-        !end do
-      
-        !Call BURP_Convert_Block(blk)
-
-        !j = 1
-        !do kk =1, my_nt
-        !  iidata = ident(kk)
-        !  Call BURP_Set_Tblval(blk, NELE_IND=my_nele+1,NVAL_IND=j,NT_IND=kk, TBLVAL=iidata,IOSTAT= error)
-        !end do
-
-        !if (mwbg_modlsqtt) then
-        !  indice1 = BURP_Find_Element(blk,  8012, IOSTAT=error)
-        !  if (error /= burp_noerr)  call abort()
-        !  indice2 = BURP_Find_Element(blk, 13039, IOSTAT=error)
-        !  if (error /= burp_noerr)  call abort()
-        !  if ( indice1 > 0 .and. indice2 > 0 ) then
-        !    j = 1
-        !    do kk =1, my_nt
-        !      iidata = lsq(kk)
-        !      Call BURP_Set_Tblval(blk,indice1,j,kk,iidata,error)
-        !      if (error /= burp_noerr)  call abort()
-        !      iidata = trn(kk)
-        !      Call BURP_Set_Tblval(blk,indice2,j,kk,iidata,error)
-        !      if (error /= burp_noerr)  call abort()
-        !    end do
-        !  else
-        !    write(*,*) 'ERREUR - land/sea qualifier (ele=8012) and/or terrain type (ele=13039) not found in INFO block. Report = ', reportIndex
-        !    call abort()
-        !  endif                     
-        !endif
+        j = 1
+        do kk =1, my_nt
+          Call BURP_Set_Rval(blk,NELE_IND=my_nele+1,NVAL_IND=j,NT_IND=kk,RVAL=clw(kk),IOSTAT=error)
+          Call BURP_Set_Rval(blk,NELE_IND=my_nele+2,NVAL_IND=j,NT_IND=kk,RVAL=scatw(kk),IOSTAT=error)
+        end do
+        Call BURP_Convert_Block(blk)
 
         blk_copy = blk
         Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)

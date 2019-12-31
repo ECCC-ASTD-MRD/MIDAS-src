@@ -80,6 +80,8 @@ program midas_bgckmw
   INTEGER ICHECK    (MXVAL*MXNT)
   INTEGER ICHKPRF   (MXNT)
   INTEGER IMARQ     (MXVAL*MXNT)
+  real    clw       (MXNT)
+  real    scatw     (MXNT)
 
   CHARACTER(len=9)   STNID
   CHARACTER(len=9)   CSATID(MXSAT)
@@ -399,9 +401,6 @@ program midas_bgckmw
         cycle REPORTS
       end if
 
-      ! Copy the original block to the report
-      call mwbg_writeBlocksAmsua(reportIndex, Rpt_in, Rpt_out)
-
       ! trouver l'indice du satellite
       INOSAT = 0
       DO I = 1,MXSAT
@@ -489,11 +488,14 @@ program midas_bgckmw
       CALL mwbg_tovCheckAmsua(ISAT, ilq, IORBIT, ican, ICANOMP, ztb, biasCorr, &
                               ZOMP, ICHECK, nvalOut, ntOut, ZMISG, INOSAT, ICHKPRF, &
                               scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
-                              IMARQ, STNID, RESETQC, ZLAT)
+                              IMARQ, clw, scatw, STNID, RESETQC, ZLAT)
 
       ! Accumuler Les statistiques sur les rejets
       CALL mwbg_qcStatsAmsua(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
                              ntOut, .FALSE.)
+
+      ! Copy the original block to the report
+      call mwbg_writeBlocksAmsua(clw, scatw, reportIndex, Rpt_in, Rpt_out)
 
       ! 7) Mise a jour des marqueurs.
       CALL mwbg_updatFlgAmsua(ICHKPRF, ilq, itt, GLINTRP, ICHECK, RESETQC, IMARQ, Rpt_out)
