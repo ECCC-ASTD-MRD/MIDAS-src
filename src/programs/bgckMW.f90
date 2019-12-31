@@ -494,11 +494,10 @@ program midas_bgckmw
       CALL mwbg_qcStatsAmsua(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
                              ntOut, .FALSE.)
 
-      ! Copy the original block to the report
-      call mwbg_writeBlocksAmsua(clw, scatw, reportIndex, Rpt_in, Rpt_out)
-
-      ! 7) Mise a jour des marqueurs.
-      CALL mwbg_updatFlgAmsua(ICHKPRF, ilq, itt, GLINTRP, ICHECK, RESETQC, IMARQ, Rpt_out)
+      ! 7) Mise a jour de rapport.
+      CALL mwbg_updateBurpAmsua(clw, scatw, ICHKPRF, ilq, itt, &
+                                GLINTRP, ICHECK, RESETQC, IMARQ, &
+                                Rpt_in, Rpt_out)
 
     end if
 
