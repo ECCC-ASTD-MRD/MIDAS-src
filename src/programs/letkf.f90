@@ -79,7 +79,7 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, middleStepIndex, randomSeed2, randomSeedObs
+  integer :: memberIndex, stepIndex, middleStepIndex, randomSeedRandomPert, randomSeedObs
   integer :: nulnam, dateStamp, datePrint, timePrint, imode, ierr
   integer :: get_max_rss, fclos, fnom, fstopc, newdate
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
@@ -590,13 +590,13 @@ program midas_letkf
       timePrint = timePrint/1000000
       datePrint =  datePrint*100 + timePrint
       ! Remove the year and add 9
-      randomSeed2 = 9 + datePrint - 1000000*(datePrint/1000000)
-      write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeed2
+      randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+      write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
     else
-      randomSeed2 = randomSeed
+      randomSeedRandomPert = randomSeed
     end if
     call tmg_start(101,'LETKF-randomPert')
-    call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeed2)
+    call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeedRandomPert)
     call tmg_stop(101)
   end if
 
@@ -648,14 +648,14 @@ program midas_letkf
         timePrint = timePrint/1000000
         datePrint =  datePrint*100 + timePrint
         ! Remove the year and add 9
-        randomSeed2 = 9 + datePrint - 1000000*(datePrint/1000000)
-        write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeed2
+        randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+        write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
       else
-        randomSeed2 = randomSeed
+        randomSeedRandomPert = randomSeed
       end if
       call tmg_start(101,'LETKF-randomPert')
       call enkf_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
-                              alphaRandomPertSubSample, randomSeed2)
+                              alphaRandomPertSubSample, randomSeedRandomPert)
       call tmg_stop(101)
     end if
 
