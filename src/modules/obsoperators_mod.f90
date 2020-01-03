@@ -646,7 +646,7 @@ contains
       if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
       if (.not. beSilent) write(*,nml=namSurfaceObs)
       ierr=fclos(nulnam)
-    else
+    else if (.not. beSilent) then
       write(*,*)
       write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'
     end if

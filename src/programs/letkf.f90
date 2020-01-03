@@ -79,7 +79,7 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer :: memberIndex, stepIndex, middleStepIndex, randomSeed2
+  integer :: memberIndex, stepIndex, middleStepIndex, randomSeedRandomPert, randomSeedObs
   integer :: nulnam, dateStamp, datePrint, timePrint, imode, ierr
   integer :: get_max_rss, fclos, fnom, fstopc, newdate
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
@@ -203,7 +203,8 @@ program midas_letkf
   if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
   if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
   if (alphaRandomPertSubSample < 0.0D0) alphaRandomPertSubSample = 0.0D0
-  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF') then
+  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
+      trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
@@ -267,6 +268,7 @@ program midas_letkf
 
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_zero(ensObs)
 
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs(ensObs)
@@ -425,14 +427,17 @@ program midas_letkf
   !- 3.3 Set some additional information in ensObs and additional quality 
   !      control before finally communicating ensObs globally
 
-  !  Compute and remove the mean of Yb
+  ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
-
-  ! Put y-mean(H(X)) in OBS_OMP, for writing to obs files
-  call eob_setMeanOMP(ensObs)
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
+
+  ! Compute random observation perturbations
+  if (trim(algorithm) == 'CVLETKF-PERTOBS') then
+    randomSeedObs = 1 + mpi_myid
+    call eob_calcRandPert(ensObs, randomSeedObs)
+  end if
 
   ! Apply obs operators to ensemble mean background for several purposes
   write(*,*) ''
@@ -446,6 +451,9 @@ program midas_letkf
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
 
+  ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
+  call eob_setMeanOMP(ensObs)
+
   ! Set pressure for all obs for vertical localization, based on ensemble mean pressure and height
   call eob_setLogPres(ensObs, column)
 
@@ -454,6 +462,9 @@ program midas_letkf
 
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
+
+  ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
+  call eob_setSigiSigo(ensObs)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
   if (huberize) call eob_huberNorm(ensObs)
@@ -579,13 +590,13 @@ program midas_letkf
       timePrint = timePrint/1000000
       datePrint =  datePrint*100 + timePrint
       ! Remove the year and add 9
-      randomSeed2 = 9 + datePrint - 1000000*(datePrint/1000000)
-      write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeed2
+      randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+      write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
     else
-      randomSeed2 = randomSeed
+      randomSeedRandomPert = randomSeed
     end if
     call tmg_start(101,'LETKF-randomPert')
-    call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeed2)
+    call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeedRandomPert)
     call tmg_stop(101)
   end if
 
@@ -637,14 +648,14 @@ program midas_letkf
         timePrint = timePrint/1000000
         datePrint =  datePrint*100 + timePrint
         ! Remove the year and add 9
-        randomSeed2 = 9 + datePrint - 1000000*(datePrint/1000000)
-        write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeed2
+        randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+        write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
       else
-        randomSeed2 = randomSeed
+        randomSeedRandomPert = randomSeed
       end if
       call tmg_start(101,'LETKF-randomPert')
       call enkf_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
-                              alphaRandomPertSubSample, randomSeed2)
+                              alphaRandomPertSubSample, randomSeedRandomPert)
       call tmg_stop(101)
     end if
 

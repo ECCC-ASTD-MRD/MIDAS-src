@@ -211,6 +211,9 @@ contains
       if ( obs_columnActive_RB(obsdat, OBS_HPHT))  call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_WORK))  call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
 
     end do
 

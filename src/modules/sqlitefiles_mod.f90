@@ -136,10 +136,16 @@ module sqliteFiles_mod
 
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
       if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
@@ -227,14 +233,15 @@ module sqliteFiles_mod
   end subroutine sqlf_thinFile
 
 
-  subroutine sqlf_writeSqlDiagFiles( obsSpaceData )
+  subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
+    character(len=*), intent(in)     :: sfFileName ! fileName acronym used for surface obs file
 
     call tmg_start(99,'sqlf_writeSqlDiagFiles: TOTAL: ')
     
-    call sqlr_writeAllSqlDiagFiles( obsSpaceData )
+    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName )
     
     call tmg_stop(99)
 
