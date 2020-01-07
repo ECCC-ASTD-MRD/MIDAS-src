@@ -9,14 +9,20 @@ which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 ##  - exit with 1 if it finds an 'abortx?' message
 ##  - exit with 0 if it find the message 'endx'
 
-if [ $# -ne 1 ]; then
-    echo "extractRunTime.sh: this scripts accepts only and only one argument which is the maestro suite." >&2
+if [ $# -ne 1 -a $# -ne 2 ]; then
+    echo "extractRunTime.sh: this scripts accepts only one or two argument which is the maestro suite and if statistics are computed (default is not)." >&2
     exit 1
 fi
 
 suite=$1
 if [[ "${suite}" != /* ]]; then
     suite=~/.suites/${suite}
+fi
+
+computeStats=${2:-no}
+if [ "${computeStats}" = yes ]; then
+    echo "The statistics are given like this:"
+    echo "Mean, Stddev, Mean/Stddev, Number of cases"
 fi
 
 if [ ! -d "${suite}" ]; then
@@ -41,13 +47,19 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         echo ${findRunTime_nodes%/*}
-        __findRunTime_line__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | head -1)
-        if [ -n "${__findRunTime_line__}" ]; then
-            echo -e "\t${__findRunTime_line__}"
+        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds')
+        if [ "${computeStats}" = yes ]; then
+            __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '{sum+=$(NF-1); sum2+=$(NF-1)**2; number++} END {mean=sum/number; var=sum2/number-mean**2; print mean, sqrt(var), sqrt(var)/mean, number}')
+            printf "\t${__findRunTime_stats__}\n"
+            unset __findRunTime_stats__
         else
-            echo -e "\tNo run time was available for that test"
+            if [ -n "${__findRunTime_runtime__}" ]; then
+                echo -e "\t$(printf "${__findRunTime_runtime__}" | head -1)"
+            else
+                echo -e "\tNo run time was available for that test"
+            fi
         fi
-        unset __findRunTime_line__
+        unset __findRunTime_runtime__
     else
         for __node__ in ${findRunTime_nodes}; do
             findRunTime ${__node__}
