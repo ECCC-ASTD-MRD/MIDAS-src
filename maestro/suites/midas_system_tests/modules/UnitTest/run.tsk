@@ -168,7 +168,10 @@ if [ -n "${UnitTest_mean_runtime}" ]; then
     fi
 fi ## Fin du 'if [ -n "${UnitTest_mean_runtime}" ]'
 
-if [ "${UnitTest_run_relaunch}" = yes ]; then
+if [ "${UnitTest_run_relaunch}" = run ]; then
     SEQ_XFER=stop
     maestro -s submit -n ${SEQ_NODE} -d ${SEQ_DATE} -f stop
-fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = yes ]'
+elif [ "${UnitTest_run_relaunch}" != check -a "${UnitTest_run_relaunch}" != no ]; then
+    echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
+    exit 1
+fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = run ]'
