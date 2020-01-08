@@ -1505,7 +1505,7 @@ CONTAINS
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
-    INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(19),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1533,7 +1533,8 @@ CONTAINS
     
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
-        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043/
+        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
+        013209/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1643,7 +1644,7 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=18
+        NELE_INFO=19
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -2933,6 +2934,7 @@ CONTAINS
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
     REAL(OBS_REAL) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     REAL        ::   RFOV
+    REAL(OBS_REAL) ::   cloudLiquidWater
 
     NOBS=obs_numHeader(obsdat)
 
@@ -2960,6 +2962,7 @@ CONTAINS
     RSOLAR_ZENITH = real(MPC_missingValue_R8,OBS_REAL)
     RZENITH = 90.
     RAZIMUTH = 0.
+    cloudLiquidWater = real(MPC_missingValue_R8,OBS_REAL)
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3056,6 +3059,8 @@ CONTAINS
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
           END IF
+        CASE(13209)
+          cloudLiquidWater = INFOV
       END SELECT
     end do
 
@@ -3112,6 +3117,7 @@ CONTAINS
     else
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
+    if ( obs_columnActive_RH(obsdat,OBS_CLW) ) call obs_headSet_r(obsdat,OBS_CLW,nobs,cloudLiquidWater)
 
   END SUBROUTINE  WRITE_INFO
 
