@@ -2359,6 +2359,7 @@ contains
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
   subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
+    implicit none
     real(8), intent(in)                  :: originalEmissivity(:)
     type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
     integer, intent(in)                  :: sensorId
