@@ -354,6 +354,8 @@
    LTESTOP     = .FALSE.,
    IZTDOP      = 1,
 /
+ &NAMOER
+/
  &NAMBURP_FILTER_SFC
   BNBITSOFF=0,
   BBITOFF(1)=2,

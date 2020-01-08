@@ -86,6 +86,8 @@
    LTESTOP    = .FALSE.,
    IZTDOP     = 1,
 /
+ &NAMOER
+/
  &NAMCODTYP
 /
 &NAMBURP_FILTER_SFC
