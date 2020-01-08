@@ -44,7 +44,12 @@ module obsErrors_mod
 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: clwThreshArr1(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: clwThreshArr2(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: sigmaObsErrOut1(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: sigmaObsErrOut2(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  integer :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -122,7 +127,7 @@ module obsErrors_mod
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
-  logical :: new_oer_sw, useTovsUtil
+  logical :: new_oer_sw, visAndGustAdded, allowStateDepSigmaObs, useTovsUtil
 
   character(len=48) :: obserrorMode
 
@@ -166,6 +171,9 @@ contains
     character(len=*), intent(in) :: obserrorMode_in
     logical, optional            :: useTovsUtil_opt
 
+    integer :: fnom, fclos, ierr, nulnam  
+    namelist /namoer/ new_oer_sw, visAndGustAdded, allowStateDepSigmaObs 
+
     !
     !- 1.  Setup Mode
     !
@@ -177,6 +185,18 @@ contains
     else
       useTovsUtil = .false.
     end if
+
+    ! read namelist
+    new_oer_sw = .false.
+    visAndGustAdded = .false.
+    allowStateDepSigmaObs = .false.
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read (nulnam, nml = NAMOER, iostat = ierr)
+    if ( ierr /= 0 ) call utl_abort('oer_setObsErrors: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=namoer)
+    ierr = fclos(nulnam)
 
     !
     !- 2.  Read in the observation std dev errors
@@ -254,13 +274,18 @@ contains
     implicit none
 
     integer,external  :: FNOM, FCLOS
-    integer  :: IER, ILUTOV, JI, JJ, JL, JM, INUMSAT, ISAT, IPLF
+    integer  :: IER, ILUTOV, ILUTOV2, JI, JJ, JL, JM, INUMSAT, INUMSAT2, ISAT, IPLF
     integer, dimension(tvs_maxNumberOfSensors)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
+    integer                                            :: IPLATFORM2, ISATID2, IINSTRUMENT2, NUMCHN2, NUMCHNIN2
     integer, dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: IUTILST, ICHN, ICHNIN
+    integer, dimension(tvs_maxChannelNumber) :: ICHNIN2
 
     real :: ZDUM
 
     real(8), dimension(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors) :: TOVERRIN
+    real(8), dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: sigmaObsErrIn1
+    real(8), dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: sigmaObsErrIn2
+    real(8), dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: tovsObsInflation
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -275,7 +300,13 @@ contains
         TOVERRST(JI,JL) = 0.0D0
         TOVERRIN(JI,1,JL) = 0.0D0
         TOVERRIN(JI,2,JL) = 0.0D0
+        sigmaObsErrIn1(JI,JL) = 0.0d0
+        sigmaObsErrIn2(JI,JL) = 0.0d0
+        sigmaObsErrOut1(JI,JL) = 0.0d0
+        sigmaObsErrOut2(JI,JL) = 0.0d0
+        tovsObsInflation(JI,JL) = 0.0d0
         IUTILST   (JI,JL) = 0
+        useStateDepSigmaObs(JI,JL) = 0
       end do
     end do
 
@@ -287,6 +318,9 @@ contains
         ICHN(JI,JL) = 0
         ICHNIN(JI,JL) = 0
       end do
+    end do
+    do JI = 1, tvs_maxChannelNumber
+      ICHNIN2(JI) = 0
     end do
 
     if (tvs_nobtov == 0) return
@@ -353,11 +387,71 @@ contains
       end if
 
       DO JI = 1, NUMCHNIN(JL)
-        READ (ILUTOV,*) ICHNIN(JI,JL), TOVERRIN(ICHNIN(JI,JL),1,JL), TOVERRIN(ICHNIN(JI,JL),2,JL), IUTILST(ICHNIN(JI,JL),JL), ZDUM
+        READ (ILUTOV,*) ICHNIN(JI,JL), TOVERRIN(ICHNIN(JI,JL),1,JL), TOVERRIN(ICHNIN(JI,JL),2,JL), IUTILST(ICHNIN(JI,JL),JL), tovsObsInflation(ICHNIN(JI,JL),JL)
       end do
       READ (ILUTOV,*)
 
     end do
+
+    ! read in the parameters to define the user-defined symmetric TOVS errors
+    if ( allowStateDepSigmaObs ) then
+      ilutov2 = 10
+      IER =  FNOM(ILUTOV2,'symmetricObsErr','SEQ+FMT',0)
+      if(IER < 0)THEN
+        write ( *, '(" oer_readObsErrorsTOVS: Problem opening ","file symmetricObsErr ")' )
+        call utl_abort ('oer_readObsErrorsTOVS')
+      end if
+
+      READ (ILUTOV2,*)
+      READ (ILUTOV2,*) INUMSAT2
+      READ (ILUTOV2,*)
+
+      write(*,'(5X,"oer_readObsErrorsTOVS: Reading symmetricObsErr file: "//)')
+
+      DO JL = 1, INUMSAT2
+
+        READ (ILUTOV2,*)
+        READ (ILUTOV2,'(A)') CLDUM
+        write(*,'(A)') CLDUM
+        CINSTR=CLDUM
+        call split(CINSTR," ",CPLATF)
+        Write(*,*) "CINSTR: ",CINSTR
+        Write(*,*) "CPLATF: ",CPLATF
+        READ (ILUTOV2,*)
+        READ (ILUTOV2,*) ISATID2, NUMCHNIN2
+        if ( ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL) ) then
+          write (*,*) '(" oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr ")'
+          call utl_abort ('oer_readObsErrorsTOVS')
+        end if
+
+        DO JI = 1, 3
+          READ (ILUTOV2,*)
+        end do
+
+        IPLATFORM2 = tvs_getPlatformId(CPLATF)
+        IINSTRUMENT2 = tvs_getInstrumentId(CINSTR)
+        if ( IPLATFORM2 /= IPLATFORM(JL) .or. IINSTRUMENT2 /= IINSTRUMENT(JL) ) then
+          write (*,*) '(" oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr ")'
+          call utl_abort ('oer_readObsErrorsTOVS')
+        end if
+
+        DO JI = 1, NUMCHNIN2
+          READ (ILUTOV2,*) ICHNIN2(JI), clwThreshArr1(ICHNIN2(JI),JL), clwThreshArr2(ICHNIN2(JI),JL), sigmaObsErrIn1(ICHNIN2(JI),JL), sigmaObsErrIn2(ICHNIN2(JI),JL), useStateDepSigmaObs(ICHNIN2(JI),JL)
+
+          if ( ICHNIN2(JI) /= ICHNIN(JI,JL) ) then
+            write (*,*) '(" oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr ")'
+            call utl_abort ('oer_readObsErrorsTOVS')
+          end if
+
+        end do
+        READ (ILUTOV2,*)
+
+      end do
+
+      IER = FCLOS(ILUTOV2)
+      if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+
+    end if
 
     !
     !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
@@ -381,6 +475,18 @@ contains
             DO JI = 1, tvs_maxChannelNumber
               TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
+
+              ! inflate the sigmaObsErr in analysis mode
+              if ( allowStateDepSigmaObs ) then
+                if (JJ == 1) then
+                  sigmaObsErrOut1(JI,JL) = sigmaObsErrIn1(JI,JM)
+                  sigmaObsErrOut2(JI,JL) = sigmaObsErrIn2(JI,JM)
+                else
+                  sigmaObsErrOut1(JI,JL) = sigmaObsErrIn1(JI,JM) * tovsObsInflation(JI,JM)
+                  sigmaObsErrOut2(JI,JL) = sigmaObsErrIn2(JI,JM) * tovsObsInflation(JI,JM)
+                end if
+              end if
+
             end do
             if ( trim(obserrorMode) == 'bgckIR' .or. useTovsUtil ) THEN
               do JI = 1, tvs_maxChannelNumber
@@ -408,11 +514,6 @@ contains
         call utl_abort ('oer_readObsErrorsTOVS')
       end if
     end do
-
-    !
-    
-    !
-
 
     !
     !    5. Print out observation errors for each sensor
@@ -548,28 +649,9 @@ contains
     ! argument
     type(struct_obs) :: lobsSpaceData
 
-    external fnom, fclos
     integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat, nulnam
-    logical             :: LnewExists, visAndGustAdded
+    logical             :: LnewExists
     character (len=128) :: ligne
-    character(len=256)  :: fileName
-
-    NEW_OER_SW    = .false.
-    visAndGustAdded = .false.
-
-    NAMELIST /NAMOER/NEW_OER_SW, visAndGustAdded
-    fileName = trim("flnml")
-    nulnam = 0
-    ierr = fnom( nulnam, fileName, 'R/O', 0)
-
-    read( nulnam, nml = NAMOER, iostat = ierr )
-    if(ierr /= 0) then
-      write(*,*) 'oer_readObsErrorsCONV : No valid namelist NAMOER found'
-    end if
-    ierr = fclos( nulnam )
-
-    write(*,*) 'oer_readObsErrorsCONV : new_oer_sw      = ', new_oer_sw
-    write(*,*) 'oer_readObsErrorsCONV : visAndGustAdded = ', visAndGustAdded
 
     if (visAndGustAdded) then
       surfaceObsTypeNumber = 6
@@ -881,6 +963,8 @@ contains
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError
+    real(8) :: clwThresh1, clwThresh2, clw_avg
+    real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErr
 
     logical :: ifirst, llok
 
@@ -933,6 +1017,7 @@ contains
                  ityp == BUFR_NBT3     ) then
 
               ichn = NINT( obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ))
+              if ( allowStateDepSigmaObs ) clw_avg  = obs_bodyElem_r( lobsSpaceData, OBS_CLW, bodyIndex )
               call tvs_mapSat( iplatf, iplatform, isat )
               call tvs_mapInstrum( instr, instrum )
 
@@ -940,7 +1025,23 @@ contains
                 if ( iplatform ==  tvs_platforms(jn)  .and. &
                      isat      ==  tvs_satellites(jn) .and. &
                      instrum   == tvs_instruments(jn)      ) then
-                  call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, TOVERRST( ichn, jn ))
+
+                  ! decide whether or not use the state dependent sigmaObsErr for OBS_OER
+                  if ( allowStateDepSigmaObs ) then
+                    if ( useStateDepSigmaObs(ichn,jn) == 0 ) then
+                      sigmaObsErr =  TOVERRST( ichn, jn )
+                    else
+                      clwThresh1 = clwThreshArr1(ichn,jn)
+                      clwThresh2 = clwThreshArr2(ichn,jn)
+                      sigmaThresh1 = sigmaObsErrOut1(ichn,jn)
+                      sigmaThresh2 = sigmaObsErrOut2(ichn,jn)
+                      sigmaObsErr = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
+                    end if
+
+                  else
+                    sigmaObsErr =  TOVERRST( ichn, jn )
+                  end if
+                  call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, sigmaObsErr )
 
                   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
                   if ( trim( obserrorMode ) == 'bgckIR' .or. useTovsUtil ) then
@@ -1374,6 +1475,31 @@ contains
 
     write(*,'(10X,"Fill_obs_errors")')
     write(*,'(10X,"---------------",/)')
+
+  contains
+
+    function calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg) result(sigmaObsErr)
+      implicit none
+      real(8) :: clwThresh1
+      real(8) :: clwThresh2
+      real(8) :: sigmaThresh1
+      real(8) :: sigmaThresh2
+      real(8) :: clw_avg
+      real(8) :: sigmaObsErr
+
+      if ( clw_avg <= clwThresh1 ) then
+        sigmaObsErr = sigmaThresh1
+      else if ( clw_avg >  clwThresh1 .and. & 
+                    clw_avg <= clwThresh2 ) then
+        sigmaObsErr = sigmaThresh1 + &
+                        (sigmaThresh2 - sigmaThresh1) / &
+                        (clwThresh2 - clwThresh1) * &
+                        (clw_avg - clwThresh1) 
+      else
+        sigmaObsErr = sigmaThresh2
+      end if
+
+    end function calcStateDepObsErr
 
   end subroutine oer_fillObsErrors
 
