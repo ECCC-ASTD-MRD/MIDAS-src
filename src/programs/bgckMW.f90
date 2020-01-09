@@ -81,6 +81,7 @@ program midas_bgckmw
   INTEGER ICHKPRF   (MXNT)
   INTEGER IMARQ     (MXVAL*MXNT)
   real    clw       (MXNT)
+  real    clw_avg   (MXNT)
   real    scatw     (MXNT)
 
   CHARACTER(len=9)   STNID
@@ -491,14 +492,14 @@ program midas_bgckmw
       CALL mwbg_tovCheckAmsua(ISAT, ilq, IORBIT, ican, ICANOMP, ztb, biasCorr, &
                               ZOMP, ICHECK, nvalOut, ntOut, ZMISG, INOSAT, ICHKPRF, &
                               scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
-                              IMARQ, clw, scatw, STNID, RESETQC, ZLAT)
+                              IMARQ, clw, clw_avg, scatw, STNID, RESETQC, ZLAT)
 
       ! Accumuler Les statistiques sur les rejets
       CALL mwbg_qcStatsAmsua(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
                              ntOut, .FALSE.)
 
       ! 7) Mise a jour de rapport.
-      CALL mwbg_updateBurpAmsua(clw, scatw, ICHKPRF, ilq, itt, &
+      CALL mwbg_updateBurpAmsua(clw_avg, scatw, ICHKPRF, ilq, itt, &
                                 GLINTRP, ICHECK, RESETQC, IMARQ, &
                                 Rpt_in, Rpt_out)
 

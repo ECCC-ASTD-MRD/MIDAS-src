@@ -354,7 +354,7 @@ contains
   SUBROUTINE mwbg_tovCheckAmsua(KSAT, KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                IMARQ, clw, scatw, STNID, RESETQC, ZLAT)
+                                IMARQ, clw, clw_avg, scatw, STNID, RESETQC, ZLAT)
     !OBJET          Effectuer le controle de qualite des radiances tovs.
     !ARGUMENTS      ksat    - input  -  numero d'identificateur du satellite
     !               ktermer - input  -  indicateur terre/mer
@@ -382,6 +382,8 @@ contains
     !               satzen  - input  -  angle zenith du satellite (deg.)
     !               imarq   - in/out -  marqueurs des radiances
     !               clw     - output -  retrieved cloud liquid water
+    !               clw_avg - output -  Averaged retrieved cloud liquid water, 
+    !                                   from observation and background
     !               scatw   - output -  scattering index over water
     !               stnid   - input  -  identificateur du satellite
     !               resetqc - input  -  reset du controle de qualite?
@@ -464,9 +466,15 @@ contains
     real tb50 (mxnt)
     real tb53 (mxnt)
     real tb89 (mxnt)
+    real tb23_P (mxnt)
+    real tb31_P (mxnt)
+    real tb50_P (mxnt)
+    real tb53_P (mxnt)
+    real tb89_P (mxnt)
     real ice  (mxnt)
     real tpw  (mxnt)
     real clw  (mxnt)
+    real clw_avg(mxnt)
     real scatl(mxnt)
     real scatw(mxnt)
 
@@ -587,19 +595,32 @@ contains
             if ( ichn .eq. 32 ) tb53(jj) = ptbo(ji,jj)
             if ( ichn .eq. 42 ) tb89(jj) = ptbo(ji,jj)
           endif
+
+          if ( ichn .eq. 28 ) tb23_P(jj) = ptbo(ji,jj) - ptbomp(ji,jj)
+          if ( ichn .eq. 29 ) tb31_P(jj) = ptbo(ji,jj) - ptbomp(ji,jj)
+          if ( ichn .eq. 30 ) tb50_P(jj) = ptbo(ji,jj) - ptbomp(ji,jj)
+          if ( ichn .eq. 32 ) tb53_P(jj) = ptbo(ji,jj) - ptbomp(ji,jj)
+          if ( ichn .eq. 42 ) tb89_P(jj) = ptbo(ji,jj) - ptbomp(ji,jj)
         else
           if ( ichn .eq. 28 ) tb23(jj) = 0.
           if ( ichn .eq. 29 ) tb31(jj) = 0.
           if ( ichn .eq. 30 ) tb50(jj) = 0.
           if ( ichn .eq. 32 ) tb53(jj) = 0.
           if ( ichn .eq. 42 ) tb89(jj) = 0.
+
+          if ( ichn .eq. 28 ) tb23_P(jj) = 0.  
+          if ( ichn .eq. 29 ) tb31_P(jj) = 0. 
+          if ( ichn .eq. 30 ) tb50_P(jj) = 0. 
+          if ( ichn .eq. 32 ) tb53_P(jj) = 0. 
+          if ( ichn .eq. 42 ) tb89_P(jj) = 0. 
         endif
       ENDDO
     ENDDO
 
     call grody (err, knt, tb23, tb31, tb50, tb53, tb89, &
-                satzen, zlat, ktermer, ice, &
-                tpw, clw, rain, snow, scatl, scatw)   
+                tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
+                satzen, zlat, ktermer, ice, tpw, clw, clw_avg, &
+                rain, snow, scatl, scatw)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2467,9 +2488,10 @@ contains
   END
 
 
-  SUBROUTINE GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, pangl, &
-                   plat, ilansea, ice, tpw, clw, rain, snow, scatl, &
-                   scatw )
+  SUBROUTINE GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, &
+                   tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
+                   pangl, plat, ilansea, ice, tpw, clw, clw_avg, &
+                   rain, snow, scatl, scatw)
     !OBJET          Compute the following parameters using 5 AMSU-A
     !               channels:
     !                  - sea ice, 
@@ -2494,12 +2516,19 @@ contains
     !               tb50    - input  -  50Ghz brightness temperature (K)
     !               tb53    - input  -  53Ghz brightness temperature (K)
     !               tb89    - input  -  89Ghz brightness temperature (K)
+    !               tb23_P  - input  -  23Ghz brightness temperature from background (K)
+    !               tb31_P  - input  -  31Ghz brightness temperature from background (K)
+    !               tb50_P  - input  -  50Ghz brightness temperature from background (K)
+    !               tb53_P  - input  -  53Ghz brightness temperature from background (K)
+    !               tb89_P  - input  -  89Ghz brightness temperature from background (K)
     !               pangl   - input  -  satellite zenith angle (deg.)
     !               plat    - input  -  lalitude (deg.)
     !               ilansea - input  -  land/sea indicator (0=land;1=ocean)
     !               ice     - output -  sea ice concentration (0-100%)
     !               tpw     - output -  total precipitable water (0-70mm)
     !               clw     - output -  cloud liquid water (0-3mm)
+    !               clw_avg - output -  averaged cloud liquid water from obs and 
+    !                                   background (0-3mm)
     !               rain    - output -  rain identification (0=no rain; 1=rain)
     !               snow    - output -  snow cover and glacial ice identification: 
     !                                   (0=no snow; 1=snow; 2=glacial ice)
@@ -2522,17 +2551,25 @@ contains
     real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real sc50, par, t53
     real dif285t23, dif285t31, epsilon
+    real dif285t23_P, dif285t31_P
 
     real tb23  (:)
     real tb31  (:)
     real tb50  (:)
     real tb53  (:)
     real tb89  (:)
+    real tb23_P(:)
+    real tb31_P(:)
+    real tb50_P(:)
+    real tb53_P(:)
+    real tb89_P(:)
     real pangl (:)
     real plat  (:)
     real ice   (:)
     real tpw   (:)
     real clw   (:)
+    real clw_P
+    real clw_avg(:)
     real scatl (:)
     real scatw (:)
 
@@ -2544,6 +2581,7 @@ contains
       ice  (i) = zmisgLocal
       tpw  (i) = zmisgLocal
       clw  (i) = zmisgLocal
+      clw_avg(i) = zmisgLocal
       scatl(i) = zmisgLocal
       scatw(i) = zmisgLocal
       rain (i) = nint(zmisgLocal)
@@ -2585,8 +2623,10 @@ contains
         t50 = tb50(i)
         t53 = tb53(i)
         t89 = tb89(i)
-        dif285t23=max(285.-t23,epsilon)
-        dif285t31=max(285.-t31,epsilon)
+        dif285t23  =max(285.-t23,epsilon)
+        dif285t23_P=max(285.-tb23_P(i),epsilon)
+        dif285t31  =max(285.-t31,epsilon)
+        dif285t31_P=max(285.-tb31_P(i),epsilon)
 
         ! scattering indices:
         siw = -113.2 + (2.41 - 0.0049*t23)*t23 &
@@ -2644,11 +2684,12 @@ contains
             tpw(i) = min(70.,max(0.,tpw(i)))   ! jh     
           endif
 
-          !3.3) Cloud liquid water:
+          !3.3) Cloud liquid water from obs (clw) and background state (clw_P):
           ! identify and remove sea ice
           if ( abslat .gt. 50.  .and. &
               df1    .gt.  0.0        ) then  
             clw(i) = zmisgLocal
+            clw_avg(i) = zmisgLocal
           else
             a =  8.240 - (2.622 - 1.846*cosz)*cosz
             b =  0.754
@@ -2658,6 +2699,15 @@ contains
             clw(i) = clw(i)*cosz           ! theoretical cloud liquid water (0-3mm)
             clw(i) = clw(i) - 0.03         ! corrected   cloud liquid water 
             clw(i) = min(3.,max(0.,clw(i)))   ! jh       
+
+            clw_P = a + b*log(dif285t23_P) & 
+                      + c*log(dif285t31_P)
+            clw_P = clw_P*cosz           ! theoretical cloud liquid water (0-3mm)
+            clw_P = clw_P - 0.03         ! corrected   cloud liquid water 
+            clw_P = min(3.,max(0.,clw_P))   ! jh       
+
+            ! averaged CLW from observation and background
+            clw_avg(i) = 0.5 * (clw(i) + clw_P)
           endif
 
           !3.4) Ocean rain: 0=no rain; 1=rain.
@@ -2749,15 +2799,13 @@ contains
 
       endif
 
-      if ( .false. ) then
-        print *, ' '
-        print *, ' i,tb23(i),tb31(i),tb50(i),tb89(i),pangl(i),plat(i), &
+      if ( mwbg_DEBUG .and. i <= 100 ) then
+        print *, 'GRODY: i,tb23(i),tb31(i),tb50(i),tb89(i),pangl(i),plat(i), &
                   ilansea(i) = ', &
                   i,tb23(i),tb31(i),tb50(i),tb89(i),pangl(i),plat(i), &
                   ilansea(i)
-        print *, ' ier(i),ice(i),tpw(i),clw(i),rain(i),snow(i)=', &
-                  ier(i),ice(i),tpw(i),clw(i),rain(i),snow(i)
-        if ( i .eq. 100 )stop
+        print *, 'GRODY: ier(i),ice(i),tpw(i),clw(i),clw_avg(i),rain(i),snow(i)=', &
+                  ier(i),ice(i),tpw(i),clw(i),clw_avg(i),rain(i),snow(i)
       endif
 
     enddo
