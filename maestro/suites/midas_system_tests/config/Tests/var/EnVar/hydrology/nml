@@ -67,8 +67,6 @@
 /
  &NAMGPSGB
 /
- &NAMOER
-/
  &NAMSQLsfc
    numberElem=1
    listElem="23040"
