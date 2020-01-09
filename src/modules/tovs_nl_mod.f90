@@ -107,6 +107,7 @@ module tovs_nl_mod
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs, tvs_getChannelIndexFromChannelNumber
+  public :: tvs_getMWemissivityFromAtlas
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -133,6 +134,7 @@ module tovs_nl_mod
   integer, allocatable :: tvs_tovsIndex (:)        ! Index in TOVS structures for each observation header in obsSpaceData
   logical, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated
   integer, allocatable :: tvs_listSensors(:,:)     ! Sensor list
+  type (rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   type(surface_params), allocatable :: tvs_surfaceParameters(:) ! surface parameters 
   integer tvs_nobtov                               ! Number of tovs observations
   integer tvs_nsensors                             ! Number of individual sensors.
@@ -141,9 +143,12 @@ module tovs_nl_mod
   integer tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
-  logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W emissivity Atlases
-  logical :: tvs_useO3Climatology                 ! Determine if ozone model field or climatology is used
+  logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
+  logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
+  logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
+  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
+                                                   
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
@@ -456,6 +461,7 @@ contains
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
+    namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
  
     !   1.1 Default values for namelist variables
 
@@ -468,7 +474,8 @@ contains
     useO3Climatology = .true.
     crtmodl = 'RTTOV'
     useUofWIREmiss = .false.
-
+    useMWEmissivityAtlas = .false.
+    mWAtlasId = 1 !Default to TELSEM-2
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
     nulnam = 0
@@ -517,6 +524,10 @@ contains
       write(*,'(3X,A)') '  ----------------------------------------------------'
       write(*,'(6X,A,2X,L1)') 'TOVS debug                           : ', tvs_debug
       write(*,'(6X,A,2X,L1)') 'Use of UW IR land emissivity atlases : ', useUofWIREmiss
+      write(*,'(6X,A,2X,L1)') 'Use of MW land emissivity atlases    : ', useMWEmissivityAtlas
+      if (useMWEmissivityAtlas) then
+        write(*,'(6X,A,2X,I1)') 'MW atlas Id                          : ', mWAtlasId
+      end if
       write(*,'(6X,A,2X,A)')  'Radiative transfer model             : ', radiativeTransferCode
       write(*,'(6X,A,2X,I3)') 'Number of sensors                    : ', tvs_nsensors
       write(*,'(6X,"Satellite ids          : ",10A10)') (tvs_satelliteName(sensorIndex), sensorIndex=1,tvs_nsensors)
@@ -1377,7 +1388,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrument, surfem, calcemis)
     !
-    ! :Purpose: to get emissivity for microwave sounders ans infrared geostationary imagers
+    ! :Purpose: to get emissivity for microwave sounders and infrared geostationary imagers
     !
     implicit none
 
@@ -1565,7 +1576,7 @@ contains
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
       allocate (ttInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(4) )
       allocate (huInterpolated(levelsBelowModelTop,profileCount),    stat = allocStatus(5) )
-      allocate (logVarInterpolated(levelsBelowModelTop,profileCount), stat = allocStatus(6) )
+      allocate (logVarInterpolated(levelsBelowModelTop,profileCount),stat = allocStatus(6) )
       allocate (ttExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(7) )
       allocate (huExtrapolated(nRttovLevels  ,profileCount),         stat = allocStatus(8) )
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(9) )
@@ -2019,12 +2030,10 @@ contains
     type (rttov_chanprof), allocatable :: chanprof1(:)
     type (rttov_radiance) :: radiancedata_d, radiancedata_d1
     type (rttov_transmission) :: transmission, transmission1
-    type (rttov_emis_atlas_data), allocatable, save :: Atlas(:)
-    logical, save        :: first=.true.
     integer              :: asw
     logical, pointer :: calcemis(:)
-    real*8, allocatable  :: surfem1(:)
-    real*8, allocatable  :: surfem2(:)
+    real(8), allocatable  :: surfem1(:)
+    real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     integer              :: profileIndex2, tb1, tb2
 
     if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
@@ -2101,7 +2110,7 @@ contains
 
 
       if (useUofWIREmiss) then
-        allocate ( surfem2(btCount)        ,stat=allocStatus(3) )
+        allocate ( uOfWLandWSurfaceEmissivity(btCount)        ,stat=allocStatus(3) )
       end if
       call utl_checkAllocationStatus(allocStatus, " tvs_rttov")
       
@@ -2132,33 +2141,32 @@ contains
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
       
       if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
-        if (first) then
-          if (.not. allocated (Atlas)) allocate(Atlas(tvs_nsensors))
+        if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
+        if ( .not. tvs_atlas(sensorId)%init) then
           call rttov_setup_emis_atlas( rttov_err_stat,  &! out
                tvs_opts(sensorId),                      &! in
                tvs_profiles(1)%date(2) ,                &! in
                atlas_type_ir,                           &! in
-               atlas(sensorId),                         &! in
+               tvs_atlas(sensorId),                     &! in
                ir_atlas_ang_corr = .false.,             &! in
                ir_atlas_read_std = .false.,             &! in
                coefs = tvs_coefs(sensorId)  )
           if (rttov_err_stat/=0) then
-            write(*,*) "Error in rttov_atlas_setup ",rttov_err_stat
+            write(*,*) "Error in rttov_atlas_setup IR",rttov_err_stat
             call utl_abort('tvs_rttov')
           end if
-          first=.false.
         end if
-        
+          
         call rttov_get_emis( rttov_err_stat,                  & ! out
              tvs_opts(sensorId),                              & ! in
              chanprof(1:btCount),                             & ! in
              tvs_profiles(sensorTovsIndexes(1:profileCount)), & ! in
              tvs_coefs(sensorId),                             & ! in
-             Atlas(sensorId),                                 & ! in
-             surfem2(1:btCount) )                               ! out
+             tvs_atlas(sensorId),                             & ! inout
+             uOfWLandWSurfaceEmissivity(1:btCount) )            ! out
 
         if (rttov_err_stat /= 0) then
-          write(*,*) "Error in rttov_get_emis ", rttov_err_stat
+          write(*,*) "Error in rttov_get_emis IR", rttov_err_stat
           call utl_abort('tvs_rttov')
         end if
               
@@ -2179,20 +2187,25 @@ contains
               ! emis_flag:Flag_6 = "6 = contains coastline by land fraction where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4" ;
               ! other information that could be useful for quality control can be found in the in the profile_qc structure
               ! Now we have the "traditionnal" emissivity in surfem1(:)
-              ! and University of Wisconsin emissivity in surfem2(:)
-              if (tvs_profiles(jj)% skin % surftype == 0 .and. &
-                   surfem2(btIndex) > 0.5 ) then
-                emissivity_local(btIndex)%emis_in = surfem2(btIndex)
+              ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
+              if (tvs_profiles(jj)% skin % surftype == surftype_land .and. &
+                   uOfWLandWSurfaceEmissivity(btIndex) > 0.5 ) then
+                emissivity_local(btIndex)%emis_in = uOfWLandWSurfaceEmissivity(btIndex)
               else
                 emissivity_local(btIndex)%emis_in = surfem1(btIndex)
               end if
             end if
           end do
         end do
+
+      else if (sensorType == sensor_id_mw) then
+
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, sensorTovsIndexes(1:profileCount))
+
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
-        
+
       !   2.3  Compute radiance with rttov_direct
 
       rttov_err_stat = 0 
@@ -2331,7 +2344,7 @@ contains
 
  
       if (useUofWIREmiss) then
-        deallocate ( surfem2  ,stat=allocStatus(2) )
+        deallocate ( uOfWLandWSurfaceEmissivity  ,stat=allocStatus(2) )
       end if
       deallocate ( surfem1    ,stat=allocStatus(3) )
       call utl_checkAllocationStatus(allocStatus, " tvs_rttov", .false.)
@@ -2341,6 +2354,78 @@ contains
     deallocate(sensorTovsIndexes)
 
   end subroutine tvs_rttov
+
+  !--------------------------------------------------------------------------
+  !  tvs_getMWemissivityFromAtlas
+  !--------------------------------------------------------------------------
+  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
+    implicit none
+    real(8), intent(in)                  :: originalEmissivity(:)
+    type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
+    integer, intent(in)                  :: sensorId
+    type (rttov_chanprof), intent(in)    :: chanprof(:)
+    integer, intent(in)                  :: sensorTovsIndexes(:)
+
+    integer :: returnCode
+    real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
+    integer :: btCount, profileCount
+    integer :: profileIndex, btIndex, jj
+
+    if (useMWEmissivityAtlas) then
+
+      if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
+      if ( .not. tvs_atlas(sensorId)%init) then
+        call rttov_setup_emis_atlas( returnCode, &! out
+             tvs_opts(sensorId),                 &! in
+             tvs_profiles(1)%date(2) ,           &! in
+             atlas_type_mw,                      &! in
+             tvs_atlas(sensorId),                &! inout
+             atlas_id = mWAtlasId,               &! in ! 1 TELSEM2, 2 CNRM
+             coefs = tvs_coefs(sensorId)  )
+        if (returnCode /= 0) then
+          write(*,*) "Error in rttov_atlas_setup MW",returnCode
+          call utl_abort('tvs_getMWemissivityFromAtlas')
+        end if
+      end if
+   
+      call rttov_get_emis( returnCode,           & ! out
+           tvs_opts(sensorId),                   & ! in
+           chanprof,                             & ! in
+           tvs_profiles(sensorTovsIndexes(:)),   & ! in
+           tvs_coefs(sensorId),                  & ! in
+           tvs_atlas(sensorId),                  & ! in
+           mWAtlasSurfaceEmissivity)               ! out
+    
+      if (returnCode /= 0) then
+        write(*,*) "Error in rttov_get_emis MW", returnCode
+        call utl_abort('tvs_getMWemissivityFromAtlas')
+      end if
+
+      btCount = size( originalEmissivity )
+      profileCount = size( sensorTovsIndexes )
+      do profileIndex=1, profileCount !loop on profiles
+        jj = sensorTovsIndexes(profileIndex)
+        do btIndex=1, btCount !loop on channels
+          if (chanprof(btIndex)%prof==profileIndex) then
+            ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
+            ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
+            if ( tvs_profiles(jj)% skin % surftype == surftype_land .and. &
+                 mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
+                 mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
+              updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
+            else
+              updatedEmissivity(btIndex)%emis_in = originalEmissivity(btIndex)
+            end if
+            ! Note that emissivity above sea-ice is not modified
+          end if
+        end do
+      end do
+    else
+      updatedEmissivity(:)%emis_in = originalEmissivity(:)
+    end if
+
+  end subroutine tvs_getMWemissivityFromAtlas
+
 
   !--------------------------------------------------------------------------
   !  comp_ir_emiss
