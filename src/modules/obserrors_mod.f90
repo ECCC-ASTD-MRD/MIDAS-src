@@ -34,6 +34,7 @@ module obsErrors_mod
   use rmatrix_mod
   use varNameList_mod
   use obsfiles_mod
+  use burp_module
   implicit none
   save
   private
@@ -125,7 +126,7 @@ module obsErrors_mod
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
-  logical :: new_oer_sw, visAndGustAdded, allowStateDepSigmaObs, useTovsUtil
+  logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, allowStateDepSigmaObs, useTovsUtil
 
   character(len=48) :: obserrorMode
 
@@ -170,7 +171,7 @@ contains
     logical, optional            :: useTovsUtil_opt
 
     integer :: fnom, fclos, ierr, nulnam  
-    namelist /namoer/ new_oer_sw, visAndGustAdded, allowStateDepSigmaObs 
+    namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded, allowStateDepSigmaObs 
 
     !
     !- 1.  Setup Mode
@@ -186,6 +187,7 @@ contains
 
     ! read namelist namoer
     new_oer_sw = .false.
+    obsfile_oer_sw  = .false.
     visAndGustAdded = .false.
     allowStateDepSigmaObs = .false.
 
@@ -1474,6 +1476,147 @@ contains
   end subroutine oer_fillObsErrors
 
   !--------------------------------------------------------------------------
+  ! readOerFromObsFileForSW
+  !--------------------------------------------------------------------------
+  subroutine readOerFromObsFileForSW(obsSpaceData)
+    !
+    ! :Purpose: Read observation errors for AMVs from the obsFiles so as to use
+    !           the values computed by a previous MIDAS execution (e.g. GDPS).
+    !
+    implicit none
+    ! arguments
+    type(struct_obs) :: obsSpaceData
+
+    ! locals
+    character(len=1060) :: filename
+    logical             :: found
+    type(BURP_FILE)  :: fileIn
+    type(BURP_BLOCK) :: blkoer
+    type(BURP_RPT)   :: report
+    character(len=9)      :: stnid
+    integer(kind=int_def) :: error, ref_rpt
+    integer  :: numLevels, numValues, numReports, obsCount
+    integer  :: levelIndex, reportIndex, obsIndex
+    integer  :: uuIndex, vvIndex, headerIndex, bodyIndex, blockIndex, g_btyp_oer
+    integer  :: vnm, bodyIndexBeg, bodyIndexEnd
+    real(8), allocatable :: uu_oer(:), vv_oer(:)
+
+    filename = obsf_getFileName('SW',found)
+    if (found) then
+      write(*,*) 'oer_readOerFromObsFileForSW: reading OER from the file: ', trim(filename)
+    else
+      write(*,*) 'oer_readOerFromObsFileForSW: no obsfile with SW family, returning'
+      return
+    end if
+
+    g_btyp_oer  = 1134
+
+    call burp_init(report)
+    call burp_init(blkoer)
+    call burp_init(fileIn)
+    call burp_new(fileIn, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
+
+    !
+    ! Scans reports
+    !
+    call burp_get_property(fileIn, NRPTS = numReports, FILENAME = filename, IOSTAT = error)
+    ref_rpt  = 0
+    obsCount = 0
+
+    do reportIndex = 1, numReports
+      ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
+      call burp_get_property(report, ELEV=numLevels, IOSTAT=error)
+      obsCount = obsCount + numLevels
+    end do
+
+    write(*,*) 'readOerFromObsFileForSW: numReports, obsCount  = ',numReports, obsCount
+
+    allocate (uu_oer(obsCount) )
+    allocate (vv_oer(obsCount) )
+
+    !
+    ! Read observation errors from file
+    !
+    ref_rpt  = 0
+    obsIndex  = 0
+
+    records_in: do
+
+      ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
+      if (ref_rpt <0) exit
+      
+      call burp_get_property(report, STNID=stnid,ELEV=numLevels, IOSTAT=error)
+
+      if (stnid(1:2) == ">>") cycle records_in
+
+      blockIndex = 0
+      blockIndex = burp_find_block(report, block=blkoer, search_from=blockIndex, btyp=g_btyp_oer, bfam=10, convert=.false., iostat=error)    
+
+      call burp_get_property(blkoer, NVAL=numValues, IOSTAT=error) 
+
+      uuIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEUU, IOSTAT=error) 
+      vvIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEVV, IOSTAT=error) 
+
+      if (uuIndex == -1) then
+        write(*,*) 'readOerFromObsFileForSW: WARNING: wind element not found, skipping report'
+        cycle records_in
+      end if
+      
+      do levelIndex = 1, numLevels
+
+        obsIndex = obsIndex + 1
+        if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+        uu_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=uuIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
+        vv_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=vvIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
+
+      end do
+
+    end do records_in
+
+    !
+    ! Clean-up
+    !
+    call burp_free(report)
+    call burp_free(blkoer)
+    call burp_free(fileIn)
+
+    !
+    ! Fill obsSpaceData with observation errors from SW file
+    !
+    obsIndex = 0
+    HEADER_UU: do headerIndex = 1, obs_numheader(obsSpaceData)
+      if ( obs_getFamily(obsSpaceData,headerIndex) /= 'SW' ) cycle HEADER_UU
+      bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEUU ) then
+          obsIndex = obsIndex + 1
+          if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+          call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,uu_oer(obsIndex))
+        end if
+      end do
+    end do HEADER_UU
+
+    obsIndex = 0
+    HEADER_VV: do headerIndex = 1, obs_numheader(obsSpaceData)
+      if ( obs_getFamily(obsSpaceData,headerIndex) /= 'SW' ) cycle HEADER_VV
+      bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEVV ) then
+          obsIndex = obsIndex + 1
+          if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+          call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,vv_oer(obsIndex))
+        end if
+      end do
+    end do HEADER_VV
+
+    deallocate ( uu_oer )
+    deallocate ( vv_oer )
+
+  end subroutine readOerFromObsFileForSW
+
+  !--------------------------------------------------------------------------
   ! oer_sw
   !--------------------------------------------------------------------------
   subroutine oer_sw(columnhr,obsSpaceData)
@@ -1499,6 +1642,15 @@ contains
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.
 
+    ! If requested, just read oer from the burp file (only 1st time)
+    if(obsfile_oer_sw) then
+      if (firstCall) then
+        call readOerFromObsFileForSW(obsSpaceData)
+        firstCall = .false.
+      end if
+      return
+    end if
+    
     if(.not. new_oer_sw) return
 
     valeurs_defaut = .false.

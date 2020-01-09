@@ -50,7 +50,7 @@ module obsFiles_mod
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update, obsf_thinFiles
-  public :: obsf_addCloudParametersAndEmissivity
+  public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName
 
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
@@ -230,7 +230,7 @@ contains
 
   end if
 
-  if ( index(obsf_get_filename('SF'), 'sfc') > 0 ) then
+  if ( index(obsf_getFileName('SF'), 'sfc') > 0 ) then
     sfFileName = 'sfc'
   else
     sfFileName = 'sf'
@@ -684,7 +684,7 @@ contains
   end subroutine obsf_determineSplitFileType
 
 
-  function obsf_get_filename(obsfam,found_opt) result(filename)
+  function obsf_getFileName(obsfam,found_opt) result(filename)
     !
     ! :Purpose: Returns the observations file name assigned to the calling processor.
     !           If the input family has more than one file, the first file found will
@@ -695,30 +695,34 @@ contains
     !           :found_opt: logical indicating if a file could be found for the family (optional)
     !
     implicit none
-
+    ! arguments:
     character(len=2), intent(in) :: obsfam
     logical, intent(out), optional :: found_opt
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
- 
-    logical :: found
-    integer :: ifile
+    ! locals:
+    integer :: numFound, ifile
 
     filename = ""
-    found = .false.
+    numFound = 0
        
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_cfamtyp(ifile)) then
           filename = obsf_cfilnam(ifile)
-          found = .true.
+          numFound = numFound + 1
           exit
        end if
     end do
 
-    if (.not.found) write(*,*) "obsf_get_filename: File not found for observation family '" // trim(obsfam) // "'"
+    if (numFound == 0) then
+      write(*,*) "obsf_getFileName: File not found for obs family '" // trim(obsfam) // "'"
+    end if
+    if (numFound > 1) then
+      write(*,*) "obsf_getFileName: WARNING: Multiple files found for obs family '" // trim(obsfam) // "'"
+    end if
 
-    if (present(found_opt)) found_opt = found
+    if (present(found_opt)) found_opt = (numFound > 0)
 
-  end function obsf_get_filename
+  end function obsf_getFileName
 
 
   function obsf_obsSub_read( obsfam, stnid, varno, nlev, ndim, bkstp_opt, block_opt, match_nlev_opt, &
@@ -764,7 +768,7 @@ contains
     logical :: found
     character(len=10) :: obsFileType
 
-    filename = obsf_get_filename(obsfam,found)
+    filename = obsf_getFileName(obsfam,found)
 
     if (found) then
        call obsf_determineSplitFileType( obsFileType, filename )
@@ -832,7 +836,7 @@ contains
     logical :: found
     character(len=10) :: obsFileType
 
-    filename = obsf_get_filename(obsfam,found)
+    filename = obsf_getFileName(obsfam,found)
 
     if (found) then
        if (obsf_filesSplit() .or. mpi_myid == 0) then

@@ -67,6 +67,7 @@ module obsFilter_mod
 
   integer, parameter :: nTopoFiltFam = 8
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
+  logical :: useEnkfTopoFilt
 
   character(len=48) :: filterMode
 
@@ -137,7 +138,7 @@ contains
 
     namelist /namfilt/nelems,nlist,nflags,nlistflg,rlimlvhu,discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
 
     filterMode = filterMode_in
 
@@ -171,6 +172,8 @@ contains
 
     surfaceBufferZone_Pres   = 5000.0d0 ! default value in Pascals
     surfaceBufferZone_Height =  400.0d0 ! default value in Metres
+
+    useEnkfTopoFilt = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -664,32 +667,46 @@ contains
           zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
           zpb = col_getElem(columnhr,1,headerIndex,'P0')
           zpt = zpb - surfaceBufferZone_Pres
-          zdelp = 999999.0d0
-          if (zdifalt .gt. 0.0d0) then
-             zdelp = zdifalt * 100.d0 / 8.0d0
-             zpt   = zpb - (zdelp + surfaceBufferZone_Pres)
+
+          if (useEnkfTopoFilt) then
+            ! Simpler rules used in the EnKF
+            if(zlev .ge. zpt ) then
+              if(abs(zdifalt) .ge. 50.0D0 .or. zlev .ge. zpb) then
+                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                     ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+                itotrej(listIndex) = itotrej(listIndex) + 1
+                ibndrej(listIndex) = ibndrej(listIndex) + 1
+              end if
+            end if
+          else
+            ! Original (and confusing) rules used in Var
+            if (zdifalt .gt. 0.0d0) then
+              zdelp = zdifalt * 100.d0 / 8.0d0
+              zpt   = zpb - (zdelp + surfaceBufferZone_Pres)
+            end if
+
+            if(abs(zdifalt).le.altDiffMax(listIndex)) then
+              !--Model surface and station altitude are very close
+              !  Accept observation if zlev is within the domain
+              !  of the trial field
+              zpt = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+            end if
+            if(zlev .gt. zpb ) then
+              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+              itotrej(listIndex) = itotrej(listIndex) + 1
+              ibndrej(listIndex) = ibndrej(listIndex) + 1
+            else if(zlev.le.zpb .and. zlev.gt.zpt ) then
+              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+              itotrej(listIndex) = itotrej(listIndex) + 1
+              isblrej(listIndex) = isblrej(listIndex) + 1
+            end if
           end if
 
-          if(abs(zdifalt).le.altDiffMax(listIndex)) then
-             !--Model surface and station altitude are very close
-             !  Accept observation if zlev is within the domain
-             !  of the trial field
-             zpb = col_getElem(columnhr,1,headerIndex,'P0')
-             zpt = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
-          end if
-          if(zlev .gt. zpb ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             itotrej(listIndex) = itotrej(listIndex) + 1
-             ibndrej(listIndex) = ibndrej(listIndex) + 1
-          else if(zlev.le.zpb .and. zlev.gt.zpt ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             itotrej(listIndex) = itotrej(listIndex) + 1
-             isblrej(listIndex) = isblrej(listIndex) + 1
-          end if
        end do BODY2
     end do HEADER
 
