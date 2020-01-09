@@ -26,12 +26,12 @@ module bgckmicrowave_mod
   private
 
   ! public variables
-  public :: mwbg_debug
+  public :: mwbg_debug, mwbg_clwThreshold
 
   ! Public functions
   public :: mwbg_readStatTovs, mwbg_readStatTovsAtms, mwbg_readTovs, mwbg_readTovsAtms, mwbg_tovCheckAmsua, mwbg_tovCheckAtms, mwbg_qcStatsAmsua, mwbg_qcStatsAtms, mwbg_UPDATFLG, mwbg_updateBurpAmsua, mwbg_updatFlgAtms, mwbg_ADDTRRN, mwbg_ADDTRRNF90, mwbg_getDataAmsua, mwbg_writeBlocksAmsua
 
-  logical :: mwbg_debug
+  logical :: mwbg_debug, mwbg_clwThreshold
 
   integer, parameter :: JPNSAT = 9
   integer, parameter :: JPCH = 50
@@ -442,7 +442,7 @@ contains
     INTEGER ISFCREJ2(MXSFCREJ2)
     INTEGER ISCATREJ(MXSCATREJ)
 
-    REAL  PMISG,ZSEUILCLW,EPSILON,ZANGL,MISGRODY,ZSEUILSCAT
+    REAL  PMISG,EPSILON,ZANGL,MISGRODY,ZSEUILSCAT
     REAL  APPROXIM, ANGDIF, XCHECKVAL
     REAL  ZO      (MXVAL*MXNT)
     REAL  PTBO    (KNO    ,KNT)
@@ -931,12 +931,11 @@ contains
     ENDDO
 
     ! 12) test 12: Grody cloud liquid water check (partial)
-    ! For Cloud Liquid Water > 0.3, reject AMSUA-A channels 1-5 and 15.
+    ! For Cloud Liquid Water > clwThreshold, reject AMSUA-A channels 1-5 and 15.
     INO = 12
-    ZSEUILCLW = 0.3
     DO JJ=1,KNT
       IF ( CLW(JJ) .NE.  MISGRODY  ) THEN
-        IF ( CLW(JJ) .GT. ZSEUILCLW   ) THEN
+        IF ( CLW(JJ) .GT. mwbg_clwThreshold   ) THEN
           DO JI=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
             IF ( INDXCAN.NE.0 )  THEN
@@ -950,7 +949,7 @@ contains
           IF ( mwbg_debug ) THEN
   !          IF (.true.) THEN
             WRITE(*,*)STNID(2:9),'Grody cloud liquid water check', &
-                      ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',ZSEUILCLW
+                      ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',mwbg_clwThreshold
           ENDIF
         ENDIF
       ENDIF

@@ -131,9 +131,9 @@ program midas_bgckmw
 
   EXTERNAL EXDB,EXFIN
 
-  LOGICAL DEBUG
+  LOGICAL DEBUG, clwThreshold
 
-  namelist /nambgck/ debug, RESETQC, ETIKRESU 
+  namelist /nambgck/ debug, RESETQC, ETIKRESU, clwThreshold
 
   JUNK = EXDB('BGCKMW','DEBUT','NON')
 
@@ -147,9 +147,11 @@ program midas_bgckmw
   ! 1) Debut
   IER = FNOM(IUNGEO,'./fstglmg' ,'STD+RND+R/O',0)
 
+  ! default values
   debug = .false.
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
+  clwThreshold = 0.3
 
   ! reading namelist
   nulnam = 0
@@ -163,6 +165,7 @@ program midas_bgckmw
   ier = fclos(nulnam)
 
   mwbg_debug = debug
+  mwbg_clwThreshold = clwThreshold
 
   brp_in = './obsto_amsua'
   brp_out = './obsto_amsua.out'
