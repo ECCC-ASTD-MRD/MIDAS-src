@@ -157,7 +157,7 @@ if [ -n "${UnitTest_mean_runtime}" ]; then
             exit 1
         fi
     else
-        max_seconds=$(echo "${expected_seconds}*(1+${UnitTest_max_runtime}/100/2)" | bc -l)
+        max_seconds=$(echo "${expected_seconds}*(1+${UnitTest_max_runtime}/100)" | bc -l)
         if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
             #if [[ ${RUNTIME} > ${max_seconds} ]]; then
             max_seconds=$(printf "%.2f" ${max_seconds})
