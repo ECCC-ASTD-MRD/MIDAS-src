@@ -1112,7 +1112,6 @@ CONTAINS
       if ( indxtovs < 0 ) cycle HEADER
 
       iobs = iobs + 1
-
       iSensor = tvs_lsensor( indxTovs )
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1972,7 +1971,7 @@ CONTAINS
     integer            :: iuncoef, ierr, numPred
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
-    character (len=2),parameter  :: predTab(5) = (/ "T1", "T2", "T3", "T4", "SV"/)
+    character (len=2),parameter  :: predTab(2:6) = (/ "T1", "T2", "T3", "T4", "SV"/)
     integer :: sensorIndex,nchans,nscan,nfov,kpred,kFov,jChan
 
     if (mpi_myId == 0 ) then
@@ -1990,34 +1989,37 @@ CONTAINS
         satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(sensorIndex)) 
 
         iuncoef = 0
-        filename ='./anlcoeffs_'// trim(instrName) !  // "_" // trim( satNameCoeff) 
+        filename ='./anlcoeffs_'// trim(instrName)  
         call utl_open_asciifile(filename,iuncoef)
         nfov = bias(sensorIndex) % numScan
         do jChan = 1, nchans
-          numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
+          if ( bias(sensorIndex) % chans(jChan) %coeff_nobs > 0) then
+            numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
           
-          write(iuncoef, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
-               satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, bias(sensorIndex) % chans(jChan) %coeff_nobs, numPred, nfov
-          write(iuncoef, '(A7,6(1X,A2))') 'PTYPES:',  ( predtab(bias(sensorIndex) % chans(jChan) %predictorIndex(kPred) - 1) , kPred=2, numPred )
-          write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff_fov(kFov),kFov=1,nfov)
-          write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff(kPred),kPred=1,numPred)
-
+            write(iuncoef, '(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
+                 satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, bias(sensorIndex) % chans(jChan) %coeff_nobs, numPred -1, nfov
+            write(iuncoef, '(A7,6(1X,A2))') 'PTYPES:',  ( predtab(bias(sensorIndex) % chans(jChan) %predictorIndex(kPred)) , kPred=2, numPred )
+            write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff_fov(kFov),kFov=1,nfov)
+            write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex) % chans(jChan) %coeff(kPred),kPred=1,numPred)
+          end if
         end do
 
         close(iuncoef) 
 
         if (loutCoeffCov) then
           iuncoef = 0
-          filename ='./anlcoeffsCov_'// trim(instrName) !  // "_" // trim( satNameCoeff) 
+          filename ='./anlcoeffsCov_'// trim(instrName)  
           call utl_open_asciifile(filename,iuncoef)
           do jChan = 1, nchans
-            numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
+            if ( bias(sensorIndex) % chans(jChan) %coeff_nobs > 0) then
+              numPred = bias(sensorIndex) % chans(jChan) % numActivePredictors 
           
-            write(iuncoef, '(A38,A8,1X,A7,1X,I6,1X,I2)') 'SATELLITE, INSTRUMENT, CHANNEL, NPRED: ',  &
-                 satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, numPred
-            do kpred =1, numPred
-              write(iuncoef, '(10e14.6)')  bias(sensorIndex)%chans(jChan)%coeffCov(kpred,:)
-            end do
+              write(iuncoef, '(A38,A8,1X,A7,1X,I6,1X,I2)') 'SATELLITE, INSTRUMENT, CHANNEL, NPRED: ',  &
+                   satNameCoeff, instrName, bias(sensorIndex) % chans(jChan) %channelNum, numPred
+              do kpred =1, numPred
+                write(iuncoef, '(10e14.6)')  bias(sensorIndex)%chans(jChan)%coeffCov(kpred,:)
+              end do
+            end if
           end do
 
           close(iuncoef) 
