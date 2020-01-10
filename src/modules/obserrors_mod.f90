@@ -300,29 +300,19 @@ contains
     !    1. Initialize
     !       ----------
     !
-    DO JL = 1, tvs_maxNumberOfSensors  
-      DO JI = 1, tvs_maxChannelNumber
-        TOVERRST(JI,JL) = 0.0D0
-        TOVERRIN(JI,:,JL) = 0.0D0
-        sigmaObsErr(JI,JL,:) = 0.0d0
-        tovsObsInflation(JI,JL) = 0.0d0
-        IUTILST   (JI,JL) = 0
-        useStateDepSigmaObs(JI,JL) = 0
-      end do
-    end do
+    TOVERRST(:,:) = 0.0D0
+    TOVERRIN(:,:,:) = 0.0D0
+    sigmaObsErr(:,:,:) = 0.0d0
+    tovsObsInflation(:,:) = 0.0d0
+    IUTILST(:,:) = 0
+    useStateDepSigmaObs(:,:) = 0
 
-    DO JL = 1, tvs_maxNumberOfSensors
-      IPLATFORM(JL) = 0
-      NUMCHN(JL) = 0
-      NUMCHNIN(JL) = 0
-      DO JI = 1, tvs_maxChannelNumber
-        ICHN(JI,JL) = 0
-        ICHNIN(JI,JL) = 0
-      end do
-    end do
-    do JI = 1, tvs_maxChannelNumber
-      ICHNIN2(JI) = 0
-    end do
+    IPLATFORM(:) = 0
+    NUMCHN(:) = 0
+    NUMCHNIN(:) = 0
+    ICHN(:,:) = 0
+    ICHNIN(:,:) = 0
+    ICHNIN2(:) = 0
 
     if (tvs_nobtov == 0) return
 
