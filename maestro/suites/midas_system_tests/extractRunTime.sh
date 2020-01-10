@@ -9,8 +9,8 @@ which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 ##  - exit with 1 if it finds an 'abortx?' message
 ##  - exit with 0 if it find the message 'endx'
 
-if [ $# -ne 1 -a $# -ne 2 ]; then
-    echo "extractRunTime.sh: this scripts accepts only one or two argument which is the maestro suite and if statistics are computed (default is not)." >&2
+if [ $# -ne 1 -a $# -ne 2 -a $# -ne 3 ]; then
+    echo "extractRunTime.sh: this scripts accepts only one, two or three argument which are the maestro suite, if statistics are computed (default is not) and if we search for outliers." >&2
     exit 1
 fi
 
@@ -24,6 +24,8 @@ if [ "${computeStats}" = yes ]; then
     echo "The statistics are given like this:"
     echo "Mean, Stddev, Mean/Stddev, Number of cases"
 fi
+
+findOutliers=${3:-no}
 
 if [ ! -d "${suite}" ]; then
     echo "The suite given '${suite}' does not exist." >&2
@@ -47,7 +49,10 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         echo ${findRunTime_nodes%/*}
-        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds')
+        if [ "${findOutliers}" = yes ]; then
+            nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep  'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true
+        fi
+        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '{sum+=$(NF-1); sum2+=$(NF-1)**2; number++} END {mean=sum/number; var=sum2/number-mean**2; print mean, sqrt(var), sqrt(var)/mean, number}')
             printf "\t${__findRunTime_stats__}\n"
