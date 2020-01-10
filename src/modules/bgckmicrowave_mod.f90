@@ -26,12 +26,12 @@ module bgckmicrowave_mod
   private
 
   ! public variables
-  public :: mwbg_debug, mwbg_clwThreshold
+  public :: mwbg_debug, mwbg_clwQcThreshold
 
   ! Public functions
   public :: mwbg_readStatTovs, mwbg_readStatTovsAtms, mwbg_readTovs, mwbg_readTovsAtms, mwbg_tovCheckAmsua, mwbg_tovCheckAtms, mwbg_qcStatsAmsua, mwbg_qcStatsAtms, mwbg_UPDATFLG, mwbg_updateBurpAmsua, mwbg_updatFlgAtms, mwbg_ADDTRRN, mwbg_ADDTRRNF90, mwbg_getDataAmsua, mwbg_writeBlocksAmsua
 
-  logical :: mwbg_debug, mwbg_clwThreshold
+  logical :: mwbg_debug, mwbg_clwQcThreshold
 
   integer, parameter :: JPNSAT = 9
   integer, parameter :: JPCH = 50
@@ -91,7 +91,7 @@ contains
     ENDDO
 
     RETURN
-  END
+  END FUNCTION ISRCHEQR
 
 
   FUNCTION ISRCHEQI (KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
@@ -120,7 +120,7 @@ contains
     ENDDO
 
     RETURN
-  END
+  END FUNCTION ISRCHEQI
 
 
   SUBROUTINE XTRBLK (KBTYP,KBFAM,KBUF,KLISTE,KTBLVAL,KDLISTE, &
@@ -190,7 +190,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE XTRBLK
 
 
   SUBROUTINE RMBLK (KBTYP,KBFAM,KBUF)
@@ -224,7 +224,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE RMBLK
 
 
   SUBROUTINE XTRDATA (KDLISTE,KTBLVAL,PRVAL,KNELE,KNVAL,KNT, &
@@ -291,7 +291,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE XTRDATA
 
 
   SUBROUTINE REPDATA (KDLISTE,KTBLVAL,KNELE,KNVAL,KNT, &
@@ -348,7 +348,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE REPDATA
 
 
   SUBROUTINE mwbg_tovCheckAmsua(KSAT, KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
@@ -417,6 +417,7 @@ contains
     PARAMETER  ( MXSFCREJ2 =  4 )
     PARAMETER  ( MXSCATREJ =  7 )
     PARAMETER  ( MXCANPRED =  9 )
+    real, parameter :: cloudyClwThreshold = 0.3
 
     INTEGER JPMXSFC
     PARAMETER (JPMXSFC =  2)
@@ -952,11 +953,11 @@ contains
     ENDDO
 
     ! 12) test 12: Grody cloud liquid water check (partial)
-    ! For Cloud Liquid Water > clwThreshold, reject AMSUA-A channels 1-5 and 15.
+    ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     INO = 12
     DO JJ=1,KNT
       IF ( CLW(JJ) .NE.  MISGRODY  ) THEN
-        IF ( CLW(JJ) .GT. mwbg_clwThreshold   ) THEN
+        IF ( CLW(JJ) .GT. mwbg_clwQcThreshold   ) THEN
           DO JI=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
             IF ( INDXCAN.NE.0 )  THEN
@@ -968,11 +969,23 @@ contains
             ENDIF
           ENDDO
           IF ( mwbg_debug ) THEN
-  !          IF (.true.) THEN
             WRITE(*,*)STNID(2:9),'Grody cloud liquid water check', &
-                      ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',mwbg_clwThreshold
+                      ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',mwbg_clwQcThreshold
           ENDIF
         ENDIF
+
+        ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
+        IF ( CLW(JJ) <= mwbg_clwQcThreshold .and. CLW(JJ) > cloudyClwThreshold ) THEN
+          DO JI = 1,KNO
+            INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
+            IF ( INDXCAN /= 0 ) KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**23)
+          ENDDO
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*) STNID(2:9),' Grody cloud liquid water check', &
+                      ' cloud-affected obs. CLW= ',CLW(JJ), ', threshold= ',cloudyClwThreshold 
+          ENDIF
+        ENDIF
+
       ENDIF
     ENDDO
 
@@ -996,7 +1009,6 @@ contains
             ENDIF
           ENDDO
           IF ( mwbg_debug ) THEN
-  !          IF (.true.) THEN
             WRITE(*,*)STNID(2:9),'Grody scattering index check', &
                        ' REJECT. SCATW= ',SCATW(JJ), ' SEUIL= ',ZSEUILSCAT
           ENDIF
@@ -1139,7 +1151,7 @@ contains
     end do
 
     RETURN
-  END
+  END SUBROUTINE mwbg_tovCheckAmsua
 
 
   SUBROUTINE mwbg_qcStatsAmsua(INUMSAT,ICHECK,KCANO,KNOSAT, &
@@ -1271,7 +1283,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE mwbg_qcStatsAmsua
 
 
   SUBROUTINE mwbg_UPDATFLG(KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
@@ -1527,7 +1539,7 @@ contains
                    KLISTE,KTBLVAL)
 
     RETURN
-  END
+  END SUBROUTINE mwbg_UPDATFLG
 
 
   SUBROUTINE mwbg_updateBurpAmsua(clw, scatw, KCHKPRF, KTERMER, ITERRAIN, &
@@ -2186,7 +2198,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE mwbg_readTovs
 
 
   SUBROUTINE mwbg_ADDTRRN(KBUF1,KLISTE,KTBLVAL,KDLISTE,PRVAL, &
@@ -2306,7 +2318,7 @@ contains
     !    ISTAT = MRBREP (KBUF1,IBLKNO,KTBLVAL)
 
     RETURN
-  END
+  END SUBROUTINE mwbg_ADDTRRN
 
 
   SUBROUTINE mwbg_ADDTRRNF90(KTERMER, ITERRAIN, GLINTRP, rpt)
@@ -2485,7 +2497,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE ADDDAT
 
 
   SUBROUTINE GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, &
@@ -2811,7 +2823,7 @@ contains
     enddo
 
     return
-  end
+  end SUBROUTINE GRODY
 
 
   SUBROUTINE mwbg_readStatTovs(ILUTOV,INUMSAT,CSATID)
@@ -2961,7 +2973,7 @@ contains
     CALL ABORT ()
 
     RETURN
-  END
+  END SUBROUTINE mwbg_readStatTovs
 
 
   SUBROUTINE mwbg_tovCheckAtms(KSAT, KORBIT, KCANO, KCANOMP, PTBO, PTBCOR, &
@@ -3351,7 +3363,7 @@ contains
     ENDIF 
 
     RETURN
-  END
+  END SUBROUTINE mwbg_tovCheckAtms
 
 
   SUBROUTINE mwbg_qcStatsAtms(INUMSAT, ICHECK, KCANO, KNOSAT, CSATID, KNO, &
@@ -3495,7 +3507,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE mwbg_qcStatsAtms
 
 
   SUBROUTINE mwbg_updatFlgAtms(KCHKPRF, ICHECK, RESETQC, IMARQ, rpt)
@@ -4209,7 +4221,7 @@ contains
     ENDIF
 
     RETURN
-  END
+  END SUBROUTINE mwbg_readTovsAtms
 
 
   SUBROUTINE mwbg_readStatTovsAtms(ILUTOV,INUMSAT,CSATID)
@@ -4359,7 +4371,7 @@ contains
     CALL ABORT ()
 
     RETURN
-  END
+  END SUBROUTINE mwbg_readStatTovsAtms
 
 
   subroutine mwbg_getData(reportIndex, rpt, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
