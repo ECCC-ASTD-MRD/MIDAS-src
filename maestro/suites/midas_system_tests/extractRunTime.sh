@@ -49,9 +49,6 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         echo ${findRunTime_nodes%/*}
-        if [ "${findOutliers}" = yes ]; then
-            nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep  'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true
-        fi
         __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
@@ -87,6 +84,9 @@ END {
             fi
         fi
         unset __findRunTime_runtime__
+        if [ "${findOutliers}" = yes ]; then
+            nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep  'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true
+        fi
     else
         for __node__ in ${findRunTime_nodes}; do
             findRunTime ${__node__}
