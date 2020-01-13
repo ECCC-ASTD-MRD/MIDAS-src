@@ -530,11 +530,12 @@ CONTAINS
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
-      
-        indxtovs = tvs_tovsIndex(headerIndex)
-        if ( indxtovs < 0 ) cycle HEADER
 
         iobs = iobs + 1
+        
+        indxTovs = tvs_tovsIndex(headerIndex)
+        if ( indxTovs < 0 ) cycle HEADER
+
         iSensor = tvs_lsensor( indxTovs )
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -643,11 +644,12 @@ CONTAINS
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
+
+      iobs = iobs + 1
       
       indxtovs = tvs_tovsIndex(headerIndex)
       if ( indxtovs < 0 ) cycle HEADER
 
-      iobs = iobs + 1
       iSensor = tvs_lsensor( indxTovs )
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -898,7 +900,7 @@ CONTAINS
              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex),tim_nstepobs)
 
         timeIndex = nint( stepObsIndex )
-         if  ( timeIndex <0 ) cycle HEADER1
+        if  ( timeIndex < 0 ) cycle HEADER1
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         BODY1: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -1084,11 +1086,11 @@ CONTAINS
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
-      indxtovs = tvs_tovsIndex(headerIndex)
+      iobs = iobs + 1
 
+      indxtovs = tvs_tovsIndex(headerIndex)
       if ( indxtovs < 0 ) cycle HEADER
 
-      iobs = iobs + 1
       iSensor = tvs_lsensor( indxTovs )
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1432,9 +1434,10 @@ CONTAINS
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if ( headerIndex < 0 ) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
-      if ( tvs_tovsIndex(headerIndex) < 0 ) cycle HEADER
+      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       iobs = iobs + 1
+      if ( tvs_tovsIndex(headerIndex) < 0 ) cycle HEADER
+
       iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1733,9 +1736,9 @@ CONTAINS
     logical, optional, intent(in) :: updateCoeff_opt
     integer, intent(out)          :: chans(maxsat, tvs_maxChannelNumber)       ! channel numbers
     integer, intent(out)          :: nsat, nfov
-    integer, intent(out)          :: nchan(maxsat)       ! number of channels
-    character(len=10), intent(out):: sats(maxsat)        ! dim(maxsat), satellite names
-    character(len=*), intent(out) :: cinstrum    ! instrument (e.g. AMSUB)
+    integer, intent(out)          :: nchan(maxsat)  ! number of channels
+    character(len=10), intent(out):: sats(maxsat)   ! dim(maxsat), satellite names
+    character(len=*), intent(out) :: cinstrum       ! instrument (e.g. AMSUB)
     !Locals:
     real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)     ! dim(maxsat,tvs_maxchannelnumber,maxfov), bias as F(fov)
     real(8)            :: coeff(maxsat,tvs_maxChannelNumber,maxpred)       ! dim(maxsat,tvs_maxchannelnumber,maxpred)
@@ -2390,7 +2393,6 @@ CONTAINS
       ! First pass throught ObsSpaceData to estimate scan biases and count data
 
       call obs_set_current_header_list(obsSpaceData,'TO')
-      iobs = 0
       HEADER1: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if ( headerIndex < 0 ) exit HEADER1
@@ -2404,7 +2406,6 @@ CONTAINS
 
         iSensor = tvs_lsensor( indxTovs )
         if (iSensor /= sensorIndex) cycle HEADER1
-        iobs = iobs + 1
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
         if ( nscan > 1 ) then
           iScan = iFov
@@ -2473,14 +2474,14 @@ CONTAINS
         ! process only radiance data to be assimilated?
         idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
-      
+
+        iobs = iobs + 1
         indxtovs = tvs_tovsIndex(headerIndex)
         if ( indxtovs < 0 ) cycle HEADER2
 
         iSensor = tvs_lsensor( indxTovs )
         if (iSensor /= sensorIndex) cycle HEADER2
           
-        iobs = iobs + 1
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData,OBS_FOV,headerIndex)
         if ( nscan > 1 ) then
@@ -2743,14 +2744,18 @@ CONTAINS
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
 
-    if ( trim(nameIn) == 'MSG2' ) then
-       nameOut = 'METSAT9'
+    if ( trim(nameIn) == 'MSG1' ) then
+      nameOut = 'METSAT8'
+    elseif ( trim(nameIn) == 'MSG2' ) then
+      nameOut = 'METSAT9'
     else if ( trim(nameIn) == 'MSG3' ) then
-       nameOut = 'METSAT10' 
+      nameOut = 'METSAT10'
+    else if ( trim(nameIn) == 'MSG4' ) then
+      nameOut = 'METSAT11'
     else if ( trim(nameIn) == 'METEOSAT7' ) then
-       nameOut = 'METSAT7' 
+      nameOut = 'METSAT7' 
     else 
-       nameOut = nameIn
+      nameOut = nameIn
     end if
 
   end function SatNameinCoeffFile
