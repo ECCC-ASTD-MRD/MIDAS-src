@@ -62,9 +62,9 @@ BEGIN {
    max=0
    min=10000
 }
-
 {
-   timing=$6
+   match($0, /The runtime was ([.0-9]+) seconds/, array_timing)
+   timing=array_timing[1]
    sum+=timing
    sum2+=timing**2
    if (timing<min) min=timing
