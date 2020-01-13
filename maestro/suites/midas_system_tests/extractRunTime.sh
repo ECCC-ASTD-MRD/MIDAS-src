@@ -22,7 +22,7 @@ fi
 computeStats=${2:-no}
 if [ "${computeStats}" = yes ]; then
     echo "The statistics are given like this:"
-    echo "Mean, Stddev, Mean/Stddev, Number of cases"
+    echo "Mean, Stddev, Mean/Stddev, min, max, Number of cases"
 fi
 
 findOutliers=${3:-no}
@@ -54,7 +54,29 @@ findRunTime () {
         fi
         __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
         if [ "${computeStats}" = yes ]; then
-            __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '{sum+=$(NF-1); sum2+=$(NF-1)**2; number++} END {mean=sum/number; var=sum2/number-mean**2; print mean, sqrt(var), sqrt(var)/mean, number}')
+            __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
+BEGIN {
+   number=0
+   sum=0
+   sum2=0
+   max=0
+   min=10000
+}
+
+{
+   timing=$6
+   sum+=timing
+   sum2+=timing**2
+   if (timing<min) min=timing
+   if (timing>max) max=timing
+   number++
+}
+
+END {
+   mean=sum/number
+   var=sum2/number-mean**2
+   print mean, sqrt(var), sqrt(var)/mean, min, max, number
+}')
             printf "\t${__findRunTime_stats__}\n"
             unset __findRunTime_stats__
         else
