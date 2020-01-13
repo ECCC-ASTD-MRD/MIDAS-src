@@ -584,9 +584,12 @@ contains
   end subroutine tvs_setup
 
   !--------------------------------------------------------------------------
-  !!**s/r tvs_cleanup :Release memory used by RTTOV-12
-
+  ! tvs_cleanup
+  !--------------------------------------------------------------------------
   subroutine tvs_cleanup
+    !
+    ! :Purpose: release memory used by RTTOV-12.
+    !
     implicit none
     integer :: allocStatus(8)
     integer :: iSensor,iObs,nChans,nl
@@ -966,10 +969,8 @@ contains
     ! :Purpose: return RTTOV platform id (>0) from platform name.
     !           -1 if not found
     implicit none
-
     !Argument:
-    character(len=*),intent(in) :: name !Platform name
-
+    character(len=*), intent(in) :: name !Platform name
     !Locals:
     integer           :: platformIndex, length, ipos
     character(len=64) :: tempo_name
@@ -1044,7 +1045,7 @@ contains
     integer, intent(in) :: instrum     ! input Rttov instrument code
 
     ! Locals:
-    integer ,parameter :: maxsize = 100
+    integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
@@ -1089,21 +1090,22 @@ contains
 
   end function tvs_isInstrumHyperSpectral
 
-
+  !--------------------------------------------------------------------------
+  !  tvs_isNameHyperSpectral
+  !--------------------------------------------------------------------------
   logical function tvs_isNameHyperSpectral(cinstrum)
     !
     ! :Purpose: given an instrument name
     ! return if it is an hyperspectral one
     ! information from namelist NAMHYPER
-
     implicit none
-    character(len=*),intent(in) :: cinstrum
-!******************************************
-    integer ,parameter :: maxsize = 20
+    character(len=*), intent(in) :: cinstrum
+
+    integer, parameter :: maxsize = 20
     integer :: nulnam, ierr, i 
-    integer ,save :: ninst_hir
+    integer, save :: ninst_hir
     logical, save :: lfirst = .true.
-    integer ,external :: fclos, fnom
+    integer, external :: fclos, fnom
     character (len=7),save  :: name_inst(maxsize)
     character (len=7) :: name2
     namelist /NAMHYPER/ name_inst
@@ -1151,10 +1153,8 @@ contains
     !           information from namelist NAMGEO
     !
     implicit none
-
     ! Argument:
     integer, intent(in) :: instrum ! input Rttov instrument code
-
     ! Locals:
     integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, instrumentIndex 
@@ -1239,13 +1239,12 @@ contains
     !          FY1-MVISR              26                     ir
     !                AHI              56                     ir
     ! ==================  =====================  ==================
-     implicit none
-
-    ! Arguments
+    implicit none
+    !Parameters:
     integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
     integer, intent(out) :: instrum      ! RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
-    
-    ! locals  
+  
+    !Locals:  
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp   = 100
     integer, save ::   listburp(mxinstrumburp)
@@ -1307,16 +1306,15 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_isNameGeostationary
   !--------------------------------------------------------------------------
-
   logical function tvs_isNameGeostationary(cinstrum)
     ! :Purpose: given an instrument name
     ! return if it is a Geostationnary Imager
     ! information from namelist NAMGEO
     implicit none
-    character(len=*),intent(in) :: cinstrum
-    integer ,parameter :: maxsize = 100
+    character(len=*), intent(in) :: cinstrum
+    integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, i 
-    integer ,save :: ninst_geo
+    integer, save :: ninst_geo
     logical, save :: lfirst = .true.
     character (len=8) :: name_inst(maxsize)
     integer, external :: fnom, fclos
@@ -1600,12 +1598,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof),intent(in) :: chanprof(:)
-    integer, intent(in)             :: sensorTovsIndexes(:)
-    integer, intent(in)             :: sensorType
-    integer, intent(in)             :: instrument
-    real(8), intent(out)            :: surfem(:)
-    logical, intent(out)            :: calcemis(:)
+    type(rttov_chanprof), intent(in) :: chanprof(:)
+    integer, intent(in)              :: sensorTovsIndexes(:)
+    integer, intent(in)              :: sensorType
+    integer, intent(in)              :: instrument
+    real(8), intent(out)             :: surfem(:)
+    logical, intent(out)             :: calcemis(:)
     
     ! Locals:
     integer :: radiance_index, profileIndex, iobs, surfaceType
@@ -2084,9 +2082,9 @@ contains
     real(8), intent(in)    :: limlvhu       ! Humidity is extrapolated for pressures < limlvhu
 
     ! locals
-    real(8),allocatable :: zpres3(:)
+    real(8), allocatable :: zpres3(:)
     real(8) zwb
-    real(8),parameter :: pressureLimit = 70.0d0  !press limits (in hpa) of region to be extrapolated
+    real(8), parameter :: pressureLimit = 70.0d0  !press limits (in hpa) of region to be extrapolated
     integer :: topIndex, profileIndex,levelIndex,nlevels,nprofiles
 
     nlevels = size( ppres )
@@ -2654,9 +2652,9 @@ contains
     integer, intent(in)  :: mchannel(nchn) ! vector of channel indices to process
 
     !Locals
-    integer ,parameter :: MaxWn = 19
-    integer ,parameter :: Nparm=3
-    integer ,parameter :: MaxChan=19
+    integer, parameter :: MaxWn = 19
+    integer, parameter :: Nparm=3
+    integer, parameter :: MaxChan=19
 
     real (8),parameter :: Theta(Nparm,MaxWn) = (/ &
          1700.381d0, 25.28534d0, 144.1023d0,      &
@@ -2759,14 +2757,14 @@ contains
     implicit none
 
     ! Arguments:
-    real (8),intent(out) :: f_low(nprf)       ! Low resolution field
-    real (8),intent(in)  :: f_high(klon, klat)! High resolution field 
-    integer, intent(in)  :: nprf              ! Number of profiles
-    integer, intent(in)  :: ilat(nprf)        ! Y-coordinate of profile
-    integer, intent(in)  :: ilon(nprf)        ! X-coordinate of profile
-    integer, intent(in)  :: klon              ! Max value of latitude indices
-    integer, intent(in)  :: klat              ! Max value of longitude indices
-    integer, intent(in)  :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
+    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field
+    real(8), intent(in)   :: f_high(klon, klat)! High resolution field 
+    integer, intent(in)   :: nprf              ! Number of profiles
+    integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
+    integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
+    integer, intent(in)   :: klon              ! Max value of latitude indices
+    integer, intent(in)   :: klat              ! Max value of longitude indices
+    integer, intent(in)   :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
 
     ! Locals
     integer :: nplon, jdlo1, jdlo2, jlon1, jlon2
@@ -2880,12 +2878,12 @@ contains
     implicit none
    
     ! Arguments:
-    real(8),intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
-    integer,intent(in)  :: nchn                   ! Number of channels
-    integer,intent(in)  :: sensorindex            ! Sensor number
-    integer,intent(in)  :: nprf                   ! Number of profiles
-    integer,intent(in)  :: nchannels_max          ! Total number of observations treated
-    integer,intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
+    real(8), intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
+    integer, intent(in)  :: nchn                   ! Number of channels
+    integer, intent(in)  :: sensorindex            ! Sensor number
+    integer, intent(in)  :: nprf                   ! Number of profiles
+    integer, intent(in)  :: nchannels_max          ! Total number of observations treated
+    integer, intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
 
     !Locals:
     integer :: jc,jn
@@ -3284,8 +3282,8 @@ contains
 
     ! Arguments
     integer, intent(in) :: nchn              ! number of bands for which emissivity is needed
-    real (8),intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
-    real (8),intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
+    real (8), intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
+    real (8), intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
 
     ! locals
     integer          :: i, nc, nt
@@ -3386,10 +3384,10 @@ contains
     implicit none
 
     ! Arguments:
-    real (8), intent(out)  :: em_oc(nc,np) ! Ocean emissivities (0.-1.)
-    real (8), intent(in)   :: wnum(nc)     ! Channel wavenumbers (cm-1)
-    real (8), intent(in)   :: angle(np)    ! Viewing angle (deg)
-    real (8), intent(in)   :: wind(np)     ! Surface wind speed (m/s)
+    real(8), intent(out)   :: em_oc(nc,np) ! Ocean emissivities (0.-1.)
+    real(8), intent(in)    :: wnum(nc)     ! Channel wavenumbers (cm-1)
+    real(8), intent(in)    :: angle(np)    ! Viewing angle (deg)
+    real(8), intent(in)    :: wind(np)     ! Surface wind speed (m/s)
     integer, intent(in)    :: np           ! Number of profiles
     integer, intent(in)    :: nc           ! Number of channels
 
@@ -3462,12 +3460,12 @@ contains
 
   subroutine tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
      implicit none
-     integer,intent(in) :: channels(:)
-     integer,intent(out):: countUniqueChannel,listAll(:)
+     integer, intent(in) :: channels(:)
+     integer, intent(out):: countUniqueChannel,listAll(:)
 
      integer :: channelsb(tvs_maxChannelNumber)
      integer :: ierr, i, j
-     integer ,allocatable :: listGlobal(:)
+     integer, allocatable :: listGlobal(:)
      logical :: found
      
 
@@ -3558,11 +3556,11 @@ contains
     ! Arguments:
     integer(kind=jpim), intent(out) :: err          ! Error status
     type(rttov_coefs),  intent(out) :: coefs        ! Rttov coefficient structure
-    type(rttov_options),intent(in)  :: opts         ! Rttov option structure
+    type(rttov_options), intent(in) :: opts         ! Rttov option structure
     integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
     integer(kind=jpim), intent(in)  :: instrument(3)! Instrument vector
 
-    real(8) ,allocatable :: bigArray(:,:,:,:)
+    real(8), allocatable :: bigArray(:,:,:,:)
     integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
     logical :: associated0
     integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
@@ -4462,12 +4460,12 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getChannelIndexFromChannelNumber
   !--------------------------------------------------------------------------
-  
   subroutine tvs_getChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
     implicit none
+    !Arguments:
     integer, intent(in)  :: idsat, chanNum
     integer, intent(out) :: chanIndx
-    !*********
+    !Locals:
     logical, save :: first =.true.
     integer :: ichan, isensor, indx 
     integer, allocatable, save :: Index(:,:)

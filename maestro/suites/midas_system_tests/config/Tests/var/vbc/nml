@@ -13,7 +13,7 @@
    ENSPATHNAME='./ensemble/'
 /
  &NAMBIAS
-    LVARBC=.TRUE.,
+    biasActive=.TRUE.,
     BG_STDDEV=0.1d0, 0.1d0, 0.1d0, 0.1d0, 0.1d0, 0.01d0
     biasmode="varbc",
     removeBiasCorrection=.false.

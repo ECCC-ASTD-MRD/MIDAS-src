@@ -129,7 +129,7 @@
         <MODULE  name="UnitTest"/>
       </FAMILY>
 
-    <SUBMITS sub_name="bgckIasiwBcor"/>
+      <SUBMITS sub_name="bgckIasiwBcor"/>
       <FAMILY  name="bgckIasiwBcor">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
@@ -284,7 +284,7 @@
   </FAMILY>
 
   <FAMILY  name="bgckMW">
- <SUBMITS sub_name="UnitTest"/>
+    <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
 

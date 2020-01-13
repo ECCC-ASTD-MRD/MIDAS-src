@@ -1,4 +1,4 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
+!--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -14,16 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-!--------------------------------------------------------------------------
-!!
-!! *Purpose*: Main program for variational minimization and background check 
-!!            (depending on the mode selected in the namelist).
-!!
-!--------------------------------------------------------------------------
 program midas_gencoeff
   !
-  ! **Purpose**: Main program for variational minimization and background check 
-  ! (depending on the mode selected in the namelist).
+  ! :Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
   use ramDisk_mod
   use utilities_mod
@@ -51,12 +44,11 @@ program midas_gencoeff
 
   implicit none
 
-  integer,external :: exdb,exfin,fnom, fclos, get_max_rss
+  integer, external :: exdb,exfin,fnom, fclos, get_max_rss
   integer ::  nulnam, headerIndex
   integer :: ierr,istamp
 
   type(struct_obs),        target  :: obsSpaceData
-  type(struct_columnData), target  :: trlColumnOnTrlLev
   type(struct_columnData), target  :: trlColumnOnAnlLev
   type(struct_hco), pointer        :: hco_anl => null()
   type(struct_vco), pointer        :: vco_anl => null()
@@ -132,9 +124,9 @@ program midas_gencoeff
   call tmg_stop(6)
 
   
-    !
-    ! Refresh bias correction if requested
-    !
+  !
+  ! Refresh bias correction if requested
+  !
   call tmg_start(8,'REFRESH_BCOR')
   call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(8)
@@ -177,7 +169,7 @@ program midas_gencoeff
 
   call bias_finalize()
 
-   ! Deallocate copied obsSpaceData
+  ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
   
@@ -193,18 +185,15 @@ program midas_gencoeff
 
 contains
 
-  !--------------------------------------------------------------------------
-  !! *Purpose*: Control of the preprocessing of the variational assimilation
-  !!
-  !! Revisions:
-  !!           Y.J. Rochon, Jan 2016
-  !!           - Addition of test on availability of input trial fields according
-  !!             to related observation families.
-  !--------------------------------------------------------------------------
   subroutine gencoeff_setup(obsColumnMode)
-    implicit none
+    !
+    ! :Purpose:  Control of the preprocessing of bais correction coefficient computation
+    !
 
-    character (len=*) :: obsColumnMode
+    implicit none
+    !Parameters:
+    character(len=*), intent(in) :: obsColumnMode
+    !Locals:	
     integer :: datestamp
     type(struct_hco),pointer :: hco_core => null()
 
@@ -268,17 +257,16 @@ contains
     call col_setVco(trlColumnOnAnlLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    !
+    !- Read Bias correction module namelist
+    !
+    call bias_readConfig()
 
     !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Setup observation operators
-    !
-!    call oop_setup(varMode) ! IN
 
     !
     !- Basic setup of columnData module
