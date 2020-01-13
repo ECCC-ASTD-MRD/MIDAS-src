@@ -661,7 +661,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR HEIGHTS
 !C
       if ( kvnam .eq. BUFR_NEGZ ) then
-         if (      zbgchk > zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
+         if (      zbgchk >= zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zgzcrit(2) .and. zbgchk < zgzcrit(3) ) then
             isetflag=2
@@ -673,7 +673,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR TEMPERATURE
 !C
       if ( kvnam .eq. BUFR_NETT ) then
-         if (      zbgchk > zttcrit(1) .and. zbgchk < zttcrit(2) ) then
+         if (      zbgchk >= zttcrit(1) .and. zbgchk < zttcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zttcrit(2) .and. zbgchk < zttcrit(3) ) then
             isetflag=2
@@ -685,7 +685,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR SATEMS
 !C
       if ( kvnam .eq. BUFR_NEDZ ) then
-         if (      zbgchk > zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
+         if (      zbgchk >= zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zdzcrit(2) .and. zbgchk < zdzcrit(3) ) then
             isetflag=2
@@ -697,7 +697,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR WIND COMPONENTS
 !C
       if ( kvnam .eq. BUFR_NEUU .or. kvnam .eq. BUFR_NEVV ) then
-         if (      zbgchk > zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
+         if (      zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zuvcrit(2) .and. zbgchk < zuvcrit(3) ) then
             isetflag=2
@@ -721,7 +721,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR SURFACE WIND COMPONENTS
 !C
       if ( kvnam .eq. BUFR_NEUS .or. kvnam .eq. BUFR_NEVS ) then
-         if (      zbgchk > zswcrit(1) .and. zbgchk < zswcrit(2) ) then
+         if (      zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
             isetflag=2
@@ -745,7 +745,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR DEW POINT DEPRESSION
 !C
       if ( kvnam .eq. BUFR_NEES ) then
-         if (      zbgchk > zescrit(1) .and. zbgchk < zescrit(2) ) then
+         if (      zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
            isetflag=2
@@ -757,7 +757,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR SURFACE PRESSURE
 !C
       if ( kvnam .eq. BUFR_NEPS ) then
-         if (      zbgchk > zpscrit(1) .and. zbgchk < zpscrit(2) ) then
+         if (      zbgchk >= zpscrit(1) .and. zbgchk < zpscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zpscrit(2) .and. zbgchk < zpscrit(3) ) then
            isetflag=2
@@ -769,7 +769,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR MEAN SEA LEVEL PRESSURE
 !C
       if ( kvnam .eq. BUFR_NEPN ) then
-         if (      zbgchk > zpncrit(1) .and. zbgchk < zpncrit(2) ) then
+         if (      zbgchk >= zpncrit(1) .and. zbgchk < zpncrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zpncrit(2) .and. zbgchk < zpncrit(3) ) then
            isetflag=2
@@ -781,7 +781,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR SURFACE TEMPERATURE
 !C
       if ( kvnam .eq. BUFR_NETS ) then
-         if (      zbgchk > ztscrit(1) .and. zbgchk < ztscrit(2) ) then
+         if (      zbgchk >= ztscrit(1) .and. zbgchk < ztscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= ztscrit(2) .and. zbgchk < ztscrit(3) ) then
            isetflag=2
@@ -793,7 +793,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR SURFACE DEW POINT DEPRESSION
 !C
       if ( kvnam .eq. BUFR_NESS ) then
-         if (      zbgchk > zescrit(1) .and. zbgchk < zescrit(2) ) then
+         if (      zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
            isetflag=2
@@ -805,7 +805,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR VISIBILITY
 !C
       if ( kvnam .eq. bufr_logVis ) then
-         if (      zbgchk > zLogViscrit(1) .and. zbgchk < zLogViscrit(2) ) then
+         if (      zbgchk >= zLogViscrit(1) .and. zbgchk < zLogViscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zLogViscrit(2) .and. zbgchk < zLogViscrit(3) ) then
            isetflag=2
@@ -817,7 +817,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR GB-GPS ZENITH DELAY
 !C
       if ( kvnam .eq. BUFR_NEZD ) then
-         if (      zbgchk > zzdcrit(1) .and. zbgchk < zzdcrit(2) ) then
+         if (      zbgchk >= zzdcrit(1) .and. zbgchk < zzdcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zzdcrit(2) .and. zbgchk < zzdcrit(3) ) then
            isetflag=2
@@ -829,7 +829,7 @@ end subroutine bgck_bgcheck_conv
 !C     SET FLAG FOR CHEMICAL CONSTITUENTS
 !C
       if ( cdfam .eq. 'CH' ) then
-         if (      zbgchk > zchcrit(1) .and. zbgchk < zchcrit(2) ) then
+         if (      zbgchk >= zchcrit(1) .and. zbgchk < zchcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zchcrit(2) .and. zbgchk < zchcrit(3) ) then
            isetflag=2
