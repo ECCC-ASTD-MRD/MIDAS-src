@@ -497,7 +497,7 @@ CONTAINS
     ! :Purpose: to compute predictor average
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData
     !Locals:
     real(8) :: predictor(NumPredictors)
@@ -617,7 +617,7 @@ CONTAINS
     ! :Purpose:  to fill OBS_BCOR column of ObsSpaceData body with bias correction computed from read coefficient file
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columnhr
     !Locals:
@@ -708,7 +708,7 @@ CONTAINS
     ! :Purpose: to compute residuals mean and standard deviation by intrument, channel and scan position
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData
     character(len=*), intent(in)     :: prefix
     !Locals:
@@ -851,7 +851,7 @@ CONTAINS
     ! :Purpose: to remove outliers (too large OmF) from linear regression
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs)  :: obsSpaceData
     !Locals:
     real(8), allocatable :: tbias(:,:), tstd(:,:)
@@ -1037,7 +1037,7 @@ CONTAINS
     ! :Purpose: tl of bias computation (for varBC)
     !
     implicit none
-    !Parameters:
+    !Arguments:
     real(8)  :: cv_in(:)
     integer  :: obsColumnIndex
     type(struct_obs)  :: obsSpaceData
@@ -1140,7 +1140,7 @@ CONTAINS
     ! :Purpose: get predictors from trial fields
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     !Locals:
@@ -1387,7 +1387,7 @@ CONTAINS
     ! :Purpose: bias computation adjoint (for varBC)
     !
     implicit none
-    !Parameters:
+    !Arguments:
     real(8), intent(in)  :: cv_out(:)
     integer, intent(in)  :: obsColumnIndex
     type(struct_obs)     :: obsSpaceData
@@ -1730,7 +1730,7 @@ CONTAINS
     ! :Purpose: to read, and optionaly update and write out, the coeff files (varBC).
     !
     implicit none
-    !Parameters:
+    !Arguments:
     integer,intent(in)            :: maxsat, maxpred
     character(len=*), intent(in)  :: coeff_file
     logical, optional, intent(in) :: updateCoeff_opt
@@ -1979,7 +1979,7 @@ CONTAINS
     !   after the call OBS_VAR contains the uncorrected observation and OBS_BCOR is set to zero
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs)                       :: obsSpaceData
     character(len=2), intent(in), optional :: family_opt
     !Locals:
@@ -2185,7 +2185,7 @@ CONTAINS
     ! :Purpose: to apply bias correction from OBS_BCOR to obsSpaceData column column
     !  after the call OBS_VAR contains the corrected observation and OBS_BCOR is not modified.
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs)                       :: obsSpaceData
     integer, intent(in)                    :: column !obsSpaceData column
     character(len=2), intent(in), optional :: family_opt
@@ -2235,7 +2235,7 @@ CONTAINS
     !  after the call OBS_VAR contains the corrected observation and OBS_BCOR is set to applied bias correction
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columnhr
 
@@ -2258,7 +2258,7 @@ CONTAINS
     ! :Purpose: initialize the weights to give more importance to data near radiosonde stations
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     logical, intent(in), optional   :: lmodify_obserror_opt
     !Locals:
@@ -2335,7 +2335,7 @@ CONTAINS
     ! :Purpose: compute the bias correction coefficients by linear regresion
     !
     implicit none
-    !Parameters:
+    !Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnhr
     !Locals:
@@ -2670,7 +2670,7 @@ CONTAINS
     ! :Purpose: to convert string s1 to lower case in s2.
     !
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=*)   :: s1
     character(len(s1)) :: s2
     !Locals:
@@ -2691,7 +2691,7 @@ CONTAINS
   !-----------------------------
   function InstrNametoCoeffFileName(nameIn) result(nameOut)
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
     !Locals
@@ -2740,7 +2740,7 @@ CONTAINS
   !-----------------------------
   function SatNameinCoeffFile(nameIn) result(nameOut)
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=10), intent(in) :: nameIn
     character(len=10)             :: nameOut
 
@@ -2769,7 +2769,7 @@ CONTAINS
     ! :Purpose: to read channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     !
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=*), intent(in)  :: bcifFile
     logical, intent(in)           :: hspec
     integer, intent(out)          :: exitcode, ncan
@@ -2979,7 +2979,7 @@ CONTAINS
     ! :Purpose: to read radiance bias correction coefficients file
     !
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=10), intent(out) :: sats(:)       ! dim(maxsat), satellite names 1
     integer, intent(out)           :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers 2
     real(8), intent(out)           :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
@@ -3159,7 +3159,7 @@ CONTAINS
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
     implicit none
-    !Parameters:
+    !Arguments:
     integer, intent(in)  :: idsat, indexBody
     integer, intent(out) :: chanIndx
     type(struct_obs),intent(inout)  :: obsSpaceData
@@ -3201,7 +3201,7 @@ CONTAINS
     ! :Purpose: to calculate the More-Penrose pseudo inverse of the matrix A
     !
     implicit none
-    !Parameters:
+    !Arguments:
     real(8), intent(in)           :: a(:,:)  ! Input Matrix
     real(8), intent(out)          :: as(:,:) ! Its Moore Penrose Pseudo-Inverse
     real(8), optional, intent(in) :: threshold_opt

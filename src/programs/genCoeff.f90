@@ -58,7 +58,6 @@ program midas_gencoeff
                                  varMode        = 'analysis'
 
 
-
   istamp = exdb('GENCOEFF','DEBUT','NON')
 
   write(*,'(/,' //                                                &
@@ -78,20 +77,19 @@ program midas_gencoeff
  
   ! 1. Top level setup
 
-  nulnam=0
-  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  if(ierr.ne.0) call utl_abort('midas-var: Error opening file flnml')
+  nulnam = 0
+  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  if (ierr /= 0) call utl_abort('midas-var: Error opening file flnml')
   !read(nulnam,nml=namct0,iostat=ierr)
-  if(ierr.ne.0) call utl_abort('midas-var: Error reading namelist')
+  if (ierr /= 0) call utl_abort('midas-var: Error reading namelist')
   !write(*,nml=namct0)
-  ierr=fclos(nulnam)
+  ierr = fclos(nulnam)
 
   call ram_setup()
  
 
   ! Do initial set up
   call tmg_start(2,'SETUP')
-
   call gencoeff_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
@@ -113,8 +111,6 @@ program midas_gencoeff
   call tmg_start(5,'REMOVE_OUTLIERS')
   call bias_removeOutliers(obsSpaceData)
   call tmg_stop(5)
-
-
    
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -122,7 +118,6 @@ program midas_gencoeff
   call tmg_start(6,'COMP_INOV')
   call inn_computeInnovation(trlColumnOnAnlLev,obsSpaceData)
   call tmg_stop(6)
-
   
   !
   ! Refresh bias correction if requested
@@ -131,9 +126,6 @@ program midas_gencoeff
   call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(8)
 
-  !
-  ! Filter obs if requested
-  !
 
   call tmg_start(9,'REGRESSION')
   call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)
@@ -143,7 +135,6 @@ program midas_gencoeff
   call tmg_start(12,'WRITECOEFFS')
   call bias_writebias()
   call tmg_stop(12)
-  
 
   !
   ! output O-F statistics befor bias coorection
@@ -166,12 +157,10 @@ program midas_gencoeff
   call tmg_stop(13)
 
   ! Deallocate internal bias correction structures 
-
   call bias_finalize()
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
-
   
   ! 3. Job termination
 
@@ -191,7 +180,7 @@ contains
     !
 
     implicit none
-    !Parameters:
+    !Arguments:
     character(len=*), intent(in) :: obsColumnMode
     !Locals:	
     integer :: datestamp
@@ -223,7 +212,7 @@ contains
     !
     !- Initialize constants
     !
-    if(mpi_myid.eq.0) call mpc_printConstants(6)
+    if(mpi_myid == 0) call mpc_printConstants(6)
 
     !
     !- Initialize variables of the model states
@@ -234,15 +223,15 @@ contains
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)'gencoeff_setup: Set hco parameters for analysis grid'
+    if(mpi_myid == 0) write(*,*)''
+    if(mpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid.eq.0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
+      if(mpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN

@@ -144,6 +144,12 @@ contains
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
 
+    !
+    !  Additional filtering for bias correction if requested 
+    !
+    call bias_setup()
+    call bias_filterObs(obsSpaceData)
+
     if ( present(obsClean_opt) ) then
       if ( obsClean_opt ) then
         write(*,*) ''

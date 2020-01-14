@@ -186,7 +186,7 @@ contains
     !
     implicit none
 
-    !Parameters:
+    !Arguments:
     type(struct_obs) :: obsSpaceData
 
     ! Locals:
@@ -1099,8 +1099,9 @@ contains
     ! return if it is an hyperspectral one
     ! information from namelist NAMHYPER
     implicit none
+    !Arguments:
     character(len=*), intent(in) :: cinstrum
-
+    !Locals:
     integer, parameter :: maxsize = 20
     integer :: nulnam, ierr, i 
     integer, save :: ninst_hir
@@ -1240,7 +1241,7 @@ contains
     !                AHI              56                     ir
     ! ==================  =====================  ==================
     implicit none
-    !Parameters:
+    !Arguments:
     integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
     integer, intent(out) :: instrum      ! RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
   
@@ -1311,7 +1312,9 @@ contains
     ! return if it is a Geostationnary Imager
     ! information from namelist NAMGEO
     implicit none
+    !Arguments:
     character(len=*), intent(in) :: cinstrum
+    !Locals:
     integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, i 
     integer, save :: ninst_geo
@@ -3458,61 +3461,68 @@ contains
 
   end subroutine emi_sea
 
+
+  !--------------------------------------------------------------------------
+  !  tvs_getCommonChannelSet
+  !--------------------------------------------------------------------------
   subroutine tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
-     implicit none
-     integer, intent(in) :: channels(:)
-     integer, intent(out):: countUniqueChannel,listAll(:)
-
-     integer :: channelsb(tvs_maxChannelNumber)
-     integer :: ierr, i, j
-     integer, allocatable :: listGlobal(:)
-     logical :: found
+    !
+    !  :Purpose: get common channels among all MPI tasks
+    !
+    implicit none
+    !Arguments:
+    integer, intent(in) :: channels(:)
+    integer, intent(out):: countUniqueChannel, listAll(:)
+    !Locals:
+    integer :: channelsb(tvs_maxChannelNumber)
+    integer :: ierr, i, j
+    integer, allocatable :: listGlobal(:)
+    logical :: found
      
+    if (size(channels) > tvs_maxChannelNumber) then
+      write(*,*) 'You need to increase tvs_maxChannelNumber in tovs_nl_mod !',size(channels), tvs_maxChannelNumber
+      call utl_abort("tvs_getCommonChannelSet")
+    end if
 
-     if (size(channels) > tvs_maxChannelNumber) then
-       write(*,*) 'You need to increase tvs_maxChannelNumber in tovs_nl_mod !',size(channels), tvs_maxChannelNumber
-       call utl_abort("tvs_getCommonChannelSet")
-     end if
+    if (mpi_myid ==0) then
+      allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
+    else
+      allocate(listGlobal(1))
+    end if
 
-     if (mpi_myid ==0) then
-       allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
-     else
-       allocate(listGlobal(1))
-     end if
+    listAll(:) = 0
+    listGlobal(:) = 0
+    channelsb(:) = 0
+    channelsb(1:size(channels)) = channels(:)
 
-     listAll(:) = 0
-     listGlobal(:) = 0
-     channelsb(:) = 0
-     channelsb(1:size(channels)) = channels(:)
+    call rpn_comm_barrier("GRID",ierr)
 
-     call rpn_comm_barrier("GRID",ierr)
+    call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
+         tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    countUniqueChannel = 0
+    if ( mpi_myid == 0 ) then
+      call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
+      do i=1, mpi_nprocs * tvs_maxChannelNumber
+        if (listGlobal(i) > 0) then
+          found = .false.
+          LOOPJ: do j=countUniqueChannel,1,-1
+            if (listGlobal(i) == listAll(j) ) then
+              found =.true.
+              exit LOOPJ
+            end if
+          end do LOOPJ
+          if (.not.found) then
+            countUniqueChannel = countUniqueChannel + 1
+            listAll(countUniqueChannel) = listGlobal(i)
+          end if
+        end if
+      end do
+    end if
+    
+    call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-     call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
-          tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
-     countUniqueChannel = 0
-     if ( mpi_myid == 0 ) then
-       call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
-       do i=1, mpi_nprocs * tvs_maxChannelNumber
-         if (listGlobal(i) > 0) then
-           found = .false.
-           LOOPJ: do j=countUniqueChannel,1,-1
-             if (listGlobal(i) == listAll(j) ) then
-               found =.true.
-               exit LOOPJ
-             end if
-           end do LOOPJ
-           if (.not.found) then
-             countUniqueChannel = countUniqueChannel + 1
-             listAll(countUniqueChannel) = listGlobal(i)
-           end if
-         end if
-       end do
-     end if
-
-     call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-     call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr)
-
-     deallocate(listGlobal)
+    deallocate(listGlobal)
 
   end subroutine tvs_getCommonChannelSet
 
@@ -4315,13 +4325,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_printDetailledOmfStatistics(obsSpaceData)
     !
-    ! *Purpose*: Print channel by channnel O-F statistics fro radiances
+    ! :Purpose: Print channel by channnel O-F statistics fro radiances
     !
     implicit none
-
     !Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
-
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -4461,6 +4469,9 @@ contains
   !  tvs_getChannelIndexFromChannelNumber
   !--------------------------------------------------------------------------
   subroutine tvs_getChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
+    !
+    ! :Purpose: to get channel index from channel number
+    !
     implicit none
     !Arguments:
     integer, intent(in)  :: idsat, chanNum

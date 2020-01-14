@@ -70,16 +70,6 @@
     bitListSsmis(3)=16,
     bitListSsmis(4)=18,
 /
- &NAMMIN
-   NVAMAJ = 10,
-   NITERMAX = 25,
-   NSIMMAX  = 100,
-   REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .TRUE.,
-   LVARQC=.TRUE.,
-   NWOQCV=5
-/
  &NAMINC
    etiket_rebm ='XXXXXX'
 /
