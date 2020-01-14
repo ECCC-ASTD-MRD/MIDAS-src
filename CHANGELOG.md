@@ -95,6 +95,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
 
 ### Fixed
+ * Add missing O-P background check for surface (2m) dewpoint depression ES (#294 and !288)
  * Fix bug triggered by GB-GPS reports with missing ZTD in background check of conventional observations (#295 and !287)
  * Correction to the surface humidity (BUFR element 13214) writen in BURP files info block during hyperspectral IR background check. Due to the error introduced in !111 exp(HU) was written instead of HU. (#257 and !247)
  * Fixed bugs, compilation procedure and system tests to allow compatibility on new machines (ppp3/4, banting/daley) - note, only the latest version of the reference results are available on the new machines (#258 and !243)
