@@ -119,7 +119,7 @@ module sqliteFiles_mod
 
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
-    call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName) )
+    call sqlr_readSqlite_tov(obsdat, trim(familyType), trim(fileName), fileIndex )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
     if ( trim(familyType) == 'TO' ) then
@@ -233,16 +233,15 @@ module sqliteFiles_mod
   end subroutine sqlf_cleanFile
 
 
-  subroutine sqlf_cldprmsFile(obsSpaceData, fileName, familyType, fileIndex)
+  subroutine sqlf_cldprmsFile(obsSpaceData, fileIndex, fileName)
     !
-    ! :Purpose: To output cld parameters in obsspace data to sqlite table
+    ! :Purpose: To insert cloud parameters in obsspace data into sqlite file
     !
     implicit none
 
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*),  intent(in) :: fileName
-    character(len=*),  intent(in) :: familyType
     integer,           intent(in) :: fileIndex
 
     ! locals
@@ -250,16 +249,14 @@ module sqliteFiles_mod
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     write(*,*) myName//': FileName   : ',trim(fileName)
-    write(*,*) myName//': FamilyType : ',FamilyType
     call fSQL_open( db, fileName, statusSqlite )
     if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
       write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
       write(*,*) myError, fSQL_errmsg(statusSqlite )
     end if
-
-    call sqlr_cldparams(db, obsSpaceData, familyType, fileName, fileIndex )
-    write(*,*)'  closed database -->', trim(FileName)
+    call sqlr_addCloudParametersandEmissivity( db, obsSpaceData,fileIndex )
     call fSQL_close( db, statusSqlite )
+    write(*,*)'  closed database -->', trim(FileName)
 
     write(*,*)' '
     write(*,*)'================================================='
