@@ -70,9 +70,11 @@ BEGIN {
 }
 
 END {
-   mean=sum/number
-   var=sum2/number-mean**2
-   print mean, sqrt(var), sqrt(var)/mean, min, max, number
+    if (number>0) {
+        mean=sum/number
+        var=sum2/number-mean**2
+        print mean, sqrt(var), sqrt(var)/mean, min, max, number
+    }
 }')
             printf "\t${__findRunTime_stats__}\n"
             unset __findRunTime_stats__
