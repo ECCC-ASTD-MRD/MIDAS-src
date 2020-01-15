@@ -369,7 +369,9 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addpc = .false.     ! to carry out principal component calculations 
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
-        tvs_opts(sensorIndex) % rt_mw % clw_data = .true.  ! profil d'eau liquide pas disponible
+        tvs_opts(sensorIndex) % rt_mw % clw_data = .false.  ! profil d'eau liquide pas disponible
+        if ( isInstrumMicrowave(tvs_instruments(sensorIndex)) ) &
+                tvs_opts(sensorIndex) % rt_mw % clw_data = .true. 
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .false. ! use of internal profile interpolator (rt calculation on model levels)
@@ -1202,6 +1204,65 @@ contains
   end function tvs_isInstrumGeostationary
 
   !--------------------------------------------------------------------------
+  !  isInstrumMicrowave
+  !--------------------------------------------------------------------------
+  logical function isInstrumMicrowave(instrum)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is a microwave one
+    !           information from namelist NAMMW
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrum     ! input Rttov instrument code
+
+    ! Locals:
+    integer ,parameter :: maxsize = 100
+    integer :: nulnam, ierr, instrumentIndex 
+    integer, save :: list_inst(maxsize), ninst_mw
+    logical, save :: first = .true.
+    integer, external :: fclos, fnom
+    character (len=7) :: name_inst(maxsize)
+    namelist /NAMMW/ name_inst
+
+    if (first) then
+      nulnam = 0
+      ninst_mw = 0
+      name_inst(:) = "XXXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nammw, iostat=ierr)
+      if (ierr /= 0) call utl_abort('isInstrumMicrowave: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=nammw)
+      ierr = fclos(nulnam)
+      list_inst(:) = -1
+      do instrumentIndex=1, maxsize
+        list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
+        if (name_inst(instrumentIndex) /= "XXXXXXX") then
+          if (list_inst(instrumentIndex) == -1) then
+            write(*,*) instrumentIndex,name_inst(instrumentIndex)
+            call utl_abort('isInstrumMicrowave: Unknown instrument name')
+          end if
+        else
+          ninst_mw = instrumentIndex - 1
+          exit
+        end if
+      end do
+      first = .false.
+      if (ninst_mw == 0) then
+        write(*,*) "isInstrumMicrowave: Warning : empty nammw namelist !"
+      end if
+    end if
+    isInstrumMicrowave = .false.
+    do instrumentIndex =1, ninst_mw
+      if ( instrum == list_inst(instrumentIndex)) then
+        isInstrumMicrowave = .true.
+        exit
+      end if
+    end do
+
+  end function isInstrumMicrowave
+
+  !--------------------------------------------------------------------------
   !  tvs_mapInstrum
   !--------------------------------------------------------------------------
   subroutine tvs_mapInstrum(instrumburp,instrum)
@@ -1969,10 +2030,10 @@ contains
       end if
 
       ! liquid water content
-      lwcExtrap(:,:) = 0.0d0
+      lwcExtrap(:,:) = 1.0D-9 !0.0d0
       do profileIndex = 1, profileCount
         do levelIndex = 1, levelsBelowModelTop
-          lwcExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = lwcInterp(levelIndex,profileIndex)
+          lwcExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = max(1.0D-9,lwcInterp(levelIndex,profileIndex))
         end do
       end do
 
@@ -2048,7 +2109,8 @@ contains
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
         tvs_profiles(tovsIndex) % cfraction = 0.d0
-        tvs_profiles(tovsIndex) % clw(:)          = lwcExtrap(:,profileIndex)
+        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) &
+          tvs_profiles(tovsIndex) % clw(:) = lwcExtrap(:,profileIndex)
       end do
 
       deallocate (rttovPressure,       stat = allocStatus(1))
