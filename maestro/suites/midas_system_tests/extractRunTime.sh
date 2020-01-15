@@ -121,6 +121,7 @@ END {
 export SEQ_EXP_HOME=${suite}
 findRunTime /Tests
 
-if [ "${findOutliers}" = notify -a -n "${outlier}" ]; then
+if [ "${findOutliers}" = notify -a -n "${outliers}" ]; then
+    echo "Sending a notification to '${emails}'"
     printf "We found some outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
 fi
