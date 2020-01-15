@@ -24,18 +24,17 @@ if [ ! -d "${suite}" ]; then
 fi
 
 if [ "${computeStats}" != no -a "${computeStats}" != yes ]; then
-    echo "$0: The '-computeStats' argument must be 'yes' or 'no'"
+    echo "$0: The '-computeStats' argument must be 'yes' or 'no'" >&2
     exit 1
 fi
 
-if [ "${findOutliers}" != no -a "${findOutliers}" != yes -a "${findOutliers}" != notify ]; then
-    echo "$0: The '-findOutliers' argument must be 'yes', 'no' or 'notify'"
+if [ "${findOutliers}" != no -a "${findOutliers}" != yes ]; then
+    echo "$0: The '-findOutliers' argument must be 'yes', 'no'" >&2
     exit 1
 fi
 
-if [ "${findOutliers}" = notify -a -z "${emails}" ]; then
-    echo "$0: If '-findOutliers' argument is 'yes' then you must give a list of emails using '-emails'"
-    exit 1
+if [ "${findOutliers}" = no -a -n "${emails}" ]; then
+    echo "$0: WARNING: Since '-findOutliers' argument is 'no', no email will be sent to the list you gave." >&2
 fi
 
 if [ "${computeStats}" = yes ]; then
@@ -98,9 +97,10 @@ END {
             fi
         fi
         unset __findRunTime_runtime__
-        if [ "${findOutliers}" = yes -o "${findOutliers}" = notify ]; then
+        if [ "${findOutliers}" = yes ]; then
             outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
-            if [ -n "${outlier}" -a "${findOutliers}" = notify ]; then
+            if [ -n "${outlier}" ]; then
+                printf "${outlier}\n" | sed 's/^/\t/'
                 line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
                 outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
             fi
@@ -116,12 +116,12 @@ END {
 }  ## End of function 'findRunTime'
 
 ## Initialize 'outliers' variable used in 'findRunTime'
-[ "${findOutliers}" = notify ] && outliers=
+[ "${findOutliers}" = yes ] && outliers=
 
 export SEQ_EXP_HOME=${suite}
 findRunTime /Tests
 
-if [ "${findOutliers}" = notify -a -n "${outliers}" ]; then
+if [ "${findOutliers}" = yes -a -n "${outliers}" -a -n "${emails}" ]; then
     echo "Sending a notification to '${emails}'"
     printf "We found some outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
 fi
