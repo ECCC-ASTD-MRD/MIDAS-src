@@ -5,31 +5,42 @@ set -e
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.3.3"}
 which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-## This scrits looks in the logs of the maestro suite:
-##  - exit with 1 if it finds an 'abortx?' message
-##  - exit with 0 if it find the message 'endx'
+eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]" \
+ -suite "" "" "[ suite to extract timings from (default to the same suite as this script is to) ]" \
+ -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
+ -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
+ -emails "" "" "[ List of emails to send a message when we find outliers for the execution time ]" \
+ ++ $*)
 
-if [ $# -ne 1 -a $# -ne 2 -a $# -ne 3 ]; then
-    echo "extractRunTime.sh: this scripts accepts only one, two or three argument which are the maestro suite, if statistics are computed (default is not) and if we search for outliers." >&2
-    exit 1
+if [ -z "${suite}" ]; then
+    suite=$(dirname $(true_path $0))
+elif [[ "${suite}" != /* ]]; then
+    suite=${HOME}/.suites/${suite}
 fi
-
-suite=$1
-if [[ "${suite}" != /* ]]; then
-    suite=~/.suites/${suite}
-fi
-
-computeStats=${2:-no}
-if [ "${computeStats}" = yes ]; then
-    echo "The statistics are given like this:"
-    echo "Mean, Stddev, Mean/Stddev, min, max, Number of cases"
-fi
-
-findOutliers=${3:-no}
 
 if [ ! -d "${suite}" ]; then
     echo "The suite given '${suite}' does not exist." >&2
     exit 1
+fi
+
+if [ "${computeStats}" != no -a "${computeStats}" != yes ]; then
+    echo "$0: The '-computeStats' argument must be 'yes' or 'no'"
+    exit 1
+fi
+
+if [ "${findOutliers}" != no -a "${findOutliers}" != yes -a "${findOutliers}" != notify ]; then
+    echo "$0: The '-findOutliers' argument must be 'yes', 'no' or 'notify'"
+    exit 1
+fi
+
+if [ "${findOutliers}" = notify -a -z "${emails}" ]; then
+    echo "$0: If '-findOutliers' argument is 'yes' then you must give a list of emails using '-emails'"
+    exit 1
+fi
+
+if [ "${computeStats}" = yes ]; then
+    echo "The statistics are given like this:"
+    echo "Mean, Stddev, Mean/Stddev, min, max, Number of cases"
 fi
 
 echo "Extract run times for tests in ${suite}"
@@ -53,12 +64,13 @@ findRunTime () {
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
 BEGIN {
-   number=0
+   min=10000
+   max=0
    sum=0
    sum2=0
-   max=0
-   min=10000
+   number=0
 }
+
 {
    match($0, /The runtime was ([.0-9]+) seconds/, array_timing)
    timing=array_timing[1]
@@ -86,8 +98,12 @@ END {
             fi
         fi
         unset __findRunTime_runtime__
-        if [ "${findOutliers}" = yes ]; then
-            nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep  'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true
+        if [ "${findOutliers}" = yes -o "${findOutliers}" = notify ]; then
+            outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
+            if [ -n "${outlier}" -a "${findOutliers}" = notify ]; then
+                line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
+                outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
+            fi
         fi
     else
         for __node__ in ${findRunTime_nodes}; do
@@ -99,6 +115,12 @@ END {
     unset findRunTime_node findRunTime_nodes
 }  ## End of function 'findRunTime'
 
+## Initialize 'outliers' variable used in 'findRunTime'
+[ "${findOutliers}" = notify ] && outliers=
+
 export SEQ_EXP_HOME=${suite}
 findRunTime /Tests
 
+if [ "${findOutliers}" = notify -a -n "${outlier}" ]; then
+    printf "We found some outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+fi

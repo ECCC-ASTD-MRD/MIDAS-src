@@ -35,7 +35,7 @@ stages:
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
-     - ./extractRunTime.sh $suite
+     - ./extractRunTime.sh -suite $suite -findOutliers notify -emails ervig.lapalme@canada.ca
      - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - . ./set_machine_list.dot
      - clean_suite -y ${suite}
