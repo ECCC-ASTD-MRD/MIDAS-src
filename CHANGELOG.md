@@ -8,14 +8,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * Add missing functionality to prepcma program (#260 and !289)
  * Add stochastic LETKF with cross validation algorithm (#276 and !282)
  * An SSM domain is created if a tag is pushed (#292 and !281)
  * Add ability to assimilate of SAR wind speed (#218 and !272)
  * Add ability to assimilate MWHS2 data (#287 and !274)
  * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274 and !270)
- * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
+ * Add lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to assimilate (log-transformed) precipitation in EnVar and LETKF (#267 and !252)
- * Add new functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
+ * Add ability to use ozone profiles from trial field instead of climatology. Controlled by namelist variable useO3Climatology. (#195 and !246)
  * Add ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
  * Add many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
    * Also includes Yin-Yang grid compatibility and additional procedures for quality control, data selection and modification of obs error to facilitate comparison with the current EnKF
