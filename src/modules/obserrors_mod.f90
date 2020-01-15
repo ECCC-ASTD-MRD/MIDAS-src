@@ -1170,7 +1170,7 @@ contains
                 call utl_abort( myName//": observation error missing for wind gust")
               end if
             else if ( ityp == BUFR_NEFS ) then !SAR wind speed
-              call obs_bodySet_r( lobsSpaceData, OBS_OER, bodyIndex, 2.0d0 )
+              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex, 2.0d0 )
             end if
 
                 !***********************************************************************

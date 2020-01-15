@@ -42,7 +42,6 @@ module stateToColumn_mod
   use slantprofilelatlon_mod
   use tovs_nl_mod
   use codtyp_mod
-  use codePrecision_mod
 
   implicit none
   save

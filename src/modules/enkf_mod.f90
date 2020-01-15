@@ -25,7 +25,6 @@ module enkf_mod
   use utilities_mod
   use mathPhysConstants_mod
   use columnData_mod
-  use codePrecision_mod
   use timeCoord_mod
   use verticalCoord_mod
   use horizontalCoord_mod
