@@ -274,7 +274,8 @@ contains
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
 
-    call oti_setup(interpInfo%oti, obsSpaceData, numStep, timeInterpType, flagObsOutside_opt=.true.)
+    call oti_setup(interpInfo%oti, obsSpaceData, numStep,  &
+                   interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
     if ((stateVector%heightSfcPresent) .and. ( mpi_myid == 0)) then
       mykBeg = 0 

@@ -362,7 +362,7 @@ contains
 
     else
       ! 3D: only 1 trial field in time window
-      if (dlhours < -tim_windowsize/2.0D0.or.dlhours > tim_windowsize/2.0D0) then
+      if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then
         ! outside time window
         dnstepobs = -1.0d0
       else

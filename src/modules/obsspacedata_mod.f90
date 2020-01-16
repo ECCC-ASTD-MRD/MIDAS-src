@@ -1393,6 +1393,16 @@ module ObsSpaceData_mod
       module procedure obs_set_current_header_list_all
    end interface
 
+   interface obs_bodySet_r
+      module procedure obs_bodySet_r4
+      module procedure obs_bodySet_r8
+   end interface obs_bodySet_r
+
+   interface obs_headSet_r
+      module procedure obs_headSet_r4
+      module procedure obs_headSet_r8
+   end interface obs_headSet_r
+
    ! PRIVATE METHODS:
    private obs_abort     ! abort a job on error
    private obs_allocate  ! array allocation
@@ -1848,14 +1858,12 @@ contains
                      IF ( IP + IND <= obsdat%numBody_max ) THEN
                                         ! VERTICAL COORDINATE
                         call obs_bodySet_r(obsdat, OBS_PPP, IP+IND, &
-                               real(PVCORD(ilevel) *ZFACT +vcordsf(ilem,kidtyp),&
-                               OBS_REAL))
+                               PVCORD(ilevel) *ZFACT +vcordsf(ilem,kidtyp))
 
                                         !  FOR PNM HEIGHT IS SET TO 0
                                         ! ----------------------------
                         IF ( ILEM == 53 ) THEN
-                           call obs_bodySet_r(obsdat, OBS_PPP, IP+IND, &
-                                              real(0.D0,OBS_REAL))
+                           call obs_bodySet_r(obsdat, OBS_PPP, IP+IND, 0.D0)
                         ENDIF
                                         ! ----------------------------
 
@@ -1893,50 +1901,50 @@ contains
                            call obs_bodySet_i(obsdat, OBS_FLG, IP+IND, IBAD)
                         ENDIF
 
-                        call obs_bodySet_r(obsdat, OBS_VAR, IP+IND, real(pvalue,OBS_REAL))
+                        call obs_bodySet_r(obsdat, OBS_VAR, IP+IND, pvalue)
                         call obs_bodySet_i(obsdat, OBS_VNM, IP+IND, KLIST(ielement))
                         call obs_bodySet_i(obsdat, OBS_VCO, IP+IND, NVCORDTYP)
-                        call obs_bodySet_r(obsdat, OBS_OMP, IP+IND, real(PPMIS,OBS_REAL))
-                        call obs_bodySet_r(obsdat, OBS_OMA, IP+IND, real(PPMIS,OBS_REAL))
-                        call obs_bodySet_r(obsdat, OBS_HPHT, IP+IND, real(PPMIS,OBS_REAL))
-                        call obs_bodySet_r(obsdat, OBS_HAHT, IP+IND, real(PPMIS,OBS_REAL))
-                        call obs_bodySet_r(obsdat, OBS_OER, IP+IND, real(PPMIS,OBS_REAL))
+                        call obs_bodySet_r(obsdat, OBS_OMP, IP+IND, PPMIS)
+                        call obs_bodySet_r(obsdat, OBS_OMA, IP+IND, PPMIS)
+                        call obs_bodySet_r(obsdat, OBS_HPHT, IP+IND, PPMIS)
+                        call obs_bodySet_r(obsdat, OBS_HAHT, IP+IND, PPMIS)
+                        call obs_bodySet_r(obsdat, OBS_OER, IP+IND, PPMIS)
                         !
                         ! OBS ERROR FOR HUMSAT
                         !
                         IF ( LDERR ) THEN
-                           call obs_bodySet_r(obsdat, OBS_OER, IP+IND, real(PROFIL(ilevel),OBS_REAL))
+                           call obs_bodySet_r(obsdat, OBS_OER, IP+IND, PROFIL(ilevel))
                         ENDIF
                         !
                         ! REFERENCE LEVEL FOR SATEMS
                         !
                         IF ( LDSAT ) THEN
                            call obs_bodySet_r(obsdat, OBS_OER, IP+IND, &
-                                             real(PROFIL(ilevel)*ZFACT,OBS_REAL))
+                                              PROFIL(ilevel)*ZFACT)
                            call obs_bodySet_r(obsdat, OBS_OER, IP+IND, &
-                                              real(1.0D0,OBS_REAL))
+                                              1.0D0)
                         ENDIF
                         !
                         ! SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
                         !
                         IF ( LDGO ) THEN
                            call obs_bodySet_r(obsdat, OBS_SEM, IP+IND, &
-                                           real(PROFIL(ilevel)*ZEMFACT,OBS_REAL))
+                                              PROFIL(ilevel)*ZEMFACT)
                         ENDIF
 
                         IF ( LDAIRS ) THEN
                            call obs_bodySet_r(obsdat, OBS_SEM, IP+IND, &
-                                           real(PROFIL(ilevel)*ZEMFACT,OBS_REAL))
+                                              PROFIL(ilevel)*ZEMFACT)
                         END IF
 
                         IF ( LDIASI ) THEN
                            call obs_bodySet_r(obsdat, OBS_SEM, IP+IND, &
-                                           real(PROFIL(ilevel)*ZEMFACT,OBS_REAL))
+                                              PROFIL(ilevel)*ZEMFACT)
                         END IF
 
                         IF ( LDCRIS ) THEN
                            call obs_bodySet_r(obsdat, OBS_SEM, IP+IND, &
-                                real(PROFIL(ilevel)*ZEMFACT,OBS_REAL))
+                                              PROFIL(ilevel)*ZEMFACT)
                         END IF
 
                         IND=IND + 1
@@ -2032,7 +2040,7 @@ contains
    end subroutine obs_bodySet_i
 
 
-   subroutine obs_bodySet_r(obsdat, column_index, row_index, value_r)
+   subroutine obs_bodySet_r4(obsdat, column_index, row_index, value_r4)
       !
       ! :Purpose: Set a real-valued body observation-data element.
       !      To control access to the observation object.  Sets the (real)
@@ -2043,12 +2051,39 @@ contains
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
-      real(OBS_REAL)  , intent(in)     :: value_r
+      real(4)         , intent(in)     :: value_r4
+
+      real(obs_real)                   :: value_r
+
+      value_r = value_r4
 
       call odc_columnSet(obsdat%realBodies, column_index, row_index, &
                          NULL_COLUMN_VALUE_I, value_r, &
                          obsdat%numBody, obsdat%numBody_max)
-   end subroutine obs_bodySet_r
+   end subroutine obs_bodySet_r4
+
+
+   subroutine obs_bodySet_r8(obsdat, column_index, row_index, value_r8)
+      !
+      ! :Purpose: Set a real-valued body observation-data element.
+      !      To control access to the observation object.  Sets the (real)
+      !      value of the row_index'th ObsData element with the indicated column
+      !      index from the "body".
+      !
+      implicit none
+      type(struct_obs), intent(inout)  :: obsdat
+      integer         , intent(in)     :: column_index
+      integer         , intent(in)     :: row_index
+      real(8)         , intent(in)     :: value_r8
+
+      real(obs_real)                   :: value_r
+
+      value_r = value_r8
+
+      call odc_columnSet(obsdat%realBodies, column_index, row_index, &
+                         NULL_COLUMN_VALUE_I, value_r, &
+                         obsdat%numBody, obsdat%numBody_max)
+   end subroutine obs_bodySet_r8
 
 
    subroutine obs_class_initialize(obsColumnMode_in, myip)
@@ -2109,7 +2144,7 @@ contains
    end subroutine obs_class_initialize
 
 
-   subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar)
+   subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar,checkZha_opt)
       !
       ! :Purpose: remove all observations from the obsdat  
       !           that will not be assimilated. 
@@ -2137,14 +2172,23 @@ contains
       integer, intent(in)    :: nens
       integer, intent(in)    :: nobsout
       logical, intent(in)    :: qcvar
+      logical, intent(in), optional :: checkZha_opt
 
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,var3d,kobsout
       integer :: column_index
       integer :: active_index
+      logical :: checkZha
 
       write(nobsout,'(1x,A,I7)') 'stations prior to cleanup: ', obsdat%numHeader
       write(*,*) 'enter obs_clean'
+
+      ! User can choose if check on negativity of OBS_ZHA is done (is done by default)
+      if (present(checkZha_opt)) then
+        checkZha = checkZha_opt
+      else
+        checkZha = .true.
+      end if
 
       kobsout=0 
       iwrite=0
@@ -2167,7 +2211,7 @@ contains
             ! To remove observations for which the height in the atmosphere has
             ! not been assigned (for instance because they are above the model
             ! top for the EnKF system)
-            if (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) < 0.) then
+            if (checkZha .and. obs_bodyElem_r(obsdat, OBS_ZHA, jdata) < 0.) then
                call obs_bodySet_i(obsdat, OBS_ASS, jdata, -1)
             endif
 
@@ -2219,7 +2263,7 @@ contains
       obsdat%numHeader=kobsout
       obsdat%numBody = iwrite
 
-      write(nobsout,*) 'after cleanup of the cma: '
+      write(nobsout,'(1x,A)') 'after cleanup of the cma: '
       write(nobsout,'(1x,A,I7)') &
          'number of stations containing valid data   ',obsdat%numHeader
       write(nobsout,'(1x,A,I7)') & 
@@ -4060,7 +4104,7 @@ contains
    end subroutine obs_headSet_i
 
 
-   subroutine obs_headSet_r(obsdat, column_index, row_index, value_r)
+   subroutine obs_headSet_r4(obsdat, column_index, row_index, value_r4)
       !
       ! :Purpose: set a real header value in the observation object.
       !      To control access to the observation object.  Sets the (real)
@@ -4071,12 +4115,39 @@ contains
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
-      real(OBS_REAL)  , intent(in)     :: value_r
+      real(4)         , intent(in)     :: value_r4
+
+      real(OBS_REAL)                   :: value_r
+
+      value_r = value_r4
 
       call odc_columnSet(obsdat%realHeaders, column_index, row_index, &
                          NULL_COLUMN_VALUE_I, value_r, &
                          obsdat%numHeader, obsdat%numHeader_max)
-   end subroutine obs_headSet_r
+   end subroutine obs_headSet_r4
+
+
+   subroutine obs_headSet_r8(obsdat, column_index, row_index, value_r8)
+      !
+      ! :Purpose: set a real header value in the observation object.
+      !      To control access to the observation object.  Sets the (real)
+      !      value of the row_index'th ObsData element with the indicated column
+      !      index from the "header".
+      !
+      implicit none
+      type(struct_obs), intent(inout)  :: obsdat
+      integer         , intent(in)     :: column_index
+      integer         , intent(in)     :: row_index
+      real(8)         , intent(in)     :: value_r8
+
+      real(OBS_REAL)                   :: value_r
+
+      value_r = value_r8
+
+      call odc_columnSet(obsdat%realHeaders, column_index, row_index, &
+                         NULL_COLUMN_VALUE_I, value_r, &
+                         obsdat%numHeader, obsdat%numHeader_max)
+   end subroutine obs_headSet_r8
 
 
    subroutine obs_initialize(obsdat, numHeader_max, numBody_max, mpi_local, &

@@ -8,49 +8,50 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Added
 
+ * Add missing functionality to `midas-prepcma` program (#260 and !289)
  * Add stochastic LETKF with cross validation algorithm (#276 and !282)
  * An SSM domain is created if a tag is pushed (#292 and !281)
  * Add ability to assimilate of SAR wind speed (#218 and !272)
  * Add ability to assimilate MWHS2 data (#287 and !274)
  * Add ability to read and use 2D-fields of correlation lenth scale and background STD for diffusion B matrix (#274 and !270)
- * Lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
+ * Add lake operator (so far only for CIS lake ice obs) for horizontal interpolation from the grid to the observation location (#271 and !256)
  * Add ability to assimilate (log-transformed) precipitation in EnVar and LETKF (#267 and !252)
- * Add new functionality: now able to use ozone profiles from trial field instead of climatology for radiance simulation and assimilation. Controlled by the NAMTOV namelist section logical variable useO3Climatology (default to .true.). (#195 and !246)
- * Add ability to use multiple instances of bMatrixEnsemble_mod are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
- * Add many new features to the LETKF program, including a new cross-validation algorithm (#249 and #262, !241)
+ * Add ability to use ozone profiles from trial field instead of climatology. Controlled by namelist variable `useO3Climatology`. (#195 and !246)
+ * Add ability to use multiple instances of `bMatrixEnsemble_mod` are now possible which enables e.g. scale-dependent localization with spectral localization (SDLwSL) (#198 and !242)
+ * Add many new features to the `midas-letkf` program, including a new cross-validation algorithm (#249 and #262, !241)
    * Also includes Yin-Yang grid compatibility and additional procedures for quality control, data selection and modification of obs error to facilitate comparison with the current EnKF
- * Add new variables to varnamelist_mod useful for ensManip to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236 and !240)
+ * Add new variables to varnamelist_mod useful for `midas-ensManip` to compute mean and stddev (HR,TD,PN,PR,I2,I3,I4,I5,I6,I8,DN,FB,FI) (#236 and !240)
  * Implementation of the slant-path radiative transfer for the radiance observations, on background and analysis increment states (#243 and !238).
-   * Two new namelists are added: nams2c activates the slant-path calculation for background and/or analysis increment states, namSlantPath defines the parameters for iterations to resolve the slant line-of-sight.
+   * Two new namelists are added: `nams2c` activates the slant-path calculation for background and/or analysis increment states, `namSlantPath` defines the parameters for iterations to resolve the slant line-of-sight.
  * Add first implementation of the Local Ensemble Transform Kalman Filter in MIDAS (#245 and !233)
  * Add footprint operator (so far only for sea ice obs) for horizontal interpolation from the grid to the observation location (#197 and !222)
  * The environment variable `MIDAS_MAKE_LINKS_MACHINE_LIST` can be
    used to control the hosts on which links will be created by
    `install_suite.sh` in the maestro test suite.  By default, only the
    links on which the suite will run are created. (#231 and !216)
- * The logical namelist variable ltopofilt has been removed. Note: you probably **must update your namelist** (#225 and !211)
-   * The new namelist variable is called list_topoFilt. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples.
+ * The logical namelist variable `ltopofilt` has been removed. Note: you probably **must update your namelist** (#225 and !211)
+   * The new namelist variable is called `list_topoFilt`. This string array variable allow to activate the topographic rejection criteria for selected observation families. See the namelist in the unit tests from examples.
  * Add ability to define a local domain and control inclusion of each variable for energy norm (#207 and !204)
- * Add the program `prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
+ * Add the program `midas-prepcma` to reproduce the similar program in the EnKF codebase (#189 and !198)
  * 3DVar analysis of SST data (family 'TM') can now be computed without MPI (#203 and !195)
  * The scripts to build the MIDAS SSM domain are now in the MIDAS
    depot (#187 and !186).  See the [README](README.md) for more information.
  * A column `OBS_CRPS` has been added to `obsSpaceData` (#185 and !188).
- * `Bmatrixensemble_mod` can now read an ensemble of perturbations like lagged forecast differences (#193 and !190)
+ * `bMatrixEnsemble_mod` can now read an ensemble of perturbations like lagged forecast differences (#193 and !190)
  * Variance smoothing is now possible in `bMatrixEnsemble_mod` (#193 and !190)
- * ScaleFactor added to `ensManip` for vertically scaling ensemble perturbations when recentering (#186 and !179)
+ * ScaleFactor added to `midas-ensManip` for vertically scaling ensemble perturbations when recentering (#186 and !179)
  * Minor changes to extend capability of generating OmP (and OmA) diagnostics via the CH obs family (#184 and !177)
  * Visibility and wind gust near the surface can now be assimilated (#173 and !176)
  * A sea ice concentration analysis can now be done with CIS daily ice charts (other obs types to come) (#163 and !175)
  * A horizontal land/sea mask can now be included in the analysisgrid file (#163 and !175)
- * The program, midas_obsSelection, was created (so far only for aladin HLOS obs), comprising O-P computations, background check, and thinning (#113 and !174)
+ * The program, `midas_obsSelection`, was created (so far only for aladin HLOS obs), comprising O-P computations, background check, and thinning (#113 and !174)
  * Enable `vcode=5005` for ensemble B matrix (#188 and !173)
  * The aladin HLOS wind observations can now be adjusted to compensate for the observations having been calculated at another meteorolgical facility (#139 and !172)
-   * A new namelist, NAMALADIN_OBS, is required when there are height-level observations (i.e. aladin) data to be treated.
- * Able to write contents of obsSpaceData to simplified sqlite files (useful when using another input file format and sqlite wanted for diagnostics) (#167 and !166)
+   * A new namelist, `NAMALADIN_OBS`, is required when there are height-level observations (i.e. aladin) data to be treated.
+ * Able to write contents of `obsSpaceData` to simplified sqlite files (useful when using another input file format and sqlite wanted for diagnostics) (#167 and !166)
  * Add observation operator and background check for aladin (HLOS winds) (#114 and !163)
  * Level-dependant steering flow scalefactor capability for advection (#168 and !146)
- * Add checks on humidity limits in ensManip (#164 and !143)
+ * Add checks on humidity limits in `midas-ensManip` (#164 and !143)
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
  * New functionality: now able to read various types of sea ice data (family =*GL*) (#127 and !131)
@@ -64,30 +65,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The observation variable transforms was generalized and modernized (#247 and !239).
     * Previously only wind (speed,direction) -> (u,v) was supported. Now users can add (relatively) easily any type of variable transform. For now, only visibility -> log(visibility) was added.
     * An observation transform is activated when an assimilated observation is not found in the observations read from burp or sqlite files.
-    * On outputs, the o-p and/or o-a of the transformed variables are converted and added to the original/source variable. In the output burp files, only the source variable appears because it was found too difficult to modify brpr_updateBurp. However, both source and transformed variable info are written to the sqlite files.
+    * On outputs, the o-p and/or o-a of the transformed variables are converted and added to the original/source variable. In the output burp files, only the source variable appears because it was found too difficult to modify `brpr_updateBurp`. However, both source and transformed variable info are written to the sqlite files.
  * The height/pressure are computed on the grid, before horizontal interpolation to observation locations, to prepare for using slanted columns and footprint operators. (#124 and !220)
     * The height/pressure are part of statevector/columndata main data storage arrays (gd_r4/gd_r8/all) and are calculated for the trial fields and the increments.
     * Allocation of height/pressure is set to true, by default, and it is done if the necessary variables for their calculation are available in the statevector/columndata.
-    * Z_M/Z_T and P_M/P_T are the height and pressure on grid on the TH and MM levels in varNameList.
+    * Z_M/Z_T and P_M/P_T are the height and pressure on grid on the TH and MM levels in `varNameList_mod`.
     * dPdPsfc is no longer used in any observation operators since the increment of pressure is calculated on the grid and is interpolated to the observation location.
-    * Change namelist variable addGZsfcOffset to addHeightSfcOffset.
+    * Change namelist variable `addGZsfcOffset` to `addHeightSfcOffset`.
     * Variable/function/subroutine names that include `gz` are changed to `height` to reflect the fact that geometric altitude/height is now the primary variable instead of geopotential.
     * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations). 
     * The execution time is also increased for some (e.g. gdps takes ~100 seconds longer, but this can be reduced by increasing number of nodes to 30 or 36).
- * Minor change in tt2phi_mod.f90 (slightly affects results): now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
- * The namelist variable `scaleFactor` in NAMBHI must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
+ * Minor change in `tt2phi_mod` (slightly affects results): now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
+ * The namelist variable `scaleFactor` in `NAMBHI` must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
  * CalcStats in LAM mode was made MPI compatible (#158 and !202)
  * Replacing the old numerical recipe for generating gaussian random values by a much more efficient method (#82 and !192)
    [`random_tools`](https://gitlab.com/mfvalin/random_tools).
-    * This is changing the results only for the program `randomPert.Abs`.
+    * This is changing the results only for the program `midas-randomPert`.
  * Changes to the height (GZ) calculation within MIDAS so that GPS-RO and GPS-gb now use same heights as other obs types (#141 and !191)
     * The variable was also changed from geopotential to altitude
     * New namelist variable to allow using static GPS-RO observation error variance
     * Small change to H(x) results due to these modifications for GPS-RO, GPS-gb, GZ and possibly sfc obs
  * When compiling with `COMPILE_MIDAS_ADD_DEBUG_OPTIONS=yes`, the options `-debug -check all -O 0` are added to the compile command (#182 and !187)
- * The body of the program `oMinusF` was extracted into a new module, `ominusf_mod` (#113 and !174)
+ * The body of the program `midas-oMinusF` was extracted into a new module, `ominusf_mod` (#113 and !174)
  * **Major change:** New approach for horizontal/temporal interpolation of background state and increment to observation locations/times (#80 and !147)
-    * Changes to how the background state is read; now relies on gridstatevector_mod
+    * Changes to how the background state is read; now relies on `gridstatevector_mod`
     * File copy to ramdisk for all files can be done by fortran code (simplifies scripts)
     * Linear time interpolation can be applied to the background state when computing the innovations (controlled by namelist variable, default is nearest neighbour)
     * Small change to results for most applications and some increases in time and memory requirements
@@ -99,7 +100,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fix bug triggered by GB-GPS reports with missing ZTD in background check of conventional observations (#295 and !287)
  * Correction to the surface humidity (BUFR element 13214) writen in BURP files info block during hyperspectral IR background check. Due to the error introduced in !111 exp(HU) was written instead of HU. (#257 and !247)
  * Fixed bugs, compilation procedure and system tests to allow compatibility on new machines (ppp3/4, banting/daley) - note, only the latest version of the reference results are available on the new machines (#258 and !243)
- * Correction of the conversion factor used to compute air mass predictors in biascorrection_mod.f90. Problem introduced in !191. (#219 and !219)
+ * Correction of the conversion factor used to compute air mass predictors in `biascorrection_mod`. Problem introduced in !191. (#219 and !219)
  * Fixed some potential bugs detected while compiling with `-check all` (#182 and !187)
  * Improved efficiency of ensemble amplitude memory access and writing of `rehm` and `anlm` files (#170 and !153)
  * Fix the selection of GPSRO-bending angle observations (#151 and !145)

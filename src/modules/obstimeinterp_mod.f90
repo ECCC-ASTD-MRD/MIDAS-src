@@ -195,7 +195,7 @@ contains
   end subroutine oti_timeBinning
 
 
-  subroutine oti_setup( oti, obsSpaceData, numStep, interpType, flagObsOutside_opt )
+  subroutine oti_setup( oti, obsSpaceData, numStep, interpType_opt, flagObsOutside_opt )
     !
     implicit none
 
@@ -203,7 +203,7 @@ contains
     type(struct_oti), pointer  :: oti
     type(struct_obs)           :: obsSpaceData
     integer                    :: numStep
-    character(len=*)           :: interpType
+    character(len=*), optional :: interpType_opt
     logical, optional          :: flagObsOutside_opt
 
     ! locals
@@ -217,6 +217,10 @@ contains
     allocate(oti)
 
     if ( .not.tim_initialized() ) call utl_abort('oti_setup: timeCoord module not initialized')
+
+    if ( numStep > 1 .and. .not. present(interpType_opt) ) then
+      call utl_abort('oti_setup: interpType_opt must be specified by numStep > 1')
+    end if
 
     if (mpi_myid == 0) write(*,*) ' '
     if (mpi_myid == 0) write(*,*) '-------- Entering oti_setup ---------'
@@ -235,15 +239,13 @@ contains
                                obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
                                obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
       ! leave all weights zero if obs time is out of range, otherwise set weights
-      if (floor(stepObsIndex) > numStep) then
-        write(*,*) 'oti_setup: stepObsIndex too big=', headerIndex, stepObsIndex
-      else if (floor(stepObsIndex) < 1) then
-        write(*,*) 'oti_setup: stepObsIndex too small=',headerIndex, stepObsIndex
+      if (floor(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) then
+        write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
       else
         if (numStep == 1) then
           call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
         else
-          if ( trim(interpType) == 'LINEAR' ) then
+          if ( trim(interpType_opt) == 'LINEAR' ) then
             if ( stepObsIndex >= real(numStep,8) ) then
               ! special case not handled by general approach
               call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, numStep)
@@ -252,10 +254,10 @@ contains
               call oti_setTimeInterpWeight(oti, 1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
               call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
             end if
-          else if ( trim(interpType) == 'NEAREST' ) then
+          else if ( trim(interpType_opt) == 'NEAREST' ) then
             call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
           else
-            call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType))
+            call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType_opt))
           end if
         end if
       end if
