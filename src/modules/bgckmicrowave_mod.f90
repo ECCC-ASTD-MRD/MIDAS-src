@@ -2769,7 +2769,7 @@ contains
 
   subroutine mwbg_getData(reportIndex, rpt, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                           biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                          ican, icanomp, IMARQ, IORBIT)
+                          ican, icanomp, IMARQ, IORBIT, bad_report, qcflag1_check)
     !--------------------------------------------------------------------------------------
     ! Object:   This routine extracts the needed data from the blocks in the report:
     !             reportIndex      = report index
@@ -2806,6 +2806,8 @@ contains
     integer, dimension(:)       :: ican,icanomp,qcflag2,IORBIT
     integer, dimension(:,:)     :: qcflag1
     integer :: nvalOut, ntOut
+    logical, intent(out) :: bad_report
+    logical, intent(in)  :: qcflag1_check
 
     type(BURP_BLOCK)       :: blk
 
@@ -2814,6 +2816,11 @@ contains
     integer :: ind_lat,ind_lon
 
     integer :: ipos
+
+
+    zenith(:) = ZMISG
+    itt(:) = MISGINT
+    bad_report = .false.
 
     ! 1) Get the lat,lon from time/location block    BTYP = 5120  (also get nt)
     ref_blk = 0
@@ -2934,39 +2941,43 @@ contains
       write(*,*) 'ERREUR - scan position missing in INFO block (ele=5043). Report = ', reportIndex
       call abort()
     endif   
+    ! 2.1) Get info elements 33078 33079 33080 if needed
+    if (qcflag1_check) then
+      indice = BURP_Find_Element(blk,33078,IOSTAT=error)
+      if ( indice > 0 ) then
+        j = 1
+        do kk =1, my_nt
+          qcflag1(kk,1) = BURP_Get_Tblval(blk,indice,j,kk,error)
+        end do
+      else
+        write(*,*) 'ERREUR - Geolocation quality code missing in INFO block (ele=33078). Report = ', reportIndex
+        call abort()
+      endif  
 
-    indice = BURP_Find_Element(blk,33078,IOSTAT=error)
-    if ( indice > 0 ) then
-      j = 1
-      do kk =1, my_nt
-        qcflag1(kk,1) = BURP_Get_Tblval(blk,indice,j,kk,error)
-      end do
-    else
-      write(*,*) 'ERREUR - Geolocation quality code missing in INFO block (ele=33078). Report = ', reportIndex
-      call abort()
-    endif  
+      indice = BURP_Find_Element(blk,33079,IOSTAT=error)
+      if ( indice > 0 ) then
+        j = 1
+        do kk =1, my_nt
+          qcflag1(kk,2) = BURP_Get_Tblval(blk,indice,j,kk,error)
+        end do
+      else
+        write(*,*) 'ERREUR - Granule level QC flag missing in INFO block (ele=33079). Report = ', reportIndex
+        call abort()
+      endif  
 
-    indice = BURP_Find_Element(blk,33079,IOSTAT=error)
-    if ( indice > 0 ) then
-      j = 1
-      do kk =1, my_nt
-        qcflag1(kk,2) = BURP_Get_Tblval(blk,indice,j,kk,error)
-      end do
+      indice = BURP_Find_Element(blk,33080,IOSTAT=error)
+      if ( indice > 0 ) then
+        j = 1
+        do kk =1, my_nt
+          qcflag1(kk,3) = BURP_Get_Tblval(blk,indice,j,kk,error)
+        end do
+      else
+        write(*,*) 'ERREUR - Scan level QC flag missing in INFO block (ele=33080). Report = ', reportIndex
+        call abort()
+      endif
     else
-      write(*,*) 'ERREUR - Granule level QC flag missing in INFO block (ele=33079). Report = ', reportIndex
-      call abort()
-    endif  
-
-    indice = BURP_Find_Element(blk,33080,IOSTAT=error)
-    if ( indice > 0 ) then
-      j = 1
-      do kk =1, my_nt
-        qcflag1(kk,3) = BURP_Get_Tblval(blk,indice,j,kk,error)
-      end do
-    else
-      write(*,*) 'ERREUR - Scan level QC flag missing in INFO block (ele=33080). Report = ', reportIndex
-      call abort()
-    endif  
+      write(*,*) 'Variable qcflag1 not needed for elements 33078 33079 33080 in INFO block'
+    endif   
 
     ! 3) Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = nchanAtms)
     ref_blk = 0
@@ -3000,30 +3011,79 @@ contains
     nvalOut = my_nval    ! set nvalOut (#channels) for MAIN program
     ntOut = my_nt
 
-    indice1 = BURP_Find_Element(blk,12163,IOSTAT=error)
-    indice2 = BURP_Find_Element(blk,33081,IOSTAT=error)
-    indice3 = BURP_Find_Element(blk,5042,IOSTAT=error)
-    indice4 = BURP_Find_Element(blk,12233,IOSTAT=error)
-   
-    if ( indice1 > 0 .and. indice2 > 0 .and. indice3 > 0 .and. indice4 > 0 ) then
+    indice = BURP_Find_Element(blk,12163,IOSTAT=error)
+    if ( indice > 0 ) then
       ipos = 0
       do kk = 1, my_nt
         do j = 1, my_nval
           ipos = ipos + 1
-          ztb(ipos)     = BURP_Get_Rval(blk,indice1,j,kk,error)
-          qcflag2(ipos) = BURP_Get_Tblval(blk,indice2,j,kk,error)
-          ican(ipos)    = BURP_Get_Tblval(blk,indice3,j,kk,error)
-          biasCorr(ipos)= BURP_Get_Rval(blk,indice4,j,kk,error)
+          ztb(ipos) = BURP_Get_Rval(blk,indice,j,kk,error)
         end do
       end do
     else
-      write(*,*) 'ERREUR - Elements are missing in DATA block. Report = ', reportIndex
-      if ( indice1 <= 0 )  write(*,*) '       Tb data             (012163) are missing!'
-      if ( indice2 <= 0 )  write(*,*) '       Data level QC flags (033081) are missing!'
-      if ( indice3 <= 0 )  write(*,*) '       Channel numbers     (005042) are missing!'
-      if ( indice4 <= 0 )  write(*,*) '       Bias correction     (012233) are missing!'
+      write(*,*) ' ERREUR - Elements Tb data (012163) are missing in DATA block! Report = ', reportIndex
       call abort()
-    endif 
+    end if
+
+    indice = BURP_Find_Element(blk,12233,IOSTAT=error)
+    if ( indice > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          biasCorr(ipos)= BURP_Get_Rval(blk,indice,j,kk,error)
+        end do
+      end do
+    else
+      if ( mwbg_debug ) write(*,*) ' ERREUR - Elements Bias correction (012233) are missing in DATA block! Report = ', reportIndex
+      biasCorr(:) = zmisg
+    end if
+    
+    indice1 = BURP_Find_Element(blk,2150,IOSTAT=error)
+    indice2 = BURP_Find_Element(blk,5042,IOSTAT=error)
+    if ( indice1 > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          ican(ipos) = BURP_Get_Tblval(blk,indice1,j,kk,error)
+        end do
+      end do
+    else if ( indice2 > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          ican(ipos) = BURP_Get_Tblval(blk,indice2,j,kk,error)
+        end do
+      end do
+    else
+      write(*,*) ' ERREUR - Elements Channel numbers (002150 or 5042) are missing in DATA block! Report = ', reportIndex
+      call abort()
+    end if
+
+    indice3 = BURP_Find_Element(blk,33032,IOSTAT=error)
+    indice4 = BURP_Find_Element(blk,33081,IOSTAT=error)
+    if ( indice3 > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          qcflag2(ipos) = BURP_Get_Tblval(blk,indice3,j,kk,error)
+        end do
+      end do
+    else if ( indice4 > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          qcflag2(ipos) = BURP_Get_Tblval(blk,indice4,j,kk,error)
+        end do
+      end do
+    else
+      write(*,*) ' ERREUR - Elements Data level QC flags (33032 or 33081) are missing in DATA block! Report = ', reportIndex
+      call abort()
+    end if
 
     ! 4) Get OMP data from the DATA block     BTYP = 9248 or 9264 and bfma = 14
     ref_blk = 0
@@ -3064,7 +3124,9 @@ contains
                     IOSTAT      = error)
       if (ref_blk < 0) then
         write(*,*) 'ERREUR - OMP DATA block (btyp 9322 or 9226 or 9258 or 9274) not found in report number ', reportIndex
-        call abort()
+        bad_report = .true.
+        return        
+        !call abort()
       endif
     endif
 
@@ -3075,19 +3137,29 @@ contains
     if (error /= burp_noerr)  call abort()
 
     indice1 = BURP_Find_Element(blk,5042,IOSTAT=error)
-    indice2 = BURP_Find_Element(blk,12163,IOSTAT=error)
-    if ( indice1 > 0 .and. indice2 > 0 ) then
+    indice2 = BURP_Find_Element(blk,2150,IOSTAT=error)
+    indice3 = BURP_Find_Element(blk,12163,IOSTAT=error)
+    if ( indice1 > 0 .and. indice3 > 0 ) then
       ipos = 0
       do kk = 1, my_nt
         do j = 1, my_nval
           ipos = ipos + 1
           icanomp(ipos) = BURP_Get_Tblval(blk,indice1,j,kk,error)
-          ZOMP(ipos)    = BURP_Get_Rval(blk,indice2,j,kk,error)
+          ZOMP(ipos)    = BURP_Get_Rval(blk,indice3,j,kk,error)
+        end do
+      end do
+    else if ( indice2 > 0 .and. indice3 > 0 ) then
+      ipos = 0
+      do kk = 1, my_nt
+        do j = 1, my_nval
+          ipos = ipos + 1
+          icanomp(ipos) = BURP_Get_Tblval(blk,indice2,j,kk,error)
+          ZOMP(ipos)    = BURP_Get_Rval(blk,indice3,j,kk,error)
         end do
       end do
     else
       write(*,*) 'ERREUR - Elements are missing in OMP DATA block. Report = ', reportIndex
-      if ( indice1 <= 0 )  write(*,*) '       Channel numbers     (005042) are missing!'
+      if ( indice1 <= 0 .or. indice2 <= 0 )  write(*,*) '       Channel numbers     (005042 or 2150) are missing!'
       if ( indice2 <= 0 )  write(*,*) '       Tb data             (012163) are missing!'
       call abort()
     endif 
@@ -3734,6 +3806,94 @@ contains
     return
 
   end subroutine mwbg_writeBlocks
+
+
+  subroutine mwbg_writeBlocksAmsua(clw, scatw, reportIndex, rpt, rpt_out)
+    ! Object:   This routine modifies the blocks in the input Report (rpt) 
+    real, dimension(:)     :: clw, scatw
+    integer                :: reportIndex
+    type(BURP_RPT)         :: rpt
+    type(BURP_RPT)         :: rpt_out
+
+    type(BURP_BLOCK)       :: blk, blk_copy
+
+    integer :: error, ref_blk, my_nt,  my_nval, my_nele, my_btyp, my_bfam, iidata
+    integer :: indice, indice1, indice2, j, kk, ipos
+
+    Call BURP_Init(blk, B2=blk_copy, IOSTAT=error)
+
+    ! 1) Read and modify the blocks in rpt and add them to rpt_out
+    ref_blk = 0
+    BLOCKS: do
+
+      ref_blk = BURP_Find_Block(rpt,BLOCK= blk,SEARCH_FROM= ref_blk,IOSTAT= error)
+      if (error /= burp_noerr) call abort()
+      
+      if (ref_blk < 0) Exit
+
+      Call BURP_Get_Property(blk, &
+                  NELE   = my_nele, &
+                  NVAL   = my_nval, &       ! 1 or number of channels (obs per location) if Tb data/flag block
+                  NT     = my_nt, &         ! 1 or number of locations in block
+                  BTYP   = my_btyp, &
+                  BFAM   = my_bfam, &
+                  IOSTAT = error)
+      if (error /= burp_noerr) call abort()
+
+      ! 3D Block
+      if (my_btyp == 5120) then     
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort()
+
+      ! INFO block (mix of integer and real data)
+      elseif (my_btyp == 3072) then
+        ! Add new elements CLW and scatw
+        Call BURP_Resize_Block(blk, ADD_NELE = 2, IOSTAT = error)
+        if (error /= burp_noerr)  call abort()
+        
+        Call BURP_Set_Element(blk,NELE_IND=my_nele+1,ELEMENT=13209,IOSTAT=error)
+        Call BURP_Set_Element(blk,NELE_IND=my_nele+2,ELEMENT=13208,IOSTAT=error)
+        Call BURP_Encode_Block(blk)   ! encode the element numbers in the block
+
+        j = 1
+        do kk =1, my_nt
+          Call BURP_Set_Rval(blk,NELE_IND=my_nele+1,NVAL_IND=j,NT_IND=kk,RVAL=clw(kk),IOSTAT=error)
+          Call BURP_Set_Rval(blk,NELE_IND=my_nele+2,NVAL_IND=j,NT_IND=kk,RVAL=scatw(kk),IOSTAT=error)
+        end do
+        Call BURP_Convert_Block(blk)
+
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort()      
+
+      !  DATA block
+      elseif (my_btyp == 9248 .or. my_btyp ==9264) then 
+
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort() 
+
+      ! FLAG block
+      elseif (my_btyp == 15392 .or. my_btyp == 15408) then 
+
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort()
+
+      ! OTHER BLOCK 
+      else 
+        blk_copy = blk
+        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+        if (error /= burp_noerr)  call abort() 
+        
+      endif      
+
+    enddo BLOCKS
+
+    return
+
+  end subroutine mwbg_writeBlocksAmsua
 
 
   subroutine mwbg_landIceMaskAtms(mglg_file,npts,zlat,zlon,zlq,ztt,waterobs)

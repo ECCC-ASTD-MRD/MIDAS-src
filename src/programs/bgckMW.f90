@@ -32,7 +32,7 @@ program midas_bgckmw
   integer,allocatable :: adresses(:)
   integer             :: ibrptime, nblocs, nsize, iun_burpin, irun
 
-  logical :: bad_report, resume_report
+  logical :: bad_report, resume_report, qcflag1_check
 
   INTEGER MXELM
   INTEGER MXLAT, MXLON
@@ -393,9 +393,9 @@ program midas_bgckmw
       n_reps = n_reps + 1
 
       !  Get all the required data from the blocks in the report (Rpt_in)
-      call mwbg_getDataAmsua(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
-                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, bad_report)
+      call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
+                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
+                        ican, icanomp, IMARQ, IORBIT, bad_report, qcflag1_check = .FALSE.)
       if ( bad_report ) then
         n_bad_reps = n_bad_reps + 1  
 

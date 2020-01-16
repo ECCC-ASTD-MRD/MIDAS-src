@@ -244,7 +244,7 @@ program midas_bgckAtms
   character(len=2),dimension(mxsat,nchanAtms,maxpred) :: PTYPES
 
   logical :: sp_adj_tb, debug, modlsqtt, useUnbiasedObsForClw
-  logical :: bad_report, lutb, resume_report
+  logical :: bad_report, lutb, resume_report, qcflag1_check
 
   ! External functions
   integer, external :: exdb,exfin
@@ -711,7 +711,15 @@ program midas_bgckAtms
       !  Get all the required data from the blocks in the report (Rpt_in)
       call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                         biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT)
+                        ican, icanomp, IMARQ, IORBIT, bad_report, qcflag1_check = .TRUE.)
+      if ( bad_report ) then
+        n_bad_reps = n_bad_reps + 1  
+
+        Call BURP_Free(Rpt_out,IOSTAT=error)
+        if (error /= burp_noerr)  call handle_error()
+
+        cycle REPORTS
+      end if
 
       ! Initialize internal land/sea qualifier and terrain type arrays to values
       ! read from file
