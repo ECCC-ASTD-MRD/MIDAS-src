@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * Update the expected execution timings for the ones on HPCR-U1 (#298 and !291)
+   * On XC50, we use `TBB_MALLOC_USE_HUGE_PAGES=1` to save 7% in execution freely.w
+   * Some users are notified when a timing outlier is found.
  * The GitLab runner which runs the continuous integration process is now executed under user `sanl888` (#288 and !277)
  * Also using `eccc/mrd/rpn/anl/rttov/12v1.4` which have been compiled
     with `code-tools/01.3` (#275 and !257)
