@@ -91,7 +91,10 @@ END {
             unset __findRunTime_stats__
         else
             if [ -n "${__findRunTime_runtime__}" ]; then
-                echo -e "\t$(printf "${__findRunTime_runtime__}" | head -1)"
+                noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
+                if [ -n "${noOutlier}" ]; then
+                    echo -e "\t${noOutlier}"
+                fi
             else
                 echo -e "\tNo run time was available for that test"
             fi
