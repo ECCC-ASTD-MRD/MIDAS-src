@@ -39,7 +39,7 @@ save
 private
 
 ! public procedures
-public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
+public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity, brpr_addRadianceBiasCorrectionElement
 
 
 ! MODULE CONSTANTS ...
@@ -3325,9 +3325,9 @@ CONTAINS
     real                   :: val_option_r4
     character(len=9)       :: station_id
     
-    write(*,*) '---------------------------------------'
+    write(*,*) '----------------------------------------------------------'
     write(*,*) '------- Begin brpr_addCloudParametersandEmissivity -------'
-    write(*,*) '---------------------------------------'
+    write(*,*) '----------------------------------------------------------'
 
 
     ! Initialisation
@@ -3908,5 +3908,231 @@ CONTAINS
 
   end subroutine brpr_addCloudParametersandEmissivity
 
+  !-----------------------------------------------------------------------
+  ! brpr_addRadianceBiasCorrectionElement
+  !-----------------------------------------------------------------------
+  subroutine brpr_addRadianceBiasCorrectionElement(inputFileName)
+    !
+    !:Purpose: to add element for radiance bias correction to data block of DERIALT BURP file
+    !
+    implicit none
+    !Arguments:
+    character(len=*), intent(in)  :: inputFileName
+    !Locals:
+    type(burp_file)             :: inputFile
+    type(burp_rpt)              :: inputReport, copyReport
+    type(burp_block)            :: inputBlock
+    integer                     :: btyp10
+    integer                     :: nb_rpts, ref_rpt, ref_blk, count
+    integer, allocatable        :: address(:)
+    integer                     :: nbele, nvale, nte
+    integer                     :: j, k, reportIndex, btyp, bfam, error
+    integer                     :: l, ind, nsize, iun_burpin
+    integer                     :: ibfam, ival
+    real                        :: rval
+    character(len=9)            :: station_id
+    character(len=7), parameter :: opt_missing='MISSING'
+    integer, parameter          :: icodele = 12233
+    integer, parameter          :: icodeleMrq =  200000 + icodele
+    real, parameter             :: val_option = -9999.0
+    integer, external           :: mrfmxl
+    logical                     :: isDerialt
+    write(*,*) '-----------------------------------------------'
+    write(*,*) '- begin brpr_addRadianceBiasCorrectionElement -'
+    write(*,*) '-----------------------------------------------'
+
+
+    ! initialisation
+    ! --------------
+    call burp_set_options(                 &
+         real_optname       = opt_missing, &
+         real_optname_value = val_option,  &
+         iostat             = error )
+
+    call burp_init(inputFile,iostat=error)
+    call burp_init(inputReport,copyReport,iostat=error)
+    call burp_init(inputBlock,iostat=error)
+
+
+    ! opening file
+    ! ------------
+    write(*,*) 'opened file = ', trim( inputFileName )
+
+    call burp_new(inputFile,         &
+         filename = inputFileName,   &
+         mode     = file_acc_append, &
+         iostat   = error )
+  
+    if (error /= burp_noerr) then
+      write(*,*) "cannot open BURP input file ", inputFileName
+      call utl_abort('brpr_addRadianceBiasCorrectionElement')
+    end if
+
+
+    ! obtain input burp file number of reports
+    ! ----------------------------------------
+    call burp_get_property(inputFile, nrpts=nb_rpts, io_unit= iun_burpin)
+
+    nsize = mrfmxl(iun_burpin)
+    nsize = 3 * nsize
+    write(*,*) "nsize= ", nsize
+    write(*,*) 
+    write(*,*) 'number of reports with observations in input file = ', nb_rpts - 1
+    write(*,*) 
+
+
+    ! scan input burp file to get all reports address
+    ! -----------------------------------------------
+    allocate(address(nb_rpts))
+    address(:) = 0
+    count = 0
+    ref_rpt = 0
+    isDerialt = .false.
+    do
+      ref_rpt = burp_find_report(inputFile, &
+           report      = inputReport,       &
+           search_from = ref_rpt,           &
+           iostat      = error)
+      if (ref_rpt < 0) exit
+      count = count + 1
+      address(count) = ref_rpt
+
+      call burp_get_property(inputReport, stnid = station_id )
+      if (station_id == ">>DERIALT") isDerialt = .true.
+    end do
+
+    if ( count > 0 .and. isDerialt) then
+
+      ! create a new report
+      ! ------------------
+     
+      call burp_new(copyReport, alloc_space=nsize, iostat=error)
+
+
+      ! loop on reports
+      ! ---------------
+
+      reports: do reportIndex = 1, count
+    
+        call burp_get_report(inputFile,        &
+             report    = inputReport,          &
+             ref       = address(reportIndex), &
+             iostat    = error)      
+
+        call burp_copy_header(to=copyReport,from=inputReport)
+
+        call burp_init_report_write(inputFile, copyReport, iostat=error)
+
+
+        ! loop on blocks
+        ! --------------------
+        ref_blk = 0
+      
+        blocks: do
+
+          ref_blk = burp_find_block(inputReport, &
+               block       = inputBlock,         &
+               search_from = ref_blk,            &
+               iostat      = error)
+
+          if (ref_blk < 0) exit blocks
+         
+          call burp_get_property(inputBlock, &
+               nele   = nbele,               &
+               nval   = nvale,               &
+               nt     = nte,                 &
+               bfam   = bfam,                &
+               btyp   = btyp,                & 
+               iostat = error)
+
+          btyp10 = ishft(btyp,-5)
+
+          if ( btyp10 == 291 .and. bfam == 0 ) then !Data block 291 = 2**8 + 2**5 + 2**1 + 2**0
+            
+            ind = burp_find_element(inputBlock, element=icodele, iostat=error)
+
+            if ( ind <= 0 ) then
+              nbele = nbele + 1
+              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodele, IOSTAT = error)
+              do j=1,nvale
+                do k=1,nte
+                  call burp_set_tblval( inputBlock, &
+                       nele_ind =nbele ,            &
+                       nval_ind = j ,               &
+                       nt_ind   = k ,               &
+                       tblval   = -1 ,iostat=error)
+                  if (error /= 0) call handle_error()
+                end do
+              end do
+            end if
+        
+            call burp_write_block(copyReport, block  = inputBlock,  &
+                 convert_block =.true., encode_block=.false., iostat=error)
+
+
+          else if ( btyp10 == 483 .and. bfam == 0 ) then     !  MRQ block ; 483 =  2**8 + 2**7 + 2**6 + 2**5 + 2**1 + 2**0
+            ind = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
+            if ( ind <= 0 ) then
+              nbele = nbele + 1
+              call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+              Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleMrq, IOSTAT = error)
+              do j=1,nvale
+                do k=1,nte
+                  call burp_set_tblval( inputBlock, &
+                       nele_ind =nbele ,            &
+                       nval_ind = j ,               &
+                       nt_ind   = k ,               &
+                       tblval   = 0 ,iostat=error)
+                  if (error /= 0) call handle_error()
+                end do
+              end do
+            end if
+        
+            call burp_write_block(copyReport, block  = inputBlock,  &
+                 convert_block =.true., encode_block=.false.,iostat=error)
+
+          else !other blocks
+
+            call burp_write_block(copyReport, block  = inputBlock,  &
+                 convert_block = ( btyp /= 5120), iostat=error)
+
+          end if
+  
+        end do blocks
+      
+        ! write new report into file
+        ! --------------------------
+        call BURP_Delete_Report(inputFile, inputReport, iostat=error)
+        call burp_write_report(inputFile,copyReport, iostat=error)
+    
+      end do reports
+
+    end if
+
+    call  cleanup()
+
+  contains
+
+    !-------- cleanup -----
+    subroutine cleanup()
+      implicit none
+      if (allocated(address)) deallocate(address)
+      call burp_free(inputFile)
+      call burp_free(inputReport,copyReport)
+      call burp_free(inputBlock)
+    end subroutine cleanup
+
+    !--------handle_error -----
+    subroutine handle_error()
+      implicit none
+      write(*,*) burp_str_error()
+      write(*,*) "history"
+      call burp_str_error_history()
+      call cleanup()
+      call utl_abort('brpr_addRadianceBiasCorrectionElement')
+    end subroutine handle_error
+    
+  end subroutine brpr_addRadianceBiasCorrectionElement
 
 end module burpread_mod
