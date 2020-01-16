@@ -205,7 +205,8 @@ contains
     type(rttov_profile), pointer :: profilesdata_tl(:) ! tl profiles buffer used in rttov calls
     type(rttov_chanprof), pointer :: chanprof(:)
     logical, pointer :: calcemis(:)
-    integer ::  asw
+    logical :: runObsOperatorWithClw_tl
+    integer :: asw
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
@@ -257,6 +258,10 @@ contains
     ! Loop over all sensors specified by user
 
     sensor_loop:  do sensorIndex = 1, tvs_nsensors
+
+      if ( col_varExist(columng,'LWCR') .and. col_varExist(column,'LWCR') .and. &
+        tvs_numMWInstrumUsingCLW /= 0 .and. tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
+        tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_tl = .true.
        
       nRttovLevels = tvs_coefs(sensorIndex) % coef % nlevels
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
@@ -316,7 +321,7 @@ contains
           allocate (ozoneExtrapolated_tl(nRttovLevels,profileCount),   stat= allocStatus(22))
         end if
       end if
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_tl ) then
         write(*,*) 'tvslin_rttov_tl: using clw_data'
         allocate (clwInterpolated_tl(levelsBelowModelTop,profileCount),stat= allocStatus(23))
         allocate (clwExtrapolated_tl(nRttovLevels,profileCount),stat= allocStatus(24))
@@ -346,7 +351,7 @@ contains
           ozoneExtrapolated_tl(:,:) = 0.0d0
         end if
       end if
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_tl ) then
         clw_tl(:,:) = 0.0d0
         clw(:,:) = 0.0d0
         clwInterpolated_tl(:,:) = 0.0d0
@@ -408,7 +413,7 @@ contains
 
           end if
         end if
-        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+        if ( runObsOperatorWithClw_tl ) then
           delCLW => col_getColumn(column,headerIndex,'LWCR')
           CLWb => col_getColumn(columng,headerIndex,'LWCR')
           clw_tl(1:nlv_T,profileCount) = delCLW(1:nlv_T)
@@ -431,7 +436,7 @@ contains
               ozone(1,profileCount) =  ozone(2,profileCount)
             end if
           end if
-          if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+          if ( runObsOperatorWithClw_tl ) then
             clw_tl(1,profileCount) =  0.d0
             clw(1,profileCount) =  clw(2,profileCount)
           end if
@@ -488,7 +493,7 @@ contains
         end if
       end if
 
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_tl ) then
         !$omp parallel do private(profileIndex)
         do profileIndex=1, profileCount
           call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex), &
@@ -558,7 +563,7 @@ contains
       end if
 
       ! Extrapolation of CLW profile above rlimlvhu (normally 300mbs or 70mbs)
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_tl ) then
         do profileIndex = 1, profileCount
           clwExtrapolated_tl(1:modelTopIndex-1,profileIndex) = 0.d0
           do levelIndex = 1, levelsBelowModelTop
@@ -581,7 +586,7 @@ contains
           end if
         end if
 
-        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) &
+        if ( runObsOperatorWithClw_tl ) &
           profilesdata_tl(profileIndex) % clw(1:nRttovLevels)  = clwExtrapolated_tl(1:nRttovLevels,profileIndex)
         
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
@@ -632,7 +637,7 @@ contains
           deallocate (ozoneExtrapolated_tl,  stat= allocStatus(22))
         end if
       end if
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_tl ) then
         deallocate (clwInterpolated_tl,stat= allocStatus(23))
         deallocate (clwExtrapolated_tl,stat= allocStatus(24))
         deallocate (clw_tl,stat= allocStatus(25))
@@ -826,6 +831,7 @@ contains
     type(rttov_chanprof), pointer :: chanprof(:)
     integer :: asw
     logical, pointer :: calcemis  (:)
+    logical :: runObsOperatorWithClw_ad
          
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
@@ -875,6 +881,10 @@ contains
     ! Loop over all sensors specified by user
 
     sensor_loop:do  sensorIndex = 1, tvs_nsensors
+
+      if ( col_varExist(columng,'LWCR') .and. col_varExist(column,'LWCR') .and. &
+        tvs_numMWInstrumUsingCLW /= 0 .and. tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
+        tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_ad = .true.
      
       nRttovLevels = tvs_coefs(sensorIndex) %coef % nlevels
       sensorType = tvs_coefs(sensorIndex) % coef% id_sensor
@@ -939,7 +949,7 @@ contains
           allocate (ozoneExtrapolated(nRttovLevels,profileCount),         stat= allocStatus(21) )
         end if
       end if
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_ad ) then
         allocate (clwInterpolated_ad(levelsBelowModelTop,profileCount),stat=allocStatus(22))
         allocate (clwExtrapolated_ad(nRttovLevels,profileCount),stat=allocStatus(23))
         allocate (clw_ad(nlv_T,profileCount),stat=allocStatus(24))
@@ -975,7 +985,7 @@ contains
           end if
         end if
 
-        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+        if ( runObsOperatorWithClw_ad ) then
           CLWb => col_getColumn(columng,headerIndex,'LWCR')
           clw(1:nlv_T,profileCount) = CLWb(1:nlv_T)
         end if
@@ -988,7 +998,7 @@ contains
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
           hu(1,profileCount) =  hu(2,profileCount)
-          if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) &
+          if ( runObsOperatorWithClw_ad ) &
             clw(1,profileCount) =  clw(2,profileCount)
         end if
 
@@ -1084,7 +1094,7 @@ contains
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozoneExtrapolated_ad(:,:) = 0.d0
       endif
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) clwExtrapolated_ad(:,:) = 0.d0
+      if ( runObsOperatorWithClw_ad ) clwExtrapolated_ad(:,:) = 0.d0
 
       do btIndex = 1, btCount
         
@@ -1118,7 +1128,7 @@ contains
           end if
         end if
 
-        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+        if ( runObsOperatorWithClw_ad ) then
           clw_column => col_getColumn(column,headerIndex,'LWCR')
           clwExtrapolated_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
         end if
@@ -1138,7 +1148,7 @@ contains
       end if
 
       ! Adjoint of extrapolation of CLW profile
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_ad ) then
         clwInterpolated_ad(:,:) = 0.0d0
         do profileIndex = 1, profileCount
           do levelIndex = 1, levelsBelowModelTop
@@ -1205,7 +1215,7 @@ contains
       !   2.1  Adjoint of vertical interpolation of model temperature and logarithm of
       !        specific humidity and ozone to pressure levels required by tovs rt model
 
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_ad ) then
         clw_ad(:,:) = 0.0d0
         !$omp parallel do private(profileIndex)
         do profileIndex = 1, profileCount
@@ -1283,7 +1293,7 @@ contains
       !  a l'extrapolation utilisee)
 
       if ( diagTtop ) then
-        if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+        if ( runObsOperatorWithClw_ad ) then
           do profileIndex = 1, profileCount
             clw_ad(1,profileIndex) = 0.d0
           end do
@@ -1327,7 +1337,7 @@ contains
         end if
       end if
 
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_ad ) then
         do  profileIndex = 1 , profileCount 
           clw_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'LWCR')
           do levelIndex = 1, col_getNumLev(column,'TH')
@@ -1362,7 +1372,7 @@ contains
           deallocate (ozoneExtrapolated,     stat= allocStatus(22) )
         end if 
       end if
-      if ( tvs_opts(sensorIndex) % rt_mw % clw_data ) then
+      if ( runObsOperatorWithClw_ad ) then
         deallocate (clwInterpolated_ad,stat=allocStatus(23))
         deallocate (clwExtrapolated_ad,stat=allocStatus(24))
         deallocate (clw_ad,stat=allocStatus(25))
