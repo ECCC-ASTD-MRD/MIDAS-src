@@ -234,13 +234,7 @@ program midas_var
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
     call bmat_setup(hco_anl,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize variational bias correction (default is to not use it)
-    !
-    call bias_setup()
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'  
 
     !
     ! - Initialize the gridded variable transform module

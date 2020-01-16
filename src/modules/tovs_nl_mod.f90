@@ -315,7 +315,6 @@ contains
       print *, "sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)", sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
     end do
 
-
     if (mpi_myid ==0) then
       allocate(logicalBuffer(mpi_nprocs))
     else
@@ -334,7 +333,6 @@ contains
     end do
 
     deallocate(logicalBuffer)
-
 
     !  3. Initialize TOVS radiance transfer model
 
@@ -385,7 +383,6 @@ contains
         errorStatus = errorStatus_success
 
         call tmg_start(83,'RTTOV_SETUP')
-
         write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
         call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         if (errorStatus(1) /= errorStatus_success) then
@@ -4033,7 +4030,6 @@ contains
        
     end if
 
- 
   end subroutine tvs_rttov_read_coefs
 
   subroutine extractI41dArray(array,oldSize,index)

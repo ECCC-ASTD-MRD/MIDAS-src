@@ -49,6 +49,7 @@ module innovation_mod
   use obsErrors_mod
   use bufr_mod
   use statetocolumn_mod
+  use biascorrection_mod
   implicit none
   save
   private

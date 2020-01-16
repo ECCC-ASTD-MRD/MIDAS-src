@@ -146,12 +146,10 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambias,iostat=ierr)
-    if ( ierr /= 0 .and. mpi_myid == 0 ) write(*,*) 'WARNING: bias_setup: Error reading namelist, ' //  &
-                             'assume it will not be used!'
+    if ( ierr /= 0 .and. mpi_myid == 0 )  &
+         write(*,*) 'WARNING: bias_readConfig: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambias)
     ierr = fclos(nulnam)
-
-    bias_doRegression =  doRegression
 
  end subroutine bias_readConfig
 
@@ -217,7 +215,7 @@ CONTAINS
         if ( bcifExists ) then
           !read bcif (Bias Correction Information File)
          
-          call read_bcif(bcifFile,tvs_isInstrumHyperSpectral(tvs_coefs(iSensor) % coef % id_inst),ncanBcif, &
+          call read_bcif(bcifFile, tvs_isNameHyperSpectral( instrName ),ncanBcif, &
                canBCIF, bcmodeBCIF, bctypeBCIF, npredBCIF, predBCIF, global, exitcode)
 
           if (exitcode /= 0) then
@@ -240,10 +238,12 @@ CONTAINS
 
             allocate( bias(iSensor) % chans(ichan) % stddev( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeffIncr( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % coeff( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeff_offset( npredictors ) )
             allocate(  bias(iSensor)%chans(ichan)% predictorIndex( npredictors ) )
             bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
+            bias(iSensor) % chans(ichan) % coeff(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
 
             bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
@@ -295,12 +295,9 @@ CONTAINS
 
         if ( trim(biasMode) == "varbc" ) then
           !change dimension of control vector
-          do iSat = 1, nsat             
-            if ( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle 
-            do  ichan=1, ncanBcif
-              if  (bias(iSensor)% chans(ichan) % isDynamic) &
-                   cvdim = cvdim + bias(iSensor)% chans(ichan) % numActivePredictors - 1 + bias(iSensor)%numScan
-            end do
+          do  ichan=1, ncanBcif
+            if  (bias(iSensor)% chans(ichan) % isDynamic) &
+                 cvdim = cvdim + bias(iSensor)% chans(ichan) % numActivePredictors - 1 + bias(iSensor)%numScan
           end do
         end if
 
@@ -334,7 +331,6 @@ CONTAINS
       if ( mpi_myid > 0 ) cvdim = 0 ! for minimization, all coefficients only on task 0
       call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
-
 
     call  bias_readCoeffs() ! Read coefficient files in the case of bias correction application (biasMode=="apply")
 
@@ -675,15 +671,10 @@ CONTAINS
             call bias_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
             biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
                  bias(iSensor)%chans(chanIndx)%coeff(1) 
-            if (iSensor ==1 .and. chanIndx==36) then
-              Write(*,*) "XX",biasCor,bias(iSensor)%chans(chanIndx)%coeff_fov(iScan), bias(iSensor)%chans(chanIndx)%coeff(1)
-            end if
+            
             do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
-              if (iSensor ==1 .and. chanIndx==36) then
-                Write(*,*) "YY",jpred,biasCor,predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor) 
-              end if
             end do
           end if
 
@@ -1636,9 +1627,13 @@ CONTAINS
         end do
       end if
     end do
-   
 
-    if (.not. doRegression .and. mpi_myId==0) then
+    if (  doRegression ) then
+      call bias_writeCoeff()
+      return
+    end if
+
+    if (mpi_myId==0) then
 
       ! write out bias coefficient increments in ascii file
       nulfile_inc = 0
@@ -1808,9 +1803,6 @@ CONTAINS
 
             if ( chans(iSat,jChan) /= bias(iSensor)%chans(jChannel)%channelNum ) cycle chan2loop
 
-            if (.not. allocated(bias(iSensor)%chans(jChannel)%coeff)) allocate( bias(iSensor)%chans(jChannel)%coeff( bias(iSensor)%chans(jChannel)%numActivePredictors))
-
-            if (.not. allocated(bias(iSensor)%chans(jChannel)%coeff_fov)) allocate( bias(iSensor)%chans(jChannel)%coeff_fov( nfov ))
             ! part 1 for coeffIncr
             do iFov = 1, nfov
               bias(iSensor)%chans(jchannel)%coeff_fov(iFov) = fovbias(iSat,jChan,iFov)
@@ -2028,7 +2020,7 @@ CONTAINS
     !Locals:
     integer :: bodyIndex, headerIndex
     integer :: assim,flag,codtyp
-    integer :: indxtovs, iSensor, instrum
+    integer :: isatBufr, instBufr, iplatform, isat, inst ,idsat,i,chanIndx
     logical :: lHyperIr, lGeo,lSsmis
     character(len=codtyp_name_length) :: familyName
 
@@ -2041,7 +2033,7 @@ CONTAINS
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if ( headerIndex < 0 ) exit HEADER
 
-      indxtovs = tvs_ltovsno(headerIndex)
+      codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       lHyperIr = .false.
       lGeo =  .false.
@@ -2075,12 +2067,6 @@ CONTAINS
       end do
       if (idsat == -1) cycle HEADER
 
-      codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      iSensor = tvs_lsensor( indxtovs )
-      instrum = tvs_coefs(iSensor) % coef % id_inst
-      lHyperIr = tvs_isInstrumHyperSpectral(instrum)
-      lGeo =  tvs_isInstrumHyperSpectral(instrum)
-      lSsmis = (codtyp == 168)
       call obs_set_current_body_list(obsSpaceData, headerIndex)
 
       BODY: do
@@ -2105,58 +2091,8 @@ CONTAINS
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
           end if
         end if
-
-        call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
-      
-       
       end do BODY
     end do HEADER
-
-!  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
-!      flag_str2  = ' AND (FLAG & 512 = 0)'
-!  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
-!      flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
-!      query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!      query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!      query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
-
-! Criteres SSMIS (online et all=oui : le defaut)
-
-!!  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
-
-!!Criteres AMSUA, AMSUB, ATMS
-
-! bit 9 allume et bit 6 eteint et bit 16 allume bit 18 eteint bit 7 eteint
-!  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
-!      flag_str2  = ' AND (FLAG & 512 = 0)'
-!  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
-!             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing!
-!      flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
-!      query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!      query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!      query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
-
-! Criteres CSR
-! bit 11 eteint
- 
-!Criteres hyperspectraux (online et all =non le defaut)
-! flag_str  = ' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
-!bit 9 et 11 eteints, bit 8 eteint,  bit 23 eteint, bit 19 eteint 
-! 2**19 = 524288
-! 2**21 = 2097152
-! 2**23 = 8388608
-
-!Criteres hyperspectraux (online et all =oui) ! a choisir
-! soit bit 9, 23, 21, 19 et 7 eteint
-! 11010176 = 101010000000000010000000 = 2**23 +2**21 + 2*19 + 2**7
-! soit 
-!        flag_str2  = ' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
-!        ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
-!        flag_str3  = ' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
-!        query1 = TRIM(query) // trim(flag_str2) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!        query2 = TRIM(query) // trim(flag_str3) // ' AND SAT LIKE "'// trim(satname) // '"' // trim(chan_string)
-!        query = TRIM(query1) // ' UNION ALL ' // TRIM(query2) // ';'
-
 
   contains
 
@@ -2441,8 +2377,7 @@ CONTAINS
           call utl_abort("bias_do_regression")
         end if
       end if
-
-      call rpn_comm_reduce(OmFCount, omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER", "MPI_SUM", 0, "GRID", ierr )
+      call rpn_comm_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
 
       if (ierr /=0) then
         Write(*,*) " MPI communication error 2",  ierr 
@@ -2459,7 +2394,7 @@ CONTAINS
           call utl_abort("bias_do_regression")
         end if
         do iChannel = 1, nchans
-          bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = omfBiasMpiGlobal(iChannel,:)
+          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = omfBiasMpiGlobal(iChannel,:)
         end do
         deallocate( omfBiasMpiGlobal )
       end if
@@ -2499,7 +2434,7 @@ CONTAINS
             call bias_getPredictors(predictor,headerIndex,iobs,chanIndx,obsSpaceData)
             OmF = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
 
-            if (lMimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeffIncr_fov(iScan)
+            if (lMimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
             
             LineVec(:,:) = 0.d0
 
@@ -2598,11 +2533,11 @@ CONTAINS
         end if
 
         if ( lMimicSatbcor ) then
-          bias(sensorIndex)%chans(iChannel)%coeffIncr(:) =  LineVec(1,1:npred)
+          bias(sensorIndex)%chans(iChannel)%coeff(:) =  LineVec(1,1:npred)
         else
-          bias(sensorIndex)%chans(iChannel)%coeffIncr_fov(:) = LineVec(1,1:nscan)
-          bias(sensorIndex)%chans(iChannel)%coeffIncr(1) = 0.d0
-          bias(sensorIndex)%chans(iChannel)%coeffIncr(2:) =  LineVec(1,nscan+1:ndim)
+          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1,1:nscan)
+          bias(sensorIndex)%chans(iChannel)%coeff(1) = 0.d0
+          bias(sensorIndex)%chans(iChannel)%coeff(2:) =  LineVec(1,nscan+1:ndim)
         end if
 
       end do

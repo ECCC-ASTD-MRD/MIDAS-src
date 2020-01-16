@@ -98,9 +98,6 @@ program midas_gencoeff
   call inn_setupBackgroundColumns( trlColumnOnAnlLev, obsSpaceData )
   call tmg_stop(3)
 
-
-
-  call bias_setup()
   !
   ! Remove bias correction if requested
   !
@@ -125,7 +122,6 @@ program midas_gencoeff
   call tmg_start(8,'REFRESH_BCOR')
   call bias_refreshBiasCorrection(obsSpaceData,trlColumnOnAnlLev)
   call tmg_stop(8)
-
 
   call tmg_start(9,'REGRESSION')
   call bias_do_regression(trlColumnOnAnlLev,obsSpaceData)

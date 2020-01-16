@@ -15,4 +15,3 @@ SRC_FILES="$SRC_FILES bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.
 SRC_FILES="$SRC_FILES bmatrix_mod.f90 obsoperators_mod.f90"
 SRC_FILES="$SRC_FILES biascorrection_mod.f90 computeHBHT_mod.f90 humiditylimits_mod.f90 multi_ir_bgck_mod.f90 obserrors_mod.f90 obsspacediag_mod.f90"
 SRC_FILES="$SRC_FILES backgroundCheck_mod.f90 increment_mod.f90 innovation_mod.f90"
-
