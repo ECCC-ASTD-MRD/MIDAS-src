@@ -4,14 +4,14 @@
    CMABDY        = 'cmabdy'
    CMADIM        = 'cmadim'
    BRPFORM       = 'brpform'
-   suprep                  = .false.
-   applySatUtil            = .false.
-   modifyAmsubObsError     = .false.
-   rejectOutsideTimeWindow = .false.
-   rejectHighLatIR         = .false.
-   obsClean                = .false.
-   thinning                = .false.
-   writeObsFiles           = .false.
+   suprep                  = .true.
+   applySatUtil            = .true.
+   modifyAmsubObsError     = .true.
+   rejectOutsideTimeWindow = .true.
+   rejectHighLatIR         = .true.
+   obsClean                = .true.
+   thinning                = .true.
+   writeObsFiles           = .true.
 /
  &NAMDIMO
    NMXOBS  = 30000,

@@ -194,7 +194,10 @@ program midas_prepcma
   ierr = fnom(nobsout, obsout, 'FMT+SEQ+R/W', 0)
 
   !- Remove all observations from obsSpaceData that will not be assimilated
-  if (obsClean) call obs_clean(obsSpaceData, hx_dummy, 0, nobsout, qcvar)
+  !- But, unlike the EnKF program, do not check value of OBS_ZHA
+  if (obsClean) then
+    call obs_clean(obsSpaceData, hx_dummy, 0, nobsout, qcvar, checkZha_opt=.false.)
+  end if
 
   call obs_print(obsSpaceData,nobsout)
   close(nobsout)

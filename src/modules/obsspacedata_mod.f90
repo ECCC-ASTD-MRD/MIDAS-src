@@ -2144,7 +2144,7 @@ contains
    end subroutine obs_class_initialize
 
 
-   subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar)
+   subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar,checkZha_opt)
       !
       ! :Purpose: remove all observations from the obsdat  
       !           that will not be assimilated. 
@@ -2172,14 +2172,23 @@ contains
       integer, intent(in)    :: nens
       integer, intent(in)    :: nobsout
       logical, intent(in)    :: qcvar
+      logical, intent(in), optional :: checkZha_opt
 
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,var3d,kobsout
       integer :: column_index
       integer :: active_index
+      logical :: checkZha
 
       write(nobsout,'(1x,A,I7)') 'stations prior to cleanup: ', obsdat%numHeader
       write(*,*) 'enter obs_clean'
+
+      ! User can choose if check on negativity of OBS_ZHA is done (is done by default)
+      if (present(checkZha_opt)) then
+        checkZha = checkZha_opt
+      else
+        checkZha = .true.
+      end if
 
       kobsout=0 
       iwrite=0
@@ -2202,7 +2211,7 @@ contains
             ! To remove observations for which the height in the atmosphere has
             ! not been assigned (for instance because they are above the model
             ! top for the EnKF system)
-            if (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) < 0.) then
+            if (checkZha .and. obs_bodyElem_r(obsdat, OBS_ZHA, jdata) < 0.) then
                call obs_bodySet_i(obsdat, OBS_ASS, jdata, -1)
             endif
 
