@@ -1,27 +1,17 @@
- &NAMCT0
-   NCONF  = 141,
-/
- &NAMBHI
-   NTRUNC  = 270,
-   SCALEFACTOR   = 11*1.00D0,0.95D0,0.90D0,0.85D0,0.80D0,0.75D0,0.70D0,0.65D0,0.60D0,0.55D0,100*0.5D0
-   READWRITE_SQRT = .true.
-/
- &NAMBEN
-   NTRUNC  = 31,
-   NENS = 24
-   SCALEFACTOR=4*0.00D0,0.05D0,0.10D0,0.15D0,0.20D0,0.25D0,0.30D0,0.35D0,0.40D0,0.45D0,100*0.5D0
-   ENSPATHNAME='./ensemble/'
-/
  &NAMBIAS
     biasActive=.TRUE.,
-    BG_STDDEV=0.1d0, 0.1d0, 0.1d0, 0.1d0, 0.1d0, 0.01d0
-    biasmode="varbc",
-    removeBiasCorrection=.false.
+    BG_STDDEV=2.d1, 2.d1, 2.d1, 2.d1, 2.d1, 2.d1
+    biasmode="reg",
+    removeBiasCorrection=.true.
     refreshBiasCorrection=.false.
     lmimicsatbcor=.true.
     scanBiasCorLength=-1.d0
-    doRegression=.false.
+    doRegression=.true.
+    centerPredictors=.false.,
     lweightedEstimate=.false.,
+    loutstats=.true.,
+    loutcoeffcov=.true.,
+    filterObs = .true.,
     cinst(1)="AMSUA"
     nbscan(1)=30
     cglobal(1)="DEF"
@@ -64,27 +54,34 @@
     cinst(14)="AHI"		
     nbscan(14)=1
     cglobal(14)="OUI"
-/
- &NAMMIN
-   NVAMAJ = 10,
-   NITERMAX = 25,
-   NSIMMAX  = 100,
-   REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .TRUE.,
-   LVARQC=.TRUE.,
-   NWOQCV=5
+    bitListHyperIR(1)=7,
+    bitListHyperIR(2)=9,
+    bitListHyperIR(3)=16,
+    bitListHyperIR(4)=19,
+    bitListHyperIR(5)=21,
+    bitListHyperIR(6)=23,
+    bitListGeo(1)=11,
+    bitListTovs(1)=7,
+    bitListTovs(2)=9,
+    bitListTovs(3)=16,
+    bitListTovs(4)=18,
+    bitListSsmis(1)=7,
+    bitListSsmis(2)=9,
+    bitListSsmis(3)=16,
+    bitListSsmis(4)=18,
 /
  &NAMINC
    etiket_rebm ='XXXXXX'
 /
  &NAMDIMO
-   NMXOBS=100000,
-   NDATAMX=8000000,
+   NMXOBS=160000,
+   NDATAMX=20000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
-  DSTEPOBSINC = 3.0d0
+  DSTEPOBS = 6.d0
+  DSTEPOBSINC = 6.0d0
+  DWINDOWSIZE = 168.0d0
+  DREFERENCETIME="start",
 /
  &NAMFILT
   NELEMS = 16,
@@ -110,16 +107,11 @@
   NLISTFLG(3)=5,
   NLISTFLG(4)=-5,
   NLISTFLG(5)=-8,
-  list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
-  list_topoFilt(3) = 'AI'
-  list_topoFilt(4) = 'SW'
-  list_topoFilt(5) = 'PR'
-  list_topoFilt(6) = 'TO'
+  list_topoFilt(1) = 'TO'
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
-   rmat_lnonDiagR=.true.
+   rmat_lnonDiagR=.false.
 /
  &NAMSTATE
    addHeightSfcOffset = .false.
@@ -441,6 +433,7 @@
   BITEMLIST(3)='OER',
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
+  skipUpdate=.TRUE.
 /
  &NAMaai_control
    s_nomvars='UU','VV','TT','HU','ES'
@@ -449,7 +442,4 @@
    l_useAnalyzedPSurf = .true.,
    l_huIncFromLq=.false.,
    l_icePhaseEs=.false.
-/
- &NAMSHARED_AAI_3DV
-   CVCORD='GEMHYB'
 /

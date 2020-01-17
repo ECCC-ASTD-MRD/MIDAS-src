@@ -94,7 +94,9 @@ module tovs_nl_mod
   public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_nlevels, tvs_mesosphereLapseRate
   ! public variables (non-parameters)
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
+  public :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
   public :: tvs_isReallyPresent,tvs_listSensors
+  public :: tvs_isReallyPresentMpiGlobal
   public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
   public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
   public :: platform_name, inst_name ! (from rttov)
@@ -102,8 +104,10 @@ module tovs_nl_mod
   public :: tvs_radiance, tvs_surfaceParameters
 
   ! public procedures
-  public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission
+  public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst
+  public :: tvs_isInstrumGeostationary,  tvs_isNameHyperSpectral
+  public :: tvs_isNameGeostationary
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
   public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs, tvs_getChannelIndexFromChannelNumber
@@ -127,12 +131,15 @@ module tovs_nl_mod
   real(8), parameter :: tvs_mesosphereLapseRate=16.2d0
 
   ! Module variables
-  integer, allocatable :: tvs_nchan(:)             ! Number of channels per instrument
-  integer, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument
+  integer, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
+  integer, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
+  integer, allocatable :: tvs_nchanMpiGlobal(:)     ! Number of channels per instrument (global)
+  integer, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
   integer, allocatable :: tvs_lsensor(:)           ! Sensor number for each profile
   integer, allocatable :: tvs_headerIndex (:)      ! Observation position in obsSpaceData header for each profile
   integer, allocatable :: tvs_tovsIndex (:)        ! Index in TOVS structures for each observation header in obsSpaceData
-  logical, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated
+  logical, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
+  logical, allocatable :: tvs_isReallyPresentMpiGLobal(:)   ! Logical flag to identify instruments really assimilated (global)
   integer, allocatable :: tvs_listSensors(:,:)     ! Sensor list
   type (rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   type(surface_params), allocatable :: tvs_surfaceParameters(:) ! surface parameters 
@@ -179,16 +186,17 @@ contains
     !
     implicit none
 
-    !Parameters:
+    !Arguments:
     type(struct_obs) :: obsSpaceData
 
     ! Locals:
-    integer :: allocStatus(6)
+    integer :: allocStatus(9)
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
     integer :: tovsIndex, idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
-    integer :: errorstatus(1)
-    integer :: headerIndex, bodyIndex
+    integer :: errorStatus(1)
+    integer :: headerIndex, bodyIndex, taskIndex
+    logical,allocatable ::logicalBuffer(:)
 
     if (tvs_nsensors == 0) return
 
@@ -205,6 +213,9 @@ contains
     allocate (tvs_headerIndex (obs_numheader(obsSpaceData)),       stat= allocStatus(4))
     allocate (tvs_tovsIndex(obs_numheader(obsSpaceData)),       stat= allocStatus(5))
     allocate (tvs_isReallyPresent(tvs_nsensors),               stat= allocStatus(6))
+    allocate (tvs_nchanMpiGlobal(tvs_nsensors),                stat= allocStatus(7))
+    allocate (tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors), stat= allocStatus(8))
+    allocate (tvs_isReallyPresentMpiGlobal(tvs_nsensors), stat= allocStatus(9))
 
     call utl_checkAllocationStatus(allocStatus, " tvs_setupAlloc")
   
@@ -299,6 +310,29 @@ contains
 
     write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
 
+    do sensorIndex = 1, tvs_nsensors
+      call tvs_getCommonChannelSet(tvs_ichan(:,sensorIndex),tvs_nchanMpiGlobal(sensorIndex), tvs_ichanMpiGlobal(:,sensorIndex))
+      print *, "sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)", sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
+    end do
+
+    if (mpi_myid ==0) then
+      allocate(logicalBuffer(mpi_nprocs))
+    else
+      allocate(logicalBuffer(1))
+    end if
+
+    do sensorIndex = 1, tvs_nsensors
+      call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, "GRID", errorStatus(1) )
+      if (mpi_myid ==0) then
+        tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
+        do taskIndex=1, mpi_nprocs
+          tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
+        end do
+      end if
+      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
+    end do
+
+    deallocate(logicalBuffer)
 
     !  3. Initialize TOVS radiance transfer model
 
@@ -346,12 +380,13 @@ contains
         tvs_opts(sensorIndex) % rt_ir % co_data  = .false.
         tvs_opts(sensorIndex) % rt_ir % ch4_data = .false.
 
-        errorstatus = errorstatus_success
+        errorStatus = errorStatus_success
 
         call tmg_start(83,'RTTOV_SETUP')
-        call tvs_rttov_read_coefs(errorstatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
-        if (errorstatus(1) /= errorstatus_success) then
-          write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorstatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
+        write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
+        call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
+        if (errorStatus(1) /= errorStatus_success) then
+          write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
         call tmg_stop(83)
@@ -359,9 +394,9 @@ contains
         tvs_opts(sensorIndex) % rt_ir % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 
         ! Ensure the options and coefficients are consistent
-        call rttov_user_options_checkinput(errorstatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
-        if (errorstatus(1) /= errorstatus_success) then
-          write(*,*) 'error in rttov options',errorstatus
+        call rttov_user_options_checkinput(errorStatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
+        if (errorStatus(1) /= errorStatus_success) then
+          write(*,*) 'error in rttov options',errorStatus
           call utl_abort('tvs_setupAlloc')
         end if
        
@@ -379,9 +414,9 @@ contains
         sensorIndex = tvs_lsensor(tovsIndex)
         if (sensorIndex > -1) then
           ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-          call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(tovsIndex),  tvs_coefs(sensorIndex) % coef % nlevels  , &    ! 1 = nprofiles un profil a la fois
+          call rttov_alloc_prof(errorStatus(1),1,tvs_profiles(tovsIndex),  tvs_coefs(sensorIndex) % coef % nlevels  , &    ! 1 = nprofiles un profil a la fois
                tvs_opts(sensorIndex),asw=1,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =1 allocation
-          call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+          call utl_checkAllocationStatus(errorStatus(1:1), " tvs_setupAlloc tvs_profiles 2")
         end if
       end do
 
@@ -544,6 +579,77 @@ contains
     call sensors()
 
   end subroutine tvs_setup
+
+  !--------------------------------------------------------------------------
+  ! tvs_cleanup
+  !--------------------------------------------------------------------------
+  subroutine tvs_cleanup
+    !
+    ! :Purpose: release memory used by RTTOV-12.
+    !
+    implicit none
+    integer :: allocStatus(8)
+    integer :: iSensor,iObs,nChans,nl
+
+    Write(*,*) "Entering tvs_cleanup"
+
+    allocStatus(:) = 0
+
+    if ( radiativeTransferCode == 'RTTOV' ) then
+
+      !___ radiance by profile
+
+      do iObs = 1, tvs_nobtov
+        iSensor = tvs_lsensor(iObs)
+        nchans = tvs_nchan(isensor)
+        ! deallocate BT equivalent to total direct, tl and ad radiance output
+        deallocate( tvs_radiance(iObs)  % bt ,stat= allocStatus(1))
+        call utl_checkAllocationStatus(allocStatus(1:1), " tvs_cleanup radiances 1",.false.)
+      end do
+
+      deallocate( tvs_radiance ,stat= allocStatus(1))
+      call utl_checkAllocationStatus(allocStatus(1:1), " tvs_cleanup radiances 2")
+
+      do iObs = 1, tvs_nobtov
+        iSensor = tvs_lsensor(iObs)
+        nl = tvs_coefs(iSensor) % coef % nlevels
+        ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
+        call rttov_alloc_prof(allocStatus(1),1,tvs_profiles(iObs),nl, &    ! 1 = nprofiles un profil a la fois
+             tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
+        call utl_checkAllocationStatus(allocStatus(1:1), "profile deallocation in tvs_cleanup",.false.)
+      end do
+
+      deallocate(tvs_profiles, stat=allocStatus(1) )
+      call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_profiles 1")
+
+      do iSensor = tvs_nsensors,1,-1
+        call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
+        Write(*,*) "Deallocating coefficient structure for instrument", iSensor
+        call utl_checkAllocationStatus(allocStatus(1:1), " rttov_dealloc_coefs in tvs_cleanup", .false.)
+      end do
+
+      deallocate (tvs_coefs       ,stat= allocStatus(1))
+      deallocate (tvs_listSensors ,stat= allocStatus(2))
+      deallocate (tvs_opts        ,stat= allocStatus(3))
+
+      call utl_checkAllocationStatus(allocStatus(1:3), " tvs_cleanup", .false.)
+
+    end if
+
+    deallocate (tvs_nchan,          stat= allocStatus(1))
+    deallocate (tvs_ichan,          stat= allocStatus(2))
+    deallocate (tvs_lsensor,        stat= allocStatus(3))
+    deallocate (tvs_headerIndex,    stat= allocStatus(4))
+    deallocate (tvs_tovsIndex,      stat= allocStatus(5))
+    deallocate (tvs_isReallyPresent,stat= allocStatus(6))
+    deallocate (tvs_nchanMpiGlobal, stat= allocStatus(7))
+    deallocate (tvs_ichanMpiGlobal, stat= allocStatus(8))
+
+    call utl_checkAllocationStatus(allocStatus, " tvs_cleanup", .false.)
+
+    Write(*,*) "Exiting tvs_cleanup"
+
+  end subroutine tvs_cleanup
 
   !--------------------------------------------------------------------------
   ! sensors
@@ -861,8 +967,7 @@ contains
     implicit none
 
     !Argument:
-    character(len=*),intent(in) :: name !Platform name
-
+    character(len=*), intent(in) :: name !Platform name
     !Locals:
     integer           :: platformIndex, length, ipos
     character(len=64) :: tempo_name
@@ -937,7 +1042,7 @@ contains
     integer, intent(in) :: instrum     ! input Rttov instrument code
 
     ! Locals:
-    integer ,parameter :: maxsize = 100
+    integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
@@ -981,6 +1086,61 @@ contains
     end do
 
   end function tvs_isInstrumHyperSpectral
+
+  !--------------------------------------------------------------------------
+  !  tvs_isNameHyperSpectral
+  !--------------------------------------------------------------------------
+  logical function tvs_isNameHyperSpectral(cinstrum)
+    !
+    ! :Purpose: given an instrument name
+    !           returns if it is an hyperspectral one
+    !           (information from namelist NAMHYPER)
+    implicit none
+    !Arguments:
+    character(len=*), intent(in) :: cinstrum
+    !Locals:
+    integer, parameter :: maxsize = 20
+    integer :: nulnam, ierr, i 
+    integer, save :: ninst_hir
+    logical, save :: lfirst = .true.
+    integer, external :: fclos, fnom
+    character (len=7),save  :: name_inst(maxsize)
+    character (len=7) :: name2
+    namelist /NAMHYPER/ name_inst
+
+    if (lfirst) then
+      nulnam = 0
+      ninst_hir = 0
+      name_inst(:) = "XXXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namhyper, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namhyper)
+      ierr = fclos(nulnam)
+      do i=1, maxsize
+        if (name_inst(i) == "XXXXXXX") then
+          ninst_hir = i -1
+          exit
+        end if
+      end do
+      lfirst = .false.
+      if (ninst_hir == 0) then
+        write(*,*) "tvs_isNameHyperSpectral: Warning : empty namhyper namelist !"
+      end if
+    end if
+
+    tvs_isNameHyperSpectral = .false.
+
+    call up2low(cinstrum, name2)
+
+    do i=1, ninst_hir
+      if ( trim(name2) == name_inst(i)) then
+        tvs_isNameHyperSpectral = .true.
+        exit
+      end if
+    end do
+
+  end function tvs_isNameHyperSpectral
 
   !--------------------------------------------------------------------------
   !  tvs_isInstrumGeostationary
@@ -1079,15 +1239,12 @@ contains
     !          FY1-MVISR              26                     ir
     !                AHI              56                     ir
     ! ==================  =====================  ==================
-    
-
     implicit none
-
-    ! Arguments
+    !Arguments:
     integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
     integer, intent(out) :: instrum      ! RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
-    
-    ! locals  
+  
+    !Locals:  
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp   = 100
     integer, save ::   listburp(mxinstrumburp)
@@ -1145,6 +1302,56 @@ contains
     end do
 
   end subroutine tvs_mapInstrum
+
+  !--------------------------------------------------------------------------
+  !  tvs_isNameGeostationary
+  !--------------------------------------------------------------------------
+  logical function tvs_isNameGeostationary(cinstrum)
+    ! :Purpose: given an instrument name
+    !           returns if it is a Geostationnary Imager
+    !           (information from namelist NAMGEO)
+    implicit none
+    !Arguments:
+    character(len=*), intent(in) :: cinstrum
+    !Locals:
+    integer, parameter :: maxsize = 100
+    integer :: nulnam, ierr, i 
+    integer, save :: ninst_geo
+    logical, save :: lfirst = .true.
+    character (len=8) :: name_inst(maxsize)
+    integer, external :: fnom, fclos
+
+    namelist /NAMGEO/ name_inst
+    if (lfirst) then
+      nulnam = 0
+      ninst_geo = 0
+      name_inst(:) = "XXXXXXXX"
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namgeo, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namgeo)
+      ierr = fclos(nulnam)
+      do i=1, maxsize
+        if (name_inst(i) == "XXXXXXXX") then
+          ninst_geo = i - 1
+          exit
+        end if
+      end do
+      lfirst = .false.
+      if (ninst_geo == 0) then
+        write(*,*) "tvs_isNameGeostationary: Warning : empty namgeo namelist !"
+      end if
+    end if
+    
+    tvs_isNameGeostationary = .false.
+    do i=1, ninst_geo
+      if ( trim(cinstrum) == trim(name_inst(i)) ) then
+        tvs_isNameGeostationary= .true.
+        exit
+      end if
+    end do
+    
+  end function tvs_isNameGeostationary
 
   !--------------------------------------------------------------------------
   !  tvs_mapSat
@@ -1393,12 +1600,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof),intent(in) :: chanprof(:)
-    integer, intent(in)             :: sensorTovsIndexes(:)
-    integer, intent(in)             :: sensorType
-    integer, intent(in)             :: instrument
-    real(8), intent(out)            :: surfem(:)
-    logical, intent(out)            :: calcemis(:)
+    type(rttov_chanprof), intent(in) :: chanprof(:)
+    integer, intent(in)              :: sensorTovsIndexes(:)
+    integer, intent(in)              :: sensorType
+    integer, intent(in)              :: instrument
+    real(8), intent(out)             :: surfem(:)
+    logical, intent(out)             :: calcemis(:)
     
     ! Locals:
     integer :: radiance_index, profileIndex, iobs, surfaceType
@@ -1877,9 +2084,9 @@ contains
     real(8), intent(in)    :: limlvhu       ! Humidity is extrapolated for pressures < limlvhu
 
     ! locals
-    real(8),allocatable :: zpres3(:)
+    real(8), allocatable :: zpres3(:)
     real(8) zwb
-    real(8),parameter :: pressureLimit = 70.0d0  !press limits (in hpa) of region to be extrapolated
+    real(8), parameter :: pressureLimit = 70.0d0  !press limits (in hpa) of region to be extrapolated
     integer :: topIndex, profileIndex,levelIndex,nlevels,nprofiles
 
     nlevels = size( ppres )
@@ -2447,9 +2654,9 @@ contains
     integer, intent(in)  :: mchannel(nchn) ! vector of channel indices to process
 
     !Locals
-    integer ,parameter :: MaxWn = 19
-    integer ,parameter :: Nparm=3
-    integer ,parameter :: MaxChan=19
+    integer, parameter :: MaxWn = 19
+    integer, parameter :: Nparm=3
+    integer, parameter :: MaxChan=19
 
     real (8),parameter :: Theta(Nparm,MaxWn) = (/ &
          1700.381d0, 25.28534d0, 144.1023d0,      &
@@ -2552,14 +2759,14 @@ contains
     implicit none
 
     ! Arguments:
-    real (8),intent(out) :: f_low(nprf)       ! Low resolution field
-    real (8),intent(in)  :: f_high(klon, klat)! High resolution field 
-    integer, intent(in)  :: nprf              ! Number of profiles
-    integer, intent(in)  :: ilat(nprf)        ! Y-coordinate of profile
-    integer, intent(in)  :: ilon(nprf)        ! X-coordinate of profile
-    integer, intent(in)  :: klon              ! Max value of latitude indices
-    integer, intent(in)  :: klat              ! Max value of longitude indices
-    integer, intent(in)  :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
+    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field
+    real(8), intent(in)   :: f_high(klon, klat)! High resolution field 
+    integer, intent(in)   :: nprf              ! Number of profiles
+    integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
+    integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
+    integer, intent(in)   :: klon              ! Max value of latitude indices
+    integer, intent(in)   :: klat              ! Max value of longitude indices
+    integer, intent(in)   :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
 
     ! Locals
     integer :: nplon, jdlo1, jdlo2, jlon1, jlon2
@@ -2666,19 +2873,16 @@ contains
     !           cmc analysis surface albedo, sea ice fraction and snow mask
     !           in addition to ceres surface type and water fraction. 
     !           This is a subroutine that can apply to any instrument.
-    !           However, due to the necessity of specifying the instrument
-    !           bands wavenumbers, the use of this subroutine for a new instrument
-    !           would require the minor following changes.
     !
     implicit none
    
     ! Arguments:
-    real(8),intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
-    integer,intent(in)  :: nchn                   ! Number of channels
-    integer,intent(in)  :: sensorindex            ! Sensor number
-    integer,intent(in)  :: nprf                   ! Number of profiles
-    integer,intent(in)  :: nchannels_max          ! Total number of observations treated
-    integer,intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
+    real(8), intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
+    integer, intent(in)  :: nchn                   ! Number of channels
+    integer, intent(in)  :: sensorindex            ! Sensor number
+    integer, intent(in)  :: nprf                   ! Number of profiles
+    integer, intent(in)  :: nchannels_max          ! Total number of observations treated
+    integer, intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
 
     !Locals:
     integer :: jc,jn
@@ -3077,8 +3281,8 @@ contains
 
     ! Arguments
     integer, intent(in) :: nchn              ! number of bands for which emissivity is needed
-    real (8),intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
-    real (8),intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
+    real (8), intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
+    real (8), intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
 
     ! locals
     integer          :: i, nc, nt
@@ -3179,10 +3383,10 @@ contains
     implicit none
 
     ! Arguments:
-    real (8), intent(out)  :: em_oc(nc,np) ! Ocean emissivities (0.-1.)
-    real (8), intent(in)   :: wnum(nc)     ! Channel wavenumbers (cm-1)
-    real (8), intent(in)   :: angle(np)    ! Viewing angle (deg)
-    real (8), intent(in)   :: wind(np)     ! Surface wind speed (m/s)
+    real(8), intent(out)   :: em_oc(nc,np) ! Ocean emissivities (0.-1.)
+    real(8), intent(in)    :: wnum(nc)     ! Channel wavenumbers (cm-1)
+    real(8), intent(in)    :: angle(np)    ! Viewing angle (deg)
+    real(8), intent(in)    :: wind(np)     ! Surface wind speed (m/s)
     integer, intent(in)    :: np           ! Number of profiles
     integer, intent(in)    :: nc           ! Number of channels
 
@@ -3253,6 +3457,72 @@ contains
 
   end subroutine emi_sea
 
+
+  !--------------------------------------------------------------------------
+  !  tvs_getCommonChannelSet
+  !--------------------------------------------------------------------------
+  subroutine tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
+    !
+    !  :Purpose: get common channels among all MPI tasks
+    !
+    implicit none
+    !Arguments:
+    integer, intent(in) :: channels(:)
+    integer, intent(out):: countUniqueChannel, listAll(:)
+    !Locals:
+    integer :: channelsb(tvs_maxChannelNumber)
+    integer :: ierr, i, j
+    integer, allocatable :: listGlobal(:)
+    logical :: found
+     
+    if (size(channels) > tvs_maxChannelNumber) then
+      write(*,*) 'You need to increase tvs_maxChannelNumber in tovs_nl_mod !',size(channels), tvs_maxChannelNumber
+      call utl_abort("tvs_getCommonChannelSet")
+    end if
+
+    if (mpi_myid ==0) then
+      allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
+    else
+      allocate(listGlobal(1))
+    end if
+
+    listAll(:) = 0
+    listGlobal(:) = 0
+    channelsb(:) = 0
+    channelsb(1:size(channels)) = channels(:)
+
+    call rpn_comm_barrier("GRID",ierr)
+
+    call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
+         tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    countUniqueChannel = 0
+    if ( mpi_myid == 0 ) then
+      call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
+      do i=1, mpi_nprocs * tvs_maxChannelNumber
+        if (listGlobal(i) > 0) then
+          found = .false.
+          LOOPJ: do j=countUniqueChannel,1,-1
+            if (listGlobal(i) == listAll(j) ) then
+              found =.true.
+              exit LOOPJ
+            end if
+          end do LOOPJ
+          if (.not.found) then
+            countUniqueChannel = countUniqueChannel + 1
+            listAll(countUniqueChannel) = listGlobal(i)
+          end if
+        end if
+      end do
+    end if
+    
+    call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+    deallocate(listGlobal)
+
+  end subroutine tvs_getCommonChannelSet
+
+
   !--------------------------------------------------------------------------
   !  tvs_rttov_read_coefs
   !--------------------------------------------------------------------------
@@ -3292,63 +3562,21 @@ contains
     ! Arguments:
     integer(kind=jpim), intent(out) :: err          ! Error status
     type(rttov_coefs),  intent(out) :: coefs        ! Rttov coefficient structure
-    type(rttov_options),intent(in)  :: opts         ! Rttov option structure
+    type(rttov_options), intent(in) :: opts         ! Rttov option structure
     integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
     integer(kind=jpim), intent(in)  :: instrument(3)! Instrument vector
 
     ! Locals:
-    integer, allocatable :: listGlobal(:)
     real(8), allocatable :: bigArray(:,:,:,:)
-    integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)),channelsb(tvs_maxChannelNumber), listAll(tvs_maxChannelNumber)
-    logical :: found, associated0
+    integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
+    logical :: associated0
     integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
     integer, allocatable :: nlte_chans(:) 
 
     write(*,*) "Entering tvs_rttov_read_coefs"
 
-    if (size(channels) > tvs_maxChannelNumber) then
-      write(*,*) 'You need to increase tvs_maxChannelNumber in tovs_nl_mod !',size(channels), tvs_maxChannelNumber
-      call utl_abort("tvs_rttov_setup")
-    end if
-
     ! First step: we should determine a common set of channels among MPI tasks
-    if (mpi_myid ==0) then
-      allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
-    else
-      allocate(listGlobal(1))
-    end if
-
-    listAll(:) = 0
-    listGlobal(:) = 0
-    channelsb(:) = 0
-    channelsb(1:size(channels)) = channels(:)
-
-    call rpn_comm_barrier("GRID",ierr)
-
-    call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, tvs_maxChannelNumber, 'MPI_INTEGER', &
-         0, 'GRID', ierr) 
-    countUniqueChannel = 0
-    if ( mpi_myid == 0 ) then
-      call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
-      do i=1, mpi_nprocs * tvs_maxChannelNumber
-        if (listGlobal(i) >0) then
-          found = .false.
-          LOOPJ: do j=countUniqueChannel,1,-1
-            if (listGlobal(i) == listAll(j) ) then
-              found =.true.
-              exit LOOPJ
-            end if
-          end do LOOPJ
-          if (.not.found) then
-            countUniqueChannel = countUniqueChannel + 1
-            listAll(countUniqueChannel) = listGlobal(i)
-          end if
-        end if
-      end do
-    end if
-
-    call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    call tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
 
     ! Second step: mpi task 0 will do the job
     if ( mpi_myid == 0 ) then
@@ -3802,8 +4030,6 @@ contains
        
     end if
 
-    deallocate(listGlobal)
- 
   end subroutine tvs_rttov_read_coefs
 
   subroutine extractI41dArray(array,oldSize,index)
@@ -4095,7 +4321,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_printDetailledOmfStatistics(obsSpaceData)
     !
-    ! *Purpose*: Print channel by channnel O-F statistics fro radiances
+    ! :Purpose: Print channel by channnel O-F statistics fro radiances
     !
     implicit none
 
@@ -4242,7 +4468,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_getChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
     !
-    ! *Purpose*: Get channel Index from channel number for given intrument
+    ! :Purpose: to get channel index from channel number
     !
     implicit none
 
@@ -4261,8 +4487,8 @@ contains
       index(:,:) = -1
       do sensorIndex = 1, tvs_nsensors
         channels:do channelNumber = 1,  tvs_maxChannelNumber
-          indexes: do channelIndex =1, tvs_nchan(sensorIndex)
-            if ( channelNumber == tvs_ichan(channelIndex,sensorIndex) ) then
+          indexes: do channelIndex =1, tvs_nchanMpiGLobal(sensorIndex)
+            if ( channelNumber == tvs_ichanMpiGLobal(channelIndex,sensorIndex) ) then
               index(sensorIndex,channelNumber) = channelIndex
               exit indexes
             end if

@@ -116,8 +116,8 @@ contains
         numVar3D = numVar3D + 1
       else
         varExistList(varIndex) = .false.
-      endif
-    enddo
+      end if
+    end do
 
     do varIndex = 1, vnl_numvarmax2D
       if (varneed(vnl_varNameList2D(varIndex))) then
@@ -125,8 +125,8 @@ contains
         numVar2D = numVar2D + 1
       else
         varExistList(varIndex+vnl_numvarmax3D) = .false.
-      endif
-    enddo
+      end if
+    end do
 
     ! Setup to assign min values to apply
     
@@ -192,25 +192,26 @@ contains
     if(column%numCol.gt.0) then
       column%all(:,:) = 0.0d0
       column%HeightSfc(:,:) = 0.0d0
-    endif
+    end if
 
   end subroutine col_zero
 
   !--------------------------------------------------------------------------
   ! col_allocate
   !--------------------------------------------------------------------------
-  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
+  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
-    ! arguments
-    type(struct_columnData) :: column
-    integer, intent(in)     :: numCol
-    logical, optional       :: mpiLocal_opt
-    logical, optional       :: beSilent_opt
-    logical, optional       :: setToZero_opt
+      ! arguments
+    type(struct_columnData)   :: column
+    integer, intent(in)       :: numCol
+    logical, optional         :: mpiLocal_opt
+    logical, optional         :: beSilent_opt
+    logical, optional         :: setToZero_opt
+    character(len=*),optional :: varNames_opt(:)
 
     ! locals
-    integer :: iloc, jvar, jvar2
+    integer :: iloc, varIndex, varIndex2, numVar
     logical :: beSilent, setToZero
 
     if ( present(beSilent_opt) ) then
@@ -225,8 +226,17 @@ contains
       setToZero = .true.
     end if
 
-    ! set the variable list using the global ExistList
-    column%varExistList(:) = varExistList(:)
+    if ( present(varNames_opt) ) then      
+      column%varExistList(:) = .false.
+      numVar = size( varNames_opt ) 
+      do varIndex2 = 1, numVar
+        varIndex = vnl_varListIndex(varNames_opt(varIndex2))
+        column%varExistList(varIndex) = .true.
+      end do
+    else
+      ! set the variable list using the global ExistList
+      column%varExistList(:) = varExistList(:)
+    end if
 
     if ( column%varExistList(vnl_varListIndex('TT')) .and. &
          column%varExistList(vnl_varListIndex('HU')) .and. &
@@ -246,33 +256,33 @@ contains
     else
       column%mpi_local=.true.
       if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
-    endif
+    end if
 
     if(.not.column%vco%initialized) then
       call utl_abort('col_allocate: VerticalCoord has not been initialized!')
-    endif
+    end if
 
     allocate(column%varOffset(vnl_numvarmax))
     column%varOffset(:)=0
     allocate(column%varNumLev(vnl_numvarmax))
     column%varNumLev(:)=0
 
-    iloc=0
-    do jvar = 1, vnl_numvarmax3d
-      if(column%varExistList(jvar)) then
-        column%varOffset(jvar)=iloc
-        column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-        iloc = iloc + column%varNumLev(jvar)
-      endif
-    enddo
-    do jvar2 = 1, vnl_numvarmax2d
-      jvar=jvar2+vnl_numvarmax3d
-      if(column%varExistList(jvar)) then
-        column%varOffset(jvar)=iloc
-        column%varNumLev(jvar)=1
+    iloc = 0
+    do varIndex = 1, vnl_numvarmax3d
+      if(column%varExistList(varIndex)) then
+        column%varOffset(varIndex)=iloc
+        column%varNumLev(varIndex)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
+        iloc = iloc + column%varNumLev(varIndex)
+      end if
+    end do
+    do varIndex2 = 1, vnl_numvarmax2d
+      varIndex=varIndex2+vnl_numvarmax3d
+      if(column%varExistList(varIndex)) then
+        column%varOffset(varIndex)=iloc
+        column%varNumLev(varIndex)=1
         iloc = iloc + 1
-      endif
-    enddo
+      end if
+    end do
 
     if (iloc == 0) then
       call utl_abort('col_allocate: Nothing to allocate')
@@ -292,7 +302,7 @@ contains
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
-    endif
+    end if
  
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk
     if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
@@ -319,7 +329,7 @@ contains
       deallocate(column%all)
       deallocate(column%HeightSfc)
       deallocate(column%oltv)
-    endif
+    end if
 
     column%allocated=.false.
 
@@ -348,6 +358,12 @@ contains
       end if
     end if
 
+    if (present(column_opt)) then  
+      varExist = column_opt % varExistList(vnl_varListIndex(varName))
+    else
+      varExist = varExistList(vnl_varListIndex(varName))
+    end if
+  
   end function col_varExist
 
   !--------------------------------------------------------------------------
@@ -406,12 +422,12 @@ contains
 
     if (.not.col_varExist(column,'P0')) then
       call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
-    endif
+    end if
 
     allocate(Psfc(1,col_getNumCol(column)))
     do headerIndex = 1,col_getNumCol(column)
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
-    enddo
+    end do
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -582,7 +598,7 @@ contains
           do while( pres1Dptr_out(jlevo) .gt. pres1Dptr_in(jlevi) .and. &
                jlevi .lt. col_getNumLev(column_in,varLevel) )
             jlevi = jlevi + 1
-          enddo
+          end do
           jlevi = jlevi - 1
           zwb = log(pres1Dptr_out(jlevo)/pres1Dptr_in(jlevi))/  &
                log(pres1Dptr_in(jlevi+1)/pres1Dptr_in(jlevi))
@@ -597,8 +613,8 @@ contains
           else
             column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           end if
-        enddo
-      enddo
+        end do
+      end do
 
       if ( .not. useColumnPressure ) then
         deallocate(pres3Dptr_in)
@@ -659,7 +675,7 @@ contains
       pressure = column%all(ilev1+ilev-1,headerIndex)
     else
       call utl_abort('col_getPressure: Unknown variable type: ' // varLevel)
-    endif
+    end if
 
   end function col_getPressure
  
@@ -681,7 +697,7 @@ contains
       status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc_col,Psfc)
     else
       call utl_abort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
-    endif
+    end if
 
     dP_dPsfc = dP_dPsfc_col(ilev)
 
@@ -751,10 +767,10 @@ contains
           allColumns => column%all(ilev1:ilev2,:)
         else
           call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
-        endif
+        end if
       else
         allColumns => column%all(:,:)
-      endif
+      end if
     else
       allColumns => null()
     end if
@@ -779,10 +795,10 @@ contains
         onecolumn => column%all(ilev1:ilev2,headerIndex)
       else
         call utl_abort('col_getColumn: Unknown variable name! ' // varName_opt)
-      endif
+      end if
     else
       onecolumn => column%all(:,headerIndex)
-    endif
+    end if
 
   end function col_getColumn
 
@@ -802,7 +818,7 @@ contains
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)
-    endif
+    end if
 
   end function col_getElem
 

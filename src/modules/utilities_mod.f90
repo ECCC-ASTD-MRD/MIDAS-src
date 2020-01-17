@@ -27,6 +27,7 @@ module utilities_mod
   ! public procedures
   public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
+  public :: utl_pseudo_inverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
@@ -986,6 +987,70 @@ contains
     end if
 
   end subroutine utl_eigenDecomp
+
+  !-----------------------------------------
+  ! utl_pseudo_inverse
+  !-----------------------------------------
+  subroutine utl_pseudo_inverse(inputMatrix, pseudoInverse, threshold_opt)
+    !
+    ! :Purpose: to calculate the More-Penrose pseudo inverse of the matrix inputMatrix
+    !
+    implicit none
+    !Arguments:
+    real(8), intent(in)           :: inputMatrix(:,:)   ! Input Matrix
+    real(8), intent(out)          :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
+    real(8), optional, intent(in) :: threshold_opt 
+    !Locals:
+    real(8), allocatable :: copyMatrix(:,:), leftSingularVector(:,:), rightSingularVectorT(:,:)
+    real(8), allocatable :: singularValues(:)
+    integer :: info, lwork, lineIndex
+    integer :: lineDim, columnDim, minDim
+    real(8) :: thresh
+    real(8), allocatable :: work(:)
+    character(len=80) :: errorMessage
+
+    lineDim = size(inputMatrix, dim=1)
+    columnDim = size(inputMatrix, dim=2)
+    minDim = min(lineDim, columnDim)
+
+    allocate( copyMatrix(lineDim,columnDim), leftSingularVector(lineDim,lineDim) )
+    allocate( rightSingularVectorT(columnDim,columnDim), singularValues(minDim) )
+
+    copyMatrix(:,:) = inputMatrix(:,:) ! Work with a copy because copyMatrix will be overwriten
+    lwork = max(10000, max(1, 3 * min(lineDim,columnDim) + max(lineDim,columnDim), 5 * minDim ))
+    allocate(work(lwork))
+    call dgesvd("A", "A", lineDim, columnDim, copyMatrix, lineDim, singularValues, &
+         leftSingularVector, lineDim, rightSingularVectorT, columnDim, work, lwork, info ) 
+   
+    if (info /= 0) then
+      write(errorMessage,*) "utl_pseudo_inverse: Problem in DGESVD ! ",info
+      call utl_abort(errorMessage)
+    end if
+
+    deallocate(work)
+
+    if (present(threshold_opt)) then
+      thresh = threshold_opt
+    else
+      !according to wikipedia... as in matlab or numpy
+      thresh = epsilon(thresh) * max(lineDim, columnDim) * maxval(singularValues)
+    end if
+    print *,"utl_pseudo_inverse: threshold= ",thresh
+
+    pseudoInverse(:,:)=0.d0
+    do lineIndex = 1, minDim
+      If (singularValues(lineIndex) > thresh) then
+        pseudoInverse(lineIndex,:) = ( 1.d0 / singularValues(lineIndex) ) * leftSingularVector(:,lineIndex)
+      end if
+    end do
+    
+    pseudoInverse = matmul( transpose(rightSingularVectorT), pseudoInverse)
+
+    deallocate( singularValues, rightSingularVectorT )
+    deallocate( leftSingularVector, copyMatrix )
+    
+  end subroutine utl_pseudo_inverse
+
 
   !--------------------------------------------------------------------------
   ! utl_writeStatus

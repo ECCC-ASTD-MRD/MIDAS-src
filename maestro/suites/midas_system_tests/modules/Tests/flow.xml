@@ -14,6 +14,7 @@
   <SUBMITS sub_name="obsIO"/>
   <SUBMITS sub_name="bgckMW"/>
   <SUBMITS sub_name="bgckAtms"/>
+  <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
 
@@ -124,6 +125,12 @@
 
       <SUBMITS sub_name="hyperir"/>
       <FAMILY  name="hyperir">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+
+      <SUBMITS sub_name="bgckIasiwBcor"/>
+      <FAMILY  name="bgckIasiwBcor">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
@@ -277,6 +284,11 @@
   </FAMILY>
 
   <FAMILY  name="bgckMW">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="genCoeff">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

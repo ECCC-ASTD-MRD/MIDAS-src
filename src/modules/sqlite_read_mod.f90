@@ -182,7 +182,7 @@ contains
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
-    real(obs_real)           :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss
+    real(obs_real)           :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss, biasCorrection
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
@@ -323,19 +323,19 @@ contains
         if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
-        columnsData = trim(columnsData)//", surf_emiss "
+        columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
-        columnsData = trim(columnsData)//", surf_emiss "
+        columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLiasi )
       case( 'cris' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
-        columnsData = trim(columnsData)//", surf_emiss "
+        columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcris )
@@ -347,25 +347,30 @@ contains
         if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
+        columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsua )
       case( 'amsub' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
+        columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsub )
       case( 'atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
+        columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLatms )
       case( 'ssmi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
+        columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLssmi )
       case( 'csr' )
+        columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
@@ -587,6 +592,22 @@ contains
 
             surfEmiss = matdata(rowIndex,7)
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss * zemFact)
+
+            biasCorrection = matdata(rowIndex,8)
+
+            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) &
+                 call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
+
+          end if
+
+          if ( trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. &
+               trim(rdbSchema) == 'atms'  .or.   trim(rdbSchema) =="ssmi" .or. &
+               trim(rdbSchema) =="csr" ) then
+
+            biasCorrection = matdata(rowIndex,7)
+
+            if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) &
+                 call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, biasCorrection )
 
           end if
 

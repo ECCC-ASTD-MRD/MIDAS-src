@@ -161,7 +161,7 @@ contains
     type (struct_obs), intent(inout) :: obsdat
     character(len=*) :: fileName
     character(len=*) :: familyType
-    integer :: fileINdex
+    integer :: fileIndex
 
     ! locals
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex

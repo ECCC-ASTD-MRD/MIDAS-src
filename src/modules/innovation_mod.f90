@@ -49,6 +49,7 @@ module innovation_mod
   use obsErrors_mod
   use bufr_mod
   use statetocolumn_mod
+  use biascorrection_mod
   implicit none
   save
   private
@@ -143,6 +144,12 @@ contains
     call tmg_start(14,'SUPREP')
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
+
+    !
+    !  Additional filtering for bias correction if requested 
+    !
+    call bias_setup()
+    call bias_filterObs(obsSpaceData)
 
     if ( present(obsClean_opt) ) then
       if ( obsClean_opt ) then
