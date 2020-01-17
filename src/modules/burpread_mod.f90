@@ -1276,7 +1276,7 @@ CONTAINS
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
 
                       IND_BCOR =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=12233, IOSTAT=error)
-                      if ( IND_BCOR > 0) &
+                      if ( IND_BCOR > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) &
                            Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_BCOR,NVAL_IND =j,NT_IND = k,RVAL = BCOR) 
                       
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
