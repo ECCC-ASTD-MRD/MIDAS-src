@@ -99,7 +99,7 @@ RUNTIME=${SECONDS}
 echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 ## If we will not check the runtime, then issue the message now
-if [ -z "${UnitTest_mean_runtime}" ]; then
+if [ -z "${UnitTest_maximum_execution_time}" ]; then
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
 fi
 
@@ -129,7 +129,7 @@ if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
 fi
 
 ## Check runtime
-if [ -n "${UnitTest_mean_runtime}" ]; then
+if [ -n "${UnitTest_maximum_execution_time}" ]; then
     function parse_time {
         set -e
         __parse_time__=$1
@@ -146,20 +146,18 @@ if [ -n "${UnitTest_mean_runtime}" ]; then
         unset __parse_time_seconds__
     }
 
-    expected_seconds=$(parse_time ${UnitTest_mean_runtime})
-    max_seconds=$(echo "${expected_seconds}*(1+${UnitTest_max_runtime}/100)" | bc -l)
+    max_seconds=$(parse_time ${UnitTest_maximum_execution_time})
 
     if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
-        #if [[ ${RUNTIME} > ${max_seconds} ]]; then
         max_seconds=$(printf "%.2f" ${max_seconds})
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds} (${UnitTest_max_runtime}% more than ${UnitTest_mean_runtime})"
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
         if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
             exit 1
         fi
     else
         ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
     fi
-fi ## Fin du 'if [ -n "${UnitTest_mean_runtime}" ]'
+fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
 
 if [ "${UnitTest_run_relaunch}" = run ]; then
     SEQ_XFER=stop
