@@ -711,7 +711,7 @@ program midas_bgckAtms
       !  Get all the required data from the blocks in the report (Rpt_in)
       call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                         biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, bad_report, qcflag1_check = .TRUE.)
+                        ican, icanomp, IMARQ, IORBIT, bad_report, .TRUE.)
       if ( bad_report ) then
         n_bad_reps = n_bad_reps + 1  
 
