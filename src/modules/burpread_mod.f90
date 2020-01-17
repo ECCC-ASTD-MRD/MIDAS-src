@@ -3294,17 +3294,17 @@ CONTAINS
     type(BURP_BLOCK)       :: inputBlock
       
     character(len=9)       :: opt_missing
-    integer                :: btyp10
-    integer                :: btyp10des,btyp10inf,btyp10obs,btyp10flg,btyp10omp
+    integer                :: btyp10, btyp, bfam, error
+    integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
 
-    integer                :: nb_rpts,ref_rpt,ref_blk,count
+    integer                :: nb_rpts, ref_rpt, ref_blk, count
     integer, allocatable   :: address(:), goodprof(:)
     real(8), allocatable   :: btobs(:,:)
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
     integer, allocatable   :: glbflag(:)
 
-    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex, btyp, bfam, error
+    integer                :: headerIndex, valIndex, tIndex, reportIndex, bodyIndex, elementIndex
     integer                :: ind008012,ind012163,ind055200,indchan,ichn,ichnb
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
@@ -3623,12 +3623,12 @@ CONTAINS
 
               else
 
-                do i = 1, 11
-                  call Insert_into_burp_r4(-1.0,nbele + i,1,tIndex)
+                do elementIndex = 1, 11
+                  call Insert_into_burp_r4(-1.0,nbele + elementIndex, 1, tIndex)
                 end do
 
                 call Insert_into_burp_i(-1,ind008012,1,tIndex)
-                                
+                
               end if
                              
             end do
@@ -3669,7 +3669,7 @@ CONTAINS
                   emisfc = 100.d0 * obs_bodyElem_r(obsspacedata,OBS_SEM,bodyIndex)
                   ichn = NINT(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
                   ichn = MAX(0,MIN(ichn,tvs_maxChannelNumber+1))
-                  bl: do l=valIndex,nvale
+                  bl: do valIndex=1, nvale
                     ichnb=BURP_Get_Tblval(inputBlock, &
                          NELE_IND = indchan,          &
                          NVAL_IND = valIndex,         &
