@@ -38,6 +38,7 @@ MODULE biasCorrection_mod
   use stateToColumn_mod
   use codtyp_mod
   use timeCoord_mod
+  use clib_interfaces_mod
 
   implicit none
   save
@@ -148,7 +149,7 @@ CONTAINS
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambias,iostat=ierr)
     if ( ierr /= 0 .and. mpi_myid == 0 )  &
-         write(*,*) 'WARNING: bias_readConfig: Error reading namelist, assume it will not be used!'
+         write(*,*) 'bias_readConfig: WARNING: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambias)
     ierr = fclos(nulnam)
 
@@ -175,7 +176,8 @@ CONTAINS
     character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
-    character(len=3)   :: global 
+    character(len=3)   :: global
+    character(len=128) :: errorMessage
     real(8), allocatable :: Bmatrix(:,:)
 
     cvdim = 0
@@ -189,7 +191,7 @@ CONTAINS
 
       do iSensor = 1, tvs_nSensors
 
-        write(*,*) "iSensor = ",iSensor
+        write(*,*) "bias_setup: iSensor = ",iSensor
        
         instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
@@ -206,10 +208,9 @@ CONTAINS
           end if
         end do
         if ( nfov == -1) then
-          write(*,*) "Problem with instrName ",instrNamecoeff
+          write(*,*) "bias_setup: Problem with instrName ",instrNamecoeff
           write(*,'(15(A10,1x))')  cinst(:)
-          write(*,*) "check nambias namelist"
-          call utl_abort('bias_setup')
+          call utl_abort('bias_setup: check nambias namelist')
         end if
 
         inquire(file=trim(bcifFile),exist = bcifExists)
@@ -220,8 +221,7 @@ CONTAINS
                canBCIF, bcmodeBCIF, bctypeBCIF, npredBCIF, predBCIF, global, exitcode)
 
           if (exitcode /= 0) then
-            write(*,*) "Problem in read_bcif while reading ",bcifFile
-            call utl_abort('bias_setup')
+            call utl_abort("bias_setup: Problem in read_bcif while reading " // trim(bcifFile) )
           end if
 
           bias(iSensor)%numChannels = ncanBcif
@@ -263,15 +263,14 @@ CONTAINS
               case('SV')
                 kpred = 6
               case default
-                write(*,*) "Unknown predictor ", predBCIF(ichan+1,ipred), ichan, ipred
-                call utl_abort('bias_setup')
+                write(errorMessage,*) "bias_setup: Unknown predictor ", predBCIF(ichan+1,ipred), ichan, ipred
+                call utl_abort(errorMessage)
               end select
               bias(iSensor)%chans(ichan)% predictorIndex(jPred) = kpred
             end do
           end do
         else
-          write(*,*) "Error : ", trim(bcifFile) , " not present !"
-          call utl_abort('bias_setup')
+          call utl_abort( "bias_setup: Error : " // trim(bcifFile) // " not present !" )
         end if
 
         bias(iSensor) % numscan = nfov 
@@ -386,7 +385,7 @@ CONTAINS
       
       do iSensor = 1, tvs_nSensors
 
-        write(*,*) "iSensor = ",iSensor
+        write(*,*) "bias_readCoeffs: iSensor = ",iSensor
        
         instrName = InstrNametoCoeffFileName(tvs_instrumentName(iSensor))
         instrNamecoeff = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
@@ -405,8 +404,8 @@ CONTAINS
 
         call read_coeff(satsStatic, chansStatic, fovbiasStatic, coeffStatic, nsatStatic, nchanStatic, nfovStatic, &
              npredStatic, cinstrumStatic, staticCoeffFile, ptypesStatic,ndataStatic)
-        write(*,*) "cinstrumDynamic= ", cinstrumDynamic
-        write(*,*) "cinstrumStatic= ", cinstrumStatic
+        write(*,*) "bias_readCoeffs: cinstrumDynamic= ", cinstrumDynamic
+        write(*,*) "bias_readCoeffs: cinstrumStatic= ", cinstrumStatic
 
         satIndexDynamic = -1
         do iSat = 1, nsatDynamic
@@ -473,7 +472,7 @@ CONTAINS
           end select
           
           if (.not. corrected) then
-            Write(*,*) "Warning: channel ",  bias(iSensor) % chans(jChannel) % channelNum, " of ", &
+            Write(*,*) "bias_readCoeffs: Warning: channel ",  bias(iSensor) % chans(jChannel) % channelNum, " of ", &
                  trim( instrName )," ",trim( satNamecoeff )," not corrected!"
           end if
 
@@ -508,7 +507,7 @@ CONTAINS
     integer, allocatable ::  temp_nobs2(:,:)
 
     if (centerPredictors) then
-      write(*,*) "Entering  bias_computePredictorBiases"
+      write(*,*) "bias_computePredictorBiases: start"
       npred = 0
       do iSensor=1, tvs_nSensors
         npred = max(npred,maxval(bias(iSensor)%chans(:)%numActivePredictors))
@@ -564,8 +563,7 @@ CONTAINS
         nsize=size( temp_offset )
         call rpn_comm_allreduce(temp_offset2(iSensor,:,:),temp_offset(:,:),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
         if ( ierr /= 0) then
-          write(*,*) "Erreur de communication MPI 1"
-          call utl_abort('bias_computePredictorBiases')
+          call utl_abort("bias_computePredictorBiases: Erreur de communication MPI 1")
         end if
        
         do i=1, bias(iSensor)%numChannels
@@ -578,8 +576,7 @@ CONTAINS
         nsize=size( temp_nobs )
         call rpn_comm_allreduce(temp_nobs2(iSensor,:),temp_nobs,nsize,"mpi_integer","mpi_sum","GRID",ierr)
         if ( ierr /= 0) then
-          write(*,*) "Erreur de communication MPI 2"
-          call utl_abort('bias_computePredictorBiases')
+          call utl_abort("bias_computePredictorBiases: Erreur de communication MPI 2")
         end if
 
        
@@ -600,7 +597,7 @@ CONTAINS
       deallocate( temp_offset2 )
       deallocate( temp_nobs2 )
 
-      write(*,*) "Exiting  bias_computePredictorBiases"
+      write(*,*) "bias_computePredictorBiases: end"
     end if
    
 
@@ -626,7 +623,7 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    write(*,*) "Entering bias_calcBias"
+    write(*,*) "bias_calcBias: start"
 
     if ( .not. allocated(trialHeight300m1000) ) then
       call bias_getTrialPredictors(obsSpaceData,columnhr)
@@ -687,7 +684,7 @@ CONTAINS
       end do BODY
     end do HEADER
 
-    write(*,*) "Exiting bias_calcBias"
+    write(*,*) "bias_calcBias: end"
 
   end subroutine bias_calcBias
 
@@ -714,20 +711,20 @@ CONTAINS
     real(8) :: OmF, bcor
     integer :: ierr, nulfile1, nulfile2
     character(len=10) :: instrName, satNamecoeff
-
+    character(len=72) :: errorMessage
 
     if ( .not. biasActive ) return
 
     if (.not. loutstats) return
 
-    write(*,*) "Entering bias_computeResidualsStatistics"
+    write(*,*) "bias_computeResidualsStatistics: start"
 
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-      write(*,*) " sensorIndex ",  sensorIndex
+      write(*,*) "bias_computeResidualsStatistics: sensorIndex ",  sensorIndex
 
       nchans = bias(sensorIndex)%numChannels
       nscan   = bias(sensorIndex)% numscan
@@ -779,21 +776,21 @@ CONTAINS
       allocate( countMpiGlobal(nchans,nscan) )
 
       call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 1",  ierr 
-        call utl_abort("bias_computeResidualsStatistics")
+      if (ierr /= 0) then
+        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 1",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 2",  ierr 
-        call utl_abort("bias_computeResidualsStatistics")
+      if (ierr /=0 ) then
+        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 2",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 3",  ierr 
-        call utl_abort("bias_computeResidualsStatistics")
+      if (ierr /=0 ) then
+        Write(errorMessage,*) "bias_computeResidualsStatistics: MPI communication error 3",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       if ( mpi_myId == 0 ) then
@@ -831,7 +828,7 @@ CONTAINS
  
     end do SENSORS
 
-    write(*,*) "Exiting bias_computeResidualsStatistics"
+    write(*,*) "bias_computeResidualsStatistics: end"
     
   end subroutine bias_computeResidualsStatistics
 
@@ -857,16 +854,17 @@ CONTAINS
     real(8), parameter :: alpha = 5.d0
     real(8) :: stepObsIndex
     integer :: ierr
+    character(len=72) :: errorMessage
 
     if ( .not. biasActive ) return
 
-    write(*,*) "Entering bias_removeOutliers"
+    write(*,*) "bias_removeOutliers: start"
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
       if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-      write(*,*) " sensorIndex ",  sensorIndex
+      write(*,*) "bias_removeOutliers: sensorIndex ",  sensorIndex
 
       nchans = bias(sensorIndex)%numChannels
       nfiles = tim_nstepobs
@@ -918,21 +916,21 @@ CONTAINS
       allocate( countMpiGlobal(nchans,nfiles) )
 
       call rpn_comm_reduce(tbias , biasMpiGlobal, size(biasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 1",  ierr 
-        call utl_abort("bias_removeOutliers")
+      if (ierr /=0 ) then
+        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 1",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tstd , stdMpiGlobal, size(stdMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 2",  ierr 
-        call utl_abort("bias_removeOutliers")
+      if (ierr /=0 ) then
+        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 2",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       call rpn_comm_reduce(tcount , countMpiGlobal, size(countMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
-      if (ierr /=0) then
-        Write(*,*) " MPI communication error 3",  ierr 
-        call utl_abort("bias_removeOutliers")
+      if (ierr /=0 ) then
+        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 3",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       if ( mpi_myId == 0 ) then
@@ -944,13 +942,13 @@ CONTAINS
 
       call rpn_comm_bcast(countMpiGlobal,nchans*nfiles,"mpi_integer",0,"GRID",ierr)
       if (ierr /=0) then
-        Write(*,*) " MPI communication error 4",  ierr 
-        call utl_abort("bias_removeOutliers")
+        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 4",  ierr 
+        call utl_abort(errorMessage)
       end if
       call rpn_comm_bcast(stdMpiGlobal,nchans*nfiles,"mpi_double_precision",0,"GRID",ierr)
       if (ierr /=0) then
-        Write(*,*) " MPI communication error 5",  ierr 
-        call utl_abort("bias_removeOutliers")
+        Write(errorMessage,*) "bias_removeOutliers: MPI communication error 5",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       if ( sum(countMpiGlobal)/=0 ) then
@@ -1015,7 +1013,7 @@ CONTAINS
 
     end do SENSORS
 
-    write(*,*) "Exiting bias_removeOutliers"
+    write(*,*) "bias_removeOutliers: end"
 
   end subroutine bias_removeOutliers
 
@@ -1198,7 +1196,7 @@ CONTAINS
     end do HEADER2
 
     if ( trialTG(1) > 150.0d0) then
-      write(*,*) 'bias_getTrialPredictors_forTG: converting TG from Kelvin to deg_C'
+      write(*,*) 'bias_getTrialPredictors: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
 
@@ -1207,7 +1205,7 @@ CONTAINS
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
 
-    write(*,*) 'bias_getTrialPredictors done'
+    write(*,*) 'bias_getTrialPredictors: end'
 
   contains
 
@@ -1257,7 +1255,7 @@ CONTAINS
     integer  :: nsize,ierr
  
     if ( mpi_myid == 0 ) then
-      write(*,*) 'bias_cvToCoeff starting'
+      write(*,*) 'bias_cvToCoeff: start'
       index_cv = 0
       ! initialize of coeffIncr
       do iSensor = 1, tvs_nSensors
@@ -1394,7 +1392,7 @@ CONTAINS
 
     if ( .not. biasActive ) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'Starting bias_calcBias_ad'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_calcBias_ad: start'
 
     nullify(cv_bias)
     if ( mpi_myid == 0 ) then
@@ -1495,7 +1493,7 @@ CONTAINS
     real(8), allocatable  :: temp_coeffIncr(:), temp_coeffIncr_fov(:)
 
 
-    Write(*,*) "Entering bias_cvToCoeff_ad"
+    Write(*,*) "bias_cvToCoeff_ad: start"
 
     do iSensor = 1, tvs_nSensors
       if (bias(iSensor)%numScan > 0) then
@@ -1624,7 +1622,7 @@ CONTAINS
             end if
           end do
           if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0)  &
-               Write(*,*) "zbias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
+               Write(*,*) "bias_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
     end do
@@ -1795,7 +1793,7 @@ CONTAINS
         tmp_InstName = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
         
         if ( trim(tmp_SatName) /= trim(sats(iSat)) .or. trim(tmp_InstName) /= trim(cinstrum) ) cycle instloop
-        write(*,*) tmp_SatName//" "//tmp_InstName
+        write(*,*) "bias_updateCoeff: " //tmp_SatName//" "//tmp_InstName
 
         if ( .not. allocated(bias(iSensor)%chans ) ) cycle instloop
 
@@ -1913,7 +1911,7 @@ CONTAINS
 
         if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
 
-        write(*,*) "sensorIndex ",  sensorIndex
+        write(*,*) "bias_writeCoeff: sensorIndex ",  sensorIndex
 
         nchans = bias(sensorIndex)%numChannels
         nscan   = bias(sensorIndex)% numscan
@@ -1983,7 +1981,7 @@ CONTAINS
 
     if (.not. removeBiasCorrection) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_removeBiasCorrection starting'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_removeBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData,family_opt)
@@ -2028,7 +2026,7 @@ CONTAINS
 
     if (.not. filterObs ) return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_filterObs starting'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_filterObs: start'
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
@@ -2136,7 +2134,7 @@ CONTAINS
     if ( .not. biasActive ) return
     if ( trim(biasMode) /= "apply") return
 
-    if ( mpi_myid == 0 ) write(*,*) 'bias_applyBiasCorrection starting'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_applyBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData,family_opt)
@@ -2181,10 +2179,10 @@ CONTAINS
     if ( .not.biasActive ) return
     if ( .not. refreshBiasCorrection) return
 
-    if ( mpi_myid == 0 ) write(*,*) ' starting bias_refreshBiasCorrection'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_refreshBiasCorrection: start'
     call bias_calcBias(obsSpaceData,columnhr)
     call bias_applyBiasCorrection(obsSpaceData,OBS_VAR,"TO")
-    if ( mpi_myid == 0 ) write(*,*) ' exiting bias_refreshBiasCorrection'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_refreshBiasCorrection: exit'
 
   end subroutine bias_refreshBiasCorrection
 
@@ -2289,9 +2287,9 @@ CONTAINS
     real(8), allocatable :: pIMatrix(:,:), OmFBias(:,:), omfBiasMpiGlobal(:,:)
     real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:,:)
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
+    character(len=80)    :: errorMessage
 
-
-    Write(*,*) "Entering  bias_do_regression"
+    Write(*,*) "bias_do_regression: start"
     if ( .not. allocated(trialHeight300m1000) ) then
       call bias_getTrialPredictors(obsSpaceData,columnhr)
       call bias_computePredictorBiases(obsSpaceData)
@@ -2376,15 +2374,15 @@ CONTAINS
       if ( lMimicSatbcor ) then
         call rpn_comm_reduce(OmFBias , omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
         if (ierr /=0) then
-          Write(*,*) " MPI communication error 1",  ierr 
-          call utl_abort("bias_do_regression")
+          Write(errorMessage,*) "bias_do_regression: MPI communication error 1",  ierr 
+          call utl_abort(errorMessage)
         end if
       end if
       call rpn_comm_reduce(OmFCount , omfCountMpiGlobal, size(omfCountMpiGlobal), "MPI_INTEGER" , "MPI_SUM", 0, "GRID", ierr )
 
       if (ierr /=0) then
-        Write(*,*) " MPI communication error 2",  ierr 
-        call utl_abort("bias_do_regression")
+        Write(errorMessage,*) "bias_do_regression: MPI communication error 2",  ierr 
+        call utl_abort(errorMessage)
       end if
       if ( lMimicSatbcor)  then
         if (mpi_myId == 0) then
@@ -2393,8 +2391,8 @@ CONTAINS
         end if
         call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "MPI_DOUBLE_PRECISION" , 0, "GRID",ierr )
         if (ierr /=0) then
-          Write(*,*) " MPI communication error 3",  ierr 
-          call utl_abort("bias_do_regression")
+          Write(errorMessage,*) "bias_do_regression: MPI communication error 3",  ierr 
+          call utl_abort(errorMessage)
         end if
         do iChannel = 1, nchans
           bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = omfBiasMpiGlobal(iChannel,:)
@@ -2479,13 +2477,13 @@ CONTAINS
       ! communication MPI pour tout avoir sur tache 0
       call rpn_comm_reduce(Matrix , matrixMpiGlobal, size(Matrix), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
-        Write(*,*) " MPI communication error 4",  ierr 
-        call utl_abort("bias_do_regression")
+        Write(errorMessage,*) "bias_do_regression: MPI communication error 4",  ierr 
+        call utl_abort(errorMessage)
       end if
       call rpn_comm_reduce(Vector , vectorMpiGlobal, size(Vector), "MPI_DOUBLE_PRECISION" , "MPI_SUM", 0, "GRID", ierr )
       if (ierr /=0) then
-        Write(*,*) " MPI communication error 5",  ierr 
-        call utl_abort("bias_do_regression")
+        Write(errorMessage,*) "bias_do_regression: MPI communication error 5",  ierr 
+        call utl_abort(errorMessage)
       end if
 
       do iChannel = 1, nchans
@@ -2515,18 +2513,17 @@ CONTAINS
           end if
 
           pIMatrix(:,:) = 0.d0
-          call pseudo_inverse(matrixMpiGlobal(iChannel,1:ndim,1:ndim), pIMatrix(1:ndim,1:ndim) )
+          call utl_pseudo_inverse(matrixMpiGlobal(iChannel,1:ndim,1:ndim), pIMatrix(1:ndim,1:ndim) )
           LineVec(1,1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
-         
-          !          call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
+          !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
         end if
 
         call rpn_comm_bcast(ndim, 1, "MPI_INTEGER", 0, "GRID", ierr )
 
         call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION", 0, "GRID", ierr )
         if (ierr /=0) then
-          Write(*,*) " MPI communication error 6",  ierr 
-          call utl_abort("bias_do_regression")
+          Write(errorMessage,*) "bias_do_regression: MPI communication error 6",  ierr 
+          call utl_abort(errorMessage)
         end if
 
         if (loutCoeffCov) then
@@ -2599,30 +2596,6 @@ CONTAINS
     end do
 
   end subroutine bias_Finalize 
-
-  !-----------------------------
-  ! Lower
-  !-----------------------------
-  function Lower(s1) result(s2)
-    !
-    ! :Purpose: to convert string s1 to lower case in s2.
-    !
-    implicit none
-    !Arguments:
-    character(len=*)   :: s1
-    character(len(s1)) :: s2
-    !Locals:
-    character           :: ch 
-    integer, parameter  :: duc = ichar('A') -ichar('a')
-    integer             :: iStr 
-
-    do iStr = 1, len(s1)
-      ch = s1(iStr:iStr)
-      if (ch >= 'A' .and. ch <= 'Z') ch = char(ichar(ch)-duc)
-      s2(iStr:iStr) =  ch
-    end do
-  
-  end function Lower
  
   !-----------------------------
   ! InstrNametoCoeffFileName 
@@ -2634,8 +2607,10 @@ CONTAINS
     character(len=10)             :: nameOut
     !Locals
     character(len=10)  :: temp_instrName
-  
-    temp_instrName = Lower(nameIn)
+    integer            :: ierr
+
+    temp_instrName = nameIn
+    ierr = clib_tolower(temp_instrName) 
     if ( trim(temp_instrName) == 'mhs' ) then
       nameOut = 'amsub'
     else if ( trim(temp_instrName) == 'goesimager' ) then
@@ -2761,8 +2736,7 @@ CONTAINS
     iun = 0
     ier = fnom(iun,bcifFile,'FMT',0)
     if ( ier /= 0 ) then
-      write(*,*) 'read_bcif: ERROR - Problem opening the bcif file!', bcifFile 
-      call utl_abort('read_bcif error while opening bcif file')
+      call utl_abort('read_bcif: ERROR - Problem opening the bcif file!' // trim(bcifFile) ) 
     end if
     
     read(iun, *) instrum, ncan
@@ -2892,7 +2866,7 @@ CONTAINS
     end if
     ! ---------------------------------------------------------------------------------------------------------------------
     write(*,*) ' '
-    write(*,*) ' Bias correction information for each channel (from BCIF):'
+    write(*,*) 'read_BCIF: Bias correction information for each channel (from BCIF):'
     write(*,'(1X,A7,1X,I4)') instrum, ncan
     write(*,*) line
     do i = 1, ncan+1
@@ -2901,7 +2875,7 @@ CONTAINS
       if ( npred(i) == 0 .and. bctype(i) == 'C' ) bctype(i) = 'F'
       write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j=1,numpredictors)
     end do
-    write(*,*) ' '
+    write(*,*) 'read_BCIF: exit '
 
     ier = fclos(iun)
     exitcode = 0
@@ -2953,12 +2927,11 @@ CONTAINS
     iun = 0
     ier = fnom(iun,coeff_file,'FMT',0)
     if ( ier /= 0 ) then
-      write(*,*) 'read_coeff: ERROR - Problem opening the coefficient file! ',  coeff_file
-      call utl_abort('read_coeff')
+      call utl_abort('read_coeff: ERROR - Problem opening the coefficient file! ' // trim(coeff_file) )
     end if
 
     write(*,*)
-    write(*,*) 'Bias correction coefficient file open = ', coeff_file
+    write(*,*) 'read_coeff: Bias correction coefficient file open = ', coeff_file
 
     maxsat =  size( sats )
     maxpred = size(ptypes, dim=3)
@@ -2976,14 +2949,14 @@ CONTAINS
     
     read(iun,*,IOSTAT=istat)
     if ( istat < 0 ) THEN
-      write(*,*) 'read_coeff ERROR- File appears empty.'
+      write(*,*) 'read_coeff: ERROR- File appears empty.'
       return
     end if
     rewind(iun)
 
     ii = 0
 
-! Loop over the satellites/channels in the file
+    ! Loop over the satellites/channels in the file
 
     do
       read(iun,'(A)',IOSTAT=istat) line
@@ -2992,8 +2965,7 @@ CONTAINS
         newsat = .true.
         read(line,'(T53,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)',IOSTAT=istat) sat, cinstrum, chan, nobs, nbpred, nbfov
         if ( istat /= 0 ) then
-          write(*,*) ' ERROR - reading data from SATELLITE line in coeff file!'
-          call abort()
+          call utl_abort('read_coeff: ERROR - reading data from SATELLITE line in coeff file!')
         end if
         do i = 1, maxsat
           if ( trim(sats(i)) == trim(sat) ) then
@@ -3004,8 +2976,7 @@ CONTAINS
         if ( newsat ) then
           ii = ii + 1
           if ( ii > maxsat ) then
-            write(*,*) ' ERROR - max number of satellites exceeded in coeff file!'
-            call abort()
+            call utl_abort('read_coeff: ERROR - max number of satellites exceeded in coeff file!')
           end if
           sats(ii) = sat
           if (ii > 1) nchan(ii-1) = j
@@ -3017,25 +2988,21 @@ CONTAINS
         npred(ii, j) = nbpred
         ndata(ii, j) = nobs
         if ( nbpred > maxpred ) then
-          write(*,*) ' ERROR - max number of predictors exceeded in coeff file!'
-          call abort()
+          call utl_abort('read_coeff: ERROR - max number of predictors exceeded in coeff file!')
         end if
         read(iun,'(A)',IOSTAT=istat) line
         if ( line(1:3) /= 'PTY' ) then
-          write(*,*) ' ERROR - list of predictors is missing in coeff file!'
-          call abort()
+          call utl_abort('read_coeff: ERROR - list of predictors is missing in coeff file!')
         end if
         if ( nbpred > 0 ) then
           read(line,'(T8,6(1X,A2))',IOSTAT=istat) (ptypes(ii,j,k),k=1,nbpred)
           if ( istat /= 0 ) then
-            write(*,*) ' ERROR - reading predictor types from PTYPES line in coeff file!'
-            call abort()
+            call utl_abort('read_coeff: ERROR - reading predictor types from PTYPES line in coeff file!')
           end if
         end if
         read(iun,*,IOSTAT=istat) (fovbias(ii,j,k),k=1,nbfov)
         if ( istat /= 0 ) then
-          write(*,*) ' ERROR - reading fovbias in coeff file!'
-          call abort()
+          call utl_abort('read_coeff: ERROR - reading fovbias in coeff file!')
         end if
         if ( nbpred > 0 ) then
           read(iun,*,IOSTAT=istat) (coeff(ii,j,k),k=1,nbpred+1)
@@ -3043,8 +3010,7 @@ CONTAINS
           read(iun,*,IOSTAT=istat) dummy
         end if
         if ( istat /= 0 ) then
-          write(*,*) ' ERROR - reading coeff in coeff file!'
-          call abort()
+          call utl_abort('read_coeff: ERROR - reading coeff in coeff file!')
         end if
       else
         exit
@@ -3053,8 +3019,7 @@ CONTAINS
     end do
 
     if ( ii == 0 ) then
-      write(*,*) ' ERROR - No data read from coeff file!'
-      call abort()
+      call utl_abort('read_coeff: ERROR - No data read from coeff file!')
     end if
 
     nsat      = ii
@@ -3062,28 +3027,28 @@ CONTAINS
     nchan(ii) = j
 
     write(*,*) ' '
-    write(*,*) ' ------------- BIAS CORRECTION COEFFICIENT FILE ------------------ '
+    write(*,*) 'read_coeff: ------------- BIAS CORRECTION COEFFICIENT FILE ------------------ '
     write(*,*) ' '
-    write(*,*) ' Number of satellites =     ', nsat
-    write(*,*) ' Number of FOV =            ', nfov
-    write(*,*) ' Max number of predictors = ', maxval(npred)
+    write(*,*) 'read_coeff: Number of satellites =     ', nsat
+    write(*,*) 'read_coeff: Number of FOV =            ', nfov
+    write(*,*) 'read_coeff: Max number of predictors = ', maxval(npred)
     write(*,*) ' '
     do i = 1, nsat
-      write(*,*) '  Satellite = ' // sats(i)
-      write(*,*) '     Number of channels = ', nchan(i)
-      write(*,*) '     predictors, fovbias, coeff for each channel: '
+      write(*,*) 'read_coeff:  Satellite = ' // sats(i)
+      write(*,*) 'read_coeff:     Number of channels = ', nchan(i)
+      write(*,*) 'read_coeff:     predictors, fovbias, coeff for each channel: '
       do j = 1, nchan(i)
         write(*,*) i, chans(i,j)
         if ( npred(i,j) > 0 ) then
           write(*,'(6(1X,A2))') (ptypes(i,j,k),k=1,npred(i,j))
         else
-          write(*,'(A)') 'No predictors'
+          write(*,'(A)') 'read_coeff: No predictors'
         end if
         write(*,*) (fovbias(i,j,k),k=1,nfov)
         write(*,*) (coeff(i,j,k),k=1,npred(i,j)+1)
       end do
     end do
-    write(*,*) ' '
+    write(*,*) 'read_coeff: exit'
 
     ier = fclos(iun)
 
@@ -3131,66 +3096,7 @@ CONTAINS
   end subroutine bias_getChannelIndex
 
 
-  !-----------------------------------------
-  ! pseudo_inverse
-  !-----------------------------------------
-  subroutine pseudo_inverse(a,as,threshold_opt)
-    !
-    ! :Purpose: to calculate the More-Penrose pseudo inverse of the matrix A
-    !
-    implicit none
-    !Arguments:
-    real(8), intent(in)           :: a(:,:)  ! Input Matrix
-    real(8), intent(out)          :: as(:,:) ! Its Moore Penrose Pseudo-Inverse
-    real(8), optional, intent(in) :: threshold_opt
-    !Locals:
-    real(8), allocatable :: aa(:,:), u(:,:), vt(:,:)
-    real(8), allocatable :: s(:)
-    integer :: info, lwork, i
-    integer :: m, n, minDim
-    real(8) :: thresh
-    real(8), allocatable :: work(:)
-
-    m = size(a, dim=1)
-    n = size(a, dim=2)
-    minDim = min(m,n)
-
-    allocate( aa(m,n), u(m,m), vt(n,n) )
-    allocate( s(minDim) )
-
-    aa(:,:) = a(:,:) ! Work with a copy because aa will be overwriten
-    lwork=max(10000,max(1,3*min(m,n)+max(m,n),5*min(m,n)))
-    allocate(work(lwork))
-    call DGESVD("A","A", m, n, aa, m, s, u, m, vt, n, work, lwork, info ) 
-   
-    if (info /= 0) then
-      Write(*,*) "Problem in DGESVD !",info
-      call utl_abort("pseudo_inverse")
-    end if
-
-    deallocate(work)
-
-    if (present(threshold_opt)) then
-       thresh=threshold_opt
-    else
-       !according to wikipedia... as in matlab or numpy
-       thresh = epsilon(thresh) * max(m,n) * maxval(S)
-    end if
-    print *,"seuil",thresh
-
-    as(:,:)=0.d0
-    do i=1,minDim
-       If (s(i)>thresh) then
-          as(i,:) = (1.d0/s(i)) * u(:,i)
-       end if
-    end do
-    
-    as = matmul(transpose(vt),as)
-
-    deallocate( aa, u, vt )
-    deallocate( s )
-
-  end subroutine pseudo_inverse
+  
 
 
 end MODULE biascorrection_mod
