@@ -35,7 +35,7 @@ module codtyp_mod
   logical  :: initialized=.false.
   namelist /NAMCODTYP/ cnames, icod
 
-  public :: codtyp_get_codtyp,codtyp_get_name,codtyp_name_length
+  public :: codtyp_get_codtyp,codtyp_get_name
 
 contains
 

@@ -663,7 +663,6 @@ contains
     !          NAMTOV namelist into the variables required by RTTTOV-7:
     !          platform, satellite and instrument ID's.
     !
-
     implicit none
 
     !Locals:
@@ -966,6 +965,7 @@ contains
     ! :Purpose: return RTTOV platform id (>0) from platform name.
     !           -1 if not found
     implicit none
+
     !Argument:
     character(len=*), intent(in) :: name !Platform name
     !Locals:
@@ -1093,8 +1093,8 @@ contains
   logical function tvs_isNameHyperSpectral(cinstrum)
     !
     ! :Purpose: given an instrument name
-    ! return if it is an hyperspectral one
-    ! information from namelist NAMHYPER
+    !           returns if it is an hyperspectral one
+    !           (information from namelist NAMHYPER)
     implicit none
     !Arguments:
     character(len=*), intent(in) :: cinstrum
@@ -1151,8 +1151,10 @@ contains
     !           information from namelist NAMGEO
     !
     implicit none
+
     ! Argument:
     integer, intent(in) :: instrum ! input Rttov instrument code
+
     ! Locals:
     integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, instrumentIndex 
@@ -1306,8 +1308,8 @@ contains
   !--------------------------------------------------------------------------
   logical function tvs_isNameGeostationary(cinstrum)
     ! :Purpose: given an instrument name
-    ! return if it is a Geostationnary Imager
-    ! information from namelist NAMGEO
+    !           returns if it is a Geostationnary Imager
+    !           (information from namelist NAMGEO)
     implicit none
     !Arguments:
     character(len=*), intent(in) :: cinstrum
@@ -2871,9 +2873,6 @@ contains
     !           cmc analysis surface albedo, sea ice fraction and snow mask
     !           in addition to ceres surface type and water fraction. 
     !           This is a subroutine that can apply to any instrument.
-    !           However, due to the necessity of specifying the instrument
-    !           bands wavenumbers, the use of this subroutine for a new instrument
-    !           would require the minor following changes.
     !
     implicit none
    
@@ -3567,6 +3566,7 @@ contains
     integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
     integer(kind=jpim), intent(in)  :: instrument(3)! Instrument vector
 
+    ! Locals:
     real(8), allocatable :: bigArray(:,:,:,:)
     integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
     logical :: associated0
@@ -4324,8 +4324,10 @@ contains
     ! :Purpose: Print channel by channnel O-F statistics fro radiances
     !
     implicit none
+
     !Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
+
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
     real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -4469,22 +4471,25 @@ contains
     ! :Purpose: to get channel index from channel number
     !
     implicit none
+
     !Arguments:
-    integer, intent(in)  :: idsat, chanNum
-    integer, intent(out) :: chanIndx
-    !Locals:
-    logical, save :: first =.true.
-    integer :: ichan, isensor, indx 
-    integer, allocatable, save :: Index(:,:)
+    integer, intent(in)  :: idsat   ! Satellite index
+    integer, intent(out) :: chanIndx! Channel index
+    integer, intent(in)  :: chanNum ! Channel number
+
+    ! Locals:
+    logical, save              :: first =.true.
+    integer                    :: channelNumber, sensorIndex, channelIndex 
+    integer, allocatable, save :: index(:,:)
 
     if (first) then
-      allocate( Index(tvs_nsensors, tvs_maxChannelNumber ) )
-      Index(:,:) = -1
-      do isensor = 1, tvs_nsensors
-        channels:do ichan = 1,  tvs_maxChannelNumber
-          indexes: do indx =1, tvs_nchanMpiGLobal(isensor)
-            if ( ichan == tvs_ichanMpiGLobal(indx,isensor) ) then
-              Index(isensor,ichan) = indx
+      allocate( index(tvs_nsensors, tvs_maxChannelNumber ) )
+      index(:,:) = -1
+      do sensorIndex = 1, tvs_nsensors
+        channels:do channelNumber = 1,  tvs_maxChannelNumber
+          indexes: do channelIndex =1, tvs_nchanMpiGLobal(sensorIndex)
+            if ( channelNumber == tvs_ichanMpiGLobal(channelIndex,sensorIndex) ) then
+              index(sensorIndex,channelNumber) = channelIndex
               exit indexes
             end if
           end do indexes
@@ -4493,9 +4498,8 @@ contains
       first = .false.
     end if
 
-    chanIndx = Index(idsat,chanNum)
+    chanIndx = index(idsat,chanNum)
 
   end subroutine tvs_getChannelIndexFromChannelNumber
-
 
 end module tovs_nl_mod

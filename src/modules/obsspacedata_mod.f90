@@ -1982,7 +1982,7 @@ contains
       integer         , intent(in)  :: row_index
 
       real(OBS_REAL) :: value_r         ! not used
-      
+
       call odc_columnElem(obsdat%intBodies, column_index, row_index, &
                           value_i, value_r)
    end function obs_bodyElem_i
@@ -2002,7 +2002,7 @@ contains
       integer         , intent(in)  :: row_index
 
       integer :: value_i                ! not used
-     
+
       call odc_columnElem(obsdat%realBodies, column_index, row_index, &
                           value_i, value_r)
    end function obs_bodyElem_r
@@ -4046,7 +4046,7 @@ contains
       integer         , intent(in)  :: row_index
 
       real(OBS_REAL) :: value_r         ! not used
-     
+
       call odc_columnElem(obsdat%intHeaders, column_index, row_index, &
                           value_i, value_r)
    end function obs_headElem_i
@@ -4066,7 +4066,7 @@ contains
       integer         , intent(in)  :: row_index
 
       integer :: value_i                ! unused
-     
+
       call odc_columnElem(obsdat%realHeaders, column_index, row_index, &
                           value_i, value_r)
    end function obs_headElem_r

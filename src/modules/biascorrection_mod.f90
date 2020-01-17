@@ -17,7 +17,8 @@
 MODULE biasCorrection_mod
   ! MODULE biasCorrection_mod (prefix="bias" category='1. High-level functionality')
   !
-  ! :Purpose: Performs the variational bias correction for satellite radiance data
+  ! :Purpose: Performs the variational bias correction for satellite radiance
+  !           data
   !
   use utilities_mod
   use ramDisk_mod
@@ -42,7 +43,7 @@ MODULE biasCorrection_mod
   save
   private
 
-  public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize, bias_cvToCoeff
+  public               :: bias_setup,bias_calcBias_tl,bias_calcBias_ad, bias_writeBias, bias_finalize
   public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection, bias_readConfig
   public               :: bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
   public               :: bias_removeOutliers, bias_applyBiasCorrection
@@ -1211,7 +1212,7 @@ CONTAINS
   contains
 
     function logInterpHeight(columnhr,headerIndex,P) result(height)
-      !Parameters
+      !Arguments:
       type(struct_columnData), intent(inout) :: columnhr
       integer, intent(in) :: headerIndex
       real(8), intent(in) :: P
@@ -1325,7 +1326,7 @@ CONTAINS
      ! :Purpose: get predictors
      !
     implicit none
-    !Parameters
+    !Arguments:
     real(8), intent(out)            :: predictor(NumPredictors)
     integer, intent(in)             :: headerIndex, obsIndex, chanindx
     type(struct_obs), intent(inout) :: obsSpaceData
@@ -1968,7 +1969,8 @@ CONTAINS
  subroutine bias_removeBiasCorrection(obsSpaceData,family_opt)
     !
     ! :Purpose: to remove bias correction from OBS_VAR
-    !   after the call OBS_VAR contains the uncorrected observation and OBS_BCOR is set to zero
+    !           After the call OBS_VAR contains the uncorrected
+    !           observation and OBS_BCOR is set to zero
     !
     implicit none
     !Arguments:
@@ -2011,8 +2013,9 @@ CONTAINS
   !-----------------------------------------
   subroutine bias_filterObs(obsSpaceData)
     !
-    ! :Purpose: to filter radiance observations to include into bias correction offline computation
-    !  same rules as in bgck.gen_table
+    ! :Purpose: to filter radiance observations to include into
+    !           bias correction offline computation
+    !           (same rules as in bgck.gen_table)
     !
     implicit none
     !Parameter:
@@ -2022,7 +2025,6 @@ CONTAINS
     integer :: assim,flag,codtyp
     integer :: isatBufr, instBufr, iplatform, isat, inst ,idsat,i,chanIndx
     logical :: lHyperIr, lGeo,lSsmis
-    character(len=codtyp_name_length) :: familyName
 
     if (.not. filterObs ) return
 
@@ -2039,9 +2041,7 @@ CONTAINS
       lGeo =  .false.
       lSsmis = .false.
 
-      familyName = codtyp_get_name(codtyp)
-
-      select case (familyName)
+      select case ( codtyp_get_name(codtyp) )
       case("ssmis")
         lSsmis = .true.
       case("csr")
@@ -2118,8 +2118,10 @@ CONTAINS
   !-----------------------------------------
   subroutine bias_applyBiasCorrection(obsSpaceData,column,family_opt)
     !
-    ! :Purpose: to apply bias correction from OBS_BCOR to obsSpaceData column column
-    !  after the call OBS_VAR contains the corrected observation and OBS_BCOR is not modified.
+    ! :Purpose: to apply bias correction from OBS_BCOR to
+    !           obsSpaceData column column.
+    !           After the call OBS_VAR contains the corrected
+    !           observation and OBS_BCOR is not modified.
     implicit none
     !Arguments:
     type(struct_obs)                       :: obsSpaceData
@@ -2168,7 +2170,8 @@ CONTAINS
   subroutine bias_refreshBiasCorrection(obsSpaceData,columnhr)
     !
     ! :Purpose: to apply bias correction from read coefficient file to OBS_VAR
-    !  after the call OBS_VAR contains the corrected observation and OBS_BCOR is set to applied bias correction
+    !           After the call OBS_VAR contains the corrected observation
+    !           and OBS_BCOR is set to applied bias correction
     !
     implicit none
     !Arguments:
