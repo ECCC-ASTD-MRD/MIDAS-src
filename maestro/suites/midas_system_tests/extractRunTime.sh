@@ -29,7 +29,7 @@ if [ "${computeStats}" != no -a "${computeStats}" != yes ]; then
 fi
 
 if [ "${findOutliers}" != no -a "${findOutliers}" != yes ]; then
-    echo "$0: The '-findOutliers' argument must be 'yes', 'no'" >&2
+    echo "$0: The '-findOutliers' argument must be 'yes' or 'no'" >&2
     exit 1
 fi
 
@@ -39,7 +39,7 @@ fi
 
 if [ "${computeStats}" = yes ]; then
     echo "The statistics are given like this:"
-    echo "Mean, Stddev, Mean/Stddev, min, max, Number of cases"
+    echo "Mean, Stddev, Stddev/Mean, Min, Max, Number of cases"
 fi
 
 echo "Extract run times for tests in ${suite}"
