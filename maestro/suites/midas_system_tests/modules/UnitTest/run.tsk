@@ -153,7 +153,7 @@ if [ -n "${UnitTest_mean_runtime}" ]; then
         #if [[ ${RUNTIME} > ${max_seconds} ]]; then
         max_seconds=$(printf "%.2f" ${max_seconds})
         ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds} (${UnitTest_max_runtime}% more than ${UnitTest_mean_runtime})"
-        if [ "${UnitTest_abort_runtime}" = abort ]; then
+        if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
             exit 1
         fi
     else
