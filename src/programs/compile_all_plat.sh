@@ -91,7 +91,7 @@ function is_compilation_done {
             rm ${listing}
             break
         fi
-        sleep 60
+        sleep 5
     done
     unset __is_compilation_done_host__
 }

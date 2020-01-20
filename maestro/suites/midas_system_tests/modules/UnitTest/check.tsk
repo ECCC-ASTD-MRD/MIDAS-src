@@ -296,3 +296,11 @@ if [ -n "$(/bin/ls *.not_validating 2>/dev/null)" ]; then
 else
     $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "All files do validate"
 fi
+
+if [ "${UnitTest_run_relaunch}" = check ]; then
+    maestro -s submit -n ${SEQ_CONTAINER}/run -d ${SEQ_DATE}
+    SEQ_XFER=stop
+elif [ "${UnitTest_run_relaunch}" != run -a "${UnitTest_run_relaunch}" != no ]; then
+    echo "The variable 'UnitTest_run_relaunch' can only be equal to 'run', 'check' or 'no' and not '${UnitTest_run_relaunch}'."
+    exit 1
+fi ## Fin du 'if [ "${UnitTest_run_relaunch}" = check ]'
