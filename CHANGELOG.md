@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [3.5.0]
 
+### Highlights
+
+* Satellite radiance bias correction: apply bias correction and estimate bias correction coefficients
+* Slant-path interpolation operator for use with radiance observations
+* Implementation of LETKF, both standard approach and original approach with cross-validation: `midas-letkf`
+* New observations can be assimilated: MWHS2 radiances, radar-derived precipitation, SAR wind speed
+* Ability to use model ozone, instead of climatology, for RTTOV
+* 2D analyses now possible: near surface atmosphere, sea-ice and SST
+
 ### Added
 
  * Add ability to apply radiance bias correction and estimate bias correction coefficients in the MIDAS framework (#210 and !279)
