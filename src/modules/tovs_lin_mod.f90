@@ -259,8 +259,8 @@ contains
 
     sensor_loop:  do sensorIndex = 1, tvs_nsensors
 
-      if ( col_varExist(columng,'LWCR') .and. col_varExist(column,'LWCR') .and. &
-        tvs_numMWInstrumUsingCLW /= 0 .and. tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
+      if ( col_varExist(columng,'LWCR') .and. &
+        tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_tl = .true.
        
       nRttovLevels = tvs_coefs(sensorIndex) % coef % nlevels
@@ -882,8 +882,8 @@ contains
 
     sensor_loop:do  sensorIndex = 1, tvs_nsensors
 
-      if ( col_varExist(columng,'LWCR') .and. col_varExist(column,'LWCR') .and. &
-        tvs_numMWInstrumUsingCLW /= 0 .and. tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
+      if ( col_varExist(columng,'LWCR') .and. &
+        tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_ad = .true.
      
       nRttovLevels = tvs_coefs(sensorIndex) %coef % nlevels
@@ -1129,7 +1129,6 @@ contains
         end if
 
         if ( runObsOperatorWithClw_ad ) then
-          clw_column => col_getColumn(column,headerIndex,'LWCR')
           clwExtrapolated_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
         end if
       end do

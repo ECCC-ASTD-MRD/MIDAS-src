@@ -101,7 +101,7 @@ module tovs_nl_mod
   public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles, tvs_transmission,tvs_emissivity
-  public :: tvs_radiance, tvs_surfaceParameters, tvs_instrumentIdsUsingCLW
+  public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
 
   ! public procedures
@@ -150,7 +150,7 @@ module tovs_nl_mod
   integer tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
   integer tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
-  integer tvs_instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
+  integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer tvs_numMWInstrumUsingCLW 
   logical tvs_mwInstrumUsingCLW_tl
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
@@ -374,7 +374,7 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
         tvs_opts(sensorIndex) % rt_mw % clw_data = .false.  ! profil d'eau liquide pas disponible
-        if ( isInstrumIdInTheList(tvs_instruments(sensorIndex)) ) &
+        if ( isInstrumUsingCLW(tvs_instruments(sensorIndex)) ) &
                 tvs_opts(sensorIndex) % rt_mw % clw_data = .true. 
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
@@ -499,7 +499,6 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
     logical :: ldbgtov, useO3Climatology
-    integer :: instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
     integer :: instrumentIndex, numMWInstrumToUseCLW
     logical :: mwInstrumUsingCLW_tl
 
@@ -607,11 +606,10 @@ contains
       end if
     end do
 
-    tvs_instrumentIdsUsingCLW(:) = instrumentIdsUsingCLW(:)
     tvs_numMWInstrumUsingCLW = numMWInstrumToUseCLW
 
     if ( mpi_myid == 0 ) then
-      write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', tvs_instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
+      write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
       write(*,*) 'tvs_setup: Number of instruments to use CLW: ', numMWInstrumToUseCLW
     end if
 
@@ -1239,70 +1237,11 @@ contains
   end function tvs_isInstrumGeostationary
 
   !--------------------------------------------------------------------------
-  !  isInstrumMicrowave
+  !  isInstrumUsingCLW
   !--------------------------------------------------------------------------
-  logical function isInstrumMicrowave(instrum)
+  function isInstrumUsingCLW(instrumId) result(idExist)
     !
-    ! :Purpose: given an RTTOV instrument code return if it is a microwave one
-    !           information from namelist NAMMW
-    !
-    implicit none
-
-    ! Argument:
-    integer, intent(in) :: instrum     ! input Rttov instrument code
-
-    ! Locals:
-    integer ,parameter :: maxsize = 100
-    integer :: nulnam, ierr, instrumentIndex 
-    integer, save :: list_inst(maxsize), ninst_mw
-    logical, save :: first = .true.
-    integer, external :: fclos, fnom
-    character (len=7) :: name_inst(maxsize)
-    namelist /NAMMW/ name_inst
-
-    if (first) then
-      nulnam = 0
-      ninst_mw = 0
-      name_inst(:) = "XXXXXXX"
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=nammw, iostat=ierr)
-      if (ierr /= 0) call utl_abort('isInstrumMicrowave: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=nammw)
-      ierr = fclos(nulnam)
-      list_inst(:) = -1
-      do instrumentIndex=1, maxsize
-        list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
-        if (name_inst(instrumentIndex) /= "XXXXXXX") then
-          if (list_inst(instrumentIndex) == -1) then
-            write(*,*) instrumentIndex,name_inst(instrumentIndex)
-            call utl_abort('isInstrumMicrowave: Unknown instrument name')
-          end if
-        else
-          ninst_mw = instrumentIndex - 1
-          exit
-        end if
-      end do
-      first = .false.
-      if (ninst_mw == 0) then
-        write(*,*) "isInstrumMicrowave: Warning : empty nammw namelist !"
-      end if
-    end if
-    isInstrumMicrowave = .false.
-    do instrumentIndex =1, ninst_mw
-      if ( instrum == list_inst(instrumentIndex)) then
-        isInstrumMicrowave = .true.
-        exit
-      end if
-    end do
-
-  end function isInstrumMicrowave
-
-  !--------------------------------------------------------------------------
-  !  isInstrumIdInTheList
-  !--------------------------------------------------------------------------
-  function isInstrumIdInTheList(instrumId) result(idExist)
-    !
-    ! :Purpose: given an RTTOV instrument code return if it is a microwave one
+    ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
     !
     implicit none
 
@@ -1315,13 +1254,13 @@ contains
 
     idExist = .false.
     do instrumentIndex = 1, tvs_numMWInstrumUsingCLW
-      if ( instrumId == tvs_instrumentIdsUsingCLW(instrumentIndex) ) then
+      if ( instrumId == instrumentIdsUsingCLW(instrumentIndex) ) then
         idExist = .true.
         exit
       end if
     end do
 
-  end function isInstrumIdInTheList
+  end function isInstrumUsingCLW
 
   !--------------------------------------------------------------------------
   !  tvs_mapInstrum
