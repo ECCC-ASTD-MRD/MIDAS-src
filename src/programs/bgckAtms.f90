@@ -711,16 +711,16 @@ program midas_bgckAtms
       !  Get all the required data from the blocks in the report (Rpt_in)
       call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                         biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, bad_report, .TRUE.)
+                        ican, icanomp, IMARQ, IORBIT, bad_report, 'ATMS')
       if ( bad_report ) then
         n_bad_reps = n_bad_reps + 1  
-
+      
         Call BURP_Free(Rpt_out,IOSTAT=error)
         if (error /= burp_noerr)  call handle_error()
 
         cycle REPORTS
       end if
-
+      write(*,*) 'BAD REPPORT ++ ', n_bad_reps
       ! Initialize internal land/sea qualifier and terrain type arrays to values
       ! read from file
 
