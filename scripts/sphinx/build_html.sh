@@ -379,7 +379,7 @@ echo "programList = ${programList}"
 for programName in ${programList}; do
     echo 
     echo "Generating list of namelists for the program: ${programName}"
-    programNameBase=`echo ${programName} | cut -f1 -d'.'`
+    programNameBase=$(basename ${programName} .f90)
     echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
     echo "${programNameBase}" >> ${ORIG_PWD}/namelists_in_each_program.rst
     echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
