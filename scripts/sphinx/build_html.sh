@@ -311,6 +311,8 @@ cat >> index.rst << 'EOF'
 Additional information
 ======================
 
+* Namelists: Information is :doc:`here on which namelists are used for each program. <namelists_in_each_program>`
+
 * Namelists: Information is `here on the definition of all namelists. <namelists.html>`_
 
 * TMG timing blocks: Information is :doc:`here on the numbering and labelling of all TMG timing blocks. <tmg_information>`
@@ -356,6 +358,46 @@ cd $ORIG_PWD
 
 echo "======================================== ============= =================================" >> tmg_information.rst
 
+# GENERATE LIST OF NAMELISTS USED FOR EACH PROGRAM
+
+cat > namelists_in_each_program.rst << 'EOF'
+
+Namelists (possibly) used in each MIDAS program
+===============================================
+
+EOF
+
+# switch to programs directory
+cd ${SRCDIR}/programs
+programList=`ls *.f90 | tr '\n' ' '`
+# switch to the src_files directory
+PGM_DIR=$PWD
+cd ../modules
+MOD_DIR=$PWD
+cd ${PGM_DIR}/src_files
+echo "programList = ${programList}"
+for programName in ${programList}; do
+    echo 
+    echo "Generating list of namelists for the program: ${programName}"
+    programNameBase=`echo ${programName} | cut -f1 -d'.'`
+    echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
+    echo "${programNameBase}" >> ${ORIG_PWD}/namelists_in_each_program.rst
+    echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
+    src_files=`cat src_files_${programNameBase}.sh`
+    src_files2=`echo ${src_files} | tr '"' " " | tr " " "\n" |grep '.f'`
+    nameListList=`grep -i 'namelist */ *[a-z0-9]* */' ${PGM_DIR}/${programName} | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' | grep -vi ptopo` || true
+    for src_file in ${src_files2}; do
+        nameListList="${nameListList} `grep -i 'namelist */ *[a-z0-9]* */' ${MOD_DIR}/${src_file} | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' | grep -vi ptopo`" || true
+    done
+    nameListList=`echo $nameListList | tr " " "\n" | sort -u`
+    echo $nameListList
+    for nameList in ${nameListList}; do
+      echo "- ${nameList}" >> ${ORIG_PWD}/namelists_in_each_program.rst
+    done
+    echo >> ${ORIG_PWD}/namelists_in_each_program.rst
+done
+echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
+cd $ORIG_PWD
 
 rm -fR _build
 mkdir _build
@@ -407,5 +449,5 @@ echo "The HTML are in ${htmldir}"
 
 rm -fR _src_files
 rm -fR _build
-rm -fR *.rst programs modules
+rm -fR *.rst programs modules namelist_listing.txt
 rm -fR graphs
