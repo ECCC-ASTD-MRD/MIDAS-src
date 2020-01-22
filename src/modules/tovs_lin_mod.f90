@@ -259,6 +259,7 @@ contains
 
     sensor_loop:  do sensorIndex = 1, tvs_nsensors
 
+      runObsOperatorWithClw_tl = .false.
       if ( col_varExist(columng,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_tl = .true.
@@ -882,6 +883,7 @@ contains
 
     sensor_loop:do  sensorIndex = 1, tvs_nsensors
 
+      runObsOperatorWithClw_ad = .false.
       if ( col_varExist(columng,'LWCR') .and. &
         tvs_opts(sensorIndex) % rt_mw % clw_data .and. &
         tvs_mwInstrumUsingCLW_tl ) runObsOperatorWithClw_ad = .true.

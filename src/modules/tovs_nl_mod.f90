@@ -1763,6 +1763,9 @@ contains
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
+    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) &
+      call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
+
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'TO3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE. ')
     else if (.not.tvs_useO3Climatology) then 
@@ -1816,6 +1819,7 @@ contains
     ! loop over all instruments
     sensor_loop: do sensorIndex=1,tvs_nsensors
 
+      runObsOperatorWithClw = .false.
       if ( col_varExist(columnghr,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
         tvs_opts(sensorIndex) % rt_mw % clw_data ) runObsOperatorWithClw = .true.
 
