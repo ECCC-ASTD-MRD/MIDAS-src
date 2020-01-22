@@ -221,3 +221,11 @@ fi
 
 GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
 GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"
+
+export COMPF
+export FOPTMIZ
+export GPP_OPTS
+
+export LIBIRC
+export HDF5_LIBS
+export VGRID_LIBNAME

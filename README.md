@@ -112,6 +112,9 @@ cd src/programs
 ./compile_all_plat.sh
 ```
 
+# Testing the new compilation using `make`
+All the information and instructions can be found in the [src](./src) directory, by clicking on that folder in gitlab and browsing down the files, you will see `./src/README.md` content appended there.
+
 # MIDAS test suite
 
 You can install a maestro suite with a serie of tests to evaluate the

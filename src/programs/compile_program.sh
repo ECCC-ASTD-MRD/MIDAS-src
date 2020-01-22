@@ -97,6 +97,10 @@ midasAbs=midas-${program}_${ORDENV_PLAT}-${revnum}.Abs
 # LIBAPPL defined in "src_files" script
 LIBSYS="hpcoperf sqlite3"
 LIBRMN=rmnMP
+##  #255:   I can probably replace the `src_files_${program}.sh`
+##          with the makedepf90 dependencies generation
+##          but not sure about the `${LIBAPPL}` defined in 
+##          `compile_setup_${program}.sh`
 . ${programsDir}/src_files/compile_setup_${program}.sh
 . ${programsDir}/src_files/src_files_${program}.sh
 
@@ -105,6 +109,7 @@ for thislib in ${LIBAPPL} ${LIBSYS} ${LIBRMN} ${LIBIRC}; do
     LINK_LIBS="${LINK_LIBS} -l${thislib}"
 done
 
+##  #255:   the rest would be replaced by the Makefile
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
