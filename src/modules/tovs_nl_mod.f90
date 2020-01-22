@@ -102,6 +102,7 @@ module tovs_nl_mod
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
+  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
@@ -149,6 +150,9 @@ module tovs_nl_mod
   integer tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
   integer tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
+  integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
+  integer tvs_numMWInstrumUsingCLW 
+  logical tvs_mwInstrumUsingCLW_tl
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
@@ -370,6 +374,8 @@ contains
         tvs_opts(sensorIndex) % rt_ir % pc % addradrec = .false. ! to reconstruct radiances from principal components
         !< MW RT options
         tvs_opts(sensorIndex) % rt_mw % clw_data = .false.  ! profil d'eau liquide pas disponible
+        if ( isInstrumUsingCLW(tvs_instruments(sensorIndex)) ) &
+                tvs_opts(sensorIndex) % rt_mw % clw_data = .true. 
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .false. ! use of internal profile interpolator (rt calculation on model levels)
@@ -490,13 +496,17 @@ contains
     integer, external :: fclos, fnom
     integer :: nsensors
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
+    character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
     logical :: ldbgtov, useO3Climatology
+    integer :: instrumentIndex, numMWInstrumToUseCLW
+    logical :: mwInstrumUsingCLW_tl
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
+    namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
  
     !   1.1 Default values for namelist variables
 
@@ -511,6 +521,9 @@ contains
     useUofWIREmiss = .false.
     useMWEmissivityAtlas = .false.
     mWAtlasId = 1 !Default to TELSEM-2
+    mwInstrumUsingCLW_tl = .false.
+    instrumentNamesUsingCLW(:) = '***UNDEFINED***'
+
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
     nulnam = 0
@@ -520,7 +533,6 @@ contains
     if (mpi_myid == 0) write(*,nml=namtov)
     ierr = fclos(nulnam)
 
-
     !  1.3 Transfer namelist variables to module variables
  
     tvs_nsensors = nsensors
@@ -529,6 +541,7 @@ contains
     tvs_useO3Climatology = useO3Climatology
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
+    tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
 
     !  1.4 Validate namelist values
     
@@ -577,6 +590,28 @@ contains
     !  1.6 Set up platform, satellite, instrument and channel mapping
 
     call sensors()
+
+    ! Get the name and number of instruments to use CLW
+    instrumentIdsUsingCLW(:) = -1
+    do instrumentIndex = 1, tvs_nsensors
+      instrumentIdsUsingCLW(instrumentIndex) = tvs_getInstrumentId(instrumentNamesUsingCLW(instrumentIndex))
+      if ( instrumentNamesUsingCLW(instrumentIndex) /= '***UNDEFINED***' ) then
+        if ( instrumentIdsUsingCLW(instrumentIndex) == -1 ) then
+          write(*,*) instrumentIndex, instrumentNamesUsingCLW(instrumentIndex)
+          call utl_abort('tvs_setup: Unknown instrument name to use CLW')
+        end if
+      else
+        numMWInstrumToUseCLW = instrumentIndex - 1
+        exit
+      end if
+    end do
+
+    tvs_numMWInstrumUsingCLW = numMWInstrumToUseCLW
+
+    if ( mpi_myid == 0 ) then
+      write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
+      write(*,*) 'tvs_setup: Number of instruments to use CLW: ', numMWInstrumToUseCLW
+    end if
 
   end subroutine tvs_setup
 
@@ -1202,6 +1237,32 @@ contains
   end function tvs_isInstrumGeostationary
 
   !--------------------------------------------------------------------------
+  !  isInstrumUsingCLW
+  !--------------------------------------------------------------------------
+  function isInstrumUsingCLW(instrumId) result(idExist)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: idExist
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    idExist = .false.
+    do instrumentIndex = 1, tvs_numMWInstrumUsingCLW
+      if ( instrumId == instrumentIdsUsingCLW(instrumentIndex) ) then
+        idExist = .true.
+        exit
+      end if
+    end do
+
+  end function isInstrumUsingCLW
+
+  !--------------------------------------------------------------------------
   !  tvs_mapInstrum
   !--------------------------------------------------------------------------
   subroutine tvs_mapInstrum(instrumburp,instrum)
@@ -1664,7 +1725,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: status, Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(17)
+    integer :: allocStatus(22)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
@@ -1691,13 +1752,19 @@ contains
     real(8), allocatable :: ozoneExtrapolated(:,:)
     real(8), allocatable :: ozoneInterpolated(:,:)
     character(len=4) :: ozoneVarName
+    real(8), allocatable :: clw   (:,:)
+    real(8), allocatable :: clwInterp(:,:)
+    real(8), allocatable :: clwExtrap(:,:)
+    logical :: runObsOperatorWithClw 
     
     real(8) :: modelTopPressure
  
-
     if ( .not. beSilent ) write(*,*) "Entering tvs_fillProfiles subroutine"
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
+
+    if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) &
+      call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
 
     if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'TO3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE. ')
@@ -1752,6 +1819,10 @@ contains
     ! loop over all instruments
     sensor_loop: do sensorIndex=1,tvs_nsensors
 
+      runObsOperatorWithClw = .false.
+      if ( col_varExist(columnghr,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
+        tvs_opts(sensorIndex) % rt_mw % clw_data ) runObsOperatorWithClw = .true.
+
       ! first loop over all obs.
       profileCount = 0
       bobs1: do tovsIndex = 1, tvs_nobtov
@@ -1791,13 +1862,19 @@ contains
       allocate (hu(nlv_T,profileCount),                              stat = allocStatus(11))
       allocate (logVar(nlv_T,profileCount),                          stat = allocStatus(12))
       allocate (height(nlv_T,profileCount),                          stat = allocStatus(13))
-      call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
+
       if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
         allocate (ozoneExtrapolated(nRttovLevels,profileCount),          stat= allocStatus(14))
         if (.not. tvs_useO3Climatology) then
           allocate (ozone(nlv_T,profileCount),                           stat= allocStatus(15))
           allocate (ozoneInterpolated(levelsBelowModelTop,profileCount), stat= allocStatus(16))
         end if
+      end if
+
+      if ( runObsOperatorWithClw ) then
+        allocate (clw       (nlv_T,profileCount),stat= allocStatus(17))
+        allocate (clwInterp(levelsBelowModelTop,profileCount),stat= allocStatus(18))
+        allocate (clwExtrap(nRttovLevels,profileCount),stat= allocStatus(19))
       end if
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
@@ -1846,6 +1923,9 @@ contains
           hu  (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'HU')
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
+
+          if ( runObsOperatorWithClw ) &
+            clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
         end do
         if (.not. tvs_useO3Climatology) then
           if (tvs_coefs(sensorIndex) %coef %nozone > 0) then 
@@ -1887,6 +1967,12 @@ contains
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
         huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
+
+      if ( runObsOperatorWithClw ) &
+        call ppo_IntAvg (pressure(:,profileIndex:profileIndex), &
+                        clw(:,profileIndex:profileIndex),nlv_T,1,levelsBelowModelTop,&
+                        rttovPressure(modelTopIndex:nRttovLevels),&
+                        clwInterp(:,profileIndex:profileIndex))
       end do
       !$omp end parallel do
 
@@ -1951,7 +2037,15 @@ contains
         end if
       end if
 
-      !   2.4  Get ozone profiles (ppmv)
+      ! cloud liquid water extrapolation
+      if ( runObsOperatorWithClw ) then
+        clwExtrap(:,:) = 1.0D-9
+        do profileIndex = 1, profileCount
+          do levelIndex = 1, levelsBelowModelTop
+            clwExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = max(1.0D-9,clwInterp(levelIndex,profileIndex))
+          end do
+        end do
+      end if
 
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
         ozoneExtrapolated(:,:)= 0.0d0
@@ -2025,6 +2119,8 @@ contains
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
         tvs_profiles(tovsIndex) % cfraction = 0.d0
+        if ( runObsOperatorWithClw ) &
+          tvs_profiles(tovsIndex) % clw(:) = clwExtrap(:,profileIndex)
       end do
 
       deallocate (rttovPressure,       stat = allocStatus(1))
@@ -2047,6 +2143,11 @@ contains
           deallocate (ozone,             stat= allocStatus(16))
           deallocate (ozoneInterpolated, stat= allocStatus(17))
         end if
+      end if
+      if ( runObsOperatorWithClw ) then
+        deallocate (clw       ,stat= allocStatus(18))
+        deallocate (clwInterp ,stat= allocStatus(19))
+        deallocate (clwExtrap ,stat= allocStatus(20))
       end if
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
