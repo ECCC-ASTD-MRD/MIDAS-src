@@ -5,7 +5,34 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
- 
+
+### Added
+
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.5.0]
+
+### Highlights
+
+* Satellite radiance bias correction: apply bias correction and estimate bias correction coefficients
+* Slant-path interpolation operator for use with radiance observations
+* Implementation of LETKF, both standard approach and original approach with cross-validation: `midas-letkf`
+* New observations can be assimilated: MWHS2 radiances, radar-derived precipitation, SAR wind speed
+* Ability to use model ozone, instead of climatology, for RTTOV
+* 2D analyses now possible: near surface atmosphere, sea-ice and SST
+
 ### Added
 
  * Add ability to apply radiance bias correction and estimate bias correction coefficients in the MIDAS framework (#210 and !279)
@@ -100,6 +127,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The input file trlp is no longer necessary in varbc mode (Slight unsignificant change in the results of varbc) (#145 and !129)
 
 ### Fixed
+
  * Add missing O-P background check for surface (2m) dewpoint depression ES (#294 and !288)
  * Fix bug triggered by GB-GPS reports with missing ZTD in background check of conventional observations (#295 and !287)
  * Correction to the surface humidity (BUFR element 13214) writen in BURP files info block during hyperspectral IR background check. Due to the error introduced in !111 exp(HU) was written instead of HU. (#257 and !247)
@@ -108,10 +136,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fixed some potential bugs detected while compiling with `-check all` (#182 and !187)
  * Improved efficiency of ensemble amplitude memory access and writing of `rehm` and `anlm` files (#170 and !153)
  * Fix the selection of GPSRO-bending angle observations (#151 and !145)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.4.2]
 
@@ -376,7 +400,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.5.0...HEAD
+[3.5.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.2...v_3.5.0
 [3.4.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.1...v_3.4.2
 [3.4.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.4.0...v_3.4.1
 [3.4.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.3.5...v_3.4.0
