@@ -2768,7 +2768,7 @@ contains
   END SUBROUTINE mwbg_readStatTovsAtms
 
   SUBROUTINE fillTblval (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
-                         burpArrName, burpChannelNum, burpLocationNum, abortIfMissing)
+                         burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
     !          and read (out) the corresponding INTEGER Array from the current block
     !          In some cases, if the array does not exist, it will be filled with MSING
@@ -2784,19 +2784,20 @@ contains
     logical      ,   intent(in)          :: abortIfMissing          ! abort if the array is missing
     integer,         intent(out)         :: burpArr(:)              ! burp INTEGER array read
     integer,         intent(out)         :: error                   ! error status
-    integer,         intent(out)         :: burpChannelNum          ! my_nt value to be returned
-    integer,         intent(out)         :: burpLocationNum         ! my_nval value to be returned
+    integer,         intent(out)         :: burpLocationNum          ! my_nt value to be returned
+    integer,         intent(out)         :: burpChannelNum         ! my_nval value to be returned
     
     ! Locals
     type(BURP_BLOCK)                     :: burpBlk
     integer                              :: positionIndex 
-    integer                              :: burpChannelNumIndex
     integer                              :: burpLocationNumIndex
+    integer                              :: burpChannelNumIndex
     integer                              :: burpBlkTypListIndex
     integer                              :: burpReadIndice
     integer                              :: burpNele 
     integer                              :: ref_blk 
     integer                              :: burpBlkTypListNum
+
 
     burpBlkTypListNum = size(burpBlkTypList)
     burpBlkTypListIndex = 1
@@ -2819,21 +2820,21 @@ contains
       else
         burpArr(:) = MPC_missingValue_R4
         return
-      endif
-    endif
+      end if
+    end if
     call BURP_Get_Property(burpBlk, &
                      NELE = burpNele, &
-                     NT   = burpChannelNum, &    ! number of locations in the box (report)
-                     NVAL = burpLocationNum, IOSTAT=error)
+                     NT   = burpLocationNum, &    
+                     NVAL = burpChannelNum, IOSTAT=error)
     if (error /= burp_noerr)  call abort()
 
     burpReadIndice = BURP_Find_Element(burpBlk,burpEle,IOSTAT=error)
     if ( burpReadIndice > 0 ) then
       positionIndex = 0
-      do burpChannelNumIndex = 1, burpChannelNum
-        do burpLocationNumIndex = 1, burpLocationNum
+      do burpLocationNumIndex = 1, burpLocationNum
+        do burpChannelNumIndex = 1, burpChannelNum
           positionIndex = positionIndex + 1
-          burpArr(positionIndex) = BURP_Get_Tblval(burpBlk,burpReadIndice,burpLocationNumIndex,burpChannelNumIndex,error)
+          burpArr(positionIndex) = BURP_Get_Tblval(burpBlk,burpReadIndice,burpChannelNumIndex,burpLocationNumIndex,error)
         end do
       end do
     else if ( burpReadIndice < 0 ) then  
@@ -2842,15 +2843,14 @@ contains
         call abort()
       else
         burpArr(:) = MPC_missingValue_INT
-        !if ( mwbg_debug ) write(*,*) ' ERREUR - Elements ', burpArrName, ' data (', burpEle ,') are missing in DATA block! Report = ', reportIndex
-      endif
+      end if
     end if
   END SUBROUTINE fillTblval
 
 
 
   SUBROUTINE fillRval (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
-                         burpArrName, burpChannelNum, burpLocationNum, abortIfMissing)
+                         burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
     !          and read (out) the corresponding REAL Array from the current block
     !          In some cases, if the array does not exist, it will be filled with MSING
@@ -2866,14 +2866,14 @@ contains
     logical      ,   intent(in)          :: abortIfMissing          ! abort if the array is missing
     real   ,         intent(out)         :: burpArr(:)              ! burp REAL array read
     integer,         intent(out)         :: error                   ! error status
-    integer,         intent(out)         :: burpChannelNum          ! my_nt value to be returned
-    integer,         intent(out)         :: burpLocationNum         ! my_nval value to be returned
+    integer,         intent(out)         :: burpLocationNum          ! my_nt value to be returned
+    integer,         intent(out)         :: burpChannelNum         ! my_nval value to be returned
     
     ! Locals
     type(BURP_BLOCK)                     :: burpBlk
     integer                              :: positionIndex 
-    integer                              :: burpChannelNumIndex
     integer                              :: burpLocationNumIndex
+    integer                              :: burpChannelNumIndex
     integer                              :: burpBlkTypListIndex
     integer                              :: burpReadIndice
     integer                              :: burpNele 
@@ -2901,21 +2901,20 @@ contains
       else
         burpArr(:) = MPC_missingValue_R4
         return
-      endif
-    endif
+      end if
+    end if
     call BURP_Get_Property(burpBlk, &
                      NELE = burpNele, &
-                     NT   = burpChannelNum, &    ! number of locations in the box (report)
-                     NVAL = burpLocationNum, IOSTAT=error)
+                     NT   = burpLocationNum, & 
+                     NVAL = burpChannelNum, IOSTAT=error)
     if (error /= burp_noerr)  call abort()
-
     burpReadIndice = BURP_Find_Element(burpBlk,burpEle,IOSTAT=error)
     if ( burpReadIndice > 0 ) then
       positionIndex = 0
-      do burpChannelNumIndex = 1, burpChannelNum
-        do burpLocationNumIndex = 1, burpLocationNum
+      do burpLocationNumIndex = 1, burpLocationNum
+        do burpChannelNumIndex = 1, burpChannelNum
           positionIndex = positionIndex + 1
-          burpArr(positionIndex) = BURP_Get_Rval(burpBlk,burpReadIndice,burpLocationNumIndex,burpChannelNumIndex,error)
+          burpArr(positionIndex) = BURP_Get_Rval(burpBlk,burpReadIndice,burpChannelNumIndex,burpLocationNumIndex,error)
         end do
       end do
     else if ( burpReadIndice < 0 ) then  
@@ -2924,8 +2923,7 @@ contains
         call abort()
       else
         burpArr(:) = MPC_missingValue_R4
-        !if ( mwbg_debug ) write(*,*) ' ERREUR - Elements ', burpArrName, ' data (', burpEle ,') are missing in DATA block! Report = ', reportIndex
-      endif
+      end if
     end if
   END SUBROUTINE fillRval
 
@@ -2965,8 +2963,8 @@ contains
     integer,        intent(out)          :: IORBIT(:)      ! orbit number
     
     ! Locals
-    integer                              :: burpChannelNum
     integer                              :: burpLocationNum
+    integer                              :: burpChannelNum
     integer                              :: eleChannel     
     integer                              :: eleDataQcFlag   
     integer                              :: eleQcFlag1(3)  
@@ -2989,60 +2987,60 @@ contains
 
     !  Get OMP data from the DATA block     BTYP =  9322 or 9226 or 9258 or 9274 and bfma = 14
     call fillRval (reportIndex, rpt, (/9322,9226,9258,9274/), 14, 12163, error, ZOMP, 'Omp_Data', &
-                   burpChannelNum, burpLocationNum, abortIfMissing = .FALSE.) 
+                   burpLocationNum, burpChannelNum, abortIfMissing = .FALSE.) 
     
     if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
       return
-    endif
+    end if
 
     call fillTblval (reportIndex, rpt, (/9322,9226,9258,9274/), 14, eleChannel, error, ICANOMP, 'OMP_Channels', &
-                     burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get the lat,lon from time/location block    BTYP = 5120  (also get nt)
     call fillRval(reportIndex, rpt, (/5120/), 0, 5002, error, zlat, 'LAT', &
-                  burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillRval(reportIndex, rpt, (/5120/), 0, 6002, error, zlon, 'LON', &
-                  burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get info elements from the INFO block   BTYP = 3072
     call fillTblval(reportIndex, rpt, (/3072/), 0, 1007, error, ISAT, 'Sat_Identifier', &
-                    burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval(reportIndex, rpt, (/3072/), 0, 5040, error, IORBIT, 'Orbit_Number', &
-                    burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillRval(reportIndex, rpt, (/3072/), 0, 7024, error, ZENITH, 'Zenith_Angle', &
-                  burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval(reportIndex, rpt, (/3072/), 0, 8012, error, ILQ, 'LandSea_Qualifier', &
-                    burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval(reportIndex, rpt, (/3072/), 0, 13039, error, ITT, 'Terrain_Type', &
-                    burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval(reportIndex, rpt, (/3072/), 0, 5043, error, SCANPOS, 'Scan_Position', &
-                    burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get info elements 33078 33079 33080 if needed
     if (ALL(eleQcFlag1 /= -1)) then
       call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(1), error, qcflag1(:,1), 'Geoloc_Quality_QcFlag', &
-                      burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
       call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(2), error, qcflag1(:,2), 'Granule_Level_QcFlag', &
-                      burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
       call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(3), error, qcflag1(:,3), 'Scan_Level_QcFlag', &
-                      burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
-    endif
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    end if
 
     !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = nchanAtms)
     call fillRval (reportIndex, rpt, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
-                   burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
-    nvalOut = burpLocationNum ! set nvalOut (#channels) for MAIN program
-    ntOut = burpChannelNum     ! set ntOut (#locations) for MAIN program
+                   burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    nvalOut = burpChannelNum    ! set nvalOut (#channels) for MAIN program
+    ntOut = burpLocationNum     ! set ntOut (#locations) for MAIN program
     call fillRval (reportIndex, rpt, (/9248,9264/), 0, 12233, error, biasCorr, 'Bias_Corr_data', &
-                   burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                   burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval (reportIndex, rpt, (/9248,9264/), 0, eleChannel, error, ICAN, 'Channel_Numbers', &
-                     burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     call fillTblval (reportIndex, rpt, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
-                     burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.) 
+                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
     call fillTblval (reportIndex, rpt, (/15362,15392,15408/), 0, 212163, error, IMARQ, 'IMARQ', &
-                     burpChannelNum, burpLocationNum, abortIfMissing = .TRUE.)
+                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
 
   end subroutine mwbg_getData
 
@@ -3236,94 +3234,6 @@ contains
     return
 
   end subroutine mwbg_writeBlocks
-
-
-  subroutine mwbg_writeBlocksAmsua(clw, scatw, reportIndex, rpt, rpt_out)
-    ! Object:   This routine modifies the blocks in the input Report (rpt) 
-    real, dimension(:)     :: clw, scatw
-    integer                :: reportIndex
-    type(BURP_RPT)         :: rpt
-    type(BURP_RPT)         :: rpt_out
-
-    type(BURP_BLOCK)       :: blk, blk_copy
-
-    integer :: error, ref_blk, my_nt,  my_nval, my_nele, my_btyp, my_bfam, iidata
-    integer :: indice, indice1, indice2, j, kk, ipos
-
-    Call BURP_Init(blk, B2=blk_copy, IOSTAT=error)
-
-    ! 1) Read and modify the blocks in rpt and add them to rpt_out
-    ref_blk = 0
-    BLOCKS: do
-
-      ref_blk = BURP_Find_Block(rpt,BLOCK= blk,SEARCH_FROM= ref_blk,IOSTAT= error)
-      if (error /= burp_noerr) call abort()
-      
-      if (ref_blk < 0) Exit
-
-      Call BURP_Get_Property(blk, &
-                  NELE   = my_nele, &
-                  NVAL   = my_nval, &       ! 1 or number of channels (obs per location) if Tb data/flag block
-                  NT     = my_nt, &         ! 1 or number of locations in block
-                  BTYP   = my_btyp, &
-                  BFAM   = my_bfam, &
-                  IOSTAT = error)
-      if (error /= burp_noerr) call abort()
-
-      ! 3D Block
-      if (my_btyp == 5120) then     
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort()
-
-      ! INFO block (mix of integer and real data)
-      elseif (my_btyp == 3072) then
-        ! Add new elements CLW and scatw
-        Call BURP_Resize_Block(blk, ADD_NELE = 2, IOSTAT = error)
-        if (error /= burp_noerr)  call abort()
-        
-        Call BURP_Set_Element(blk,NELE_IND=my_nele+1,ELEMENT=13209,IOSTAT=error)
-        Call BURP_Set_Element(blk,NELE_IND=my_nele+2,ELEMENT=13208,IOSTAT=error)
-        Call BURP_Encode_Block(blk)   ! encode the element numbers in the block
-
-        j = 1
-        do kk =1, my_nt
-          Call BURP_Set_Rval(blk,NELE_IND=my_nele+1,NVAL_IND=j,NT_IND=kk,RVAL=clw(kk),IOSTAT=error)
-          Call BURP_Set_Rval(blk,NELE_IND=my_nele+2,NVAL_IND=j,NT_IND=kk,RVAL=scatw(kk),IOSTAT=error)
-        end do
-        Call BURP_Convert_Block(blk)
-
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort()      
-
-      !  DATA block
-      elseif (my_btyp == 9248 .or. my_btyp ==9264) then 
-
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort() 
-
-      ! FLAG block
-      elseif (my_btyp == 15392 .or. my_btyp == 15408) then 
-
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort()
-
-      ! OTHER BLOCK 
-      else 
-        blk_copy = blk
-        Call BURP_Write_Block(rpt_out,BLOCK=blk_copy,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
-        if (error /= burp_noerr)  call abort() 
-        
-      endif      
-
-    enddo BLOCKS
-
-    return
-
-  end subroutine mwbg_writeBlocksAmsua
 
 
   subroutine mwbg_landIceMaskAtms(mglg_file,npts,zlat,zlon,zlq,ztt,waterobs)

@@ -33,7 +33,7 @@ program midas_bgckmw
   integer,allocatable :: adresses(:)
   integer             :: ibrptime, nblocs, nsize, iun_burpin, irun
 
-  logical :: bad_report, resume_report, qcflag1_check
+  logical :: bad_report, resume_report
 
   INTEGER MXELM
   INTEGER MXLAT, MXLON

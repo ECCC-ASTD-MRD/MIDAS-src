@@ -245,7 +245,7 @@ program midas_bgckAtms
   character(len=2),dimension(mxsat,nchanAtms,maxpred) :: PTYPES
 
   logical :: sp_adj_tb, debug, modlsqtt, useUnbiasedObsForClw
-  logical :: bad_report, lutb, resume_report, qcflag1_check
+  logical :: bad_report, lutb, resume_report
 
   ! External functions
   integer, external :: exdb,exfin
