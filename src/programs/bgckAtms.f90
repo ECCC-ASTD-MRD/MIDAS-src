@@ -20,6 +20,7 @@ program midas_bgckAtms
   !
   use burp_module
   use bgckmicrowave_mod
+  use MathPhysConstants_mod
 
   !  Object: This program is applied to ATMS derialt data.  The processing applied in this
   !          program includes:
@@ -289,7 +290,7 @@ program midas_bgckAtms
   INTEGER IER,IREC,IREC2,JUNK
   INTEGER JN, JL
   INTEGER IUNGEO, IUNSTAT, INUMSAT
-  INTEGER INO,INOMP,INOMPNA,INOSAT
+  INTEGER INOSAT
   INTEGER IDUM,IDUM1,IDUM2,IDUM3,IDUM4,IDUM5,IDUM6,IDUM7
   INTEGER IDUM8,IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
   INTEGER IDUM14,IDUM15,IDUM16,IDUM17,IDUM18
@@ -711,8 +712,9 @@ program midas_bgckAtms
       !  Get all the required data from the blocks in the report (Rpt_in)
       call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
                         biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, bad_report, 'ATMS')
-      if ( bad_report ) then
+                        ican, icanomp, IMARQ, IORBIT, 'ATMS')
+
+      if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
         n_bad_reps = n_bad_reps + 1  
       
         Call BURP_Free(Rpt_out,IOSTAT=error)
@@ -720,7 +722,7 @@ program midas_bgckAtms
 
         cycle REPORTS
       end if
-      write(*,*) 'BAD REPPORT ++ ', n_bad_reps
+
       ! Initialize internal land/sea qualifier and terrain type arrays to values
       ! read from file
 
@@ -1135,7 +1137,7 @@ program midas_bgckAtms
                                ICHKPRF, scanpos, MTINTRP, IMARQ, STNID, RESETQC)
 
         ! Accumuler Les statistiques sur les rejets
-        CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, INO, &
+        CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
                               NT, .FALSE.)
 
         ! 7) Mise a jour des marqueurs.
@@ -1246,7 +1248,7 @@ program midas_bgckAtms
 
   ! 9) Fin
   ! Imprimer les statistiques sur les rejets
-  CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, INO, &
+  CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
                         NT, .TRUE.)
 
   Deallocate(adresses)
