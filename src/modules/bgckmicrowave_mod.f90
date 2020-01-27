@@ -2790,8 +2790,8 @@ contains
     ! Locals
     type(BURP_BLOCK)                     :: burpBlk
     integer                              :: positionIndex 
-    integer                              :: burpLocationNumIndex
-    integer                              :: burpChannelNumIndex
+    integer                              :: burpLocationIndex
+    integer                              :: burpChannelIndex
     integer                              :: burpBlkTypListIndex
     integer                              :: burpReadIndice
     integer                              :: burpNele 
@@ -2831,10 +2831,10 @@ contains
     burpReadIndice = BURP_Find_Element(burpBlk,burpEle,IOSTAT=error)
     if ( burpReadIndice > 0 ) then
       positionIndex = 0
-      do burpLocationNumIndex = 1, burpLocationNum
-        do burpChannelNumIndex = 1, burpChannelNum
+      do burpLocationIndex = 1, burpLocationNum
+        do burpChannelIndex = 1, burpChannelNum
           positionIndex = positionIndex + 1
-          burpArr(positionIndex) = BURP_Get_Tblval(burpBlk,burpReadIndice,burpChannelNumIndex,burpLocationNumIndex,error)
+          burpArr(positionIndex) = BURP_Get_Tblval(burpBlk,burpReadIndice,burpChannelIndex,burpLocationIndex,error)
         end do
       end do
     else if ( burpReadIndice < 0 ) then  
@@ -2872,8 +2872,8 @@ contains
     ! Locals
     type(BURP_BLOCK)                     :: burpBlk
     integer                              :: positionIndex 
-    integer                              :: burpLocationNumIndex
-    integer                              :: burpChannelNumIndex
+    integer                              :: burpLocationIndex
+    integer                              :: burpChannelIndex
     integer                              :: burpBlkTypListIndex
     integer                              :: burpReadIndice
     integer                              :: burpNele 
@@ -2911,10 +2911,10 @@ contains
     burpReadIndice = BURP_Find_Element(burpBlk,burpEle,IOSTAT=error)
     if ( burpReadIndice > 0 ) then
       positionIndex = 0
-      do burpLocationNumIndex = 1, burpLocationNum
-        do burpChannelNumIndex = 1, burpChannelNum
+      do burpLocationIndex = 1, burpLocationNum
+        do burpChannelIndex = 1, burpChannelNum
           positionIndex = positionIndex + 1
-          burpArr(positionIndex) = BURP_Get_Rval(burpBlk,burpReadIndice,burpChannelNumIndex,burpLocationNumIndex,error)
+          burpArr(positionIndex) = BURP_Get_Rval(burpBlk,burpReadIndice,burpChannelIndex,burpLocationIndex,error)
         end do
       end do
     else if ( burpReadIndice < 0 ) then  
