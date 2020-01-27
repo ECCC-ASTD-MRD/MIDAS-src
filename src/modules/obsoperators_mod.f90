@@ -1767,7 +1767,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_Htl
   !--------------------------------------------------------------------------
-  subroutine oop_Htl( column, columng, obsSpaceData )
+  subroutine oop_Htl( column, columng, obsSpaceData, min_nsim )
     !
     ! :Purpose: Compute simulated observations from profiled model increments.
     !           It returns Hdx in OBS_WORK. Calls the several linear observation operators.
@@ -1777,6 +1777,7 @@ contains
     type(struct_columnData)   :: column,columng
     type(struct_obs)          :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
+    integer, intent(in)       :: min_nsim
 
     logical, save :: firstTime = .true.
 
@@ -2221,11 +2222,10 @@ contains
       !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
       !     .    -----------------------------------------------------------------------------
       !
-
-      datestamp = tim_getDatestamp()
-      call tvs_fillProfiles(columng, obsSpaceData, datestamp, "tlad", filt_rlimlvhu, .false.)
-
-     
+      if (min_nsim == 1) then
+        datestamp = tim_getDatestamp()
+        call tvs_fillProfiles(columng, obsSpaceData, datestamp, "tlad", filt_rlimlvhu, .false.)
+      end if
 
 
       !     2.   Compute radiance

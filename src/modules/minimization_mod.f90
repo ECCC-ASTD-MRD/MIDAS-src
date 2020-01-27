@@ -657,7 +657,7 @@ CONTAINS
 
       ! compute -H*xb', put in OBS_WORK
       call s2c_tl(statevector_ens(indexAnalysis),column,columng,obsSpaceData)  ! put in column H_horiz
-      call oop_Htl(column,columng,obsSpaceData)
+      call oop_Htl(column,columng,obsSpaceData,min_nsim)
 
       ! undo the multiply by -1 (-xb')
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
@@ -1034,7 +1034,7 @@ CONTAINS
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx

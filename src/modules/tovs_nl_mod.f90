@@ -645,13 +645,16 @@ contains
         iSensor = tvs_lsensor(iObs)
         nl = tvs_coefs(iSensor) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(allocStatus(1),1,tvs_profiles(iObs),nl, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus(1),1,tvs_profiles_nl(iObs),nl, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
-        call utl_checkAllocationStatus(allocStatus(1:1), "profile deallocation in tvs_cleanup",.false.)
+        call rttov_alloc_prof(allocStatus(2),1,tvs_profiles_tlad(iObs),nl, &    ! 1 = nprofiles un profil a la fois
+             tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
+        call utl_checkAllocationStatus(allocStatus(1:2), "profiles deallocation in tvs_cleanup",.false.)
       end do
 
-      deallocate(tvs_profiles, stat=allocStatus(1) )
-      call utl_checkAllocationStatus(allocStatus(1:1), " tvs_setupAlloc tvs_profiles 1")
+      deallocate(tvs_profiles_nl,   stat=allocStatus(1) )
+      deallocate(tvs_profiles_tlad, stat=allocStatus(2) )
+      call utl_checkAllocationStatus(allocStatus(1:2), " tvs_setupAlloc tvs_profiles 1")
 
       do iSensor = tvs_nsensors,1,-1
         call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
@@ -2398,7 +2401,7 @@ contains
               ! other information that could be useful for quality control can be found in the in the profile_qc structure
               ! Now we have the "traditionnal" emissivity in surfem1(:)
               ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-              if (tvs_profiles(jj)% skin % surftype == surftype_land .and. &
+              if (tvs_profiles_nl(jj)% skin % surftype == surftype_land .and. &
                    uOfWLandWSurfaceEmissivity(btIndex) > 0.5 ) then
                 emissivity_local(btIndex)%emis_in = uOfWLandWSurfaceEmissivity(btIndex)
               else
@@ -2551,7 +2554,7 @@ contains
            asw,                        &
            nprofiles=profileCount,     & ! (not used)
            nchanprof=btCount,          &
-           nlevels=nlv_T,       &
+           nlevels=nlv_T,              &
            chanprof=chanprof,          &
            opts=tvs_opts(sensorId),    &
            coefs=tvs_coefs(sensorId),  &
@@ -2596,7 +2599,7 @@ contains
       if ( .not. tvs_atlas(sensorId)%init) then
         call rttov_setup_emis_atlas( returnCode, &! out
              tvs_opts(sensorId),                 &! in
-             tvs_profiles(1)%date(2) ,           &! in
+             tvs_profiles_nl(1)%date(2),         &! in
              atlas_type_mw,                      &! in
              tvs_atlas(sensorId),                &! inout
              atlas_id = mWAtlasId,               &! in ! 1 TELSEM2, 2 CNRM
@@ -2607,13 +2610,13 @@ contains
         end if
       end if
    
-      call rttov_get_emis( returnCode,           & ! out
-           tvs_opts(sensorId),                   & ! in
-           chanprof,                             & ! in
-           tvs_profiles(sensorTovsIndexes(:)),   & ! in
-           tvs_coefs(sensorId),                  & ! in
-           tvs_atlas(sensorId),                  & ! in
-           mWAtlasSurfaceEmissivity)               ! out
+      call rttov_get_emis( returnCode,            & ! out
+           tvs_opts(sensorId),                    & ! in
+           chanprof,                              & ! in
+           tvs_profiles_nl(sensorTovsIndexes(:)), & ! in
+           tvs_coefs(sensorId),                   & ! in
+           tvs_atlas(sensorId),                   & ! in
+           mWAtlasSurfaceEmissivity)                ! out
     
       if (returnCode /= 0) then
         write(*,*) "Error in rttov_get_emis MW", returnCode
@@ -2628,7 +2631,7 @@ contains
           if (chanprof(btIndex)%prof==profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
-            if ( tvs_profiles(jj)% skin % surftype == surftype_land .and. &
+            if ( tvs_profiles_nl(jj)% skin % surftype == surftype_land .and. &
                  mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
                  mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
               updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
@@ -2909,9 +2912,9 @@ contains
     ! satzang(nprf) -- satellite zenith angle (deg)
 
     do jn = 1, nprf
-      latitudes(jn)    = tvs_profiles_nl(sensorTovsIndexes(jn))% latitude
-      longitudes(jn)    = tvs_profiles_nl(sensorTovsIndexes(jn))% longitude
-      satzang(jn) = tvs_profiles_nl(sensorTovsIndexes(jn))% zenangle
+      latitudes(jn)   = tvs_profiles_nl(sensorTovsIndexes(jn))% latitude
+      longitudes(jn)  = tvs_profiles_nl(sensorTovsIndexes(jn))% longitude
+      satzang(jn)     = tvs_profiles_nl(sensorTovsIndexes(jn))% zenangle
     end do
 
     !  Assign surface properties from grid to profiles

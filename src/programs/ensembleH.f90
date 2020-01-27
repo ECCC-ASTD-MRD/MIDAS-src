@@ -202,58 +202,6 @@ program midas_ensembleH
     ! Copy to ensObs: Y-HX for this member
     call eob_setYb(ensObs, memberIndex)
 
-    ! Compute ensemble perturbation columns and use TL H()
-    call enkf_computeColumnsPerturbations(columns, column_mean)
-    write(*,*) ''
-    write(*,*) 'midas-ensembleH: apply tangent linear H to ensemble perturbations'
-    write(*,*) ''
-    do memberIndex = 1, nEns
-      ! compute H(dX) in OBS_WORK
-      call tmg_start(7,'OBSOPER')
-      call oop_Htl(columns(memberIndex), column_mean, obsSpaceData)
-      call tmg_stop(7)
-
-      ! extract HXpert value
-      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_WORK)
-      ! Recombine mean and perturbation to get total HX values
-      HXens(:,memberIndex) = HXmean(:) + HXens(:,memberIndex)
-    end do
-
-  else
-
-    ! Compute HX for all members using the nonlinear H()
-    do memberIndex = 1, nEns
-      ! compute Y-H(X) in OBS_OMP
-      write(*,*) ''
-      write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
-      write(*,*) ''
-      beSilent = .true.
-      if ( memberIndex == 1 ) beSilent = .false.
-
-      call tmg_start(7,'OBSOPER')
-      call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
-      call tmg_stop(7)
-
-      ! extract observation-minus-HX value, Y-HX
-      call obs_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
-      ! compute HX = Y - (Y-HX)
-      HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
-
-    end do
-
-  end if ! useTlmH
-
-  ! Put y-mean(H(X)) in OBS_OMP
-  HXmean(:) = 0.0d0
-  do memberIndex = 1, nEns
-    do bodyIndex = 1, numBody
-      HXmean(bodyIndex) = HXmean(bodyIndex) + HXens(bodyIndex,memberIndex)
-    end do 
-  end do
-  HXmean(:) = HXmean(:)/nEns
-  do bodyIndex = 1, numBody
-    call obs_bodySet_r(obsSpaceData, OBS_OMP, bodyIndex,  &
-                       obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)-HXmean(bodyIndex))
   end do
 
   call gsv_deallocate( stateVector_tiles )

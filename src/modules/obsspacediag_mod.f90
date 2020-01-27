@@ -361,7 +361,7 @@ contains
        
        ! multiply by H
        call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-       call oop_Htl(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBhi(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo
@@ -415,7 +415,7 @@ contains
               
        ! multiply vector by H
        call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-       call oop_Htl(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo

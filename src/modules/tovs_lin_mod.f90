@@ -79,15 +79,14 @@ contains
     real(8), allocatable :: tt(:,:)
     real(8), allocatable :: hu(:,:)
     real(8), allocatable :: pressure_tl(:,:)
-    real(8), allocatable :: ozone(:,:)
     real(8), allocatable :: ozone_tl(:,:)
     character(len=4) :: ozoneVarName
     real(8), allocatable :: clw_tl(:,:)
     real(8), allocatable :: clw(:,:)
     logical, allocatable :: surfTypeIsWater(:)
-    real(8), pointer :: delTT(:), delHU(:), TTb(:), delP(:)
-    real(8), pointer :: delO3(:), O3b(:)
-    real(8), pointer :: delCLW(:), CLWb(:)
+    real(8), pointer :: delTT(:), delHU(:), delP(:)
+    real(8), pointer :: delO3(:)
+    real(8), pointer :: delCLW(:)
     integer :: btCount
 
     integer,external :: omp_get_num_threads
@@ -183,8 +182,8 @@ contains
            assim_flag_val_opt=obs_assimilated)
       if ( btCount == 0 ) cycle  sensor_loop
    
-      allocate (sensorHeaderIndexes (profileCount), stat= allocStatus(1) )
-      allocate (tt_tl     (nlv_T,profileCount),     stat= allocStatus(2) )
+      allocate (sensorHeaderIndexes (profileCount), stat= allocStatus(1))
+      allocate (tt_tl     (nlv_T,profileCount),     stat= allocStatus(2))
       allocate (hu_tl    (nlv_T,profileCount),      stat= allocStatus(3))
       allocate (tt        (nlv_T,profileCount),     stat= allocStatus(4))
       allocate (hu       (nlv_T,profileCount),      stat= allocStatus(5))
@@ -212,13 +211,11 @@ contains
 
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          ozone(:,:) = 0.0d0
           ozone_tl(:,:) = 0.0d0
         end if
       end if
       if ( runObsOperatorWithClw_tl ) then
         clw_tl(:,:) = 0.0d0
-        clw(:,:) = 0.0d0
       end if
       surfTypeIsWater(:) = .false.
 
@@ -283,14 +280,14 @@ contains
           if (tvs_useO3Climatology) then
             profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           else
-            profilesdata_tl(profileIndex) % o3(1:nRttovLevels) = ozone_tl(1:nRttovLevels,profileIndex)
+            profilesdata_tl(profileIndex) % o3(1:nlv_T) = ozone_tl(1:nlv_T,profileIndex)
             profilesdata_tl(profileIndex) % s2m % o  = col_getElem(column,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
         end if
 
         ! using the zero CLW value for land FOV
         if ( runObsOperatorWithClw_tl ) &
-          profilesdata_tl(profileIndex) % clw(1:nRttovLevels)  = clw_tl(1:nRttovLevels,profileIndex)
+          profilesdata_tl(profileIndex) % clw(1:nlv_T)  = clw_tl(1:nlv_T,profileIndex)
 
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
@@ -459,16 +456,13 @@ contains
     real(8), allocatable :: tt_ad(:,:)
     real(8), allocatable :: hu_ad(:,:)
     real(8), allocatable :: pressure_ad(:,:)  
-    real(8), allocatable :: ozone(:,:)
     real(8), allocatable :: ozone_ad(:,:)
     character(len=4) :: ozoneVarName
     real(8), allocatable :: clw_ad(:,:)
-    real(8), allocatable :: clw(:,:)
     logical, allocatable :: surfTypeIsWater(:)
 
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),  &
                         tg_column(:),p_column(:),o3_column(:),clw_column(:)
-    real(8), pointer :: TTb(:), HUb(:), CLWb(:), O3b(:), Pres(:)
 
     integer :: btCount
     integer :: max_nthreads
@@ -676,6 +670,7 @@ contains
       !   2.0  Store adjoints in columnData object
       tt_ad(:,:) = 0.d0
       hu_ad(:,:) = 0.d0
+      pressure_ad(:,:) = 0.d0
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozone_ad(:,:) = 0.d0
       endif
