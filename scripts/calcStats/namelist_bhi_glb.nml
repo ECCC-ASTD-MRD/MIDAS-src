@@ -1,5 +1,5 @@
  &NAMCONF
-   MODE   = 'BHI2'
+   MODE   = 'BHI'
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -9,10 +9,10 @@
    ANLVAR(5)   ='P0'
 /
  &NAMENS
-   NENS=150
-   !ENSFILEBASENAME='nmc_ensemble_'  
-   ENSFILEBASENAME='2017011000_006_'  
+   NENS=120
 /
  &NAMCALCSTATS_GLB
-   NTRUNC=180
+   NTRUNC=380
+/
+ &NAMTIME
 /

@@ -4,22 +4,21 @@
 #
 # User-defined options
 #
-flnml="namelist_hvloc_lam.nml"
-ensdir=/home/jfc425/data_maestro/eccc-ppp2/ensemble/national_test #global_test/gaussian_grid
-analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
+#flnml="namelist_hvloc_lam.nml"
+#ensdir=/home/jfc425/data_maestro/eccc-ppp2/ensemble/national_test #global_test/gaussian_grid
+#analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
 
-#flnml="namelist_bhi_glb.nml"
-machine=eccc-ppp2
-abs=/home/jfc425/bin/midas/midas_abs/midas-calcStats_ubuntu-14.04-amd64-64-m_3.1.0_M.Abs
-expname="test_hvlocal"
-#ensdir=${HOME}/data_maestro/${machine}/calcstats/ensemble_enkf
+flnml="namelist_bhi_glb.nml"
+machine=eccc-ppp3
+abs=/home/mab001/ords/midas_abs/midas-calcStats_ubuntu-18.04-skylake-64-v_3.5.0_M.Abs
+expname="summer2016_vcode5002_g50_T380"
+ensdir=/home/mab001/data_maestro/eccc-ppp4/nmc/summer_2016/diff_2448_5002_g50/
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
-#analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
 
 npex=1
 npey=1
-openmp=40 #44
-memory=100000M #220000M
+openmp=40
+memory=160G
 maxcputime=10800
 
 run_in_parallel=r.run_in_parallel
@@ -45,7 +44,7 @@ ssh $machine rm -rf $gest
 ssh $machine mkdir -p $gest
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 scp $flnml ${machine}:${gest}/flnml
-scp $analysisgrid ${machine}:${gest}/analysisgrid
+#scp $analysisgrid ${machine}:${gest}/analysisgrid
 scp $abs ${machine}:${gest}/calcstats.abs
 ssh $machine ls -l $gest
 

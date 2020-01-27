@@ -31,6 +31,7 @@ module CalcStatsGlb_mod
   use utilities_mod
   use spectralFilter_mod
   use menetrierDiag_mod
+  use fileNames_mod
   implicit none
   save
   private
@@ -69,19 +70,15 @@ module CalcStatsGlb_mod
 !--------------------------------------------------------------------------
 ! CSG_SETUP
 !--------------------------------------------------------------------------
-  subroutine csg_setup( nens_in, cflens_in, hco_in, vco_in)
+  subroutine csg_setup(nens_in, hco_in, vco_in)
     implicit none
-
-    integer, intent(in)            :: nens_in
-
-    character(len=*), intent(in)   :: cflens_in(:)
-
+    ! arguments:
+    integer, intent(in)                     :: nens_in
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
-
-    integer :: nulnam,ierr,status, waveBandIndex
-    integer :: fclos,fnom,fstouv,fstfrm
-
+    ! locals:
+    integer :: nulnam, ierr, status, waveBandIndex, memberIndex
+    integer :: fclos, fnom, fstouv, fstfrm
     real(8) :: zps
 
     NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks
@@ -91,7 +88,10 @@ module CalcStatsGlb_mod
 
     nens=nens_in
     allocate(cflensin(nens))
-    cflensin(:)=cflens_in(1:nens)
+    do memberIndex = 1, nEns
+      call fln_ensfileName(cflensin(memberIndex), 'ensemble', memberIndex_opt=memberIndex)
+    end do
+    
     call mpc_printConstants(6)
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
@@ -138,6 +138,7 @@ module CalcStatsGlb_mod
 
     !- Estimate the pressure profile for each vertical grid    
     zps = 101000.D0
+    nullify(pressureProfile_M, pressureProfile_T)
     status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfile_M, &
                          sfc_field=zps, in_log=.false.)
 
@@ -2034,8 +2035,8 @@ module CalcStatsGlb_mod
     r1sa=1.d0/6371229.d0
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-    ip2 = 6
-!    ip2 = -1
+!    ip2 = 6
+    ip2 = -1
     ip3=-1
     idateo = -1
     cltypvar = ' '
@@ -2118,20 +2119,6 @@ module CalcStatsGlb_mod
        enddo
     enddo
 
-!          clnomvar = 'TG' 
-!          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-!          if(ikey.lt.0)  then
-!            write(*,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            call utl_abort('readEnsembleMember: Problem with TG ENS')
-!          else
-!            do jlat=1,nj
-!              do jlon=1,ni
-!                ensPerturbations(jlon,jlat,ngposittg,jens)= gd2d(jlon,jlat)
-!              enddo
-!            enddo
-!          endif
-
-    
   end subroutine readEnsembleMember
 
 !--------------------------------------------------------------------------
@@ -2151,6 +2138,7 @@ module CalcStatsGlb_mod
     call tmg_start(2,'UV_TO_PSICHI')
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
+      write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', jens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
       call gst_setID(gstID_nkgdimEns)
       call gst_gdsp(spectralState,member,nlevEns_M)
