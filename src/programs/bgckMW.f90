@@ -20,6 +20,7 @@ program midas_bgckmw
   !
   use burp_module
   use bgckmicrowave_mod
+  use MathPhysConstants_mod
 
   implicit none
 
@@ -393,10 +394,11 @@ program midas_bgckmw
       n_reps = n_reps + 1
 
       !  Get all the required data from the blocks in the report (Rpt_in)
-      call mwbg_getDataAmsua(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
-                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, bad_report)
-      if ( bad_report ) then
+      call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
+                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
+                        ican, icanomp, IMARQ, IORBIT, 'AMSUA')
+
+      if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
         n_bad_reps = n_bad_reps + 1  
 
         Call BURP_Free(Rpt_out,IOSTAT=error)
