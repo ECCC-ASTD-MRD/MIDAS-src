@@ -2767,8 +2767,8 @@ contains
     RETURN
   END SUBROUTINE mwbg_readStatTovsAtms
 
-  SUBROUTINE fillTblval (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
-                         burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
+  SUBROUTINE readBurpInteger (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
+                              burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
     !          and read (out) the corresponding INTEGER Array from the current block
     !          In some cases, if the array does not exist, it will be filled with MSING
@@ -2845,12 +2845,12 @@ contains
         burpArr(:) = MPC_missingValue_INT
       end if
     end if
-  END SUBROUTINE fillTblval
+  END SUBROUTINE readBurpInteger
 
 
 
-  SUBROUTINE fillRval (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
-                         burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
+  SUBROUTINE readBurpReal (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
+                           burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
     !          and read (out) the corresponding REAL Array from the current block
     !          In some cases, if the array does not exist, it will be filled with MSING
@@ -2925,7 +2925,7 @@ contains
         burpArr(:) = MPC_missingValue_R4
       end if
     end if
-  END SUBROUTINE fillRval
+  END SUBROUTINE readBurpReal
 
 
   subroutine mwbg_getData(reportIndex, rpt, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
@@ -2986,61 +2986,61 @@ contains
     end if
 
     !  Get OMP data from the DATA block     BTYP =  9322 or 9226 or 9258 or 9274 and bfma = 14
-    call fillRval (reportIndex, rpt, (/9322,9226,9258,9274/), 14, 12163, error, ZOMP, 'Omp_Data', &
+    call readBurpReal (reportIndex, rpt, (/9322,9226,9258,9274/), 14, 12163, error, ZOMP, 'Omp_Data', &
                    burpLocationNum, burpChannelNum, abortIfMissing = .FALSE.) 
     
     if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
       return
     end if
 
-    call fillTblval (reportIndex, rpt, (/9322,9226,9258,9274/), 14, eleChannel, error, ICANOMP, 'OMP_Channels', &
-                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger (reportIndex, rpt, (/9322,9226,9258,9274/), 14, eleChannel, error, ICANOMP, 'OMP_Channels', &
+                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get the lat,lon from time/location block    BTYP = 5120  (also get nt)
-    call fillRval(reportIndex, rpt, (/5120/), 0, 5002, error, zlat, 'LAT', &
-                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillRval(reportIndex, rpt, (/5120/), 0, 6002, error, zlon, 'LON', &
-                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal(reportIndex, rpt, (/5120/), 0, 5002, error, zlat, 'LAT', &
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal(reportIndex, rpt, (/5120/), 0, 6002, error, zlon, 'LON', &
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get info elements from the INFO block   BTYP = 3072
-    call fillTblval(reportIndex, rpt, (/3072/), 0, 1007, error, ISAT, 'Sat_Identifier', &
-                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval(reportIndex, rpt, (/3072/), 0, 5040, error, IORBIT, 'Orbit_Number', &
-                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillRval(reportIndex, rpt, (/3072/), 0, 7024, error, ZENITH, 'Zenith_Angle', &
-                  burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval(reportIndex, rpt, (/3072/), 0, 8012, error, ILQ, 'LandSea_Qualifier', &
-                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval(reportIndex, rpt, (/3072/), 0, 13039, error, ITT, 'Terrain_Type', &
-                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval(reportIndex, rpt, (/3072/), 0, 5043, error, SCANPOS, 'Scan_Position', &
-                    burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, rpt, (/3072/), 0, 1007, error, ISAT, 'Sat_Identifier', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, rpt, (/3072/), 0, 5040, error, IORBIT, 'Orbit_Number', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal(reportIndex, rpt, (/3072/), 0, 7024, error, ZENITH, 'Zenith_Angle', &
+                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, rpt, (/3072/), 0, 8012, error, ILQ, 'LandSea_Qualifier', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, rpt, (/3072/), 0, 13039, error, ITT, 'Terrain_Type', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger(reportIndex, rpt, (/3072/), 0, 5043, error, SCANPOS, 'Scan_Position', &
+                         burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Get info elements 33078 33079 33080 if needed
     if (ALL(eleQcFlag1 /= -1)) then
-      call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(1), error, qcflag1(:,1), 'Geoloc_Quality_QcFlag', &
-                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-      call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(2), error, qcflag1(:,2), 'Granule_Level_QcFlag', &
-                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-      call fillTblval(reportIndex, rpt, (/3072/), 0, eleQcFlag1(3), error, qcflag1(:,3), 'Scan_Level_QcFlag', &
-                      burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+      call readBurpInteger(reportIndex, rpt, (/3072/), 0, eleQcFlag1(1), error, qcflag1(:,1), 'Geoloc_Quality_QcFlag', &
+                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+      call readBurpInteger(reportIndex, rpt, (/3072/), 0, eleQcFlag1(2), error, qcflag1(:,2), 'Granule_Level_QcFlag', &
+                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+      call readBurpInteger(reportIndex, rpt, (/3072/), 0, eleQcFlag1(3), error, qcflag1(:,3), 'Scan_Level_QcFlag', &
+                           burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     end if
 
     !  Get data from the DATA block     BTYP = 9248 or 9264    (also get nval = nchanAtms)
-    call fillRval (reportIndex, rpt, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
-                   burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal (reportIndex, rpt, (/9248,9264/), 0, 12163, error, ztb, 'Tb_data', &
+                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
     nvalOut = burpChannelNum    ! set nvalOut (#channels) for MAIN program
     ntOut = burpLocationNum     ! set ntOut (#locations) for MAIN program
-    call fillRval (reportIndex, rpt, (/9248,9264/), 0, 12233, error, biasCorr, 'Bias_Corr_data', &
-                   burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval (reportIndex, rpt, (/9248,9264/), 0, eleChannel, error, ICAN, 'Channel_Numbers', &
-                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
-    call fillTblval (reportIndex, rpt, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
-                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpReal (reportIndex, rpt, (/9248,9264/), 0, 12233, error, biasCorr, 'Bias_Corr_data', &
+                       burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger (reportIndex, rpt, (/9248,9264/), 0, eleChannel, error, ICAN, 'Channel_Numbers', &
+                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
+    call readBurpInteger (reportIndex, rpt, (/9248,9264/), 0, eleDataQcFlag, error, qcflag2, 'Data_level_Qc_Flag', &
+                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.) 
 
     !  Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
-    call fillTblval (reportIndex, rpt, (/15362,15392,15408/), 0, 212163, error, IMARQ, 'IMARQ', &
-                     burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
+    call readBurpInteger (reportIndex, rpt, (/15362,15392,15408/), 0, 212163, error, IMARQ, 'IMARQ', &
+                          burpLocationNum, burpChannelNum, abortIfMissing = .TRUE.)
 
   end subroutine mwbg_getData
 
