@@ -102,7 +102,7 @@ module tovs_nl_mod
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
+  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_interpLogHU
 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
@@ -159,7 +159,8 @@ module tovs_nl_mod
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
-                                                   
+  logical tvs_interpLogHU                          ! Interpolate log(HU), instead of HU, to RTTOV pressure levels
+
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
@@ -500,13 +501,14 @@ contains
     character(len=8)  :: crtmodl
     logical :: ldbgtov, useO3Climatology
     integer :: instrumentIndex, numMWInstrumToUseCLW
-    logical :: mwInstrumUsingCLW_tl
+    logical :: mwInstrumUsingCLW_tl, interpLogHU
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
+    namelist /NAMTOV/ interpLogHU
  
     !   1.1 Default values for namelist variables
 
@@ -523,6 +525,7 @@ contains
     mWAtlasId = 1 !Default to TELSEM-2
     mwInstrumUsingCLW_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
+    interpLogHU = .true.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -542,6 +545,7 @@ contains
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
+    tvs_interpLogHU = interpLogHU
 
     !  1.4 Validate namelist values
     
@@ -1963,10 +1967,18 @@ contains
       do profileIndex=1, profileCount
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),tt(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
-        logVar(:,profileIndex) = log( hu(:,profileIndex) )
+        if (tvs_interpLogHU) then
+          logVar(:,profileIndex) = log( hu(:,profileIndex) )
+        else
+          logVar(:,profileIndex) = hu(:,profileIndex)
+        end if
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex),logVar(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated(:,profileIndex:profileIndex))
-        huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
+        if (tvs_interpLogHU) then
+          huInterpolated(:,profileIndex) = exp ( logVarInterpolated(:,profileIndex) )
+        else
+          huInterpolated(:,profileIndex) = logVarInterpolated(:,profileIndex)
+        end if
 
       if ( runObsOperatorWithClw ) &
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex), &

@@ -461,13 +461,23 @@ contains
              tt(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
 
-        logVar(:,profileIndex) = log( hu(:,profileIndex) )
-        logVar_tl(:,profileIndex) = hu_tl(:,profileIndex) / hu(:,profileIndex)
+        if (tvs_interpLogHU) then
+          logVar(:,profileIndex) = log( hu(:,profileIndex) )
+          logVar_tl(:,profileIndex) = hu_tl(:,profileIndex) / hu(:,profileIndex)
+        else
+          logVar(:,profileIndex) = hu(:,profileIndex)
+          logVar_tl(:,profileIndex) = hu_tl(:,profileIndex)
+        end if
+
         call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),logVar_tl(:,profileIndex:profileIndex), &
              logVar(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),logVarInterpolated_tl(:,profileIndex:profileIndex))
 
-       huInterpolated_tl(:,profileIndex) = logVarInterpolated_tl(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+        if (tvs_interpLogHU) then
+          huInterpolated_tl(:,profileIndex) = logVarInterpolated_tl(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+        else
+          huInterpolated_tl(:,profileIndex) = logVarInterpolated_tl(:,profileIndex)
+        end if
 
       end do
       !$omp end parallel do
@@ -1274,7 +1284,11 @@ contains
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated_ad(:,profileIndex:profileIndex))
         
-        logVar(:,profileIndex) = log( hu(:,profileIndex) ) 
+        if (tvs_interpLogHU) then
+          logVar(:,profileIndex) = log( hu(:,profileIndex) )
+        else
+          logVar(:,profileIndex) = hu(:,profileIndex)
+        end if
         logVar_ad(:,profileIndex) = 0.d0
         logVarInterpolated_ad(:,profileIndex) = 0.d0
         logVarInterpolated_ad(:,profileIndex) = logVarInterpolated_ad(:,profileIndex) +huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
@@ -1283,7 +1297,11 @@ contains
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels), logVarInterpolated_ad(:,profileIndex:profileIndex))
 
-        hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logVar_ad(:,profileIndex) / hu(:,profileIndex)
+        if (tvs_interpLogHU) then
+          hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logVar_ad(:,profileIndex) / hu(:,profileIndex)
+        else
+          hu_ad(:,profileIndex) = hu_ad(:,profileIndex) + logVar_ad(:,profileIndex)
+        end if
 
       end do
       !$omp end parallel do
