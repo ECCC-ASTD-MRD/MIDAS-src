@@ -161,6 +161,7 @@ module tovs_nl_mod
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
+  logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option 
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
   logical tvs_interpLogHU                          ! Interpolate log(HU), instead of HU, to RTTOV pressure levels
 
@@ -386,6 +387,7 @@ contains
         tvs_opts(sensorIndex) % interpolation % addinterp = .true. ! use of internal profile interpolator (rt calculation on model levels)
         tvs_opts(sensorIndex) % interpolation % lgradp = .true.    ! allow tl/ad of user pressure levels
         tvs_opts(sensorIndex) % interpolation % interp_mode = interp_rochon_loglinear_wfn ! see table 9 page 37 of RTTOV 12.1 users guide
+        tvs_opts(sensorIndex) % interpolation % reg_limit_extrap = tvs_regLimitExtrap 
 
         tvs_opts(sensorIndex) % rt_ir % co2_data = .false.
         tvs_opts(sensorIndex) % rt_ir % n2o_data = .false.
@@ -491,7 +493,7 @@ contains
     character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
     character(len=8)  :: crtmodl
-    logical :: ldbgtov, useO3Climatology
+    logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
     logical :: mwInstrumUsingCLW_tl, interpLogHU
 
@@ -500,7 +502,7 @@ contains
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
-    namelist /NAMTOV/ interpLogHU
+    namelist /NAMTOV/ regLimitExtrap
  
     !   1.1 Default values for namelist variables
 
@@ -517,7 +519,7 @@ contains
     mWAtlasId = 1 !Default to TELSEM-2
     mwInstrumUsingCLW_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
-    interpLogHU = .true.
+    regLimitExtrap = .false.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -537,7 +539,7 @@ contains
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
-    tvs_interpLogHU = interpLogHU
+    tvs_regLimitExtrap = regLimitExtrap
 
     !  1.4 Validate namelist values
     
@@ -572,6 +574,7 @@ contains
       if (useMWEmissivityAtlas) then
         write(*,'(6X,A,2X,I1)') 'MW atlas Id                          : ', mWAtlasId
       end if
+      write(*,'(6X,A,2X,L1)') 'Use of reg_limit_extrap              : ', regLimitExtrap
       write(*,'(6X,A,2X,A)')  'Radiative transfer model             : ', radiativeTransferCode
       write(*,'(6X,A,2X,I3)') 'Number of sensors                    : ', tvs_nsensors
       write(*,'(6X,"Satellite ids          : ",10A10)') (tvs_satelliteName(sensorIndex), sensorIndex=1,tvs_nsensors)
