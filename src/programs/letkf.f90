@@ -119,6 +119,7 @@ program midas_letkf
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
+  logical  :: huAdjustmentAfterPert ! choose to apply HU adjustment after random perturbations (default=true)
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=12) :: etiket0
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
@@ -127,8 +128,8 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
-                     imposeSaturationLimit, imposeRttovHuLimits, obsTimeInterpType, &
-                     etiket0, mpiDistribution
+                     imposeSaturationLimit, imposeRttovHuLimits, huAdjustmentAfterPert,  &
+                     obsTimeInterpType, etiket0, mpiDistribution
 
 
   write(*,'(/,' //  &
@@ -185,6 +186,7 @@ program midas_letkf
   alphaRandomPertSubSample =  -1.0D0
   imposeSaturationLimit = .false.
   imposeRttovHuLimits   = .false.
+  huAdjustmentAfterPert = .true.
   obsTimeInterpType     = 'LINEAR'
   etiket0               = 'E26_0_0P'
   mpiDistribution       = 'ROUNDROBIN'
@@ -581,7 +583,26 @@ program midas_letkf
 
   end if
 
-  !- 6.3 Apply random additive inflation, if requested
+  !- 6.3 Impose limits on humidity *before* random perturbations, if requested
+  if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+       .and. .not.huAdjustmentAfterPert ) then
+    call tmg_start(102,'LETKF-imposeHulimits')
+    if (mpi_myid == 0) write(*,*) ''
+    if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
+    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+    if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+    if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+    ! And recompute analysis mean
+    call ens_computeMean(ensembleAnl)
+    call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+    ! And recompute mean increment
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+    call tmg_stop(102)
+  end if
+
+  !- 6.4 Apply random additive inflation, if requested
   if (alphaRandomPert > 0.0D0) then
     ! If namelist value is -999, set random seed using the date (as in standard EnKF)
     if (randomSeed == -999) then
@@ -600,44 +621,54 @@ program midas_letkf
     call tmg_stop(101)
   end if
 
-  !- 6.4 Impose limits on humidity, if requested
-  if (imposeSaturationLimit .or. imposeRttovHuLimits) then 
+  !- 6.5 Impose limits on humidity *after* random perturbations, if requested
+  if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+       .and. huAdjustmentAfterPert ) then
     call tmg_start(102,'LETKF-imposeHulimits')
-    ! Impose limits on analysis ensemble
-    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-      if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
-      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-
-      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
-    end if
-
+    if (mpi_myid == 0) write(*,*) ''
+    if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
+    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+    if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+    if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
     ! And recompute analysis mean
     call ens_computeMean(ensembleAnl)
     call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
     ! And recompute mean increment
     call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
     call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-
-    ! Impose limits on deterministic analysis
-    if (deterministicStateExists) then
-      if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorDeterAnl)
-      if ( imposeRttovHuLimits   ) call qlim_rttovLimit(stateVectorDeterAnl)
-      ! And recompute deterministic increment
-      call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
-      call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
-    end if
     call tmg_stop(102)
   end if
 
-  !- 6.5 Recompute the analysis spread stddev after inflation and humidity limits
+  !- 6.6 Impose limits on deterministic analysis
+  if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+       .and. deterministicStateExists ) then
+    call tmg_start(102,'LETKF-imposeHulimits')
+    if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorDeterAnl)
+    if ( imposeRttovHuLimits   ) call qlim_rttovLimit(stateVectorDeterAnl)
+    ! And recompute deterministic increment
+    call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
+    call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
+    call tmg_stop(102)
+  end if
+
+  !- 6.7 Recompute the analysis spread stddev after inflation and humidity limits
   call ens_computeStdDev(ensembleAnl)
   call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
 
-  !- 6.6 If SubSample requested, do remaining processing and output of sub-sampled members
+  !- 6.8 If SubSample requested, do remaining processing and output of sub-sampled members
   if (writeSubSample) then
+
+    ! Impose humidity limits on subsample *before* adding random perturations, if requested
+    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+         .and. .not.huAdjustmentAfterPert ) then
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of recentered ensemble'
+      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
+    end if
 
     ! Apply random additive inflation to sub-sampled ensemble, if requested
     if (alphaRandomPertSubSample > 0.0D0) then
@@ -664,12 +695,12 @@ program midas_letkf
 
     ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
     call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl, recenteringCoeff=1.0D0)
-    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
+    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+         .and. huAdjustmentAfterPert ) then
       if (mpi_myid == 0) write(*,*) ''
       if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of recentered ensemble'
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-
       if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
       if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
     end if

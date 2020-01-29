@@ -67,6 +67,7 @@ module obsFilter_mod
 
   integer, parameter :: nTopoFiltFam = 8
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
+  logical :: useEnkfTopoFilt
 
   character(len=48) :: filterMode
 
@@ -137,7 +138,7 @@ contains
 
     namelist /namfilt/nelems,nlist,nflags,nlistflg,rlimlvhu,discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
 
     filterMode = filterMode_in
 
@@ -171,6 +172,8 @@ contains
 
     surfaceBufferZone_Pres   = 5000.0d0 ! default value in Pascals
     surfaceBufferZone_Height =  400.0d0 ! default value in Metres
+
+    useEnkfTopoFilt = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -269,11 +272,10 @@ contains
     !
     implicit none
     type(struct_obs) :: obsSpaceData
-    integer bodyIndex,headerIndex
-    integer ipres,ivco,ierr,loopIndex
-    integer idburp,ivnm,iflg,ibad,iknt,iknt_mpiglobal
-    integer ilansea
-    logical llok,llrej,llbogus
+    integer :: bodyIndex, headerIndex
+    integer :: ipres, ivco, ierr, loopIndex
+    integer :: idburp, ivnm, iflg, ibad, iknt, iknt_mpiglobal, ilansea
+    logical :: llok, llrej, llbogus
 
     if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
@@ -426,7 +428,7 @@ contains
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
 
-    real(8) :: zdiff
+    real(8) :: altitudeDiff
     integer :: headerIndex, bodyIndex, familyIndex, elemIndex
     integer :: ivnm,countAssim
     integer :: countAcc(numElem),countRej(numElem)
@@ -481,7 +483,7 @@ contains
 
              ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              varLevel = vnl_varLevelFromVarnum(ivnm)
-             zdiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
+             altitudeDiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
                   col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel) )
              !
              ! apply filter to selected elements
@@ -489,7 +491,7 @@ contains
              elemIndex = findElemIndex(ivnm)
              if (elemIndex == -1) cycle BODY
 
-             if (zdiff.le.altDiffMax(elemIndex)) then
+             if (altitudeDiff <= altDiffMax(elemIndex)) then
                 ! obs passes the acceptance criteria
                 countAcc(elemIndex) = countAcc(elemIndex)+1
              else
@@ -537,18 +539,19 @@ contains
     !
     implicit none
    
+    ! arguments:
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
     logical :: beSilent
 
+    ! locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: itotacc(numElem), itotrej(numElem), isblrej(numElem)
     integer :: igzacc(numElem), igzrej(numElem), ibndrej(numElem)
-    real(8) :: zval, zlev, zdiff, zdifalt
-    real(8) :: zStnAlt, zpb, zpt, zdelp
+    real(8) :: zval, obsPressure, altitudeDiff
+    real(8) :: obsSfcAltitude, colSfcAltitude, colPressureBelow, colPressureAbove, zdelp
     logical :: llok
-
     real(8) :: geopotential(1), height(1)
     integer :: nlev_M
     real(8) :: lat
@@ -578,119 +581,133 @@ contains
     ! loop over all header indices of the 'UA' family
     call obs_set_current_header_list(obsSpaceData, 'UA')
     HEADER: do
-       headerIndex = obs_getHeaderIndex(obsSpaceData)
-       if (headerIndex < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
 
-       ! HEIGHT GZ
+      ! HEIGHT GZ
 
-       ! loop over all body indices (still in the 'UA' family)
-       call obs_set_current_body_list(obsSpaceData, headerIndex)
-       BODY: do 
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
+      ! loop over all body indices (still in the 'UA' family)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
 
-          ! skip this obs if it is not on pressure level
-          if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
+        ! skip this obs if it is not on pressure level
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
 
-          ! skip this obs if already flagged to not be assimilated
-          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY
+        ! skip this obs if already flagged to not be assimilated
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY
 
-          ! skip this obs if it is not GZ
-          ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          listIndex = findElemIndex(ivnm)
-          llok = (ivnm == BUFR_NEGZ .and. listIndex.ne.-1)
-          if (.not. llok ) cycle BODY
+        ! skip this obs if it is not GZ
+        ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        llok = (ivnm == BUFR_NEGZ .and. listIndex.ne.-1)
+        if (.not. llok ) cycle BODY
 
-          ! convert altitude read from column to geopotential
-          height(1) = col_getHeight(columnhr,0,headerIndex,'SF')
-          lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-          call phf_height2geopotential(height,lat,geopotential)
+        ! convert altitude read from column to geopotential
+        height(1) = col_getHeight(columnhr,0,headerIndex,'SF')
+        lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+        call phf_height2geopotential(height,lat,geopotential)
 
-          zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-          zdiff= ( zval - geopotential(1) )/RG
-          ! obs is above surface, so it is ok, lets jump to the next obs
-          if(zdiff .ge. 0.0d0) cycle BODY
+        zval = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+        altitudeDiff = ( zval - geopotential(1) )/RG
+        ! obs is above surface, so it is ok, lets jump to the next obs
+        if(altitudeDiff >= 0.0d0) cycle BODY
 
-          if(zdiff .ge. -1.0d0*altDiffMax(listIndex)) then
-             ! obs is an acceptably small distance below the surface
-             itotacc(listIndex) = itotacc(listIndex)+1
-             igzacc(listIndex) = igzacc(listIndex)+1
-          else
-             ! too far below surface, reject
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             itotrej(listIndex) = itotrej(listIndex)+1
-             igzrej(listIndex) = igzrej(listIndex)+1
+        if(altitudeDiff >= -1.0d0*altDiffMax(listIndex)) then
+          ! obs is an acceptably small distance below the surface
+          itotacc(listIndex) = itotacc(listIndex)+1
+          igzacc(listIndex) = igzacc(listIndex)+1
+        else
+          ! too far below surface, reject
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+          itotrej(listIndex) = itotrej(listIndex)+1
+          igzrej(listIndex) = igzrej(listIndex)+1
+        end if
+      end do BODY
+      !
+      !   REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
+      !   AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
+      !   BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
+      !   AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
+      !   ATMOSPHERE
+      !
+      !---Special case if station elevation is above model elevation
+      !   we want to define colPressureAbove at a level above the station.
+      !   To approximate that value, we will transform the difference
+      !   between the 2 elevations into a difference in pressure using
+      !   the rule of thumb (1Mb =8 metres)
+      !---Even though TT(element=12001) is not assimmilated
+      !   it is treated as if it were for the evaluation step.
+      !   Otherwise we use observations of TT that are too far
+      !   from the model topography in the verification.
+
+      obsSfcAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
+      colSfcAltitude = col_getHeight(columnhr,0,headerIndex,'SF')
+      altitudeDiff = obsSfcAltitude - colSfcAltitude
+
+      ! Set the body list & start at the beginning of the list
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY2
+
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
+
+        ! skip this obs if already flagged to not be assimilated
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY2
+
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        llok = (ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
+        if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
+
+        obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        colPressureBelow = col_getElem(columnhr,1,headerIndex,'P0')
+        colPressureAbove = colPressureBelow - surfaceBufferZone_Pres
+
+        if (useEnkfTopoFilt) then
+          ! Simpler rules used in the EnKF
+          if(obsPressure >= colPressureAbove ) then
+            if(abs(altitudeDiff) >= 50.0D0 .or. obsPressure >= colPressureBelow) then
+              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+              itotrej(listIndex) = itotrej(listIndex) + 1
+              ibndrej(listIndex) = ibndrej(listIndex) + 1
+            end if
           end if
-       end do BODY
-       !
-       !   REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
-       !   AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
-       !   BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
-       !   AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
-       !   ATMOSPHERE
-       !
-       !---Special case if station elevation is above model elevation
-       !   we want to define zpt at a level above the station.
-       !   To approximate that value, we will transform the difference
-       !   between the 2 elevations into a difference in pressure using
-       !   the rule of thumb (1Mb =8 metres)
-       !---Even though TT(element=12001) is not assimmilated
-       !   it is treated as if it were for the evaluation step.
-       !   Otherwise we use observations of TT that are too far
-       !   from the model topography in the verification.
-
-       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-       zdifalt = zStnAlt- col_getHeight(columnhr,0,headerIndex,'SF')
-
-       ! Set the body list & start at the beginning of the list
-       call obs_set_current_body_list(obsSpaceData, headerIndex)
-       BODY2: do 
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY2
-
-          if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
-
-          ! skip this obs if already flagged to not be assimilated
-          if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY2
-
-          ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          listIndex = findElemIndex(ivnm)
-          llok = (ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
-          if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
-
-          zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          zpb = col_getElem(columnhr,1,headerIndex,'P0')
-          zpt = zpb - surfaceBufferZone_Pres
-          zdelp = 999999.0d0
-          if (zdifalt .gt. 0.0d0) then
-             zdelp = zdifalt * 100.d0 / 8.0d0
-             zpt   = zpb - (zdelp + surfaceBufferZone_Pres)
+        else
+          ! Original (and confusing) rules used in Var
+          if (altitudeDiff > 0.0d0) then
+            zdelp = altitudeDiff * 100.d0 / 8.0d0
+            colPressureAbove = colPressureBelow - (zdelp + surfaceBufferZone_Pres)
           end if
 
-          if(abs(zdifalt).le.altDiffMax(listIndex)) then
-             !--Model surface and station altitude are very close
-             !  Accept observation if zlev is within the domain
-             !  of the trial field
-             zpb = col_getElem(columnhr,1,headerIndex,'P0')
-             zpt = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+          if(abs(altitudeDiff) <= altDiffMax(listIndex)) then
+            !--Model surface and station altitude are very close
+            !  Accept observation if obsPressure is within the domain
+            !  of the trial field
+            colPressureAbove = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
           end if
-          if(zlev .gt. zpb ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             itotrej(listIndex) = itotrej(listIndex) + 1
-             ibndrej(listIndex) = ibndrej(listIndex) + 1
-          else if(zlev.le.zpb .and. zlev.gt.zpt ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-             itotrej(listIndex) = itotrej(listIndex) + 1
-             isblrej(listIndex) = isblrej(listIndex) + 1
+          if(obsPressure > colPressureBelow ) then
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+            itotrej(listIndex) = itotrej(listIndex) + 1
+            ibndrej(listIndex) = ibndrej(listIndex) + 1
+          else if(obsPressure <= colPressureBelow .and. obsPressure > colPressureAbove ) then
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+            itotrej(listIndex) = itotrej(listIndex) + 1
+            isblrej(listIndex) = isblrej(listIndex) + 1
           end if
-       end do BODY2
+        end if
+
+      end do BODY2
     end do HEADER
 
     if ( .not.beSilent ) then
@@ -713,7 +730,7 @@ contains
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
@@ -735,7 +752,7 @@ contains
 
     integer :: headerIndex, bodyIndex, elemIndex, listIndex
     integer :: ivnm, countRej(numElem), countAssim
-    real(8) :: zval, zdiff
+    real(8) :: obsPressure, pressureDiff
 
     if (obsFamily /= 'AI' .and. obsFamily /= 'SW') then
       call utl_abort('filt_topoAISW: only AI and SW family are handled by this routine. You ask for '//obsFamily)
@@ -768,10 +785,10 @@ contains
       ! reject data too close to the model orography, put to
       ! model orography, data which is below , but close to the surface.
       !
-      zval = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
       headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-      zdiff = col_getElem(columnhr,1,headerIndex,'P0') - zval
-      if ( zdiff < surfaceBufferZone_Pres ) then
+      pressureDiff = col_getElem(columnhr,1,headerIndex,'P0') - obsPressure
+      if ( pressureDiff < surfaceBufferZone_Pres ) then
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
         if(listIndex == -1) cycle BODY
@@ -821,8 +838,8 @@ end subroutine filt_topoAISW
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: itotrej(numElem), isblrej(numElem), ibndrej(numElem)
-    real(8) :: zlev
-    real(8) :: zStnAlt,zModAlt,zpb,zpt
+    real(8) :: obsAltitude
+    real(8) :: obsSfcAltitude,colSfcAltitude,colAltitudeBelow,colAltitudeAbove
     logical :: llok, list_is_empty
 
     if ( .not.beSilent ) then
@@ -859,8 +876,8 @@ end subroutine filt_topoAISW
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
        ! ATMOSPHERE
        !
-       zModAlt = col_getHeight(columnhr,0,headerIndex,'SF')
-       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
+       colSfcAltitude = col_getHeight(columnhr,0,headerIndex,'SF')
+       obsSfcAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
        BODY: do 
@@ -876,27 +893,27 @@ end subroutine filt_topoAISW
                .and. ivnm /= BUFR_NEGZ .and. listIndex /= -1)
           if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
-          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          zpb = zModAlt
-          if (zStnAlt > zModAlt) then
-             zpt = zStnAlt + surfaceBufferZone_Height
+          obsAltitude = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          colAltitudeBelow = colSfcAltitude
+          if (obsSfcAltitude > colSfcAltitude) then
+             colAltitudeAbove = obsSfcAltitude + surfaceBufferZone_Height
           else
-             zpt = zModAlt + surfaceBufferZone_Height
+             colAltitudeAbove = colSfcAltitude + surfaceBufferZone_Height
           end if
-          if(abs(zStnAlt-zModAlt).le.altDiffMax(listIndex)) then
+          if(abs(obsSfcAltitude-colSfcAltitude) <= altDiffMax(listIndex)) then
              !----Model surface and station altitude are very close
-             !    Accept observation if zlev is within the domain
+             !    Accept observation if obsAltitude is within the domain
              !    of the trial field
-             zpb = zModAlt
-             zpt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+             colAltitudeBelow = colSfcAltitude
+             colAltitudeAbove = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
           end if
-          if(zlev.lt.zpb ) then
+          if(obsAltitude < colAltitudeBelow ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex)=itotrej(listIndex)+1
              ibndrej(listIndex)=ibndrej(listIndex)+1
-          else if(zlev.ge.zpb .and. zlev.lt.zpt ) then
+          else if(obsAltitude >= colAltitudeBelow .and. obsAltitude < colAltitudeAbove ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
@@ -946,9 +963,9 @@ end subroutine filt_topoAISW
     integer :: headerIndex, bodyIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: countAcc(numElem), countRej(numElem)
-    real(8) :: zlev    ! altitide of the observation
-    real(8) :: zModAlt ! altitude of the model's lowest layer
-    real(8) :: zpt     ! top of the boundary layer
+    real(8) :: obsAltitude      ! altitide of the observation
+    real(8) :: colSfcAltitude   ! altitude of the model's lowest layer
+    real(8) :: colAltitudeAbove ! top of the boundary layer
     logical :: list_is_empty, beSilent
 
     if(.not. beSilent )then
@@ -981,9 +998,9 @@ end subroutine filt_topoAISW
        ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS THAT ARE IN THE FREE
        ! ATMOSPHERE
        !
-       zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
+       colSfcAltitude = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'), &
                                headerIndex,'MM') 
-       zpt = zModAlt + surfaceBufferZone_Height
+       colAltitudeAbove = colSfcAltitude + surfaceBufferZone_Height
 
        ! Loop over all body indices (still in the 'AL' family)
        BODY: do 
@@ -1007,8 +1024,8 @@ end subroutine filt_topoAISW
           !
 
           ! Reject this obs if it is in the boundary layer or below
-          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-          if(zlev > zpt) then
+          obsAltitude = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          if(obsAltitude > colAltitudeAbove) then
              ! obs passes the acceptance criterion
              countAcc(elemIndex) = countAcc(elemIndex)+1
 
@@ -1097,7 +1114,7 @@ end subroutine filt_topoAISW
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_NBT3) cycle BODY
 
           ! reject obs if the model surface pressure is below the minimum specified value
-          if (col_getElem(columnhr,1,headerIndex,'P0') .lt. minSfcPressure) then
+          if (col_getElem(columnhr,1,headerIndex,'P0') < minSfcPressure) then
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej=countRej+1
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
@@ -1141,15 +1158,12 @@ end subroutine filt_topoAISW
     type(struct_obs) :: lobsSpaceData
     logical :: beSilent
 
-    INTEGER JPINEL,JPIDLND
-    PARAMETER(JPINEL=2,JPIDLND=9)
-    INTEGER J,JID,JDATA
-    LOGICAL LLPRINT
-    REAL(8) ZDIFF
-    INTEGER ITYP,IDBURP
-    INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
-    INTEGER IKOUNTREJ(JPINEL),IKOUNTT
-    !                     SYNOP(3)     TEMP/PILOT(6)
+    INTEGER, parameter :: JPINEL=2,JPIDLND=9
+    INTEGER :: J,JID,JDATA
+    LOGICAL :: LLPRINT
+    INTEGER :: ITYP,IDBURP
+    INTEGER :: ILISTEL(JPINEL), IDLND(JPIDLND)
+    INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT
     character(len=2), dimension(2) :: list_family
     integer :: index_family, index_header, index_body
 
@@ -1227,7 +1241,7 @@ end subroutine filt_topoAISW
                               ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP &
                               ,obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
                               ,obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
-                              ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),ZDIFF
+                              ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                       END IF
                    END IF
                 END DO
@@ -1246,7 +1260,7 @@ end subroutine filt_topoAISW
 222    FORMAT(2x,a29,10(2x,i5))
 223    FORMAT(2x,a29,10(2x,f5.0))
 224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
-225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,4(2x,f9.2))
+225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
        !
     END DO ! family
     !
@@ -1282,11 +1296,11 @@ end subroutine filt_topoAISW
     type(struct_obs)        :: lobsSpaceData
     logical                 :: beSilent
     !
-    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER JL, ISAT, ICLF, iProfile, I
-    REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
-    REAL*8 HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF
-    LOGICAL LLEV, LOBS, LNOM, LSAT
+    INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
+    INTEGER :: JL, ISAT, ICLF, iProfile, I
+    REAL(8) :: ZMT, Rad, Geo, zLat, zLon, Lat, Lon, AZM
+    REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF
+    LOGICAL :: LLEV, LOBS, LNOM, LSAT
     !
     if (.not.beSilent) then
       write(*,*)
@@ -1318,7 +1332,7 @@ end subroutine filt_topoAISW
           !
           !     *     Check if the satellite is within the accepted set:
           !
-          IF ( NUMGPSSATS .GE. 1 ) THEN
+          IF ( NUMGPSSATS >= 1 ) THEN
              LSAT = .FALSE.
              DO I=1,NUMGPSSATS
                 LSAT=( LSAT .OR. (ISAT == IGPSSAT(I)) )
@@ -1337,16 +1351,16 @@ end subroutine filt_topoAISW
           !
           !     *     Discard low data for METOP/GRAS:
           !
-          IF ( NUMGPSSATS .GE. 1 ) THEN
+          IF ( NUMGPSSATS >= 1 ) THEN
              IF ( ISAT == 3 .OR. ISAT == 4 .OR. ISAT == 5 ) THEN
-                IF (HSF .LT. 10000.d0) HSF=10000.d0
+                IF (HSF < 10000.d0) HSF=10000.d0
              END IF
           END IF
           !
           !     *     Min/max altitudes:
           !
-          IF (HSF .LT. HSFMIN) HSF=HSFMIN
-          IF (HTP .GT. HTPMAX) HTP=HTPMAX
+          IF (HSF < HSFMIN) HSF=HSFMIN
+          IF (HTP > HTPMAX) HTP=HTPMAX
           HMIN=Geo+HSF
           HMAX=Geo+HTP
           !
@@ -1377,16 +1391,16 @@ end subroutine filt_topoAISW
              !
              !     *        Positively verify that the altitude is within bounds:
              !
-             LLEV= (HNH1.GT.HMIN) .AND. (HNH1.LT.HMAX)
+             LLEV= (HNH1 > HMIN) .AND. (HNH1 < HMAX)
              !
              !     *        Positively verify that the observable is within bounds:
              !
-             LOBS= (ZOBS.GT.(0.3d0*ZREF)) .AND. (ZOBS.LT.(3.d0*ZREF))
+             LOBS= (ZOBS > (0.3d0*ZREF)) .AND. (ZOBS < (3.d0*ZREF))
              !
              !     *        Mark as not assimilable unless all conditions are satisfied:
              !
 
-             IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. AZM.LT.0. .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
+             IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. AZM < 0. .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
                 call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
              END IF
@@ -1396,7 +1410,7 @@ end subroutine filt_topoAISW
 
     END DO HEADER
 
-    IF (gps_numROProfiles.GT.0) THEN
+    IF (gps_numROProfiles > 0) THEN
        if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
 
        iProfile=0
@@ -1446,8 +1460,8 @@ end subroutine filt_topoAISW
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
     integer :: ivnm, countAssim, jl, icount,unit,ier
-    real(8) :: zlev,zPtop,zP0
-    real(8) :: zStnAlt,zModAlt,zpb,zpt
+    real(8) :: obsAltitude, obsPressure, colTopPressure, colSfcPressure
+    real(8) :: colAltitudeBelow, colAltitudeAbove
     logical :: list_is_empty
 
     integer, parameter :: Nmax=100
@@ -1456,7 +1470,6 @@ end subroutine filt_topoAISW
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
     integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)
-    integer, external :: fclos
 
     if (.not.obs_famExist(obsSpaceData,'CH')) return
 
@@ -1484,12 +1497,10 @@ end subroutine filt_topoAISW
 
       ! Set geopotential height and pressure boundaries.
 
-      zModAlt = col_getHeight(columnhr,0,headerIndex,'SF')
-      zpb=zModAlt
-      zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
-      zpt = col_getHeight(columnhr,1,headerIndex,'MM')
-      zP0 = col_getElem(columnhr,1,headerIndex,'P0')
-      zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
+      colAltitudeBelow = col_getHeight(columnhr,0,headerIndex,'SF')
+      colAltitudeAbove = col_getHeight(columnhr,1,headerIndex,'MM')
+      colSfcPressure = col_getElem(columnhr,1,headerIndex,'P0')
+      colTopPressure = col_getPressure(columnhr,1,headerIndex,'MM')
 
       ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
 
@@ -1536,9 +1547,9 @@ end subroutine filt_topoAISW
 
            ! Check as a function of altitude.
 
-           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-           !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
-           if( zlev.lt.zpb .or. zlev.gt.zpt ) then
+           obsAltitude = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+           !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),obsAltitude,colSfcPressure,colTopPressure
+           if( obsAltitude < colAltitudeBelow .or. obsAltitude > colAltitudeAbove ) then
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                    ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
@@ -1553,9 +1564,9 @@ end subroutine filt_topoAISW
 
            ! Check as a function of pressure.
 
-           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+           obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
-           if ( zlev.gt.zP0 .or. zlev.lt.zPtop) then
+           if ( obsPressure > colSfcPressure .or. obsPressure < colTopPressure) then
                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
@@ -1574,7 +1585,7 @@ end subroutine filt_topoAISW
 
     end do HEADER
 
-    if (Num_stnid_chm.gt.0 .and. .not.beSilent) then
+    if (Num_stnid_chm > 0 .and. .not.beSilent) then
        write(*,*) ' '
        write(*,*) '*****************************************************************'
        write(*,*) ' filt_topoChemistry: '

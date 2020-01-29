@@ -71,7 +71,6 @@ MODULE BmatrixHI_mod
   real(8)             :: scaleFactorCC(maxNumLevels)
   logical             :: scaleTG
   real(8)             :: rcscltg(1)=100000.d0
-  real(8)             :: rfacthum=1.0d0
   real(8)             :: rlimsuptg=3.0d0
   logical             :: llimtg=.true.
   logical             :: TweakTG
@@ -1802,7 +1801,7 @@ CONTAINS
       elseif(clnomvar == 'LQ') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
-            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       endif
@@ -1919,7 +1918,7 @@ CONTAINS
       elseif(clnomvar == 'TB') then
         rgsigtb(:,:) = zgr(:,1:nlev_T)
       elseif(clnomvar == 'LQ') then
-        rgsigq(:,:) = zgr(:,1:nlev_T)*rfacthum
+        rgsigq(:,:) = zgr(:,1:nlev_T)
       endif
 
     enddo
@@ -2060,7 +2059,7 @@ CONTAINS
       elseif(clnomvar == 'LQ') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
-            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       endif

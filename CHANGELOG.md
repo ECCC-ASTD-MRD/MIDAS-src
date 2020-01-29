@@ -86,6 +86,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  
 ### Changed
 
+ * For consistency with EnKF, optionally change raobs topo filter, read AMV obs error from obsfile, apply humidity adjustment before random pert (#300 and !293)
  * Update the expected execution timings for the ones on HPCR-U1 (#298 and !291)
    * On XC50, we use `TBB_MALLOC_USE_HUGE_PAGES=1` to save 7% in execution freely.w
    * Some users are notified when a timing outlier is found.
