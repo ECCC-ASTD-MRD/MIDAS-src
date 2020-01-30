@@ -27,7 +27,7 @@ module bgckmicrowave_mod
   private
 
   ! public variables
-  public :: mwbg_debug, mwbg_clwQcThreshold
+  public :: mwbg_debug, mwbg_clwQcThreshold, mwbg_allowStateDepSigmaObs
   public :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
 
   ! Public functions/subroutines
@@ -39,7 +39,7 @@ module bgckmicrowave_mod
   public :: mwbg_grossValueCheck, mwbg_firstQcCheckAtms, mwbg_nrlFilterAtms
   public :: mwbg_writeBlocks
 
-  logical :: mwbg_debug, mwbg_clwQcThreshold
+  logical :: mwbg_debug, mwbg_clwQcThreshold, mwbg_allowStateDepSigmaObs
   logical :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
 
   integer, parameter :: JPNSAT = 9
@@ -56,6 +56,9 @@ module bgckmicrowave_mod
 
   INTEGER :: NCHNA(JPNSAT), MLISCHNA(JPCH,JPNSAT), IUTILST(JPCH,JPNSAT)
   REAL    :: TOVERRST(JPCH,JPNSAT)
+  real    :: clwThreshArr(JPCH,JPNSAT,2)
+  real    :: sigmaObsErr(JPCH,JPNSAT,2)
+  integer :: useStateDepSigmaObs(JPCH,JPNSAT)
 
   INTEGER :: MREJCOD(JPMXREJ,MXCHN,MXSAT), INTOT(MXSAT), INTOTRJF(MXSAT), INTOTRJP(MXSAT)
   INTEGER :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)
@@ -250,6 +253,9 @@ contains
     real clw_avg(mxnt)
     real scatl(mxnt)
     real scatw(mxnt)
+    real clwThresh1, clwThresh2
+    real sigmaThresh1, sigmaThresh2
+    real sigmaObsErrUsed
 
     integer err (mxnt)
     integer rain(mxnt)
@@ -798,7 +804,20 @@ contains
       DO JI=1,KNO
         ICHN = KCANO(JI,JJ)
         IF ( ICHN .NE. 20 ) THEN
-          XCHECKVAL = ROGUEFAC(ICHN)*TOVERRST(ICHN,KNOSAT) 
+          if ( mwbg_allowStateDepSigmaObs ) then
+            if ( useStateDepSigmaObs(ichn,knosat) == 0 ) then
+              sigmaObsErrUsed = TOVERRST(ichn,knosat)
+            else
+              clwThresh1 = clwThreshArr(ichn,knosat,1)
+              clwThresh2 = clwThreshArr(ichn,knosat,2)
+              sigmaThresh1 = sigmaObsErr(ichn,knosat,1)
+              sigmaThresh2 = sigmaObsErr(ichn,knosat,2)
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(JJ))
+            end if
+          else
+            sigmaObsErrUsed = TOVERRST(ichn,knosat)
+          end if
+          XCHECKVAL = ROGUEFAC(ICHN) * sigmaObsErrUsed
           IF ( PTBOMP(JI,JJ)      .NE. PMISG    .AND. &
               ABS(PTBOMP(JI,JJ)) .GE. XCHECKVAL     ) THEN
             ICHECK(JI,JJ) = MAX(ICHECK(JI,JJ),INO)
@@ -1666,78 +1685,72 @@ contains
   end SUBROUTINE GRODY
 
 
-  SUBROUTINE mwbg_readStatTovs(ILUTOV,INUMSAT,CSATID)
+  SUBROUTINE mwbg_readStatTovs(INUMSAT,CSATID)
     !OBJET          Lire les statistiques de l'erreur totale pour les TOVS.
     !
-    !ARGUMENTS      ilutov  - input  -  unite logique du fichier stats des TOVS
-    !               inumsat - output -  nombre de satellites
+    !ARGUMENTS      inumsat - output -  nombre de satellites
     !               csatid  - output -  identificateur de satellite 
     IMPLICIT NONE
 
     INTEGER JPMXSFC
     PARAMETER (JPMXSFC =  2)
 
-    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ICHN, NULOUT
-    INTEGER INUMSAT, INDX, IPOS
+    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, NULOUT, ier, istat 
+    INTEGER INUMSAT, INUMSAT2, INDX, IPOS
 
     INTEGER NUMCHNIN(JPNSAT), ISATID(JPNSAT)
+    INTEGER NUMCHNIN2, ISATID2
 
-    REAL*8  TOVERRIN(JPCH,2,JPNSAT)
+    REAL    TOVERRIN(JPCH,2,JPNSAT)
+    integer ICHNIN(JPCH,JPNSAT)
+    integer ICHNIN2(JPCH)
+
     REAL*8  ZDUM
 
     CHARACTER*132  CLDUM
     CHARACTER*17   CSATSTR
 
     CHARACTER*9   CSATID(JPNSAT)
+    CHARACTER*9   CSATID2
     CHARACTER*12  CTYPSTAT(2)
-
-    DATA NULOUT /  6 /
 
     DATA CTYPSTAT     / 'Monitoring',  'Assimilation'  /  
 
-    WRITE(NULOUT,FMT=9000)
-9000 FORMAT(//,10x,"-mwbg_readStatTovs: reading total error statistics" &
-          ," required for TOVS processing")
+    ier = fnom(ILUTOV,'stats_amsua_assim','SEQ+FMT',0)
+    if (ier < 0) then
+      write (*,*) 'bgckMW: Problem opening TOVS total error statistics file: ', &
+                  'stats_amsua_assim'
+      call abort()
+    end if
 
-    ! 1. Initialize
-100  CONTINUE
-    DO JL = 1, JPNSAT
-      NCHNA(JL) = 0
-      NUMCHNIN(JL) = 0
-      ISATID(JL) = 0
-      DO JI = 1, JPCH
-        TOVERRIN(JI,1,JL) = 0.0
-        TOVERRIN(JI,2,JL) = 0.0
-        IUTILST (JI,JL) = 0
-        TOVERRST(JI,JL) = 0.0
-      ENDDO
-    ENDDO
+    write(*,*) 'mwbg_readStatTovs: reading total error statistics required for ', &
+              'TOVS processing'
 
-    ! 2. Open the file
-200  CONTINUE
-    ! .... not done here anymore, jh, august 2000
+    ! Initialize
+    NCHNA(:) = 0
+    NUMCHNIN(:) = 0
+    ISATID(:) = 0
+    ICHNIN(:,:) = 0
+    TOVERRIN(:,:,:) = 0.0
+    IUTILST(:,:) = 0
+    TOVERRST(:,:) = 0.0
 
-    ! 3. Print the file contents
-300  CONTINUE
-
-    WRITE(NULOUT,'(20X,"ASCII dump of stats_tovs file: "//)')
+    ! Print the file contents
+    WRITE(*,*) 'ASCII dump of stats_tovs file:'
     DO JI = 1, 9999999
       READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
-      WRITE(NULOUT,'(A)')   CLDUM
+      WRITE(*,'(A)')   CLDUM
     ENDDO
+400 CONTINUE
 
-    ! 4. Read number of satellites
-400  CONTINUE
-
+    ! Read number of satellites
     REWIND(ILUTOV)
     READ (ILUTOV,*,ERR=900)
     READ (ILUTOV,*,ERR=900) INUMSAT
     READ (ILUTOV,*,ERR=900)
 
-    ! 5. Read the satellite identification, the number of channels,
+    ! Read the satellite identification, the number of channels,
     ! the observation errors and the utilization flags
-500  CONTINUE
-
     DO JL = 1, INUMSAT
       READ (ILUTOV,*,ERR=900)
       READ (ILUTOV,'(A)',ERR=900) CLDUM
@@ -1753,9 +1766,8 @@ contains
           CSATID(JL) = CSATSTR(1:IPOS)
         ENDIF
       ELSE
-        WRITE ( NULOUT, '(" mwbg_readStatTovs: Non-AMSUA ", &
-                   "instrument found in stats file!")' )
-        WRITE ( NULOUT,'(A)' ) CLDUM
+        WRITE (*,*) 'mwbg_readStatTovs: Non-AMSUA instrument found in stats file!'
+        WRITE (*,'(A)') CLDUM
         CALL ABORT ()
       ENDIF
       READ (ILUTOV,*,ERR=900)
@@ -1766,21 +1778,17 @@ contains
 
       ! Set errors to ERRBGCK column values
       DO JI = 1, NUMCHNIN(JL)
-        READ (ILUTOV,*,ERR=900) ICHN, &
-                  TOVERRIN(ICHN,1,JL), &
-                  TOVERRIN(ICHN,2,JL), &
-                  IUTILST (ICHN,JL), ZDUM
-        TOVERRST(ICHN,JL) = TOVERRIN(ICHN,1,JL)
+        READ (ILUTOV,*,ERR=900) ICHNIN(JI,JL), &
+                  TOVERRIN(ICHNIN(JI,JL),1,JL), &
+                  TOVERRIN(ICHNIN(JI,JL),2,JL), &
+                  IUTILST (ICHNIN(JI,JL),JL), ZDUM
+        TOVERRST(ICHNIN(JI,JL),JL) = TOVERRIN(ICHNIN(JI,JL),1,JL)
       ENDDO
       READ (ILUTOV,*,ERR=900)
     ENDDO
 
-510  CONTINUE
-    ! 6. Print error stats for assimilated channels
-
-600  CONTINUE
-
-    WRITE(NULOUT,'(//5X,"Total errors for TOVS data"/)') 
+    ! Print error stats for assimilated channels
+    WRITE(*,*) 'Total errors for TOVS data' 
     DO JL = 1, INUMSAT
       INDX = 0
       DO JI = 1, JPCH
@@ -1791,28 +1799,123 @@ contains
         ENDIF
       ENDDO
       DO JK = 1, 2
-        WRITE(NULOUT,'(/7X,"Satellite: ",A,5X,A)') &
-          CSATID(JL), CTYPSTAT(JK)
-        WRITE(NULOUT,'(7X,"Channels   : ",30(T22,27I4/))') & 
-         (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
-        WRITE(NULOUT,'(7X,"Total errors: ",30(T22,27f4.1/))') &
-         (TOVERRIN(MLISCHNA(JI,JL),JK,JL), &
-          JI=1,NCHNA(JL))
+        WRITE(*,'(2(A),5X,A)') 'Satellite: ',CSATID(JL),CTYPSTAT(JK)
+        WRITE(*,'(A,30(T22,27I4/))') 'Channels   : ', (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
+        WRITE(*,'(A,30(T22,27f4.1/))') 'Total errors: ', &
+          (TOVERRIN(MLISCHNA(JI,JL),JK,JL), JI=1,NCHNA(JL))
       ENDDO
     ENDDO
-     
-    ! 7. Close the file
-700  CONTINUE
 
-    ! .... not done here anymore, jh, august 2000
+    ! Close the file
+    istat = fclos(ILUTOV)
+
+    if ( mwbg_allowStateDepSigmaObs ) then
+      ! read in the parameters to define the user-defined symmetric obs errors
+      IER = FNOM(ILUTOV,'stats_amsua_assim_symmetricObsErr','SEQ+FMT',0)
+
+      IF (IER < 0) THEN
+        WRITE (*,*) 'bgckMW: Problem opening TOVS total error statistics file: ', &
+                    'stats_amsua_assim_symmetricObsErr'
+        CALL ABORT()
+      END IF
+
+      WRITE(*,*) 'mwbg_readStatTovs: reading total error statistics required for ', &
+                'TOVS processing from stats_amsua_assim_symmetricObsErr'
+
+      ! Initialize
+      INUMSAT2 = 0
+      ICHNIN2(:) = 0
+      NUMCHNIN2 = 0
+      ISATID2 = 0
+      sigmaObsErr(:,:,:) = 0.0
+      clwThreshArr(:,:,:) = 0.0
+      useStateDepSigmaObs(:,:) = 0
+
+      ! Print the file contents
+      WRITE(*,*) 'ASCII dump of stats_tovs file:'
+      DO JI = 1, 9999999
+        READ (ILUTOV,'(A)',ERR=900,END=500) CLDUM
+        WRITE(*,'(A)')   CLDUM
+      ENDDO
+500   CONTINUE
+
+      ! Read number of satellites
+      REWIND(ILUTOV)
+      READ (ILUTOV,*,ERR=900)
+      READ (ILUTOV,*,ERR=900) INUMSAT2
+      READ (ILUTOV,*,ERR=900)
+
+      if ( INUMSAT2 /= INUMSAT ) then
+        write(*,*) 'mwbg_readStatTovs: problem with INUMSAT2 in symmetricObsErr file!'
+        call abort()
+      end if
+
+      ! Read the satellite identification, the number of channels,
+      ! the observation errors and the utilization flags
+      DO JL = 1, INUMSAT2
+        READ (ILUTOV,*,ERR=900)
+        READ (ILUTOV,'(A)',ERR=900) CLDUM
+        CSATSTR = TRIM(ADJUSTL(CLDUM))
+
+        ! Get satellite (e.g. NOAA18) from satellite/instrument (e.g. NOAA18 AMSUA)
+        INDX = INDEX(CSATSTR,'AMSUA')
+        IF ( INDX .GT. 3 ) THEN
+          IF ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) THEN
+            CSATID2 = 'AQUA'
+          ELSE
+            IPOS = INDX-2
+            CSATID2 = CSATSTR(1:IPOS)
+          ENDIF
+        ELSE
+          WRITE (*,*) 'mwbg_readStatTovs: Non-AMSUA instrument found in symmetricObsErr file!'
+          WRITE (*,'(A)') CLDUM
+          CALL ABORT()
+        ENDIF
+
+        if ( CSATID2 /= CSATID(JL) ) then
+          write(*,*) 'mwbg_readStatTovs: problem with CSATID2 in symmetricObsErr file!'
+          call abort()
+        end if
+
+        READ (ILUTOV,*,ERR=900)
+        READ (ILUTOV,*,ERR=900) ISATID2, NUMCHNIN2
+
+        if ( ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL) ) then
+          write(*,*) 'mwbg_readStatTovs: problem with ISATID2, NUMCHNIN2 in symmetricObsErr file!'
+          call abort()
+        end if
+
+        DO JI = 1, 3
+          READ (ILUTOV,*,ERR=900)
+        ENDDO
+
+        ! Set errors to ERRBGCK column values
+        DO JI = 1, NUMCHNIN2
+          READ (ILUTOV,*,ERR=900) ICHNIN2(JI), &
+                    clwThreshArr(ICHNIN2(JI),JL,1), &
+                    clwThreshArr(ICHNIN2(JI),JL,2), &
+                    sigmaObsErr(ICHNIN2(JI),JL,1), &
+                    sigmaObsErr(ICHNIN2(JI),JL,2), &
+                    useStateDepSigmaObs(ICHNIN2(JI),JL)
+
+          if ( ICHNIN2(JI) /= ICHNIN(JI,JL) ) then 
+            write(*,*) 'mwbg_readStatTovs: problem with ICHNIN2 in symmetricObsErr file!'
+            call abort()
+          end if
+        ENDDO
+        READ (ILUTOV,*,ERR=900)
+      ENDDO
+
+      ! Close the file
+      istat = fclos(ILUTOV)
+
+    end if
+
     RETURN
 
-    ! Read error
-900   WRITE ( NULOUT, '(" mwbg_readStatTovs: Problem reading ", &
-                     "TOVS total error stats file ")' ) 
-    CALL ABORT ()
+900 WRITE (*,*) 'mwbg_readStatTovs: Problem reading TOVS total error stats file.' 
+    CALL ABORT()
 
-    RETURN
   END SUBROUTINE mwbg_readStatTovs
 
 
@@ -4194,6 +4297,30 @@ contains
     RETURN
 
   end subroutine mwbg_readCoeff
+
+
+  function calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg) result(sigmaObsErrUsed)
+    implicit none
+    real :: clwThresh1
+    real :: clwThresh2
+    real :: sigmaThresh1
+    real :: sigmaThresh2
+    real :: clw_avg
+    real :: sigmaObsErrUsed
+
+    if ( clw_avg <= clwThresh1 ) then
+      sigmaObsErrUsed = sigmaThresh1
+    else if ( clw_avg >  clwThresh1 .and. & 
+                  clw_avg <= clwThresh2 ) then
+      sigmaObsErrUsed = sigmaThresh1 + &
+                      (sigmaThresh2 - sigmaThresh1) / &
+                      (clwThresh2 - clwThresh1) * &
+                      (clw_avg - clwThresh1) 
+    else
+      sigmaObsErrUsed = sigmaThresh2
+    end if
+
+  end function calcStateDepObsErr_r4
 
 
 end module bgckmicrowave_mod

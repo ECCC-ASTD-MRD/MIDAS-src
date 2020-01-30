@@ -57,7 +57,7 @@ program midas_bgckmw
   INTEGER EXDB,EXFIN 
   INTEGER NPOSIT, IER,IREC,IREC2,JUNK
   INTEGER I,ILNMX, NELE, J, JN, JL, blat, blon, idtyp
-  INTEGER IUNGEO, IUNSTAT, INUMSAT, nulnam 
+  INTEGER IUNGEO, INUMSAT, nulnam 
   INTEGER nvalOut, ntOut, INOSAT
   INTEGER IDUM,IDUM1,IDUM2,IDUM3,IDUM4,IDUM5,IDUM6,IDUM7
   INTEGER IDUM8,IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -127,15 +127,14 @@ program midas_bgckmw
   LOGICAL RESETQC, SKIPENR
 
   DATA IUNGEO  / 50 /
-  DATA IUNSTAT / 60 /
   DATA DLAT   / 0.4 /
   DATA DLON   / 0.6 /
 
   EXTERNAL EXDB,EXFIN
 
-  LOGICAL DEBUG, clwQcThreshold
+  LOGICAL DEBUG, clwQcThreshold, allowStateDepSigmaObs
 
-  namelist /nambgck/ debug, RESETQC, ETIKRESU, clwQcThreshold
+  namelist /nambgck/ debug, RESETQC, ETIKRESU, clwQcThreshold, allowStateDepSigmaObs
 
   JUNK = EXDB('BGCKMW','DEBUT','NON')
 
@@ -154,6 +153,7 @@ program midas_bgckmw
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
   clwQcThreshold = 0.3
+  allowStateDepSigmaObs = .false.
 
   ! reading namelist
   nulnam = 0
@@ -168,6 +168,7 @@ program midas_bgckmw
 
   mwbg_debug = debug
   mwbg_clwQcThreshold = clwQcThreshold
+  mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
 
   brp_in = './obsto_amsua'
   brp_out = './obsto_amsua.out'
@@ -259,14 +260,8 @@ program midas_bgckmw
     STOP
   end if
 
-  ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
-  IER = FNOM(IUNSTAT,'./stats_amsua_assim','SEQ+FMT',0)
-  IF(IER.LT.0)THEN
-    WRITE (*,*) '(" bgckMW: Problem opening ", &
-           "TOVS total error statistics file ", stats_amsua_assim)'               
-    CALL ABORT ()
-  END IF
-  CALL mwbg_readStatTovs(IUNSTAT,INUMSAT,CSATID)
+  ! 2) Lecture des statistiques d'erreur totale pour les TOVS 
+  CALL mwbg_readStatTovs(INUMSAT,CSATID)
   WRITE(*,*) " SATID's = "
   DO I = 1, INUMSAT
     WRITE(*,*) '  ', CSATID(I)
@@ -537,7 +532,6 @@ program midas_bgckmw
   Call BURP_Free(Rpt_in,R2=Rpt_out,IOSTAT=error)
   ISTAT = FSTFRM(IUNGEO)
   ISTAT = FCLOS (IUNGEO)
-  ISTAT = FCLOS (IUNSTAT)
 
   STOP
 

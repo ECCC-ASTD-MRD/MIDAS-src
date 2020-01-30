@@ -304,6 +304,7 @@ contains
     !
     TOVERRST(:,:) = 0.0D0
     TOVERRIN(:,:,:) = 0.0D0
+    clwThreshArr(:,:,:) = 0.0d0
     sigmaObsErr(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
     IUTILST(:,:) = 0
