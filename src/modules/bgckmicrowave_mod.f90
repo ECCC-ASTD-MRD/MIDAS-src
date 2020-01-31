@@ -804,9 +804,7 @@ contains
       DO JI=1,KNO
         ICHN = KCANO(JI,JJ)
         IF ( ICHN .NE. 20 ) THEN
-          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) == 0 ) then
-            sigmaObsErrUsed = TOVERRST(ichn,knosat)
-          else if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) /= 0 ) then
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) /= 0 ) then
             clwThresh1 = clwThreshArr(ichn,knosat,1)
             clwThresh2 = clwThreshArr(ichn,knosat,2)
             sigmaThresh1 = sigmaObsErr(ichn,knosat,1)
