@@ -70,6 +70,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
+   abortOnMpiImbalance = .false.
    addHeightSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'

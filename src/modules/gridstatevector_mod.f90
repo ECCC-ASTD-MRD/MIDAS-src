@@ -382,7 +382,7 @@ module gridStateVector_mod
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = MPC_missingValue_R8
-    abortOnMpiImbalance = .false.
+    abortOnMpiImbalance = .true.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
