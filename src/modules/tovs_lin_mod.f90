@@ -153,7 +153,7 @@ contains
     integer :: status, Vcode
     integer :: modelTopIndex, levelsBelowModelTop
 
-    real(8), allocatable :: ttInterpolated(:,:)
+    real(8), allocatable :: ttInterpolated_tl(:,:)
     real(8), allocatable :: huInterpolated_tl(:,:)
     real(8), allocatable :: logVarInterpolated_tl(:,:)
     real(8), allocatable :: ttExtrapolated_tl(:,:)
@@ -297,7 +297,7 @@ contains
       levelsBelowModelTop = (nRttovLevels - modelTopIndex + 1)
 
       allocate (sensorHeaderIndexes (profileCount),      stat= allocStatus(1) )
-      allocate (ttInterpolated     (levelsBelowModelTop,profileCount),  stat= allocStatus(2) )
+      allocate (ttInterpolated_tl    (levelsBelowModelTop,profileCount),  stat= allocStatus(2) )
       allocate (huInterpolated_tl    (levelsBelowModelTop,profileCount),  stat= allocStatus(3) )
       allocate (logVarInterpolated_tl (levelsBelowModelTop,profileCount),  stat= allocStatus(4) )
       allocate (ttExtrapolated_tl  (nRttovLevels  ,profileCount),stat= allocStatus(5) )
@@ -341,7 +341,7 @@ contains
       hu(:,:) = 0.0d0
       huExtrapolated(:,:) = 0.0d0
       pressure_tl(:,:) = 0.0d0
-      ttInterpolated(:,:) = 0.0d0
+      ttInterpolated_tl(:,:) = 0.0d0
       huInterpolated_tl(:,:) = 0.0d0
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
@@ -459,7 +459,7 @@ contains
 
         call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex),tt_tl(:,profileIndex:profileIndex), &
              tt(:,profileIndex:profileIndex),pressure_tl(:,profileIndex:profileIndex),nlv_T,1, &
-             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated(:,profileIndex:profileIndex))
+             levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated_tl(:,profileIndex:profileIndex))
 
         if (tvs_interpLogHU) then
           logVar(:,profileIndex) = log( hu(:,profileIndex) )
@@ -523,11 +523,11 @@ contains
       ttExtrapolated_tl(:,:) = 0.0d0
       if ( .not. TopAt10hPa ) then
         do profileIndex = 1, profileCount
-          ttExtrapolated_tl(modelTopIndex:nRttovLevels,profileIndex) = ttInterpolated(1:levelsBelowModelTop,profileIndex)
+          ttExtrapolated_tl(modelTopIndex:nRttovLevels,profileIndex) = ttInterpolated_tl(1:levelsBelowModelTop,profileIndex)
           ttExtrapolated_tl(1:modelTopIndex-1,profileIndex) = 0.d0
         end do
       else
-        call lextrap (ttInterpolated,ttExtrapolated_tl,levelsBelowModelTop,nRttovLevels,profileCount)
+        call lextrap (ttInterpolated_tl,ttExtrapolated_tl,levelsBelowModelTop,nRttovLevels,profileCount)
       end if
       
       !   2.3  Extrapolation of humidity profile (kg/kg)
@@ -623,7 +623,7 @@ contains
       end do
 
       deallocate (sensorHeaderIndexes,  stat= allocStatus(1) )
-      deallocate (ttInterpolated,       stat= allocStatus(2) )
+      deallocate (ttInterpolated_tl,    stat= allocStatus(2) )
       deallocate (huInterpolated_tl,    stat= allocStatus(3) )
       deallocate (logVarInterpolated_tl,stat= allocStatus(4) )
       deallocate (ttExtrapolated_tl,    stat= allocStatus(5) )
@@ -1283,15 +1283,16 @@ contains
              tt_ad(:,profileIndex:profileIndex), tt(:,profileIndex:profileIndex), &
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
              levelsBelowModelTop,rttovPressure(modelTopIndex:nRttovLevels),ttInterpolated_ad(:,profileIndex:profileIndex))
-        
+
+        logVar_ad(:,profileIndex) = 0.d0
         if (tvs_interpLogHU) then
           logVar(:,profileIndex) = log( hu(:,profileIndex) )
+          logVarInterpolated_ad(:,profileIndex) = huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
         else
           logVar(:,profileIndex) = hu(:,profileIndex)
+          logVarInterpolated_ad(:,profileIndex) = huInterpolated_ad(:,profileIndex)
         end if
-        logVar_ad(:,profileIndex) = 0.d0
-        logVarInterpolated_ad(:,profileIndex) = 0.d0
-        logVarInterpolated_ad(:,profileIndex) = logVarInterpolated_ad(:,profileIndex) +huInterpolated_ad(:,profileIndex) * huExtrapolated(modelTopIndex:nRttovLevels,profileIndex)
+        
         call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex),dPdPs(:,profileIndex:profileIndex), &
              logVar_ad(:,profileIndex:profileIndex), logVar(:,profileIndex:profileIndex), &
              pressure_ad(:,profileIndex:profileIndex),nlv_T,1, &
