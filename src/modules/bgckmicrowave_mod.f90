@@ -804,16 +804,14 @@ contains
       DO JI=1,KNO
         ICHN = KCANO(JI,JJ)
         IF ( ICHN .NE. 20 ) THEN
-          if ( mwbg_allowStateDepSigmaObs ) then
-            if ( useStateDepSigmaObs(ichn,knosat) == 0 ) then
-              sigmaObsErrUsed = TOVERRST(ichn,knosat)
-            else
-              clwThresh1 = clwThreshArr(ichn,knosat,1)
-              clwThresh2 = clwThreshArr(ichn,knosat,2)
-              sigmaThresh1 = sigmaObsErr(ichn,knosat,1)
-              sigmaThresh2 = sigmaObsErr(ichn,knosat,2)
-              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(JJ))
-            end if
+          if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) == 0 ) then
+            sigmaObsErrUsed = TOVERRST(ichn,knosat)
+          else if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) /= 0 ) then
+            clwThresh1 = clwThreshArr(ichn,knosat,1)
+            clwThresh2 = clwThreshArr(ichn,knosat,2)
+            sigmaThresh1 = sigmaObsErr(ichn,knosat,1)
+            sigmaThresh2 = sigmaObsErr(ichn,knosat,2)
+            sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg(JJ))
           else
             sigmaObsErrUsed = TOVERRST(ichn,knosat)
           end if
@@ -1695,7 +1693,7 @@ contains
     INTEGER JPMXSFC
     PARAMETER (JPMXSFC =  2)
 
-    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, NULOUT, ier, istat 
+    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ier, istat 
     INTEGER INUMSAT, INUMSAT2, INDX, IPOS
 
     INTEGER NUMCHNIN(JPNSAT), ISATID(JPNSAT)
@@ -1716,6 +1714,7 @@ contains
 
     DATA CTYPSTAT     / 'Monitoring',  'Assimilation'  /  
 
+    ILUTOV = 0
     ier = fnom(ILUTOV,'stats_amsua_assim','SEQ+FMT',0)
     if (ier < 0) then
       write (*,*) 'bgckMW: Problem opening TOVS total error statistics file: ', &
@@ -1799,7 +1798,7 @@ contains
         ENDIF
       ENDDO
       DO JK = 1, 2
-        WRITE(*,'(2(A),5X,A)') 'Satellite: ',CSATID(JL),CTYPSTAT(JK)
+        WRITE(*,'(2(A),5X,A)') 'Satellite: ', CSATID(JL), CTYPSTAT(JK)
         WRITE(*,'(A,30(T22,27I4/))') 'Channels   : ', (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
         WRITE(*,'(A,30(T22,27f4.1/))') 'Total errors: ', &
           (TOVERRIN(MLISCHNA(JI,JL),JK,JL), JI=1,NCHNA(JL))
@@ -1809,8 +1808,8 @@ contains
     ! Close the file
     istat = fclos(ILUTOV)
 
+    ! read in the parameters to define the user-defined symmetric obs errors
     if ( mwbg_allowStateDepSigmaObs ) then
-      ! read in the parameters to define the user-defined symmetric obs errors
       IER = FNOM(ILUTOV,'stats_amsua_assim_symmetricObsErr','SEQ+FMT',0)
 
       IF (IER < 0) THEN
@@ -2740,7 +2739,7 @@ contains
     !               csatid  - output -  identificateur de satellite 
     IMPLICIT NONE
 
-    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ICHN, NULOUT
+    INTEGER ILUTOV, JI, JJ, JK, JL, JM, I, ICHN
     INTEGER INUMSAT, INDX, IPOS
 
     INTEGER NUMCHNIN(JPNSAT), ISATID(JPNSAT)
@@ -2754,13 +2753,9 @@ contains
     CHARACTER*9   CSATID(JPNSAT)
     CHARACTER*12  CTYPSTAT(2)
 
-    DATA NULOUT /  6 /
-
     DATA CTYPSTAT     / 'Monitoring',  'Assimilation'  /  
 
-    WRITE(NULOUT,FMT=9000)
-9000 FORMAT(//,10x,"-mwbg_readStatTovsAtms: reading total error statistics" &
-          ," required for TOVS processing")
+    WRITE(*,*) 'mwbg_readStatTovsAtms: reading total error statistics required for TOVS processing'
 
     ! 1. Initialize
 100  CONTINUE
@@ -2781,10 +2776,10 @@ contains
     ! 3. Print the file contents
 300  CONTINUE
 
-    WRITE(NULOUT,'(20X,"ASCII dump of stats_tovs file: "//)')
+    WRITE(*,*) 'ASCII dump of stats_tovs file:'
     DO JI = 1, 9999999
       READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
-      WRITE(NULOUT,'(A)')   CLDUM
+      WRITE(*,'(A)') CLDUM
     ENDDO
 
     ! 4. Read number of satellites
@@ -2810,9 +2805,8 @@ contains
         IPOS = INDX-2
         CSATID(JL) = CSATSTR(1:IPOS)
       ELSE
-        WRITE ( NULOUT, '(" mwbg_readStatTovsAtms: Non-ATMS ", &
-                   "instrument found in stats file!")' )
-        WRITE ( NULOUT,'(A)' ) CLDUM
+        WRITE (*,*) 'mwbg_readStatTovsAtms: Non-ATMS instrument found in stats file!'
+        WRITE (*,'(A)') CLDUM
         CALL ABORT ()
       ENDIF
       READ (ILUTOV,*,ERR=900)
@@ -2837,7 +2831,7 @@ contains
     ! 6. Print error stats for assimilated channels
 600  CONTINUE
 
-    WRITE(NULOUT,'(//5X,"Total errors for TOVS data"/)') 
+    WRITE(*,*) 'Total errors for TOVS data' 
     DO JL = 1, INUMSAT
       INDX = 0
       DO JI = 1, JPCH
@@ -2848,13 +2842,10 @@ contains
         ENDIF
       ENDDO
       DO JK = 1, 2
-        WRITE(NULOUT,'(/7X,"Satellite: ",A,5X,A)')  &
-          CSATID(JL), CTYPSTAT(JK)
-        WRITE(NULOUT,'(7X,"Channels   : ",30(T22,27I4/))') &
-         (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
-        WRITE(NULOUT,'(7X,"Total errors: ",30(T22,27f4.1/))') &
-         (TOVERRIN(MLISCHNA(JI,JL),JK,JL), &
-          JI=1,NCHNA(JL))
+        WRITE(*,'(2(A),5X,A)') 'Satellite: ', CSATID(JL), CTYPSTAT(JK)
+        WRITE(*,'(A,30(T22,27I4/))') 'Channels   : ', (MLISCHNA(JI,JL),JI=1,NCHNA(JL))
+        WRITE(*,'(A,30(T22,27f4.1/))') 'Total errors: ', &
+          (TOVERRIN(MLISCHNA(JI,JL),JK,JL), JI=1,NCHNA(JL))
       ENDDO
     ENDDO
      
@@ -2863,8 +2854,7 @@ contains
     RETURN
 
     ! Read error
-900   WRITE ( NULOUT, '(" mwbg_readStatTovsAtms: Problem reading ", &
-                       "TOVS total error stats file ")' ) 
+900 WRITE (*,*) 'mwbg_readStatTovsAtms: Problem reading TOVS total error stats file'
     CALL ABORT ()
 
     RETURN
