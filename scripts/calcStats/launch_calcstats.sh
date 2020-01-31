@@ -10,16 +10,16 @@
 
 flnml="namelist_bhi_glb.nml"
 machine=eccc-ppp3
-abs=/home/mab001/ords/midas_abs/midas-calcStats_ubuntu-18.04-skylake-64-v_3.5.0_M.Abs
-expname="summer2016_vcode5002_g50_T380"
-ensdir=/home/mab001/data_maestro/eccc-ppp4/nmc/summer_2016/diff_2448_5002_g50/
+abs=/home/mab001/ords/midas_abs/midas-calcStats_ubuntu-18.04-skylake-64-v_3.5.0-1-g9f4bb64_M.Abs
+expname="summer2016_vcode5005_g39_T380_nens16"
+ensdir=/home/mab001/data_maestro/eccc-ppp4/nmc/summer_2016/diff_2448_5005_g39_gem5levs/
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
 
 npex=1
 npey=1
 openmp=40
 memory=160G
-maxcputime=10800
+maxcputime=14400
 
 run_in_parallel=r.run_in_parallel
 

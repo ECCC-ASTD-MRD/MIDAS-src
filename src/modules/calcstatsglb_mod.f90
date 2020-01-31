@@ -21,8 +21,11 @@ module CalcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
+  use mpi_mod
+  use mpivar_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod
+  use ensembleStateVector_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -43,6 +46,11 @@ module CalcStatsGlb_mod
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
   integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
+  integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+  integer :: mymBeg, mymEnd, mymSkip, mymCount, mynBeg, mynEnd, mynSkip, mynCount
+  integer :: nla_mpilocal, maxMyNla
+  integer, pointer    :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
+  
   character(len=256), allocatable :: cflensin(:)
   integer :: gstID_nkgdimEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
   integer, allocatable :: nip1_M(:),nip1_T(:)
@@ -54,7 +62,6 @@ module CalcStatsGlb_mod
   integer, parameter :: modelSpace   = 1
   integer, parameter :: cvSpace      = 2
   integer, parameter :: cvUnbalSpace = 3
-!  integer :: variableType
 
   real(8) :: gridSpacingInKm
 
@@ -67,9 +74,9 @@ module CalcStatsGlb_mod
 
   contains
 
-!--------------------------------------------------------------------------
-! CSG_SETUP
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_SETUP
+  !--------------------------------------------------------------------------
   subroutine csg_setup(nens_in, hco_in, vco_in)
     implicit none
     ! arguments:
@@ -108,10 +115,14 @@ module CalcStatsGlb_mod
     hco_ens => hco_in
     ni=hco_in%ni
     nj=hco_in%nj
+
     gridSpacingInKm = ra * hco_in%dlon / 1000.d0
-    
     write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
 
+    ! setup mpi local grid parameters
+    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    
     !- Setup vertical levels
     nLevEns_M=vco_in%nlev_M
     nLevEns_T=vco_in%nlev_T
@@ -129,6 +140,14 @@ module CalcStatsGlb_mod
     gstID_nkgdimEns = gst_setup(ni,nj,ntrunc,nkgdimEns)
     gstID_nLevEns_M = gst_setup(ni,nj,ntrunc,nLevEns_M)
     gstID_nLevEns_T_P1 = gst_setup(ni,nj,ntrunc,nLevEns_T+1)
+
+    ! setup mpi local spectral vector parameters
+    call mpivar_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
+    call mpivar_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
+    call gst_ilaList_mpiglobal(ilaList_mpiglobal, nla_mpilocal, maxMyNla,  &
+         gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
+    call gst_ilaList_mpilocal(ilaList_mpilocal,  &
+         gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
 
     !- Setup ip1s
     allocate(nip1_M(nLevEns_M))
@@ -205,9 +224,9 @@ module CalcStatsGlb_mod
 
   end subroutine csg_setup
 
-!--------------------------------------------------------------------------
-! CSG_COMPUTESTATS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_COMPUTESTATS
+  !--------------------------------------------------------------------------
   subroutine csg_computeStats
     implicit none
     integer :: ierr
@@ -268,11 +287,13 @@ module CalcStatsGlb_mod
     call calcPtoT(ensPerturbations,PtoT)
     write(303,*) PTOT(:,:,1)
     call flush(303)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
 !    write(302,*) theta2
 
     call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !    call removeBalancedChi(ensPerturbations,theta2)
 
@@ -310,6 +331,7 @@ module CalcStatsGlb_mod
     call writeStddevBal(stddevZonAvgBal,stddev3dBal)
 
     call writeSpStats(ptot,theta1)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     write(200,*) stddevZonAvg(1:nlevEns_M,:)
     write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
@@ -325,11 +347,11 @@ module CalcStatsGlb_mod
 
   end subroutine csg_computeStats
 
-!--------------------------------------------------------------------------
-! CSG_COMPUTESTATSLATBANDS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_COMPUTESTATSLATBANDS
+  !--------------------------------------------------------------------------
   subroutine csg_computeStatsLatBands
-    integer :: ierr, variableType, jlat, jlatband, lat1, lat2, lat3
+    integer :: ierr, variableType, latIndex, jlatband, lat1, lat2, lat3
     real*4,pointer     :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: stddev3d(:,:,:)
     real*8,allocatable :: stddevZonAvg(:,:),stddevZonAvgBal(:,:)
@@ -371,19 +393,19 @@ module CalcStatsGlb_mod
       if(jlatband==1) then
         ! Southern extratropics
         latMask(1:lat1) = 1.0d0
-        do jlat = lat1, lat2
-          !latMask(jlat) = sqrt(dble((lat2-jlat)*4)/dble(nj))
-          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat1)*4)*MPC_PI_R8/dble(nj))))
+        do latIndex = lat1, lat2
+          !latMask(latIndex) = sqrt(dble((lat2-latIndex)*4)/dble(nj))
+          latMask(latIndex) = sqrt(0.5d0*(1.0d0+cos(dble((latIndex-lat1)*4)*MPC_PI_R8/dble(nj))))
         enddo
         latMask(lat2:nj) = 0.0d0
       elseif(jlatband==2) then
         ! Tropics
         !latMask(1:lat1) = 0.0d0
-        !do jlat = lat1, lat2
-        !  latMask(jlat) = sqrt(dble((jlat-lat1)*4)/dble(nj))
+        !do latIndex = lat1, lat2
+        !  latMask(latIndex) = sqrt(dble((latIndex-lat1)*4)/dble(nj))
         !enddo
-        !do jlat = lat2,lat3
-        !  latMask(jlat) = sqrt(dble((lat3-jlat)*4)/dble(nj))
+        !do latIndex = lat2,lat3
+        !  latMask(latIndex) = sqrt(dble((lat3-latIndex)*4)/dble(nj))
         !enddo
         !latMask(lat3:nj) = 0.0d0
 
@@ -391,21 +413,21 @@ module CalcStatsGlb_mod
         ! ok, since the masks do not have to sum to one for calculation, but they do
         ! when used in bmatrixhi_mod
         ! Tropics
-        do jlat = 1, lat1
-          !latMask(jlat) = sqrt(dble((jlat-1)*4)/dble(nj))
-          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((lat1-jlat)*4)*MPC_PI_R8/dble(nj))))
+        do latIndex = 1, lat1
+          !latMask(latIndex) = sqrt(dble((latIndex-1)*4)/dble(nj))
+          latMask(latIndex) = sqrt(0.5d0*(1.0d0+cos(dble((lat1-latIndex)*4)*MPC_PI_R8/dble(nj))))
         enddo
         latMask(lat1:lat3) = 1.0d0
-        do jlat = lat3,nj
-          !latMask(jlat) = sqrt(dble((nj-jlat)*4)/dble(nj))
-          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat3)*4)*MPC_PI_R8/dble(nj))))
+        do latIndex = lat3,nj
+          !latMask(latIndex) = sqrt(dble((nj-latIndex)*4)/dble(nj))
+          latMask(latIndex) = sqrt(0.5d0*(1.0d0+cos(dble((latIndex-lat3)*4)*MPC_PI_R8/dble(nj))))
         enddo
       elseif(jlatband==3) then
         ! Northern extratropics
         latMask(1:lat2) = 0.0d0
-        do jlat = lat2, lat3
-          !latMask(jlat) = sqrt(dble((jlat-lat2)*4)/dble(nj))
-          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((lat3-jlat)*4)*MPC_PI_R8/dble(nj))))
+        do latIndex = lat2, lat3
+          !latMask(latIndex) = sqrt(dble((latIndex-lat2)*4)/dble(nj))
+          latMask(latIndex) = sqrt(0.5d0*(1.0d0+cos(dble((lat3-latIndex)*4)*MPC_PI_R8/dble(nj))))
         enddo
         latMask(lat3:nj) = 1.0d0
       endif
@@ -426,9 +448,9 @@ module CalcStatsGlb_mod
 
   end subroutine csg_computeStatsLatBands
 
-!--------------------------------------------------------------------------
-! CSG_TOOLBOOX
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_TOOLBOOX
+  !--------------------------------------------------------------------------
   subroutine csg_toolbox
     implicit none
 
@@ -545,9 +567,9 @@ module CalcStatsGlb_mod
 
   end subroutine csg_toolbox
 
-!--------------------------------------------------------------------------
-! CSG_POWERSPEC
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_POWERSPEC
+  !--------------------------------------------------------------------------
   subroutine csg_powerspec
     implicit none
 
@@ -582,9 +604,9 @@ module CalcStatsGlb_mod
 
   end subroutine csg_powerspec
 
-!--------------------------------------------------------------------------
-! CSG_STDDEV
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CSG_STDDEV
+  !--------------------------------------------------------------------------
   subroutine csg_stddev
     implicit none
     integer :: ierr
@@ -618,13 +640,13 @@ module CalcStatsGlb_mod
 
   end subroutine csg_stddev
 
-!--------------------------------------------------------------------------
-! WRITESPSTATS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITESPSTATS
+  !--------------------------------------------------------------------------
   subroutine writeSpStats(ptot,theta)
     implicit none
     real*8 :: PtoT(:,:,:),theta(:,:)
-    integer jn,ierr,ipak,jlat,jlev1,jlev2,nlev
+    integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,kni,knj,idatyp,idateo
     integer :: nulstats
@@ -644,17 +666,17 @@ module CalcStatsGlb_mod
 
     ! write out SP_THETA
 
-    do jlat = 1, nj
-      do jlev1 = 1, nLevEns_M
-        bufyz(jlat,jlev1) = theta(jlev1,jlat)
+    do latIndex = myLatBeg, myLatEnd
+      do levIndex1 = 1, nLevEns_M
+        bufyz(latIndex,levIndex1) = theta(levIndex1,latIndex)
       enddo
     enddo
 
     call gst_zlegdir(gstID_nkgdimEns,bufyz,zsp,nLevEns_M)
 
     do jn = 0, ntrunc
-      do jlev1=1, nLevEns_M
-        bufz(jlev1) = zsp(jn,jlev1)
+      do levIndex1=1, nLevEns_M
+        bufz(levIndex1) = zsp(jn,levIndex1)
       enddo
 
       ierr = utl_fstecr(bufz,ipak,nulstats,idateo,0,0,nlevEns_M,1,1,   &
@@ -664,10 +686,10 @@ module CalcStatsGlb_mod
 
     ! write out SP_PTOT
 
-    do jlat = 1, nj
-      do jlev1 = 1, (nLevEns_T+1)
-        do jlev2 = 1, nLevEns_M
-          bufptot(jlat,(jlev2-1)*(nLevEns_T+1)+jlev1) = PtoT(jlev1,jlev2,jlat)
+    do latIndex = myLatBeg, myLatEnd
+      do levIndex1 = 1, (nLevEns_T+1)
+        do levIndex2 = 1, nLevEns_M
+          bufptot(latIndex,(levIndex2-1)*(nLevEns_T+1)+levIndex1) = PtoT(levIndex1,levIndex2,latIndex)
         enddo
       enddo
     enddo
@@ -676,9 +698,9 @@ module CalcStatsGlb_mod
     call gst_zlegdir(gstID_nkgdimEns,bufptot,spptot,nLev)
 
     do jn = 0, ntrunc
-      do jlev1 = 1, (nLevEns_T+1)
-        do jlev2 = 1, nLevEns_M
-          zspptot(jlev1,jlev2) = spptot(jn,(jlev2-1)*(nLevEns_T+1)+jlev1)
+      do levIndex1 = 1, (nLevEns_T+1)
+        do levIndex2 = 1, nLevEns_M
+          zspptot(levIndex1,levIndex2) = spptot(jn,(levIndex2-1)*(nLevEns_T+1)+levIndex1)
         enddo
       enddo
 
@@ -699,24 +721,24 @@ module CalcStatsGlb_mod
 
   end subroutine writeSpStats
 
-!--------------------------------------------------------------------------
-! REMOVEBALANCEDCHI
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! REMOVEBALANCEDCHI
+  !--------------------------------------------------------------------------
   subroutine removeBalancedChi(ensPerturbations,theta)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8 :: theta(:,:)
     real*4,pointer :: psi_ptr(:,:,:),chi_ptr(:,:,:)
-    integer :: jens,jlat,jlev,jlon
+    integer :: ensIndex,latIndex,levIndex,lonIndex
 
-    do jens = 1,nens
-      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,jens)
-      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),jens)
+    do ensIndex = 1,nens
+      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,ensIndex)
+      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),ensIndex)
 
-      do jlev = 1, nLevEns_M
-        do jlat = 1, nj
-          do jlon = 1, ni
-            chi_ptr(jlon,jlat,jlev) = chi_ptr(jlon,jlat,jlev) + tan(theta(jlev,jlat))*psi_ptr(jlon,jlat,jlev)
+      do levIndex = 1, nLevEns_M
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) + tan(theta(levIndex,latIndex))*psi_ptr(lonIndex,latIndex,levIndex)
           enddo
         enddo
       enddo
@@ -728,9 +750,9 @@ module CalcStatsGlb_mod
 
   end subroutine removeBalancedChi
 
-!--------------------------------------------------------------------------
-! REMOVEBALANCEDT_PS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! REMOVEBALANCEDT_PS
+  !--------------------------------------------------------------------------
   subroutine removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -739,40 +761,40 @@ module CalcStatsGlb_mod
 
     real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:),ttb_ptr(:,:,:),psb_ptr(:,:,:)
     real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nj,nlevEns_M),psi(ni,nj,nLevEns_M)
-    integer :: jens,jlat,jlon,jk1,jk2
+    integer :: ensIndex,latIndex,lonIndex,jk1,jk2
 
-    do jens=1,nens
+    do ensIndex=1,nens
 
-      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
+      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,ensIndex)
       call gst_setID(gstID_nLevEns_M)
       call gst_reespe(spectralState,psi)
       call calcBalancedP(spectralState,spBalancedP)
       call gst_speree(spBalancedP,balancedP)
 
-      tt_ptr => ensPerturbations(:,:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),jens)
-      ps_ptr => ensPerturbations(:,:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),jens)
-      ttb_ptr => ensBalPerturbations(:,:,1:nLevEns_T,jens)
-      psb_ptr => ensBalPerturbations(:,:,(1+nLevEns_T):(1+nLevEns_T),jens)
+      tt_ptr => ensPerturbations(:,:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),ensIndex)
+      ps_ptr => ensPerturbations(:,:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),ensIndex)
+      ttb_ptr => ensBalPerturbations(:,:,1:nLevEns_T,ensIndex)
+      psb_ptr => ensBalPerturbations(:,:,(1+nLevEns_T):(1+nLevEns_T),ensIndex)
 
       ttb_ptr(:,:,:)=0.0d0
       psb_ptr(:,:,:)=0.0d0
 
-!$OMP PARALLEL DO PRIVATE (jlat,jlon,jk1,jk2)
-      do jlat = 1, nj
-        do jlon = 1, ni
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,jk1,jk2)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
           do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
-              ttb_ptr(jlon,jlat,jk1) = ttb_ptr(jlon,jlat,jk1) + PtoT(jk1,jk2,jlat)*balancedP(jlon,jlat,jk2)
+              ttb_ptr(lonIndex,latIndex,jk1) = ttb_ptr(lonIndex,latIndex,jk1) + PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
             enddo
-            tt_ptr(jlon,jlat,jk1) = tt_ptr(jlon,jlat,jk1) - ttb_ptr(jlon,jlat,jk1)
+            tt_ptr(lonIndex,latIndex,jk1) = tt_ptr(lonIndex,latIndex,jk1) - ttb_ptr(lonIndex,latIndex,jk1)
           enddo
           do jk2 = 1, nlevptot
-            psb_ptr(jlon,jlat,1) = psb_ptr(jlon,jlat,1) + PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jlat,jk2)
+            psb_ptr(lonIndex,latIndex,1) = psb_ptr(lonIndex,latIndex,1) + PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
           enddo
-          ps_ptr(jlon,jlat,1) = ps_ptr(jlon,jlat,1) - psb_ptr(jlon,jlat,1)
+          ps_ptr(lonIndex,latIndex,1) = ps_ptr(lonIndex,latIndex,1) - psb_ptr(lonIndex,latIndex,1)
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     enddo
 
@@ -781,9 +803,9 @@ module CalcStatsGlb_mod
 
   end subroutine removeBalancedT_Ps
 
-!--------------------------------------------------------------------------
-! CALCCORRELATIONS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCCORRELATIONS
+  !--------------------------------------------------------------------------
   subroutine calcCorrelations(ensPerturbations,corns,rstddev,latMask_opt)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -792,26 +814,26 @@ module CalcStatsGlb_mod
 
     real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
-    integer :: jens,ila,jn,jm,jk1,jk2,jlat
+    integer :: ensIndex,ila,jn,jm,jk1,jk2,latIndex
 
     call tmg_start(3,'CALCCORRELATIONS')
 
     corns(:,:,:)=0.0d0
-    do jens=1,nens
+    do ensIndex=1,nens
 
-      write(*,*) 'calcCorrelations: processing member ',jens
+      write(*,*) 'calcCorrelations: processing member ',ensIndex
       call flush(6)
 
-      gridState(:,:,:)=ensPerturbations(:,:,:,jens)
+      gridState(:,:,:)=ensPerturbations(:,:,:,ensIndex)
       if(present(latMask_opt)) then
-        do jlat = 1, nj
-          gridState(:,jlat,:) = latMask_opt(jlat)*gridState(:,jlat,:)
+        do latIndex = myLatBeg, myLatEnd
+          gridState(:,latIndex,:) = latMask_opt(latIndex)*gridState(:,latIndex,:)
         enddo
       endif
       call gst_setID(gstID_nkgdimEns)
       call gst_reespe(spectralState,gridState)
 
-!$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
+      !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
       do jn = 0, ntrunc
         do jm = 0, jn
           dfact = 2.0d0
@@ -826,11 +848,11 @@ module CalcStatsGlb_mod
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     enddo
 
-!$OMP PARALLEL DO PRIVATE (jn,jk1)
+    !$OMP PARALLEL DO PRIVATE (jn,jk1)
     do jn = 0, ntrunc
       do jk1 = 1, nkgdimEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
@@ -840,9 +862,9 @@ module CalcStatsGlb_mod
         endif
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
+    !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
     do jn = 0, ntrunc
       do jk1 = 1, nkgdimEns
         do jk2 = 1, nkgdimEns
@@ -854,7 +876,7 @@ module CalcStatsGlb_mod
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
@@ -865,7 +887,7 @@ module CalcStatsGlb_mod
     enddo
 
     ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
-!$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
+    !$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
     do jk1 = 1, nkgdimEns
       dsummed=0.0d0
       do jn = 0, ntrunc
@@ -875,7 +897,7 @@ module CalcStatsGlb_mod
         if(dsummed.gt.0.0d0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call tmg_stop(3)
     write(*,*) 'finished computing correlations...'
@@ -883,9 +905,9 @@ module CalcStatsGlb_mod
 
   end subroutine calcCorrelations
 
-!--------------------------------------------------------------------------
-! CALCPOWERSPEC
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCPOWERSPEC
+  !--------------------------------------------------------------------------
   subroutine calcPowerSpec(ensPerturbations,powerSpec)
     implicit none
     real*4,pointer, intent(in)  :: ensPerturbations(:,:,:,:)
@@ -894,20 +916,20 @@ module CalcStatsGlb_mod
     real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
 
-    integer :: jens,ila,jn,jm,jk
+    integer :: ensIndex,ila,jn,jm,jk
 
     powerSpec(:,:)=0.0d0
 
-    do jens = 1, nens
+    do ensIndex = 1, nens
 
-      write(*,*) 'calcPowerSpec: processing member ',jens
+      write(*,*) 'calcPowerSpec: processing member ',ensIndex
       call flush(6)
 
-      gridState(:,:,:)=ensPerturbations(:,:,:,jens)
+      gridState(:,:,:)=ensPerturbations(:,:,:,ensIndex)
       call gst_setID(gstID_nkgdimEns)
       call gst_reespe(spectralState,gridState)
 
-!$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk)
+      !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk)
       do jn = 0, ntrunc
         do jm = 0, jn
           dfact = 2.0d0
@@ -919,7 +941,7 @@ module CalcStatsGlb_mod
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     enddo
 
@@ -936,9 +958,9 @@ module CalcStatsGlb_mod
 
   end subroutine calcPowerSpec
 
-!--------------------------------------------------------------------------
-! WRITESTATS
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITESTATS
+  !--------------------------------------------------------------------------
   subroutine writeStats(corns, rstddev, variableType, ptot_opt, &
                         theta_opt, waveBandIndex_opt, latBand_opt)
     implicit none
@@ -955,7 +977,7 @@ module CalcStatsGlb_mod
     integer :: fstouv,fnom,fstfrm,fclos
     integer :: ip1,ip2,ip3,idatyp,idateo
     integer :: nulstats
-    integer :: jvar1, jvar2
+    integer :: varIndex1, varIndex2
     integer :: nLevEns1, nLevEns2, nlevstart1, nlevend1, nlevstart2, nlevend2
 
     character(len=128) :: outfilename
@@ -1034,31 +1056,31 @@ module CalcStatsGlb_mod
 
     !- For plotting purposes...
     if(.false.) then
-    do jvar1 = 1, nvar3d
-       do jvar2 = jvar1, nvar3d
+    do varIndex1 = 1, nvar3d
+       do varIndex2 = varIndex1, nvar3d
 
           if ( nWaveBand == 1 ) then
-             outfilename = "./vertCorrel_"//trim(nomvar3d(jvar1,variableType))//"_"//trim(nomvar3d(jvar2,variableType))//".txt"
+             outfilename = "./vertCorrel_"//trim(nomvar3d(varIndex1,variableType))//"_"//trim(nomvar3d(varIndex2,variableType))//".txt"
           else
-             outfilename = "./vertCorrel_"//trim(nomvar3d(jvar1,variableType))//"_"//trim(nomvar3d(jvar2,variableType))//"_"//wbnum//".txt"
+             outfilename = "./vertCorrel_"//trim(nomvar3d(varIndex1,variableType))//"_"//trim(nomvar3d(varIndex2,variableType))//"_"//wbnum//".txt"
           end if
           open (unit=99,file=outfilename,action="write",status="new")
 
-          if (vnl_varLevelFromVarName(nomvar3d(jvar1,variableType)).eq.'MM') then
+          if (vnl_varLevelFromVarName(nomvar3d(varIndex1,variableType)).eq.'MM') then
              nLevEns1 = nLevEns_M
           else
              nLevEns1 = nLevEns_T
           endif
-          nLevStart1 = varLevOffset(jvar1)+ 1 
-          nLevEnd1   = varLevOffset(jvar1)+ nLevEns1
+          nLevStart1 = varLevOffset(varIndex1)+ 1 
+          nLevEnd1   = varLevOffset(varIndex1)+ nLevEns1
 
-          if (vnl_varLevelFromVarName(nomvar3d(jvar2,variableType)).eq.'MM') then
+          if (vnl_varLevelFromVarName(nomvar3d(varIndex2,variableType)).eq.'MM') then
              nLevEns2 = nLevEns_M
           else
              nLevEns2 = nLevEns_T
           endif
-          nLevStart2 = varLevOffset(jvar2)+ 1 
-          nLevEnd2   = varLevOffset(jvar2)+ nLevEns2
+          nLevStart2 = varLevOffset(varIndex2)+ 1 
+          nLevEnd2   = varLevOffset(varIndex2)+ nLevEns2
 
           do jk = nLevStart1, nLevEnd1
              do jl = nLevStart2, nLevEnd2
@@ -1081,9 +1103,9 @@ module CalcStatsGlb_mod
 
   end subroutine writeStats
 
-!--------------------------------------------------------------------------
-! WRITEPRESSUREPROFILES
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITEPRESSUREPROFILES
+  !--------------------------------------------------------------------------
   subroutine writePressureProfiles
     implicit none
 
@@ -1110,14 +1132,14 @@ module CalcStatsGlb_mod
 
   end subroutine writePressureProfiles
 
-!--------------------------------------------------------------------------
-! WRITESTDDEV
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITESTDDEV
+  !--------------------------------------------------------------------------
   subroutine writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
     implicit none
     real*8 :: stddevZonAvg(:,:),stddevZonAvgUnbal(:,:),stddev3d(:,:,:),stddev3dUnbal(:,:,:)
     real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
-    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
@@ -1134,8 +1156,8 @@ module CalcStatsGlb_mod
     idateo = 0
 
     ! do 3d variables
-    do jvar=1,nvar3d
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
+    do varIndex=1,nvar3d
+      if(vnl_varLevelFromVarName(nomvar3d(varIndex,cvSpace)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -1144,90 +1166,90 @@ module CalcStatsGlb_mod
       endif
       dfact=1.0d0
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(jvar)+jlev)
+      do levIndex=1,nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            zbuf(lonIndex,latIndex)=dfact*stddev3d(lonIndex,latIndex,varLevOffset(varIndex)+levIndex)
           enddo
         enddo
-        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                          'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(levIndex),ip2,ip3,   &
+                          'E',nomvar3d(varIndex,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          zbufyz(jlat,jlev)=dfact*stddevZonAvg(varLevOffset(jvar)+jlev,jlat)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          zbufyz(latIndex,levIndex)=dfact*stddevZonAvg(varLevOffset(varIndex)+levIndex,latIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                        'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar3d(varIndex,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
-      if(nomvar3d(jvar,cvSpace).ne.nomvar3d(jvar,cvUnbalSpace)) then
+      if(nomvar3d(varIndex,cvSpace).ne.nomvar3d(varIndex,cvUnbalSpace)) then
         dfact=1.0d0
 
-        do jlev=1,nlevEns
-          do jlat=1,nj
-            do jlon=1,ni
-              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,jlat,varLevOffset(jvar)+jlev)
+        do levIndex = 1, nlevEns
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              zbuf(lonIndex,latIndex)=dfact*stddev3dUnbal(lonIndex,latIndex,varLevOffset(varIndex)+levIndex)
             enddo 
           enddo
-          ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                            'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+          ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(levIndex),ip2,ip3,   &
+                            'E',nomvar3d(varIndex,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
         enddo
 
-        do jlev=1,nlevEns
-          do jlat=1,nj
-            zbufyz(jlat,jlev)=dfact*stddevZonAvgUnbal(varLevOffset(jvar)+jlev,jlat)
+        do levIndex = 1, nlevEns
+          do latIndex = myLatBeg, myLatEnd
+            zbufyz(latIndex,levIndex)=dfact*stddevZonAvgUnbal(varLevOffset(varIndex)+levIndex,latIndex)
           enddo
         enddo
         ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                          'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                          'E',nomvar3d(varIndex,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
 
     ! now do 2D variables
-    do jvar=1,nvar2d
-      if(nomvar2d(jvar,cvSpace).eq.'P0') then
+    do varIndex=1,nvar2d
+      if(nomvar2d(varIndex,cvSpace).eq.'P0') then
         dfact=1.0d0/1.0d2
       else
         dfact=1.0d0
       endif
 
-      do jlat=1,nj
-        do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          zbuf(lonIndex,latIndex)=dfact*stddev3d(lonIndex,latIndex,varLevOffset(nvar3d+1)+varIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                        'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(varIndex,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
-      do jlat=1,nj
-        zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,jlat)
+      do latIndex = myLatBeg, myLatEnd
+        zbufy(latIndex)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+varIndex,latIndex)
       enddo
       ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                        'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(varIndex,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
-      if(nomvar2d(jvar,cvSpace).ne.nomvar2d(jvar,cvUnbalSpace)) then
-        if(nomvar2d(jvar,cvUnbalSpace).eq.'UP') then
+      if(nomvar2d(varIndex,cvSpace).ne.nomvar2d(varIndex,cvUnbalSpace)) then
+        if(nomvar2d(varIndex,cvUnbalSpace).eq.'UP') then
           dfact=1.0d0/1.0d2
         else
           dfact=1.0d0
         endif
 
-        do jlat=1,nj
-          do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            zbuf(lonIndex,latIndex)=dfact*stddev3dUnbal(lonIndex,latIndex,varLevOffset(nvar3d+1)+varIndex)
           enddo 
         enddo
         ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                          'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                          'E',nomvar2d(varIndex,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
-        do jlat=1,nj
-          zbufy(jlat)=dfact*stddevZonAvgUnbal(varLevOffset(nvar3d+1)+jvar,jlat)
+        do latIndex = myLatBeg, myLatEnd
+          zbufy(latIndex)=dfact*stddevZonAvgUnbal(varLevOffset(nvar3d+1)+varIndex,latIndex)
         enddo
         ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                          'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                          'E',nomvar2d(varIndex,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
@@ -1240,14 +1262,14 @@ module CalcStatsGlb_mod
 
   end subroutine writeStddev
 
-!--------------------------------------------------------------------------
-! WRITESTDDEV2
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITESTDDEV2
+  !--------------------------------------------------------------------------
   subroutine writeStddev2(stddevZonAvg,stddev3d)
     implicit none
     real*8 :: stddevZonAvg(:,:),stddev3d(:,:,:)
     real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
-    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
@@ -1264,8 +1286,8 @@ module CalcStatsGlb_mod
     idateo = 0
 
     ! do 3d variables
-    do jvar=1,nvar3d
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
+    do varIndex=1,nvar3d
+      if(vnl_varLevelFromVarName(nomvar3d(varIndex,cvSpace)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -1273,49 +1295,49 @@ module CalcStatsGlb_mod
         nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
       endif
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          dfact=1.0d0
-          do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(jvar)+jlev)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          dfact = 1.0d0
+          do lonIndex = 1,ni
+            zbuf(lonIndex,latIndex) = dfact*stddev3d(lonIndex,latIndex,varLevOffset(varIndex)+levIndex)
           enddo
         enddo
-        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                          'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(levIndex),ip2,ip3,   &
+                          'E',nomvar3d(varIndex,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          dfact=1.0d0
-          zbufyz(jlat,jlev)=dfact*stddevZonAvg(varLevOffset(jvar)+jlev,jlat)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          dfact = 1.0d0
+          zbufyz(latIndex,levIndex)=dfact*stddevZonAvg(varLevOffset(varIndex)+levIndex,latIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                        'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar3d(varIndex,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
     ! now do 2D variables
-    do jvar=1,nvar2d
-      if(nomvar2d(jvar,cvSpace).eq.'P0') then
+    do varIndex=1,nvar2d
+      if(nomvar2d(varIndex,cvSpace).eq.'P0') then
         dfact=1.0d0/1.0d2
       else
         dfact=1.0d0
       endif
 
-      do jlat=1,nj
-        do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          zbuf(lonIndex,latIndex)=dfact*stddev3d(lonIndex,latIndex,varLevOffset(nvar3d+1)+varIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                        'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(varIndex,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
-      do jlat=1,nj
-        zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,jlat)
+      do latIndex = myLatBeg, myLatEnd
+        zbufy(latIndex)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+varIndex,latIndex)
       enddo
       ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                        'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(varIndex,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -1327,14 +1349,14 @@ module CalcStatsGlb_mod
 
   end subroutine writeStddev2
 
-!--------------------------------------------------------------------------
-! WRITESTDDEVBAL
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITESTDDEVBAL
+  !--------------------------------------------------------------------------
   subroutine writeStddevBal(stddevZonAvgBal,stddev3dBal)
     implicit none
     real*8 :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
     real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
-    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
@@ -1356,48 +1378,48 @@ module CalcStatsGlb_mod
     idateo = 0
 
     ! do 3d variables
-    do jvar=1,nvar3d
+    do varIndex=1,nvar3d
       nLevEns = nLevEns_T
       nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
       dfact=1.0d0
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,jlat,varLevOffset(jvar)+jlev)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            zbuf(lonIndex,latIndex)=dfact*stddev3dBal(lonIndex,latIndex,varLevOffset(varIndex)+levIndex)
           enddo
         enddo
-        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                          'E',nomvar3dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(levIndex),ip2,ip3,   &
+                          'E',nomvar3dBal(varIndex),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          zbufyz(jlat,jlev)=dfact*stddevZonAvgBal(varLevOffset(jvar)+jlev,jlat)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          zbufyz(latIndex,levIndex)=dfact*stddevZonAvgBal(varLevOffset(varIndex)+levIndex,latIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                        'E',nomvar3dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar3dBal(varIndex),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
     ! now do 2D variables
-    do jvar=1,nvar2d
+    do varIndex=1,nvar2d
       dfact=1.0d0/1.0d2
 
-      do jlat=1,nj
-        do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          zbuf(lonIndex,latIndex)=dfact*stddev3dBal(lonIndex,latIndex,varLevOffset(nvar3d+1)+varIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                        'E',nomvar2dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2dBal(varIndex),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
-      do jlat=1,nj
-        zbufy(jlat)=dfact*stddevZonAvgBal(varLevOffset(nvar3d+1)+jvar,jlat)
+      do latIndex = myLatBeg, myLatEnd
+        zbufy(latIndex)=dfact*stddevZonAvgBal(varLevOffset(nvar3d+1)+varIndex,latIndex)
       enddo
       ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                        'E',nomvar2dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2dBal(varIndex),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -1409,9 +1431,9 @@ module CalcStatsGlb_mod
 
   end subroutine writeStddevBal
 
-!--------------------------------------------------------------------------
-! SPECTRALFILTER
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! SPECTRALFILTER
+  !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex_opt)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -1420,7 +1442,7 @@ module CalcStatsGlb_mod
 
     real*8  :: spectralState(nla,2,nlev)
     real*8  :: member(ni,nj,nlev)
-    integer :: jens, jk, jn, jm, ila
+    integer :: ensIndex, jk, jn, jm, ila
 
     real(8), allocatable :: ResponseFunction(:)
     real(8) :: waveLength
@@ -1451,8 +1473,8 @@ module CalcStatsGlb_mod
        close(unit=99)
     end if
 
-    do jens=1,nens
-      member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
+    do ensIndex=1,nens
+      member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))     
       if(nlev.eq.nkgdimEns) then
         call gst_setID(gstID_nkgdimEns)
       elseif(nlev.eq.nLevEns_T+1) then
@@ -1463,7 +1485,7 @@ module CalcStatsGlb_mod
       endif
       call gst_reespe(spectralState,member)
       if ( nWaveBand /= 1 ) then
-!$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
+         !$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
          do jk = 1, nlev
             do jn = 0, ntrunc
                do jm = 0, jn
@@ -1473,10 +1495,10 @@ module CalcStatsGlb_mod
                end do
             end do
          end do
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
       end if
       call gst_speree(spectralState,member)
-      ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
+      ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
     enddo
 
     if ( nWaveBand /= 1 ) then
@@ -1488,40 +1510,40 @@ module CalcStatsGlb_mod
 
   end subroutine spectralFilter
 
-!--------------------------------------------------------------------------
-! CALCTHETA
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCTHETA
+  !--------------------------------------------------------------------------
   subroutine calcTheta(ensPerturbations,theta)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8  :: theta(:,:)
     real*8 zchipsi(nLevEns_M,nj), zpsipsi(nLevEns_M,nj)
     real*4, pointer :: psi_ptr(:,:,:),chi_ptr(:,:,:)
-    integer :: jlat,jlon,jlev,jens
+    integer :: latIndex,lonIndex,levIndex,ensIndex
 
     theta(:,:) = 0.0d0
     zchipsi(:,:) = 0.0d0
     zpsipsi(:,:) = 0.0d0
 
-    do jens = 1,nens
-      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,jens)
-      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),jens)
+    do ensIndex = 1,nens
+      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,ensIndex)
+      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),ensIndex)
 
       ! update zchipsi and zpsipsi covariances
-      do jlat = 1, nj
-        do jlon = 1, ni
-          do jlev = 1, nLevEns_M
-            zpsipsi(jlev,jlat) = zpsipsi(jlev,jlat) + psi_ptr(jlon,jlat,jlev) * psi_ptr(jlon,jlat,jlev)
-            zchipsi(jlev,jlat) = zchipsi(jlev,jlat) + chi_ptr(jlon,jlat,jlev) * psi_ptr(jlon,jlat,jlev)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do levIndex = 1, nLevEns_M
+            zpsipsi(levIndex,latIndex) = zpsipsi(levIndex,latIndex) + psi_ptr(lonIndex,latIndex,levIndex) * psi_ptr(lonIndex,latIndex,levIndex)
+            zchipsi(levIndex,latIndex) = zchipsi(levIndex,latIndex) + chi_ptr(lonIndex,latIndex,levIndex) * psi_ptr(lonIndex,latIndex,levIndex)
           enddo
         enddo
       enddo
     enddo
 
     !  calculate THETA
-    do jlat = 1, nj
-      do jlev = 1, nLevEns_M
-        theta(jlev,jlat) = atan(-zchipsi(jlev,jlat) / zpsipsi(jlev,jlat))
+    do latIndex = myLatBeg, myLatEnd
+      do levIndex = 1, nLevEns_M
+        theta(levIndex,latIndex) = atan(-zchipsi(levIndex,latIndex) / zpsipsi(levIndex,latIndex))
       enddo
     enddo
 
@@ -1530,9 +1552,9 @@ module CalcStatsGlb_mod
 
   end subroutine calcTheta
 
-!--------------------------------------------------------------------------
-! CALCPTOT
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCPTOT
+  !--------------------------------------------------------------------------
   subroutine calcPtoT(ensPerturbations,PtoT)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -1540,8 +1562,8 @@ module CalcStatsGlb_mod
 
     real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nj,nlevEns_M),psi(ni,nj,nLevEns_M)
     real*4, pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
-    INTEGER JENS, IENS, JK1, JK2, JLA, JN, JM, ILA, JLEV
-    INTEGER IERR, JFILE, JK, JLAT, ILON, JLON, JB, NLATBAND
+    INTEGER ensIndex, IENS, JK1, JK2, JLA, JN, JM, ILA, levIndex
+    INTEGER IERR, JFILE, JK, latIndex, ILON, lonIndex, JB, NLATBAND
     INTEGER IBND1,IBND2,JPNLATBND,ILAT
     PARAMETER (JPNLATBND = 3)
     REAL*8 ZFACT,ZMAXI,ZWT,ZPS,zlat(nj)
@@ -1565,11 +1587,11 @@ module CalcStatsGlb_mod
     DLA2 = DBLE(RA)*DBLE(RA)
     DL1SA2 = 1.D0/DLA2
 
-!   1. Initialize P_to_T, ZM1, ZM2
+    ! 1. Initialize P_to_T, ZM1, ZM2
 
     ZFACTTOT = 0.0D0
-    DO JLAT = 1, NJ
-      ZFACTTOT = ZFACTTOT + cos(GST_GETRLATI(JLAT))
+    DO latIndex = myLatBeg, myLatEnd
+      ZFACTTOT = ZFACTTOT + cos(GST_GETRLATI(latIndex))
     ENDDO
     ZFACTTOT = NJ/ZFACTTOT
 
@@ -1578,46 +1600,46 @@ module CalcStatsGlb_mod
     ZPTOTBND(:,:) = 0.0d0
     ZM2(:,:,:) = 0.0d0
 
-    do jens = 1,nens
+    do ensIndex = 1,nens
 
-      write(*,*) 'calcPtoT: processing member ',jens
+      write(*,*) 'calcPtoT: processing member ',ensIndex
       call flush(6)
 
-      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
+      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,ensIndex)
       call gst_setID(gstID_nLevEns_M)
       call gst_reespe(spectralState,psi)
       CALL calcBalancedP(spectralState,spBalancedP)
       call gst_speree(spBalancedP,balancedP)
 
-      tt_ptr  => ensPerturbations(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),jens)
-      ps_ptr  => ensPerturbations(:,:,2*nLevEns_M+2*nLevEns_T+1,jens)
+      tt_ptr  => ensPerturbations(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),ensIndex)
+      ps_ptr  => ensPerturbations(:,:,2*nLevEns_M+2*nLevEns_T+1,ensIndex)
 
-      DO JLAT = 1, NJ
-        zlat(jlat)=GST_GETRLATI(JLAT)
+      DO latIndex = myLatBeg, myLatEnd
+        zlat(latIndex)=GST_GETRLATI(latIndex)
       enddo
 
-!$OMP PARALLEL DO PRIVATE (JK1,JB,JLAT,ZFACT,JLON,JK2)
+      !$OMP PARALLEL DO PRIVATE (JK1,JB,latIndex,ZFACT,lonIndex,JK2)
       DO JK1 = 1, (nLevEns_T+1)
         DO JB=1,JPNLATBND
-          DO JLAT = 1, NJ
-            if ((ZLAT(JLAT) .gt. 2.D0*MPC_PI_R8*DLLATMIN(JB)/360.D0)   &
-          .and. (ZLAT(JLAT) .le. 2.D0*MPC_PI_R8*DLLATMAX(JB)/360.D0)) then
-              ZFACT = cos(ZLAT(JLAT))*ZFACTTOT
-              DO JLON = 1, NI
+          DO latIndex = myLatBeg, myLatEnd
+            if ((ZLAT(latIndex) .gt. 2.D0*MPC_PI_R8*DLLATMIN(JB)/360.D0)   &
+          .and. (ZLAT(latIndex) .le. 2.D0*MPC_PI_R8*DLLATMAX(JB)/360.D0)) then
+              ZFACT = cos(ZLAT(latIndex))*ZFACTTOT
+              DO lonIndex = myLonBeg, myLonEnd
 
                 ! update ZM1 = sum_over_t_x_y[vec(T lnPs) vec(P_b)^T]
                 DO JK2 = 1, nLevEns_M
                   IF(JK1.LE.nLevEns_T) THEN
-                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * tt_ptr(jlon,jlat,jk1) * balancedP(jlon,jlat,jk2)
+                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * tt_ptr(lonIndex,latIndex,jk1) * balancedP(lonIndex,latIndex,jk2)
                   ELSE
-                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * ps_ptr(jlon,jlat) * balancedP(jlon,jlat,jk2)
+                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * ps_ptr(lonIndex,latIndex) * balancedP(lonIndex,latIndex,jk2)
                   ENDIF
                 ENDDO
 
                 ! update ZM2 = sum_over_t_x_y[vec(P_b) vec(P_b)^T]
                 IF(JK1.LE.NLEVPTOT) THEN
                   DO JK2 = 1, NLEVPTOT
-                    zm2(jk1,jk2,jb) = zm2(jk1,jk2,jb) + zfact * balancedP(jlon,jlat,jk1) * balancedP(jlon,jlat,jk2)
+                    zm2(jk1,jk2,jb) = zm2(jk1,jk2,jb) + zfact * balancedP(lonIndex,latIndex,jk1) * balancedP(lonIndex,latIndex,jk2)
                   ENDDO
                 ENDIF
 
@@ -1626,11 +1648,11 @@ module CalcStatsGlb_mod
           ENDDO
         ENDDO ! Loop on JPNLATBND
       END DO  ! Loop on JK1
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     ENDDO
 
-! SET ZM1,ZM2 EQUAL FOR ALL THREE REGIONS
+    ! SET ZM1,ZM2 EQUAL FOR ALL THREE REGIONS
     DO JK1 = 1, NLEVPTOT
       DO JK2 = 1, NLEVPTOT
         ZM2(JK1,JK2,1)=ZM2(JK1,JK2,1)+ZM2(JK1,JK2,3)
@@ -1674,12 +1696,8 @@ module CalcStatsGlb_mod
       ENDDO
     ENDDO
 
-!    write(*,*) 'zm1=',zm1(:,:,1)
-!    write(*,*) 'zm2=',zm2(:,:,1)
-!    write(*,*) 'zm2inv=',zm2inv(:,:,1)
 
-! Calculate A = ZM1*inv(ZM2)
-!
+    ! Calculate A = ZM1*inv(ZM2)
     DO JK1 = 1, (nLevEns_T+1)
       DO JK2 = 1, NLEVPTOT
         DO JK = 1, NLEVPTOT
@@ -1687,11 +1705,11 @@ module CalcStatsGlb_mod
         ENDDO
       ENDDO
     ENDDO
-!
+
     DO JK1 = 1, nLevEns_T+1
       DO JK2 = 1, NLEVPTOT
-        DO JLAT = 1,NJ
-          PTOT(JK1,JK2,JLAT) = ZPTOTBND(JK1,JK2)
+        DO latIndex = myLatBeg, myLatEnd
+          PTOT(JK1,JK2,latIndex) = ZPTOTBND(JK1,JK2)
         ENDDO
       ENDDO
     ENDDO
@@ -1701,72 +1719,72 @@ module CalcStatsGlb_mod
 
   end subroutine calcPtoT
 
-!--------------------------------------------------------------------------
-! REMOVEGLOBALMEAN
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! REMOVEGLOBALMEAN
+  !--------------------------------------------------------------------------
   subroutine removeGlobalMean(ensPerturbations)
     implicit none
-    integer :: jlon,jlat,jlev,jens
+    integer :: lonIndex,latIndex,levIndex,ensIndex
     real*4  :: ensPerturbations(:,:,:,:)
     real*8  :: dmean
 
-!$OMP PARALLEL DO PRIVATE (JENS,JLEV,JLAT,JLON,DMEAN)
-    do jens=1,nens
-      do jlev=1,nkgdimEns
-        dmean=0.0d0
-        do jlat=1,nj
-          do jlon=1,ni
-            dmean=dmean+ensPerturbations(jlon,jlat,jlev,jens)
+    !$OMP PARALLEL DO PRIVATE (ensIndex,levIndex,latIndex,lonIndex,DMEAN)
+    do ensIndex = 1, nens
+      do levIndex = 1, nkgdimEns
+        dmean = 0.0d0
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            dmean=dmean+ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)
           enddo
         enddo
-        dmean=dmean/(dble(ni)*dble(nj))
-        do jlat=1,nj
-          do jlon=1,ni
-            ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)-dmean
+        dmean = dmean/(dble(ni)*dble(nj))
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-dmean
           enddo
         enddo
       enddo
     enddo
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     write(*,*) 'finished removing global mean...'
     call flush(6)
 
   end subroutine removeGlobalMean
 
-!--------------------------------------------------------------------------
-! CALCZONAVG
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCZONAVG
+  !--------------------------------------------------------------------------
   subroutine calcZonAvg(fieldsZonAvg,fields3D,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev,nlev
+    integer :: lonIndex,latIndex,levIndex,nlev
     real*8  :: fieldsZonAvg(:,:),fields3D(:,:,:),dfact
 
     fieldsZonAvg(:,:)=0.0d0
     dfact=1.0d0/dble(ni)
-!$OMP PARALLEL DO PRIVATE (JLEV,JLAT,JLON)
-      do jlev=1,nlev
-        do jlat=1,nj
-          do jlon=1,ni
-            fieldsZonAvg(jlev,jlat)=fieldsZonAvg(jlev,jlat)+dfact*fields3D(jlon,jlat,jlev)
+      !$OMP PARALLEL DO PRIVATE (levIndex,latIndex,lonIndex)
+      do levIndex = 1, nlev
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            fieldsZonAvg(levIndex,latIndex)=fieldsZonAvg(levIndex,latIndex)+dfact*fields3D(lonIndex,latIndex,levIndex)
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     write(*,*) 'finished computing the zonal average...'
     call flush(6)
 
   end subroutine calcZonAvg
 
-!--------------------------------------------------------------------------
-! CALCSTDDEV3D
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCSTDDEV3D
+  !--------------------------------------------------------------------------
   subroutine calcStddev3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev,jens,nlev
+    integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
     real*8  :: dnens,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
@@ -1776,41 +1794,41 @@ module CalcStatsGlb_mod
 
     stddev3d(:,:,:)=0.0d0
     dnens=1.0d0/dble(nens-1)
-!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON)
-      do jlev=1,nlev
-        do jens=1,nens
-          do jlat=1,nj
-            do jlon=1,ni
-              stddev3d(jlon,jlat,jlev)=stddev3d(jlon,jlat,jlev)+ensPerturbations(jlon,jlat,jlev,jens)**2
+      !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex)
+      do levIndex = 1, nlev
+        do ensIndex = 1, nens
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              stddev3d(lonIndex,latIndex,levIndex)=stddev3d(lonIndex,latIndex,levIndex)+ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)**2
             enddo
           enddo
         enddo
-        do jlat=1,nj
-          do jlon=1,ni
-            if(stddev3d(jlon,jlat,jlev).gt.0.0d0) then
-              stddev3d(jlon,jlat,jlev)=sqrt(stddev3d(jlon,jlat,jlev)*dnens)
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            if(stddev3d(lonIndex,latIndex,levIndex).gt.0.0d0) then
+              stddev3d(lonIndex,latIndex,levIndex)=sqrt(stddev3d(lonIndex,latIndex,levIndex)*dnens)
             else
-              stddev3d(jlon,jlat,jlev)=0.0d0
+              stddev3d(lonIndex,latIndex,levIndex)=0.0d0
             endif
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     write(*,*) 'finished computing the stddev...'
     call flush(6)
   
   end subroutine calcStddev3d
 
-!--------------------------------------------------------------------------
-! CALCBALANCEDP
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCBALANCEDP
+  !--------------------------------------------------------------------------
   subroutine calcBalancedP(sppsi,spgz)
     implicit none
 
     real*8 :: sppsi(:,:,:),spgz(:,:,:)
     real*8 :: spvor(nla,2,nlevEns_M)
-    integer  ia, ib, ji, jm, jlev,jlat
+    integer  ia, ib, ji, jm, levIndex,latIndex
     real*8 :: zn,zm,zenm,zenmp1,zcon,dl1sa2
     ! constants
     real*8             :: rday
@@ -1826,20 +1844,20 @@ module CalcStatsGlb_mod
 
     ! convert PSI to vorticity 
     dl1sa2   = 1.0d0/(dble(ra)*dble(ra))
-    do jlev = 1, nlevEns_M
-      do jlat = 1, nla
-        spvor(jlat,1,jlev) = sppsi(jlat,1,jlev)*dl1sa2*gst_getRnnp1(jlat)
-        spvor(jlat,2,jlev) = sppsi(jlat,2,jlev)*dl1sa2*gst_getRnnp1(jlat)
+    do levIndex = 1, nlevEns_M
+      do latIndex = 1, nla
+        spvor(latIndex,1,levIndex) = sppsi(latIndex,1,levIndex)*dl1sa2*gst_getRnnp1(latIndex)
+        spvor(latIndex,2,levIndex) = sppsi(latIndex,2,levIndex)*dl1sa2*gst_getRnnp1(latIndex)
       enddo
     enddo
 
     ! ensure input field is zero for spectral component (0,0)
-    do jlev = 1, nlevEns_M
-      if(spvor(1,1,jlev).ne.0.D0) then
-        spvor(1,1,jlev) = 0.0D0
+    do levIndex = 1, nlevEns_M
+      if(spvor(1,1,levIndex).ne.0.D0) then
+        spvor(1,1,levIndex) = 0.0D0
       endif
-      if(spvor(1,2,jlev).ne.0.D0) then
-        spvor(1,2,jlev) = 0.0D0
+      if(spvor(1,2,levIndex).ne.0.D0) then
+        spvor(1,2,levIndex) = 0.0D0
       endif
     enddo
 
@@ -1850,7 +1868,7 @@ module CalcStatsGlb_mod
     ! n.b.: at the tip of the triangle, no contributions
     
     zcon = -2.D0*romega*ra**2
-    do jlev = 1, nlevEns_M
+    do levIndex = 1, nlevEns_M
 
       ! the base address ia will point to the spherical harmonic
       ! coefficient (m,m), in the input field
@@ -1862,133 +1880,133 @@ module CalcStatsGlb_mod
         ! at the base, contributions from n+1 coeff only
         zn = zm
         zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.D0*(zn+1)**2-1.D0) )
-        spgz(ia,1,jlev)=zcon*spvor(ia+1,1,jlev)*zenmp1/((zn+1.0D0)**2)
-        spgz(ia,2,jlev)=zcon*spvor(ia+1,2,jlev)*zenmp1/((zn+1.0D0)**2)
+        spgz(ia,1,levIndex)=zcon*spvor(ia+1,1,levIndex)*zenmp1/((zn+1.0D0)**2)
+        spgz(ia,2,levIndex)=zcon*spvor(ia+1,2,levIndex)*zenmp1/((zn+1.0D0)**2)
 
         zn = zn+1
         do ji = ia+1, ib-1
           zenm = sqrt ( (zn**2-zm**2)/(4.D0*zn**2-1.D0) )
           zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.D0*(zn+1)**2-1.D0) )
-          spgz(ji,1,jlev)=spvor(ji-1,1,jlev)*zenm/(zn**2)
-          spgz(ji,2,jlev)=spvor(ji-1,2,jlev)*zenm/(zn**2)
-          spgz(ji,1,jlev)=zcon*(spgz(ji,1,jlev)+spvor(ji+1,1,jlev)*zenmp1/((zn+1.0D0)**2))
-          spgz(ji,2,jlev)=zcon*(spgz(ji,2,jlev)+spvor(ji+1,2,jlev)*zenmp1/((zn+1.0D0)**2))
+          spgz(ji,1,levIndex)=spvor(ji-1,1,levIndex)*zenm/(zn**2)
+          spgz(ji,2,levIndex)=spvor(ji-1,2,levIndex)*zenm/(zn**2)
+          spgz(ji,1,levIndex)=zcon*(spgz(ji,1,levIndex)+spvor(ji+1,1,levIndex)*zenmp1/((zn+1.0D0)**2))
+          spgz(ji,2,levIndex)=zcon*(spgz(ji,2,levIndex)+spvor(ji+1,2,levIndex)*zenmp1/((zn+1.0D0)**2))
           zn = zn + 1.0D0
         enddo
 
         ! at the top, contributions from n-1 coeff only
         zenm = sqrt ( (zn**2-zm**2)/(4.D0*zn**2-1.D0) )
-        spgz(ib,1,jlev) = zcon*spvor(ib-1,1,jlev)*zenm/(zn**2)
-        spgz(ib,2,jlev) = zcon*spvor(ib-1,2,jlev)*zenm/(zn**2)
+        spgz(ib,1,levIndex) = zcon*spvor(ib-1,1,levIndex)*zenm/(zn**2)
+        spgz(ib,2,levIndex) = zcon*spvor(ib-1,2,levIndex)*zenm/(zn**2)
         ia = ib + 1
       enddo
     enddo
 
     ! ensure correct value for mass spectral-coefficient for m=n=0
-    do jlev = 1, nlevens_M
-      spgz(1,1,jlev) = 0.0D0
-      spgz(1,2,jlev) = 0.0D0
+    do levIndex = 1, nlevens_M
+      spgz(1,1,levIndex) = 0.0D0
+      spgz(1,2,levIndex) = 0.0D0
     enddo
 
   end subroutine calcBalancedP
 
-!--------------------------------------------------------------------------
-! NORMALIZED3D
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! NORMALIZED3D
+  !--------------------------------------------------------------------------
   subroutine normalize3d(ensPerturbations,stddev3d)
     implicit none
 
-    integer :: jlon,jlat,jlev,jens
+    integer :: lonIndex,latIndex,levIndex,ensIndex
     real*8  :: dfact,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
-!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON,DFACT)
-      do jlev=1,nkgdimEns
-        do jlat=1,nj
-          do jlon=1,ni
-            if(stddev3d(jlon,jlat,jlev).gt.0.0d0) then
-              dfact=1.0d0/stddev3d(jlon,jlat,jlev)
-            else
-              dfact=0.0d0
-            endif
-            do jens=1,nens
-              ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)*dfact
-            enddo
+    !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex,DFACT)
+    do levIndex = 1, nkgdimEns
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          if(stddev3d(lonIndex,latIndex,levIndex).gt.0.0d0) then
+            dfact=1.0d0/stddev3d(lonIndex,latIndex,levIndex)
+          else
+            dfact=0.0d0
+          endif
+          do ensIndex = 1, nens
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*dfact
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+    enddo
+    !$OMP END PARALLEL DO
 
     write(*,*) 'finished normalizing by stddev3D...'
     call flush(6)
   
   end subroutine normalize3d
 
-!--------------------------------------------------------------------------
-! MULTIPLY3D
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! MULTIPLY3D
+  !--------------------------------------------------------------------------
   subroutine multiply3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev,jens,nlev
+    integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
     real*8  :: stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
-!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON)
-      do jens=1,nens
-        do jlev=1,nlev
-          do jlat=1,nj
-            do jlon=1,ni
-              ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)*stddev3d(jlon,jlat,jlev)
-            enddo
+    !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex)
+    do ensIndex = 1, nens
+      do levIndex = 1, nlev
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*stddev3d(lonIndex,latIndex,levIndex)
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+    enddo
+    !$OMP END PARALLEL DO
 
     write(*,*) 'finished multiplying by stddev3D...'
     call flush(6)
   
   end subroutine multiply3d
 
-!--------------------------------------------------------------------------
-! READENSEMBLE
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! READENSEMBLE
+  !--------------------------------------------------------------------------
   subroutine readEnsemble(ensPerturbations)
     implicit none
 
     real*4 :: ensPerturbations(:,:,:,:)
 
-    integer :: jens, fclos, fnom, fstfrm, fstouv, ierr
+    integer :: ensIndex, fclos, fnom, fstfrm, fstouv, ierr
     integer :: nulens(nens)
 
     nulens(:)=0
-    do jens = 1, nens
-       ierr = fnom(nulens(jens),cflensin(jens),'RND+OLD+R/O',0)
-       ierr = fstouv(nulens(jens),'RND+OLD')
+    do ensIndex = 1, nens
+       ierr = fnom(nulens(ensIndex),cflensin(ensIndex),'RND+OLD+R/O',0)
+       ierr = fstouv(nulens(ensIndex),'RND+OLD')
     end do
 
     write(*,*) 'Before reading the ensemble:'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
-!$OMP PARALLEL DO PRIVATE (jens)
-    do jens = 1, nens
-        write(*,*) 'Reading ensemble member:',trim(cflensin(jens))
+    !$OMP PARALLEL DO PRIVATE (ensIndex)
+    do ensIndex = 1, nens
+        write(*,*) 'Reading ensemble member:',trim(cflensin(ensIndex))
         call flush(6)
-        call readEnsembleMember(ensPerturbations,nulens,jens)
-        write(*,*) 'done reading member ',jens
+        call readEnsembleMember(ensPerturbations,nulens,ensIndex)
+        write(*,*) 'done reading member ',ensIndex
         call flush(6)
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     write(*,*) 'After reading the ensemble:'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
-    do jens = 1, nens
-       ierr =  fstfrm(nulens(jens))
-       ierr =  fclos (nulens(jens))
+    do ensIndex = 1, nens
+       ierr =  fstfrm(nulens(ensIndex))
+       ierr =  fclos (nulens(ensIndex))
     end do
 
     write(*,*) 'finished reading ensemble members...'
@@ -1996,21 +2014,21 @@ module CalcStatsGlb_mod
 
   end subroutine readEnsemble
 
-!--------------------------------------------------------------------------
-! READENSEMBLEMEMBER
-!--------------------------------------------------------------------------
-  subroutine readEnsembleMember(ensPerturbations,nulens,jens)
+  !--------------------------------------------------------------------------
+  ! READENSEMBLEMEMBER
+  !--------------------------------------------------------------------------
+  subroutine readEnsembleMember(ensPerturbations,nulens,ensIndex)
     implicit none
 
     real*4 :: ensPerturbations(:,:,:,:)
-    integer, intent(in) :: jens
+    integer, intent(in) :: ensIndex
     integer, intent(in) :: nulens(nens)
     
     integer :: stamp_in
     real*4 :: gd2d(ni,nj)
     real*8 :: rmsknt,rmbtpa,r1sa
     real*8 :: rhumin = 2.5d-6
-    integer :: jlon,jlat,jlev
+    integer :: lonIndex,latIndex,levIndex
     integer :: fstlir
     integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
 
@@ -2035,7 +2053,7 @@ module CalcStatsGlb_mod
     r1sa=1.d0/6371229.d0
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-!    ip2 = 6
+    ! ip2 = 6
     ip2 = -1
     ip3=-1
     idateo = -1
@@ -2043,115 +2061,115 @@ module CalcStatsGlb_mod
     cletiket = ' '
 
     clnomvar = 'P0' 
-    ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
+    ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
     if(ikey.lt.0) call utl_abort('readEnsembleMember: Problem with P0 ENS')
-    do jlat=1,nj
-       do jlon=1,ni
-          ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
+    do latIndex = myLatBeg, myLatEnd
+       do lonIndex = myLonBeg, myLonEnd
+          ensPerturbations(lonIndex,latIndex,ngpositps,ensIndex)= gd2d(lonIndex,latIndex)*rmbtpa
        enddo
     enddo
     
-    do jlev=1,nLevEns_T
+    do levIndex=1,nLevEns_T
        clnomvar = 'TT'
-       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+       ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,nip1_T(levIndex),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_T(levIndex),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with TT ENS')
        endif
        call flush(6)
-       do jlat=1,nj
-          do jlon=1,ni
-             ensPerturbations(jlon,jlat,jlev-1+ngposittt,jens)= gd2d(jlon,jlat)
+       do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+             ensPerturbations(lonIndex,latIndex,levIndex-1+ngposittt,ensIndex)= gd2d(lonIndex,latIndex)
           enddo
        enddo
     enddo
     
-    do jlev=1,nLevEns_T
+    do levIndex=1,nLevEns_T
        clnomvar = 'HU' 
-       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+       ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,nip1_T(levIndex),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           clnomvar = 'LQ' 
-          ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+          ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,nip1_T(levIndex),ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-             write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+             write(*,*) idateo,cletiket,nip1_T(levIndex),ip2,ip3,cltypvar,clnomvar
              call utl_abort('readEnsembleMember: Problem with HU and LQ ENS')
           else
-             do jlat=1,nj
-                do jlon=1,ni
-                   ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= gd2d(jlon,jlat)
+             do latIndex = myLatBeg, myLatEnd
+                do lonIndex = myLonBeg, myLonEnd
+                   ensPerturbations(lonIndex,latIndex,levIndex-1+ngpositq,ensIndex)= gd2d(lonIndex,latIndex)
                 enddo
              enddo
           endif
        else
-          do jlat=1,nj
-             do jlon=1,ni
-                ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= log(max(gd2d(jlon,jlat),real(rhumin,4)))
+          do latIndex = myLatBeg, myLatEnd
+             do lonIndex = myLonBeg, myLonEnd
+                ensPerturbations(lonIndex,latIndex,levIndex-1+ngpositq,ensIndex)= log(max(gd2d(lonIndex,latIndex),real(rhumin,4)))
              enddo
           enddo
        endif
     enddo
     
-    do jlev=1,nLevEns_M
+    do levIndex = 1, nLevEns_M
        clnomvar = 'UU' 
-       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
+       ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,nip1_M(levIndex),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_M(levIndex),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with UU ENS')
        endif
-       do jlat=1,nj
-          do jlon=1,ni
-             ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt
+       do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+             ensPerturbations(lonIndex,latIndex,levIndex-1+ngposituu,ensIndex)= gd2d(lonIndex,latIndex)*rmsknt
           enddo
        enddo
     enddo
     
-    do jlev=1,nLevEns_M
+    do levIndex = 1, nLevEns_M
        clnomvar = 'VV' 
-       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
+       ikey=fstlir(gd2d,nulens(ensIndex),ini,inj,ink,idateo,cletiket,nip1_M(levIndex),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_M(levIndex),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with VV ENS')
        endif
-       do jlat=1,nj
-          do jlon=1,ni
-             ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt
+       do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+             ensPerturbations(lonIndex,latIndex,levIndex-1+ngpositvv,ensIndex)= gd2d(lonIndex,latIndex)*rmsknt
           enddo
        enddo
     enddo
 
   end subroutine readEnsembleMember
 
-!--------------------------------------------------------------------------
-! UV_TO_PSICHI
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! UV_TO_PSICHI
+  !--------------------------------------------------------------------------
   subroutine uv_to_psichi(ensPerturbations)
     implicit none
 
-    integer :: jens,jlev,jla
+    integer :: ensIndex,levIndex,jla
     real*8  :: dla2
     real*8  :: spectralState(nla,2,nkgdimEns)
     real*4  :: ensPerturbations(:,:,:,:)
     real*8  :: member(ni,nj,nkgdimens)
-!
-! Convert from U/V to PSI/CHI and spectrally filter all fields
-!
+    !
+    ! Convert from U/V to PSI/CHI and spectrally filter all fields
+    !
     call tmg_start(2,'UV_TO_PSICHI')
     dla2   = dble(ra)*dble(ra)
-    do jens=1,nens
-      write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', jens
-      member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
+    do ensIndex=1,nens
+      write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', ensIndex
+      member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))
       call gst_setID(gstID_nkgdimEns)
       call gst_gdsp(spectralState,member,nlevEns_M)
-      do jlev = 1, nlevEns_M
+      do levIndex = 1, nlevEns_M
         do jla = 1, nla
-          spectralState(jla,1,jlev)           = spectralState(jla,1,jlev)           * dla2*gst_getR1snp1(jla)
-          spectralState(jla,2,jlev)           = spectralState(jla,2,jlev)           * dla2*gst_getR1snp1(jla)
-          spectralState(jla,1,jlev+nlevEns_M) = spectralState(jla,1,jlev+nlevEns_M) * dla2*gst_getR1snp1(jla)
-          spectralState(jla,2,jlev+nlevEns_M) = spectralState(jla,2,jlev+nlevEns_M) * dla2*gst_getR1snp1(jla)
+          spectralState(jla,1,levIndex)           = spectralState(jla,1,levIndex)           * dla2*gst_getR1snp1(jla)
+          spectralState(jla,2,levIndex)           = spectralState(jla,2,levIndex)           * dla2*gst_getR1snp1(jla)
+          spectralState(jla,1,levIndex+nlevEns_M) = spectralState(jla,1,levIndex+nlevEns_M) * dla2*gst_getR1snp1(jla)
+          spectralState(jla,2,levIndex+nlevEns_M) = spectralState(jla,2,levIndex+nlevEns_M) * dla2*gst_getR1snp1(jla)
         enddo
       enddo
       call gst_speree(spectralState,member)
-      ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
+      ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
     enddo
 
     call tmg_stop(2)
@@ -2160,53 +2178,52 @@ module CalcStatsGlb_mod
     
   end subroutine uv_to_psichi
 
-!--------------------------------------------------------------------------
-! REMOVEMEAN
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! REMOVEMEAN
+  !--------------------------------------------------------------------------
   subroutine removeMean(ensPerturbations)
     implicit none
 
-    integer :: jens,jlev,jlat,jlon
+    integer :: ensIndex,levIndex,latIndex,lonIndex
     real*8  :: dnens,gd2d(ni,nj)
     real*4  :: ensPerturbations(:,:,:,:)
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
-!$OMP PARALLEL DO PRIVATE (JLEV,GD2D,JENS,JLAT,JLON)
-      do jlev=1,nkgdimEns
+      !$OMP PARALLEL DO PRIVATE (levIndex,gd2d,ensIndex,latIndex,lonIndex)
+      do levIndex = 1, nkgdimEns
         gd2d(:,:)=0.0d0
-        do jens=1,nens
-          do jlat=1,nj
-            do jlon=1,ni
-              gd2d(jlon,jlat)=gd2d(jlon,jlat)+ensPerturbations(jlon,jlat,jlev,jens)
+        do ensIndex = 1, nens
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              gd2d(lonIndex,latIndex)=gd2d(lonIndex,latIndex)+ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)
             enddo
           enddo
         enddo
-        do jlat=1,nj
-          do jlon=1,ni
-            gd2d(jlon,jlat)=gd2d(jlon,jlat)*dnens
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            gd2d(lonIndex,latIndex)=gd2d(lonIndex,latIndex)*dnens
           enddo
         enddo
-        do jens=1,nens
-          do jlat=1,nj
-            do jlon=1,ni
-              ensPerturbations(jlon,jlat,jlev,jens)=     &
-                ensPerturbations(jlon,jlat,jlev,jens)-gd2d(jlon,jlat)
+        do ensIndex = 1, nens
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=     &
+                ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-gd2d(lonIndex,latIndex)
             enddo
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     write(*,*) 'finished removing the ensemble mean...'
     call flush(6)
 
   end subroutine removeMean
 
-
-!--------------------------------------------------------------------------
-! HORIZCORRELFUNCTION
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! HORIZCORRELFUNCTION
+  !--------------------------------------------------------------------------
   subroutine horizCorrelFunction(rstddev,variableType, waveBandIndex_opt)
     implicit none
 
@@ -2218,7 +2235,7 @@ module CalcStatsGlb_mod
     real*8  :: gridState(ni,nj,nkgdimEns)
 
     integer :: ji, jj, jk, jn, jm, ila, iref, jref
-    integer :: nLevEns, nLevStart, nLevEnd, jvar, iStart, iEnd
+    integer :: nLevEns, nLevStart, nLevEnd, varIndex, iStart, iEnd
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
@@ -2248,7 +2265,7 @@ module CalcStatsGlb_mod
     !
     !- 2.  Apply the horizontal correlation function
     !
-!$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
+    !$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
     do jk = 1, nkgdimEns
        do jn = 0, ntrunc
           do jm = 0, jn
@@ -2263,7 +2280,7 @@ module CalcStatsGlb_mod
           end do
        end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 3.  Move back to grid point space
@@ -2295,21 +2312,21 @@ module CalcStatsGlb_mod
     iStart=iref
     iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
 
-    do jvar = 1, nvar3d
+    do varIndex = 1, nvar3d
        if ( nWaveBand == 1 ) then
-          outfilename = "./horizCorrel_"//trim(nomvar3d(jvar,variableType))//".txt"
+          outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//".txt"
        else
-          outfilename = "./horizCorrel_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+          outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//"_"//wbnum//".txt"
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
        endif
-       nLevStart = varLevOffset(jvar)+ 1 
-       nLevEnd   = varLevOffset(jvar)+ nLevEns
+       nLevStart = varLevOffset(varIndex)+ 1 
+       nLevEnd   = varLevOffset(varIndex)+ nLevEns
 
        do ji=iStart,iEnd
           do jk = nLevStart,nLevEnd
@@ -2325,24 +2342,24 @@ module CalcStatsGlb_mod
        close(unit=99)
     end do
 
-    do jvar = 1, nvar2d
+    do varIndex = 1, nvar2d
        if ( nWaveBand == 1 ) then
-          outfilename = "./horizCorrel_"//trim(nomvar2d(jvar,variableType))//".txt"
+          outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//".txt"
        else
-          outfilename = "./horizCorrel_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+          outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//"_"//wbnum//".txt"
        end if
        open (unit=99,file=outfilename,action="write",status="new")
        do ji=iStart,iEnd
-          write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,varLevOffset(nvar3d+1)+jvar)
+          write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,varLevOffset(nvar3d+1)+varIndex)
        end do
        close(unit=99)
     end do
 
   end subroutine horizCorrelFunction
 
-!--------------------------------------------------------------------------
-! WRITE3D
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITE3D
+  !--------------------------------------------------------------------------
   subroutine write3d(gridpoint3d,filename,etiket_in,variableType)
     implicit none
 
@@ -2351,7 +2368,7 @@ module CalcStatsGlb_mod
     integer, intent(in) :: variableType
 
     real*8 :: dfact,zbuf(ni,nj)
-    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
@@ -2371,9 +2388,9 @@ module CalcStatsGlb_mod
     idateo = 0
 
     ! do 3d variables
-    do jvar = 1, nvar3d
+    do varIndex = 1, nvar3d
 
-      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+      if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -2382,33 +2399,33 @@ module CalcStatsGlb_mod
       endif
       dfact=1.0d0
 
-      do jlev=1,nlevEns
-        do jlat=1,nj
-          do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,jlat,varLevOffset(jvar)+jlev)
+      do levIndex = 1, nlevEns
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            zbuf(lonIndex,latIndex) = dfact*gridpoint3d(lonIndex,latIndex,varLevOffset(varIndex)+levIndex)
           enddo
         enddo
-        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                          'E',nomvar3d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(levIndex),ip2,ip3,   &
+                          'E',nomvar3d(varIndex,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
       enddo
 
     enddo
 
     ! now do 2D variables
-    do jvar = 1, nvar2d
-      !if(nomvar2d(jvar,variableType).eq.'P0') then
+    do varIndex = 1, nvar2d
+      !if(nomvar2d(varIndex,variableType).eq.'P0') then
       !  dfact=1.0d0/1.0d2
       !else
-        dfact=1.0d0
+        dfact = 1.0d0
       !endif
 
-      do jlat=1,nj
-        do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          zbuf(lonIndex,latIndex) = dfact*gridpoint3d(lonIndex,latIndex,varLevOffset(nvar3d+1)+varIndex)
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                        'E',nomvar2d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(varIndex,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -2420,9 +2437,9 @@ module CalcStatsGlb_mod
 
   end subroutine write3d
 
-!--------------------------------------------------------------------------
-! CALCHORIZSCALE
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! CALCHORIZSCALE
+  !--------------------------------------------------------------------------
   subroutine CalcHorizScale(rstddev,variableType,waveBandIndex_opt)
     implicit none
     
@@ -2434,7 +2451,7 @@ module CalcStatsGlb_mod
     real(8) :: HorizScale(nkgdimEns)
     real(8), pointer :: PressureProfile(:)
 
-    integer :: jk, jn, nLevEns, jvar
+    integer :: jk, jn, nLevEns, varIndex
     real(8) :: rjn, fact, temp, a, b
 
     character(len=128) :: outfilename
@@ -2476,18 +2493,18 @@ module CalcStatsGlb_mod
        write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
-    do jvar = 1, nvar3d
+    do varIndex = 1, nvar3d
        write(*,*)
-       write(*,*) nomvar3d(jvar,variableType)
+       write(*,*) nomvar3d(varIndex,variableType)
 
        if ( nWaveBand == 1 ) then
-          outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//".txt"
+          outfilename = "./horizScale_"//trim(nomvar3d(varIndex,variableType))//".txt"
        else
-          outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+          outfilename = "./horizScale_"//trim(nomvar3d(varIndex,variableType))//"_"//wbnum//".txt"
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
        else
@@ -2495,60 +2512,60 @@ module CalcStatsGlb_mod
           PressureProfile => pressureProfile_T
        endif
        do jk=1,nlevEns
-          write(* ,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(jvar)+jk)/1000.d0
-          write(99,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(jvar)+jk)/1000.d0
+          write(* ,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
+          write(99,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
        end do
 
        close(unit=99)
     end do
 
-    do jvar = 1, nvar2d
+    do varIndex = 1, nvar2d
        write(*,*)
-       write(*,*) nomvar2d(jvar,variableType)
+       write(*,*) nomvar2d(varIndex,variableType)
        
        if ( nWaveBand == 1 ) then
-          outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//".txt"
+          outfilename = "./horizScale_"//trim(nomvar2d(varIndex,variableType))//".txt"
        else
-          outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+          outfilename = "./horizScale_"//trim(nomvar2d(varIndex,variableType))//"_"//wbnum//".txt"
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+jvar)/1000.d0
-       write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+jvar)/1000.d0
+       write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
+       write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
 
        close(unit=99)
     end do
 
   end subroutine CalcHorizScale
 
-!--------------------------------------------------------------------------
-! WRITEPOWERSPEC
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! WRITEPOWERSPEC
+  !--------------------------------------------------------------------------
   subroutine writePowerSpec(powerSpec,variableType)
     implicit none
 
     real*8,intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
     integer,intent(in) :: variableType
 
-    integer :: jk, nLevEns, nLevStart, nLevEnd, jvar, jn
+    integer :: jk, nLevEns, nLevStart, nLevEnd, varIndex, jn
 
     real(8) :: waveLength 
 
     character(len=128) :: outfilename
 
     !- Write to txt files
-    do jvar = 1, nvar3d
+    do varIndex = 1, nvar3d
 
-       outfilename = "./PowerSpec_"//trim(nomvar3d(jvar,variableType))//".txt"
+       outfilename = "./PowerSpec_"//trim(nomvar3d(varIndex,variableType))//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
        endif
-       nLevStart = varLevOffset(jvar)+ 1 
-       nLevEnd   = varLevOffset(jvar)+ nLevEns
+       nLevStart = varLevOffset(varIndex)+ 1 
+       nLevEnd   = varLevOffset(varIndex)+ nLevEns
 
        do jn = 0, ntrunc
           if ( jn /= 0) then
@@ -2569,9 +2586,9 @@ module CalcStatsGlb_mod
        close(unit=99)
     end do
 
-    do jvar = 1, nvar2d
+    do varIndex = 1, nvar2d
 
-       outfilename = "./PowerSpec_"//trim(nomvar2d(jvar,variableType))//".txt"
+       outfilename = "./PowerSpec_"//trim(nomvar2d(varIndex,variableType))//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
           if ( jn /= 0) then
@@ -2579,7 +2596,7 @@ module CalcStatsGlb_mod
           else
              waveLength=0.d0
           end if
-          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(varLevOffset(nvar3d+1)+jvar,jn))
+          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(varLevOffset(nvar3d+1)+varIndex,jn))
        end do
        close(unit=99)
     end do
@@ -2637,7 +2654,7 @@ module CalcStatsGlb_mod
 
     dnens = 1.0d0/dble(nens-1)
 
-!$OMP PARALLEL DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
+    !$OMP PARALLEL DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
     do k = 1, nkgdimEns
 
        do ens = 1, nens
@@ -2659,14 +2676,14 @@ module CalcStatsGlb_mod
           end do
        end do
 
-       do j = 1, nj
-          do i = 1, ni
+       do j = myLatBeg, myLatEnd
+          do i = myLonBeg, myLonEnd
              localHorizCorrel(i,k,j) = localHorizCorrel(i,k,j)*dnens
           end do
        end do
 
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     write(*,*) 'finished computing the local horizontal correlations...'
     call flush(6)
