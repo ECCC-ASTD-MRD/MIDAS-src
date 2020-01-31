@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Correction of a bug in the adjoint of humidity vertical interpolation for radiance computation (#314 and !299) 
 
 ### Removed
 
