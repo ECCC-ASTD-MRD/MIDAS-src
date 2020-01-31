@@ -33,12 +33,12 @@ else
 fi
 
 if [ "${computeStats}" != no -a "${computeStats}" != yes ]; then
-    echo "$0: The '-computeStats' argument must be 'yes' or 'no'" >&2
+    echo "$0: The '-computeStats' argument must be 'yes' or 'no' and not '${computeStats}" >&2
     exit 1
 fi
 
 if [ "${findOutliers}" != no -a "${findOutliers}" != yes ]; then
-    echo "$0: The '-findOutliers' argument must be 'yes' or 'no'" >&2
+    echo "$0: The '-findOutliers' argument must be 'yes' or 'no' and not '${findOutliers}" >&2
     exit 1
 fi
 
@@ -46,12 +46,14 @@ if [ "${findOutliers}" = no -a -n "${emails}" ]; then
     echo "$0: WARNING: Since '-findOutliers' argument is 'no', no email will be sent to the list you gave." >&2
 fi
 
-if [ "${computeStats}" = yes ]; then
-    echo "The statistics are given like this:"
-    echo "Mean, Stddev, Stddev/Mean, Min, Max, Number of cases"
-fi
-
 echo "Extract run times for tests in ${suite}"
+
+if [ "${computeStats}" = yes ]; then
+    echo
+    echo "The statistics are given like this:"
+    echo -e "\tMean, Stddev, Stddev/Mean, Min, Max, Number of cases"
+    echo
+fi
 
 logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
 if [ -z "${logs}" ]; then
