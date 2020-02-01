@@ -5727,9 +5727,12 @@ module gridStateVector_mod
     integer :: recvdispls(mpi_nprocs), recvsizes(mpi_nprocs)
     integer :: kIndex, procIndex, stepIndex
     logical :: thisProcIsAsender(mpi_nprocs)
-    real(8), allocatable :: gd_send(:,:,:), gd_recv_3d(:,:,:), gd_recv(:,:)
+    real(8), allocatable :: gd_send(:,:,:), gd_recv(:,:)
+    real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_3d_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:)
+
+    call rpn_comm_barrier('GRID',ierr)
 
     call tmg_start(156,'gsv_stepToTiles')
 
@@ -5737,7 +5740,6 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
     end if
 
-    call rpn_comm_barrier('GRID',ierr)
     write(*,*) 'gsv_transposeStepToTiles: starting'
 
     ! determine which tasks have something to send and let everyone know
@@ -5756,14 +5758,14 @@ module gridStateVector_mod
     end do
     write(*,*) 'gsv_transposeStepToTiles: numStepInput = ', numStepInput
 
-    allocate(gd_recv_3d(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepInput))
-    gd_recv_3d(:,:,:) = 0.0d0
+    allocate(gd_recv_3d_r4(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,numStepInput))
+    gd_recv_3d_r4(:,:,:) = 0.0
     if ( stateVector_1step_r4%allocated ) then
-      allocate(gd_send(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
+      allocate(gd_send_r4(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mpi_nprocs))
     else
-      allocate(gd_send(1,1,1))
+      allocate(gd_send_r4(1,1,1))
     end if
-    gd_send(:,:,:) = 0.0d0
+    gd_send_r4(:,:,:) = 0.0
 
     if ( stateVector_tiles%dataKind == 4 ) then
       field_out_r4 => gsv_getField_r4(stateVector_tiles)
@@ -5809,20 +5811,22 @@ module gridStateVector_mod
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
-            gd_send(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                    1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
-                real( field_in_r4(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+            gd_send_r4(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                       1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
+                      field_in_r4(stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
                                   stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
-                                  kIndex, 1), 8 )
+                                  kIndex, 1)
           end do
         end do
         !$OMP END PARALLEL DO
 
       end if
 
-      call mpi_alltoallv(gd_send   , sendsizes, senddispls, mpi_datyp_real8, &
-                         gd_recv_3d, recvsizes, recvdispls, mpi_datyp_real8, &
+      call tmg_start(158,'gsv_stepToTiles_alltoallv')
+      call mpi_alltoallv(gd_send_r4   , sendsizes, senddispls, mpi_datyp_real4, &
+                         gd_recv_3d_r4, recvsizes, recvdispls, mpi_datyp_real4, &
                          mpi_comm_grid, ierr)
+      call tmg_stop(158)
 
       stepIndex = stepIndexBeg - 1
       stepCount = 0
@@ -5840,19 +5844,19 @@ module gridStateVector_mod
           field_out_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                        stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                        kIndex, stepIndex) =   &
-              real(gd_recv_3d(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount),4)
+              gd_recv_3d_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount)
         else
           field_out_r8(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
                        stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                        kIndex, stepIndex) =   &
-              gd_recv_3d(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount)
+              real(gd_recv_3d_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE,stepCount), 8)
         end if
 
       end do ! procIndex
     end do ! kIndex
 
-    deallocate(gd_recv_3d)
-    deallocate(gd_send)
+    deallocate(gd_recv_3d_r4)
+    deallocate(gd_send_r4)
 
     ! now send HeightSfc from task 0 to all others
     if ( stateVector_tiles%heightSfcPresent ) then
