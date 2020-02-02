@@ -50,6 +50,7 @@ module tovs_nl_mod
        mair, mh2o, mo3     ,&
        surftype_land       ,&
        surftype_seaice     ,&
+       surftype_sea        ,&
        ngases_max          ,&
        gas_id_mixed        ,&
        gas_unit_specconc   ,&
@@ -119,6 +120,7 @@ module tovs_nl_mod
   real(8), parameter :: qppmv2Mixratio  = mh2o / (1000000.0d0 * mair)
   real(8), parameter :: o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
   real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
+  real(8), parameter :: minClwValue = 1.0d-9
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
@@ -1820,7 +1822,8 @@ contains
     real(8), allocatable :: clw   (:,:)
     real(8), allocatable :: clwInterp(:,:)
     real(8), allocatable :: clwExtrap(:,:)
-    logical :: runObsOperatorWithClw 
+    logical, allocatable :: ifSurfTypeWater(:)
+    logical :: runObsOperatorWithClw
     
     real(8) :: modelTopPressure
  
@@ -1940,7 +1943,15 @@ contains
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(17))
         allocate (clwInterp(levelsBelowModelTop,profileCount),stat= allocStatus(18))
         allocate (clwExtrap(nRttovLevels,profileCount),stat= allocStatus(19))
+
+        clw(:,:) = minClwValue
+        clwInterp(:,:) = minClwValue
+        clwExtrap(:,:) = minClwValue
       end if
+
+      allocate (ifSurfTypeWater(profileCount),stat= allocStatus(20)) 
+      ifSurfTypeWater(:) = .false.
+
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
       profileCount = 0
@@ -1983,13 +1994,17 @@ contains
         tvs_profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         tvs_profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
+
+        if ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea ) &
+          ifSurfTypeWater(profileCount) = .true.
+
         do levelIndex = 1, nlv_T
           tt   (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TT')
           hu  (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'HU')
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
 
-          if ( runObsOperatorWithClw ) &
+          if ( runObsOperatorWithClw .and. ifSurfTypeWater(profileCount) ) &
             clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
         end do
         if (.not. tvs_useO3Climatology) then
@@ -2041,7 +2056,7 @@ contains
           huInterpolated(:,profileIndex) = logVarInterpolated(:,profileIndex)
         end if
 
-      if ( runObsOperatorWithClw ) &
+      if ( runObsOperatorWithClw .and. ifSurfTypeWater(profileIndex) ) &
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex), &
                         clw(:,profileIndex:profileIndex),nlv_T,1,levelsBelowModelTop,&
                         rttovPressure(modelTopIndex:nRttovLevels),&
@@ -2112,12 +2127,13 @@ contains
 
       ! cloud liquid water extrapolation
       if ( runObsOperatorWithClw ) then
-        clwExtrap(:,:) = 1.0D-9
-        do profileIndex = 1, profileCount
+        profile_loop: do profileIndex = 1, profileCount
+          if ( .not. ifSurfTypeWater(profileIndex) ) cycle profile_loop
+
           do levelIndex = 1, levelsBelowModelTop
-            clwExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = max(1.0D-9,clwInterp(levelIndex,profileIndex))
+            clwExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = max(minClwValue,clwInterp(levelIndex,profileIndex))
           end do
-        end do
+        end do profile_loop
       end if
 
       if (tvs_coefs(sensorIndex) %coef % nozone > 0) then
@@ -2192,6 +2208,8 @@ contains
         tvs_profiles(tovsIndex) % q(:)            = huExtrapolated(:,profileIndex)
         tvs_profiles(tovsIndex) % ctp = 1013.25d0
         tvs_profiles(tovsIndex) % cfraction = 0.d0
+
+        ! using the minimum CLW value for land FOV
         if ( runObsOperatorWithClw ) &
           tvs_profiles(tovsIndex) % clw(:) = clwExtrap(:,profileIndex)
       end do
@@ -2222,6 +2240,7 @@ contains
         deallocate (clwInterp ,stat= allocStatus(19))
         deallocate (clwExtrap ,stat= allocStatus(20))
       end if
+      deallocate (ifSurfTypeWater,stat= allocStatus(21)) 
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
      
