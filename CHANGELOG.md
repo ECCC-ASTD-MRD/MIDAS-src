@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add check on mpi imbalance of `gridStateVector` object, abort if too imbalanced or allow imbalance with
+   `abortOnMpiImbalance` namelist variable in `namstate` (#312 and !298)
 
 ### Changed
 
@@ -30,12 +31,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Highlights
 
-* Satellite radiance bias correction: apply bias correction and estimate bias correction coefficients
-* Slant-path interpolation operator for use with radiance observations
-* Implementation of LETKF, both standard approach and original approach with cross-validation: `midas-letkf`
-* New observations can be assimilated: MWHS2 radiances, radar-derived precipitation, SAR wind speed
-* Ability to use model ozone, instead of climatology, for RTTOV
-* 2D analyses now possible: near surface atmosphere, sea-ice and SST
+ * Satellite radiance bias correction: apply bias correction and estimate bias correction coefficients
+ * Slant-path interpolation operator for use with radiance observations
+ * Implementation of LETKF, both standard approach and original approach with cross-validation: `midas-letkf`
+ * New observations can be assimilated: MWHS2 radiances, radar-derived precipitation, SAR wind speed
+ * Ability to use model ozone, instead of climatology, for RTTOV
+ * 2D analyses now possible: near surface atmosphere, sea-ice and SST
 
 ### Added
 

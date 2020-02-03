@@ -77,8 +77,11 @@ contains
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
     logical :: conversionVarKindCHtoMicrograms
+    logical :: abortOnMpiImbalance
+
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH
+                       minValVarKindCH, abortOnMpiImbalance
+
 
     if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
     if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -93,6 +96,7 @@ contains
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = MPC_missingValue_R8
+    abortOnMpiImbalance = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

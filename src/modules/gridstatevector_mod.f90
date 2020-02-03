@@ -108,7 +108,8 @@ module gridStateVector_mod
   integer, external :: get_max_rss
   real(8) :: rhumin, gsv_rhumin
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
-  
+  logical :: abortOnMpiImbalance
+
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
   real(8) :: minValVarKindCH(vnl_numVarMax), gsv_minValVarKindCH(vnl_numVarMax)
@@ -367,7 +368,7 @@ module gridStateVector_mod
     integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
     CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
     NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH
+                       minValVarKindCH, abortOnMpiImbalance
 
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if (mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -381,7 +382,8 @@ module gridStateVector_mod
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = MPC_missingValue_R8
-    
+    abortOnMpiImbalance = .true.
+
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
@@ -750,6 +752,8 @@ module gridStateVector_mod
       CALL rpn_comm_allgather(statevector%LatPerPE,1,'mpi_integer',       &
                               statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
 
+      call gsv_checkMpiDistribution(stateVector)
+      
       allocate(statevector%allkCount(mpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykCount,1,'mpi_integer',       &
                               statevector%allkCount,1,'mpi_integer','grid',ierr)
@@ -888,6 +892,75 @@ module gridStateVector_mod
 
   end subroutine gsv_allocate
 
+  !--------------------------------------------------------------------------
+  ! gsv_checkMpiDistribution
+  !--------------------------------------------------------------------------
+  subroutine gsv_checkMpiDistribution(stateVector)
+    !
+    ! :Purpose: Check the distribution of latitude and longitude gridpoints
+    !           over the mpi tasks. If the variation in the number of grid
+    !           points in either direction is too large, other mpi topologies
+    !           will be suggested in the listing and the program could
+    !           potentially abort.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv) :: statevector
+    ! locals
+    integer :: npex, npey
+    integer :: lonPerPEmin, lonPerPEmax, latPerPEmin, latPerPEmax
+
+    ! check if distribution of gridpoints over mpi tasks is very uneven
+    if ( maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE) .or. &
+         maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE) ) then
+      if (mpi_myid == 0) then
+        write(*,*) '============================================================='
+        write(*,*)
+        write(*,*) 'gsv_allocate: WARNING: bad choice of mpi topology!'
+        write(*,*) '              mpi x, y dimensions = ', mpi_npex, mpi_npey
+        write(*,*) '              min(lonPerPE) = ', minval(statevector%allLonPerPE)
+        write(*,*) '              max(lonPerPE) = ', maxval(statevector%allLonPerPE)
+        write(*,*) '              min(latPerPE) = ', minval(statevector%allLatPerPE)
+        write(*,*) '              max(latPerPE) = ', maxval(statevector%allLatPerPE)
+        write(*,*)
+
+        ! make suggestions for mpi x diminension
+        if (maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE)) then
+          write(*,*) ' Please choose a value of mpi x dimension that gives a smaller '
+          write(*,*) ' difference between min and max of lonPerPE. Here are some options:'
+          do npex = 1, 2*mpi_npex
+            lonPerPEmin = floor(real(stateVector%ni)/real(npex))
+            lonPerPEmax = stateVector%ni - (npex - 1) * lonPerPEmin
+            if (lonPerPEmax < 2*lonPerPEmin) then
+              write(*,*) ' mpi x dimension = ', npex,  &
+                   ', difference between min and max lonPerPE = ', lonPerPEmax - lonPerPEmin
+            end if
+          end do
+        end if
+
+        ! make suggestions for mpi y dimension
+        if (maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE)) then
+          write(*,*) ' Please choose a value of mpi y dimension that gives a smaller '
+          write(*,*) ' difference between min and max of latPerPE. Here are some options:'
+          do npey = 1, 2*mpi_npey
+            latPerPEmin = floor(real(stateVector%nj)/real(npey))
+            latPerPEmax = stateVector%nj - (npey - 1) * latPerPEmin
+            if (latPerPEmax < 2*latPerPEmin) then
+              write(*,*) ' mpi y dimension = ', npey,  &
+                   ', difference between min and max latPerPE = ', latPerPEmax - latPerPEmin
+            end if
+          end do
+        end if
+
+        write(*,*) '============================================================='
+      end if
+
+      if (abortOnMpiImbalance) call utl_abort('gsv_allocate: Please choose a better mpi topology')
+    end if
+
+  end subroutine gsv_checkMpiDistribution
+    
   !--------------------------------------------------------------------------
   ! gsv_complementaryUVname
   !--------------------------------------------------------------------------
