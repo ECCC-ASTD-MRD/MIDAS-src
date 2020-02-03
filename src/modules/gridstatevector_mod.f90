@@ -5157,7 +5157,8 @@ module gridStateVector_mod
 
               if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
-              else if ( trim(nomvar) == 'P0' ) then
+              else if ( trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
+                        trim(nomvar) == 'PB' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
               else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
                 if ( conversionVarKindCHtoMicrograms ) then
