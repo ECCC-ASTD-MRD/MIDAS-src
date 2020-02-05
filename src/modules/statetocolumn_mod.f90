@@ -54,7 +54,8 @@ module stateToColumn_mod
   ! private module variables and derived types
 
   type struct_stepProcData
-    real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, proc, step, kIndex)
+    real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, kIndex)
+    real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, kIndex)
   end type struct_stepProcData
 
   type struct_interpInfo
@@ -70,10 +71,9 @@ module stateToColumn_mod
     integer, pointer          :: allHeaderIndex(:,:,:) => null() ! (headerUsed, step, proc)
 
     ! structure containing the information about latitude
-    type(struct_stepProcData), allocatable :: stepProcData(:,:)
+    type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
 
     ! lat-lon location of observations to be interpolated (only needed to rotate winds)
-    real(8), pointer          :: allLon(:,:,:,:) => null()         ! (headerUsed, proc, step, kIndex)
     real(8), pointer          :: allLatRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
     real(8), pointer          :: allLonRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
 
@@ -366,7 +366,9 @@ contains
     do stepIndex = 1,numStep
       do procIndex = 1, mpi_nprocs
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
+        interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,:) = 0.0d0
       end do
     end do
 
@@ -375,7 +377,6 @@ contains
     allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
-    allocate(interpInfo%allLon(numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     nullify(allLatOneLev)
     nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
@@ -383,7 +384,6 @@ contains
     allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(numGridpt(interpInfo%hco%numSubGrid))
     interpInfo%allHeaderIndex(:,:,:) = 0
-    interpInfo%allLon(:,:,:,:) = 0.0d0
     allFootprintRadius_r4(:,:,:) = bilinearFootprint
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
@@ -662,7 +662,7 @@ contains
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
               interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(:,procIndex)
-              interpInfo%allLon(:,procIndex,stepIndex,kIndex) = lon_recv_r8(:,procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(:,procIndex)
             end if
           end do
 
@@ -724,8 +724,8 @@ contains
         k_loop: do kIndex = mykBeg, statevector%mykEnd
           do procIndex = 1, mpi_nprocs
             interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(:,procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(:,procIndex)
           end do
-          interpInfo%allLon(:,:,stepIndex,kIndex) = allLonOneLev(:,:)
         end do k_loop
 
         deallocate(latLev_T)
@@ -770,7 +770,7 @@ contains
 
             lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+            lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -798,7 +798,7 @@ contains
                    (gsv_varExist(varName='UU') .or.  &
                     gsv_varExist(varName='VV')) ) then
                 lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-                lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+                lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
                 call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
                                        subGridIndex,     & ! IN
                                        latRot, lonRot,   & ! OUT (radians)
@@ -1609,10 +1609,10 @@ contains
         deallocate(interpInfo_nl%allLonRot)
         deallocate(interpInfo_nl%allLatRot)
       end if
-      deallocate(interpInfo_nl%allLon)
       do stepIndex = 1, numStep
         do procIndex = 1, mpi_nprocs
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
         end do
       end do
       deallocate(interpInfo_nl%stepProcData)
@@ -1803,7 +1803,7 @@ contains
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
           latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
           lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
 
@@ -1888,7 +1888,7 @@ contains
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
           latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
           lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
 
@@ -1965,7 +1965,7 @@ contains
         ! now rotate the wind vector and return the desired component
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
           latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
           lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
 
@@ -2406,7 +2406,7 @@ contains
 
     lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -2650,7 +2650,7 @@ contains
     ! Determine the grid point nearest the observation.
 
     lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-    lon_rad = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
@@ -2882,7 +2882,7 @@ contains
     ! Determine the grid point nearest the observation.
 
     lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-    lon_rad = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
@@ -3032,7 +3032,7 @@ contains
 
     lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
