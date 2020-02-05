@@ -365,7 +365,7 @@ contains
     allocate(interpInfo%stepProcData(mpi_nprocs,numStep))
     do stepIndex = 1,numStep
       do procIndex = 1, mpi_nprocs
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
       end do
     end do
