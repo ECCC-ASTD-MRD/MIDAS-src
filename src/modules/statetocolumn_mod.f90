@@ -56,6 +56,9 @@ module stateToColumn_mod
   type struct_stepProcData
     real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, kIndex)
     real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, kIndex)
+    ! lat-lon location of observations to be interpolated (only needed to rotate winds)
+    real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
+    real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
   end type struct_stepProcData
 
   type struct_interpInfo
@@ -72,10 +75,6 @@ module stateToColumn_mod
 
     ! structure containing the information about latitude
     type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
-
-    ! lat-lon location of observations to be interpolated (only needed to rotate winds)
-    real(8), pointer          :: allLatRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
-    real(8), pointer          :: allLonRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
 
     ! interpolation weights and lat/lon indices are accessed via the 'depotIndexBeg/End'
     integer, pointer          :: depotIndexBeg(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
@@ -388,10 +387,14 @@ contains
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
-      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-      interpInfo%allLatRot(:,:,:,:,:) = 0.0d0
-      interpInfo%allLonRot(:,:,:,:,:) = 0.0d0
+      do stepIndex = 1,numStep
+        do procIndex = 1, mpi_nprocs
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,numStep,mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,numStep,mykBeg:stateVector%mykEnd))
+          interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
+          interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(:,:,:) = 0.0d0
+        end do
+      end do
     end if
 
     interpInfo%depotIndexBeg(:,:,:,:,:) = 0
@@ -804,8 +807,8 @@ contains
                                        latRot, lonRot,   & ! OUT (radians)
                                        lat, lon,         & ! IN  (radians)
                                        'ToLatLonRot')      ! IN
-                interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = latRot
-                interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = lonRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex) = latRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex) = lonRot
               end if
 
             end do ! subGridForInterp
@@ -1605,14 +1608,14 @@ contains
       deallocate(interpInfo_nl%interpWeightDepot)
       deallocate(interpInfo_nl%latIndexDepot)
       deallocate(interpInfo_nl%lonIndexDepot)
-      if ( interpInfo_nl%hco%rotated ) then
-        deallocate(interpInfo_nl%allLonRot)
-        deallocate(interpInfo_nl%allLatRot)
-      end if
       do stepIndex = 1, numStep
         do procIndex = 1, mpi_nprocs
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
+          if ( interpInfo_nl%hco%rotated ) then
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
+          end if
         end do
       end do
       deallocate(interpInfo_nl%stepProcData)
@@ -1804,8 +1807,8 @@ contains
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
           lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_nl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -1889,8 +1892,8 @@ contains
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
           lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_tl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -1966,8 +1969,8 @@ contains
         if ( interpInfo%hco%rotated ) then
           lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
           lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN 
                                   subGridIndex,             & ! IN
