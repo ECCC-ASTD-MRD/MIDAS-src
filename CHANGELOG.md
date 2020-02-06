@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * The variable names O3L, CH4L and N2OL included in GEM as of v5.1.a9 are now recognized. (#321 and !300)
+
 ### Added
 
  * Add check on mpi imbalance of `gridStateVector` object, abort if too imbalanced or allow imbalance with

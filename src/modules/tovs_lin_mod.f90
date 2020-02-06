@@ -216,7 +216,7 @@ contains
       if (col_varExist(columng,'TO3')) then
         ozoneVarName = 'TO3'
       else
-        ozoneVarName = 'TO3L'
+        ozoneVarName = 'O3L'
       end if 
     end if
 
@@ -852,7 +852,7 @@ contains
       if (col_varExist(columng,'TO3')) then
         ozoneVarName = 'TO3'
       else
-        ozoneVarName = 'TO3L'
+        ozoneVarName = 'O3L'
       end if 
     end if
 

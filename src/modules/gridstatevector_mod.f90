@@ -3388,7 +3388,7 @@ module gridStateVector_mod
           multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
         else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
           if ( conversionVarKindCHtoMicrograms ) then
-            if ( trim(varName) == 'TO3' .or. trim(varName) == 'TO3L' ) then
+            if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
               ! Convert from volume mixing ratio to micrograms/kg
               ! Standard ozone input would not require this conversion as it is already in micrograms/kg
               multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
@@ -5162,7 +5162,7 @@ module gridStateVector_mod
               else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
                 if ( conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
-                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'TO3L' ) then
+                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
                     factor_r4 = 1.0E-9*MPC_MOLAR_MASS_DRY_AIR_R4 &
                               /vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
                   else

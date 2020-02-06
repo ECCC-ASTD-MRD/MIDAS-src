@@ -1770,13 +1770,13 @@ contains
     if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnghr,'LWCR') ) &
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'TO3L') ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnghr,'TO3') .and. .not. col_varExist(columnghr,'O3L') ) then
       call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE. ')
     else if (.not.tvs_useO3Climatology) then 
       if (col_varExist(columnghr,'TO3') ) then
         ozoneVarName = 'TO3'
       else
-        ozoneVarName = 'TO3L'
+        ozoneVarName = 'O3L'
       end if 
     end if
 
