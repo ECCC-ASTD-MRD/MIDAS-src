@@ -41,7 +41,7 @@ module varNameList_mod
 
   ! These two private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D = 42,  VNLnumvarmax2D = 33
+  integer, parameter          :: VNLnumvarmax3D = 44,  VNLnumvarmax2D = 33
 
   integer, parameter          :: vnl_numvarmax3D = VNLnumvarmax3D, vnl_numvarmax2D = VNLnumvarmax2D
 
@@ -49,9 +49,10 @@ module varNameList_mod
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
                                  'TT  ','HU  ','LQ  ','ES  ','VT  ',                             &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
-                                 'TO3 ','TO3L','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
-                                 'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',      &
-                                 'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  '/)
+                                 'TO3 ','O3L ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
+                                 'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',        &
+                                 'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
+                                 'N2OL'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -59,7 +60,8 @@ module varNameList_mod
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
-                                 'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH'/)
+                                 'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',  'TH',          &
+                                 'TH'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -67,7 +69,8 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
-                                 'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT'/)
+                                 'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'CH',          &
+                                 'CH'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
@@ -246,11 +249,11 @@ module varNameList_mod
         if (present(varNumberChm_opt)) then 
            select case (varNumberChm_opt)
               case(BUFR_NECH_O3)
-                 varname='TO3'  ! Could also be 'TO3L'. Code to account for this when needed.
+                 varname='TO3'  ! Could also be 'O3L'. Code to account for this when needed.
               case(BUFR_NECH_H2O)
                  varname='HU'
               case(BUFR_NECH_CH4)
-                 varname='TCH4'
+                 varname='TCH4' ! Could also be 'CH4L'. Code to account for this when needed.
               case(BUFR_NECH_CO2)
                  varname='TCO2'
               case(BUFR_NECH_CO)
@@ -258,7 +261,7 @@ module varNameList_mod
               case(BUFR_NECH_NO2)
                  varname='TNO2'
               case(BUFR_NECH_N2O)
-                 varname='TN2O'
+                 varname='TN2O' ! Could also be 'NO2L'. Code to account for this when needed.
               case(BUFR_NECH_NO)
                  varname='TNO'
               case(BUFR_NECH_HCHO)
@@ -362,11 +365,11 @@ module varNameList_mod
         varNumber=bufr_vis
 
       ! Atmospheric constituents other than HU
-      case('TO3','TO3L')
+      case('TO3','O3L')
         varNumber=BUFR_NECH_O3
       case('TH2O')
         varNumber=BUFR_NECH_H2O
-      case('TCH4')
+      case('TCH4','CH4L')
         varNumber=BUFR_NECH_CH4
       case('TCO2')
         varNumber=BUFR_NECH_CO2
@@ -374,14 +377,14 @@ module varNameList_mod
         varNumber=BUFR_NECH_CO
       case('TNO2','ENO2')
         varNumber=BUFR_NECH_NO2
-      case('TN2O')
+      case('TN2O','N2OL')
         varNumber=BUFR_NECH_N2O
       case('TNO')
         varNumber=BUFR_NECH_NO
-      case('HCHO','THCH','EHCH')
+      case('THCH','EHCH')
         varNumber=BUFR_NECH_HCHO
       case('TSO2','ESO2')
-        varNumber=BUFR_NECH_HCHO
+        varNumber=BUFR_NECH_SO2
       case('TNH3','ENH3')
         varNumber=BUFR_NECH_NH3
       case('AF')
@@ -515,6 +518,8 @@ module varNameList_mod
         varMass = MPC_MOLAR_MASS_CO_R8
       else if ( varNumber == BUFR_NECH_NO2 ) then
         varMass = MPC_MOLAR_MASS_NO2_R8
+      else if ( varNumber == BUFR_NECH_N2O ) then
+        varMass = MPC_MOLAR_MASS_N2O_R8
       else if ( varNumber == BUFR_NECH_HCHO ) then
         varMass = MPC_MOLAR_MASS_HCHO_R8
       else if ( varNumber == BUFR_NECH_SO2 ) then
@@ -548,11 +553,11 @@ module varNameList_mod
       character(len=*),  intent(in) :: varName
       real(8)                       :: varMass
 
-      if ( varName == 'TO3' .or. varName == 'TO3L'  ) then
+      if ( varName == 'TO3' .or. varName == 'O3L'  ) then
         varMass = MPC_MOLAR_MASS_O3_R8
       else if ( varName == 'LQ' .or.  varName == 'HU' ) then
         varMass = MPC_MOLAR_MASS_VAPOUR_R8
-      else if ( varName == 'TCH4' ) then
+      else if ( varName == 'TCH4' .or. varName == 'CH4L'   ) then
         varMass = MPC_MOLAR_MASS_CH4_R8
       else if ( varName == 'TCO2' ) then
         varMass = MPC_MOLAR_MASS_CO2_R8
@@ -560,6 +565,8 @@ module varNameList_mod
         varMass = MPC_MOLAR_MASS_CO_R8
       else if ( varName == 'TNO2' ) then
         varMass = MPC_MOLAR_MASS_NO2_R8
+      else if ( varName == 'TN2O' .or. varName == 'N2OL'   ) then
+        varMass = MPC_MOLAR_MASS_N2O_R8
       else if ( varName == 'THCH' ) then
         varMass = MPC_MOLAR_MASS_HCHO_R8
       else if ( varName == 'TSO2' ) then
