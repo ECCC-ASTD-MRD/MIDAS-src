@@ -244,8 +244,9 @@ contains
 
     call tmg_start(93,'POST_UPDATEBRP')
 
+    write(*,*)
     write(*,*) 'brpf_updateFile: Starting'
-      
+
     ! CH family: Scaling of the obs related values to be stored in the BURP files
     if (familytype == 'CH') then  
       call obs_set_current_header_list(obsSpaceData,'CH')
@@ -259,12 +260,11 @@ contains
     call brpr_updateBurp(obsSpaceData,familyType,fileName,fileIndex)
 
     write(*,*) 'brpf_updateFile: Done'
+    write(*,*)
 
     call tmg_stop(93)
 
   end subroutine brpf_updateFile
-
- 
 
 
 !--------------------------------------------------------------------------
