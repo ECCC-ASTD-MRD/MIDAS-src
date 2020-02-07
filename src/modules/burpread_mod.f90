@@ -39,7 +39,8 @@ save
 private
 
 ! public procedures
-public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity, brpr_addRadianceBiasCorrectionElement
+public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume,  brpr_addCloudParametersandEmissivity
+public :: brpr_addRadianceBiasCorrectionElement, brpr_burpClean
 
 
 ! MODULE CONSTANTS ...
@@ -1449,10 +1450,12 @@ CONTAINS
   end subroutine brpr_updateBurp
 
 
-  SUBROUTINE BRPACMA_NML(NML_SECTION)
+  SUBROUTINE BRPACMA_NML(NML_SECTION, beSilent_opt)
 
     IMPLICIT NONE
 
+    logical, optional  :: beSilent_opt
+    logical            :: beSilent
     INTEGER*4          :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
@@ -1464,6 +1467,11 @@ CONTAINS
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
 
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
 
     NAMFILE=trim("flnml")
     nulnam=0
@@ -1473,22 +1481,22 @@ CONTAINS
     SELECT CASE(trim(NML_SECTION))
       CASE( 'namburp_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
-        write(*,nml=NAMBURP_FILTER_SFC)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
       CASE( 'namburp_conv')
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
-        write(*,nml=NAMBURP_FILTER_CONV)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
-        write(*,nml=NAMBURP_FILTER_TOVS)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
       CASE( 'namburp_chm_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
-        write(*,nml=NAMBURP_FILTER_CHM_SFC)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
       CASE( 'namburp_chm')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
-        write(*,nml=NAMBURP_FILTER_CHM)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
       CASE( 'namburp_update')
         READ(NULNAM,NML=NAMBURP_UPDATE)
-        write(*,nml=NAMBURP_UPDATE)
+        if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
     END SELECT
 
     ier=FCLOS(NULNAM)
@@ -4123,4 +4131,515 @@ CONTAINS
     
   end subroutine brpr_addRadianceBiasCorrectionElement
 
+  !-----------------------------------------------------------------------
+  ! brpr_burpClean
+  !-----------------------------------------------------------------------
+  subroutine brpr_burpClean(inputFileName, familyType)
+    !
+    !:Purpose: to remove observations that are flagged not to be assimilated
+    !
+    implicit none
+    !Arguments:
+    character(len=*), intent(in) :: inputFileName
+    character(len=*), intent(in) :: familyType
+    !Locals:
+    type(burp_file)             :: inputFile
+    type(burp_rpt)              :: inputReport, copyReport
+    type(burp_block)            :: inputBlock
+    integer                     :: nb_rpts, ref_rpt, ref_blk, intValue
+    integer, allocatable        :: addresses(:), elementIdsRead(:), elementIdsBlock(:)
+    integer, allocatable        :: flags(:,:,:)
+    real(4), allocatable        :: obsValues(:,:,:)
+    logical, allocatable        :: rejectObs(:)
+    integer                     :: nbele, nvale, nte, nbele2, nvale2, nte2, new_nval, new_nt
+    integer                     :: eleIndex, valIndex, tIndex, tIndexGood, reportIndex, btyp, error
+    integer                     :: indele, nsize, iun_burpin, numReject, numRejectTotal
+    character(len=7), parameter :: opt_missing='MISSING'
+    integer, parameter          :: icodele = 12233
+    integer, parameter          :: icodeleMrq =  200000 + icodele
+    real, parameter             :: missingValue = -9999.0
+    integer, external           :: mrfmxl
+    logical                     :: groupedData, foundFlags, foundObs, emptyRecord, convert
+    logical                     :: debug = .false.
+    character(len=2)            :: familyTypesToDo(4) = (/'AI','SW','TO','SC'/)
+    character(len=4)            :: store_mode
+    real(4)                     :: realValue
+
+    write(*,*)
+    write(*,*) 'brpr_burpClean: starting'
+
+    ! only apply for certain obs families for now
+    if ( all( trim(familyType) /= familyTypesToDo(:) ) ) then
+      write(*,*) 'brpr_burpClean: not applied to obs family = ', trim(familyType)
+      return
+    end if
+
+    ! obtain input burp file report addresses and number of reports
+    call getBurpReportAddresses(inputFileName, addresses)
+    nb_rpts = size(addresses)
+
+    ! initialisation
+    call burp_set_options(                 &
+         real_optname       = opt_missing, &
+         real_optname_value = missingValue,  &
+         iostat             = error )
+
+    call burp_init(inputFile,iostat=error)
+    if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_init')
+    call burp_init(inputReport,iostat=error)
+    if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_init')
+    call burp_init(copyReport,iostat=error)
+    if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_init')
+    call burp_init(inputBlock,iostat=error)
+    if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_init')
+
+    numRejectTotal = 0
+
+    ! opening file
+    write(*,*) 'brpr_burpClean: opened burp file = ', trim(inputFileName), ', ', trim(familyType)
+
+    call burp_new(inputFile,         &
+         filename = inputFileName,   &
+         mode     = file_acc_append, &
+         iostat   = error )
+    if (error /= burp_noerr) then
+      write(*,*) 'cannot open BURP input file ', inputFileName
+      call utl_abort('brpr_burpClean')
+    end if
+
+    call burp_get_property(inputFile, nrpts=nb_rpts, io_unit= iun_burpin)
+    if (debug) write(*,*) 'nb_rpts = ', nb_rpts
+    nsize = 3 * mrfmxl(iun_burpin)
+    if (debug) write(*,*) 'nsize= ', nsize
+
+    ! determine if file contains grouped data
+    groupedData = isGroupedData(inputFile, addresses)
+    write(*,*) 'Grouped data = ', groupedData
+
+    ! get list of element ids used for checking flags
+    call getElementIds(familyType, elementIdsRead)
+    write(*,*) 'Element IDs that will be checked: ', elementIdsRead(:)
+
+    ! loop on reports
+    reports: do reportIndex = 1, nb_rpts
+
+      numReject = 0
+
+      call burp_get_report(inputFile,        &
+           report    = inputReport,          &
+           ref       = addresses(reportIndex), &
+           iostat    = error)      
+      if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_get_report')
+      
+      ! create and initialize a new report
+      if (reportIndex == 1) then
+        call burp_new(copyReport, alloc_space=nsize, iostat=error)
+        if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_new(copyReport)')
+      end if
+      call burp_copy_header(to=copyReport, from=inputReport)
+      call burp_init_report_write(inputFile, copyReport, iostat=error)
+      if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_init_report_write')
+
+      ! get the flags block, check if obs missing, and list of element IDs
+      foundFlags = .false.
+      foundObs = .false.
+      ref_blk = 0      
+      blocks1: do
+
+        ref_blk = burp_find_block(inputReport, &
+             block       = inputBlock,         &
+             search_from = ref_blk,            &
+             iostat      = error)
+        if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_find_block')
+        if (ref_blk < 0) exit blocks1
+         
+        call burp_get_property(inputBlock, &
+             nele   = nbele,               &
+             nval   = nvale,               &
+             nt     = nte,                 &
+             btyp   = btyp,                & 
+             iostat = error)
+
+        if (isFlagBlock(familyType, btyp)) then
+          foundFlags = .true.
+          if (debug) write(*,*) 'Found a block with flags: ', reportIndex, familyType, btyp
+          if (allocated(flags)) deallocate(flags)
+          allocate(flags(nbele,nvale,nte))
+          if (allocated(elementIdsBlock)) deallocate(elementIdsBlock)
+          allocate(elementIdsBlock(nbele))
+          do eleIndex = 1, nbele
+            elementIdsBlock(eleIndex) = burp_get_element(inputBlock, index=eleIndex)
+            do tIndex = 1, nte
+              do valIndex = 1, nvale
+                flags(eleIndex,valIndex,tIndex) = burp_get_tblval(inputBlock, &
+                     nele_ind=eleIndex, nval_ind=valIndex, nt_ind=tIndex)
+              end do
+            end do
+          end do
+        end if
+
+        if (isObsBlock(familyType, btyp)) then
+          foundObs = .true.
+          if (debug) write(*,*) 'Found a block with obs: ', reportIndex, familyType, btyp
+          if (allocated(obsValues)) deallocate(obsValues)
+          allocate(obsValues(nbele,nvale,nte))
+          do eleIndex = 1, nbele
+            do tIndex = 1, nte
+              do valIndex = 1, nvale
+                obsValues(eleIndex,valIndex,tIndex) = burp_get_rval(inputBlock, &
+                     nele_ind=eleIndex, nval_ind=valIndex, nt_ind=tIndex)
+              end do
+            end do
+          end do
+        end if
+
+        if (foundFlags .and. foundObs) exit blocks1
+
+      end do blocks1
+
+      if (.not.foundFlags .or. .not.foundObs) then
+
+        write(*,*) 'No flag or obs block found for this report ', reportIndex
+
+      else
+
+        ! determine which observations to keep
+        if (allocated(rejectObs)) deallocate(rejectObs)
+        allocate(rejectObs(nte))
+        rejectObs(:) = .true.
+        do tIndex = 1, nte
+          do valIndex = 1, nvale
+            elements: do eleIndex = 1, nbele
+              ! skip this block element if it is not normally read
+              if ( all(elementIdsBlock(eleIndex) /= (200000 + elementIdsRead(:))) ) cycle elements
+              if ( (.not.btest(flags(eleIndex,valIndex,tIndex),11)) .and. (obsValues(eleIndex,valIndex,tIndex) /= missingValue)) then
+                if (debug) write(*,*) 'found a GOOD    observation: ', valIndex, tIndex, elementIdsBlock(eleIndex), flags(eleIndex,valIndex,tIndex), obsValues(eleIndex,valIndex,tIndex)
+                rejectObs(tIndex) = .false.
+              else if (obsValues(eleIndex,valIndex,tIndex) == missingValue) then
+                if (debug) write(*,*) 'found a MISSING observation: ', valIndex, tIndex, elementIdsBlock(eleIndex), flags(eleIndex,valIndex,tIndex), obsValues(eleIndex,valIndex,tIndex)
+              else if (btest(flags(eleIndex,valIndex,tIndex),11)) then
+                if (debug) write(*,*) 'found a BAD     observation: ', valIndex, tIndex, elementIdsBlock(eleIndex), flags(eleIndex,valIndex,tIndex), obsValues(eleIndex,valIndex,tIndex)
+              end if
+            end do elements
+          end do
+          if (debug) write(*,*) 'rejectObs = ',tIndex,rejectObs(tIndex)
+          if (rejectObs(tIndex)) numReject = numReject + 1
+        end do
+
+        numRejectTotal = numRejectTotal + numReject
+
+      end if
+        
+      ! copy reduced blocks output report
+      emptyRecord = .false.
+      ref_blk = 0      
+      blocks2: do
+
+        ref_blk = burp_find_block(inputReport, &
+             block       = inputBlock,         &
+             search_from = ref_blk,            &
+             iostat      = error)
+        if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_find_block')
+        if (ref_blk < 0) exit blocks2
+         
+        call burp_get_property(inputBlock, &
+             nele   = nbele2,              &
+             nval   = nvale2,              &
+             nt     = nte2,                &
+             btyp   = btyp,                &
+             convert = convert,            &
+             store_mode = store_mode,      &
+             iostat = error)
+
+        ! if any observations are rejected, eliminate them
+        if (numReject > 0 .and. nte2 == nte) then
+
+          if (debug) write(*,*) 'btyp, convert, store_mode = ', btyp, convert, store_mode
+          new_nt   = nte2 - numReject
+          if (debug) write(*,*) 'ReportIndex = ', reportIndex
+          if (debug) write(*,*) 'Reducing the number of observation profiles from ', nte2, ' to ', new_nt
+          if (new_nt >= 1) then
+            ! shuffle the data
+            tIndexGood = 0
+            do tIndex = 1, nte2
+              if (rejectObs(tIndex)) cycle
+              tIndexGood = tIndexGood + 1
+              do eleIndex = 1, nbele2
+                do valIndex = 1, nvale2
+                  if (isObsBlock(familyType, btyp)) then
+                    realValue = burp_get_rval(inputBlock, nele_ind=eleIndex,  &
+                         nval_ind=valIndex, nt_ind=tIndex, iostat=error)
+                    if (error /= burp_noerr) call handle_error()
+                    call burp_set_rval(inputBlock, nele_ind=eleIndex,  &
+                         nval_ind=valIndex, nt_ind=tIndexGood, rval=realValue, iostat=error) 
+                    if (error /= burp_noerr) call handle_error()
+                    if (debug .and. tIndex /= tIndexGood) write(*,*) 'shuffling data: ', tIndex, tIndexGood, realValue, reportIndex
+                  else
+                    intValue = burp_get_tblval(inputBlock, nele_ind=eleIndex,  &
+                         nval_ind=valIndex, nt_ind=tIndex, iostat=error)
+                    if (error /= burp_noerr) call handle_error()
+                    call burp_set_tblval(inputBlock, nele_ind=eleIndex,  &
+                         nval_ind=valIndex, nt_ind=tIndexGood, tblval=intValue, iostat=error) 
+                    if (error /= burp_noerr) call handle_error()
+                    if (debug .and. tIndex /= tIndexGood) write(*,*) 'shuffling data: ', tIndex, tIndexGood, intValue, reportIndex
+                  end if
+                end do
+              end do
+            end do
+
+            ! reduce the size of the block
+            call burp_reduce_block(inputBlock, new_nt=new_nt, iostat=error)
+            if (error /= burp_noerr) call handle_error()
+          else
+            write(*,*) 'All observation profiles rejected for this report: ', reportIndex
+            emptyRecord = .true.
+          end if
+
+        end if
+
+        if (.not. emptyRecord) then
+          call burp_write_block(copyReport, block=inputBlock,  &
+               convert_block=(btyp/=5120), iostat=error)
+          if (error /= burp_noerr) call utl_abort('brpr_burpClean: error with burp_write_block')
+        end if
+
+      end do blocks2
+      
+      ! write new report into file
+      call burp_delete_report(inputFile, inputReport, iostat=error)
+      if (error /= burp_noerr) call handle_error()
+      if (.not. emptyRecord) then
+        call burp_write_report(inputFile, copyReport, iostat=error)
+        if (error /= burp_noerr) call handle_error()
+      end if
+
+    end do reports
+
+    write(*,*) 'brpr_burpClean: total number of observation profiles cleaned:', numRejectTotal
+
+    if (allocated(addresses)) deallocate(addresses)
+    call burp_free(inputFile)
+    call burp_free(inputReport,copyReport)
+    call burp_free(inputBlock)
+
+  contains
+
+    subroutine handle_error()
+      implicit none
+      write(*,*) burp_str_error()
+      write(*,*) 'history'
+      call burp_str_error_history()
+      call utl_abort('brpr_burpClean')
+    end subroutine handle_error
+    
+  end subroutine brpr_burpClean
+
+
+  subroutine getBurpReportAddresses(brp_in, addresses)
+    !
+    !:Purpose: Initial scan of file to get number of reports. Store address
+    !          of each report in array addresses(nb_rpts).
+    !
+    implicit none 
+
+    ! Arguments:
+    character(len=*), intent(in)        :: brp_in
+    integer, allocatable, intent(inout) :: addresses(:)
+
+    ! Locals:
+    type(burp_file) :: file_in
+    type(BURP_RPT)  :: rpt_in
+    integer         :: nb_rpts, ref_rpt, error, alloc_status
+
+    ! initialisation
+    call burp_init(file_in, IOSTAT=error)
+    call burp_init(rpt_in,  IOSTAT=error)
+
+    ! ouverture du fichier burp d'entree et de sortie
+    call burp_new(file_in, filename=brp_in, mode=file_acc_read, iostat=error)
+    ! Number of reports and maximum report size from input BURP file
+    call burp_get_property(file_in, nrpts=nb_rpts)
+    if (nb_rpts <= 1) then
+      write(*,*) 'BURP file ', trim(brp_in)
+      call utl_abort('getBurpReportAddresses: empty file')
+    end if
+    write(*,*)
+    write(*,*) 'getBurpReportAddresses: Total number of reports = ', nb_rpts
+    write(*,*)
+
+    if (allocated(addresses)) deallocate(addresses)
+    allocate(addresses(nb_rpts), stat=alloc_status)
+    if (alloc_status /= 0) then
+      write(*,*) 'ERROR - allocate(addresses(nb_rpts)). alloc_status =' , alloc_status
+      call abort()
+    endif
+  
+    addresses(:) = 0
+    ref_rpt = 0
+    nb_rpts = 0
+    do
+      ref_rpt = BURP_Find_Report(File_in, REPORT= Rpt_in, SEARCH_FROM= ref_rpt, IOSTAT= error)
+      if (error /= burp_noerr) call utl_abort('getBurpReportAddresses: err finding next burp report')
+      if (ref_rpt < 0) exit
+      nb_rpts = nb_rpts+1
+      addresses(nb_rpts) = ref_rpt
+    end do
+
+    call burp_free(rpt_in)
+    call burp_free(file_in)
+
+  end subroutine getBurpReportAddresses
+
+
+  function isGroupedData(inputFile,address) result(isGrouped)
+    implicit none
+    type(burp_file) :: inputFile
+    integer :: address(:)
+    logical :: isGrouped
+
+    type(burp_rpt)    :: inputReport
+    type(burp_block)  :: inputBlock
+    integer :: reportIndex, ref_blk, btyp, btyp10, error
+
+    call burp_init(inputReport, iostat=error)
+    call burp_init(inputBlock, iostat=error)
+
+    ! determine if this file contains grouped data
+    isGrouped = .false.
+    reports: do reportIndex = 1, size(address)
+    
+      call burp_get_report(inputFile,        &
+           report    = inputReport,          &
+           ref       = address(reportIndex), &
+           iostat    = error)      
+
+      ! loop on blocks
+      ref_blk = 0      
+      blocks: do
+
+        ref_blk = burp_find_block(inputReport, &
+             block       = inputBlock,         &
+             search_from = ref_blk,            &
+             iostat      = error)
+
+        if (ref_blk < 0) exit blocks
+
+        call burp_get_property(inputBlock, btyp=btyp)
+        btyp10 = ishft(btyp,-5)
+        if ( btyp10 == 160 ) then
+          isGrouped = .true.
+          exit reports
+        end if
+
+      end do blocks
+
+    end do reports
+
+    call burp_free(inputReport)
+    call burp_free(inputBlock)
+
+  end function isGroupedData
+  
+
+  function isFlagBlock(familyType, btyp) result(isFlag)
+    implicit none
+
+    ! arguments:
+    character(len=*) :: familyType
+    integer :: btyp
+    logical :: isFlag
+
+    ! locals:
+    integer :: btyp10, btyp10flg, offset
+
+    isFlag = .false.
+
+    btyp10 = ishft(btyp,-5)
+    btyp10flg = 483
+
+    if (trim(familyType)=='UA') then
+      offset = 288
+      isFlag = (btyp10 == btyp10flg .or. btyp10 + offset == btyp10flg)
+    else
+      select case(trim(familyType))
+      case('AI','SW','SC')
+        offset = 256
+      case('RO','TO')
+        offset = 0
+      case('SF')
+        offset = 288
+      end select
+      isFlag = (btyp10 + offset == btyp10flg)
+    end if
+    
+  end function isFlagBlock
+
+
+  function isObsBlock(familyType, btyp) result(isObs)
+    implicit none
+
+    ! arguments:
+    character(len=*) :: familyType
+    integer :: btyp
+    logical :: isObs
+
+    ! locals:
+    integer :: btyp10, btyp10obs, offset
+
+    isObs = .false.
+
+    btyp10 = ishft(btyp,-5)
+    btyp10obs = 291
+
+    if (trim(familyType)=='UA') then
+      offset = 288
+      isObs = (btyp10 == btyp10obs .or. btyp10 + offset == btyp10obs)
+    else
+      select case(trim(familyType))
+      case('AI','SW','SC')
+        offset = 256
+      case('RO','TO')
+        offset = 0
+      case('SF')
+        offset = 288
+      end select
+      isObs = (btyp10 + offset == btyp10obs)
+    end if
+    
+  end function isObsBlock
+
+
+  subroutine getElementIds(familyType, elementIds)
+    implicit none
+
+    ! arguments:
+    character(len=*) :: familyType
+    integer, allocatable :: elementIds(:)
+
+    if (allocated(elementIds)) deallocate(elementIds)
+
+    select case(trim(familyType))
+
+    case('UA','AI','AL','SW','SC','PR','RO')
+      call brpacma_nml('namburp_conv', beSilent_opt=.true.)
+      allocate(elementIds(nelems))
+      elementIds(:) = blistelements(1:nelems)
+
+    case('SF','GP')
+      call brpacma_nml('namburp_sfc', beSilent_opt=.true.)
+      allocate(elementIds(nelems_sfc))
+      elementIds(:) = blistelements_sfc(1:nelems_sfc)
+
+    case('GO','MI','TO')
+      call brpacma_nml('namburp_tovs', beSilent_opt=.true.)
+      allocate(elementIds(nelems))
+      elementIds(:) = blistelements(1:nelems)
+
+    case default
+      call utl_abort('getElementIds: unknown familyType: ' // trim(familyType))
+
+    end select
+
+  end subroutine getElementIds
+    
 end module burpread_mod
