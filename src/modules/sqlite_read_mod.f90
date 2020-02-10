@@ -1218,7 +1218,7 @@ contains
 
     ! arguments
     type(struct_obs)           :: obsdat
-    character(len=2)           :: obsFamily    
+    character(len=*)           :: obsFamily    
     character(len=*)           :: instrumentFileName
     integer,          optional :: codeTypeInput(:)
 
@@ -1255,13 +1255,10 @@ contains
 
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
 
-    call tmg_start(180, myName//': create empty sqlite file')
     write(*,*) myName//' Creating file: ', trim(fileName)
     call fSQL_open( db, fileName, stat )
-    call tmg_stop(180)
     if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
 
-    call tmg_start(181, myName//': Create HEADER and DATA')
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    &codtyp integer, date integer, time integer, elev real); &
@@ -1270,9 +1267,8 @@ contains
                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
-    call tmg_stop(181)
 
-    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo,zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
@@ -1284,11 +1280,9 @@ contains
     call fSQL_prepare( db, queryHeader, stmtHeader, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
+    ! determine initial idData,idObs to ensure unique values across mpi tasks
+    call getInitialIdObsData(obsDat, obsFamily, idObs, idData)
     numberInsertions = 0
-    idData           = 0
-    idObs            = 0
-
-    call tmg_start(182, myName//': Insertion')
 
     call obs_set_current_header_list( obsdat, obsFamily )
     HEADER: do
@@ -1366,50 +1360,51 @@ contains
         end select
 
         ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idData        )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = idObs         )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, INT_VAR  = obsVarno      )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = PPP           )
         if ( vertCoordType == MPC_missingValue_INT ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 4                         ) 
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 5                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = vertCoordType ) 
         end if
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = obsValue      ) 
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 7, INT_VAR  = obsFlag       )
         if ( OMA == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
-        end if
-        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMA         )
         end if
-        if ( FGE == obs_missingValue_R ) then
+        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OMP         )
+        end if
+        if ( FGE == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = FGE         )
         end if
         if ( OER == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
-        end if 
-        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 11                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = ensInnovStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = OER        )
         end if 
-        if ( ensObsErrStdDev == obs_missingValue_R ) then
+        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensObsErrStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensInnovStdDev )
         end if 
-        if ( zhad == obs_missingValue_R ) then
+        if ( ensObsErrStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = zhad )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = ensObsErrStdDev )
+        end if 
+        if ( zhad == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, REAL_VAR = zhad )
         end if 
 
         call fSQL_exec_stmt ( stmtData )
@@ -1424,8 +1419,50 @@ contains
     call fSQL_finalize( stmtData )
     call fSQL_commit(db)
     call fSQL_close( db, stat )
-    call tmg_stop(182)
 
   end subroutine sqlr_writeSqlDiagFile
+
+
+  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData)
+    !
+    !:Purpose: Compute initial value for idObs and idData that will ensure
+    !          unique values over all mpi tasks
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs) :: obsdat
+    character(len=*) :: obsFamily    
+    integer          :: idObs, idData
+
+    ! locals:
+    integer                :: headerIndex, numHeader, numBody, ierr
+    integer, allocatable   :: allNumHeader(:), allNumBody(:)
+
+    numHeader = 0
+    numBody = 0
+    call obs_set_current_header_list( obsdat, obsFamily )
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex( obsdat )
+      if ( headerIndex < 0 ) exit HEADERCOUNT
+      numHeader = numHeader + 1
+      numBody = numBody + obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+    end do HEADERCOUNT
+    allocate(allNumHeader(mpi_nprocs))
+    allocate(allNumBody(mpi_nprocs))
+    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
+                            allNumHeader,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
+                            allNumBody,1,'mpi_integer','GRID',ierr)
+    if (mpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mpi_myid))
+      idData = sum(allNumBody(1:mpi_myid))
+    else
+      idObs = 0
+      idData = 0
+    end if
+    deallocate(allNumHeader)
+    deallocate(allNumBody)
+  end subroutine getInitialIdObsData
 
 end module sqliteRead_mod
