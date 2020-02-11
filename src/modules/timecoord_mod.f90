@@ -30,6 +30,7 @@ module timeCoord_mod
   ! public variables
   public :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   public :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
+  public :: tim_fullyUseExtremeTimeBins
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
@@ -42,6 +43,7 @@ module timeCoord_mod
   real(8)   :: tim_windowsize
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
+  logical   :: tim_fullyUseExtremeTimeBins
   integer   :: datestamp = 0      ! window centre of analysis validity
   logical   :: initialized = .false.
 
@@ -79,8 +81,8 @@ contains
     integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime, date
     real(8) :: dstepobs,dstepobsinc,dwindowsize
     character(len=6) :: dreferencetime
-
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, dreferencetime
+    logical :: dfullyUseExtremeTimeBins
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, dreferencetime, dfullyUseExtremeTimeBins
 
     if ( initialized ) then
       write(*,*) 'tim_setup: already initialized, just return'
@@ -93,6 +95,7 @@ contains
     dwindowsize    = 6.0d0     
     date           = 0
     dreferenceTime = 'middle'
+    dfullyUseExtremeTimeBins = .false.
 
     ! Read the namelist
     nulnam = 0
@@ -107,6 +110,13 @@ contains
     tim_dstepobsinc = dstepobsinc
     tim_windowsize  = dwindowsize
     tim_referencetime = dreferenceTime
+    tim_fullyUseExtremeTimeBins = dfullyUseExtremeTimeBins
+
+    if ( tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle"  ) then
+      write(*,*) "Warning: tim_fullyUseExtremeTimeBins==.true. and tim_referencetime=='middle' is a non-standard combination"
+      write(*,*) "Is is really what you want ?"
+    end if
+
     if (dstepobs > dwindowsize) then
       if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobs = tim_windowsize 
@@ -396,14 +406,24 @@ contains
 
     else
       ! 3D: only 1 trial field in time window
-      if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then
-        ! outside time window
-        dnstepobs = -1.0d0
+      if (tim_referencetime == "middle") then
+        if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then
+          ! outside time window
+          dnstepobs = -1.0d0
+        else
+          ! inside time window
+          dnstepobs = 1.0d0
+        end if
       else
-        ! inside time window
-        dnstepobs = 1.0d0
-      end if
-
+        if (dlhours < -dddt/2.0d0 .or. dlhours > tim_windowsize + dddt/2.d0) then
+          ! outside time window
+          dnstepobs = -1.0d0
+        else
+          ! inside time window
+          dnstepobs = 1.0d0
+        end if
+      endif
+      
     end if
 
   end subroutine tim_getStepObsIndex

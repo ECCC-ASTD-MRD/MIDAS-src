@@ -219,8 +219,13 @@ contains
     if ( .not.tim_initialized() ) call utl_abort('oti_setup: timeCoord module not initialized')
 
     if ( numStep > 1 .and. .not. present(interpType_opt) ) then
-      call utl_abort('oti_setup: interpType_opt must be specified by numStep > 1')
+      call utl_abort('oti_setup: interpType_opt must be specified when numStep > 1')
     end if
+
+    if ( trim(interpType_opt) == 'LINEAR' .and. tim_fullyUseExtremeTimeBins) then
+      call utl_abort('oti_setup: LINEAR time interpolation is not compatible with tim_fullyUseExtremeTimeBins==.true.')
+    end if
+
 
     if (mpi_myid == 0) write(*,*) ' '
     if (mpi_myid == 0) write(*,*) '-------- Entering oti_setup ---------'
@@ -239,7 +244,10 @@ contains
                                obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
                                obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
       ! leave all weights zero if obs time is out of range, otherwise set weights
-      if (floor(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) then
+
+      if ( .not.tim_fullyUseExtremeTimeBins .and. (floor(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
+        write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+      else if ( tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1) ) then
         write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
       else
         if (numStep == 1) then
