@@ -844,12 +844,12 @@ contains
   end subroutine sensors
 
   !--------------------------------------------------------------------------
-  !  tvs_isIdBurpTovs
+  !  tvs_getAllIdBurpTovs
   !--------------------------------------------------------------------------
   subroutine tvs_getAllIdBurpTovs(idatypListSize, idatypList)
     !
-    ! :Purpose: Function to check if the given idatyp (a.k.a. codtyp) 
-    !           corresponds to a radiance
+    ! :Purpose: Function to return a list of all idatyp (a.k.a. codtyp) values
+    !           for all possible radiance observations (according to the namelist)
     !
     implicit none
 
