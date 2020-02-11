@@ -80,9 +80,9 @@ contains
     ! locals
     integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime, date
     real(8) :: dstepobs,dstepobsinc,dwindowsize
-    character(len=6) :: dreferencetime
-    logical :: dfullyUseExtremeTimeBins
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, dreferencetime, dfullyUseExtremeTimeBins
+    character(len=6) :: referencetime
+    logical :: fullyUseExtremeTimeBins
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, referencetime, fullyUseExtremeTimeBins
 
     if ( initialized ) then
       write(*,*) 'tim_setup: already initialized, just return'
@@ -94,8 +94,8 @@ contains
     dstepobsinc    = 6.0d0      
     dwindowsize    = 6.0d0     
     date           = 0
-    dreferenceTime = 'middle'
-    dfullyUseExtremeTimeBins = .false.
+    referenceTime = 'middle'
+    fullyUseExtremeTimeBins = .false.
 
     ! Read the namelist
     nulnam = 0
@@ -109,8 +109,8 @@ contains
     tim_dstepobs    = dstepobs
     tim_dstepobsinc = dstepobsinc
     tim_windowsize  = dwindowsize
-    tim_referencetime = dreferenceTime
-    tim_fullyUseExtremeTimeBins = dfullyUseExtremeTimeBins
+    tim_referencetime = referenceTime
+    tim_fullyUseExtremeTimeBins = fullyUseExtremeTimeBins
 
     if ( tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle"  ) then
       write(*,*) "Warning: tim_fullyUseExtremeTimeBins==.true. and tim_referencetime=='middle' is a non-standard combination"
