@@ -148,7 +148,7 @@ program midas_bgckAtms
   ! Channels insensitive to clouds/precip  (high peaking)           = 9-15
   IMPLICIT NONE
 
-  integer  :: error,nb_rpts,ref_rpt,compteur,nbele,nlocs
+  integer  :: error,nb_rpts,ref_rpt,nbele,nlocs
   integer  :: handle,nvale,nte,j,i,btyp,bfam
 
   type(BURP_FILE)        :: File_in,File_out
@@ -158,7 +158,7 @@ program midas_bgckAtms
   integer                :: ibrptime, nblocs, nsize, iun_burpin, irun
 
   character(len=20)      :: opt_missing
-  character(len=90)      :: brp_in,brp_out
+  character(len=90)      :: burpFileNameIn,burpFileNameOut
   character(len=9)       :: id
 
   integer, parameter :: MXSAT = 9
@@ -178,7 +178,7 @@ program midas_bgckAtms
   integer :: indx1, indx2, ii, numbsat, iich, jj, kk
   integer :: iNumSeaIce, nobs_tot, n_cld, iRej, n_bad_reps, n_reps, n_reps_tb2misg
 
-  integer, dimension(31)               :: alloc_status
+  integer, dimension(61)               :: alloc_status
 
   ! These arrays are for subroutine GETBC, called to get bias corrections
   integer, dimension(mxsat)            ::  numor, numan
@@ -189,16 +189,9 @@ program midas_bgckAtms
   character(len=9), dimension(mxsat)   ::  csatid
 
   real, dimension(nchanAtms,mxscan)    ::  zbcor
-  real, dimension(mxval*mxnt)          ::  ztbcor
+  real, allocatable          ::  ztbcor(:)
   
   real, dimension(5)                   ::  ztb183
-
-  integer, dimension(mxnt)             :: scanpos
-  real, dimension(mxval*mxnt)          :: ztb, biasCorr
-  real, dimension(mxnt)                :: zlat,zlon,zenith
-  integer, dimension(mxnt)             :: ilq,itt
-  integer, dimension(mxval*mxnt)       :: ican, qcflag2
-  integer, dimension(mxnt,3)           :: qcflag1
   integer :: reportIndex
 
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
@@ -245,7 +238,7 @@ program midas_bgckAtms
   character(len=2),dimension(mxsat,nchanAtms,maxpred) :: PTYPES
 
   logical :: sp_adj_tb, debug, modlsqtt, useUnbiasedObsForClw
-  logical :: bad_report, lutb, resume_report
+  logical :: bad_report, lutb, resumeReport
 
   ! External functions
   integer, external :: exdb,exfin
@@ -282,14 +275,15 @@ program midas_bgckAtms
   PARAMETER ( MXLON  =     5 )
 
   integer ezsetopt, ezqkdef
-  integer gdllsval, gdmg
+  integer gdllsval, gdmg, gdmt, gdgl
+
 
   integer :: FSTOUV
   INTEGER FSTINF,FSTPRM,FSTLIR,FSTFRM
   INTEGER NVAL, nvalOut , ntOut
   INTEGER IER,IREC,IREC2,JUNK
   INTEGER JN, JL
-  INTEGER IUNGEO, IUNSTAT, INUMSAT
+  INTEGER IUNSTAT, INUMSAT
   INTEGER INOSAT
   INTEGER IDUM,IDUM1,IDUM2,IDUM3,IDUM4,IDUM5,IDUM6,IDUM7
   INTEGER IDUM8,IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
@@ -305,12 +299,8 @@ program midas_bgckAtms
   INTEGER ELDALT    (MXELM)
   INTEGER IDATA     (MXVAL*MXNT)
   INTEGER ISCNCNT   (MXNT)
-  INTEGER ISAT      (MXNT)
-  INTEGER IORBIT    (MXNT)
-  INTEGER ICANOMP   (MXVAL*MXNT)
   INTEGER ICHECK    (MXVAL*MXNT)
   INTEGER ICHKPRF   (MXNT)
-  INTEGER IMARQ     (MXVAL*MXNT)
 
   CHARACTER *12  ETIKXX
   CHARACTER *9   ETIKRESU
@@ -318,34 +308,43 @@ program midas_bgckAtms
   CHARACTER *2   TYPXX 
   CHARACTER *1   GRTYP
 
-  INTEGER, ALLOCATABLE, DIMENSION(:) :: BUF1
-  REAL, ALLOCATABLE, DIMENSION(:) :: MT
+  INTEGER, ALLOCATABLE    :: BUF1(:)
+  REAL,    ALLOCATABLE    :: MT(:)
+  REAL,    ALLOCATABLE    :: MG(:)
+  REAL,    ALLOCATABLE    :: GL(:)
+  REAL,    ALLOCATABLE    :: MTINTRP(:)
+  REAL,    ALLOCATABLE    :: GLINTRP(:)
+  REAL,    ALLOCATABLE    :: MGINTRP(:)
+  REAL,    ALLOCATABLE    :: zlat(:)
+  REAL,    ALLOCATABLE    :: zlon(:)
+  INTEGER, ALLOCATABLE    :: ISAT(:)
+  REAL,    ALLOCATABLE    :: zenith(:)
+  INTEGER, ALLOCATABLE    :: ilq(:)
+  INTEGER, ALLOCATABLE    :: itt(:)
+  REAL,    ALLOCATABLE    :: ztb(:)
+  REAL,    ALLOCATABLE    :: ZOMP(:)
+  REAL,    ALLOCATABLE    :: biasCorr(:)
+  INTEGER, ALLOCATABLE    :: scanpos(:)
+  INTEGER, ALLOCATABLE    :: qcflag1(:,:)
+  INTEGER, ALLOCATABLE    :: qcflag2(:)
+  INTEGER, ALLOCATABLE    :: ican(:)
+  INTEGER, ALLOCATABLE    :: icanomp(:)
+  INTEGER, ALLOCATABLE    :: IMARQ(:)
+  INTEGER, ALLOCATABLE    :: IORBIT(:)
+  INTEGER, ALLOCATABLE    :: globMarq(:)
+  
 
   REAL  DONIALT (MXELM*MXVAL*MXNT)
   REAL  PRVALN  (MXELM*MXVAL*MXNT)
   REAL  ZDATA   (MXVAL*MXNT)
-  REAL  MTINTRP (MXNT)
-  REAL  ZOMP    (MXVAL*MXNT)
   REAL  ZOMPNA  (MXVAL*MXNT)
-  REAL  ZLATBOX (MXLAT*MXLON,MXNT)
-  REAL  ZLONBOX (MXLAT*MXLON,MXNT)
-  REAL  MTINTBOX(MXLAT*MXLON,MXNT)
-  REAL  XLAT,XLON
-
-  REAL  DLAT, DLON, TOPOFACT
-
   LOGICAL RESETQC, SKIPENR
-
-  DATA IUNGEO  / 55 /
-  DATA IUNSTAT / 60 /
-  DATA DLAT   / 0.4 /
-  DATA DLON   / 0.6 /
 
   integer :: nulnam
   namelist /nambgck/ debug, sp_adj_tb, modlsqtt, useUnbiasedObsForClw, RESETQC, ETIKRESU 
 
-  brp_in = './obsatms'
-  brp_out = './obsatms.out'
+  burpFileNameIn = './obsatms'
+  burpFileNameOut = './obsatms.out'
 
   mglg_file  = './fstmglg'
   coef_in = './bcor'
@@ -405,9 +404,8 @@ program midas_bgckAtms
     write(*,*) '  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
   endif
 
-  IER = FNOM(IUNGEO,'./fstgzmx','STD+RND+R/O',0)
-
   ! 2) Lecture des statistiques d'erreur totale pour les  TOVS 
+  IUNSTAT = 0
   IER = FNOM(IUNSTAT,'./stats_atms_assim','SEQ+FMT',0)
   IF(IER.LT.0)THEN
     write(*,*) '(" bgckAtms: Problem opening ", &
@@ -421,35 +419,8 @@ program midas_bgckAtms
   ENDDO
 
   ! 3) Lecture des champs geophysiques (MF/MX) du modele
-  IER = FSTOUV(IUNGEO,'RND')
-
-  ! TOPOGRAPHIE (MF ou MX).
-  !     MF est la topographie filtree avec unites en metres (filtered ME).
-  !     MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
-  TOPOFACT = 1.0
-  IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MF')
-  CLNOMVAR = 'MF'
-  IF (IREC .LT. 0) THEN
-    TOPOFACT = 9.80616
-    IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MX')
-    CLNOMVAR = 'MX'
-  ENDIF
-  IF (IREC .LT. 0) THEN
-    write(*,*) ' LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE' 
-    CALL ABORT()
-  ELSE
-    ALLOCATE ( MT(NI*NJ), STAT=ier)
-    IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
-         ' ',CLNOMVAR)
-  ENDIF
-      
-  IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
-      IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
-      IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
-      IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
-      IDUM15, IDUM16, IDUM17, IDUM18 )
-  
-  write(*,*) ' GRTYP = ', grtyp 
+  !call mwbg_readGeophysicFields('ATMS', MT, GL, MG, gdmt, gdgl, gdmg, TOPOFACT) 
+  !write (*,*) 'TOPOFACT = ', TOPOFACT
 
   ! initialisation
   Call BURP_Init(File_in,  F2=File_out,  IOSTAT=error)
@@ -460,34 +431,25 @@ program midas_bgckAtms
   Call BURP_Set_Options(REAL_OPTNAME=opt_missing,REAL_OPTNAME_VALUE=zmisg)
 
   ! ouverture du fichier burp d'entree et de sortie
-  Call BURP_New(File_in,  FILENAME= brp_in,  MODE= FILE_ACC_READ,   IOSTAT= error)
-  Call BURP_New(File_out, FILENAME= brp_out, MODE= FILE_ACC_CREATE, IOSTAT= error)
-
+  Call BURP_New(File_in,  FILENAME= burpFileNameIn,  MODE= FILE_ACC_READ,   IOSTAT= error)
+  Call BURP_New(File_out, FILENAME= burpFileNameOut, MODE= FILE_ACC_CREATE, IOSTAT= error)
   ! Number of reports and maximum report size from input BURP file
   Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
   if (nb_rpts.le.1) then
-    write(*,*) 'The input BURP file ''', trim(brp_in), ''' is empty!'
+    write(*,*) 'The input BURP file ''', trim(burpFileNameIn), ''' is empty!'
     stop
   end if
-
   nsize = MRFMXL(iun_burpin)
-
   write(*,*)
   write(*,*) 'Number of reports containing observations = ', nb_rpts-1
   write(*,*) 'Size of largest report = ', nsize
   write(*,*)
-
   ! Add nsize to report size to accomodate modified (larger) data blocks
   nsize = nsize*3
 
-  allocate(adresses(nb_rpts), stat=alloc_status(1))
-  
-  if (alloc_status(1) /= 0) then
-    write(*,*) 'ERROR - allocate(adresses(nb_rpts)). alloc_status =' , alloc_status(1)
-    call abort()
-  endif
-  
-  adresses(:) = 0
+
+  ! LOOP OVER ALL REPORTS OF THE INPUT FILE, APPLY PROCESSING, AND WRITE TO OUTPUT FILE.
+  call mwbg_getBurpReportAdresses (burpFileNameIn, adresses, nb_rpts, nobs_tot)
 
   ! Initializations of counters (for total reports/locations in the file).
   flgcnt = 0
@@ -548,53 +510,6 @@ program midas_bgckAtms
        
   end if
 
-  ! LOOP OVER ALL REPORTS OF THE INPUT FILE, APPLY PROCESSING, AND WRITE TO OUTPUT FILE.
-
-  ! Initial scan of file to get number of reports and number of data locations.
-  ! Store address of each report in array adresses(nb_rpts) for main REPORTS loop
-  ref_rpt = 0
-  compteur = 0
-  nobs_tot = 0
-
-  do
-    ref_rpt = BURP_Find_Report(File_in, REPORT= Rpt_in, SEARCH_FROM= ref_rpt, IOSTAT= error)
-    if (error /= burp_noerr) call handle_error()
-    if (ref_rpt < 0) Exit
-    
-    Call BURP_Get_Property(Rpt_in,TEMPS=ibrptime,ELEV=nlocs,STNID=id,RUNN=irun)  
-    ! ELEV= the number of locations in the data box (for grouped data) ==> nt in each block
-    
-    if ( id(1:2) .eq. ">>" ) then
-      write(*,*) 'Type de fichier a l_entree = ',id 
-      if (id .ne. ">>DERIALT") then
-        write(*,*) 'WARNING - le type de fichier devrait etre >>DERIALT'
-      endif
-    elseif (id(1:1) .eq. "^" ) then
-      if ( nlocs > mxnt ) then
-        write(*,*) 'ERROR: Number of locations (nlocs) in report ',compteur+1, ' exceeds limit (mxnt)!'
-        write(*,*) '       nlocs = ', nlocs
-        write(*,*) '       mxnt  = ', mxnt
-        call handle_error()
-      endif
-      nobs_tot = nobs_tot + nlocs
-    endif
-    compteur = compteur+1
-    adresses(compteur) = ref_rpt
-    
-  end do
-
-  write(*,*) ' Scan 1: Number of reports in input BURP file (compteur) = ', compteur
-  write(*,*) '         Number of data locations (nobs_tot)             = ', nobs_tot
-
-  ! if no reports ABORT
-  if ( compteur == 0 ) call handle_error()
-
-  ! if no observations STOP
-  if ( nobs_tot == 0 ) then
-    Call BURP_Free(File_in,F2=File_out)
-    Call BURP_Free(Rpt_in,R2=Rpt_out)
-    STOP
-  end if
 
   ! MAIN LOOP through all the reports in the file
   nobs_tot = 0
@@ -602,603 +517,552 @@ program midas_bgckAtms
   n_bad_reps = 0
   n_reps_tb2misg = 0
   
-  REPORTS: do reportIndex = 1, compteur
+  REPORTS: do reportIndex = 1, nb_rpts
 
-    resume_report = .false.
 
     Call BURP_Get_Report(File_in, REPORT= Rpt_in, REF= adresses(reportIndex), IOSTAT= error) 
-    if (error /= burp_noerr) call handle_error()
+    if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out) 
 
     Call BURP_Get_Property(Rpt_in,STNID=id,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
 
     if ( id(1:2) .eq. ">>" ) then
-      resume_report = .true.
-
       ! change the header
       Call BURP_Set_Property(Rpt_in,STNID=ETIKRESU)  
 
       Call BURP_Write_Report(File_out,Rpt_in,IOSTAT=error)
-      if (error /= burp_noerr)  call handle_error()
-      CYCLE REPORTS
+      if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out)
     else
       ! Create new report (Rpt_out) to contain modified blocks from Rpt_in
       Call BURP_New(Rpt_out, Alloc_Space = nsize,  IOSTAT=error)
-      if (error /= burp_noerr)  call handle_error()
+      if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out)
     
       ! initiliser pour ecriture a File_out
       Call BURP_INIT_Report_Write(File_out,Rpt_out,IOSTAT=error)
-      if (error /= burp_noerr)  call handle_error()
+      if (error /= burp_noerr)  call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out)
 
       !  copier le header du rapport 
       Call BURP_Copy_Header(TO= Rpt_out, FROM= Rpt_in)
-
       stnid = id
 
     endif
 
-    IF ( .not. resume_report ) THEN 
+    nt = nlocs
+    ! Increment total number of obs pts read
+    nobs_tot = nobs_tot + nlocs
+    n_reps = n_reps + 1
+    !  Get all the required data from the blocks in the report (Rpt_in)
+    call mwbg_getData(burpFileNameIn, adresses(reportIndex), reportIndex, ISAT, zenith, ilq, itt, zlat, &
+                      zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
+                      ican, icanomp, IMARQ, IORBIT, globMarq, resumeReport, 'ATMS')
 
-      nt = nlocs
-    
-      ! Increment total number of obs pts read
-      nobs_tot = nobs_tot + nt
-      n_reps = n_reps + 1
+    if ( resumeReport ) then
+      write(*,*) 'resumeReport = ', resumeReport
+      cycle REPORTS
+    else if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then 
+      n_bad_reps = n_bad_reps + 1  
+      Call BURP_Free(Rpt_out,IOSTAT=error)
+      if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out)
+      write(*,*) 'Bad Report '
+      cycle REPORTS
+    end if
+
 
       ! Allocate arrays to hold data for each location of this report
-      alloc_status(:) = 0
-      allocate( ident(nt),    stat=alloc_status(1) )
-      allocate( waterobs(nt), stat=alloc_status(2) )
-      allocate( grossrej(nt), stat=alloc_status(3) )
-      allocate( cloudobs(nt), stat=alloc_status(4) )
-      allocate( iwvreject(nt),stat=alloc_status(5) )
-      allocate( lflagchn(nt,nchanAtms), stat=alloc_status(6) )
-      allocate( rclw(nt),     stat=alloc_status(7) )
-      allocate( riwv(nt),     stat=alloc_status(8) )
-      !allocate( isecs(nt),    stat=alloc_status(9) )
-      allocate( precipobs(nt), stat=alloc_status(10) )
-      allocate( iber(nt),     stat=alloc_status(11) )
-      allocate( ztb89(nt),    stat=alloc_status(12) )
-      allocate( ztb150(nt),   stat=alloc_status(13) )
-      allocate( bcor150(nt) )
-      allocate( scatl(nt),    stat=alloc_status(14) )
-      allocate( scatw(nt),    stat=alloc_status(15) )
-      allocate( ztb_amsub3(nt), stat=alloc_status(16) )
-      allocate( bcor_amsub3(nt) )
-      allocate( ztb_amsub5(nt), stat=alloc_status(17) )
-      allocate( bcor_amsub5(nt) )
-      allocate( zdi(nt),      stat=alloc_status(18) )
-      allocate( err(nt),      stat=alloc_status(19) )
-      allocate( ascatw(nt),   stat=alloc_status(20) )
-      allocate( tb23(nt),     stat=alloc_status(21) )
-      allocate( bcor23(nt) )
-      allocate( tb31(nt),     stat=alloc_status(22) )
-      allocate( bcor31(nt) )
-      allocate( tb50(nt),     stat=alloc_status(23) )
-      allocate( bcor50(nt) )
-      allocate( tb53(nt),     stat=alloc_status(24) )
-      allocate( tb89(nt),     stat=alloc_status(25) )
-      allocate( bcor89(nt) )
-      allocate( lsq(nt),      stat=alloc_status(26) )
-      allocate( trn(nt),      stat=alloc_status(27) )
-      allocate( scatec(nt),   stat=alloc_status(28) )
-      allocate( scatbg(nt),   stat=alloc_status(29) )
-      allocate( SeaIce(nt),   stat=alloc_status(30) )
-      allocate( lqc(nt,nchanAtms), stat=alloc_status(31) )
+    alloc_status(:) = 0
+    allocate( ident(ntOut),    stat=alloc_status(1) )
+    allocate( waterobs(ntOut), stat=alloc_status(2) )
+    allocate( grossrej(ntOut), stat=alloc_status(3) )
+    allocate( cloudobs(ntOut), stat=alloc_status(4) )
+    allocate( iwvreject(ntOut),stat=alloc_status(5) )
+    allocate( lflagchn(ntOut,nvalOut), stat=alloc_status(6) )
+    allocate( rclw(ntOut),     stat=alloc_status(7) )
+    allocate( riwv(ntOut),     stat=alloc_status(8) )
+    allocate( precipobs(ntOut), stat=alloc_status(10) )
+    allocate( iber(ntOut),     stat=alloc_status(11) )
+    allocate( ztb89(ntOut),    stat=alloc_status(12) )
+    allocate( ztb150(ntOut),   stat=alloc_status(13) )
+    allocate( bcor150(ntOut) )
+    allocate( scatl(ntOut),    stat=alloc_status(14) )
+    allocate( scatw(ntOut),    stat=alloc_status(15) )
+    allocate( ztb_amsub3(ntOut), stat=alloc_status(16) )
+    allocate( bcor_amsub3(ntOut) )
+    allocate( ztb_amsub5(ntOut), stat=alloc_status(17) )
+    allocate( bcor_amsub5(ntOut) )
+    allocate( zdi(ntOut),      stat=alloc_status(18) )
+    allocate( err(ntOut),      stat=alloc_status(19) )
+    allocate( ascatw(ntOut),   stat=alloc_status(20) )
+    allocate( tb23(ntOut),     stat=alloc_status(21) )
+    allocate( bcor23(ntOut) )
+    allocate( tb31(ntOut),     stat=alloc_status(22) )
+    allocate( bcor31(ntOut) )
+    allocate( tb50(ntOut),     stat=alloc_status(23) )
+    allocate( bcor50(ntOut) )
+    allocate( tb53(ntOut),     stat=alloc_status(24) )
+    allocate( tb89(ntOut),     stat=alloc_status(25) )
+    allocate( bcor89(ntOut) )
+    allocate( lsq(ntOut),      stat=alloc_status(26) )
+    allocate( trn(ntOut),      stat=alloc_status(27) )
+    allocate( scatec(ntOut),   stat=alloc_status(28) )
+    allocate( scatbg(ntOut),   stat=alloc_status(29) )
+    allocate( SeaIce(ntOut),   stat=alloc_status(30) )
+    allocate( lqc(ntOut,nvalOut), stat=alloc_status(31) )
+    allocate( ztbcor(ntOut*nvalOut), stat=alloc_status(32))
      
-      if( any(alloc_status /= 0) ) then
-        write(*,*) ' midas_bgckAtms: Memory allocation error '
-        call abort()
-      endif
-    
-      ident(:) = 0        ! filter information flag; set all bits OFF
+    if( any(alloc_status /= 0) ) then
+      write(*,*) 'alloc_status = ', alloc_status
+      write(*,*) ' midas_bgckAtms: Memory allocation error  in Main PROGRAM'
+      call abort()
+    endif
+  
+    ident(:) = 0        ! filter information flag; set all bits OFF
      
-      ! Information flag (ident) values (new BURP element 025174 in header)
+    ! Information flag (ident) values (new BURP element 025174 in header)
 
-      ! BIT    Meaning
-      !  0     off=land or sea-ice, on=open water away from coast
-      !  1     Mean 183 Ghz [ch. 18-22] is missing
-      !  2     CLW is missing (over water)
-      !  3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
-      !  4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
-      !  5     Mean 183 Ghz [ch. 18-22] Tb < 240K
-      !  6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
-      !  7     Dryness Index rejection (for ch. 22)
-      !  8     scatec/scatbg > Upper Troposphere limit 18/15
-      !  9     Dryness Index rejection (for ch. 21)
-      ! 10     Sea ice > 0.55 detected
-      ! 11     Gross error in Tb (any chan.)  (all channels rejected)
+    ! BIT    Meaning
+    !  0     off=land or sea-ice, on=open water away from coast
+    !  1     Mean 183 Ghz [ch. 18-22] is missing
+    !  2     CLW is missing (over water)
+    !  3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !  4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
+    !  5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !  6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
+    !  7     Dryness Index rejection (for ch. 22)
+    !  8     scatec/scatbg > Upper Troposphere limit 18/15
+    !  9     Dryness Index rejection (for ch. 21)
+    ! 10     Sea ice > 0.55 detected
+    ! 11     Gross error in Tb (any chan.)  (all channels rejected)
 
 
-      !  Get all the required data from the blocks in the report (Rpt_in)
-      call mwbg_getData(reportIndex, Rpt_in, ISAT, zenith, ilq, itt, zlat, zlon, ztb, &
-                        biasCorr, ZOMP, scanpos, nvalOut, ntOut, qcflag1, qcflag2, &
-                        ican, icanomp, IMARQ, IORBIT, 'ATMS')
+    ! Initialize internal land/sea qualifier and terrain type arrays to values
+    ! read from file
 
-      if ( ALL(ZOMP(:) == MPC_missingValue_R4 )) then
-        n_bad_reps = n_bad_reps + 1  
+    lsq(:) = ilq(1:ntOut)  ! land/sea qualifier
+    trn(:) = itt(1:ntOut)  ! terrain type (sea-ice)
+
+    ! Set WATEROBS() array and reset lsq, trn 
+
+    ! Determine which obs pts are over open water (i.e NOT near coasts or
+    ! over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
+    !  MG = land/sea mask field (0.0 (water) to 1.0 (land))
+    !  LG = ice fraction field  (0.0 - 1.0)
+    !  lsq = 0 (land), 1 (water)
+    !  trn = -1 (no ice/snow),  0 (ice)
+    !  NOTE: mwbg_landIceMaskAtms redefines lsq and trn based on interpolated 
+    !  MG, LG fields so that
+    !    lsq = 1 (point over water away from land/coast), 0 (land/coast) otherwise
+    !    trn = 0 (point over or near sea-ice),           -1 (ice free) otherwise
+    !
+    !  waterobs(:)=.true. at points where lsq = 1 and trn = -1
+    call mwbg_landIceMaskAtms(mglg_file,ntOut,zlat,zlon,lsq,trn,waterobs)
+
+    ! Check for values of TB that are missing or outside physical limits.
+    ! **NOTE: REJECT ALL CHANNELS IF ONE IS FOUND TO BE BAD.
+
+    grossrej(:)  = .false.
+    call mwbg_grossValueCheck(ntOut,ztb,grossrej)
       
-        Call BURP_Free(Rpt_out,IOSTAT=error)
-        if (error /= burp_noerr)  call handle_error()
+    if ( ANY(grossrej) ) then
+      write(*,*) ' mwbg_grossValueCheck has detected bad Tb data. Number of affected locations = ', COUNT(grossrej)
+      write(*,*) '   Box lat, lon = ', blat, blon
+    endif
 
-        cycle REPORTS
+    ! Preliminary QC checks --> set lqc(nt,nchanAtms)=.true. for data that fail QC
+
+    lqc(:,:) = .false.  ! Flag for preliminary QC checks
+    call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid, &
+                               nvalOut, ntOut, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
+                               ican, blat, blon, lutb)
+
+    if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
+
+    ! Output of mwbg_firstQcCheckAtms
+    !   lqc=true (entire array) --> problem with channels (number of channels or the channel numbers)
+    !                               file could be corrupted [abort]
+    !   ztb(nchanAtms) = zmisg  (at locations with bad zenith angle and/or lat,lon)
+    !   zenith     = zmisg  (if bad zenith angle)
+    !   lutb=true  (if ztb set to zmisg at 1 or more locations)
+    ! All channels are flagged for all checks except the "data level" QC flag check.
+
+    !if ( lutb ) then
+    !  write(*,*) ' Number of Tb data = zmisg after mwbg_firstQcCheckAtms = ', COUNT(ztb == zmisg)
+    !  write(*,*) ' Number of Tb data = 330.04              = ', COUNT(ztb == 330.04)
+    !  write(*,*) ' Total number of data                    = ', nval*nt
+    !endif
+
+    bad_report = .false.
+    if ( COUNT(lqc) == ntOut*nvalOut ) then
+      write(*,*) ' mwbg_firstQcCheckAtms has detected a problem with data in this report!'
+      write(*,*) '   Report box lat, lon = ', blat, blon
+      bad_report = .true.
+      n_bad_reps = n_bad_reps + 1
+    endif
+     
+    IF (.not. bad_report) THEN
+
+      !  Exclude problem points from further calculations
+
+      do kk = 1,nt
+        if ( COUNT(lqc(kk,:)) == nchanAtms ) grossrej(kk) = .true.
+      enddo
+
+      where ( grossrej ) ident = IBSET(ident,11)
+
+      ! Apply NRL cloud filter, scattering index and sea-ice detection algorithms to 
+      !   OPEN WATER (waterobs=true) points.
+      ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
+
+      ! To begin, assume that all obs are good.
+
+      cloudobs(:)  = .false.
+      iwvreject(:) = .false.
+      precipobs(:) = .false.
+
+      ! First remove scan-dependency of Tb biases for data in the report (OPTION)
+      if (sp_adj_tb) then    
+        ii = 0
+
+        ! Find satellite index (satellite "^NPP")
+        do kk = 1, numbsat
+          if ( TRIM(csatid(kk)) == TRIM(stnid(2:9)) ) ii = kk
+        end do
+        if ( ii == 0 ) then
+          write(*,*) ' Error: Satellite not found in bias correction file!'
+          write(*,*) '        Satellite = ', stnid(2:4)
+          write(*,*) '        Satellites in BCOR file = ', csatid(:)
+          call abort()
+        end if
+
+        ! Extract the Tb adjustments for each channel for this satellite
+        do kk = 1, nchanAtms
+          zbcor(kk,:) = dglbscanb(kk,:,ii)
+          if ( debug ) &
+            write(*,*) 'Scan bias adjustments for channel ', kk, ' : ', zbcor(kk,:)
+        end do
+
+        ! Adjust Tb for for each channel according to scan position
+        indx1 = 1
+        do kk = 1, nt   !  loop over NT locations in report
+          indx2 = kk*nchanAtms
+          if ( debug ) then
+            write(*,*) 'location, indx1, indx2 = ', kk, indx1, indx2
+          end if
+          do jj = 1, nchanAtms
+            ztbcor(indx1+jj-1) = ztb(indx1+jj-1) - zbcor(jj,scanpos(kk))
+            if ( debug ) then
+              write(*,*) 'scanpos, ztb index = ', scanpos(kk), indx1+jj-1
+              write(*,*) 'channel, ztb, zbcor, ztbcor = ', &
+                  jj, ztb(indx1+jj-1), zbcor(jj,scanpos(kk)), ztbcor(indx1+jj-1)
+            end if
+          end do  
+          indx1 = indx2 + 1
+        end do
+           
+      else  ! no correction
+        ztbcor(:) = ztb(:)
+           
+      end if
+   
+      ! extract required channels:
+      !  23 Ghz = AMSU-A 1 = ATMS channel 1 
+      !  31 Ghz = AMSU-A 2 = ATMS channel 2
+      !  50 Ghz = AMSU-A 3 = ATMS channel 3
+      !  53 Ghz = AMSU-A 5 = ATMS channel 6
+      !  89 Ghz = AMSU-A15 = ATMS channel 16
+      ! 150 Ghz = AMSU-B 2 = ATMS channel 17
+      !
+      ! Extract Tb for channels 16 (AMSU-B 1) and 17 (AMSU-B 2) for Bennartz SI
+      ! Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
+
+      indx1 = 1
+      do ii = 1, nt
+        indx2 = ii*nchanAtms
+        tb23(ii)      = ztbcor(indx1)
+        bcor23(ii)    = biasCorr(indx1)
+        tb31(ii)      = ztbcor(indx1+1)
+        bcor31(ii)    = biasCorr(indx1+1)
+        tb50(ii)      = ztbcor(indx1+2)
+        bcor50(ii)    = biasCorr(indx1+2)
+        tb53(ii)      = ztbcor(indx1+5)
+        tb89(ii)      = ztbcor(indx1+15)
+        ztb89(ii)     = tb89(ii)
+        bcor89(ii)    = biasCorr(indx1+15)
+        ztb150(ii)    = ztbcor(indx1+16)
+        bcor150(ii)    = biasCorr(indx1+16)
+        ztb_amsub3(ii) = ztbcor(indx1+21)
+        bcor_amsub3(ii) = biasCorr(indx1+21)
+        ztb_amsub5(ii) = ztbcor(indx1+17)
+        bcor_amsub5(ii) = biasCorr(indx1+17)
+        indx1 = indx2 + 1
+      end do
+
+      !  mwbg_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice detection
+      !  Missing value for  rclw, scatec, scatbg  is -99.0 (e.g. over land or sea-ice).
+      !  Sets trn=0 (sea ice) for points where retrieved SeaIce>=0.55.
+      !  Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
+
+      call mwbg_nrlFilterAtms(err, ntOut, tb23, bcor23, tb31, bcor31, tb50, bcor50, &
+                              tb89, bcor89, ztb150, bcor150, zenith, zlat, lsq, trn, &
+                              waterobs, grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, &
+                              SeaIce)
+        
+      ! Flag data using NRL criteria
+
+      ! Compute Mean 183 Ghz [ch. 18-22] Tb (riwv)
+      riwv = -99.0
+      indx1 = 1
+      do ii = 1, nt
+        indx2 = ii*nchanAtms
+        if (.not.grossrej(ii)) then
+          if ( useUnbiasedObsForClw ) then
+            ztb183(1) = ztbcor(indx1+17)
+            ztb183(2) = ztbcor(indx1+18)
+            ztb183(3) = ztbcor(indx1+19)
+            ztb183(4) = ztbcor(indx1+20)
+            ztb183(5) = ztbcor(indx1+21)
+          else
+            ztb183(1) = ztbcor(indx1+17) - biasCorr(indx1+17)
+            ztb183(2) = ztbcor(indx1+18) - biasCorr(indx1+18)
+            ztb183(3) = ztbcor(indx1+19) - biasCorr(indx1+19)
+            ztb183(4) = ztbcor(indx1+20) - biasCorr(indx1+20)
+            ztb183(5) = ztbcor(indx1+21) - biasCorr(indx1+21)
+          end if
+          riwv(ii)  = sum(ztb183)/5.0
+          if ( riwv(ii) < mean_Tb_183Ghz_min ) iwvreject(ii) = .true.
+        else
+          iwvreject(ii) = .true.
+        endif
+        indx1 = indx2 + 1
+      end do
+
+      !  Set bits in ident flag to identify where various data selection criteria are met
+      !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
+      !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
+
+      where ( scatec .gt. scatec_atms_nrl_LTrej .or. scatbg .gt. scatbg_atms_nrl_LTrej ) precipobs = .true.
+      n_cld = count(rclw .gt. clw_atms_nrl_LTrej)
+      cldcnt  = cldcnt  + n_cld
+      where ( (rclw .gt. clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
+      where ( waterobs )  ident = IBSET(ident,0)
+      where ( iwvreject ) ident = IBSET(ident,5)
+      where ( precipobs ) ident = IBSET(ident,4)
+      where ( rclw .gt. clw_atms_nrl_LTrej) ident = IBSET(ident,3)
+      where ( rclw .gt. clw_atms_nrl_UTrej) ident = IBSET(ident,6)
+      where ( scatec .gt. scatec_atms_nrl_UTrej .or. scatbg .gt. scatbg_atms_nrl_UTrej ) ident = IBSET(ident,8)
+      where ( SeaIce .ge. 0.55 ) ident = IBSET(ident,10)
+        
+      where ( waterobs .and. (rclw == -99.) ) ident = IBSET(ident,2)
+      where ( riwv == -99.)                   ident = IBSET(ident,1)
+
+      ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
+      if ( useUnbiasedObsForClw ) then
+        where ( .not.grossrej )
+          zdi = ztb_amsub3 - ztb_amsub5
+        elsewhere
+          zdi = zmisg
+        end where
+      else
+        where ( .not.grossrej )
+          zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
+        elsewhere
+          zdi = zmisg
+        end where
       end if
 
-      ! Initialize internal land/sea qualifier and terrain type arrays to values
-      ! read from file
+      ! Review all the checks previously made to determine which obs are to be accepted
+      ! for assimilation and which are to be flagged for exclusion (lflagchn). 
+      !   grossrej()  = .true. if any channel had a gross error at the point
+      !   cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+      !   precipobs() = .true. if precip. detected through NRL scattering indices
+      !   waterobs()  = .true. if open water point
+      !   iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
 
-      lsq(:) = ilq(1:nt)  ! land/sea qualifier
-      trn(:) = itt(1:nt)  ! terrain type (sea-ice)
+      lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
+      do kk = 1, nt
+        ! Reject all channels if gross Tb error detected in any channel or other problems 
+        if ( grossrej(kk) ) then
+          lflagchn(kk,:) = .true.
 
-      ! Set WATEROBS() array and reset lsq, trn 
-
-      ! Determine which obs pts are over open water (i.e NOT near coasts or
-      ! over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
-      !  MG = land/sea mask field (0.0 (water) to 1.0 (land))
-      !  LG = ice fraction field  (0.0 - 1.0)
-      !  lsq = 0 (land), 1 (water)
-      !  trn = -1 (no ice/snow),  0 (ice)
-      !  NOTE: mwbg_landIceMaskAtms redefines lsq and trn based on interpolated 
-      !  MG, LG fields so that
-      !    lsq = 1 (point over water away from land/coast), 0 (land/coast) otherwise
-      !    trn = 0 (point over or near sea-ice),           -1 (ice free) otherwise
-      !
-      !  waterobs(:)=.true. at points where lsq = 1 and trn = -1
-      call mwbg_landIceMaskAtms(mglg_file,nt,zlat,zlon,lsq,trn,waterobs)
-
-      ! Check for values of TB that are missing or outside physical limits.
-      ! **NOTE: REJECT ALL CHANNELS IF ONE IS FOUND TO BE BAD.
-
-      grossrej(:)  = .false.
-      call mwbg_grossValueCheck(nt,ztb,grossrej)
-      
-      if ( ANY(grossrej) ) then
-        write(*,*) ' mwbg_grossValueCheck has detected bad Tb data. Number of affected locations = ', COUNT(grossrej)
-        write(*,*) '   Box lat, lon = ', blat, blon
-      endif
-
-      ! Preliminary QC checks --> set lqc(nt,nchanAtms)=.true. for data that fail QC
-
-      lqc(:,:) = .false.  ! Flag for preliminary QC checks
-      call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid, &
-                                 nvalOut, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
-                                 ican, blat, blon, lutb)
-
-      if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
-
-      ! Output of mwbg_firstQcCheckAtms
-      !   lqc=true (entire array) --> problem with channels (number of channels or the channel numbers)
-      !                               file could be corrupted [abort]
-      !   ztb(nchanAtms) = zmisg  (at locations with bad zenith angle and/or lat,lon)
-      !   zenith     = zmisg  (if bad zenith angle)
-      !   lutb=true  (if ztb set to zmisg at 1 or more locations)
-      ! All channels are flagged for all checks except the "data level" QC flag check.
-
-      !if ( lutb ) then
-      !  write(*,*) ' Number of Tb data = zmisg after mwbg_firstQcCheckAtms = ', COUNT(ztb == zmisg)
-      !  write(*,*) ' Number of Tb data = 330.04              = ', COUNT(ztb == 330.04)
-      !  write(*,*) ' Total number of data                    = ', nval*nt
-      !endif
-
-      bad_report = .false.
-      if ( COUNT(lqc) == nt*nchanAtms ) then
-        write(*,*) ' mwbg_firstQcCheckAtms has detected a problem with data in this report!'
-        write(*,*) '   Report box lat, lon = ', blat, blon
-        bad_report = .true.
-        n_bad_reps = n_bad_reps + 1
-      endif
-     
-      IF (.not. bad_report) THEN
-
-        !  Exclude problem points from further calculations
-
-        do kk = 1,nt
-          if ( COUNT(lqc(kk,:)) == nchanAtms ) grossrej(kk) = .true.
-        enddo
-
-        where ( grossrej ) ident = IBSET(ident,11)
-
-        ! Apply NRL cloud filter, scattering index and sea-ice detection algorithms to 
-        !   OPEN WATER (waterobs=true) points.
-        ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
-
-        ! To begin, assume that all obs are good.
-
-        cloudobs(:)  = .false.
-        iwvreject(:) = .false.
-        precipobs(:) = .false.
-
-        ! First remove scan-dependency of Tb biases for data in the report (OPTION)
-        if (sp_adj_tb) then    
-          ii = 0
-
-          ! Find satellite index (satellite "^NPP")
-          do kk = 1, numbsat
-            if ( TRIM(csatid(kk)) == TRIM(stnid(2:9)) ) ii = kk
-          end do
-          if ( ii == 0 ) then
-            write(*,*) ' Error: Satellite not found in bias correction file!'
-            write(*,*) '        Satellite = ', stnid(2:4)
-            write(*,*) '        Satellites in BCOR file = ', csatid(:)
-            call abort()
-          end if
-
-          ! Extract the Tb adjustments for each channel for this satellite
-          do kk = 1, nchanAtms
-            zbcor(kk,:) = dglbscanb(kk,:,ii)
-            if ( debug ) &
-              write(*,*) 'Scan bias adjustments for channel ', kk, ' : ', zbcor(kk,:)
-          end do
-
-          ! Adjust Tb for for each channel according to scan position
-          indx1 = 1
-          do kk = 1, nt   !  loop over NT locations in report
-            indx2 = kk*nchanAtms
-            if ( debug ) then
-              write(*,*) 'location, indx1, indx2 = ', kk, indx1, indx2
-            end if
-            do jj = 1, nchanAtms
-              ztbcor(indx1+jj-1) = ztb(indx1+jj-1) - zbcor(jj,scanpos(kk))
-              if ( debug ) then
-                write(*,*) 'scanpos, ztb index = ', scanpos(kk), indx1+jj-1
-                write(*,*) 'channel, ztb, zbcor, ztbcor = ', &
-                    jj, ztb(indx1+jj-1), zbcor(jj,scanpos(kk)), ztbcor(indx1+jj-1)
-              end if
-            end do  
-            indx1 = indx2 + 1
-          end do
-           
-        else  ! no correction
-          ztbcor(:) = ztb(:)
-           
-        end if
-     
-        ! extract required channels:
-        !  23 Ghz = AMSU-A 1 = ATMS channel 1 
-        !  31 Ghz = AMSU-A 2 = ATMS channel 2
-        !  50 Ghz = AMSU-A 3 = ATMS channel 3
-        !  53 Ghz = AMSU-A 5 = ATMS channel 6
-        !  89 Ghz = AMSU-A15 = ATMS channel 16
-        ! 150 Ghz = AMSU-B 2 = ATMS channel 17
-        !
-        ! Extract Tb for channels 16 (AMSU-B 1) and 17 (AMSU-B 2) for Bennartz SI
-        ! Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
-
-        indx1 = 1
-        do ii = 1, nt
-          indx2 = ii*nchanAtms
-          tb23(ii)      = ztbcor(indx1)
-          bcor23(ii)    = biasCorr(indx1)
-          tb31(ii)      = ztbcor(indx1+1)
-          bcor31(ii)    = biasCorr(indx1+1)
-          tb50(ii)      = ztbcor(indx1+2)
-          bcor50(ii)    = biasCorr(indx1+2)
-          tb53(ii)      = ztbcor(indx1+5)
-          tb89(ii)      = ztbcor(indx1+15)
-          ztb89(ii)     = tb89(ii)
-          bcor89(ii)    = biasCorr(indx1+15)
-          ztb150(ii)    = ztbcor(indx1+16)
-          bcor150(ii)    = biasCorr(indx1+16)
-          ztb_amsub3(ii) = ztbcor(indx1+21)
-          bcor_amsub3(ii) = biasCorr(indx1+21)
-          ztb_amsub5(ii) = ztbcor(indx1+17)
-          bcor_amsub5(ii) = biasCorr(indx1+17)
-          indx1 = indx2 + 1
-        end do
-
-        !  mwbg_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice detection
-        !  Missing value for  rclw, scatec, scatbg  is -99.0 (e.g. over land or sea-ice).
-        !  Sets trn=0 (sea ice) for points where retrieved SeaIce>=0.55.
-        !  Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
-
-        call mwbg_nrlFilterAtms(err, nt, tb23, bcor23, tb31, bcor31, tb50, bcor50, &
-                                tb89, bcor89, ztb150, bcor150, zenith, zlat, lsq, trn, &
-                                waterobs, grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, &
-                                SeaIce)
-        
-        ! Flag data using NRL criteria
-
-        ! Compute Mean 183 Ghz [ch. 18-22] Tb (riwv)
-        riwv = -99.0
-        indx1 = 1
-        do ii = 1, nt
-          indx2 = ii*nchanAtms
-          if (.not.grossrej(ii)) then
-            if ( useUnbiasedObsForClw ) then
-              ztb183(1) = ztbcor(indx1+17)
-              ztb183(2) = ztbcor(indx1+18)
-              ztb183(3) = ztbcor(indx1+19)
-              ztb183(4) = ztbcor(indx1+20)
-              ztb183(5) = ztbcor(indx1+21)
-            else
-              ztb183(1) = ztbcor(indx1+17) - biasCorr(indx1+17)
-              ztb183(2) = ztbcor(indx1+18) - biasCorr(indx1+18)
-              ztb183(3) = ztbcor(indx1+19) - biasCorr(indx1+19)
-              ztb183(4) = ztbcor(indx1+20) - biasCorr(indx1+20)
-              ztb183(5) = ztbcor(indx1+21) - biasCorr(indx1+21)
-            end if
-            riwv(ii)  = sum(ztb183)/5.0
-            if ( riwv(ii) < mean_Tb_183Ghz_min ) iwvreject(ii) = .true.
-          else
-            iwvreject(ii) = .true.
-          endif
-          indx1 = indx2 + 1
-        end do
-
-        !  Set bits in ident flag to identify where various data selection criteria are met
-        !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
-        !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
-
-        where ( scatec .gt. scatec_atms_nrl_LTrej .or. scatbg .gt. scatbg_atms_nrl_LTrej ) precipobs = .true.
-        n_cld = count(rclw .gt. clw_atms_nrl_LTrej)
-        cldcnt  = cldcnt  + n_cld
-        where ( (rclw .gt. clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
-        where ( waterobs )  ident = IBSET(ident,0)
-        where ( iwvreject ) ident = IBSET(ident,5)
-        where ( precipobs ) ident = IBSET(ident,4)
-        where ( rclw .gt. clw_atms_nrl_LTrej) ident = IBSET(ident,3)
-        where ( rclw .gt. clw_atms_nrl_UTrej) ident = IBSET(ident,6)
-        where ( scatec .gt. scatec_atms_nrl_UTrej .or. scatbg .gt. scatbg_atms_nrl_UTrej ) ident = IBSET(ident,8)
-        where ( SeaIce .ge. 0.55 ) ident = IBSET(ident,10)
-        
-        where ( waterobs .and. (rclw == -99.) ) ident = IBSET(ident,2)
-        where ( riwv == -99.)                   ident = IBSET(ident,1)
-
-        ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
-        if ( useUnbiasedObsForClw ) then
-          where ( .not.grossrej )
-            zdi = ztb_amsub3 - ztb_amsub5
-          elsewhere
-            zdi = zmisg
-          end where
         else
-          where ( .not.grossrej )
-            zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
-          elsewhere
-            zdi = zmisg
-          end where
-        end if
+          ! OVER LAND OR SEA-ICE,
+          !    -- CLW/SI not determined over land
+          !    -- surface emissivity effects lower tropospheric and window channels     
+          !    -- reject window & lower tropospheric channels 1-6, 16-19
+          !    -- reject ch. 20-22 if iwvreject = .true.  [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
+          !    -- check DI for AMSU-B like channels
+          if  ( .not. waterobs(kk) ) then
+            lflagchn(kk,1:ipc)     = .true.      ! AMSU-A 1-6
+            lflagchn(kk,16:19)     = .true.      ! AMSU-B (like 1,2,5)
+            if ( iwvreject(kk) ) lflagchn(kk,20:22) = .true.  ! AMSU-B (like 4,3)
 
-        ! Review all the checks previously made to determine which obs are to be accepted
-        ! for assimilation and which are to be flagged for exclusion (lflagchn). 
-        !   grossrej()  = .true. if any channel had a gross error at the point
-        !   cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-        !   precipobs() = .true. if precip. detected through NRL scattering indices
-        !   waterobs()  = .true. if open water point
-        !   iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
-
-        lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
-        do kk = 1, nt
-          ! Reject all channels if gross Tb error detected in any channel or other problems 
-          if ( grossrej(kk) ) then
-            lflagchn(kk,:) = .true.
-
-          else
-            ! OVER LAND OR SEA-ICE,
-            !    -- CLW/SI not determined over land
-            !    -- surface emissivity effects lower tropospheric and window channels     
-            !    -- reject window & lower tropospheric channels 1-6, 16-19
-            !    -- reject ch. 20-22 if iwvreject = .true.  [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
-            !    -- check DI for AMSU-B like channels
-            if  ( .not. waterobs(kk) ) then
-              lflagchn(kk,1:ipc)     = .true.      ! AMSU-A 1-6
-              lflagchn(kk,16:19)     = .true.      ! AMSU-B (like 1,2,5)
-              if ( iwvreject(kk) ) lflagchn(kk,20:22) = .true.  ! AMSU-B (like 4,3)
-
-              ! Dryness index (for AMSU-B channels 19-22 assimilated over land/sea-ice)
-              ! Channel AMSUB-3 (ATMS channel 22) is rejected for a dryness index >    0.
-              !                (ATMS channel 21) is rejected for a dryness index >   -5.
-              ! Channel AMSUB-4 (ATMS channel 20) is rejected for a dryness index >   -8.
-              if ( zdi(kk) > 0.0 ) then
-                lflagchn(kk,22) = .true.
-                ident(kk) = IBSET(ident(kk),7)
-              endif
-              if ( zdi(kk) > -5.0 ) then
-                lflagchn(kk,21) = .true.
-                ident(kk) = IBSET(ident(kk),9)
-                drycnt = drycnt + 1
-              endif
-              if ( zdi(kk) > -8.0 ) then
-                lflagchn(kk,20) = .true.
-              endif
+            ! Dryness index (for AMSU-B channels 19-22 assimilated over land/sea-ice)
+            ! Channel AMSUB-3 (ATMS channel 22) is rejected for a dryness index >    0.
+            !                (ATMS channel 21) is rejected for a dryness index >   -5.
+            ! Channel AMSUB-4 (ATMS channel 20) is rejected for a dryness index >   -8.
+            if ( zdi(kk) > 0.0 ) then
+              lflagchn(kk,22) = .true.
+              ident(kk) = IBSET(ident(kk),7)
             endif
-
-            ! OVER WATER,
-            !    -- reject ch. 1-6, 16-20 if CLW > clw_atms_nrl_LTrej or CLW = -99.0
-            !    -- reject ch. 7-9, 21-22 if CLW > clw_atms_nrl_UTrej or CLW = -99.0
-            !    -- reject ch. 1-6, 16-22 if scatec > 9  or scatec = -99.0
-            !    -- reject ch. 7-9        if scatec > 18 or scatec = -99.0
-            !    -- reject ch. 1-6        if scatbg > 10 or scatbg = -99.0
-            !    -- reject ch. 7-9        if scatbg > 15 or scatbg = -99.0
-            !    -- reject ch. 16-22      if iwvreject = .true.   [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
-            if  ( waterobs(kk) ) then
-              if ( rclw(kk)   >  clw_atms_nrl_LTrej )  then
-                lflagchn(kk,1:ipc) = .true.
-                lflagchn(kk,16:20) = .true. 
-              endif
-              if ( rclw(kk)   >  clw_atms_nrl_UTrej )  then
-                lflagchn(kk,7:9)   = .true.
-                lflagchn(kk,21:22) = .true. 
-              endif
-              if ( scatec(kk) >  scatec_atms_nrl_LTrej ) then
-                lflagchn(kk,1:ipc) = .true.
-                lflagchn(kk,16:22) = .true.
-              endif
-              if ( scatec(kk) >  scatec_atms_nrl_UTrej ) lflagchn(kk,7:9) = .true.
-              if ( scatbg(kk) >  scatbg_atms_nrl_LTrej ) lflagchn(kk,1:ipc) = .true.
-              if ( scatbg(kk) >  scatbg_atms_nrl_UTrej ) lflagchn(kk,7:9) = .true.
-              if ( iwvreject(kk) ) lflagchn(kk,16:22) = .true.
-              if ( rclw(kk) == -99. ) then
-                ident(kk) = IBSET(ident(kk),2)
-                lflagchn(kk,1:9)   = .true.
-                lflagchn(kk,16:22) = .true.
-              endif
-              if ( riwv(kk) == -99. ) then     ! riwv = mean_Tb_183Ghz
-                ident(kk) = IBSET(ident(kk),1)
-                lflagchn(kk,16:22) = .true.
-              endif           
+            if ( zdi(kk) > -5.0 ) then
+              lflagchn(kk,21) = .true.
+              ident(kk) = IBSET(ident(kk),9)
+              drycnt = drycnt + 1
             endif
-         
+            if ( zdi(kk) > -8.0 ) then
+              lflagchn(kk,20) = .true.
+            endif
           endif
 
-          if ( .not. waterobs(kk) ) landcnt  = landcnt  + 1
-          if ( grossrej(kk) )  rejcnt = rejcnt + 1
-          if ( iwvreject(kk))  iwvcnt = iwvcnt + 1
-          if ( precipobs(kk) .and. waterobs(kk) ) then
-            pcpcnt = pcpcnt + 1
+          ! OVER WATER,
+          !    -- reject ch. 1-6, 16-20 if CLW > clw_atms_nrl_LTrej or CLW = -99.0
+          !    -- reject ch. 7-9, 21-22 if CLW > clw_atms_nrl_UTrej or CLW = -99.0
+          !    -- reject ch. 1-6, 16-22 if scatec > 9  or scatec = -99.0
+          !    -- reject ch. 7-9        if scatec > 18 or scatec = -99.0
+          !    -- reject ch. 1-6        if scatbg > 10 or scatbg = -99.0
+          !    -- reject ch. 7-9        if scatbg > 15 or scatbg = -99.0
+          !    -- reject ch. 16-22      if iwvreject = .true.   [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
+          if  ( waterobs(kk) ) then
+            if ( rclw(kk)   >  clw_atms_nrl_LTrej )  then
+              lflagchn(kk,1:ipc) = .true.
+              lflagchn(kk,16:20) = .true. 
+            endif
+            if ( rclw(kk)   >  clw_atms_nrl_UTrej )  then
+              lflagchn(kk,7:9)   = .true.
+              lflagchn(kk,21:22) = .true. 
+            endif
+            if ( scatec(kk) >  scatec_atms_nrl_LTrej ) then
+              lflagchn(kk,1:ipc) = .true.
+              lflagchn(kk,16:22) = .true.
+            endif
+            if ( scatec(kk) >  scatec_atms_nrl_UTrej ) lflagchn(kk,7:9) = .true.
+            if ( scatbg(kk) >  scatbg_atms_nrl_LTrej ) lflagchn(kk,1:ipc) = .true.
+            if ( scatbg(kk) >  scatbg_atms_nrl_UTrej ) lflagchn(kk,7:9) = .true.
+            if ( iwvreject(kk) ) lflagchn(kk,16:22) = .true.
+            if ( rclw(kk) == -99. ) then
+              ident(kk) = IBSET(ident(kk),2)
+              lflagchn(kk,1:9)   = .true.
+              lflagchn(kk,16:22) = .true.
+            endif
+            if ( riwv(kk) == -99. ) then     ! riwv = mean_Tb_183Ghz
+              ident(kk) = IBSET(ident(kk),1)
+              lflagchn(kk,16:22) = .true.
+            endif           
           endif
+       
+        endif
+
+        if ( .not. waterobs(kk) ) landcnt  = landcnt  + 1
+        if ( grossrej(kk) )  rejcnt = rejcnt + 1
+        if ( iwvreject(kk))  iwvcnt = iwvcnt + 1
+        if ( precipobs(kk) .and. waterobs(kk) ) then
+          pcpcnt = pcpcnt + 1
+        endif
           
-          if ( ANY(lflagchn(kk,:)) ) flgcnt = flgcnt + 1
+        if ( ANY(lflagchn(kk,:)) ) flgcnt = flgcnt + 1
 
-        end do
+      end do
 
-        ! RESET riwv array to ECMWF scattering index for output to BURP file
-        riwv(:) = scatec(:)
+      ! RESET riwv array to ECMWF scattering index for output to BURP file
+      riwv(:) = scatec(:)
 
-        ! Set missing rclw and riwv to BURP missing value (zmisg)
-        where (rclw == -99. ) rclw = zmisg
-        where (riwv == -99. ) riwv = zmisg
+      ! Set missing rclw and riwv to BURP missing value (zmisg)
+      where (rclw == -99. ) rclw = zmisg
+      where (riwv == -99. ) riwv = zmisg
 
 
-        ! Modify the blocks in Rpt_in and write to Rpt_out
-        ! - Modify flag values so that the obs identified above as being over land/ice,
-        !   or in cloudy/precip regions, etc. are not assimilated (FLAG block 15392/15408).
-        ! - OPTION: update land-sea qualifier and terrain type in INFO block 3072.
-        ! - Update Tb data in DATA block 9248/9264 (if Tb was modified).
-        ! - Add new elements to INFO block 3072.
-        ! - Modify 24bit global flags in 3D block 5120 (if any data rejected).
-        call mwbg_writeBlocks(reportIndex, ztb, lsq, trn, riwv, rclw, ident, &
-                              lflagchn, IMARQ, lutb, Rpt_in, Rpt_out)
+      ! Modify the blocks in Rpt_in and write to Rpt_out
+      ! - Modify flag values so that the obs identified above as being over land/ice,
+      !   or in cloudy/precip regions, etc. are not assimilated (FLAG block 15392/15408).
+      ! - OPTION: update land-sea qualifier and terrain type in INFO block 3072.
+      ! - Update Tb data in DATA block 9248/9264 (if Tb was modified).
+      ! - Add new elements to INFO block 3072.
+      ! - Modify 24bit global flags in 3D block 5120 (if any data rejected).
+      call mwbg_writeBlocks(reportIndex, ztb, lsq, trn, riwv, rclw, ident, &
+                            lflagchn, IMARQ, lutb, Rpt_in, Rpt_out)
 
-        !** start second quality control (atms_inovqc standalone program) **
-        !
-        ! trouver l'indice du satellite
-        INOSAT = 0
-        DO I = 1,MXSAT
-          IF ( STNID .EQ. '^'//CSATID(I) ) THEN
-            INOSAT = I
-          ENDIF
-        ENDDO
-        IF ( INOSAT .EQ. 0 ) THEN
-          write(*,*)'SATELLITE NON-VALIDE', STNID
-          CALL ABORT()
+      !** start second quality control (atms_inovqc standalone program) **
+      !
+      ! trouver l'indice du satellite
+      INOSAT = 0
+      DO I = 1,MXSAT
+        IF ( STNID .EQ. '^'//CSATID(I) ) THEN
+          INOSAT = I
         ENDIF
-
-        ! 5) Interpolation de le champ MF/MX (topogrpahy) aux pts TOVS.
-        !    N.B.: on examine ce champ sur une boite centree sur chaque obs.
-        NLAT = (MXLAT-1)/2
-        NLON = (MXLON-1)/2
-        DO JN = 1, NT
-          INDX = 0
-          DO I = -NLAT, NLAT
-            XLAT = ZLAT(JN) +I*DLAT
-            XLAT = MAX(-90.0,MIN(90.0,XLAT))
-            DO J = -NLON, NLON
-              INDX = INDX + 1
-              XLON = ZLON(JN) +J*DLON
-              IF ( XLON .LT. -180. ) XLON = XLON + 360.
-              IF ( XLON .GT.  180. ) XLON = XLON - 360.
-              IF ( XLON .lt.    0. ) XLON = XLON + 360.
-              ZLATBOX(INDX,JN) = XLAT
-              ZLONBOX(INDX,JN) = XLON
-            ENDDO
-          ENDDO
-        ENDDO
-
-        ier  = ezsetopt('INTERP_DEGREE','LINEAR')
-        gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-        ier  = gdllsval (gdmg,mtintbox,mt,ZLATBOX,ZLONBOX,MXLAT*MXLON*NT)
-
-        DO JN = 1, NT
-          IF (DEBUG) THEN
-            PRINT *, ' ------------------  '
-            PRINT *, ' JN = ', JN
-            PRINT *, '   '
-            PRINT *, ' zlat,zlon = ', zlat(jn), zlon(jn)
-            PRINT *, '   '
-            PRINT *, ' ZLATBOX = '
-            PRINT *,  (ZLATBOX(I,JN),I=1,MXLAT*MXLON)
-            PRINT *, ' ZLONBOX = '
-            PRINT *,  (ZLONBOX(I,JN),I=1,MXLAT*MXLON)
-            PRINT *, ' MTINTBOX = '
-            PRINT *,  (MTINTBOX(I,JN),I=1,MXLAT*MXLON)
-          ENDIF
-          MTINTRP(JN) = 0.0
-          DO I=1,MXLAT*MXLON
-            MTINTRP(JN) = MAX(MTINTRP(JN),MTINTBOX(I,JN)/TOPOFACT)
-          ENDDO
-          IF (DEBUG) THEN
-            PRINT *, ' MTINTRP = ', MTINTRP(JN)
-          ENDIF
-        ENDDO
-
-        ! 6) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
-        CALL mwbg_tovCheckAtms(ISAT, IORBIT, ican, ICANOMP, ztb, biasCorr, &
-                               ZOMP, ICHECK, nvalOut, nvalOut, NT, ZMISG, INOSAT, ident, &
-                               ICHKPRF, scanpos, MTINTRP, IMARQ, STNID, RESETQC)
-
-        ! Accumuler Les statistiques sur les rejets
-        CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
-                              NT, .FALSE.)
-
-        ! 7) Mise a jour des marqueurs.
-        CALL mwbg_updatFlgAtms(ICHKPRF, ICHECK, RESETQC, IMARQ, Rpt_out)
+      ENDDO
+      IF ( INOSAT .EQ. 0 ) THEN
+        write(*,*)'SATELLITE NON-VALIDE', STNID
+        CALL ABORT()
       ENDIF
 
-      alloc_status(:) = 0
-      deallocate( ident,    stat=alloc_status(1) )
-      deallocate( waterobs, stat=alloc_status(2) )
-      deallocate( grossrej, stat=alloc_status(3) )
-      deallocate( cloudobs, stat=alloc_status(4) )
-      deallocate( iwvreject,stat=alloc_status(5) )
-      deallocate( lflagchn, stat=alloc_status(6) )
-      deallocate( rclw,     stat=alloc_status(7) )
-      deallocate( riwv,     stat=alloc_status(8) )
-      !deallocate( isecs,    stat=alloc_status(9) )
-      deallocate( precipobs, stat=alloc_status(10) )
-      deallocate( iber,     stat=alloc_status(11) )
-      deallocate( ztb89,    stat=alloc_status(12) )
-      deallocate( ztb150,   stat=alloc_status(13) )
-      deallocate( bcor150 )
-      deallocate( scatl,    stat=alloc_status(14) )
-      deallocate( scatw,    stat=alloc_status(15) )
-      deallocate( ztb_amsub3, stat=alloc_status(16) )
-      deallocate( bcor_amsub3 )
-      deallocate( ztb_amsub5, stat=alloc_status(17) )
-      deallocate( bcor_amsub5 )
-      deallocate( zdi,      stat=alloc_status(18) )
-      deallocate( err,      stat=alloc_status(19) )
-      deallocate( ascatw,   stat=alloc_status(20) )
-      deallocate( tb23,     stat=alloc_status(21) )
-      deallocate( bcor23 )
-      deallocate( tb31,     stat=alloc_status(22) )
-      deallocate( bcor31 )
-      deallocate( tb50,     stat=alloc_status(23) )
-      deallocate( bcor50 )
-      deallocate( tb53,     stat=alloc_status(24) )
-      deallocate( tb89,     stat=alloc_status(25) )
-      deallocate( bcor89 )
-      deallocate( lsq,      stat=alloc_status(26) )
-      deallocate( trn,      stat=alloc_status(27) )
-      deallocate( scatec,   stat=alloc_status(28) )
-      deallocate( scatbg,   stat=alloc_status(29) )
-      deallocate( SeaIce,   stat=alloc_status(30) )
-      deallocate( lqc,      stat=alloc_status(31) )
+      ! 5) Interpolation de le champ MF/MX (topogrpahy) aux pts TOVS.
+      !    N.B.: on examine ce champ sur une boite centree sur chaque obs.
+      call mwbg_readGeophysicFieldsAndInterpolate('ATMS', zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
+      ! 6) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
+      CALL mwbg_tovCheckAtms(ISAT, IORBIT, ican, ICANOMP, ztb, biasCorr, &
+                             ZOMP, ICHECK, nvalOut, nvalOut, NT, ZMISG, INOSAT, ident, &
+                             ICHKPRF, scanpos, MTINTRP, IMARQ, STNID, RESETQC)
 
-      if( any(alloc_status /= 0) ) then
-        write(*,*) ' midas_bgckAtms: Memory deallocation error '
-        call abort()
-      endif
+      ! Accumuler Les statistiques sur les rejets
+      CALL mwbg_qcStatsAtms(INUMSAT, ICHECK, ican, INOSAT, CSATID, nvalOut, &
+                            NT, .FALSE.)
 
+      ! 7) Mise a jour des marqueurs.
+      CALL mwbg_updatFlgAtms(ICHKPRF, ICHECK, RESETQC, IMARQ, Rpt_out)
     ENDIF
 
+    alloc_status(:) = 0
+    deallocate( ident,    stat=alloc_status(1) )
+    deallocate( waterobs, stat=alloc_status(2) )
+    deallocate( grossrej, stat=alloc_status(3) )
+    deallocate( cloudobs, stat=alloc_status(4) )
+    deallocate( iwvreject,stat=alloc_status(5) )
+    deallocate( lflagchn, stat=alloc_status(6) )
+    deallocate( rclw,     stat=alloc_status(7) )
+    deallocate( riwv,     stat=alloc_status(8) )
+    !deallocate( isecs,    stat=alloc_status(9) )
+    deallocate( precipobs, stat=alloc_status(10) )
+    deallocate( iber,     stat=alloc_status(11) )
+    deallocate( ztb89,    stat=alloc_status(12) )
+    deallocate( ztb150,   stat=alloc_status(13) )
+    deallocate( bcor150 )
+    deallocate( scatl,    stat=alloc_status(14) )
+    deallocate( scatw,    stat=alloc_status(15) )
+    deallocate( ztb_amsub3, stat=alloc_status(16) )
+    deallocate( bcor_amsub3 )
+    deallocate( ztb_amsub5, stat=alloc_status(17) )
+    deallocate( bcor_amsub5 )
+    deallocate( zdi,      stat=alloc_status(18) )
+    deallocate( err,      stat=alloc_status(19) )
+    deallocate( ascatw,   stat=alloc_status(20) )
+    deallocate( tb23,     stat=alloc_status(21) )
+    deallocate( bcor23 )
+    deallocate( tb31,     stat=alloc_status(22) )
+    deallocate( bcor31 )
+    deallocate( tb50,     stat=alloc_status(23) )
+    deallocate( bcor50 )
+    deallocate( tb53,     stat=alloc_status(24) )
+    deallocate( tb89,     stat=alloc_status(25) )
+    deallocate( bcor89 )
+    deallocate( lsq,      stat=alloc_status(26) )
+    deallocate( trn,      stat=alloc_status(27) )
+    deallocate( scatec,   stat=alloc_status(28) )
+    deallocate( scatbg,   stat=alloc_status(29) )
+    deallocate( SeaIce,   stat=alloc_status(30) )
+    deallocate( lqc,      stat=alloc_status(31) )
+    deallocate( ztbcor,      stat=alloc_status(32) )
+
+    if( any(alloc_status /= 0) ) then
+      write(*,*) ' midas_bgckAtms: Memory deallocation error in Main PROGRAM '
+      call abort()
+    endif
+
     ! Write the modified report to the output file
-    IF ( .not. resume_report ) THEN
+    IF ( .not. resumeReport ) THEN
       if (.not. bad_report ) then
         Call BURP_Write_Report(File_out,Rpt_out,IOSTAT=error)
-        if (error /= burp_noerr)  call handle_error()
+        if (error /= burp_noerr)  call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out)  
       endif
       Call BURP_Free(Rpt_out,IOSTAT=error)
-      if (error /= burp_noerr)  call handle_error()
+      if (error /= burp_noerr)  call mwbg_burpErrorHistory(file_in, rpt_in, file_out, rpt_out) 
     ENDIF
 
   end do REPORTS
@@ -1258,25 +1122,8 @@ program midas_bgckAtms
   ! fermeture des fichiers 
   Call BURP_Free(File_in,F2=File_out,IOSTAT=error)
   Call BURP_Free(Rpt_in,R2=Rpt_out,IOSTAT=error)
-  ISTAT = FSTFRM(IUNGEO)
-  ISTAT = FCLOS (IUNGEO)
   ISTAT = FCLOS (IUNSTAT)
 
   STOP
-
-  contains
-
-
-    subroutine handle_error()
-      implicit none
-
-      write(*,*) BURP_STR_ERROR()
-      write(*,*) "history"
-      Call BURP_STR_ERROR_HISTORY()
-      Deallocate(adresses)
-      Call BURP_Free(File_in,F2=File_out)
-      Call BURP_Free(Rpt_in,R2=Rpt_out)
-      call abort()
-    end subroutine handle_error
 
 end program midas_bgckAtms
