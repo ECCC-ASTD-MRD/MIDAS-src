@@ -82,6 +82,7 @@
   DSTEPOBSINC = 6.0d0
   DWINDOWSIZE = 168.0d0
   DREFERENCETIME="start",
+  DfullyUseExtremeTimeBins=.true.,
 /
  &NAMFILT
   NELEMS = 16,
