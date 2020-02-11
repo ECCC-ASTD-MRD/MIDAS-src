@@ -76,7 +76,8 @@ contains
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                                 stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                                 stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
-                                wInterpInfo, maxNumLocalObs, hLocalize, vLocalize,  &
+                                wInterpInfo, maxNumLocalObs,  &
+                                hLocalize, hLocalizePressure, vLocalize,  &
                                 alphaRTPP, mpiDistribution)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
@@ -97,7 +98,8 @@ contains
     type(struct_gsv)            :: stateVectorDeterAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
     integer                     :: maxNumLocalObs
-    real(8)                     :: hLocalize
+    real(8)                     :: hLocalize(:)
+    real(8)                     :: hLocalizePressure(:)
     real(8)                     :: vLocalize
     real(8)                     :: alphaRTPP
     character(len=*)            :: mpiDistribution
@@ -106,7 +108,7 @@ contains
     integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, nLev_M, ierr, matrixRank
     integer :: memberIndex, memberIndex1, memberIndex2
     integer :: memberIndexCV, memberIndexCV1, memberIndexCV2
-    integer :: procIndex, procIndexSend
+    integer :: procIndex, procIndexSend, hLocIndex
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
     integer :: bodyIndex, localObsIndex, numLocalObs, numLocalObsFound
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
@@ -307,11 +309,14 @@ contains
         anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
         anlLogPres = logPres_M_r4(lonIndex,latIndex,levIndex)
 
+        ! Find which horizontal localization value to use for this analysis level
+        hLocIndex = 1 + count(anlLogPres > hLocalizePressure(:))
+
         ! Get list of nearby observations and distances to gridpoint
         call tmg_start(9,'LETKF-getLocalBodyIndices')
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                               distances, anlLat, anlLon, anlLogPres,  &
-                                              hLocalize, vLocalize, numLocalObsFound)
+                                              hLocalize(hLocIndex), vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1
           maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
@@ -327,7 +332,7 @@ contains
           ! Compute value of localization function
           call tmg_start(18,'LETKF-locFunction')
           ! Horizontal
-          localization = lfn_Response(distances(localObsIndex),hLocalize)
+          localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical - use pressures at the grid point (not obs) location
           if (vLocalize > 0) then
             distance = abs( anlLogPres - ensObs_mpiglobal%logPres(bodyIndex) )

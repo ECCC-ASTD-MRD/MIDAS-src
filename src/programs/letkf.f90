@@ -98,24 +98,25 @@ program midas_letkf
   type(struct_enkfInterpInfo) :: wInterpInfo
 
   ! namelist variables
-  character(len=20)  :: algorithm ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
-  integer            :: numSubEns ! number of sub-ensembles to split the full ensemble
+  character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
+  integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
-  integer  :: nEns                ! ensemble size
-  integer  :: maxNumLocalObs      ! maximum number of obs in each local volume to assimilate
-  integer  :: weightLatLonStep    ! separation of lat-lon grid points for weight calculation
-  integer  :: randomSeed          ! seed used for random perturbation additive inflation
-  logical  :: modifyAmsubObsError ! reduce AMSU-B obs error stddev in tropics
-  logical  :: backgroundCheck     ! apply additional background check using ensemble spread
-  logical  :: huberize            ! apply huber norm quality control procedure
-  logical  :: rejectHighLatIR     ! reject all IR observations at high latitudes
-  logical  :: rejectRadNearSfc    ! reject radiance observations near the surface
-  logical  :: writeSubSample      ! write sub-sample members for initializing medium-range fcsts
-  real(8)  :: hLocalize           ! horizontal localization radius (in km)
-  real(8)  :: vLocalize           ! vertical localization radius (in units of ln(Pressure in Pa))
-  real(8)  :: alphaRTPP           ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRTPS           ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
-  real(8)  :: alphaRandomPert     ! Random perturbation additive inflation coeff (0->1)
+  integer  :: nEns                 ! ensemble size
+  integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
+  integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
+  integer  :: randomSeed           ! seed used for random perturbation additive inflation
+  logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
+  logical  :: backgroundCheck      ! apply additional background check using ensemble spread
+  logical  :: huberize             ! apply huber norm quality control procedure
+  logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
+  logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
+  logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
+  real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
+  real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
+  real(8)  :: vLocalize            ! vertical localization radius (in units of ln(Pressure in Pa))
+  real(8)  :: alphaRTPP            ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
+  real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
@@ -123,7 +124,8 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=12) :: etiket0
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-  NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName, hLocalize, vLocalize,  &
+  NAMELIST /NAMLETKF/algorithm, nEns, numSubEns, ensPathName,  &
+                     hLocalize, hLocalizePressure, vLocalize,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      writeSubSample,  &
@@ -177,7 +179,8 @@ program midas_letkf
   rejectHighLatIR       = .false.
   rejectRadNearSfc      = .false.
   writeSubSample        = .false.
-  hLocalize             = 500.0D0
+  hLocalize(:)          = -1.0D0
+  hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
   alphaRTPP             =  0.0D0
   alphaRTPS             =  0.0D0
@@ -200,7 +203,12 @@ program midas_letkf
   ierr = fclos(nulnam)
 
   !- 1.3 Some minor modifications of namelist values
-  hLocalize = hLocalize * 1000.0D0 ! convert from km to m
+  if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
+    ! if only 1 value given for hLocalize, use it for entire column
+    hLocalize(2:4) = hLocalize(1)
+  end if
+  hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
+  hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
   if (alphaRTPP < 0.0D0) alphaRTPP = 0.0D0
   if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
   if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
@@ -526,7 +534,7 @@ program midas_letkf
                           stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                           stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
                           wInterpInfo, maxNumLocalObs,  &
-                          hLocalize, vLocalize, alphaRTPP, mpiDistribution)
+                          hLocalize, hLocalizePressure, vLocalize, alphaRTPP, mpiDistribution)
   call tmg_stop(3)
 
   !- 5.2 Compute ensemble spread stddev Trl and Anl
