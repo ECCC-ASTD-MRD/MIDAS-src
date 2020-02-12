@@ -1822,7 +1822,7 @@ contains
     real(8), allocatable :: clw   (:,:)
     real(8), allocatable :: clwInterp(:,:)
     real(8), allocatable :: clwExtrap(:,:)
-    logical, allocatable :: ifSurfTypeWater(:)
+    logical, allocatable :: surfTypeIsWater(:)
     logical :: runObsOperatorWithClw
     
     real(8) :: modelTopPressure
@@ -1949,8 +1949,8 @@ contains
         clwExtrap(:,:) = minClwValue
       end if
 
-      allocate (ifSurfTypeWater(profileCount),stat= allocStatus(20)) 
-      ifSurfTypeWater(:) = .false.
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(20)) 
+      surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles")
       
@@ -1995,8 +1995,7 @@ contains
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
         tvs_profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
 
-        if ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea ) &
-          ifSurfTypeWater(profileCount) = .true.
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
 
         do levelIndex = 1, nlv_T
           tt   (levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'TT')
@@ -2004,7 +2003,7 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnghr,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           height  (levelIndex,profileCount) = col_getHeight(columnghr,levelIndex,headerIndex,'TH')
 
-          if ( runObsOperatorWithClw .and. ifSurfTypeWater(profileCount) ) &
+          if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) &
             clw(levelIndex,profileCount) = col_getElem(columnghr,levelIndex,headerIndex,'LWCR')
         end do
         if (.not. tvs_useO3Climatology) then
@@ -2056,7 +2055,7 @@ contains
           huInterpolated(:,profileIndex) = logVarInterpolated(:,profileIndex)
         end if
 
-      if ( runObsOperatorWithClw .and. ifSurfTypeWater(profileIndex) ) &
+      if ( runObsOperatorWithClw .and. surfTypeIsWater(profileIndex) ) &
         call ppo_IntAvg (pressure(:,profileIndex:profileIndex), &
                         clw(:,profileIndex:profileIndex),nlv_T,1,levelsBelowModelTop,&
                         rttovPressure(modelTopIndex:nRttovLevels),&
@@ -2128,7 +2127,7 @@ contains
       ! cloud liquid water extrapolation
       if ( runObsOperatorWithClw ) then
         profile_loop: do profileIndex = 1, profileCount
-          if ( .not. ifSurfTypeWater(profileIndex) ) cycle profile_loop
+          if ( .not. surfTypeIsWater(profileIndex) ) cycle profile_loop
 
           do levelIndex = 1, levelsBelowModelTop
             clwExtrap(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = max(minClwValue,clwInterp(levelIndex,profileIndex))
@@ -2240,7 +2239,7 @@ contains
         deallocate (clwInterp ,stat= allocStatus(19))
         deallocate (clwExtrap ,stat= allocStatus(20))
       end if
-      deallocate (ifSurfTypeWater,stat= allocStatus(21)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(21)) 
 
       call utl_checkAllocationStatus(allocStatus, " tvs_fillProfiles", .false.)
      

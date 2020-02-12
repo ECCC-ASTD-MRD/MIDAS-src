@@ -263,7 +263,7 @@ contains
 
     CHARACTER *9   STNID
 
-    LOGICAL LLFIRST,GROSSERROR,FULLREJCT,RESETQC,SFCREJCT, ifSurfTypeWater 
+    LOGICAL LLFIRST,GROSSERROR,FULLREJCT,RESETQC,SFCREJCT, surfTypeIsWater 
 
     SAVE LLFIRST
 
@@ -791,8 +791,7 @@ contains
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     INO = 14
     DO JJ=1,KNT
-      ifSurfTypeWater = .false. 
-      if ( ktermer(jj) ==  1 ) ifSurfTypeWater = .true.
+      surfTypeIsWater = ( ktermer(jj) ==  1 )
 
       SFCREJCT = .FALSE.
       DO JI=1,KNO
@@ -801,7 +800,7 @@ contains
           ! using state-dependent obs error only over water.
           ! obs over sea-ice will be rejected in test 15.
           if ( mwbg_allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,knosat) /= 0 &
-                .and. ifSurfTypeWater ) then
+                .and. surfTypeIsWater ) then
             clwThresh1 = clwThreshArr(ichn,knosat,1)
             clwThresh2 = clwThreshArr(ichn,knosat,2)
             sigmaThresh1 = sigmaObsErr(ichn,knosat,1)

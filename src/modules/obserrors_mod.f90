@@ -936,7 +936,7 @@ contains
     real(8) :: clwThresh1, clwThresh2, clw_avg
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
 
-    logical :: ifirst, llok, ifSurfTypeWater 
+    logical :: ifirst, llok, surfTypeIsWater 
 
     character(len=2)  :: cfam
     character(len=12) :: cstnid
@@ -964,8 +964,7 @@ contains
       idate    = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
       itime    = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
-      ifSurfTypeWater = .false.
-      if ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea ) ifSurfTypeWater = .true.
+      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
 
       nlev = idatend - idata + 1
        
@@ -989,7 +988,7 @@ contains
 
               ichn = NINT( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
 
-              if ( allowStateDepSigmaObs .and. ifSurfTypeWater ) &
+              if ( allowStateDepSigmaObs .and. surfTypeIsWater ) &
                 clw_avg  = obs_bodyElem_r( obsSpaceData, OBS_CLW, bodyIndex )
               call tvs_mapSat( iplatf, iplatform, isat )
               call tvs_mapInstrum( instr, instrum )
@@ -1001,7 +1000,7 @@ contains
 
                   ! decide whether or not use the state dependent sigmaObsErrUsed for OBS_OER
                   if ( allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,jn) /= 0 &
-                    .and. ifSurfTypeWater ) then
+                    .and. surfTypeIsWater ) then
                     clwThresh1 = clwThreshArr(ichn,jn,1)
                     clwThresh2 = clwThreshArr(ichn,jn,2)
                     sigmaThresh1 = sigmaObsErr(ichn,jn,1)
