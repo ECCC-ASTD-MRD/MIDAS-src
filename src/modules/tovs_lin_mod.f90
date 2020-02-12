@@ -23,7 +23,7 @@ module tovs_lin_mod
   use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance
-  use rttov_const, only : gas_unit_specconc, sensor_id_mw
+  use rttov_const, only : gas_unit_specconc, sensor_id_mw, surftype_sea
   use parkind1, only : jpim, jprb
   use verticalCoord_mod
   use tovs_nl_mod
@@ -144,7 +144,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
-    integer :: allocStatus(26)
+    integer :: allocStatus(27)
     logical :: diagTtop,TopAt10hPa
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
@@ -181,6 +181,7 @@ contains
     real(8), allocatable :: clwExtrapolated_tl(:,:)
     real(8), allocatable :: clw_tl(:,:)
     real(8), allocatable :: clw(:,:)
+    logical, allocatable :: surfTypeIsWater(:)
     
     real(8) :: topPressure
     real(8), pointer :: delTT(:), delHU(:), TTb(:), HUb(:), Pres(:), delP(:)
@@ -329,6 +330,7 @@ contains
         allocate (clw_tl(nlv_T,profileCount),stat= allocStatus(25))
         allocate (clw(nlv_T,profileCount),stat= allocStatus(26))
       end if
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(27))
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_tl")
  
       sensorHeaderIndexes(:) = 0 
@@ -357,6 +359,7 @@ contains
         clw(:,:) = 0.0d0
         clwInterpolated_tl(:,:) = 0.0d0
       end if
+      surfTypeIsWater(:) = .false.
 
       ! allocate profiledata_tl structures
       asw = 1 ! 1 to allocate
@@ -414,7 +417,10 @@ contains
 
           end if
         end if
-        if ( runObsOperatorWithClw_tl ) then
+
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+
+        if ( runObsOperatorWithClw_tl .and. surfTypeIsWater(profileCount) ) then
           delCLW => col_getColumn(column,headerIndex,'LWCR')
           CLWb => col_getColumn(columng,headerIndex,'LWCR')
           clw_tl(1:nlv_T,profileCount) = delCLW(1:nlv_T)
@@ -437,7 +443,7 @@ contains
               ozone(1,profileCount) =  ozone(2,profileCount)
             end if
           end if
-          if ( runObsOperatorWithClw_tl ) then
+          if ( runObsOperatorWithClw_tl .and. surfTypeIsWater(profileCount) ) then
             clw_tl(1,profileCount) =  0.d0
             clw(1,profileCount) =  clw(2,profileCount)
           end if
@@ -507,14 +513,16 @@ contains
       if ( runObsOperatorWithClw_tl ) then
         !$omp parallel do private(profileIndex)
         do profileIndex=1, profileCount
-          call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex), &
-                               dPdPs(:,profileIndex:profileIndex), &
-                               clw_tl(:,profileIndex:profileIndex), &
-                               clw(:,profileIndex:profileIndex), &
-                               pressure_tl(:,profileIndex:profileIndex), &
-                               nlv_T,1,levelsBelowModelTop, &
-                               rttovPressure(modelTopIndex:nRttovLevels), &
-                               clwInterpolated_tl(:,profileIndex:profileIndex))
+          if ( surfTypeIsWater(profileIndex) ) then
+            call ppo_IntAvgTl_v2(pressure(:,profileIndex:profileIndex), &
+                                 dPdPs(:,profileIndex:profileIndex), &
+                                 clw_tl(:,profileIndex:profileIndex), &
+                                 clw(:,profileIndex:profileIndex), &
+                                 pressure_tl(:,profileIndex:profileIndex), &
+                                 nlv_T,1,levelsBelowModelTop, &
+                                 rttovPressure(modelTopIndex:nRttovLevels), &
+                                 clwInterpolated_tl(:,profileIndex:profileIndex))
+          end if
         end do
         !$omp end parallel do
       end if
@@ -575,13 +583,15 @@ contains
 
       ! Extrapolation of CLW profile above rlimlvhu (normally 300mbs or 70mbs)
       if ( runObsOperatorWithClw_tl ) then
-        do profileIndex = 1, profileCount
-          clwExtrapolated_tl(1:modelTopIndex-1,profileIndex) = 0.d0
+        clwExtrapolated_tl(:,:) = 0.d0
+        profile_loop: do profileIndex = 1, profileCount
+          if ( .not. surfTypeIsWater(profileIndex) ) cycle profile_loop
+
           do levelIndex = 1, levelsBelowModelTop
             clwExtrapolated_tl(nRttovLevels - levelsBelowModelTop + levelIndex,profileIndex) = &
                   clwInterpolated_tl(levelIndex,profileIndex)
           end do
-        end do
+        end do profile_loop
       end if
       
       do  profileIndex = 1 , profileCount
@@ -597,6 +607,7 @@ contains
           end if
         end if
 
+        ! using the zero CLW value for land FOV
         if ( runObsOperatorWithClw_tl ) &
           profilesdata_tl(profileIndex) % clw(1:nRttovLevels)  = clwExtrapolated_tl(1:nRttovLevels,profileIndex)
         
@@ -654,6 +665,7 @@ contains
         deallocate (clw_tl,stat= allocStatus(25))
         deallocate (clw,stat= allocStatus(26))
       end if
+      deallocate (surfTypeIsWater,stat= allocStatus(27)) 
       call utl_checkAllocationStatus(allocStatus, "tvslin_rttov_tl", .false.)
 
       !  set nthreads to actual number of threads which will be used.
@@ -778,7 +790,7 @@ contains
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
     
-    integer :: allocStatus(26)
+    integer :: allocStatus(27)
     logical :: diagTtop,TopAt10hPa
     integer :: omp_get_num_threads, nthreads
     integer :: nRttovLevels,nobmax
@@ -816,6 +828,7 @@ contains
     real(8), allocatable :: clwExtrapolated_ad(:,:)
     real(8), allocatable :: clw_ad(:,:)
     real(8), allocatable :: clw(:,:)
+    logical, allocatable :: surfTypeIsWater(:)
 
     real(8) :: topPressure
    
@@ -967,6 +980,8 @@ contains
         allocate (clw_ad(nlv_T,profileCount),stat=allocStatus(24))
         allocate (clw(nlv_T,profileCount),stat=allocStatus(25))
       end if
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(26))
+      surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad")
 
@@ -997,7 +1012,9 @@ contains
           end if
         end if
 
-        if ( runObsOperatorWithClw_ad ) then
+        surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+
+        if ( runObsOperatorWithClw_ad .and. surfTypeIsWater(profileCount) ) then
           CLWb => col_getColumn(columng,headerIndex,'LWCR')
           clw(1:nlv_T,profileCount) = CLWb(1:nlv_T)
         end if
@@ -1010,7 +1027,7 @@ contains
                log( col_getPressure(columng,1,headerIndex,'TH') /  &
                col_getPressure(columng,2,headerIndex,'TH') )
           hu(1,profileCount) =  hu(2,profileCount)
-          if ( runObsOperatorWithClw_ad ) &
+          if ( runObsOperatorWithClw_ad .and. surfTypeIsWater(profileCount) ) &
             clw(1,profileCount) =  clw(2,profileCount)
         end if
 
@@ -1161,12 +1178,14 @@ contains
       ! Adjoint of extrapolation of CLW profile
       if ( runObsOperatorWithClw_ad ) then
         clwInterpolated_ad(:,:) = 0.0d0
-        do profileIndex = 1, profileCount
+        profile_loop: do profileIndex = 1, profileCount
+          if ( .not. surfTypeIsWater(profileIndex) ) cycle profile_loop
+
           do levelIndex = 1, levelsBelowModelTop
             clwInterpolated_ad(levelIndex,profileIndex) = &
                 clwExtrapolated_ad(nRttovLevels-levelsBelowModelTop+levelIndex,profileIndex)
           end do
-        end do
+        end do profile_loop
       end if
 
       !   2.4  Adjoint of extrapolation of ozone profile (kg/kg) if necessary
@@ -1230,16 +1249,16 @@ contains
         clw_ad(:,:) = 0.0d0
         !$omp parallel do private(profileIndex)
         do profileIndex = 1, profileCount
-
-          clw_ad(:, profileIndex) = 0.0d0
-          call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex), &
-                dPdPs(:,profileIndex:profileIndex), &
-                clw_ad(:,profileIndex:profileIndex), &
-                clw(:,profileIndex:profileIndex), &
-                pressure_ad(:,profileIndex:profileIndex), &
-                nlv_T,1,levelsBelowModelTop, &
-                rttovPressure(modelTopIndex:nRttovLevels), &
-                clwInterpolated_ad(:,profileIndex:profileIndex))
+          if ( surfTypeIsWater(profileIndex) ) then 
+            call ppo_IntAvgAd_v2(pressure(:,profileIndex:profileIndex), &
+                  dPdPs(:,profileIndex:profileIndex), &
+                  clw_ad(:,profileIndex:profileIndex), &
+                  clw(:,profileIndex:profileIndex), &
+                  pressure_ad(:,profileIndex:profileIndex), &
+                  nlv_T,1,levelsBelowModelTop, &
+                  rttovPressure(modelTopIndex:nRttovLevels), &
+                  clwInterpolated_ad(:,profileIndex:profileIndex))
+          end if
         end do
         !$omp end parallel do
       end if
@@ -1315,7 +1334,7 @@ contains
       if ( diagTtop ) then
         if ( runObsOperatorWithClw_ad ) then
           do profileIndex = 1, profileCount
-            clw_ad(1,profileIndex) = 0.d0
+            if ( surfTypeIsWater(profileIndex) ) clw_ad(1,profileIndex) = 0.d0
           end do
         end if
         if (.not. tvs_useO3Climatology) then
@@ -1359,10 +1378,13 @@ contains
 
       if ( runObsOperatorWithClw_ad ) then
         do  profileIndex = 1 , profileCount 
-          clw_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'LWCR')
-          do levelIndex = 1, col_getNumLev(column,'TH')
-            clw_column(levelIndex) = clw_column(levelIndex) + clw_ad(levelIndex,profileIndex)
-          end do
+          if ( surfTypeIsWater(profileIndex) ) then
+            clw_column => col_getColumn(column, sensorHeaderIndexes(profileIndex),'LWCR')
+            do levelIndex = 1, col_getNumLev(column,'TH')
+              clw_column(levelIndex) = clw_column(levelIndex) + &
+                                       clw_ad(levelIndex,profileIndex)
+            end do
+          end if
         end do
       end if
 
@@ -1398,6 +1420,7 @@ contains
         deallocate (clw_ad,stat=allocStatus(25))
         deallocate (clw,stat=allocStatus(26))
       end if
+      deallocate (surfTypeIsWater,stat=allocStatus(27))
       
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad", .false.)
     

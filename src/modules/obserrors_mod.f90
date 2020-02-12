@@ -35,6 +35,7 @@ module obsErrors_mod
   use varNameList_mod
   use obsfiles_mod
   use burp_module
+  use rttov_const, only: surftype_sea
   implicit none
   save
   private
@@ -935,7 +936,7 @@ contains
     real(8) :: clwThresh1, clwThresh2, clw_avg
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
 
-    logical :: ifirst, llok
+    logical :: ifirst, llok, surfTypeIsWater 
 
     character(len=2)  :: cfam
     character(len=12) :: cstnid
@@ -963,6 +964,8 @@ contains
       idate    = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
       itime    = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
+      surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+
       nlev = idatend - idata + 1
        
       BODY: do bodyIndex  = idata, idatend
@@ -984,7 +987,9 @@ contains
                  ityp == BUFR_NBT3     ) then
 
               ichn = NINT( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
-              if ( allowStateDepSigmaObs ) clw_avg  = obs_bodyElem_r( obsSpaceData, OBS_CLW, bodyIndex )
+
+              if ( allowStateDepSigmaObs .and. surfTypeIsWater ) &
+                clw_avg  = obs_bodyElem_r( obsSpaceData, OBS_CLW, bodyIndex )
               call tvs_mapSat( iplatf, iplatform, isat )
               call tvs_mapInstrum( instr, instrum )
 
@@ -994,17 +999,13 @@ contains
                      instrum   == tvs_instruments(jn)      ) then
 
                   ! decide whether or not use the state dependent sigmaObsErrUsed for OBS_OER
-                  if ( allowStateDepSigmaObs ) then
-                    if ( useStateDepSigmaObs(ichn,jn) == 0 ) then
-                      sigmaObsErrUsed = TOVERRST( ichn, jn )
-                    else
-                      clwThresh1 = clwThreshArr(ichn,jn,1)
-                      clwThresh2 = clwThreshArr(ichn,jn,2)
-                      sigmaThresh1 = sigmaObsErr(ichn,jn,1)
-                      sigmaThresh2 = sigmaObsErr(ichn,jn,2)
-                      sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
-                    end if
-
+                  if ( allowStateDepSigmaObs .and. useStateDepSigmaObs(ichn,jn) /= 0 &
+                    .and. surfTypeIsWater ) then
+                    clwThresh1 = clwThreshArr(ichn,jn,1)
+                    clwThresh2 = clwThreshArr(ichn,jn,2)
+                    sigmaThresh1 = sigmaObsErr(ichn,jn,1)
+                    sigmaThresh2 = sigmaObsErr(ichn,jn,2)
+                    sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
                   else
                     sigmaObsErrUsed = TOVERRST( ichn, jn )
                   end if
