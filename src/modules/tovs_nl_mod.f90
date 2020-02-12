@@ -106,7 +106,7 @@ module tovs_nl_mod
 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
-  public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst
+  public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
   public :: tvs_isInstrumGeostationary,  tvs_isNameHyperSpectral
   public :: tvs_isNameGeostationary
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
@@ -842,6 +842,67 @@ contains
     end if
 
   end subroutine sensors
+
+  !--------------------------------------------------------------------------
+  !  tvs_getAllIdBurpTovs
+  !--------------------------------------------------------------------------
+  subroutine tvs_getAllIdBurpTovs(idatypListSize, idatypList)
+    !
+    ! :Purpose: Function to return a list of all idatyp (a.k.a. codtyp) values
+    !           for all possible radiance observations (according to the namelist)
+    !
+    implicit none
+
+    ! Argument:
+    integer :: idatypListSize
+    integer :: idatypList(:)
+    
+    ! Locals:
+    logical, save :: first=.true.
+    integer, save :: ninst_tovs
+    integer :: nulnam, ierr, instrumentIndex 
+    integer, external :: fnom, fclos
+    integer, save :: list_inst(ninst)
+    character(len=22) :: inst_names(ninst)
+    namelist /namtovsinst/ inst_names
+
+    if (tvs_nsensors == 0) then
+      ! no tovs data will be read, therefore false
+      idatypList(:) = MPC_missingValue_int
+      return
+    end if
+
+    if (first) then
+      nulnam = 0
+      ninst_tovs = 0
+      list_inst(:) = -1
+      inst_names(:) = 'XXXXXX'
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=namtovsinst, iostat=ierr)
+      if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namtovsinst)
+      ierr = fclos(nulnam)
+      do instrumentIndex=1, ninst
+        if (inst_names(instrumentIndex) == 'XXXXXX' ) then
+          ninst_tovs= instrumentIndex - 1
+          exit
+        else
+          list_inst(instrumentIndex) = codtyp_get_codtyp( inst_names(instrumentIndex) )
+          if (list_inst(instrumentIndex) < 0) then
+            write(*,*) inst_names(instrumentIndex)
+            call utl_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
+          end if
+        end if
+      end do
+      if ( ninst_tovs == 0 ) call utl_abort('tvs_getAllIdBurpTovs: Empty namtovsinst namelist')
+      first = .false.
+    end if
+
+    idatypList(:) = MPC_missingValue_int
+    idatypList(1:ninst_tovs) = list_inst(1:ninst_tovs)
+    idatypListSize = ninst_tovs
+
+  end subroutine tvs_getAllIdBurpTovs
 
   !--------------------------------------------------------------------------
   !  tvs_isIdBurpTovs

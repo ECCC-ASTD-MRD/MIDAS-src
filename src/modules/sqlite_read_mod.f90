@@ -31,21 +31,13 @@ use obsUtil_mod
 use utilities_mod
 use bufr_mod
 use ramDisk_mod
+use tovs_nl_mod
 use codtyp_mod
 use obsVariableTransforms_mod
 use obsFilter_mod
 
 implicit none   
  
-type struct_diagFiles
-  character(len=2)     :: obsFamily
-  integer              :: codeTypes(30) 
-  integer              :: codeTypeSize
-  character(len=30)    :: codeTypeNames(30)
-  character(len=20)    :: fileNames(30)
-  integer              :: fileNameSize  
-end type struct_diagFiles
-
 save
 
 private
@@ -56,7 +48,7 @@ contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData )
     !
-    ! :Purpose: Initialze data values for an observation object.
+    ! :Purpose: Initialize data values for an observation object.
     !
     implicit none
 
@@ -199,9 +191,8 @@ contains
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns, lastId
-    character(len=*), parameter :: myName = 'sqlr_readSqlite'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_readSqlite:'
+    character(len=*), parameter :: myError   = myName //' ERROR: '
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -229,7 +220,7 @@ contains
     call fSQL_open( db, trim(fileName) ,stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( myError//': fSQL_open' )
+      call utl_abort( myError//'fSQL_open' )
     end if
 
     timeCharacter = sqlr_query(db,"select time('now')")
@@ -275,116 +266,116 @@ contains
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLua )
       case ( 'ai' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLai )
       case ( 'sw' )
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsw )
       case ( 'pr' )
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
       case ( 'al' )  
         columnsHeader = trim(columnsHeader)//", id_prof"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLal, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLal )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLro )
       case ( 'sf' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'scat' )
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLiasi )
       case( 'cris' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcris )
       case( 'crisfsr' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsua )
       case( 'amsub' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLamsub )
       case( 'atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLatms )
       case( 'ssmi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLssmi )
       case( 'csr' )
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
       case( 'gl' )
         read(nulnam, nml = NAMSQLgl, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl )
       case( 'ra' )
         read(nulnam, nml = NAMSQLradar, iostat = ierr )
-        if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+        if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar ) 
       case DEFAULT
-        write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
-        call utl_abort( myError//': Unsupported  SCHEMA in SQLITE file!' )
+        write(*,*) myError//'Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
+        call utl_abort( myError//'Unsupported  SCHEMA in SQLITE file!' )
     end select
     ierr=fclos( nulnam )
 
@@ -747,9 +738,8 @@ contains
     character(len = 356)             :: itemChar,item2Char
     logical                          :: back
     real                             :: romp, obsValue
-    character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
-    character(len=*), parameter      :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter      :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter      :: myName = 'sqlr_updateSqlite:'
+    character(len=*), parameter      :: myError = myName //' ERROR: '
     namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
 
     write(*,*) myName//' Starting ===================  '
@@ -762,7 +752,7 @@ contains
     nulnam = 0
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam,nml = namSQLUpdate, iostat = ierr )
-    if ( ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+    if ( ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
     if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
     ierr = fclos( nulnam )
 
@@ -795,7 +785,7 @@ contains
           item2='fg_error'
         case DEFAULT
           write(*,*)'invalid item: ', item2,' EXIT sqlr_updateSQL!!!'
-          call utl_abort( myError//': invalid item ' )
+          call utl_abort( myError//'invalid item ' )
       end select
       itemChar = trim(itemChar)//','//trim(item2)//trim(' = ? ')
     end do
@@ -894,9 +884,8 @@ contains
     integer                :: numberInsert, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, obsIdf, insertItem
     character(len = 256)   :: query
     logical                :: llok    
-    character(len=*), parameter :: myName = 'sqlr_insertSqlite'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_insertSqlite:'
+    character(len=*), parameter :: myError   = myName //' ERROR: '
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
     write(*,*)  myName//' --- Starting ---   '
@@ -910,7 +899,7 @@ contains
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam, nml = namSQLInsert, iostat = ierr )
-    if (ierr /= 0 ) call utl_abort( myError//': Error reading namelist' )
+    if (ierr /= 0 ) call utl_abort( myError//'Error reading namelist' )
     if (mpi_myid == 0) write(*, nml = namSQLInsert )
     ierr=fclos( nulnam )
 
@@ -1047,7 +1036,7 @@ contains
 
   subroutine sqlr_thinSqlite(db, obsdat, familyType, fileName, fileNumber)
     !
-    ! :Purpose: to flagged (bit 11 set) observations in an SQLite file
+    ! :Purpose: Remove flagged (bit 11 set) observations in an SQLite file
     !
     implicit none
 
@@ -1059,9 +1048,8 @@ contains
     integer,             intent(in) :: fileNumber
 
     ! locals
-    character(len=*), parameter :: myName = 'sqlr_thinSqlite'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_thinSqlite:'
+    character(len=*), parameter :: myError = myName //' ERROR: '
 
     character(len = 128) :: query
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
@@ -1087,140 +1075,236 @@ contains
   end subroutine sqlr_thinSqlite
 
 
+  function getObsFileName(obsFamily, sfFileName_opt, codetype_opt) result(fileName)
+    !
+    ! :Purpose: Return the part of the observation file name associated
+    !           with the type of observation it contains.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*)           :: obsFamily
+    character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
+    integer, optional          :: codetype_opt
+    character(len=20) :: fileName
+
+    if ( obsFamily == 'TO' ) then
+      if (.not. present(codetype_opt)) then
+        call utl_abort('getObsFileName: codetype_opt must be specified for TO family')
+      end if
+
+      if ( codtyp_get_name( codeType_opt ) == 'radianceclear' ) then
+        fileName  = 'csr' 
+      else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
+        fileName = 'to_amsub'
+      else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
+        fileName = 'to_amsua'
+      else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
+        fileName = 'ssmis'   
+      else
+        fileName = codtyp_get_name( codeType_opt ) 
+      end if
+    else
+      if (.not. present(sfFileName_opt)) then
+        call utl_abort('getObsFileName: sfFileName_opt must be specified')
+      end if
+      call up2low( obsFamily, fileName )
+      if ( fileName == 'ra' ) fileName = 'radar'
+      if ( fileName == 'sf' ) then
+        ! use either 'sf' or 'sfc' for filename with surface obs
+        fileName = sfFileName_opt
+      end if
+    end if
+
+  end function getObsFileName
+
+
   subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !  
     implicit none
 
-    ! arguments
+    ! arguments:
     type(struct_obs)       :: obsdat ! obsSpaceData object
     character(len=*)       :: sfFileName ! fileName acronym used for surface obs file
-    
-    ! locals
-    character(len=*), parameter :: myName    = 'sqlr_writeAllSqlDiagFiles'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    integer                :: familyIndex, headerIndex, codeType, codeTypeIndex, fileIndex
-    character(len=2)       :: currentObsFamily, obsFamilyList(50)
-    integer                :: obsFamilyListSize, codeTypeSize, codeTypeList(30)
+    ! locals:
+    integer                :: familyIndex, codeType, codeTypeIndex, fileIndex
+    character(len=2)       :: obsFamilyList(50)
+    integer                :: obsFamilyListSize
+    integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(30)
+    integer                :: tovsCodeTypeListSize, tovsCodeTypeList(10)
+    integer                :: tovsFileNameListSize
+    character(len=20)      :: tovsFileNameList(30)
     character(len=20)      :: fileName
 
-    type(struct_diagFiles), allocatable   :: diagFiles(:)
+    ! ensure all mpi tasks have same list of common obs family names
+    call getObsFamilyListMpiGlobal(obsdat, obsFamilyListSize, obsFamilyList)
 
-    obsFamilyListSize = 0
-    obsFamilyList(:) = 'XX'
-    HEADERloopIni: do headerIndex = 1, obs_numHeader( obsdat )
-      currentObsFamily = obs_getFamily( obsdat, headerIndex ) 
-      if ( any( obsFamilyList(:) == currentObsFamily ) ) cycle HEADERloopIni
-      obsFamilyListSize = obsFamilyListSize + 1
-      obsFamilyList( obsFamilyListSize ) = currentObsFamily
-    end do HEADERloopIni
-
-    allocate( diagFiles( obsFamilyListSize ) )
-    do familyIndex = 1, obsFamilyListSize
-      diagFiles( familyIndex ) % obsFamily = obsFamilyList( familyIndex )
-    end do
+    ! get list of all possible tovs codetype values and unique list of corresponding filenames
+    call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
+    write(*,*) 'tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
+    write(*,*) 'tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
     
-    FAMILY: do familyIndex = 1, obsFamilyListSize 
+    tovsFileNameListSize = 0
+    tovsFileNameList(:) = 'XXXXX'
+    do codeTypeIndex = 1, tovsAllCodeTypeListSize
+      fileName = getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
+      if ( all(tovsFileNameList(:) /= fileName) ) then
+        tovsFileNameListSize = tovsFileNameListSize + 1
+        tovsFileNameList(tovsFileNameListSize) = fileName
+      end if
+    end do
+    write(*,*) 'tovsFileNameListSize = ', tovsFileNameListSize
+    write(*,*) 'tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
+    
+    do familyIndex = 1, obsFamilyListSize
 
-      diagFiles( familyIndex ) % codeTypes(:) = MPC_missingValue_INT
-      diagFiles( familyIndex ) % codeTypeSize = 0
-      diagFiles( familyIndex ) % fileNames(:)  = 'XXXXX'
-      diagFiles( familyIndex ) % fileNameSize = 0
+      write(*,*) 'sqlr_writeAllSqlDiagFiles: Family = ', familyIndex, obsFamilyList(familyIndex)
 
-      call obs_set_current_header_list( obsdat, diagFiles( familyIndex ) % obsFamily )
+      if ( obsFamilyList(familyIndex) == 'TO' ) then
 
-      HEADERloop: do
+        do fileIndex = 1, tovsFileNameListSize
+          fileName = tovsFileNameList(fileIndex)
+          write(*,*) 'tovs filename = ', fileName
 
-        headerIndex = obs_getHeaderIndex( obsdat )
-        if ( headerIndex < 0 ) exit HEADERloop
-
-        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
-        if ( any( diagFiles( familyIndex ) % codeTypes(:) == codeType ) ) cycle HEADERloop
-
-        diagFiles( familyIndex ) % codeTypeSize                                             = diagFiles( familyIndex ) % codeTypeSize + 1
-        diagFiles( familyIndex ) % codeTypes( diagFiles( familyIndex ) % codeTypeSize )     = codeType
-        diagFiles( familyIndex ) % codeTypeNames( diagFiles( familyIndex ) % codeTypeSize ) = codtyp_get_name( codeType )
-
-        if ( diagFiles( familyIndex ) % obsFamily /= 'TO' ) then
-          call up2low( diagFiles( familyIndex ) % obsFamily, fileName )
-          if ( fileName == 'ra' ) fileName = 'radar'
-          if ( fileName == 'sf' ) then
-            ! use either 'sf' or 'sfc' for filename with surface obs
-            fileName = sfFileName
-          end if
-        else
-          if ( codtyp_get_name( codeType ) == 'radianceclear' ) then
-            fileName  = 'csr' 
-          else if ( codtyp_get_name( codeType ) == 'mhs' .or. codtyp_get_name( codeType ) == 'amsub' ) then
-            fileName = 'to_amsub'
-          else if ( codtyp_get_name( codeType ) == 'amsua' ) then
-            fileName = 'to_amsua'
-          else if ( codtyp_get_name( codeType ) == 'ssmi' ) then
-            fileName = 'ssmis'   
-          else
-            fileName = codtyp_get_name( codeType ) 
-          end if   
-        end if
-
-        if ( any( diagFiles( familyIndex ) % fileNames(:)  == fileName )) cycle HEADERloop
-        diagFiles( familyIndex ) % fileNameSize = diagFiles( familyIndex ) % fileNameSize + 1
-        diagFiles( familyIndex ) % fileNames( diagFiles( familyIndex ) % codeTypeSize ) = fileName
-
-      end do HEADERloop
-
-    end do FAMILY
-
-
-    FAMILY1: do familyIndex = 1, size( diagFiles % obsFamily )
-
-      write(*,*) myName//' Family: ', familyIndex, diagFiles( familyIndex ) % obsFamily
-      write(*,*) myName//' Contains ', diagFiles( familyIndex ) % codeTypeSize, ' instruments:'
-      do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
-        write(*,*) codeTypeIndex, diagFiles( familyIndex ) % codeTypes    ( codeTypeIndex ), &
-                                  diagFiles( familyIndex ) % codeTypeNames( codeTypeIndex ), &
-                                  diagFiles( familyIndex ) % fileNames    ( codeTypeIndex )
-      end do
-
-      if ( diagFiles( familyIndex ) % obsFamily == 'TO' ) then
-
-        do fileIndex = 1, diagFiles( familyIndex ) % fileNameSize
-          codeTypeSize = 0 
-          do codeTypeIndex = 1, diagFiles( familyIndex ) % codeTypeSize
-            if ( diagFiles( familyIndex ) % fileNames( codeTypeIndex ) == diagFiles( familyIndex ) % fileNames( fileIndex )) then 
-              codeTypeSize = codeTypeSize + 1 
-              codeTypeList( codeTypeSize ) = diagFiles( familyIndex ) % codeTypes( codeTypeIndex )
+          ! get list of codetypes associated with this filename
+          tovsCodeTypeListSize = 0
+          tovsCodeTypeList(:) = MPC_missingValue_INT
+          do codeTypeIndex = 1, tovsAllCodeTypeListSize
+            if (fileName == getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
+              tovsCodeTypeListSize = tovsCodeTypeListSize + 1
+              tovsCodeTypeList(tovsCodeTypeListSize) = tovsAllCodeTypeList(codeTypeIndex)
             end if
           end do
-          call sqlr_writeSqlDiagFile( obsdat, 'TO', diagFiles(familyIndex)%fileNames(fileIndex), codeTypeList(1:codeTypeSize)) 
+
+          write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
+          write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
+          call sqlr_writeSqlDiagFile(obsdat, 'TO', tovsFileNameList(fileIndex), &
+                                     tovsCodeTypeList(1:tovsCodeTypeListSize)) 
         end do
 
       else
 
-        call sqlr_writeSqlDiagFile( obsdat, diagFiles( familyIndex ) % obsFamily, diagFiles( familyIndex ) % fileNames(1) ) 
+        fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
+        call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), fileName) 
 
       end if   
       
-    end do FAMILY1
-
-    deallocate(diagFiles)
+    end do
 
   end subroutine sqlr_writeAllSqlDiagFiles
 
 
-  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, instrumentFileName, codeTypeInput )
+  subroutine getObsFamilyListMpiGlobal(obsdat, obsFamilyListSizeCommon,  &
+                                       obsFamilyListCommon)
+    !
+    ! :Purpose: Obtain a common set of obs family names over all mpi tasks
+    !
+    implicit none
+      
+    ! arguments:
+    type(struct_obs) :: obsdat
+    integer          :: obsFamilyListSizeCommon
+    character(len=*) :: obsFamilyListCommon(:)
+
+    ! locals:
+    integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize, ierr
+    integer                       :: obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, obsFamilyListSizeMax
+    character(len=2), allocatable :: obsFamilyListMpiLocal(:)
+    character(len=2), allocatable :: obsFamilyListMpiGlobal(:,:)
+    character(len=2)              :: currentObsFamily
+    integer, allocatable          :: intObsFamilyListMpiLocal(:,:)
+    integer, allocatable          :: intObsFamilyListMpiGlobal(:,:,:)
+    integer, allocatable          :: allObsFamilyListSizeMpiLocal(:)
+
+    obsFamilyListSizeMax = size(obsFamilyListCommon)
+    write(*,*) 'obsFamilyListSizeMax =', obsFamilyListSizeMax
+
+    ! get family list for this mpi task
+    obsFamilyListSizeMpiLocal = 0
+    allocate(obsFamilyListMpiLocal(obsFamilyListSizeMax))
+    obsFamilyListMpiLocal(:) = 'XX'
+    HEADER: do headerIndex = 1, obs_numHeader( obsdat )
+      currentObsFamily = obs_getFamily( obsdat, headerIndex ) 
+      if ( any( obsFamilyListMpiLocal(:) == currentObsFamily ) ) cycle HEADER
+      obsFamilyListSizeMpiLocal = obsFamilyListSizeMpiLocal + 1
+      obsFamilyListMpiLocal( obsFamilyListSizeMpiLocal ) = currentObsFamily
+      write(*,*) 'add the family: ', currentObsFamily
+    end do HEADER
+    write(*,*) 'obsFamilyListSizeMpiLocal =', obsFamilyListSizeMpiLocal
+    write(*,*) 'obsFamilyListMpiLocal = ', obsFamilyListMpiLocal(1:obsFamilyListSizeMpiLocal)
+
+    allocate(allObsFamilyListSizeMpiLocal(mpi_nprocs))
+    call rpn_comm_allgather(obsFamilyListSizeMpiLocal,    1, 'mpi_integer',  &
+                            allObsFamilyListSizeMpiLocal, 1, 'mpi_integer', 'GRID', ierr)
+    call rpn_comm_allreduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal,1,'mpi_integer','mpi_max','GRID',ierr)
+
+    ! convert local family list from characters to integers
+    allocate(intObsFamilyListMpiLocal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal))
+    intObsFamilyListMpiLocal(:,:)=0
+    do familyIndex = 1, obsFamilyListSizeMpiLocal
+      do charIndex = 1, len(currentObsFamily)
+        intObsFamilyListMpiLocal(charIndex,familyIndex) =  &
+             iachar(obsFamilyListMpiLocal(familyIndex)(charIndex:charIndex))
+      end do
+    end do
+
+    ! communicate obs family list to all mpi tasks as integers
+    allocate(intObsFamilyListMpiGlobal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal,mpi_nprocs))
+    nsize = size(intObsFamilyListMpiLocal)
+    call rpn_comm_allgather(intObsFamilyListMpiLocal,  nsize, 'mpi_integer',  &
+                            intObsFamilyListMpiGlobal, nsize, 'mpi_integer', 'GRID', ierr)
+
+    ! convert global family lists from integers to characters
+    allocate(obsFamilyListMpiGlobal(obsFamilyListSizeMaxMpiLocal,mpi_nprocs))
+    obsFamilyListMpiGlobal(:,:) = 'XX'
+    do procIndex = 1, mpi_nprocs
+      do familyIndex = 1, allObsFamilyListSizeMpiLocal(procIndex)
+        do charIndex=1,len(currentObsFamily)
+          obsFamilyListMpiGlobal(familyIndex,procIndex)(charIndex:charIndex) =  &
+               achar(intObsFamilyListMpiGlobal(charIndex,familyIndex,procIndex))
+        end do
+      end do
+      write(*,*) 'obsFamilyListMpiGlobal = ', procIndex,  &
+           obsFamilyListMpiGlobal(1:allObsFamilyListSizeMpiLocal(procIndex),procIndex)
+    end do
+
+    ! construct single common list of families to be used for all mpi tasks
+    obsFamilyListCommon(:) = 'YY'
+    obsFamilyListSizeCommon = 0
+    do procIndex = 1, mpi_nprocs
+      FAMILY: do familyIndex = 1, obsFamilyListSizeMaxMpiLocal
+        if (obsFamilyListMpiGlobal(familyIndex,procIndex) == 'XX') cycle FAMILY
+        if (any( obsFamilyListCommon(:) == obsFamilyListMpiGlobal(familyIndex,procIndex) )) cycle FAMILY
+        obsFamilyListSizeCommon = obsFamilyListSizeCommon + 1
+        obsFamilyListCommon(obsFamilyListSizeCommon) = obsFamilyListMpiGlobal(familyIndex,procIndex)
+      end do FAMILY
+    end do
+    write(*,*) 'obsFamilyListSizeCommon = ', obsFamilyListSizeCommon
+    write(*,*) 'obsFamilyListCommon = ', obsFamilyListCommon(1:obsFamilyListSizeCommon)
+
+    deallocate(allObsFamilyListSizeMpiLocal)
+    deallocate(obsFamilyListMpiGlobal)
+    deallocate(intObsFamilyListMpiGlobal)
+    deallocate(intObsFamilyListMpiLocal)
+    deallocate(obsFamilyListMpiLocal)
+
+  end subroutine getObsFamilyListMpiGlobal
+
+
+  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, instrumentFileName, codeTypeList_opt )
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
     implicit none
 
     ! arguments
-    type(struct_obs)           :: obsdat
-    character(len=2)           :: obsFamily    
-    character(len=*)           :: instrumentFileName
-    integer,          optional :: codeTypeInput(:)
+    type(struct_obs)  :: obsdat
+    character(len=*)  :: obsFamily    
+    character(len=*)  :: instrumentFileName
+    integer, optional :: codeTypeList_opt(:)
 
     ! locals
     type(fSQL_DATABASE)    :: db                   ! type for SQLIte  file handle
@@ -1229,20 +1313,40 @@ contains
     integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad
-    integer                :: numberInsertions, headerIndex, bodyIndex, obsNlv, obsRln
+    integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate 
     character(len = 12 )   :: idStation
-    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
-    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile:'
+    character(len=*), parameter :: myWarning = myName //' WARNING: '
+    character(len=*), parameter :: myError   = myName //' ERROR: '
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
 
+    ! determine initial idData,idObs to ensure unique values across mpi tasks
+    call getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+
+    ! return if this mpi task does not have any observations of this family
+    if (trim(instrumentFileName) == 'XXXXX') return
+
+    ! check if any obs exist for this file, if not return
+    numHeaders = 0
+    call obs_set_current_header_list( obsdat, obsFamily )
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex( obsdat )
+      if ( headerIndex < 0 ) exit HEADERCOUNT
+      if ( present( codeTypeList_opt ) ) then
+        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADERCOUNT
+      end if
+      numHeaders = numHeaders + 1
+    end do HEADERCOUNT
+    if (numHeaders == 0) return
+
     fileNameDir = trim(ram_getRamDiskDir())
     if ( fileNameDir == ' ' ) &
-    write(*,*) myWarning//' The program will be extremely slow creating simultaneously many sqlite files in the same directory. &
-    Please, use the ram disk option prior to MIDAS run!'
+    write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
+    write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
 
     if ( obs_mpiLocal( obsdat ) ) then
       write(cmyidy,'(I4.4)') ( mpi_myidy + 1 )
@@ -1255,13 +1359,10 @@ contains
 
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim( fileNameExtention )
 
-    call tmg_start(180, myName//': create empty sqlite file')
     write(*,*) myName//' Creating file: ', trim(fileName)
     call fSQL_open( db, fileName, stat )
-    call tmg_stop(180)
-    if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//' fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
+    if ( fSQL_error( stat ) /= FSQL_OK ) write(*,*) myError//'fSQL_open: ', fSQL_errmsg( stat ),' filename: '//trim(fileName)
 
-    call tmg_start(181, myName//': Create HEADER and DATA')
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                    &codtyp integer, date integer, time integer, elev real); &
@@ -1270,9 +1371,8 @@ contains
                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
-    call tmg_stop(181)
 
-    queryData = 'insert into data (id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo,zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
@@ -1285,10 +1385,6 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
 
     numberInsertions = 0
-    idData           = 0
-    idObs            = 0
-
-    call tmg_start(182, myName//': Insertion')
 
     call obs_set_current_header_list( obsdat, obsFamily )
     HEADER: do
@@ -1297,8 +1393,8 @@ contains
       if ( headerIndex < 0 ) exit HEADER
         
       codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
-      if ( present( codeTypeInput ) ) then
-        if ( any( codeTypeInput /= codeType ) ) cycle HEADER
+      if ( present( codeTypeList_opt ) ) then
+        if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADER
       end if
 
       idObs = idObs + 1
@@ -1366,50 +1462,51 @@ contains
         end select
 
         ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idObs         )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = obsVarno      )
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, REAL_VAR = PPP           )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idData        )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = idObs         )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 3, INT_VAR  = obsVarno      )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 4, REAL_VAR = PPP           )
         if ( vertCoordType == MPC_missingValue_INT ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 4                         ) 
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 5                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 4, INT_VAR  = vertCoordType ) 
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 5, INT_VAR  = vertCoordType ) 
         end if
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 5, REAL_VAR = obsValue      ) 
-        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, INT_VAR  = obsFlag       )
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 6, REAL_VAR = obsValue      ) 
+        call fSQL_bind_param( stmtData, PARAM_INDEX = 7, INT_VAR  = obsFlag       )
         if ( OMA == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 7                         ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 7, REAL_VAR = OMA         )
-        end if
-        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMP         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMA         )
         end if
-        if ( FGE == obs_missingValue_R ) then
+        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = FGE         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OMP         )
+        end if
+        if ( FGE == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = FGE         )
         end if
         if ( OER == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10                        ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OER        )
-        end if 
-        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 11                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = ensInnovStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = OER        )
         end if 
-        if ( ensObsErrStdDev == obs_missingValue_R ) then
+        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensObsErrStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensInnovStdDev )
         end if 
-        if ( zhad == obs_missingValue_R ) then
+        if ( ensObsErrStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = zhad )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = ensObsErrStdDev )
+        end if 
+        if ( zhad == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, REAL_VAR = zhad )
         end if 
 
         call fSQL_exec_stmt ( stmtData )
@@ -1424,8 +1521,55 @@ contains
     call fSQL_finalize( stmtData )
     call fSQL_commit(db)
     call fSQL_close( db, stat )
-    call tmg_stop(182)
 
   end subroutine sqlr_writeSqlDiagFile
+
+
+  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+    !
+    ! :Purpose: Compute initial value for idObs and idData that will ensure
+    !           unique values over all mpi tasks
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs)  :: obsdat
+    character(len=*)  :: obsFamily    
+    integer           :: idObs, idData
+    integer, optional :: codeTypeList_opt(:)
+
+    ! locals:
+    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer, allocatable   :: allNumHeader(:), allNumBody(:)
+
+    numHeader = 0
+    numBody = 0
+    call obs_set_current_header_list( obsdat, obsFamily )
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex( obsdat )
+      if ( headerIndex < 0 ) exit HEADERCOUNT
+      if ( present( codeTypeList_opt ) ) then
+        codeType  = obs_headElem_i( obsdat, OBS_ITY, headerIndex )
+        if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADERCOUNT
+      end if
+      numHeader = numHeader + 1
+      numBody = numBody + obs_headElem_i( obsdat, OBS_NLV, headerIndex )
+    end do HEADERCOUNT
+    allocate(allNumHeader(mpi_nprocs))
+    allocate(allNumBody(mpi_nprocs))
+    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
+                            allNumHeader,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
+                            allNumBody,1,'mpi_integer','GRID',ierr)
+    if (mpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mpi_myid))
+      idData = sum(allNumBody(1:mpi_myid))
+    else
+      idObs = 0
+      idData = 0
+    end if
+    deallocate(allNumHeader)
+    deallocate(allNumBody)
+  end subroutine getInitialIdObsData
 
 end module sqliteRead_mod
