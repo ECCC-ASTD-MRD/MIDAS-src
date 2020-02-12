@@ -4149,7 +4149,7 @@ CONTAINS
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = -9999.0
-    integer, external           :: mrfmxl
+    integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
     logical                     :: debug = .false.
     character(len=2)            :: familyTypesToDo(4) = (/'AI','SW','TO','SC'/)
@@ -4197,7 +4197,7 @@ CONTAINS
     end if
 
     call burp_get_property(inputFile, nrpts=numReports, io_unit= iun_burpin)
-    nsize = 3 * mrfmxl(iun_burpin)
+    nsize = mrfbfl(iun_burpin)
     if (debug) write(*,*) 'nsize= ', nsize
 
     ! determine if file contains grouped data
