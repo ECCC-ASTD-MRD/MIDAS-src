@@ -745,15 +745,23 @@ contains
               MREJCOD(INO,KCANO(JI,JJ),KNOSAT) = &
                        MREJCOD(INO,KCANO(JI,JJ),KNOSAT)+ 1
 
-              ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
-              ! This is done only in all-sky mode for channels in ICLWREJ list, 
-              ! where the CLW threshold is checked.
-              if ( mwbg_allowStateDepSigmaObs ) KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**23)
             ENDIF
           ENDDO
           IF ( mwbg_debug ) THEN
             WRITE(*,*)STNID(2:9),'Grody cloud liquid water check', &
                       ' REJECT. CLW= ',CLW(JJ), ' SEUIL= ',mwbg_clwQcThreshold
+          ENDIF
+        ENDIF
+
+        ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
+        IF ( CLW(JJ) > cloudyClwThreshold ) THEN
+          DO JI = 1,KNO
+            INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
+            IF ( INDXCAN /= 0 ) KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**23)
+          ENDDO
+          IF ( mwbg_debug ) THEN
+            WRITE(*,*) STNID(2:9),' Grody cloud liquid water check', &
+                      ' cloud-affected obs. CLW= ',CLW(JJ), ', threshold= ',cloudyClwThreshold 
           ENDIF
         ENDIF
       ENDIF
