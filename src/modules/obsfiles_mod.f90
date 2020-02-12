@@ -170,13 +170,14 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt )
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, burpClean_opt )
   implicit none
 
   ! arguments
   type(struct_obs)  :: obsSpaceData
   real(8), optional :: HXens_mpiglobal_opt(:,:)
   logical, optional :: asciDumpObs_opt
+  logical, optional :: burpClean_opt
 
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
@@ -214,6 +215,9 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( obsFileType == 'BURP'   ) then
         call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( present(burpClean_opt) ) then
+          if ( burpClean_opt ) call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        end if
       end if
       if ( obsFileType == 'SQLITE' ) call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
 
