@@ -723,8 +723,8 @@ contains
 
         k_loop: do kIndex = mykBeg, statevector%mykEnd
           do procIndex = 1, mpi_nprocs
-            interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(:,procIndex)
-            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(:,procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
           end do
         end do k_loop
 
