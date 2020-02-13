@@ -114,7 +114,7 @@ contains
 
     if ( tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle"  ) then
       write(*,*) "Warning: tim_fullyUseExtremeTimeBins==.true. and tim_referencetime=='middle' is a non-standard combination"
-      write(*,*) "Is is really what you want ?"
+      write(*,*) "Is it really what you want ?"
     end if
 
     if (dstepobs > dwindowsize) then
