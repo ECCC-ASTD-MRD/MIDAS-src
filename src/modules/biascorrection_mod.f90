@@ -2213,7 +2213,7 @@ CONTAINS
       call vco_SetupFromFile(vco_mask, './raob_masque.std')   ! IN
 
       call gsv_allocate(statevector_mask, 1, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
-           dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="VarsLevs")
+           dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
      
       call gsv_readFromFile(statevector_mask,'./raob_masque.std' , 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
