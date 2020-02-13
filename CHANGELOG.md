@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The variable names O3L, CH4L and N2OL included in GEM as of v5.1.a9 are now recognized (#321 and !300)
  * Add check on mpi imbalance of `gridStateVector` object, abort if too imbalanced or allow imbalance with
    `abortOnMpiImbalance` namelist variable in `namstate` (#312 and !298)
+ * Added option fullyUseExtremeTimeBins (default to .false.) to namelist section NAMTIME (#323 and !304)
 
 ### Changed
 
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix recently introduced bug in adjoint of HU vertical interp for radiance computation (#314 and !299)
+ * Bug fix for the genCoeff program: radiosonde weighting was not working properly (#323 and !304)
 
 ### Removed
 
