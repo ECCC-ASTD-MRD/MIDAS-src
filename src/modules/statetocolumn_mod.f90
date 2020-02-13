@@ -389,8 +389,8 @@ contains
     if ( interpInfo%hco%rotated ) then
       do stepIndex = 1,numStep
         do procIndex = 1, mpi_nprocs
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,numStep,mykBeg:stateVector%mykEnd))
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,numStep,mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
           interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
           interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(:,:,:) = 0.0d0
         end do
