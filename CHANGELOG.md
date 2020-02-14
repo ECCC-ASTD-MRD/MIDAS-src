@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added option fullyUseExtremeTimeBins (default to .false.) to namelist section NAMTIME (#323 and !304)
+ * Add vertically varying horizontal localization length scale for LETKF (#322 and !305)
+ * Add option `fullyUseExtremeTimeBins` (default is `.false.`) to namelist section NAMTIME (#323 and !304)
  * Add ability to "clean" a burp file by removing observations flagged for thinning (#319 and !302)
  * The variable names O3L, CH4L and N2OL included in GEM as of v5.1.a9 are now recognized (#321 and !300)
  * Add check on mpi imbalance of `gridStateVector` object, abort if too imbalanced or allow imbalance with
