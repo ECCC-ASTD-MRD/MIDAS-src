@@ -4474,7 +4474,7 @@ CONTAINS
     call burp_get_property(burpFile, nrpts=numReports)
     if (numReports <= 1) then
       write(*,*) 'getBurpReportAddresses: BURP file ', trim(fileName)
-      call utl_abort('getBurpReportAddresses: empty file')
+      write(*,*) 'getBurpReportAddresses: WARNING: no observations in file'
     end if
     write(*,*)
     write(*,*) 'getBurpReportAddresses: Total number of reports = ', numReports
