@@ -382,7 +382,7 @@ contains
     ! read in the parameters to define the user-defined symmetric TOVS errors
     if ( allowStateDepSigmaObs ) then
       ilutov2 = 10
-      IER =  FNOM(ILUTOV2,'symmetricObsErr','SEQ+FMT',0)
+      IER =  FNOM(ILUTOV2,'stats_tovs_symmetricObsErr','SEQ+FMT',0)
       if ( IER < 0 ) call utl_abort ('oer_readObsErrorsTOVS: Problem opening symmetricObsErr file.')
 
       read(ILUTOV2,*)
