@@ -1554,18 +1554,18 @@ contains
     !        |     |operator               |for CH. OmP saved in OBS_OMP of    |
     !        |     |(non-linear and linear)|obsSpaceData                       |
     !        +-----+-----------------------+-----------------------------------+
-    !        |  1  |for determination of   |background error standard          |
-    !        |     |sqrt(diag(H*B*H^T))    |deviations in observation space,   |
-    !        |     |                       |sqrt(diag(H*B_static*H^T)). Saved  |
-    !        |     |                       |in OBS_HPHT of obsSpaceData        |
-    !        +-----+-----------------------+-----------------------------------+
+    !        |  1  |for identification or  |background error standard dev.     |
+    !        |     |determination of       |in observation space saved in      |
+    !        |     |of sqrt(diag(H*B*H^T). |in OBS_HPHT of obsSpaceData        |
+    !        |     |Depends on the presence|if OmP error std dev not initially
+    !        |     |of OmP error std dev   |available in OBS_OMPE              |
+   !        +-----+-----------------------+-----------------------------------+
     !        |  2  |for tangent linear     |Hdx saved in OBS_WORK of           |
     !        |     |operator               |obsSpaceData                       |
     !        +-----+-----------------------+-----------------------------------+
     !        |  3  |for adjoint of tangent |H^T * R^-1 (OmP-Hdx) in            |
     !        |     |linear operator        |columnInc_opt                      |
-    !        +-----+-----------------------+-----------------------------------+
-    !
+    !        +-----+-----------------------+-----------------------------------+    
     !
     !   :columnInc_opt:  Optional argument for input/output of column of
     !                    increment (column). For kmode=2, used as input for
@@ -1744,6 +1744,38 @@ contains
 
       else  
 
+         if ( kmode == 1 ) then
+           ! Check if "OmP error std dev" is already available
+            call obs_set_current_body_list(obsSpaceData,headerIndex)
+            iobslev=0
+            do bodyIndex=bodyIndex_start,bodyIndex_end
+              if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) cycle
+              iobslev = iobslev + 1 
+              if ( process_obs(iobslev) ) then
+                if (obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) > 0.0d0 ) then
+                  ! "OmP error std dev" is already available for this measurement. Go to the next measurement.
+                  
+                  ! write(*,*) 'OMPE output ',stnid,obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex)
+                  ! TEMPORARY: First, estimate OBS_HPHT for storage in output files (in the event it is needed externally for
+                  ! other purposes (e.g. total column ozone bias correction and corresponding re-doing for marker settings)               
+                  if ( obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) > 1.1d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex) ) then
+                    zomp = sqrt(obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex)**2-obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2)
+                    call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zomp)
+                  else
+                    call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.5d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
+                  end if
+     
+                  deallocate(process_obs,success,ixtr,iass,obs_col,flag)
+                  
+                  cycle HEADER
+                else
+                  ! Proceed with the calc of sqrt(diag(HBHT))
+                  exit
+                end if
+              end if
+            end do
+         end if
+
          ! Initialize obsoper variables and allocate arrays
          call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,nobslev,kmode,varno,stnid)
  
@@ -1880,9 +1912,14 @@ contains
             
                ! Background error standard deviations in
                ! observation space, sqrt(diag(H*B_static*H^T)), 
-               ! saved in OBS_HPHT of obsSpaceData
+               ! saved in OBS_HPHT of obsSpaceData.
+               ! Resulting OmP error std dev estimate saved in OBS_OMPE
 
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,obs_col(iobslev))
+               
+               zomp = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+               zomp = sqrt(obs_col(iobslev)*obs_col(iobslev) + zomp*zomp)
+               call obs_bodySet_r(obsSpaceData,OBS_OMPE,bodyIndex,zomp)
 
             case(2)
             

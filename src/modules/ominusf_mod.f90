@@ -38,7 +38,6 @@ module oMinusF_mod
   use tovs_nl_mod
   use obsErrors_mod
   use obsOperators_mod
-  use computeHBHT_mod
   implicit none
   private
 

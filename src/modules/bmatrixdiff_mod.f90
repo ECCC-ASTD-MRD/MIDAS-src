@@ -195,7 +195,7 @@ CONTAINS
     end if
 
     if ( trim(bdiff_mode) == 'BackgroundCheck' ) then
-      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                        ! that Diff is used
       call tmg_stop(17)
       return
