@@ -12,7 +12,7 @@
    obsClean                = .true.
    thinning                = .true.
    writeObsFiles           = .true.
-   writeAsciCmaFiles       = .false.
+   writeAsciiCmaFiles      = .false.
 /
  &NAMDIMO
    NMXOBS  = 100000,

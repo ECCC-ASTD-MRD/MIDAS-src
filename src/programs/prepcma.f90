@@ -41,10 +41,10 @@ program midas_prepcma
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
                         suprep, rejectOutsideTimeWindow, thinning, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
-                        obsClean, writeObsFiles, writeAsciCmaFiles
+                        obsClean, writeObsFiles, writeAsciiCmaFiles
   character(len=256) :: cmahdr, cmabdy, cmadim, obsout, brpform
   logical :: suprep, rejectOutsideTimeWindow, thinning, applySatUtil
-  logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles, writeAsciCmaFiles
+  logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles, writeAsciiCmaFiles
 
   integer :: fnom, fclos, get_max_rss, nulnam, ierr, dateStamp
   type(struct_obs), target  :: obsSpaceData
@@ -95,7 +95,7 @@ program midas_prepcma
   rejectHighLatIR         = .true.
   obsClean                = .true.
   writeObsFiles           = .false.
-  writeAsciCmaFiles       = .true.
+  writeAsciiCmaFiles       = .true.
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -184,7 +184,7 @@ program midas_prepcma
     call obsf_writeFiles( obsSpaceData, burpClean_opt=obsClean )
   end if
 
-  if (writeAsciCmaFiles) then
+  if (writeAsciiCmaFiles) then
 
     !- Remove all observations from obsSpaceData that will not be assimilated
     !- But, unlike the EnKF program, do not check value of OBS_ZHA
