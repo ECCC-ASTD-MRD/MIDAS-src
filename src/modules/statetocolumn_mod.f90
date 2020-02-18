@@ -61,6 +61,9 @@ module stateToColumn_mod
     real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
     ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
     integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
+    !
+    integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
+    integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
   end type struct_stepProcData
 
   type struct_interpInfo
@@ -75,9 +78,7 @@ module stateToColumn_mod
     ! structure containing the information about latitude
     type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
 
-    ! interpolation weights and lat/lon indices are accessed via the 'depotIndexBeg/End'
-    integer, pointer          :: depotIndexBeg(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
-    integer, pointer          :: depotIndexEnd(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
+    ! interpolation weights and lat/lon indices are accessed via the 'stepProcData%depotIndexBeg/End'
     real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
@@ -370,13 +371,16 @@ contains
 
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(allNumHeaderUsed(stepIndex,procIndex)))
         interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(:) = 0
+
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(:,:,:) = 0
+        interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(:,:,:) = -1
       end do
     end do
 
     ! allocate arrays that will be returned
     allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
-    allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-    allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     nullify(allLatOneLev)
     nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
@@ -396,9 +400,6 @@ contains
         end do
       end do
     end if
-
-    interpInfo%depotIndexBeg(:,:,:,:,:) = 0
-    interpInfo%depotIndexEnd(:,:,:,:,:) = -1
 
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSlantPath .and. &
@@ -826,18 +827,18 @@ contains
 
             if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
               ! indices for only 1 subgrid, other will have zeros
-              interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(subGridIndex)
-              interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex) = numGridptTotal
             else
               ! locations on both subGrids will be averaged
-              interpInfo%depotIndexBeg(1, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(1, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(1)
-              interpInfo%depotIndexEnd(1, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1, headerIndex, kIndex) = numGridptTotal
 
-              interpInfo%depotIndexBeg(2, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(2, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(2)
-              interpInfo%depotIndexEnd(2, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2, headerIndex, kIndex) = numGridptTotal
             end if
 
           end do ! headerIndex
@@ -1618,6 +1619,8 @@ contains
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
           if ( interpInfo_nl%hco%rotated ) then
             deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
             deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
@@ -1625,8 +1628,6 @@ contains
         end do
       end do
       deallocate(interpInfo_nl%stepProcData)
-      deallocate(interpInfo_nl%depotIndexBeg)
-      deallocate(interpInfo_nl%depotIndexEnd)
       deallocate(interpInfo_nl%allNumHeaderUsed)
       call oti_deallocate(interpInfo_nl%oti)
 
@@ -1683,8 +1684,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex), &
-             interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -1732,8 +1733,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex), &
-             interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -1790,8 +1791,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -1875,8 +1876,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -1965,8 +1966,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -2589,7 +2590,7 @@ contains
 
       if ( allocated(interpInfo%interpWeightDepot) ) then
 
-        depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
         do ipoint=1,gridptCount
 
@@ -2820,7 +2821,7 @@ contains
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
           do ipoint=1,gridptCount
 
@@ -2965,7 +2966,7 @@ contains
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
           do ipoint=1,gridptCount
 
@@ -3077,7 +3078,7 @@ contains
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
       
-      depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
       interpInfo%interpWeightDepot(depotIndex) = 1.d0
       interpInfo%latIndexDepot    (depotIndex) = latIndex
