@@ -41,10 +41,10 @@ program midas_prepcma
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
                         suprep, rejectOutsideTimeWindow, thinning, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
-                        obsClean, writeObsFiles
+                        obsClean, writeObsFiles, writeAsciiCmaFiles
   character(len=256) :: cmahdr, cmabdy, cmadim, obsout, brpform
   logical :: suprep, rejectOutsideTimeWindow, thinning, applySatUtil
-  logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles
+  logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles, writeAsciiCmaFiles
 
   integer :: fnom, fclos, get_max_rss, nulnam, ierr, dateStamp
   type(struct_obs), target  :: obsSpaceData
@@ -80,13 +80,7 @@ program midas_prepcma
   call tmg_init(mpi_myid, 'TMG_PREPCMA' )
   call tmg_start(1,'MAIN')
 
-  if ( mpi_myid == 0 ) then
-    call utl_writeStatus('PREPCMA_BEG')
-  end if
-
-  if (mpi_nprocs > 1) then
-    call utl_abort('midas-prepcma: program does not support multiple mpi tasks')
-  end if
+  if ( mpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
 
   !- Specify default values for namelist variables
   cmahdr        = 'NOT_DEFINED'
@@ -101,6 +95,7 @@ program midas_prepcma
   rejectHighLatIR         = .true.
   obsClean                = .true.
   writeObsFiles           = .false.
+  writeAsciiCmaFiles       = .true.
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -189,42 +184,48 @@ program midas_prepcma
     call obsf_writeFiles( obsSpaceData, burpClean_opt=obsClean )
   end if
 
-  !- Open file for ascii output
-  nobsout = 0
-  ierr = fnom(nobsout, obsout, 'FMT+SEQ+R/W', 0)
+  if (writeAsciiCmaFiles) then
 
-  !- Remove all observations from obsSpaceData that will not be assimilated
-  !- But, unlike the EnKF program, do not check value of OBS_ZHA
-  if (obsClean) then
-    call obs_clean(obsSpaceData, hx_dummy, 0, nobsout, qcvar, checkZha_opt=.false.)
+    !- Remove all observations from obsSpaceData that will not be assimilated
+    !- But, unlike the EnKF program, do not check value of OBS_ZHA
+    if (obsClean) then
+      call obs_clean(obsSpaceData, hx_dummy, 0, -1, qcvar, checkZha_opt=.false.)
+    end if
+
+    if (mpi_nprocs > 1) then
+      call obs_expandToMpiGlobal(obsSpaceData)
+    end if
+
+    if (mpi_myid == 0) then
+      !- Open file for ascii output
+      nobsout = 0
+      ierr = fnom(nobsout, obsout, 'FMT+SEQ+R/W', 0)
+      call obs_print(obsSpaceData,nobsout)
+      close(nobsout)
+
+      !- Write the results in CMA format
+      ncmahdr = 0
+      ierr = fnom(ncmahdr, cmahdr, 'FTN+SEQ+UNF+R/W', 0)
+      ncmabdy = 0
+      ierr = fnom(ncmabdy, cmabdy, 'FTN+SEQ+UNF+R/W', 0)
+      ncmadim = 0
+      ierr = fnom(ncmadim, cmadim, 'FTN+SEQ+R/W', 0)
+      ncmahx  = -1
+      call obs_write(obsSpaceData, hx_dummy, 0, ncmahdr, ncmabdy, ncmahx, ncmadim)
+      close(ncmahdr)
+      close(ncmabdy)
+      close(ncmadim)
+
+      !! This used to contain a .true. or .false. value indicating if observations passed the QCVar
+      !! Since, this is not the case, we can write .false.
+      nbrpform = 0
+      ierr = fnom(nbrpform, brpform, 'FTN+SEQ+R/W', 0)
+      write(nbrpform,*) .false.
+      close(nbrpform)
+
+    end if
+
   end if
-
-  call obs_print(obsSpaceData,nobsout)
-  close(nobsout)
-
-  ncmahdr = 0
-  ierr = fnom(ncmahdr, cmahdr, 'FTN+SEQ+UNF+R/W', 0)
-
-  ncmabdy = 0
-  ierr = fnom(ncmabdy, cmabdy, 'FTN+SEQ+UNF+R/W', 0)
-
-  ncmadim = 0
-  ierr = fnom(ncmadim, cmadim, 'FTN+SEQ+R/W', 0)
-
-  !- Write the results in CMA format
-  ncmahx  = -1
-  call obs_write(obsSpaceData, hx_dummy, 0, ncmahdr, ncmabdy, ncmahx, ncmadim)
-
-  close(ncmahdr)
-  close(ncmabdy)
-  close(ncmadim)
-
-  nbrpform = 0
-  ierr = fnom(nbrpform, brpform, 'FTN+SEQ+R/W', 0)
-  !! This used to contain a .true. or .false. value indicating if observations passed the QCVar
-  !! Since, this is not the case, we can write .false.
-  write(nbrpform,*) .false.
-  close(nbrpform)
 
   !
   !- 3.  Ending
@@ -258,8 +259,9 @@ contains
 
     ! locals:
     type(struct_reg) :: lsc
-    integer :: idist,n_count_thin, nobs_count, nobs_count_thin
-    integer :: nrep_count, nrep_count_thin, iai, iseed(4)
+    integer :: idist, n_count_thin, iai, iseed(4)
+    integer :: nobs_count, nobs_count_mpiGlobal, nobs_count_thin, nobs_count_thin_mpiGlobal
+    integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: iblock, codeType, ilat, incr, ipres, nblocksum, npres, nsize, num_stn
     logical :: count_obs, allRejected
@@ -267,7 +269,7 @@ contains
     real(8) :: pressure, rannum
     real(8), allocatable :: latcenter(:), latmin(:), latmax(:), ranvals(:)
     integer, allocatable :: nblockoffset(:), nlonblock(:)
-    integer, allocatable :: ai_indices(:,:), nstation(:,:)
+    integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
 
     ! box size that is used for observation thinning 
@@ -292,7 +294,7 @@ contains
     end if
          
     call reg_init_struct(lsc, r0_count_km, r1_dum, rz_dum)
-    write(*,*) 'number of latitude bands: ', lsc%nlatband
+    if (mpi_myid == 0) write(*,*) 'number of latitude bands: ', lsc%nlatband
     nsize = lsc%nlatband
     allocate(latmin(nsize))
     allocate(latmax(nsize))
@@ -301,18 +303,18 @@ contains
     allocate(nblockoffset(nsize))
 
     call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax)
-    write(*,*) 'number of latitude bands: ',lsc%nlatband
+    if (mpi_myid == 0) write(*,*) 'number of latitude bands: ',lsc%nlatband
     do ilat = 1, lsc%nlatband
-      write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
+      if (mpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
     end do
     call reg_getblock(lsc%nlatband, lsc%r0_rad, latmin, latmax, nlonblock)
     nblocksum = 0
     do ilat = 1, lsc%nlatband
       nblockoffset(ilat) = nblocksum
       nblocksum = nblocksum + nlonblock(ilat)
-      write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
+      if (mpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
     end do 
-    write(*,*) 'total number of blocks: ', nblocksum
+    if (mpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
 
     nrep_count = 0
     nobs_count = 0
@@ -378,30 +380,42 @@ contains
       end if
     end do header_loop
 
-    write(*,*) 'total number of ', cfam, ' reports: ', nrep_count
+    ! do mpi communication of the accumulators
+    nsize = nblocksum * npres
+    allocate(nstationMpiGlobal(nblocksum, npres))
+    call rpn_comm_allreduce(nstation, nstationMpiGlobal, nsize,  &
+                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call rpn_comm_allreduce(nrep_count, nrep_count_mpiGlobal, 1,  &
+                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call rpn_comm_allreduce(nobs_count, nobs_count_mpiGlobal, 1,  &
+                            'mpi_integer','mpi_sum', 'GRID', ierr)
+
+    write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
+         nrep_count, nrep_count_mpiGlobal
     allocate(ranvals(nrep_count))
-    write(*,*) 'total number of ', cfam, ' observations: ', nobs_count
+    write(*,*) 'total number of ', cfam, ' observations (local and mpiglobal): ',  &
+         nobs_count, nobs_count_mpiGlobal
 
     n_count_thin = 0
     do iblock = 1, nblocksum
       do ipres = 1, npres
-        if (nstation(iblock,ipres) .ge. 1) then
-          write(*,*) 'block ipres and count: ',iblock,ipres, &
-                     nstation(iblock,ipres)
-          if (nstation(iblock,ipres) > n_target) then
-            keep_ai(iblock,ipres) = dble(n_target) / dble(nstation(iblock,ipres))
+        if (nstationMpiGlobal(iblock,ipres) .ge. 1) then
+          if (mpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
+                     nstationMpiGlobal(iblock,ipres)
+          if (nstationMpiGlobal(iblock,ipres) > n_target) then
+            keep_ai(iblock,ipres) = dble(n_target) / dble(nstationMpiGlobal(iblock,ipres))
             n_count_thin = n_count_thin + n_target
           else
-            n_count_thin = n_count_thin + nstation(iblock,ipres)
+            n_count_thin = n_count_thin + nstationMpiGlobal(iblock,ipres)
           end if
         end if
       end do
     end do
 
     if (count_obs) then
-      write(*,*) 'Estimated remaining number of ', cfam, ' observations: ', n_count_thin
+      write(*,*) 'Estimated remaining number of ', cfam, ' observations (mpiGlobal): ', n_count_thin
     else 
-      write(*,*) 'Estimated remaining number of ', cfam, ' reports: ', n_count_thin
+      write(*,*) 'Estimated remaining number of ', cfam, ' reports (mpiGlobal): ', n_count_thin
     end if
 
     nrep_count_thin = 0
@@ -433,8 +447,17 @@ contains
         end do       
       end if
     end do
-    write(*,*) 'True remaining number of ', cfam, ' reports: ', nrep_count_thin
-    write(*,*) 'True remaining number of ', cfam, ' observations: ', nobs_count_thin
+
+    ! mpi communication of accumulators
+    call rpn_comm_allreduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 1,  &
+                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call rpn_comm_allreduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 1,  &
+                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    
+    write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
+         nrep_count_thin, nrep_count_thin_mpiGlobal
+    write(*,*) 'True remaining number of ', cfam, ' observations (local, mpiGlobal): ',  &
+         nobs_count_thin, nobs_count_thin_mpiGlobal
 
     deallocate(ranvals)
     deallocate(latmin)
@@ -443,6 +466,7 @@ contains
     deallocate(nlonblock)
     deallocate(nblockoffset)
     deallocate(nstation)
+    deallocate(nstationMpiGlobal)
     deallocate(keep_ai)
     deallocate(ai_indices)
 
