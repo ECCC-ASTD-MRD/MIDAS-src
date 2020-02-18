@@ -59,6 +59,8 @@ module stateToColumn_mod
     ! lat-lon location of observations to be interpolated (only needed to rotate winds)
     real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
     real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
+    ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
+    integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
   end type struct_stepProcData
 
   type struct_interpInfo
@@ -69,9 +71,6 @@ module stateToColumn_mod
 
     ! number of obs headers on each proc having a non-zero interp weight for each stepIndex (headerUsed)
     integer, pointer          :: allNumHeaderUsed(:,:) => null()    ! (step, proc)
-
-    ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
-    integer, pointer          :: allHeaderIndex(:,:,:) => null() ! (headerUsed, step, proc)
 
     ! structure containing the information about latitude
     type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
@@ -253,7 +252,7 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: footprintRadius_r4 ! (metres)
-    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
+    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), allHeaderIndex(:,:,:), headerIndexVec(:,:)
     real(8), allocatable :: lat_send_r8(:,:), lat_recv_r8(:,:), lon_send_r8(:,:), lon_recv_r8(:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: gdllfxy
@@ -368,6 +367,9 @@ contains
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
         interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,:) = 0.0d0
+
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(allNumHeaderUsed(stepIndex,procIndex)))
+        interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(:) = 0
       end do
     end do
 
@@ -375,14 +377,12 @@ contains
     allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
     allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-    allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
     nullify(allLatOneLev)
     nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allLonOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(numGridpt(interpInfo%hco%numSubGrid))
-    interpInfo%allHeaderIndex(:,:,:) = 0
     allFootprintRadius_r4(:,:,:) = bilinearFootprint
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
@@ -757,9 +757,10 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: latlonChecks and lat/lon MPI comm finished.'
 
+    allocate(allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec,            numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+    call rpn_comm_allgather(headerIndexVec, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+                            allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
     numGridptTotal = 0
@@ -768,6 +769,8 @@ contains
       do stepIndex = 1, numStep
         do procIndex = 1, mpi_nprocs
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
+
+            interpInfo%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) = allHeaderIndex(headerIndex,stepIndex,procIndex)
 
             ! Compute the rotated lat/lon, needed for the winds
 
@@ -842,6 +845,8 @@ contains
       end do ! stepIndex
     end do ! procIndex
     call tmg_stop(173)
+
+    deallocate(allHeaderIndex)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -1035,7 +1040,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerUsedIndex, headerIndex, weight)
             do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_tlad%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
                                                         headerIndex,stepIndex,procIndex)
               cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
@@ -1217,7 +1222,7 @@ contains
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
             do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
 
-              headerIndex = interpInfo_tlad%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
                                                         headerIndex,stepIndex,procIndex)
 
@@ -1484,7 +1489,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
             do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,  &
                                                         headerIndex,stepIndex,procIndex)
               cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
@@ -1562,7 +1567,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
             do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               ! just copy, since surface height same for all time steps
               cols_send(headerIndex,procIndex) = cols_hint(headerUsedIndex,stepIndex,procIndex)
             end do
@@ -1612,6 +1617,7 @@ contains
         do procIndex = 1, mpi_nprocs
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
           deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
           if ( interpInfo_nl%hco%rotated ) then
             deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
             deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
@@ -1619,7 +1625,6 @@ contains
         end do
       end do
       deallocate(interpInfo_nl%stepProcData)
-      deallocate(interpInfo_nl%allHeaderIndex)
       deallocate(interpInfo_nl%depotIndexBeg)
       deallocate(interpInfo_nl%depotIndexEnd)
       deallocate(interpInfo_nl%allNumHeaderUsed)
@@ -2563,7 +2568,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
@@ -2797,7 +2802,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupFootprintInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
@@ -2979,7 +2984,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupLakeInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
@@ -3054,7 +3059,7 @@ contains
 
       if ( procIndex == mpi_myid + 1 ) then
         
-        localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+        localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
         write(*,*) 's2c_setupNearestNeighbor: Rejecting OBS outside the grid domain, index ', localHeaderIndex
         write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
