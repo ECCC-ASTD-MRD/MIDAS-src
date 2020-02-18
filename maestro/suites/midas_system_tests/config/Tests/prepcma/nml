@@ -12,10 +12,11 @@
    obsClean                = .true.
    thinning                = .true.
    writeObsFiles           = .true.
+   writeAsciCmaFiles       = .false.
 /
  &NAMDIMO
-   NMXOBS  = 30000,
-   NDATAMX = 600000,
+   NMXOBS  = 100000,
+   NDATAMX = 5000000,
 /
  &NAMTIME
    DSTEPOBS    = 6.0D0

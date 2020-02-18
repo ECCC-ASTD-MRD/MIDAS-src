@@ -2181,7 +2181,7 @@ contains
       integer :: active_index
       logical :: checkZha
 
-      write(nobsout,'(1x,A,I7)') 'stations prior to cleanup: ', obsdat%numHeader
+      if (nobsout > 0) write(nobsout,'(1x,A,I7)') 'stations prior to cleanup: ', obsdat%numHeader
       write(*,*) 'enter obs_clean'
 
       ! User can choose if check on negativity of OBS_ZHA is done (is done by default)
@@ -2264,11 +2264,13 @@ contains
       obsdat%numHeader=kobsout
       obsdat%numBody = iwrite
 
-      write(nobsout,'(1x,A)') 'after cleanup of the cma: '
-      write(nobsout,'(1x,A,I7)') &
-         'number of stations containing valid data   ',obsdat%numHeader
-      write(nobsout,'(1x,A,I7)') & 
-         'number of observations now in the cma file ',obsdat%numBody
+      if (nobsout > 0) then
+        write(nobsout,'(1x,A)') 'after cleanup of the cma: '
+        write(nobsout,'(1x,A,I7)') &
+             'number of stations containing valid data   ',obsdat%numHeader
+        write(nobsout,'(1x,A,I7)') & 
+             'number of observations now in the cma file ',obsdat%numBody
+      end if
 
    end subroutine obs_clean
 
