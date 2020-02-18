@@ -67,9 +67,9 @@ program midas_randomPert
   character(len=12) :: out_etiket
   
   logical  :: remove_mean, smoothVariances, mpiTopoIndependent
-  integer  :: nens, seed, date
+  integer  :: nens, seed, date, numBits
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
-                    smoothVariances, mpiTopoIndependent
+                    smoothVariances, mpiTopoIndependent, numBits
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -101,7 +101,8 @@ program midas_randomPert
   out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
   mpiTopoIndependent = .false.
-
+  numBits = 32
+  
   !- 1.2 Read the namelist
   nulnam=0
   ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -394,7 +395,7 @@ program midas_randomPert
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
     call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
-                         unitConversion_opt=.true.)  ! IN
+                         numBits_opt=numBits, unitConversion_opt=.true.)  ! IN
 
     call gsv_deallocate(statevector)
 

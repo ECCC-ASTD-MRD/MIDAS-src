@@ -10,7 +10,6 @@
 /
  &NAMENS
    NENS=16
-   ENSFILEBASENAME='national_'
    IP2=24
 /
  &NAMCALCSTATS_LAM

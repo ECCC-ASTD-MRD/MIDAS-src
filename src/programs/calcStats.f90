@@ -36,21 +36,18 @@ program midas_calcstats
   type(struct_hco), pointer :: hco_ens => null()
 
   character(len=256), parameter :: enspathname = 'ensemble'
-  character(len=4)   :: censnumber
-  character(len=256), allocatable :: cflensin(:)
 
-  integer           :: ens, fstopc
+  integer           :: fstopc
   integer           :: nulnam, ierr, fnom, fclos
 
   integer           :: nens   ! Ensemble size
   integer           :: ip2    ! Ensemble lead time (hour) selected within the file
-  character(len=256):: ensfilebasename
   character(len=256) :: ensFileName
   character(len=60) :: mode
   character(len=4), pointer :: anlVar(:)
 
   NAMELIST /NAMCONF/mode
-  NAMELIST /NAMENS/nens,ensfilebasename,ip2
+  NAMELIST /NAMENS/nens,ip2
 
   !
   !- 1.  Initilization
@@ -76,7 +73,6 @@ program midas_calcstats
 
   !- 1.2 Read NAMENS namelist
   nens              = 96                ! default value
-  ensfilebasename   = '2011011918_006_' ! default value
   ip2               = -1                ! default value
 
   nulnam = 0
@@ -114,7 +110,7 @@ program midas_calcstats
 
   !- 2.1 Module initialization
   if (hco_ens % global) then
-     call csg_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+     call csg_setup( nens, hco_ens, vco_ens) ! IN
   else
      call csl_setup( nens, hco_ens, vco_ens, ip2) ! IN
   end if
@@ -164,7 +160,6 @@ program midas_calcstats
   !
   !- 3.  Ending...
   !
-  !deallocate(cflensin)
 
   write(*,*)
   write(*,*) '---------------------'

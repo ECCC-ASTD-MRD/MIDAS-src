@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Bug fix for the genCoeff program: radiosonde weighting was not working properly (#323 and !304)
+ * Fix global mode for `calcStats` program, which was not working, and make it mpi (#307 and !308)
+ * Bug fix for the `genCoeff` program: radiosonde weighting was not working properly (#323 and !304)
  * Fix recently introduced bug in adjoint of HU vertical interp for radiance computation (#314 and !299)
 
 ### Removed

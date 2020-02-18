@@ -5,7 +5,7 @@
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'
-   ANLVAR(4)   ='HU'
+   ANLVAR(4)   ='LQ'
    ANLVAR(5)   ='P0'
 /
  &NAMENS
