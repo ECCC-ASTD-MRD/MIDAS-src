@@ -32,8 +32,6 @@ program midas_ominusf
   logical :: addHBHT
   logical :: addSigmaO
   NAMELIST /NAMOMF/addHBHT, addSigmaO
-
-  character(len=2), dimension(13) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM', 'AL', 'TO' /)
   
   integer :: fnom, fclos, nulnam, ierr, headerIndex
   type(struct_columnData),target  :: trlColumnOnAnlLev
@@ -85,7 +83,7 @@ program midas_ominusf
 
   if ( addHBHT ) then
     ! 2.2 Compute the background errors in observation space
-    call ose_computeStddev(trlColumnOnAnlLev,trlColumnOnTrlLev,bgfam,obsSpaceData)
+    call ose_computeStddev(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
   end if
 
   ! 2.3 Write the results

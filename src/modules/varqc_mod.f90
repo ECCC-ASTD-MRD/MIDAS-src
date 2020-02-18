@@ -29,6 +29,8 @@ module varqc_mod
   use columnData_mod
   use rmatrix_mod ,only : rmat_lnondiagr
   use varNameList_mod
+  use obsFamilyList_mod
+  
   implicit none
   save
   private
@@ -125,7 +127,8 @@ module varqc_mod
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
               ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
               ityp == BUFR_NEZD .or. ityp == bufr_vis  .or.  &
-              ityp == bufr_logVis .or. ityp == bufr_gust) then
+              ityp == bufr_logVis .or. ityp == bufr_gust .or. &
+              ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated)
           else
              LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
@@ -281,7 +284,7 @@ module varqc_mod
                 !
                 call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zaice *  &
                     sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
-             else if (ityp == BUFR_radarPrecip ) then
+             else if (ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR RADAR PRECIPITATION
                 !
@@ -448,10 +451,8 @@ module varqc_mod
 
     type(struct_obs) :: lobsSpaceData
 
-    integer, parameter :: numFamily = 13
-    character(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH','TM','AL','GL'/)
     integer, parameter :: numitem = 16
-    integer :: icount( numitem, numFamily )
+    integer :: icount( numitem, ofl_numFamily )
 
     integer :: jfam, jitem, headerIndex
     integer :: bodyIndex, bodyIndex2, ISTART,ityp,ISTYP
@@ -476,7 +477,7 @@ module varqc_mod
            /'ZTD',   'CHM',     'SST',    'ICEC'/
 
 
-    do jfam = 1, numFamily
+    do jfam = 1, ofl_numFamily
       do jitem = 1, numitem
         icount( jitem, jfam ) = 0
       end do
@@ -485,17 +486,17 @@ module varqc_mod
     !
     !_____LOOP OVER ALL REPORTS, ONE FAMILY AT A TIME
     !
-    FAMILY: do jfam = 1, numFamily
+    FAMILY: do jfam = 1, ofl_numFamily
 
       write(*,*) ' '
-      if (listFamily(jfam) /= 'TO' ) then
+      if (ofl_familyList(jfam) /= 'TO' ) then
         write(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       else
         write(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       end if
 
       ! loop over all header indices of the family
-      call obs_set_current_header_list( lobsSpaceData, listFamily( jfam ) )
+      call obs_set_current_header_list( lobsSpaceData, ofl_familyList( jfam ) )
 
       HEADER: do
         headerIndex = obs_getHeaderIndex( lobsSpaceData )
@@ -517,7 +518,8 @@ module varqc_mod
                ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
                ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or.  &
                ityp == BUFR_NEZD .or. ityp == bufr_sst  .or. ityp == BUFR_ICEC .or.  &
-               ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust ) then
+               ityp == bufr_vis  .or. ityp == bufr_logVis  .or. ityp == bufr_gust .or.  &
+               ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) then
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and.  &
@@ -537,7 +539,7 @@ module varqc_mod
                !
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = ' M'
-               if (listFamily(JFAM)=='CH') then
+               if (ofl_familyList(JFAM)=='CH') then
                   ZLEV = ZLEV*0.01
                   CLUNITS = 'HM'
                end if
@@ -689,7 +691,7 @@ module varqc_mod
                ILEV = NINT(ZLEV)
                if (ZPOST > ZCUT) then
                  LLELREJ = .TRUE.
-                 if (listFamily(JFAM)=='CH') then
+                 if (ofl_familyList(JFAM)=='CH') then
                     ICOUNT(14,JFAM)=ICOUNT(14,JFAM)+1
                     CLDESC=CLITM(14)
                     if (obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex).ge.0) then
@@ -816,11 +818,11 @@ module varqc_mod
     write(*,640)
  640  FORMAT(//)
     write(*,*) ' REJECTED DATA ACCORDING TO FAMILY OF REPORT.'
-    write(*,670)(listFamily(JFAM),JFAM=1,numFamily)
+    write(*,670)(ofl_familyList(JFAM),JFAM=1,ofl_numFamily)
  670  FORMAT(5X,11(7X,A2))
     do JITEM=1,NUMITEM
       if ( .NOT. (JITEM == 2 .or. JITEM == 11)) then
-        write(*,680)CLITM(JITEM),(ICOUNT(JITEM,JFAM),JFAM=1,numFamily)
+        write(*,680)CLITM(JITEM),(ICOUNT(JITEM,JFAM),JFAM=1,ofl_numFamily)
  680      FORMAT(1X,A4,11(4X,I5))
       end if
     end do

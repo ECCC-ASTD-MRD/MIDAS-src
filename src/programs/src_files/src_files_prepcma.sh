@@ -10,5 +10,5 @@ SRC_FILES="$SRC_FILES ensemblestatevector_mod.f90 globalspectraltransform_mod.f9
 SRC_FILES="$SRC_FILES localizationspectral_mod.f90 obsUtil_mod.f90 randomnumber_mod.f90 tt2phi_mod.f90"
 SRC_FILES="$SRC_FILES advection_mod.f90 burpread_mod.f90 diffusion_mod.f90 gridBinning_mod.f90 gridVariableTransforms_mod.f90 localization_mod.f90 obssubspacedata_mod.f90 spectralfilter_mod.f90 sqlite_read_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 bmatrixdiff_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 burpfiles_mod.f90 cmafiles_mod.f90 controlvector_mod.f90 kdtree2_mod.f90 lambmatrixhi_mod.f90 sqlitefiles_mod.f90"
-SRC_FILES="$SRC_FILES bmatrix_mod.f90 ensembleobservations_mod.f90 obsfiles_mod.f90 rmatrix_mod.f90"
+SRC_FILES="$SRC_FILES bmatrix_mod.f90 ensembleobservations_mod.f90 obsFamilyList_mod.f90 obsfiles_mod.f90 rmatrix_mod.f90"
 SRC_FILES="$SRC_FILES enkf_mod.f90 obserrors_mod.f90 obstimeinterp_mod.f90 regions_mod.f90"

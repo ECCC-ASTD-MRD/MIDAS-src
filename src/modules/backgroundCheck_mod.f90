@@ -31,6 +31,8 @@ module backgroundCheck_mod
   use earthConstants_mod
   use verticalCoord_mod
   use obsSpaceErrorStdDev_mod
+  use obsFamilyList_mod
+  
   implicit none
   private
 
@@ -59,8 +61,6 @@ module backgroundCheck_mod
      integer            :: nulNam, ier, fnom, fclos
      character(len=256) :: namFile
      logical            :: NEW_BGCK_SW
-
-     character(len=2), dimension(12) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM', 'AL' /)
       
      call tmg_start(3,'BGCHECK_CONV')
 
@@ -85,15 +85,15 @@ module backgroundCheck_mod
      ! Otherwise calc HBHT contribution (sigma_B in observation space)  
      ! -------------------------------------------------------------------- 
 
-     call ose_computeStddev( columng, columnhr, bgfam, &   ! IN
-                             obsSpaceData )                ! INOUT    
+     call ose_computeStddev( columng, columnhr, &   ! IN
+                             obsSpaceData )         ! INOUT    
 
      ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
      ! ----------------------------------------------
 
-     do j = 1, size( bgfam )
+     do j = 1, ofl_numFamily
        ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-       if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL bgck_data( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
+       if ( obs_famExist( obsSpaceData,  ofl_familyList(j) )) CALL bgck_data( ZJO,  ofl_familyList(j), obsSpaceData, new_bgck_sw )
      end do
 
      if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )

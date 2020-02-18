@@ -43,6 +43,7 @@ module obsSpaceErrorStdDev_mod
   use bMatrixEnsemble_mod
   use varNameList_mod
   use obsOperatorsChem_mod
+  use obsFamilyList_mod
 
   implicit none
   private
@@ -99,7 +100,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_computeStddev
   !--------------------------------------------------------------------------
-  subroutine ose_computeStddev(columng,columnhr,bgfam,obsSpaceData)
+  subroutine ose_computeStddev(columng,columnhr,obsSpaceData)
     !
     !:Purpose: To set OmP-error std dev when possible. Otherwise 
     !          compute background-error stddev in observation space to 
@@ -111,7 +112,6 @@ module obsSpaceErrorStdDev_mod
     type(struct_columnData) :: columng       ! Columns of the background interpolated to analysis levels and to obs horizontal locations
     type(struct_columnData) :: columnhr      ! Columns of the background interpolated to obs horizontal locations
     type(struct_obs) :: obsSpaceData         ! Observation-related data
-    character(len=*), intent(in) :: bgfam(:) ! List of obs families
     
     ! Locals:
     real(8) :: HBHT_static, HBHT_ensemble, HBHT_hybrid
@@ -126,7 +126,6 @@ module obsSpaceErrorStdDev_mod
     integer :: fnom, fclos, ierr, nulnam
 
     character(len=12) :: hybrid_mode
-    character(len=2)  :: fam
 
     !namelist
     NAMELIST /NAMHBHT/hybrid_mode
@@ -139,7 +138,7 @@ module obsSpaceErrorStdDev_mod
     !      obsSpaceData - INOUT ( OmP error std dev outputted in OBS_OMPE or/and
     !                            sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
   
-    call ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, bgfam, &
+    call ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, &
                                    staticHBHT, staticOMPE, staticHBHT_ch, staticOMPE_ch )
 
     !- 1.2 HBHT from the Bens
@@ -183,7 +182,6 @@ module obsSpaceErrorStdDev_mod
       write(*,*) 'ose_computeStddev: Using hybrid approach (blend of B_static and B_ensemble) in mode = ', trim(hybrid_mode)
 
       do index_body = 1, obs_numBody(obsSpaceData)
-        fam = obs_getFamily(obsSpaceData,obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body))
         HBHT_static = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         if ( HBHT_static <= 0.0d0 ) then
@@ -210,7 +208,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! ose_setStaticErrorStddev
   !--------------------------------------------------------------------------
-  subroutine ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, bgfam, & 
+  subroutine ose_setStaticErrorStddev( columng, columnhr, obsSpaceData, & 
                                        statusHBHT, statusOMPE, statusHBHT_ch, statusOMPE_ch )
     !
     !:Purpose: To assign or compute the OmP error standard deviations in
@@ -224,27 +222,24 @@ module obsSpaceErrorStdDev_mod
   
     ! Arguments:
     type(struct_columnData) :: columng,columnhr
-    type(struct_obs)             :: obsSpaceData ! observation-space data, output saved in OBS_HPHT column
-    character(len=*), intent(in) :: bgfam(:)     ! List of obs families
+    type(struct_obs)             :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
     logical, intent(inout)       :: statusHBHT, statusOMPE, statusHBHT_ch, statusOMPE_ch
     
     ! Locals:
     integer :: famIndex,famNumber
     character(len=4), allocatable :: availableOMPE(:)
-    logical :: calcHBHT
     
-    famNumber=size(bgfam)
-    allocate(availableOMPE(famNumber)) 
+    allocate(availableOMPE(ofl_numFamily)) 
     availableOMPE(:) = '    '
            
     ! Assignment of OBS_OMPE in obsSpaceData according to obs family where possible and required
     
-    do famIndex=1,famNumber    
-      if ( .not. obs_famExist(obsSpaceData,bgfam(famIndex),localMPI_opt=.true.) ) cycle
+    do famIndex=1,ofl_numFamily  
+      if ( .not. obs_famExist(obsSpaceData,ofl_familyList(famIndex),localMPI_opt=.true.) ) cycle
       
-      if ( bgfam(famIndex) == 'CH' ) then
+      if ( ofl_familyList(famIndex) == 'CH' ) then
         write(*,*)
-        write(*,*) 'ose_setStaticErrorStddev: Setting of OmP error std dev begins for family ',bgfam(famIndex)
+        write(*,*) 'ose_setStaticErrorStddev: Setting of OmP error std dev begins for family ',ofl_familyList(famIndex)
         availableOMPE(famIndex) = ose_setOmPstddevCH(obsSpaceData)
       else
         ! Not available 
@@ -254,15 +249,15 @@ module obsSpaceErrorStdDev_mod
            trim(availableOMPE(famIndex))  == 'All' ) statusOMPE_ch = .true.
 
       if ( trim(availableOMPE(famIndex)) == '' ) then
-        write(*,*) 'ose_setStaticErrorStddev: No ',bgfam(famIndex),' obs. Setting of error std dev not required.'
+        write(*,*) 'ose_setStaticErrorStddev: No ',ofl_familyList(famIndex),' obs. Setting of error std dev not required.'
       else if ( trim(availableOMPE(famIndex)) == 'None' ) then
-        if ( bgfam(famIndex) == 'CH' ) then
-          write(*,*) 'ose_setStaticErrorStddev: Setting of ',bgfam(famIndex),' OmP error std dev to be estimated via HBHT calc for all obs'
+        if ( ofl_familyList(famIndex) == 'CH' ) then
+          write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev to be estimated via HBHT calc for all obs'
         end if        
       else if ( trim(availableOMPE(famIndex)) == 'Some' ) then
-        write(*,*) 'ose_setStaticErrorStddev: Setting of ',bgfam(famIndex),' OmP error std dev partially completed (some HBHT calc needed to complete)'       
+        write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev partially completed (some HBHT calc needed to complete)'       
       else
-        write(*,*) 'ose_setStaticErrorStddev: Setting of ',bgfam(famIndex),' OmP error std dev completed (no HBHT calc needed)'
+        write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev completed (no HBHT calc needed)'
       end if
       
     end do
@@ -272,39 +267,14 @@ module obsSpaceErrorStdDev_mod
     ! HBHT from the Bnmc matrix for weather 
     ! obsSpaceData - INOUT (HBnmcHT std. dev. output in OBS_HPHT)
      
-    calcHBHT = .false.
-    do famIndex=1,famNumber    
-      if ( .not. obs_famExist(obsSpaceData,bgfam(famIndex),localMPI_opt=.true.) ) cycle      
-      if ( bgfam(famIndex) /= 'CH' .and. bgfam(famIndex) /= 'TO' ) then
-      if ( trim(availableOMPE(famIndex)) == 'Some' .or. &
-           trim(availableOMPE(famIndex)) == 'None' ) then
-          calcHBHT=.true.
-          exit
-        end if
-      end if
-    end do
-    
-    if (calcHBHT) call ose_compute_hbht_static( columng, columnhr, obsSpaceData, statusHBHT )
-    
-    ! HBHT from the Bchm matrix for constituents
-    ! obsSpaceData - INOUT (HBnmcHT std. dev. output in OBS_HPHT)
-                   
-    if ( obs_famExist(obsSpaceData,'CH',localMPI_opt=.true.) ) then
-    
-      calcHBHT = .false.
-      do famIndex=1,famNumber    
-        if ( .not. obs_famExist(obsSpaceData,bgfam(famIndex),localMPI_opt=.true.) ) cycle
-      
-        if ( bgfam(famIndex) == 'CH' ) then
-          if ( trim(availableOMPE(famIndex)) == 'Some' .or. &
-               trim(availableOMPE(famIndex)) == 'None' ) calcHBHT = .true.
-          exit
-        end if
-      end do
-      
-      if (calcHBHT) call ose_compute_hbht_static_chem( columng, obsSpaceData, statusHBHT_ch )
-        
-    end if
+    if ( any(ofl_familyList /= 'CH' .and. ofl_familyList /= 'TO' .and. &
+       ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
+       call ose_compute_hbht_static( columng, columnhr, obsSpaceData, statusHBHT )
+
+    ! HBHT from the B matrix for constituents
+     
+    if ( any(ofl_familyList == 'CH' .and. ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
+       call ose_compute_hbht_static_chem( columng, obsSpaceData, statusHBHT_ch )
     
     deallocate(availableOMPE)
     
@@ -2368,16 +2338,20 @@ module obsSpaceErrorStdDev_mod
     
     ! Local:
     logical :: availableOmP
-    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
+    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp, ierr
     integer :: idate, itime, iass, ityp, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
-    real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP
+    real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP,medianOmP
     character(len=12) :: stnid
-    real(8), allocatable :: series(:,:,:), nSeries(:,:)
+    real(8), allocatable :: series(:,:,:),sumOmP2d(:,:),sumSqrOmP2d(:,:)
+    real(8), allocatable :: sumOmP2dt(:,:),sumSqrOmP2dt(:,:)
+    integer, allocatable :: nSeries(:,:),nSeriest(:,:)
     integer, parameter :: maxCount = 10000
-    integer, parameter :: minCount = 25
+    integer, parameter :: minCount = 5
     real(8), parameter :: stdScale = 2.0
     real(8), parameter :: minVal = 1.0d-20
-
+    real(4) :: rseries(maxCount)
+    integer :: ip(maxCount)
+    
     ! Loop over all obs types
  
     do stnidIndex=1,OmPstdCH%n_stnid
@@ -2391,7 +2365,20 @@ module obsSpaceErrorStdDev_mod
 
       ! Identify start position index (-1) in OmPstdCH  
       ibegin=OmPstdCH%ibegin(stnidIndex)-1
-        
+      
+      allocate(series(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex),maxCount))
+      allocate(nSeries(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))        
+      allocate(sumOmP2d(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
+      allocate(sumSqrOmP2d(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
+      nSeries(:,:)=0
+      sumOmP2d(:,:)=0.0d0
+      sumSqrOmP2d(:,:)=0.0d0
+      
+      allocate(nSeriest(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))        
+      allocate(sumOmP2dt(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
+      allocate(sumSqrOmP2dt(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
+      nSeriest(:,:)=0
+      
       ! Loop over all header indices of the 'CH' family:
       
       call obs_set_current_header_list(obsSpaceData,'CH')
@@ -2415,12 +2402,6 @@ module obsSpaceErrorStdDev_mod
              if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= OmPstdCH%element(stnidIndex) ) cycle HEADER
           end if
         end do
-
-        if ( .not. allocated(nSeries) ) then
-          allocate(series(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex),maxCount))
-          allocate(nSeries(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
-          nSeries(:,:)=0
-        end if
            
         zlat   = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
         idate  = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
@@ -2501,65 +2482,105 @@ module obsSpaceErrorStdDev_mod
         
       end do HEADER
      
-      if ( .not. allocated(nSeries) ) cycle
+      if ( any(nSeries > 0) ) then
       
-      ! Calc OmP error std dev
+        ! Calc OmP error std dev
       
-      write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
-      do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
-      do latIndex=1,OmPstdCH%n_lat(stnidIndex)
-        availableOmP=.true.
-        if (nSeries(levIndex,latIndex) > minCount ) then
-          sumOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
-          sumSqrOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex))*series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
-          varOmP = sumSqrOmP/nSeries(levIndex,latIndex) - (sumOmP/nSeries(levIndex,latIndex))**2
-          meanOmP=sumOmP/nSeries(levIndex,latIndex)
-          if (varOmP  > minVal*minVal ) then
-            do loopIndex=1,nSeries(levIndex,latIndex)
-              maxOmP = stdScale*sqrt(varOmP) 
-              if ( abs(series(levIndex,latIndex,loopIndex)-meanOmP) > maxOmP ) then
-                sumOmP = sumOmP - series(levIndex,latIndex,loopIndex)
-                sumSqrOmP = sumSqrOmP - series(levIndex,latIndex,loopIndex)*series(levIndex,latIndex,loopIndex)
-                nSeries(levIndex,latIndex) = nSeries(levIndex,latIndex) - 1
-              end if
-            end do
+        !write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
+        do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
+        do latIndex=1,OmPstdCH%n_lat(stnidIndex)
+          availableOmP=.true.
+          if (nSeries(levIndex,latIndex) > minCount ) then
+            rseries(1:nSeries(levIndex,latIndex))=series(levIndex,latIndex,1:nSeries(levIndex,latIndex))
+            call ipsort(ip,rseries(1:nSeries(levIndex,latIndex)),nSeries(levIndex,latIndex))
+            medianOmP=series(levIndex,latIndex,ip(nSeries(levIndex,latIndex)/2))
+               
+            sumOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
+            meanOmP=sumOmP/nSeries(levIndex,latIndex)            
+            sumSqrOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex))*series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
             varOmP = sumSqrOmP/nSeries(levIndex,latIndex) - (sumOmP/nSeries(levIndex,latIndex))**2
-            write(*,110) latIndex,levIndex,nint(nSeries(levIndex,latIndex)),sumOmP/nSeries(levIndex,latIndex),sqrt(varOmP)
-            if (varOmP  < minVal*minVal ) availableOmP = .false.
+            if (varOmP  > minVal*minVal ) then
+              do loopIndex=1,nSeries(levIndex,latIndex)
+                maxOmP = stdScale*sqrt(varOmP) 
+                ! if ( abs(series(levIndex,latIndex,loopIndex)-meanOmP) > maxOmP ) then
+                if ( abs(series(levIndex,latIndex,loopIndex)-medianOmP) > maxOmP ) then
+                  sumOmP = sumOmP - series(levIndex,latIndex,loopIndex)
+                  sumSqrOmP = sumSqrOmP - series(levIndex,latIndex,loopIndex)*series(levIndex,latIndex,loopIndex)
+                  nSeries(levIndex,latIndex) = nSeries(levIndex,latIndex) - 1
+                end if
+              end do
+              varOmP = sumSqrOmP/nSeries(levIndex,latIndex) - (sumOmP/nSeries(levIndex,latIndex))**2
+              !write(*,110) latIndex,levIndex,nSeries(levIndex,latIndex),sumOmP/nSeries(levIndex,latIndex),sqrt(varOmP)
+              sumOmP2d(levIndex,latIndex)=sumOmP
+              sumSqrOmP2d(levIndex,latIndex)=sumSqrOmP   
+              if (varOmP  < minVal*minVal ) availableOmP = .false.
+            else
+              availableOmP = .false.
+            end if
           else
             availableOmP = .false.
           end if
-        else
-          availableOmP = .false.
-        end if
-  
-        ! Store in structure
-       
-        ! Indentify position in structure
-        if (OmPstdCH%n_lvl(stnidIndex) > 1) then
-          posIndex=ibegin+(levIndex-1)*OmPstdCH%n_lat(stnidIndex)
-        else
-          posIndex=ibegin
-        end if
-      
-        if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
-          posIndex = posIndex + latIndex
-        else
-          posIndex = posIndex + (monthIndex-1)*OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex) + latIndex
-        end if
-        
-        if (availableOmP) then
-          OmPstdCH%std(posIndex)  = sqrt(varOmP)
-        else
-          OmPstdCH%std(posIndex)  = MPC_missingValue_R8
-        end if
-        
-      end do
-      end do
-110   format(I5,I7,I7,3x,G11.3,G11.3)
-            
-      if ( allocated(nSeries) ) deallocate(series,nSeries)
+          if (.not.availableOmP) nSeries(levIndex,latIndex) = 0
+        end do
+        end do
+      end if
+                  
+      ! Combine from all processors
 
+      call rpn_comm_allreduce(nSeries,nSeriest,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_INTEGER","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(sumOmP2d,sumOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(sumSqrOmP2d,sumSqrOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      
+      if (any(nSeriest > 5*minCount)) then
+      
+        where ( nSeriest > 5*minCount ) sumSqrOmP2dt = sumSqrOmP2dt/nSeriest - (sumOmP2dt/nSeriest)**2
+        
+        if (mpi_myid == 0) then
+           write(*,*) 'Resultat OmP error std dev'
+           write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
+        end if
+        do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
+        do latIndex=1,OmPstdCH%n_lat(stnidIndex)
+          availableOmP=.true.
+          if (nSeriest(levIndex,latIndex) > 5*minCount ) then
+            varOmP =  sumSqrOmP2dt(levIndex,latIndex)
+            if (varOmP  < minVal*minVal ) then
+               availableOmP = .false.
+            else     
+              if (mpi_myid == 0 ) write(*,110) latIndex,levIndex,nSeriest(levIndex,latIndex),sumOmP2dt(levIndex,latIndex)/nSeriest(levIndex,latIndex),sqrt(varOmP)
+            end if
+          else
+            availableOmP = .false.
+          end if
+  
+          ! Store in structure
+   
+          ! Indentify position in structure
+          if (OmPstdCH%n_lvl(stnidIndex) > 1) then
+            posIndex=ibegin+(levIndex-1)*OmPstdCH%n_lat(stnidIndex)
+          else
+            posIndex=ibegin
+          end if
+      
+          if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
+            posIndex = posIndex + latIndex
+          else
+            posIndex = posIndex + (monthIndex-1)*OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex) + latIndex
+          end if
+        
+          if (availableOmP) then
+            OmPstdCH%std(posIndex)  = sqrt(varOmP)
+          else
+             OmPstdCH%std(posIndex)  = MPC_missingValue_R8
+          end if
+        
+        end do
+        end do
+      end if  
+110   format(I5,I7,I7,3x,G11.3,G11.3)
+                 
+      deallocate(series,nSeries,sumOmP2d,sumSqrOmP2d)
+      deallocate(nSeriest,sumOmP2dt,sumSqrOmP2dt)
     end do
     
   end subroutine ose_calcOmPstddevCH

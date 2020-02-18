@@ -25,6 +25,8 @@ module obsTimeInterp_mod
   use utilities_mod
   use timecoord_mod
   use obsSpaceData_mod
+  use obsFamilyList_mod
+  
   implicit none
   save
   private
@@ -74,35 +76,17 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
-    integer, parameter   :: numFamily = 15
-    character(len=2)     :: familylist(numFamily)
     character(len=256)   :: formatspec, formatspec2
     real(8)              :: stepObsIndex
 
     if ( .not.tim_initialized() ) call utl_abort('oti_timeBinning: timeCoord module not initialized')
 
-    allocate(idataass(numFamily,nStepObs+1))
-    allocate(my_idataass(numFamily,nStepObs+1))
+    allocate(idataass(ofl_numFamily,nStepObs+1))
+    allocate(my_idataass(ofl_numFamily,nStepObs+1))
     my_idataass(:,:) = 0
-    allocate(inumheader(numFamily,nStepObs+1))
-    allocate(my_inumheader(numFamily,nStepObs+1))
+    allocate(inumheader(ofl_numFamily,nStepObs+1))
+    allocate(my_inumheader(ofl_numFamily,nStepObs+1))
     my_inumheader(:,:) = 0
-
-    familylist( 1) = 'UA'
-    familylist( 2) = 'AI'
-    familylist( 3) = 'SF'
-    familylist( 4) = 'TO'
-    familylist( 5) = 'SW'
-    familylist( 6) = 'SC'
-    familylist( 7) = 'RA'
-    familylist( 8) = 'PR'
-    familylist( 9) = 'RO'
-    familylist(10) = 'GP'
-    familylist(11) = 'CH'
-    familylist(12) = 'TM'
-    familylist(13) = 'AL'
-    familylist(14) = 'GL'
-    familylist(15) = 'HY'
 
     do headerIndex = 1, obs_numheader(obsSpaceData)
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &
@@ -112,8 +96,8 @@ contains
         stepIndex = nint(stepObsIndex)
         bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1          
-        do familyIndex = 1, numFamily
-          if (obs_getfamily(obsSpaceData,headerIndex) == familylist(familyIndex)) then
+        do familyIndex = 1, ofl_numFamily
+          if (obs_getfamily(obsSpaceData,headerIndex) == ofl_familyList(familyIndex)) then
             my_inumheader(familyIndex,stepIndex) = my_inumheader(familyIndex,stepIndex)+1
             my_inumheader(familyIndex,nStepObs+1) = my_inumheader(familyIndex,nStepObs+1)+1
             do bodyIndex = bodyIndexBeg, bodyIndexEnd
@@ -146,16 +130,16 @@ contains
     write(*,*) '-----------------------------------------------------------------'
     write(*,*) 'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
     write(*,trim(formatspec2)) 'Bin#',(stepIndex, stepIndex = 1, nStepObs),'Total'
-    do familyIndex = 1, numFamily
-      write(*,trim(formatspec)) familylist(familyIndex),(my_inumheader(familyIndex,stepIndex), &
+    do familyIndex = 1, ofl_numFamily
+      write(*,trim(formatspec)) ofl_familyList(familyIndex),(my_inumheader(familyIndex,stepIndex), &
             stepIndex = 1, nStepObs+1)
     end do
     write(*,trim(formatspec)) 'ALL',(sum(my_inumheader(:,stepIndex)), stepIndex = 1, nStepObs+1)
     write(*,*) '----------------------------------------------------------------'
     write(*,*) 'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
     write(*,trim(formatspec2)) 'Bin#', (stepIndex, stepIndex = 1, nStepObs),'Total'
-    do familyIndex = 1, numFamily
-      write(*,trim(formatspec)) familylist(familyIndex), (my_idataass(familyIndex,stepIndex), &
+    do familyIndex = 1, ofl_numFamily
+      write(*,trim(formatspec)) ofl_familyList(familyIndex), (my_idataass(familyIndex,stepIndex), &
             stepIndex = 1, nStepObs+1)
     end do
     write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,stepIndex)),stepIndex=1,nStepObs+1)
@@ -173,16 +157,16 @@ contains
       write(*,*) '----------------------------------------------------------------'
       write(*,*) 'Distribution of number of headers over stepobs ON ALL PROCESSORS'
       write(*,trim(formatspec2)) 'Bin#', (stepIndex, stepIndex = 1, nStepObs), 'Total'
-      do familyIndex = 1, numFamily
-        write(*,trim(formatspec)) familylist(familyIndex), (inumheader(familyIndex,stepIndex), &
+      do familyIndex = 1, ofl_numFamily
+        write(*,trim(formatspec)) ofl_familyList(familyIndex), (inumheader(familyIndex,stepIndex), &
               stepIndex = 1, nStepObs+1)
       end do
       write(*,trim(formatspec)) 'ALL', (sum(inumheader(:,stepIndex)), stepIndex = 1, nStepObs+1)
       write(*,*) '---------------------------------------------------------------'
       write(*,*) 'Distribution of assimilated data over stepobs ON ALL PROCESSORS'
       write(*,trim(formatspec2)) 'Bin#', (stepIndex, stepIndex = 1, nStepObs), 'Total'
-      do familyIndex = 1, numFamily
-        write(*,trim(formatspec)) familylist(familyIndex), (idataass(familyIndex,stepIndex), &
+      do familyIndex = 1, ofl_numFamily
+        write(*,trim(formatspec)) ofl_familyList(familyIndex), (idataass(familyIndex,stepIndex), &
               stepIndex = 1, nStepObs+1)
       end do
       write(*,trim(formatspec)) 'ALL', (sum(idataass(:,stepIndex)), stepIndex = 1, nStepObs+1)
