@@ -293,7 +293,10 @@ contains
     real :: ZDUM
 
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
+    real(8) :: clwThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+    real(8) :: sigmaObsErrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -306,10 +309,13 @@ contains
     TOVERRST(:,:) = 0.0D0
     TOVERRIN(:,:,:) = 0.0D0
     clwThreshArr(:,:,:) = 0.0d0
+    clwThreshArrInput(:,:,:) = 0.0d0
     sigmaObsErr(:,:,:) = 0.0d0
+    sigmaObsErrInput(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
     IUTILST(:,:) = 0
     useStateDepSigmaObs(:,:) = 0
+    useStateDepSigmaObsInput(:,:) = 0
 
     IPLATFORM(:) = 0
     NUMCHN(:) = 0
@@ -415,7 +421,7 @@ contains
           call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
-          read(ILUTOV2,*) ICHNIN2(JI), clwThreshArr(ICHNIN2(JI),JL,1), clwThreshArr(ICHNIN2(JI),JL,2), sigmaObsErr(ICHNIN2(JI),JL,1), sigmaObsErr(ICHNIN2(JI),JL,2), useStateDepSigmaObs(ICHNIN2(JI),JL)
+          read(ILUTOV2,*) ICHNIN2(JI), clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), useStateDepSigmaObsInput(ICHNIN2(JI),JL)
 
           if ( ICHNIN2(JI) /= ICHNIN(JI,JL) ) & 
             call utl_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
@@ -453,10 +459,16 @@ contains
               TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
 
-              ! inflate the sigmaObsErr in analysis mode
-              if ( allowStateDepSigmaObs .and. JJ == 2 ) then
-                sigmaObsErr(JI,JL,1) = sigmaObsErr(JI,JM,1) * tovsObsInflation(JI,JM)
-                sigmaObsErr(JI,JL,2) = sigmaObsErr(JI,JM,2) * tovsObsInflation(JI,JM)
+              if ( allowStateDepSigmaObs ) then
+                clwThreshArr(JI,JL,:) = clwThreshArrInput(JI,JM,:)
+                sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
+                useStateDepSigmaObs(JI,JL) = useStateDepSigmaObsInput(JI,JM)
+
+                ! inflate the sigmaObsErr in analysis mode
+                if ( JJ == 2 ) then
+                  sigmaObsErr(JI,JL,1) = sigmaObsErr(JI,JL,1) * tovsObsInflation(JI,JM)
+                  sigmaObsErr(JI,JL,2) = sigmaObsErr(JI,JL,2) * tovsObsInflation(JI,JM)
+                end if
               end if
 
             end do
@@ -497,10 +509,20 @@ contains
       do JL = 1, tvs_nsensors
         write(*,'(A,I2,4(A))') 'SENSOR #', JL, ', Platform: ', tvs_satelliteName(JL), &
                                 ', Instrument: ',tvs_instrumentName(JL)
-        write(*,'(A,7X,A)') 'Channel','error'
-        do JI = 1, NUMCHN(JL)
-          write(*,'(I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
-        end do
+        if ( allowStateDepSigmaObs .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL)==1) ) then
+          write(*,'(A,5(2X,A8))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','use'
+          do JI = 1, NUMCHN(JL)
+            write(*,'(I7,4(2X,F8.4),(2X,I8))') ICHN(JI,JL), &
+              clwThreshArr(ICHN(JI,JL),JL,1), clwThreshArr(ICHN(JI,JL),JL,2), &
+              sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
+              useStateDepSigmaObs(ICHN(JI,JL),JL)
+          end do
+        else
+          write(*,'(A,2X,A8)') 'Channel','sigmaO'
+          do JI = 1, NUMCHN(JL)
+            write(*,'(I7,1(2X,F8.4))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
+          end do
+        end if
       end do
     end if
 
