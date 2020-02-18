@@ -966,6 +966,9 @@ contains
 
       surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
 
+      if ( allowStateDepSigmaObs .and. surfTypeIsWater .and. cfam == 'TO' ) &
+        clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
+
       nlev = idatend - idata + 1
        
       BODY: do bodyIndex  = idata, idatend
@@ -988,8 +991,6 @@ contains
 
               ichn = NINT( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))
 
-              if ( allowStateDepSigmaObs .and. surfTypeIsWater ) &
-                clw_avg  = obs_bodyElem_r( obsSpaceData, OBS_CLW, bodyIndex )
               call tvs_mapSat( iplatf, iplatform, isat )
               call tvs_mapInstrum( instr, instrum )
 
