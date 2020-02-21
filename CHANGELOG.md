@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * Addition of the OmP error std dev OBS_OMPE element and its possible use during background check (#246 and !311)
+
 ### Added
 
  * Add vertically varying horizontal localization length scale for LETKF (#322 and !305)
