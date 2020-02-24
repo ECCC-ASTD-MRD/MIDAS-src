@@ -628,6 +628,7 @@ module backgroundCheck_mod
       logical :: lmodif1020 ! switch to activate special criteria for backound check (*ua 10-20 mb)
 
       ! Locals:      
+      real(8), parameter :: zsacrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
       real(8), parameter :: zttcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
       real(8), parameter :: zalcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
       real(8), parameter :: zescrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
@@ -689,12 +690,25 @@ module backgroundCheck_mod
          else if ( zbgchk >= zdzcrit(3) )then
            isetflag =3
          endif
-
-      else if ( kvnam == BUFR_NEUU .or. kvnam == BUFR_NEVV ) then
-  
-         ! SET FLAG FOR WIND COMPONENTS
-
-         if ( zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
+      endif
+!C
+!C     SET FLAG FOR WIND SPEED
+!C
+      if ( kvnam .eq. BUFR_NEFS ) then
+         !write(*,*) "CB in isetflag, zbgchk=", zbgchk
+         if (      zbgchk .gt. zsacrit(1) .and. zbgchk .lt. zsacrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zsacrit(2) .and. zbgchk .lt. zsacrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zsacrit(3) )then
+           isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR WIND COMPONENTS
+!C
+      if ( kvnam .eq. BUFR_NEUU .or. kvnam .eq. BUFR_NEVV ) then
+         if (      zbgchk .gt. zuvcrit(1) .and. zbgchk .lt. zuvcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zuvcrit(2) .and. zbgchk < zuvcrit(3) ) then
             isetflag=2
