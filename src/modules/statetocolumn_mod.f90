@@ -61,7 +61,7 @@ module stateToColumn_mod
     real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
     ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
     integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
-    !
+    ! The arrays depotIndexBeg/End contains interpolation weight and lat/lon indices
     integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
     integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
   end type struct_stepProcData
