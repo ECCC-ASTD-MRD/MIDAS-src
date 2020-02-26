@@ -41,9 +41,9 @@ module obsFamilyList_mod
   ! Description of obs family types
   ! -------------------------------
   ! UA - radiosondes (RAOBS and SURFACE)
-  ! AI - aircralf measurements (AIREPS)
+  ! AI - aircraft measurements (AIREPS)
   ! SF - surface obs (SURFACE)
-  ! SC - scatterometer measuremeters (SURFACE)
+  ! SC - scatterometer measurements (SURFACE)
   ! SW - winds from satellite measurements (SATWINDS) 
   ! PR - ground-based profiler data 
   ! RO - radio occultation data (GPS-RO; TT/HU/P0)
