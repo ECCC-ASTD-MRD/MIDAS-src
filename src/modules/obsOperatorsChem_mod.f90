@@ -1614,7 +1614,7 @@ contains
     real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
-    real(8) :: zomp,zinc
+    real(8) :: zomp,zinc,zoer,zhbht
     integer :: ier
     integer, external :: fclos
 
@@ -1748,7 +1748,7 @@ contains
            ! Check if "OmP error std dev" is already available
             call obs_set_current_body_list(obsSpaceData,headerIndex)
             iobslev=0
-            do bodyIndex=bodyIndex_start,bodyIndex_end
+            BODYINDEX1: do bodyIndex=bodyIndex_start,bodyIndex_end
               if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) cycle
               iobslev = iobslev + 1 
               if ( process_obs(iobslev) ) then
@@ -1759,8 +1759,8 @@ contains
                   ! TEMPORARY: First, estimate OBS_HPHT for storage in output files (in the event it is needed externally for
                   ! other purposes (e.g. total column ozone bias correction and corresponding re-doing for marker settings)               
                   if ( obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) > 1.1d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex) ) then
-                    zomp = sqrt(obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex)**2-obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2)
-                    call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zomp)
+                    zhbht = sqrt(obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex)**2-obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2)
+                    call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zhbht)
                   else
                     call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.5d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
                   end if
@@ -1770,10 +1770,10 @@ contains
                   cycle HEADER
                 else
                   ! Proceed with the calc of sqrt(diag(HBHT))
-                  exit
+                  exit BODYINDEX1
                 end if
               end if
-            end do
+            end do BODYINDEX1
          end if
 
          ! Initialize obsoper variables and allocate arrays
@@ -1917,8 +1917,8 @@ contains
 
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,obs_col(iobslev))
                
-               zomp = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-               zomp = sqrt(obs_col(iobslev)*obs_col(iobslev) + zomp*zomp)
+               zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+               zomp = sqrt(obs_col(iobslev)*obs_col(iobslev) + zoer*zoer)
                call obs_bodySet_r(obsSpaceData,OBS_OMPE,bodyIndex,zomp)
 
             case(2)

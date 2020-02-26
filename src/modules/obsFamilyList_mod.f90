@@ -76,7 +76,7 @@ module obsFamilyList_mod
       character(len=2) :: familyName
       logical          :: familyFound
 
-      if ( any(ofl_familyList == familyName) ) then
+      if ( any(ofl_familyList(:) == familyName) ) then
          familyFound = .true.
       else
          familyFound = .false.

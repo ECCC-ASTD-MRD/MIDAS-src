@@ -49,7 +49,7 @@ module obsSpaceErrorStdDev_mod
   private
 
   ! public procedures
-  public :: ose_computeStddev, ose_compute_hbht_static, ose_compute_hbht_static_chem, ose_compute_hbht_ensemble
+  public :: ose_computeStddev
 
   ! module structures
   ! -----------------
@@ -2014,6 +2014,8 @@ module obsSpaceErrorStdDev_mod
   
     character (len=128) :: ligne
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
+    integer :: ipos,inum,stnidIndex,monthIndex,levIndex,ios,isize,icount
+    character(len=20) :: abortText
 
     ! Initialization
 
@@ -2040,25 +2042,7 @@ module obsSpaceErrorStdDev_mod
       call utl_abort('ose_readOmPstddev_auxfileCH: COULD NOT OPEN AUXILIARY FILE ' //  trim(AuxObsDataFileCH) )
     end if
   
-    ! Read OmP error standard deviations for constituents if available.
-    call ose_readOmPstddev_auxfileCHin
- 
-    close(unit=nulstat)
-    ierr=fclos(nulstat)    
-
-  contains
-  
-  !--------------------------------------------------------------------------
-  ! ose_readOmPstddev_auxfileCHin
-  !--------------------------------------------------------------------------
-  subroutine ose_readOmPstddev_auxfileCHin
-    !
-    !:Purpose: Read OmP error standard deviations for constituents if available.
-    !           (CH family; ozone and others)
-    !
-
-    integer :: ipos,inum,stnidIndex,monthIndex,levIndex,ios,isize,icount
-    character(len=20) :: abortText
+    ! Read OmP error standard deviations for constituents or related directives if available.
     
     ios=0
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -2319,9 +2303,10 @@ module obsSpaceErrorStdDev_mod
     ! Reached end of file and no related section found.
     
  15 OmPstdCH%n_stnid = 0
-     
-  end subroutine ose_readOmPstddev_auxfileCHin
-  
+
+    close(unit=nulstat)
+    ierr=fclos(nulstat)    
+
   end subroutine ose_readOmPstddev_auxfileCH
   
   !--------------------------------------------------------------------------
@@ -2536,7 +2521,7 @@ module obsSpaceErrorStdDev_mod
         where ( nSeriest > 5*minCount ) sumSqrOmP2dt = sumSqrOmP2dt/nSeriest - (sumOmP2dt/nSeriest)**2
         
         if (mpi_myid == 0) then
-           write(*,*) 'Resultat OmP error std dev'
+           write(*,*) 'Calculated OmP error std dev'
            write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
         end if
         do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
