@@ -53,6 +53,20 @@ module stateToColumn_mod
 
   ! private module variables and derived types
 
+  type struct_stepProcData
+    ! lat-lon location of observations to be interpolated
+    real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, kIndex)
+    real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, kIndex)
+    ! lat-lon location on rotated grid of observations to be interpolated
+    real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
+    real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
+    ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
+    integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
+    ! depotIndexBeg/End contain first/last indices into depots of interpolation weights and lat/lon indices
+    integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
+    integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
+  end type struct_stepProcData
+
   type struct_interpInfo
     logical                   :: initialized = .false.
     type(struct_hco), pointer :: hco => null() ! horizontal grid object
@@ -62,18 +76,10 @@ module stateToColumn_mod
     ! number of obs headers on each proc having a non-zero interp weight for each stepIndex (headerUsed)
     integer, pointer          :: allNumHeaderUsed(:,:) => null()    ! (step, proc)
 
-    ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
-    integer, pointer          :: allHeaderIndex(:,:,:) => null() ! (headerUsed, step, proc)
+    ! structure containing all interpolation information that depends on (proc, step)
+    type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
 
-    ! lat-lon location of observations to be interpolated (only needed to rotate winds)
-    real(8), pointer          :: allLat(:,:,:,:) => null()         ! (headerUsed, proc, step, kIndex)
-    real(8), pointer          :: allLon(:,:,:,:) => null()         ! (headerUsed, proc, step, kIndex)
-    real(8), pointer          :: allLatRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
-    real(8), pointer          :: allLonRot(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
-
-    ! interpolation weights and lat/lon indices are accessed via the 'depotIndexBeg/End'
-    integer, pointer          :: depotIndexBeg(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
-    integer, pointer          :: depotIndexEnd(:,:,:,:,:) => null()    ! (subGrid, headerUsed, proc, step, kIndex)
+    ! interpolation weights and lat/lon indices are accessed via the 'stepProcData%depotIndexBeg/End'
     real(8), allocatable      :: interpWeightDepot(:)                ! (depotIndex)
     integer, pointer          :: latIndexDepot(:)                    ! (depotIndex)
     integer, pointer          :: lonIndexDepot(:)                    ! (depotIndex)
@@ -248,7 +254,7 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     real(4) :: footprintRadius_r4 ! (metres)
-    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), headerIndexVec(:,:)
+    integer, allocatable :: numGridpt(:), allNumHeaderUsed(:,:), allHeaderIndex(:,:,:), headerIndexVec(:,:)
     real(8), allocatable :: lat_send_r8(:,:), lat_recv_r8(:,:), lon_send_r8(:,:), lon_recv_r8(:,:)
     real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:,:)
     integer :: gdllfxy
@@ -356,34 +362,45 @@ contains
                       stateVector%hco ) ! IN 
     end if
 
+    allocate(interpInfo%stepProcData(mpi_nprocs,numStep))
+    do stepIndex = 1,numStep
+      do procIndex = 1, mpi_nprocs
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+        interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
+        interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,:) = 0.0d0
+
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(allNumHeaderUsed(stepIndex,procIndex)))
+        interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(:) = 0
+
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(:,:,:) = 0
+        interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(:,:,:) = -1
+      end do
+    end do
+
     ! allocate arrays that will be returned
     allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
-    allocate(interpInfo%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-    allocate(interpInfo%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-    allocate(interpInfo%allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
-    allocate(interpInfo%allLat(numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-    allocate(interpInfo%allLon(numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
     nullify(allLatOneLev)
     nullify(allLonOneLev)
     allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allLonOneLev(numHeaderUsedMax,mpi_nprocs))
     allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
     allocate(numGridpt(interpInfo%hco%numSubGrid))
-    interpInfo%allHeaderIndex(:,:,:) = 0
-    interpInfo%allLat(:,:,:,:) = 0.0d0
-    interpInfo%allLon(:,:,:,:) = 0.0d0
     allFootprintRadius_r4(:,:,:) = bilinearFootprint
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
-      allocate(interpInfo%allLatRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-      allocate(interpInfo%allLonRot(interpInfo%hco%numSubGrid,numHeaderUsedMax,mpi_nprocs,numStep,mykBeg:stateVector%mykEnd))
-      interpInfo%allLatRot(:,:,:,:,:) = 0.0d0
-      interpInfo%allLonRot(:,:,:,:,:) = 0.0d0
+      do stepIndex = 1,numStep
+        do procIndex = 1, mpi_nprocs
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+          interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
+          interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(:,:,:) = 0.0d0
+        end do
+      end do
     end if
-
-    interpInfo%depotIndexBeg(:,:,:,:,:) = 0
-    interpInfo%depotIndexEnd(:,:,:,:,:) = -1
 
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSlantPath .and. &
@@ -649,8 +666,8 @@ contains
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%allLat(:,procIndex,stepIndex,kIndex) = lat_recv_r8(:,procIndex)
-              interpInfo%allLon(:,procIndex,stepIndex,kIndex) = lon_recv_r8(:,procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = lat_recv_r8(:,procIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = lon_recv_r8(:,procIndex)
             end if
           end do
 
@@ -710,8 +727,10 @@ contains
                                 allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
 
         k_loop: do kIndex = mykBeg, statevector%mykEnd
-          interpInfo%allLat(:,:,stepIndex,kIndex) = allLatOneLev(:,:)
-          interpInfo%allLon(:,:,stepIndex,kIndex) = allLonOneLev(:,:)
+          do procIndex = 1, mpi_nprocs
+            interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+          end do
         end do k_loop
 
         deallocate(latLev_T)
@@ -740,9 +759,10 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: latlonChecks and lat/lon MPI comm finished.'
 
+    allocate(allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec,            numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            interpInfo%allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+    call rpn_comm_allgather(headerIndexVec, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
+                            allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
     numGridptTotal = 0
@@ -752,11 +772,13 @@ contains
         do procIndex = 1, mpi_nprocs
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
+            interpInfo%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) = allHeaderIndex(headerIndex,stepIndex,procIndex)
+
             ! Compute the rotated lat/lon, needed for the winds
 
-            lat_deg_r4 = real(interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex) *  &
+            lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+            lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -783,15 +805,15 @@ contains
               if ( interpInfo%hco%rotated .and.  &
                    (gsv_varExist(varName='UU') .or.  &
                     gsv_varExist(varName='VV')) ) then
-                lat = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-                lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+                lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+                lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
                 call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
                                        subGridIndex,     & ! IN
                                        latRot, lonRot,   & ! OUT (radians)
                                        lat, lon,         & ! IN  (radians)
                                        'ToLatLonRot')      ! IN
-                interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = latRot
-                interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = lonRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex) = latRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex) = lonRot
               end if
 
             end do ! subGridForInterp
@@ -806,18 +828,18 @@ contains
 
             if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
               ! indices for only 1 subgrid, other will have zeros
-              interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(subGridIndex)
-              interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex) = numGridptTotal
             else
               ! locations on both subGrids will be averaged
-              interpInfo%depotIndexBeg(1, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(1, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(1)
-              interpInfo%depotIndexEnd(1, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1, headerIndex, kIndex) = numGridptTotal
 
-              interpInfo%depotIndexBeg(2, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal + 1
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(2, headerIndex, kIndex) = numGridptTotal + 1
               numGridptTotal = numGridptTotal + numGridpt(2)
-              interpInfo%depotIndexEnd(2, headerIndex, procIndex, stepIndex, kIndex) = numGridptTotal
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2, headerIndex, kIndex) = numGridptTotal
             end if
 
           end do ! headerIndex
@@ -825,6 +847,8 @@ contains
       end do ! stepIndex
     end do ! procIndex
     call tmg_stop(173)
+
+    deallocate(allHeaderIndex)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -1018,7 +1042,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerUsedIndex, headerIndex, weight)
             do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_tlad%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
                                                         headerIndex,stepIndex,procIndex)
               cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
@@ -1200,7 +1224,7 @@ contains
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
             do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
 
-              headerIndex = interpInfo_tlad%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_tlad%oti,  &
                                                         headerIndex,stepIndex,procIndex)
 
@@ -1467,7 +1491,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
             do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               weight = oti_getTimeInterpWeightMpiGlobal(interpInfo_nl%oti,  &
                                                         headerIndex,stepIndex,procIndex)
               cols_send_1proc(headerIndex) = cols_send_1proc(headerIndex) &
@@ -1545,7 +1569,7 @@ contains
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex)
             do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
-              headerIndex = interpInfo_nl%allHeaderIndex(headerUsedIndex,stepIndex,procIndex)
+              headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
               ! just copy, since surface height same for all time steps
               cols_send(headerIndex,procIndex) = cols_hint(headerUsedIndex,stepIndex,procIndex)
             end do
@@ -1591,15 +1615,20 @@ contains
       deallocate(interpInfo_nl%interpWeightDepot)
       deallocate(interpInfo_nl%latIndexDepot)
       deallocate(interpInfo_nl%lonIndexDepot)
-      if ( interpInfo_nl%hco%rotated ) then
-        deallocate(interpInfo_nl%allLonRot)
-        deallocate(interpInfo_nl%allLatRot)
-      end if
-      deallocate(interpInfo_nl%allLon)
-      deallocate(interpInfo_nl%allLat)
-      deallocate(interpInfo_nl%allHeaderIndex)
-      deallocate(interpInfo_nl%depotIndexBeg)
-      deallocate(interpInfo_nl%depotIndexEnd)
+      do stepIndex = 1, numStep
+        do procIndex = 1, mpi_nprocs
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLat)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLon)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+          deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+          if ( interpInfo_nl%hco%rotated ) then
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLonRot)
+            deallocate(interpInfo_nl%stepProcData(procIndex,stepIndex)%allLatRot)
+          end if
+        end do
+      end do
+      deallocate(interpInfo_nl%stepProcData)
       deallocate(interpInfo_nl%allNumHeaderUsed)
       call oti_deallocate(interpInfo_nl%oti)
 
@@ -1656,8 +1685,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex), &
-             interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -1705,8 +1734,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex), &
-             interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -1763,8 +1792,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -1783,10 +1812,10 @@ contains
         end do
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_nl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -1848,8 +1877,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -1868,10 +1897,10 @@ contains
         end do
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_tl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -1938,17 +1967,17 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-        indexEnd = interpInfo%depotIndexEnd(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
         ! now rotate the wind vector and return the desired component
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-          lon = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
-          latRot = interpInfo%allLatRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
-          lonRot = interpInfo%allLonRot(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
 
           call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN 
                                   subGridIndex,             & ! IN
@@ -2385,9 +2414,9 @@ contains
 
     numGridpt(:) = 0
 
-    lat_deg_r4 = real(interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -2541,7 +2570,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupBilinearInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
@@ -2562,7 +2591,7 @@ contains
 
       if ( allocated(interpInfo%interpWeightDepot) ) then
 
-        depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
         do ipoint=1,gridptCount
 
@@ -2630,8 +2659,8 @@ contains
 
     ! Determine the grid point nearest the observation.
 
-    lat_rad = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-    lon_rad = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
@@ -2775,7 +2804,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupFootprintInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
@@ -2793,7 +2822,7 @@ contains
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
           do ipoint=1,gridptCount
 
@@ -2862,8 +2891,8 @@ contains
 
     ! Determine the grid point nearest the observation.
 
-    lat_rad = interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex)
-    lon_rad = interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex)
+    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
+    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
@@ -2938,7 +2967,7 @@ contains
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
           do ipoint=1,gridptCount
 
@@ -2957,7 +2986,7 @@ contains
 
         if ( procIndex == mpi_myid + 1 ) then
 
-          localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+          localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
           write(*,*) 's2c_setupLakeInterp: Rejecting OBS outside the grid domain, index ', localHeaderIndex
           write(*,*) ' lat-lon (deg) : ', lat_deg_r4, lon_deg_r4
@@ -3011,9 +3040,9 @@ contains
 
     numGridpt(:) = 0
 
-    lat_deg_r4 = real(interpInfo%allLat(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%allLon(headerIndex, procIndex, stepIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
     ierr = utl_getPositionXY( stateVector%hco%EZscintID,   &
@@ -3032,7 +3061,7 @@ contains
 
       if ( procIndex == mpi_myid + 1 ) then
         
-        localHeaderIndex = interpInfo%allHeaderIndex(headerIndex,stepIndex,procIndex)
+        localHeaderIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerIndex)
 
         write(*,*) 's2c_setupNearestNeighbor: Rejecting OBS outside the grid domain, index ', localHeaderIndex
         write(*,*) ' lat-lon (deg) y x : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
@@ -3050,7 +3079,7 @@ contains
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
       
-      depotIndex = interpInfo%depotIndexBeg(subGridIndex, headerIndex, procIndex, stepIndex, kIndex)
+      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
 
       interpInfo%interpWeightDepot(depotIndex) = 1.d0
       interpInfo%latIndexDepot    (depotIndex) = latIndex

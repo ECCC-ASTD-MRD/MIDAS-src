@@ -2518,7 +2518,8 @@ CONTAINS
           !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim) , 1)
         end if
 
-        call rpn_comm_bcast(ndim, 1, "MPI_INTEGER", 0, "GRID", ierr )
+        call rpn_comm_bcast(ndim,  1, "MPI_INTEGER", 0, "GRID", ierr )
+        call rpn_comm_bcast(npred, 1, "MPI_INTEGER", 0, "GRID", ierr )
 
         call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "MPI_DOUBLE_PRECISION", 0, "GRID", ierr )
         if (ierr /=0) then

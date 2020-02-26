@@ -7,6 +7,7 @@ which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]" \
  -suite "" "" "[ suite to extract timings from (default to the same suite as this script is to) ]" \
+ -all "no" "yes" "[ extract all the timings ]" \
  -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
  -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
  -emails "" "" "[ List of emails to send a message when we find outliers for the execution time ]" \
@@ -23,13 +24,21 @@ if [ ! -d "${suite}" ]; then
     exit 1
 fi
 
+if [ "${all}" = yes -o "${all}" = no ]; then
+    ## transform 'all' into 'extractAll' for a more significant variable in the script
+    extractAll=${all}
+else
+    echo "$0: The '-all' argument myst be 'yes' or 'no' and not '${all}'" >&2
+    exit 1
+fi
+
 if [ "${computeStats}" != no -a "${computeStats}" != yes ]; then
-    echo "$0: The '-computeStats' argument must be 'yes' or 'no'" >&2
+    echo "$0: The '-computeStats' argument must be 'yes' or 'no' and not '${computeStats}" >&2
     exit 1
 fi
 
 if [ "${findOutliers}" != no -a "${findOutliers}" != yes ]; then
-    echo "$0: The '-findOutliers' argument must be 'yes' or 'no'" >&2
+    echo "$0: The '-findOutliers' argument must be 'yes' or 'no' and not '${findOutliers}" >&2
     exit 1
 fi
 
@@ -37,12 +46,14 @@ if [ "${findOutliers}" = no -a -n "${emails}" ]; then
     echo "$0: WARNING: Since '-findOutliers' argument is 'no', no email will be sent to the list you gave." >&2
 fi
 
-if [ "${computeStats}" = yes ]; then
-    echo "The statistics are given like this:"
-    echo "Mean, Stddev, Stddev/Mean, Min, Max, Number of cases"
-fi
-
 echo "Extract run times for tests in ${suite}"
+
+if [ "${computeStats}" = yes ]; then
+    echo
+    echo "The statistics are given like this:"
+    echo -e "\tMean, Stddev, Stddev/Mean, Min, Max, Number of cases"
+    echo
+fi
 
 logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
 if [ -z "${logs}" ]; then
@@ -89,6 +100,9 @@ END {
 }')
             printf "\t${__findRunTime_stats__}\n"
             unset __findRunTime_stats__
+        fi
+        if [ "${extractAll}" = yes ]; then
+            printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
         else
             if [ -n "${__findRunTime_runtime__}" ]; then
                 noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)

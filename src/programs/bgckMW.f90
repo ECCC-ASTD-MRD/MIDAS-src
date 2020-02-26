@@ -33,7 +33,7 @@ program midas_bgckmw
   integer,allocatable :: adresses(:)
   integer             :: ibrptime, nblocs, nsize, iun_burpin, irun
 
-  logical :: bad_report, resume_report
+  logical :: resume_report
 
   INTEGER MXELM
   INTEGER MXLAT, MXLON
@@ -504,10 +504,8 @@ program midas_bgckmw
 
     ! Write the modified report to the output file
     IF ( .not. resume_report ) THEN
-      if (.not. bad_report ) then
-        Call BURP_Write_Report(File_out,Rpt_out,IOSTAT=error)
-        if (error /= burp_noerr)  call handle_error()
-      endif
+      Call BURP_Write_Report(File_out,Rpt_out,IOSTAT=error)
+      if (error /= burp_noerr)  call handle_error()
       Call BURP_Free(Rpt_out,IOSTAT=error)
       if (error /= burp_noerr)  call handle_error()
     ENDIF
