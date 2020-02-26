@@ -54,14 +54,15 @@ module stateToColumn_mod
   ! private module variables and derived types
 
   type struct_stepProcData
+    ! lat-lon location of observations to be interpolated
     real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, kIndex)
     real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, kIndex)
-    ! lat-lon location of observations to be interpolated (only needed to rotate winds)
+    ! lat-lon location on rotated grid of observations to be interpolated
     real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
     real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
     ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
     integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
-    ! The arrays depotIndexBeg/End contains interpolation weight and lat/lon indices
+    ! depotIndexBeg/End contain first/last indices into depots of interpolation weights and lat/lon indices
     integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
     integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
   end type struct_stepProcData
@@ -75,7 +76,7 @@ module stateToColumn_mod
     ! number of obs headers on each proc having a non-zero interp weight for each stepIndex (headerUsed)
     integer, pointer          :: allNumHeaderUsed(:,:) => null()    ! (step, proc)
 
-    ! structure containing the information about latitude
+    ! structure containing all interpolation information that depends on (proc, step)
     type(struct_stepProcData), allocatable :: stepProcData(:,:) ! (proc, step)
 
     ! interpolation weights and lat/lon indices are accessed via the 'stepProcData%depotIndexBeg/End'
