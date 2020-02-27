@@ -219,7 +219,7 @@ contains
     end if
 
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
-      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                        ! that Bhi is used
       call tmg_stop(52)
       return

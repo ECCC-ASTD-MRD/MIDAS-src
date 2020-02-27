@@ -30,7 +30,9 @@ module backgroundCheck_mod
   use obsSpaceDiag_mod
   use earthConstants_mod
   use verticalCoord_mod
-  use computeHBHT_mod
+  use obsSpaceErrorStdDev_mod
+  use obsFamilyList_mod
+  
   implicit none
   private
 
@@ -39,107 +41,103 @@ module backgroundCheck_mod
 
   contains
 
-subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
-  !
-  !:Purpose: Do background check on all conventional observations
-  !
+  !--------------------------------------------------------------------------
+  ! bgck_bgcheck_conv
+  !--------------------------------------------------------------------------
+  subroutine bgck_bgcheck_conv( columng, columnhr, obsSpaceData )
+     !
+     !:Purpose: Do background check on all conventional observations
+     !
 
-  IMPLICIT NONE
+     IMPLICIT NONE
 
-  type(struct_obs)        :: obsSpaceData  ! Observation-related data
-  type(struct_columnData) :: columng       !
-  type(struct_columnData) :: columnhr      ! 
+     type(struct_obs)        :: obsSpaceData  ! Observation-related data
+     type(struct_columnData) :: columng       !
+     type(struct_columnData) :: columnhr      ! 
 
-  integer :: j
-  real(8) :: zjo
+     integer :: j
+     real(8) :: zjo
 
-  integer            :: nulNam, ier, fnom, fclos
-  character(len=256) :: namFile
-  logical            :: NEW_BGCK_SW
-
-  character(len=2), dimension(12) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH', 'TM', 'AL' /)
+     integer            :: nulNam, ier, fnom, fclos
+     character(len=256) :: namFile
+     logical            :: NEW_BGCK_SW
       
-  call tmg_start(3,'BGCHECK_CONV')
+     call tmg_start(3,'BGCHECK_CONV')
 
-  write(*,FMT=9000)
+     write(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
 
-  NEW_BGCK_SW = .false.
+     NEW_BGCK_SW = .false.
 
-  NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
-  namFile=trim("flnml")
-  nulNam=0
-  ier = FNOM( NULNAM, NAMFILE, 'R/O', 0 )
+     NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
+     namFile=trim("flnml")
+     nulNam=0
+     ier = FNOM( NULNAM, NAMFILE, 'R/O', 0 )
 
-  read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
-  if ( ier /= 0 ) then
-    write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
-  end if
+     read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
+     if ( ier /= 0 ) write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
 
-  ier = fclos(nulNam)
+     ier = fclos(nulNam)
+     
+     write(*,*) 'new_bgck_sw = ',new_bgck_sw
+ 
+     ! Obtain or calc OmP-error std dev when requested and possible.
+     ! Otherwise calc HBHT contribution (sigma_B in observation space)  
+     ! -------------------------------------------------------------------- 
 
-  write(*,*) 'new_bgck_sw = ',new_bgck_sw
+     call ose_computeStddev( columng, columnhr, &   ! IN
+                             obsSpaceData )         ! INOUT    
 
+     ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+     ! ----------------------------------------------
 
-!     CALCULATE HBHT (sigma_B in observation space)
-!     ----------------------------------------------
-!
-  call hbht_compute( columng,   &   ! IN
-                     columnhr,  &   ! IN
-                     obsSpaceData ) ! INOUT
+     do j = 1, ofl_numFamily
+       ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
+       if ( obs_famExist( obsSpaceData,  ofl_familyList(j) )) CALL bgck_data( ZJO,  ofl_familyList(j), obsSpaceData, new_bgck_sw )
+     end do
 
-!
-!     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
-!     ----------------------------------------------
+     if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )
 
-  do j = 1, size( bgfam )
-    ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-    if ( obs_famExist( obsSpaceData, bgfam(j) )) CALL bgck_data( ZJO, bgfam(j), obsSpaceData, new_bgck_sw )
-  end do
+     ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+     ! computations controlled by NAMOSD namelist in flnml)
 
-  if (obs_famExist(obsSpaceData,'RO')) CALL bgck_gpsro( columnhr , obsSpaceData )
+     call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
 
-! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
-! computations controlled by NAMOSD namelist in flnml)
+     call tmg_stop(3)
 
-  call osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt = .false. )
+  end subroutine bgck_bgcheck_conv
 
-
-  call tmg_stop(3)
-
-end subroutine bgck_bgcheck_conv
-
-
-      SUBROUTINE bgck_data(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
+  !--------------------------------------------------------------------------
+  ! bgck_data
+  !--------------------------------------------------------------------------
+  subroutine bgck_data(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
       !
       !:Purpose:  Calculate a background check for a data family and set the
       !           appropriate quality-control flags in obsSpaceData
       !
 
       IMPLICIT NONE
-!*
-!C NOTE 1: YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
-!C         OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
-!C         (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
-!C         YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
-!C
+     
+      ! NOTE 1: YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+      !         OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
+      !         (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
+      !         YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
 
-!C
       type(struct_obs) :: lobsSpaceData
-      REAL*8 PJO,zsum,zsumo
-      CHARACTER*2 CDFAM
+      real(8) :: PJO,zsum,zsumo
+      CHARACTER(len=2) :: CDFAM
       LOGICAL :: new_bgck_sw
-      INTEGER IFLAG,INAM,INDEX_HEADER,IDBURP
-      INTEGER ITYP
-      INTEGER J,INDEX_BODY,icoun
-      INTEGER INOBS, INREJ, INZOBS, INZREJ
-      INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
-      REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
-      LOGICAL LLOK, LLZD, LMODIF1020
+      INTEGER :: IFLAG,INAM,INDEX_HEADER,IDBURP
+      INTEGER :: ITYP
+      INTEGER :: J,INDEX_BODY,icoun
+      INTEGER :: INOBS, INREJ, INZOBS, INZREJ
+      INTEGER :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
+      real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
+      LOGICAL :: LLOK, LLZD, LMODIF1020
 
-      INTEGER i_ass,i_vco,i_vnm,i_oth,istyp,index_body_u,index_body_v,index_body_start
-      REAL*8 uu_d,uu_r,uu_f,vv_d,vv_r,vv_f,duv2,duv2_lim,zslev
-      LOGICAL found_u,found_v
+      INTEGER :: i_ass,i_vco,i_vnm,i_oth,istyp,index_body_u,index_body_v,index_body_start
+      real(8) :: uu_d,uu_r,uu_f,vv_d,vv_r,vv_f,duv2,duv2_lim,zslev
+      LOGICAL :: found_u,found_v
 
       lmodif1020=.false.
 
@@ -160,9 +158,9 @@ end subroutine bgck_bgcheck_conv
 
       INOBS=0
       INREJ=0
-!C
-!C*    Initialize counters for GP family observations
-!C
+
+      ! Initialize counters for GP family observations
+
       IF (CDFAM .EQ. 'GP') THEN
         INZOBS=0
         INPOBS=0
@@ -181,10 +179,10 @@ end subroutine bgck_bgcheck_conv
         HEADER: do
           index_header = obs_getHeaderIndex(lobsSpaceData)
           if (index_header < 0) exit HEADER
-!C
-!C*    1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
-!C     .  ----------------------------------------------------
-!C
+
+          ! 1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
+          ! ----------------------------------------------------
+          
           ! loop over all body indices for this index_header
           call obs_set_current_body_list(lobsSpaceData, index_header)
           BODY: do 
@@ -195,69 +193,85 @@ end subroutine bgck_bgcheck_conv
             LLOK=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated)
             IF ( LLOK ) THEN
               INOBS = INOBS + 1
-              IF (CDFAM .EQ. 'GP') THEN
-                IF (ITYP .EQ. BUFR_NEZD) INZOBS = INZOBS+1
-                IF (ITYP .EQ. BUFR_NEPS) INPOBS = INPOBS+1
-                IF (ITYP .EQ. BUFR_NETS) INTOBS = INTOBS+1
-                IF (ITYP .EQ. BUFR_NESS) INDOBS = INDOBS+1
+              IF (CDFAM == 'GP') THEN
+                IF (ITYP == BUFR_NEZD) INZOBS = INZOBS+1
+                IF (ITYP == BUFR_NEPS) INPOBS = INPOBS+1
+                IF (ITYP == BUFR_NETS) INTOBS = INTOBS+1
+                IF (ITYP == BUFR_NESS) INDOBS = INDOBS+1
               ENDIF
               ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,index_body)
-              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
-              ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)              
               ZLAT  = obs_headElem_r(lobsSpaceData,OBS_LAT,index_header) &
                                                   * MPC_DEGREES_PER_RADIAN_R8
               ZLON  = obs_headElem_r(lobsSpaceData,OBS_LON,index_header) &
                                                   * MPC_DEGREES_PER_RADIAN_R8
-!C
-!C            BACK GROUND CHECK
-!C
-              ZOMP  = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)
-!C            NOTE: For GB-GPS ZTD observations, ZFGE is not the FGE but rather Std(O-P)
-!C                  set in s/r SETERRGPSGB.
-              ZFGE  = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
 
-              ! Protect against zfge values that are too small
-              IF ( CDFAM .EQ. 'GP' ) THEN
-                IF (ITYP .EQ. BUFR_NEZD) THEN
+              ! BACKGROUND CHECK
+
+              ZOMP  = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)
+
+              ! Get error std dev
+              
+              ! std(O-P) (valid/available if > 0.0)
+              zomper = obs_bodyElem_r(lobsSpaceData,OBS_OMPE,index_body)
+                                         
+              ! std(O)
+              zoer = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+              ! std(P)
+              zfge  = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
+              ! NOTE: For GB-GPS ZTD observations (GP family), ZFGE is not the FGE but
+              !       rather Std(O-P) set in s/r SETERRGPSGB.
+              if ( cdfam == 'GP' .and. ityp == BUFR_NEZD ) then
+                if ( zomper <= 0.0d0 .and. zfge > 0.0d0 ) zomper = zfge
+              end if
+              
+              ! Protect against error std dev values that are too small
+              IF ( CDFAM == 'GP' ) THEN
+                IF (ITYP == BUFR_NEZD) THEN
                   ZOER = ZOER/YZDERRWGT
                 ELSE
                   ZOER = ZOER/YSFERRWGT
                 ENDIF
-                IF (ZOER .LT. 1.D-3 .AND. ITYP .NE. BUFR_NEZD) THEN
+                IF ( ZOER < 1.0d-3 .AND. ITYP /= BUFR_NEZD ) THEN
                   WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
                     obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
                   CALL utl_abort('BGCDATA: PROBLEM WITH OER.')
                 ENDIF
-                IF (ZFGE .LT. 1.D-3 ) THEN
+                IF ( ZFGE < 1.0d-3 ) THEN
                   WRITE(*,*)' Problem for GP STNID FGE= ',  &
                      obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
-                  ZFGE=1.D-3
+                  ZFGE=1.0d-3
                 ENDIF
-              ELSE IF (CDFAM.EQ.'CH') THEN
-                IF ( ZFGE**2 + ZOER**2 .LT. 1.D-60)THEN
+                if ( zomper > 0.0d0 .and. zomper < 1.0d-3 ) zomper = 1.0d-3
+              ELSE IF ( CDFAM == 'CH' ) THEN
+                IF ( ZFGE**2 + ZOER**2 < 1.0d-60)THEN
                   WRITE(*,*) ' Problem for STNID FGE ZOER=',  &
-                             obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                  ZFGE=1.D-30
-                  ZOER=1.D-30
+                           obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                  ZFGE=1.0d30
+                  ZOER=1.0d-30
                 ENDIF
+                if ( zomper > 0.0 .and. zomper < 1.0d-30 ) zomper = 1.0d-30
               ELSE
-                IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
+                if ( zfge < 0.0d0 ) zfge = 0.0d0
+                IF ( ZFGE**2 + ZOER**2 < 1.0d-5)THEN
                   WRITE(*,*) ' Problem for STNID FGE ZOER=',  &
                              obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                  ZFGE=1.D-5
-                  ZOER=1.D-5
+                  ZFGE=1.0d-5
+                  ZOER=1.0d-5
                 ENDIF
+                if ( zomper > 0.0 .and. zomper < 1.0D-5 ) zomper = 1.0d-5
               ENDIF
-
-              ! Calculate zbgchk from zfge
-              IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD ) THEN
-                ZBGCHK=(ZOMP**2)/(ZFGE**2)
-                ZSOP = ZFGE
-              ELSE
+              
+              ! Calculate zbgchk
+              
+              if ( zomper > 0.0d0 ) then
+                zbgchk = (zomp**2)/(zomper**2) 
+                zsop = zomper
+              else
                 ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
                 ZSOP = SQRT(ZFGE**2 + ZOER**2)
-              ENDIF
-
+              end if
+              
               ! UPDATE QUALITY CONTROL FLAGS, based on zbgchk
               ! ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
               INAM =obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
@@ -268,9 +282,9 @@ end subroutine bgck_bgcheck_conv
               endif
               IDBURP=obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
               IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
-!C
-!C            CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
-!C
+
+              ! CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
+
               LLZD = .FALSE.
               IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD) THEN
                 ZVAR = ZVAR * 1000.0D0
@@ -318,8 +332,9 @@ end subroutine bgck_bgcheck_conv
               ENDIF
             ENDIF
           ENDDO BODY
-124   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,G11.2),I3 )
-122   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
+
+124       FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,G11.2),I3 )
+122       FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
 
         ENDDO HEADER
 
@@ -461,10 +476,12 @@ end subroutine bgck_bgcheck_conv
          write(*,*) ' icoun meanzoer',icoun,zsumo/icoun
       endif
 
-      END SUBROUTINE bgck_data
+  end subroutine bgck_data
 
-
-      SUBROUTINE bgck_gpsro(lcolumnhr,lobsSpaceData)
+  !--------------------------------------------------------------------------
+  ! bgck_gpsro
+  !--------------------------------------------------------------------------
+  subroutine bgck_gpsro(lcolumnhr,lobsSpaceData)
       !
       !:Purpose: Set background-check flag on GPSRO data if ABS(O-P)/P is too
       !          large
@@ -474,16 +491,15 @@ end subroutine bgck_bgcheck_conv
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_trl
-      REAL*8 HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
+      real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
 
-      INTEGER INDEX_HEADER
-      INTEGER IDATYP
-      INTEGER IDATA   , IDATEND, INDEX_BODY
-      INTEGER NGPSLEV
-      INTEGER stat, iversion
+      INTEGER :: INDEX_HEADER, JD
+      INTEGER :: IDATYP
+      INTEGER :: IDATA   , IDATEND, INDEX_BODY
+      INTEGER :: NGPSLEV
+      INTEGER :: stat, iversion
 
-      LOGICAL  LSTAG
-
+      LOGICAL :: LSTAG
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)
@@ -491,53 +507,53 @@ end subroutine bgck_bgcheck_conv
       if (iversion .eq. 5002) LSTAG = .TRUE. 
       
       WRITE(*,*)'ENTER BGCSGPSRO'
-!C
-!C     * 1.  Initializations
-!C     *     ---------------
-!C
+      
+      ! 1.  Initializations
+      !     ---------------
+
       NGPSLEV=col_getNumLev(lcolumnhr,'TH')
-!C
-!C     Loop over all files
-!C
+
+      ! Loop over all files
+
       ! loop over all header indices of the 'RO' family
       call obs_set_current_header_list(lobsSpaceData,'RO')
       HEADER: do
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
-!C     
-!C     * Process only refractivity data (codtyp 169)
-!C
+     
+         ! Process only refractivity data (codtyp 169)
+
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
-!C
-!C     *    Basic geometric variables of the profile:
-!C
+
+            ! Basic geometric variables of the profile
+            
             Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
-!C
-!C     *    Loops over data in the observation
-!C
+
+            ! Loops over data in the observation
+            
             IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
             IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-!C
-!C     *    Scan for requested assimilations, and count them
-!C
+
+            ! Scan for requested assimilations, and count them
+
             DO INDEX_BODY= IDATA, IDATEND
                IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
                   HNH1 = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   IF (LEVELGPSRO.EQ.1) HNH1 = HNH1-Rad
-!C
-!C     *          Increment OMF = Y - H(x)
-!C
+
+                  ! Increment OMF = Y - H(x)
+
                   ZOMF = obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-!C
-!C     *          Observation value    Y
-!C
+
+                  ! Observation value    Y
+
                   ZOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
                   ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                   ZMHX = ZOBS-ZOMF
-!C
-!C     *          Reference order of magnitude value:
-!C
+
+                  ! Reference order of magnitude value:
+
                   IF (LEVELGPSRO.EQ.1) THEN
                      ZREF = 0.025d0*exp(-HNH1/6500.d0)
                   ELSE
@@ -547,9 +563,9 @@ end subroutine bgck_bgcheck_conv
                        ZREF = ZMHX
                      ENDIF
                   ENDIF
-!C                           
-!C     *          OMF Tested criteria:
-!C
+                           
+                  ! OMF Tested criteria:
+
                   IF (NUMGPSSATS .GE. 1) THEN
                     IF (DABS(ZOMF)/ZREF.GT.BGCKBAND .OR. DABS(ZOMF)/ZOER.GT.3.d0) THEN
                       call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
@@ -572,10 +588,12 @@ end subroutine bgck_bgcheck_conv
       WRITE(*,*)'EXIT BGCSGPSRO'
       RETURN
       
-      END SUBROUTINE bgck_gpsro
+  end subroutine bgck_gpsro
 
-
-      function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
+  !--------------------------------------------------------------------------
+  ! isetflag
+  !--------------------------------------------------------------------------
+  function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
       !
       !:Purpose: Set BACKGROUND-CHECK FLAGS According to values set in a table.
       !          Original values in table come from ecmwf.
@@ -585,261 +603,223 @@ end subroutine bgck_bgcheck_conv
       integer isetflag
 
       ! Arguments:
-      character*2 cdfam ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+      character(len=2) :: cdfam ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
       integer :: kodtyp ! BURP CODE TYPE
       integer :: kvnam  ! VARIABLE NAME ( BURP )
-      real*8  :: zlev   ! LEVEL
-      real*8  :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
-      logical :: lmodif1020! switch to activate special criteria for backound check (*ua 10-20 mb)
+      real(8) :: zlev   ! LEVEL
+      real(8) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+      logical :: lmodif1020 ! switch to activate special criteria for backound check (*ua 10-20 mb)
 
-      ! Locals:
-      real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3),zalcrit(3)
-      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3),zLogViscrit(3)
-      real*8 zchcrit(3)
+      ! Locals:      
+      real(8), parameter :: zttcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+      real(8), parameter :: zalcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+      real(8), parameter :: zescrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+      real(8), parameter :: zpscrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+      real(8), parameter :: zpncrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+      real(8), parameter :: zswcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+      real(8), parameter :: ztscrit(3) = (/  5.00D0, 25.00D0, 30.00D0 /)
+      real(8), parameter :: zdzcrit(3) = (/  2.25D0,  5.06D0,  7.56D0 /)
+      real(8), parameter :: zgzcrit(3) = (/ 12.25D0, 25.00D0, 36.00D0 /)
+      real(8), parameter :: zzdcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+      real(8), parameter :: zchcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+      real(8), parameter :: zLogViscrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
 
+      !real(8) :: zuvcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+      real(8) :: zuvcrit(3)
+      
+      zuvcrit(1) = 10.00D0
+      zuvcrit(3) = 30.00D0
+      if ( kodtyp == 37 ) then
+        zuvcrit(2)=25.00D0
+      else
+        zuvcrit(2)=20.00D0
+      end if
+      
       isetflag=0
 
-! ASSUME CVCORD = GEMHYB
-         zttcrit(1) = 9.00D0
-         zttcrit(2) = 16.00D0
-         zttcrit(3) = 25.00D0
-
-         zuvcrit(1) = 10.00D0
-         zuvcrit(2) = 20.00D0
-         zuvcrit(3) = 30.00D0
- 
-         zalcrit(1) = 10.00D0
-         zalcrit(2) = 20.00D0
-         zalcrit(3) = 30.00D0
-
-         zescrit(1) = 10.00D0
-         zescrit(2) = 20.00D0
-         zescrit(3) = 30.00D0
-
-         zpscrit(1) = 9.00D0
-         zpscrit(2) = 16.00D0
-         zpscrit(3) = 25.00D0
-
-         zpncrit(1) = 10.00D0
-         zpncrit(2) = 20.00D0
-         zpncrit(3) = 30.00D0
-
-         zswcrit(1) = 10.00D0
-         zswcrit(2) = 20.00D0
-         zswcrit(3) = 30.00D0
-
-         ztscrit(1) = 5.00D0
-         ztscrit(2) = 25.00D0
-         ztscrit(3) = 30.00D0
-
-         zdzcrit(1) = 2.25D0
-         zdzcrit(2) = 5.06D0
-         zdzcrit(3) = 7.56D0
-
-         zgzcrit(1) = 12.25D0
-         zgzcrit(2) = 25.00D0
-         zgzcrit(3) = 36.00D0
-
-         zzdcrit(1) = 9.00D0
-         zzdcrit(2) = 16.00D0
-         zzdcrit(3) = 25.00D0
-
-         zchcrit(1) = 9.00D0
-         zchcrit(2) = 16.00D0
-         zchcrit(3) = 25.00D0
-
-         zLogViscrit(1) = 10.00D0
-         zLogViscrit(2) = 20.00D0
-         zLogViscrit(3) = 30.00D0
-
-         if ( kodtyp .eq. 37 ) then
-           zuvcrit(2)=25.D0
-         else
-           zuvcrit(2)=20.D0
-         endif
-!C
-!C     SET FLAG FOR HEIGHTS
-!C
-      if ( kvnam .eq. BUFR_NEGZ ) then
-         if (      zbgchk >= zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
+      if ( kvnam == BUFR_NEGZ ) then
+      
+         ! SET FLAG FOR HEIGHTS
+         
+         if ( zbgchk >= zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zgzcrit(2) .and. zbgchk < zgzcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zgzcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR TEMPERATURE
-!C
-      if ( kvnam .eq. BUFR_NETT ) then
-         if (      zbgchk >= zttcrit(1) .and. zbgchk < zttcrit(2) ) then
+
+      else if ( kvnam == BUFR_NETT ) then
+      
+         ! SET FLAG FOR TEMPERATURE
+
+         if ( zbgchk >= zttcrit(1) .and. zbgchk < zttcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zttcrit(2) .and. zbgchk < zttcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zttcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR SATEMS
-!C
-      if ( kvnam .eq. BUFR_NEDZ ) then
-         if (      zbgchk >= zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
+
+      else if ( kvnam == BUFR_NEDZ ) then
+     
+         ! SET FLAG FOR SATEMS
+         
+         if ( zbgchk >= zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zdzcrit(2) .and. zbgchk < zdzcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zdzcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR WIND COMPONENTS
-!C
-      if ( kvnam .eq. BUFR_NEUU .or. kvnam .eq. BUFR_NEVV ) then
-         if (      zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
+
+      else if ( kvnam == BUFR_NEUU .or. kvnam == BUFR_NEVV ) then
+  
+         ! SET FLAG FOR WIND COMPONENTS
+
+         if ( zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zuvcrit(2) .and. zbgchk < zuvcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zuvcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
-!C
-      if ( kvnam .eq. BUFR_NEAL ) then
-         if      ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
+         
+      else if ( kvnam == BUFR_NEAL ) then
+
+         ! SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
+ 
+         if ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
             isetflag=1
          else if ( zbgchk >= zalcrit(2) .and. zbgchk < zalcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zalcrit(3) )then
             isetflag=3
          end if
-      end if
-!C
-!C     SET FLAG FOR SURFACE WIND COMPONENTS
-!C
-      if ( kvnam .eq. BUFR_NEUS .or. kvnam .eq. BUFR_NEVS ) then
-         if (      zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
+
+      else if ( kvnam == BUFR_NEUS .or. kvnam == BUFR_NEVS ) then
+
+         ! SET FLAG FOR SURFACE WIND COMPONENTS
+
+         if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zswcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR SURFACE WIND GUST
-!C
-      if ( kvnam == bufr_gust ) then
-         if (      zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
+
+      else if ( kvnam == bufr_gust ) then
+      
+         ! SET FLAG FOR SURFACE WIND GUST
+
+         if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
             isetflag=2
          else if ( zbgchk >= zswcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR DEW POINT DEPRESSION
-!C
-      if ( kvnam .eq. BUFR_NEES ) then
-         if (      zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
+
+      else if ( kvnam == bufr_nees ) then
+
+         ! SET FLAG FOR DEW POINT DEPRESSION
+
+         if ( zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zescrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR SURFACE PRESSURE
-!C
-      if ( kvnam .eq. BUFR_NEPS ) then
-         if (      zbgchk >= zpscrit(1) .and. zbgchk < zpscrit(2) ) then
+
+      else if ( kvnam == bufr_neps ) then
+
+         ! SET FLAG FOR SURFACE PRESSURE
+         
+         if ( zbgchk >= zpscrit(1) .and. zbgchk < zpscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zpscrit(2) .and. zbgchk < zpscrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zpscrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR MEAN SEA LEVEL PRESSURE
-!C
-      if ( kvnam .eq. BUFR_NEPN ) then
-         if (      zbgchk >= zpncrit(1) .and. zbgchk < zpncrit(2) ) then
+
+      else if ( kvnam == bufr_nepn ) then
+
+         ! SET FLAG FOR MEAN SEA LEVEL PRESSURE
+
+         if ( zbgchk >= zpncrit(1) .and. zbgchk < zpncrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zpncrit(2) .and. zbgchk < zpncrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zpncrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR SURFACE TEMPERATURE
-!C
-      if ( kvnam .eq. BUFR_NETS ) then
-         if (      zbgchk >= ztscrit(1) .and. zbgchk < ztscrit(2) ) then
+
+      else if ( kvnam == bufr_nets ) then
+
+         ! SET FLAG FOR SURFACE TEMPERATURE
+
+         if ( zbgchk >= ztscrit(1) .and. zbgchk < ztscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= ztscrit(2) .and. zbgchk < ztscrit(3) ) then
            isetflag=2
          else if ( zbgchk >= ztscrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR SURFACE DEW POINT DEPRESSION
-!C
-      if ( kvnam .eq. BUFR_NESS ) then
-         if (      zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
+
+      else if ( kvnam .eq. BUFR_NESS ) then
+      
+         ! SET FLAG FOR SURFACE DEW POINT DEPRESSION
+
+         if ( zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zescrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR VISIBILITY
-!C
-      if ( kvnam .eq. bufr_logVis ) then
-         if (      zbgchk >= zLogViscrit(1) .and. zbgchk < zLogViscrit(2) ) then
+
+      else if ( kvnam == bufr_vis ) then
+
+         ! SET FLAG FOR VISIBILITY
+
+         if ( zbgchk >= zLogViscrit(1) .and. zbgchk < zLogViscrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zLogViscrit(2) .and. zbgchk < zLogViscrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zLogViscrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR GB-GPS ZENITH DELAY
-!C
-      if ( kvnam .eq. BUFR_NEZD ) then
-         if (      zbgchk >= zzdcrit(1) .and. zbgchk < zzdcrit(2) ) then
+
+      else if ( kvnam == bufr_nezd ) then
+
+         ! SET FLAG FOR GB-GPS ZENITH DELAY
+
+         if ( zbgchk >= zzdcrit(1) .and. zbgchk < zzdcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zzdcrit(2) .and. zbgchk < zzdcrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zzdcrit(3) )then
            isetflag =3
          endif
-      endif
-!C
-!C     SET FLAG FOR CHEMICAL CONSTITUENTS
-!C
-      if ( cdfam .eq. 'CH' ) then
-         if (      zbgchk >= zchcrit(1) .and. zbgchk < zchcrit(2) ) then
+
+       else if ( cdfam .eq. 'CH' ) then
+      
+         ! SET FLAG FOR CHEMICAL CONSTITUENTS
+
+         if ( zbgchk >= zchcrit(1) .and. zbgchk < zchcrit(2) ) then
            isetflag=1
          else if ( zbgchk >= zchcrit(2) .and. zbgchk < zchcrit(3) ) then
            isetflag=2
          else if ( zbgchk >= zchcrit(3) )then
            isetflag =3
          endif
+         
       endif
 
       return
-      end function isetflag
-
-
+  end function isetflag
+      
 end module backgroundCheck_mod

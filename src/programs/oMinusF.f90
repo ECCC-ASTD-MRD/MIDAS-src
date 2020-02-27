@@ -20,7 +20,7 @@ program midas_ominusf
   !
   use oMinusF_mod
   use obsSpaceData_mod
-  use computeHBHT_mod
+  use obsSpaceErrorStdDev_mod
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
@@ -32,7 +32,7 @@ program midas_ominusf
   logical :: addHBHT
   logical :: addSigmaO
   NAMELIST /NAMOMF/addHBHT, addSigmaO
-
+  
   integer :: fnom, fclos, nulnam, ierr, headerIndex
   type(struct_columnData),target  :: trlColumnOnAnlLev
   type(struct_columnData),target  :: trlColumnOnTrlLev
@@ -83,7 +83,7 @@ program midas_ominusf
 
   if ( addHBHT ) then
     ! 2.2 Compute the background errors in observation space
-    call hbht_compute(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
+    call ose_computeStddev(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
   end if
 
   ! 2.3 Write the results

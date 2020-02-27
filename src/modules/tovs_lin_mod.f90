@@ -211,7 +211,7 @@ contains
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
-    if (.not. tvs_useO3Climatology .and. ( .not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3') ) ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
       call utl_abort('tvslin_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (.not.tvs_useO3Climatology) then 
       if (col_varExist(columng,'TO3')) then
@@ -859,7 +859,7 @@ contains
          
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
-    if (.not. tvs_useO3Climatology .and. (.not. col_varExist(column,'TO3') .or. .not.  col_varExist(columng,'TO3')) ) then
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columng,'TO3') .and. .not.  col_varExist(columng,'O3L') ) then
       call utl_abort('tvslin_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (.not.tvs_useO3Climatology) then 
       if (col_varExist(columng,'TO3')) then

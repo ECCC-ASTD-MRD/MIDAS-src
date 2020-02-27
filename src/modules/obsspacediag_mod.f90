@@ -48,6 +48,7 @@ module obsSpaceDiag_mod
   use obsSubSpaceData_mod
   use obsfiles_mod
   use obsOperatorsChem_mod
+  use obsFamilyList_mod
   
   implicit none
   save
@@ -118,12 +119,12 @@ module obsSpaceDiag_mod
   end type struct_osd_diagn
 
   ! namelist variables
-  integer, parameter :: max_famnum=20, max_cfg_size=100
+  integer, parameter :: max_cfg_size=100
   real*8 :: deltaLat,deltaLon,deltaPressure,deltaHeight
   integer :: numFamily
-  character(len=2) :: familyList(max_famnum)
+  character(len=2) :: familyList(ofl_numFamily)
   integer :: numElement
-  integer :: elementList(max_famnum) 
+  integer :: elementList(ofl_numFamily) 
   integer :: nrandseed
   logical :: lrandom  
 
@@ -134,7 +135,7 @@ module obsSpaceDiag_mod
   !  diagn_stnid         Prescribed (starting) list of stnid (with *s as needed) for the diagnostics calc
   !                      with '*' denoting wild cards  
   !
-  !  diagn_varno         Prescribed (starting) list of bufr elments for the diagnostics calc  
+  !  diagn_varno         Prescribed (starting) list of bufr elements for the diagnostics calc  
   !
   !  diagn_unilev        Prescribed (starting) list of logicals indicating uni-level obs for the diagnostics calc
   !
@@ -154,16 +155,18 @@ module obsSpaceDiag_mod
   !  obsspace_diagn_filename 
   !                     File name for file containing obs space diagnostics related to chemical constituents.
 
-  integer :: diagn_num(max_famnum),diagn_nset(max_famnum)
-  integer :: diagn_varno(max_famnum,max_cfg_size)
-  character(len=9) :: diagn_stnid(max_famnum,max_cfg_size)
-  logical :: diagn_save(max_famnum),diagn_all(max_famnum),diagn_unilev(max_famnum,max_cfg_size)
-  real(8) :: diagn_pressmin(max_famnum)
-  character(len=100) :: obsspace_diagn_filename(max_famnum)
+  integer :: diagn_num(ofl_numFamily),diagn_nset(ofl_numFamily)
+  integer :: diagn_varno(ofl_numFamily,max_cfg_size)
+  character(len=9) :: diagn_stnid(ofl_numFamily,max_cfg_size)
+  logical :: diagn_save(ofl_numFamily),diagn_all(ofl_numFamily),diagn_unilev(ofl_numFamily,max_cfg_size)
+  real(8) :: diagn_pressmin(ofl_numFamily)
+  character(len=100) :: obsspace_diagn_filename(ofl_numFamily)
 
 contains
 
-!-------------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! osd_ObsSpaceDiag
+  !--------------------------------------------------------------------------
   subroutine osd_ObsSpaceDiag( obsSpaceData, columng, analysisMode_opt )
     !           
     ! :Purpose: Calls routines to perform observation-space diagnostic tasks
@@ -177,15 +180,18 @@ contains
     !
 
     implicit none
+    
+    !Arguments:
     type(struct_obs)              :: obsSpaceData
     type(struct_columnData)       :: columng
     logical, intent(in), optional :: analysisMode_opt
     
+    !Locals:
     logical :: nmlExists,anlm_mod    
     integer :: ierr
     integer :: dateprnt,timeprnt,newdate
     
-!    write(*,*) 'osd_ObsSpaceDiag: Starting'
+    ! write(*,*) 'osd_ObsSpaceDiag: Starting'
 
     if (present(analysisMode_opt)) then
        anlm_mod = analysisMode_opt
@@ -197,21 +203,23 @@ contains
     ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
     dateprnt=dateprnt*100+timeprnt/1000000
     
-!   Perform diagnostics based on OmP (and OmA if available)
+    ! Perform diagnostics based on OmP (and OmA if available)
  
     call osd_obsPostProc(obsSpaceData,columng,dateprnt,deltaLat,deltaLon,deltaPressure,anlm_mod)
     
     if ((.not. anlm_mod) .or. (.not.lrandom) .or. (.not.nmlExists)) return
 
-!   Perform diagnostics from random perturbations
+    ! Perform diagnostics from random perturbations
     
     call osd_calcInflation(obsSpaceData,columng,dateprnt)
 
-!    write(*,*) 'osd_obsspace_diag: Completed'
+   ! write(*,*) 'osd_obsspace_diag: Completed'
 
   end subroutine osd_ObsSpaceDiag
   
-!-------------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! osd_calcInflation
+  !--------------------------------------------------------------------------
   subroutine osd_calcInflation( obsSpaceData, columng, dateprnt )
     !      
     ! :Purpose: Calculates observation-space diagnostics from random perturbations
@@ -224,7 +232,7 @@ contains
     type(struct_columnData) :: columng
     integer                 :: dateprnt
 
-    ! locals
+    ! Locals:
     type(struct_gsv) :: statevector
     type(struct_columnData) :: column
     type(struct_hco), pointer :: hco_anl
@@ -597,19 +605,23 @@ contains
 
   end subroutine osd_calcInflation
 
-!------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! osd_getIndices
+  !--------------------------------------------------------------------------
   subroutine osd_getIndices( obsSpaceData, bodyIndex, latIndex, lonIndex, verticalIndex )
     !
     implicit none
 
+    !Arguments:
     type(struct_obs) :: obsSpaceData
     integer          :: bodyIndex
-    integer          :: headerIndex
     integer          :: latIndex
     integer          :: lonIndex
     integer          :: verticalIndex
 
+    !Locals:
     real(8), parameter :: epsilon=0.001
+    integer            :: headerIndex
 
     ! codtypes for tovs: 164(AMSUA) 168 180 181 182 183 185 186 192 193
 
@@ -648,14 +660,19 @@ contains
  
   end subroutine osd_getIndices
 
-!-------------------------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! osd_setup
+  !--------------------------------------------------------------------------
   subroutine osd_setup(nmlExists) 
     !
     implicit none
 
+    !Arguments:
     logical :: nmlExists
 
+    !Locals:
     integer :: nulnam,ierr,fnom,fclos,j
+    
     namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
         numFamily,familyList,numElement,elementList,lrandom, &
         diagn_save,diagn_all,diagn_num,diagn_stnid,diagn_varno,diagn_unilev,     &
@@ -669,8 +686,10 @@ contains
     deltaPressure = 10000.0d0
     deltaHeight = 5000.0d0
 
+    !numFamily = ofl_numFamily
+    !familyList(:) = ofl_familyList(:)
     numFamily = 7
-    familyList(:) = 'XX'
+    familyList(:) = '  '
     familyList(1) = 'UA'
     familyList(2) = 'AI'
     familyList(3) = 'SC'
@@ -678,9 +697,9 @@ contains
     familyList(5) = 'TO'
     familyList(6) = 'SW'
     familyList(7) = 'SF'
-
+    
     numElement = 11
-    elementList(:) = 0
+    elementList(:) = -1
     elementList(1) = BUFR_NETT
     elementList(2) = BUFR_NEUU
     elementList(3) = BUFR_NEVV
@@ -721,14 +740,17 @@ contains
     ierr = fclos(nulnam)
 
     do j=1,numFamily
+       if ( .not. ofl_isFamilyTypeInList(familyList(j)) ) &
+         call utl_abort('osd_setup: Specified family '//familyList(j)//' was not recognized')
        obsspace_diagn_filename(j) ='obsspace_diag_'//familyList(j)//'_'
        if (diagn_num(j).gt.max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
     end do
-
+    
   end subroutine osd_setup
-  
-!---------------------------------------------------------------------------------------
 
+  !--------------------------------------------------------------------------
+  ! osd_update_obsfile
+  !--------------------------------------------------------------------------
   subroutine osd_update_obsfile( obsSpaceData )
     !
     ! :Purpose: Update of obs file(s) for content other
@@ -737,7 +759,8 @@ contains
     !
 
     implicit none
-    ! arguments
+    
+    !Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
 
     ! If needed, add effective temperature values in CH family obs file 
@@ -747,9 +770,12 @@ contains
 
   end subroutine osd_update_obsfile
 
-!-----------------------------------------------------------------------------------------
-!------------------- Observation-space diagnostic functions and routines -----------------
+  !-----------------------------------------------------------------------------------------
+  !------------------- Observation-space diagnostic functions and routines -----------------
 
+  !--------------------------------------------------------------------------
+  ! osd_obsPostProc
+  !--------------------------------------------------------------------------
   subroutine osd_obsPostProc( obsSpaceData, columng, date, deltaLat, deltaLon, deltaPressure, anlm_mode )
     !
     ! :Purpose: Interface for observation-space post-processing procedures.
@@ -768,6 +794,7 @@ contains
 
     implicit none
 
+    !Arguments:
     type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
     integer, intent(in)     :: date
@@ -776,6 +803,7 @@ contains
     real(8), intent(in)     :: deltaPressure
     logical, intent(in)     :: anlm_mode
     
+    !Locals:
     integer, allocatable :: codtyplist(:)
     integer :: jelm,ifam
     
@@ -843,9 +871,10 @@ contains
     end if
 
   end subroutine osd_obsPostProc
-  
-!------------------------------------------------------------------------------------------
 
+  !--------------------------------------------------------------------------
+  ! osd_obsDiagnostics
+  !--------------------------------------------------------------------------
   subroutine osd_obsDiagnostics( obsSpaceData, columng, obsfam, codtyplist, filename, save_diagn, date, &
                                  deltaLat, deltaLon, deltaPressure, pressmin, anlm_mode )
     !       
@@ -876,6 +905,7 @@ contains
 
     implicit none
 
+    !Arguments:
     type(struct_obs)        :: obsSpaceData
     type(struct_columnData) :: columng
     character(len=*)        :: obsfam
@@ -889,6 +919,7 @@ contains
     logical, intent(in)     :: anlm_mode
     logical, intent(in)     :: save_diagn
 
+    !Locals:
     type(struct_osd_diagn) :: obs_diagn
     integer :: headerIndex,bodyIndex,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
 
@@ -1118,8 +1149,9 @@ contains
 
   end subroutine osd_obsDiagnostics
 
-!-----------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_ReadSqrtHPHT
+  !--------------------------------------------------------------------------
   subroutine osd_ReadSqrtHPHT( obsSpaceData, obsfam, codtyplist, status_hpht )
     !
     ! :Purpose: Read background error std. dev. at obs locations from the obs files and store
@@ -1134,11 +1166,13 @@ contains
 
     implicit none
 
+    !Arguments:
     logical, intent(out) :: status_hpht
     type(struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in) :: obsfam
     integer :: codtyplist(:)
 
+    !Locals:
     integer :: bodyIndex,headerIndex,rln,nlv,kk
     integer :: stat,varno,icodtyp
     integer, parameter :: max_nlev=500
@@ -1210,8 +1244,9 @@ contains
     
   end subroutine osd_ReadSqrtHPHT
 
-!-----------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_alloc
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_alloc( obs_diagn, deltaLat, deltaLon, deltaPressure, pressmin )
     !
     ! :Purpose: Allocates diagnostic arrays in obs_diagn.
@@ -1225,12 +1260,14 @@ contains
 
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
     real(8)               , intent(in)    :: deltaLat
     real(8)               , intent(in)    :: deltaLon
     real(8)               , intent(in)    :: deltaPressure
     real(8)               , intent(in)    :: pressmin
     
+    !Locals:
     integer :: nlev,nlat,nlon,nbin,nstat
 
     obs_diagn%deltaLat = deltaLat
@@ -1272,14 +1309,16 @@ contains
 
   end subroutine osd_obsspace_diagn_alloc
 
-!----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_init
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_init(obs_diagn)
     !
     ! :Purpose: Initializes diagnostic arrays in obs_diagn.
     !
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
     obs_diagn%OmP_stats(:,:,:,:) = 0.0d0
@@ -1297,14 +1336,16 @@ contains
 
   end subroutine osd_obsspace_diagn_init
 
-!----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_dealloc
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_dealloc(obs_diagn)
     !          
     ! :Purpose: Deallocates diagnostic arrays in obs_diagn.
     !
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
     deallocate(obs_diagn%OmP_stats,obs_diagn%OmA_stats,obs_diagn%obs_stats)
@@ -1313,8 +1354,9 @@ contains
 
   end subroutine osd_obsspace_diagn_dealloc
 
-!----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_add
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_add( obs_diagn, lat, lon, pressure, pressmin, OmP, obs, sigma_obs, nlev_obs, &
                                      unilevel, assim_obs, status, OmA_opt, sqrtHPHT_opt)
     !        
@@ -1344,6 +1386,7 @@ contains
 
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout)        :: obs_diagn
     real(8)               , intent(in)           :: lat
     real(8)               , intent(in)           :: lon
@@ -1359,6 +1402,7 @@ contains
     real(8)               , intent(in), optional :: OmA_opt(nlev_obs)
     real(8)               , intent(in), optional :: sqrtHPHT_opt(nlev_obs)
 
+    !Locals:
     integer :: ilat,ilon,ilev,ilev_obs
 
     if (assim_obs) obs_diagn%assim_mode = .true.
@@ -1438,16 +1482,21 @@ contains
 
   end subroutine osd_obsspace_diagn_add
 
-!----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_MPIreduce
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_MPIreduce(obs_diagn)
     !         
     ! :Purpose: Performs a MPI allreduce on diagnostic arrays in obs_diagn.
     !
+
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
+    !Locals:
+    
     ! MPI global arrays
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
     real(8), allocatable :: Jpa_global(:,:,:), diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
@@ -1502,8 +1551,9 @@ contains
     
   end subroutine osd_obsspace_diagn_MPIreduce
 
-!----------------------------------------------------------------------------------------
-
+  !--------------------------------------------------------------------------
+  ! osd_obsspace_diagn_print
+  !--------------------------------------------------------------------------
   subroutine osd_obsspace_diagn_print(obs_diagn, filename, save_diagn, print_type, pressmin, status_hpht, label_opt, openfile_opt )
     !        
     ! :Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
@@ -1525,6 +1575,7 @@ contains
     
     implicit none
 
+    !Arguments:
     type(struct_osd_diagn), intent(inout)        :: obs_diagn
     character(len=*)                             :: print_type
     character(len=*)                             :: filename
@@ -1534,8 +1585,8 @@ contains
     logical               , intent(in), optional :: openfile_opt
     character(len=256)    , intent(in), optional :: label_opt
 
+    !Locals:
     integer, external :: fnom, fclos
-    
     real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
     real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
     real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0
@@ -1767,13 +1818,15 @@ contains
 
   
   contains
- 
-    !----------------------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+    ! print_J
+    !--------------------------------------------------------------------------
     subroutine print_J( unit, title, Jo_analysis, Jo_backgrnd, nobs, Jo_anal_assim, Jo_bgck_assim, Jpa_assim, Jo_p_assim, nobs_assim )
       !
       implicit none
 
+      !Arguments:
       integer         , intent(in) :: unit
       integer         , intent(in) :: nobs
       integer         , intent(in) :: nobs_assim
@@ -1785,6 +1838,7 @@ contains
       real(8)         , intent(in) :: Jpa_assim
       real(8)         , intent(in) :: Jo_p_assim
 
+      !Locals:
       real(8) :: Jo_analysis_norm,Jo_backgrnd_norm,Jt_assim
       real(8) :: Jpa_norm_assim,Jt_norm_assim,Jo_p_norm_assim
       character(len=100) :: fmt
@@ -1834,12 +1888,14 @@ contains
        
     end subroutine print_J
 
-    !----------------------------------------------------------------------------------------
-
+    !--------------------------------------------------------------------------
+    ! print_stats
+    !--------------------------------------------------------------------------
     subroutine print_stats( unit, obs_diagn, pressure, ilat_start, ilat_end, ilon_start, ilon_end, ilev_start, ilev_end )
 
       implicit none
 
+      !Arguments:
       type(struct_osd_diagn), intent(in) :: obs_diagn
       real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
       integer               , intent(in) :: unit
@@ -1850,6 +1906,7 @@ contains
       integer               , intent(in) :: ilev_start
       integer               , intent(in) :: ilev_end
 
+      !Locals:
       integer :: ilev,level,counts(obs_diagn%nlev),N_assim,N_diagn,N_rej
       real(8) :: pres1,pres2,jo_a,jo_b,jo_a_norm,jo_b_norm,obs_sum,obs_mean,obs_std,OmP_mean,OmP_rms,OmA_mean,OmA_rms
       logical :: skip(obs_diagn%nlev)
@@ -1954,7 +2011,9 @@ contains
 
     end subroutine print_stats
 
-    !----------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    ! print_Desroziers
+    !--------------------------------------------------------------------------
     subroutine print_Desroziers( unit, obs_diagn, pressure, ilat_start, ilat_end, ilon_start, ilon_end, ilev_start, ilev_end, status_hpht )
       !
       ! :Purpose: Prints elements contributing to the calc of scaling factors for observation and background
@@ -1963,6 +2022,7 @@ contains
  
       implicit none
 
+      !Arguments:
       type(struct_osd_diagn), intent(in) :: obs_diagn
       real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
       integer               , intent(in) :: unit
@@ -1974,6 +2034,7 @@ contains
       integer               , intent(in) :: ilev_end
       logical               , intent(in) :: status_hpht
 
+      !Locals:
       integer :: ilev,level,N_assim(obs_diagn%nlev)
       real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
 
@@ -2045,7 +2106,5 @@ contains
     end subroutine print_Desroziers
 
   end subroutine osd_obsspace_diagn_print
-
-  !----------------------------------------------------------------------------------------
 
 end module obsSpaceDiag_mod
