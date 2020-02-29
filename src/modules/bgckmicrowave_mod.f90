@@ -754,8 +754,8 @@ contains
           ENDIF
         ENDIF
 
-        ! In all-sky mode, trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
-        IF ( mwbg_allowStateDepSigmaObs .and. CLW(JJ) > cloudyClwThreshold ) THEN
+        ! trun on bit=23 for cloud-affected radiances (to be used in gen_bias_corr)
+        IF ( CLW(JJ) > cloudyClwThreshold ) THEN
           DO JI = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
             IF ( INDXCAN /= 0 ) KMARQ(JI,JJ) = OR(KMARQ(JI,JJ),2**23)

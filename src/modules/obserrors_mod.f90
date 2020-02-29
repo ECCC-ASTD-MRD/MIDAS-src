@@ -279,8 +279,12 @@ contains
     !
     implicit none
 
+    integer, parameter :: bgckColumnIndex = 1
+    integer, parameter :: analysisColumnIndex = 2
+
     integer,external  :: FNOM, FCLOS
-    integer :: IER, ILUTOV, ILUTOV2, JI, JJ, JL, JM, INUMSAT, INUMSAT2, ISAT, IPLF
+    integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM 
+    integer :: INUMSAT, INUMSAT2, ISAT, IPLF
     integer :: IPLATFORM(tvs_maxNumberOfSensors), ISATID(tvs_maxNumberOfSensors)
     integer :: IINSTRUMENT(tvs_maxNumberOfSensors), NUMCHN(tvs_maxNumberOfSensors)
     integer :: NUMCHNIN(tvs_maxNumberOfSensors)
@@ -437,13 +441,13 @@ contains
     end if
 
     !
-    !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
-    !   otherwise use ERRBGCK (JJ=1)
+    !   Select input error to use: if ANAL mode, use ERRANAL (obsErrorColumnIndex=2);
+    !   otherwise use ERRBGCK (obsErrorColumnIndex=1)
     !
     if ( trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO' ) THEN
-      JJ = 2
+      obsErrorColumnIndex = analysisColumnIndex
     ELSE
-      JJ = 1
+      obsErrorColumnIndex = bgckColumnIndex
     end if
 
     !
@@ -456,7 +460,7 @@ contains
           if ( tvs_instruments (JL) == IINSTRUMENT(JM) ) THEN
             NUMCHN(JL)=NUMCHNIN(JM)
             do JI = 1, tvs_maxChannelNumber
-              TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
+              TOVERRST(JI,JL) = TOVERRIN(JI,obsErrorColumnIndex,JM)
               ICHN(JI,JL) = ICHNIN(JI,JM)
 
               if ( allowStateDepSigmaObs ) then
@@ -465,7 +469,7 @@ contains
                 useStateDepSigmaObs(JI,JL) = useStateDepSigmaObsInput(JI,JM)
 
                 ! inflate the sigmaObsErr in analysis mode
-                if ( JJ == 2 ) then
+                if ( obsErrorColumnIndex == analysisColumnIndex ) then
                   sigmaObsErr(JI,JL,1) = sigmaObsErr(JI,JL,1) * tovsObsInflation(JI,JM)
                   sigmaObsErr(JI,JL,2) = sigmaObsErr(JI,JL,2) * tovsObsInflation(JI,JM)
                 end if
@@ -988,9 +992,6 @@ contains
 
       surfTypeIsWater = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
 
-      if ( allowStateDepSigmaObs .and. surfTypeIsWater .and. cfam == 'TO' ) &
-        clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
-
       nlev = idatend - idata + 1
        
       BODY: do bodyIndex  = idata, idatend
@@ -1028,6 +1029,7 @@ contains
                     clwThresh2 = clwThreshArr(ichn,jn,2)
                     sigmaThresh1 = sigmaObsErr(ichn,jn,1)
                     sigmaThresh2 = sigmaObsErr(ichn,jn,2)
+                    clw_avg  = obs_headElem_r( obsSpaceData, OBS_CLW, headerIndex )
                     sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg)
                   else
                     sigmaObsErrUsed = TOVERRST( ichn, jn )
