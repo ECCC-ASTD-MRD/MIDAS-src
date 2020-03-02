@@ -1857,9 +1857,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff, &
+  subroutine ens_recenter(ens, recenteringMean, recenteringCoeff, &
                           alternativeEnsembleMean_opt, &
-                          ensembleControlMember_opt, scaleFactor_opt)
+                          ensembleControlMember_opt, scaleFactor_opt, &
+                          numMembersToRecenter_opt)
     !
     !:Purpose:
     !          To compute:
@@ -1877,24 +1878,31 @@ CONTAINS
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
     real(8)          :: recenteringCoeff
     real(8), optional :: scaleFactor_opt(:)
+    integer, optional :: numMembersToRecenter_opt
 
     ! Locals:
     integer,parameter    :: maxNumLevels=200
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, numMembersToRecenter
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     character(len=4) :: varLevel
 
     if ( present(scaleFactor_opt) ) then
-      !scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
+      ! scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
       if ( abs(recenteringCoeff  - 1.0D0) > 1.0D-5 ) then
         call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
       end if
       scaleFactor = scaleFactor_opt
     else
       scaleFactor(:) = 1.0D0
+    end if
+
+    if (present(numMembersToRecenter_opt)) then
+      numMembersToRecenter = numMembersToRecenter_opt
+    else
+      numMembersToRecenter = ens%numMembers
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -1923,10 +1931,10 @@ CONTAINS
       nullify(ptr4d_ensembleControlmember_r8)
     end if
 
-    !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
+    !$OMP PARALLEL DO PRIVATE (jk,varLevel,levIndex,thisScaleFactor,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
 
-      !define scaling factor as a function of vertical level and variable type
+      ! define scaling factor as a function of vertical level and variable type
       varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, jk))
       if ( trim(varLevel) == 'SF') then
         ! use lowest momentum level for surface variables
@@ -1961,7 +1969,7 @@ CONTAINS
             if (present(ensembleControlMember_opt)) then
               ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
             else
-              do memberIndex = 1, ens%numMembers
+              do memberIndex = 1, numMembersToRecenter
                 ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
                      real( real(thisScaleFactor*ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
               end do

@@ -105,6 +105,7 @@ program midas_letkf
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   integer  :: randomSeed           ! seed used for random perturbation additive inflation
+  integer  :: numMembersToRecenter ! number of members that get recentered on EnVar analysis
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck      ! apply additional background check using ensemble spread
   logical  :: huberize             ! apply huber norm quality control procedure
@@ -118,6 +119,7 @@ program midas_letkf
   real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
   real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
+  real(8)  :: weightRecenter        ! weight applied to EnVar recentering increment
   logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
   logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
   logical  :: huAdjustmentAfterPert ! choose to apply HU adjustment after random perturbations (default=true)
@@ -131,7 +133,8 @@ program midas_letkf
                      writeSubSample,  &
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, huAdjustmentAfterPert,  &
-                     obsTimeInterpType, etiket0, mpiDistribution
+                     obsTimeInterpType, etiket0, mpiDistribution,  &
+                     numMembersToRecenter, weightRecenter
 
 
   write(*,'(/,' //  &
@@ -193,6 +196,8 @@ program midas_letkf
   obsTimeInterpType     = 'LINEAR'
   etiket0               = 'E26_0_0P'
   mpiDistribution       = 'ROUNDROBIN'
+  numMembersToRecenter  = -1    ! means all members recentered by default
+  weightRecenter        = 0.0D0 ! means no recentering applied
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -217,6 +222,7 @@ program midas_letkf
       trim(algorithm) /= 'CVLETKF-PERTOBS') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
+  if (numMembersToRecenter == -1) numMembersToRecenter = nEns ! default behaviour
 
   !
   !- 2.  Initialization
@@ -566,7 +572,41 @@ program midas_letkf
     call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
   end if
 
-  !- 6.2 If SubSample requested, copy sub-sample of analysis and trial members
+  !- 6.2 Impose limits on humidity *before* random perturbations, if requested
+  if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
+       .and. .not.huAdjustmentAfterPert ) then
+    call tmg_start(102,'LETKF-imposeHulimits')
+    if (mpi_myid == 0) write(*,*) ''
+    if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
+    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+    if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+    if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+    ! And recompute analysis mean
+    call ens_computeMean(ensembleAnl)
+    call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+    ! And recompute mean increment
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+    call tmg_stop(102)
+  end if
+
+  !- 6.3 Recenter analysis ensemble on EnVar analysis
+  if (weightRecenter > 0.0D0) then
+    write(*,*) 'midas-letkf: Recenter analyses on EnVar analysis'
+    call enkf_recenterOnEnVar(ensembleAnl, weightRecenter, numMembersToRecenter)
+    ! And recompute analysis mean
+    call ens_computeMean(ensembleAnl)
+    call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+    ! And recompute mean increment
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+    ! And recompute the analysis spread stddev
+    call ens_computeStdDev(ensembleAnl)
+    call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+  end if
+
+  !- 6.4 If SubSample requested, copy sub-sample of analysis and trial members
   if (writeSubSample) then
     ! Copy sub-sampled analysis and trial ensemble members
     call enkf_selectSubSample(ensembleAnl, ensembleTrl,  &
@@ -591,26 +631,7 @@ program midas_letkf
 
   end if
 
-  !- 6.3 Impose limits on humidity *before* random perturbations, if requested
-  if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-       .and. .not.huAdjustmentAfterPert ) then
-    call tmg_start(102,'LETKF-imposeHulimits')
-    if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
-    if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-    if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-    if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-    if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
-    ! And recompute analysis mean
-    call ens_computeMean(ensembleAnl)
-    call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-    ! And recompute mean increment
-    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-    call tmg_stop(102)
-  end if
-
-  !- 6.4 Apply random additive inflation, if requested
+  !- 6.5 Apply random additive inflation, if requested
   if (alphaRandomPert > 0.0D0) then
     ! If namelist value is -999, set random seed using the date (as in standard EnKF)
     if (randomSeed == -999) then
@@ -629,7 +650,7 @@ program midas_letkf
     call tmg_stop(101)
   end if
 
-  !- 6.5 Impose limits on humidity *after* random perturbations, if requested
+  !- 6.6 Impose limits on humidity *after* random perturbations, if requested
   if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
        .and. huAdjustmentAfterPert ) then
     call tmg_start(102,'LETKF-imposeHulimits')
@@ -648,7 +669,7 @@ program midas_letkf
     call tmg_stop(102)
   end if
 
-  !- 6.6 Impose limits on deterministic analysis
+  !- 6.7 Impose limits on deterministic analysis
   if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
        .and. deterministicStateExists ) then
     call tmg_start(102,'LETKF-imposeHulimits')
@@ -660,23 +681,12 @@ program midas_letkf
     call tmg_stop(102)
   end if
 
-  !- 6.7 Recompute the analysis spread stddev after inflation and humidity limits
+  !- 6.8 Recompute the analysis spread stddev after inflation and humidity limits
   call ens_computeStdDev(ensembleAnl)
   call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
 
-  !- 6.8 If SubSample requested, do remaining processing and output of sub-sampled members
+  !- 6.9 If SubSample requested, do remaining processing and output of sub-sampled members
   if (writeSubSample) then
-
-    ! Impose humidity limits on subsample *before* adding random perturations, if requested
-    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-         .and. .not.huAdjustmentAfterPert ) then
-      if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of recentered ensemble'
-      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
-      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
-    end if
 
     ! Apply random additive inflation to sub-sampled ensemble, if requested
     if (alphaRandomPertSubSample > 0.0D0) then

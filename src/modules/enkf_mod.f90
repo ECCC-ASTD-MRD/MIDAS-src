@@ -50,7 +50,8 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_interpWeights, enkf_addRandomPert, enkf_RTPS
-  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError, enkf_rejectHighLatIR
+  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
+  public :: enkf_rejectHighLatIR, enkf_recenterOnEnVar
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -1899,5 +1900,60 @@ contains
     deallocate(dateStampListInc)
 
   end subroutine enkf_selectSubSample
+
+  !-----------------------------------------------------------------
+  ! enkf_recenterOnEnVar
+  !-----------------------------------------------------------------
+  subroutine enkf_recenterOnEnVar(ensembleAnl, weightRecenter, numMembersToRecenter)
+    ! :Purpose: Modify an ensemble by recentering the members on a state provided
+    !           in the file "recenteringState.fst".
+    !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
+    !           to determine the amount of recentering and how many members it is
+    !           applied to.
+    implicit none
+
+    ! Arguments
+    type(struct_ens) :: ensembleAnl
+    real(8)          :: weightRecenter
+    integer          :: numMembersToRecenter
+
+    ! Locals
+    type(struct_gsv) :: stateVectorEnVar
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_vco), pointer :: vco_ens => null()
+    character(len=20) :: envarFileName = 'envar_analysis.fst'
+    integer           :: stepIndex
+    logical           :: envarFileExists
+
+    ! check if EnVar analysis file exists
+    inquire(file=envarFileName, exist=envarFileExists)
+    if (.not. envarFileExists) then
+      write(*,*) 'enkf_recenterOnEnVar: EnVarFileName = ', envarFileName
+      call utl_abort('enkf_recenterOnEnVar: The EnVar analysis file does not exist')
+    end if
+
+    ! allocate and read in EnVar analysis state
+    hco_ens => ens_getHco(ensembleAnl)
+    vco_ens => ens_getVco(ensembleAnl)
+    call gsv_allocate( stateVectorEnVar, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorEnVar)
+
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_readFromFile( stateVectorEnVar, envarFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
+
+    ! apply recentering
+    call ens_recenter(ensembleAnl, stateVectorEnVar,  &
+                      recenteringCoeff=weightRecenter,  &
+                      numMembersToRecenter_opt=numMembersToRecenter)
+
+    call gsv_deallocate(stateVectorEnVar)
+
+  end subroutine enkf_recenterOnEnVar
 
 end module enkf_mod
