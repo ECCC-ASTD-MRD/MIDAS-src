@@ -1906,7 +1906,7 @@ contains
   !-----------------------------------------------------------------
   subroutine enkf_recenterOnEnVar(ensembleAnl, weightRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
-    !           in the file "recenteringState.fst".
+    !           in the file "envar_analysis.fst".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
     !           to determine the amount of recentering and how many members it is
     !           applied to.
