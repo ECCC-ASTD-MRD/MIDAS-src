@@ -39,7 +39,8 @@ module bgckmicrowave_mod
   public :: mwbg_grossValueCheck, mwbg_firstQcCheckAtms, mwbg_nrlFilterAtms
   public :: mwbg_writeBlocks
 
-  logical :: mwbg_debug, mwbg_clwQcThreshold, mwbg_allowStateDepSigmaObs
+  logical :: mwbg_debug, mwbg_allowStateDepSigmaObs
+  real    :: mwbg_clwQcThreshold
   logical :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
 
   integer, parameter :: JPNSAT = 9
@@ -735,7 +736,7 @@ contains
     INO = 12
     DO JJ=1,KNT
       IF ( CLW(JJ) .NE.  MISGRODY  ) THEN
-        IF ( CLW(JJ) .GT. mwbg_clwQcThreshold   ) THEN
+        IF ( CLW(JJ) .GT. mwbg_clwQcThreshold ) THEN
           DO JI=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(JI,JJ))
             IF ( INDXCAN.NE.0 )  THEN
@@ -761,7 +762,7 @@ contains
           ENDDO
           IF ( mwbg_debug ) THEN
             WRITE(*,*) STNID(2:9),' Grody cloud liquid water check', &
-                      ' cloud-affected obs. CLW= ',CLW(JJ), ', threshold= ',cloudyClwThreshold 
+                      ' cloud-affected obs. CLW= ',CLW(JJ), ', threshold= ', cloudyClwThreshold
           ENDIF
         ENDIF
       ENDIF

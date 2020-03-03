@@ -123,6 +123,7 @@ program midas_bgckmw
   REAL  XLAT,XLON
 
   REAL  DLAT, DLON, TOPOFACT
+  REAL  clwQcThreshold
 
   LOGICAL RESETQC, SKIPENR
 
@@ -132,7 +133,7 @@ program midas_bgckmw
 
   EXTERNAL EXDB,EXFIN
 
-  LOGICAL DEBUG, clwQcThreshold, allowStateDepSigmaObs
+  LOGICAL DEBUG, allowStateDepSigmaObs
 
   namelist /nambgck/ debug, RESETQC, ETIKRESU, clwQcThreshold, allowStateDepSigmaObs
 
