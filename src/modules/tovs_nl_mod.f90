@@ -104,7 +104,7 @@ module tovs_nl_mod
   public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_profiles_nl, tvs_profiles_tlad, tvs_transmission,tvs_emissivity
   public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_interpLogHU
+  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl
 
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
@@ -163,7 +163,6 @@ module tovs_nl_mod
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option 
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
-  logical tvs_interpLogHU                          ! Interpolate log(HU), instead of HU, to RTTOV pressure levels
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -495,7 +494,7 @@ contains
     character(len=8)  :: crtmodl
     logical :: ldbgtov, useO3Climatology, regLimitExtrap
     integer :: instrumentIndex, numMWInstrumToUseCLW
-    logical :: mwInstrumUsingCLW_tl, interpLogHU
+    logical :: mwInstrumUsingCLW_tl
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -2065,152 +2064,6 @@ contains
 
   end subroutine tvs_fillProfiles
 
-  !--------------------------------------------------------------------------
-  !  exthum4
-  !--------------------------------------------------------------------------
-  subroutine exthum4( ppres, humidity, limlvhu )
-    ! :Purpose: extrapolate upper level humidity profile
-    !           (adapted from exthum by J. Eyre).
-    !           To extend mixing ratio profile into stratosphere in a reasonable way.
-    !
-    !
-    ! :Method:
-    !     take top tropospheric mixing ratio (e.g. near 300 mb) and
-    !     extrapolate with given fall off into lower stratosphere
-    !     (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
-    !     (e.g. 0.000003 kg/kg). In upper strat, mixing ratio = zwmin.
-    !
-    ! :Externals:
-    !          none.
-    !
-    ! :Reference:
-    !     ecmwf tech mem 176.
-    !
-    implicit none
-
-    ! Arguments
-    real(8), intent(in)    :: ppres(:)      ! Pressure levels
-    real(8), intent(inout) :: humidity(:,:) ! Humidity profiles
-    real(8), intent(in)    :: limlvhu       ! Humidity is extrapolated for pressures < limlvhu
-
-    ! locals
-    real(8), allocatable :: zpres3(:)
-    real(8) zwb
-    real(8), parameter :: pressureLimit = 70.0d0  !press limits (in hpa) of region to be extrapolated
-    integer :: topIndex, profileIndex,levelIndex,nlevels,nprofiles
-
-    nlevels = size( ppres )
-    nprofiles = size( humidity, dim =2)
-    
-    !      Find top level of given profile
-    topIndex = 0
-    do levelIndex = nlevels, 1, -1
-      if (ppres(levelIndex) < limlvhu) then
-        topIndex = levelIndex
-        exit
-      end if
-    end do
-
-    !  Null extrapolation case
-    if (topIndex == 0) return
-
-    allocate ( zpres3( nlevels ) )
-      !   Constants defining p**3 fall off around tropopause
-    do levelIndex = 1, topIndex
-      zpres3(levelIndex) = (ppres(levelIndex)/ppres(topIndex+1))**3
-    end do
-
-    do profileIndex = 1, nlevels
-      zwb = humidity(topIndex+1,profileIndex)
-      do levelIndex=1,topIndex
-        if (ppres(levelIndex) < pressureLimit) then
-          humidity(levelIndex,profileIndex) = MPC_MINIMUM_HU_R8
-        else
-          humidity(levelIndex,profileIndex) = max( (zwb*zpres3(levelIndex)), MPC_MINIMUM_HU_R8)
-        end if
-      end do
-    end do
-
-    deallocate ( zpres3 )
-       
-  end subroutine exthum4
-
-  !--------------------------------------------------------------------------
-  !  htextrap
-  !--------------------------------------------------------------------------
-  subroutine htextrap( profout, profin, rttovPressure, jplev, levelsBelowModelTop, modelTopIndex, nprf )
-    !
-    ! :Purpose: extrapolate height profiles above 10mb model top
-    !           on rttov levels up to 0.1mb (rttov levels 1 to 7)
-    !           using 10 rttov height levels from 100mb to 10mb
-    !           (rttov levels 8 to 17) for linear fit.
-    !
-    !                #. linear extrapolation following
-    !                #. profout(m) = a * ln(rttovPressure(mb)) + b
-    !                #. and solve a and b by least square method 
-    !
-    implicit none
-
-    !  Arguments:
-    real(8), intent(out) :: profout(jplev,nprf) ! Height profiles  -extrapolated- (m)
-    real(8), intent(in)  :: profin(levelsBelowModelTop,nprf)! Height profiles  -to be extrapolated- (m)
-    real(8), intent(in)  :: rttovPressure(jplev)! Pressure levels of rttov model (hpa)
-    integer, intent(in)  :: jplev               ! Number of pressure levels of rttov model
-    integer, intent(in)  :: levelsBelowModelTop ! Number of rttov model levels below nwp model top
-    integer, intent(in)  :: modelTopIndex       ! First rttov model level under nwp model top
-    integer, intent(in)  :: nprf                ! Number of profiles
-
-    ! Locals:
-    integer  :: i, jk, jn
-    real(8)  :: lnx_sum, lnx_avg, y_sum, y_avg, a_num, a_den, a, b
-    integer, parameter :: nl = 10  ! number of points used in the extrapolation
-
-    do jn = 1, nprf
-      
-      lnx_sum = 0.d0
-      y_sum   = 0.d0
-      a_num   = 0.d0
-      a_den   = 0.d0
-
-
-      ! Find averaged values of height and ln ( pressure )
-
-      do i = 1, nl
-        lnx_sum = lnx_sum + log(rttovPressure(modelTopIndex + i - 1))
-        y_sum   = y_sum   + profin(i,jn)
-      end do
-
-      lnx_avg = lnx_sum / nl
-      y_avg   = y_sum   / nl
-
-      !  Find constants a and b by least-square method
-      
-      do i = 1, nl
-        a_num = a_num + ( log(rttovPressure(modelTopIndex + i - 1)) - lnx_avg ) * ( profin(i,jn) - y_avg )
-        a_den = a_den + ( log(rttovPressure(modelTopIndex + i - 1)) - lnx_avg )**2
-      end do
-
-      a = a_num / a_den
-
-      b = y_avg - A * lnx_avg
-
-
-      !   Initialize height for rttov levels under nwp model top
-
-      do jk = 1, levelsBelowModelTop
-        profout(jplev - levelsBelowModelTop + jk,jn) = profin(jk,jn)
-      end do
-
-
-      !   Extrapolate height for rttov levels above nwp model top
-
-      do jk = 1, modelTopIndex - 1
-        profout(jk,jn) = a * log(rttovPressure(jk)) + b
-      end do
-
-    end do
-
-  end subroutine htextrap
 
   !--------------------------------------------------------------------------
   !  tvs_rttov

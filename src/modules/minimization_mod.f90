@@ -1034,7 +1034,7 @@ CONTAINS
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oop_Htl(column,columng,obsSpaceData,1)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx

@@ -354,7 +354,6 @@ contains
     real(8) :: ptop_bt_avhrr(NIR,nClassAVHRR), ptop_rd_avhrr(NIR,nClassAVHRR)
     real(8) :: btObs_avhrr(NIR,nClassAVHRR), radObs_avhrr(NIR,nClassAVHRR), ptop_eq_avhrr(nClassAVHRR)
     real(8) :: cfrac_avhrr
-
     real(8) :: avhrr_surfem1(NIR)
     real(8) :: albedoThreshold(NIR)
 
@@ -1141,6 +1140,7 @@ contains
                  call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),bitIndex))
           end do
         end do
+          
       end if
 
     end do HEADER_2
@@ -2508,14 +2508,14 @@ contains
     end do
 
     allocStatus = 0
-    call rttov_alloc_direct(            &
-         allocStatus,             &
-         asw=1,                        &
-         nprofiles=1,     & ! (not used)
-         nchanprof=nchannels,          &
-         nlevels=nlevels,       &
-         opts=tvs_opts(1),    &
-         coefs=coefs_avhrr,  &
+    call rttov_alloc_direct(         &
+         allocStatus,                &
+         asw=1,                      &
+         nprofiles=1,                & ! (not used)
+         nchanprof=nchannels,        &
+         nlevels=nlevels,            &
+         opts=tvs_opts(1),           &
+         coefs=coefs_avhrr,          &
          transmission=transmission,  &
          radiance=radiancedata_d,    &
          init=.true.)
@@ -2545,14 +2545,14 @@ contains
     avhrr_bgck(headerIndex)% transmsurf(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
 
-    call rttov_alloc_direct(            &
-         allocStatus,             &
-         asw=0,                        &
-         nprofiles=1,     & ! (not used)
-         nchanprof=nchannels,          &
-         nlevels=nlevels,       &
-         opts=tvs_opts(1),    &
-         coefs=coefs_avhrr,  &
+    call rttov_alloc_direct(         &
+         allocStatus,                &
+         asw=0,                      &
+         nprofiles=1,                & ! (not used)
+         nchanprof=nchannels,        &
+         nlevels=nlevels,            &
+         opts=tvs_opts(1),           &
+         coefs=coefs_avhrr,          &
          transmission=transmission,  &
          radiance=radiancedata_d )
 

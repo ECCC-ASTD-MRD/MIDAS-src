@@ -52,7 +52,6 @@ contains
   !  tvslin_rttov_tl
   !--------------------------------------------------------------------------
   subroutine tvslin_rttov_tl(column, columng, obsSpaceData)
-
     !
     ! :Purpose: Tangent linear of computation of radiance with rttov_tl
     !   
@@ -76,19 +75,15 @@ contains
 
     real(8), allocatable :: tt_tl(:,:)
     real(8), allocatable :: hu_tl(:,:)
-    real(8), allocatable :: tt(:,:)
-    real(8), allocatable :: hu(:,:)
     real(8), allocatable :: pressure_tl(:,:)
     real(8), allocatable :: ozone_tl(:,:)
     character(len=4) :: ozoneVarName
     real(8), allocatable :: clw_tl(:,:)
-    real(8), allocatable :: clw(:,:)
     logical, allocatable :: surfTypeIsWater(:)
     real(8), pointer :: delTT(:), delHU(:), delP(:)
     real(8), pointer :: delO3(:)
     real(8), pointer :: delCLW(:)
     integer :: btCount
-
     integer,external :: omp_get_num_threads
     integer :: nthreads, max_nthreads
     integer :: btIndex, bodyIndex
@@ -185,28 +180,24 @@ contains
       allocate (sensorHeaderIndexes (profileCount), stat= allocStatus(1))
       allocate (tt_tl     (nlv_T,profileCount),     stat= allocStatus(2))
       allocate (hu_tl    (nlv_T,profileCount),      stat= allocStatus(3))
-      allocate (tt        (nlv_T,profileCount),     stat= allocStatus(4))
-      allocate (hu       (nlv_T,profileCount),      stat= allocStatus(5))
-      allocate (pressure_tl(nlv_T,profileCount),    stat= allocStatus(6))
-      allocate (profilesdata_tl(profileCount),      stat= allocStatus(7))
+      allocate (pressure_tl(nlv_T,profileCount),    stat= allocStatus(4))
+      allocate (profilesdata_tl(profileCount),      stat= allocStatus(5))
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          allocate (ozone_tl(nlv_T,profileCount),   stat= allocStatus(8))
+          allocate (ozone_tl(nlv_T,profileCount),   stat= allocStatus(6))
         end if
       end if
       if ( runObsOperatorWithClw_tl ) then
         write(*,*) 'tvslin_rttov_tl: using clw_data'
-        allocate (clw_tl(nlv_T,profileCount),stat= allocStatus(9))
+        allocate (clw_tl(nlv_T,profileCount),stat= allocStatus(7))
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(27))
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(8))
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_tl")
  
       sensorHeaderIndexes(:) = 0 
       
       tt_tl(:,:) = 0.0d0
       hu_tl(:,:) = 0.0d0
-      tt(:,:) = 0.0d0
-      hu(:,:) = 0.0d0
       pressure_tl(:,:) = 0.0d0
 
       if (.not. tvs_useO3Climatology) then
@@ -312,18 +303,16 @@ contains
       deallocate (sensorHeaderIndexes,  stat= allocStatus(1) )
       deallocate (tt_tl,                stat= allocStatus(2) )
       deallocate (hu_tl,                stat= allocStatus(3) )
-      deallocate (tt,                   stat= allocStatus(4) )
-      deallocate (hu,                   stat= allocStatus(5) )
-      deallocate (pressure_tl,          stat= allocStatus(6) )
+      deallocate (pressure_tl,          stat= allocStatus(4) )
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          deallocate (ozone_tl,         stat= allocStatus(7))
+          deallocate (ozone_tl,         stat= allocStatus(5))
         end if
       end if
       if ( runObsOperatorWithClw_tl ) then
-        deallocate (clw_tl,stat= allocStatus(8))
+        deallocate (clw_tl,stat= allocStatus(6))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(27)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(7)) 
       call utl_checkAllocationStatus(allocStatus, "tvslin_rttov_tl", .false.)
 
       !  set nthreads to actual number of threads which will be used.
@@ -384,6 +373,7 @@ contains
       !  2.4  Store hx in obsSpaceData,OBS_WORK
       
       do btIndex = 1, btCount
+        
         bodyIndex = sensorBodyIndexes(btIndex)
         call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, &
              radiancedata_tl % bt(btIndex) )
@@ -392,6 +382,7 @@ contains
                chanprof(btIndex)%chan,   radiancedata_tl % bt(btIndex), &
                obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
         end if
+        
       end do
  
       ! de-allocate memory
@@ -512,7 +503,6 @@ contains
 
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-!    diagTtop = (Vcode == 5002)
 
 
 
@@ -739,6 +729,8 @@ contains
         end if
       end if
 
+      surfTypeIsWater(profileCount) = ( obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex) == surftype_sea )
+
       if ( runObsOperatorWithClw_ad ) then
         do  profileIndex = 1 , profileCount 
           if ( surfTypeIsWater(profileIndex) ) then
@@ -763,7 +755,7 @@ contains
       if ( runObsOperatorWithClw_ad ) then
         deallocate (clw_ad,stat=allocStatus(6))
       end if
-      deallocate (surfTypeIsWater,stat=allocStatus(27))
+      deallocate (surfTypeIsWater,stat=allocStatus(7))
       
       call utl_checkAllocationStatus(allocStatus, " tvslin_fill_profiles_ad", .false.)
     
