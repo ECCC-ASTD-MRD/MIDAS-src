@@ -1847,8 +1847,8 @@ contains
     integer :: nulFile, ierr, status, numSubSample
     integer :: memberIndex, memberIndexSubSample, memberIndexFull
     integer :: memberIndexesSubSample(1000), memberIndexesFull(1000)
-    integer :: fnom, fclos
     integer, allocatable :: dateStampListInc(:)
+    integer, external :: fnom, fclos
 
     numSubSample = 0
 
@@ -1904,7 +1904,8 @@ contains
   !-----------------------------------------------------------------
   ! enkf_recenterOnEnVar
   !-----------------------------------------------------------------
-  subroutine enkf_recenterOnEnVar(ensembleAnl, weightRecenter, numMembersToRecenter)
+  subroutine enkf_recenterOnEnVar(ensembleAnl, weightRecenter,  &
+                                  useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
     !           in the file "envar_analysis.fst".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
@@ -1915,21 +1916,52 @@ contains
     ! Arguments
     type(struct_ens) :: ensembleAnl
     real(8)          :: weightRecenter
+    logical          :: useOptionTableRecenter
     integer          :: numMembersToRecenter
 
     ! Locals
     type(struct_gsv) :: stateVectorEnVar
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_vco), pointer :: vco_ens => null()
-    character(len=20) :: envarFileName = 'envar_analysis.fst'
-    integer           :: stepIndex
-    logical           :: envarFileExists
+    character(len=20)    :: envarFileName = 'envar_analysis.fst'
+    character(len=20)    :: stringArray(100)
+    character(len=1000)  :: textLine
+    integer              :: stepIndex, memberIndex, columnIndex
+    integer              :: numMembers, numColumns, nulFile, status
+    logical              :: envarFileExists
+    real(8), allocatable :: weightArray(:)
+    integer, external    :: fnom, fclos
 
     ! check if EnVar analysis file exists
     inquire(file=envarFileName, exist=envarFileExists)
     if (.not. envarFileExists) then
       write(*,*) 'enkf_recenterOnEnVar: EnVarFileName = ', envarFileName
       call utl_abort('enkf_recenterOnEnVar: The EnVar analysis file does not exist')
+    end if
+
+    numMembers = ens_getNumMembers(ensembleAnl)
+
+    ! read the optiontable file, if requested
+    if (useOptionTableRecenter) then
+      write(*,*) 'enkf_recenterOnEnVar: using optiontable file to specify recentering weights.'
+      nulFile = 0
+      status = fnom(nulFile, './optiontable', 'FMT+SEQ+R/O', 0)
+      read(nulFile,'(a)', IOSTAT=status) textLine
+      if (status /= 0) then
+        call utl_abort('enkf_recenterOnEnVar: unable to read optiontable file')
+      end if
+      call utl_parseColumns(textLine, numColumns)
+      write(*,*) 'enkf_recenterOnEnVar: optiontable file has ', numColumns, ' columns.'
+      allocate( weightArray(0:numMembers) )
+      rewind(nulFile)
+      do memberIndex = 0, numMembers
+        read(nulFile,'(a)') textLine
+        call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
+        write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        read(stringArray(numColumns),'(f6.3)') weightArray(memberIndex)
+        write(*,*) 'weightArray = ', weightArray(memberIndex)
+      end do
+      status = fclos(nulFile)
     end if
 
     ! allocate and read in EnVar analysis state
@@ -1948,11 +1980,18 @@ contains
     end do
 
     ! apply recentering
-    call ens_recenter(ensembleAnl, stateVectorEnVar,  &
-                      recenteringCoeff=weightRecenter,  &
-                      numMembersToRecenter_opt=numMembersToRecenter)
+    if (useOptionTableRecenter) then
+      call ens_recenter(ensembleAnl, stateVectorEnVar,  &
+                        recenteringCoeffArray_opt=weightArray(1:numMembers),  &
+                        numMembersToRecenter_opt=numMembersToRecenter)
+    else
+      call ens_recenter(ensembleAnl, stateVectorEnVar,  &
+                        recenteringCoeff_opt=weightRecenter,  &
+                        numMembersToRecenter_opt=numMembersToRecenter)
+    end if
 
     call gsv_deallocate(stateVectorEnVar)
+    if ( allocated(weightArray) ) deallocate(weightArray)
 
   end subroutine enkf_recenterOnEnVar
 

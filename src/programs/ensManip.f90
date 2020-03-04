@@ -385,8 +385,9 @@ program midas_ensManip
       call tmg_stop(11)
 
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,           &
-                        scaleFactor_opt=scaleFactor,                                      &
+      call ens_recenter(ensemble,statevector_recenteringMean,    &
+                        recenteringCoeff_opt=recentering_coeff,  &
+                        scaleFactor_opt=scaleFactor,             &
                         alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
       if (imposeSaturationLimitOnOutputs .or. imposeRttovHuLimitsOnOutputs) then
         if (mpi_myid == 0) write(*,*) ''
@@ -412,7 +413,8 @@ program midas_ensManip
       end if
     else
       call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
-      call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff,&
+      call ens_recenter(ensemble,statevector_recenteringMean,   &
+                        recenteringCoeff_opt=recentering_coeff, &
                         scaleFactor_opt=scaleFactor)
 
       if (imposeSaturationLimit .or. imposeRttovHuLimits) then
@@ -553,8 +555,9 @@ contains
     if ( imposeRttovHuLimitsOnInputs   ) call qlim_rttovLimit     (statevector_ensembleControlMember)
 
     ! Recenter
-    call ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt = alternativeEnsembleMean_opt, &
-                      ensembleControlMember_opt = statevector_ensembleControlMember,                                  &
+    call ens_recenter(ens,recenteringMean,recenteringCoeff_opt=recenteringCoeff,      &
+                      alternativeEnsembleMean_opt = alternativeEnsembleMean_opt,      &
+                      ensembleControlMember_opt = statevector_ensembleControlMember,  &
                       scaleFactor_opt=scaleFactor)
 
     ! Check the humidity bounds after the recentering steps

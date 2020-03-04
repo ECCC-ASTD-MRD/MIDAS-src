@@ -17,8 +17,7 @@
    imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
-   weightRecenter        = 1.0D0
-   numMembersToRecenter  = 20
+   useOptionTableRecenter = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.

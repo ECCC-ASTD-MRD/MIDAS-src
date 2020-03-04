@@ -119,10 +119,11 @@ program midas_letkf
   real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
   real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
   real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
-  real(8)  :: weightRecenter        ! weight applied to EnVar recentering increment
-  logical  :: imposeSaturationLimit ! switch for choosing to impose saturation limit of humidity
-  logical  :: imposeRttovHuLimits   ! switch for choosing to impose the RTTOV limits on humidity
-  logical  :: huAdjustmentAfterPert ! choose to apply HU adjustment after random perturbations (default=true)
+  real(8)  :: weightRecenter         ! weight applied to EnVar recentering increment
+  logical  :: useOptionTableRecenter ! use values in the optiontable file
+  logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
+  logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
+  logical  :: huAdjustmentAfterPert  ! choose to apply HU adjustment after random perturbations (default=true)
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=12) :: etiket0
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
@@ -134,7 +135,7 @@ program midas_letkf
                      alphaRTPP, alphaRTPS, randomSeed, alphaRandomPert, alphaRandomPertSubSample,  &
                      imposeSaturationLimit, imposeRttovHuLimits, huAdjustmentAfterPert,  &
                      obsTimeInterpType, etiket0, mpiDistribution,  &
-                     numMembersToRecenter, weightRecenter
+                     numMembersToRecenter, weightRecenter, useOptionTableRecenter
 
 
   write(*,'(/,' //  &
@@ -198,6 +199,7 @@ program midas_letkf
   mpiDistribution       = 'ROUNDROBIN'
   numMembersToRecenter  = -1    ! means all members recentered by default
   weightRecenter        = 0.0D0 ! means no recentering applied
+  useOptionTableRecenter = .false.
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -592,9 +594,9 @@ program midas_letkf
   end if
 
   !- 6.3 Recenter analysis ensemble on EnVar analysis
-  if (weightRecenter > 0.0D0) then
+  if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
     write(*,*) 'midas-letkf: Recenter analyses on EnVar analysis'
-    call enkf_recenterOnEnVar(ensembleAnl, weightRecenter, numMembersToRecenter)
+    call enkf_recenterOnEnVar(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
     ! And recompute analysis mean
     call ens_computeMean(ensembleAnl)
     call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
@@ -712,7 +714,8 @@ program midas_letkf
     call ens_computeMean(ensembleAnlSubSample)
 
     ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
-    call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl, recenteringCoeff=1.0D0)
+    call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
+                      recenteringCoeff_opt=1.0D0)
     if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
          .and. huAdjustmentAfterPert ) then
       if (mpi_myid == 0) write(*,*) ''

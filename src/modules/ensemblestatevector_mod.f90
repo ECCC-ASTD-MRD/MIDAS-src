@@ -1857,7 +1857,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------
-  subroutine ens_recenter(ens, recenteringMean, recenteringCoeff, &
+  subroutine ens_recenter(ens, recenteringMean, recenteringCoeff_opt,  &
+                          recenteringCoeffArray_opt, &
                           alternativeEnsembleMean_opt, &
                           ensembleControlMember_opt, scaleFactor_opt, &
                           numMembersToRecenter_opt)
@@ -1876,7 +1877,8 @@ CONTAINS
     type(struct_ens) :: ens
     type(struct_gsv) :: recenteringMean
     type(struct_gsv), optional :: alternativeEnsembleMean_opt, ensembleControlMember_opt
-    real(8)          :: recenteringCoeff
+    real(8), optional :: recenteringCoeff_opt
+    real(8), optional :: recenteringCoeffArray_opt(:)
     real(8), optional :: scaleFactor_opt(:)
     integer, optional :: numMembersToRecenter_opt
 
@@ -1884,14 +1886,23 @@ CONTAINS
     integer,parameter    :: maxNumLevels=200
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
+    real(8) :: recenteringCoeffArray(ens%numMembers)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, numMembersToRecenter
     integer :: jk, jj, ji, stepIndex, memberIndex, levIndex
     character(len=4) :: varLevel
 
+    if ( present(recenteringCoeff_opt) ) then
+      recenteringCoeffArray(:) = recenteringCoeff_opt
+    else if ( present(recenteringCoeffArray_opt) ) then
+      recenteringCoeffArray(:) = recenteringCoeffArray_opt(1:ens%numMembers)
+    else
+      call utl_abort('ens_recenter: Must specify recenteringCoeff_opt or recenteringCoeffArray_opt')
+    end if
+
     if ( present(scaleFactor_opt) ) then
       ! scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
-      if ( abs(recenteringCoeff  - 1.0D0) > 1.0D-5 ) then
+      if ( any (abs(recenteringCoeffArray(:)  - 1.0D0) > 1.0D-5) ) then
         call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
       end if
       scaleFactor = scaleFactor_opt
@@ -1967,11 +1978,14 @@ CONTAINS
               end if
             end if
             if (present(ensembleControlMember_opt)) then
-              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
+              ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) =  &
+                   thisScaleFactor*ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) +  &
+                   recenteringCoeffArray(1)*increment
             else
               do memberIndex = 1, numMembersToRecenter
                 ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                     real( real(thisScaleFactor*ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
+                     real( real(thisScaleFactor*ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) +  &
+                     recenteringCoeffArray(memberIndex)*increment, 4)
               end do
             end if
           end do
