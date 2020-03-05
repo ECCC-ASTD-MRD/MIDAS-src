@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-program midas_bgckmw
+program midas_bgckAllMW
   !
   ! :Purpose: Main program for background check of microwave instruments. 
   !
@@ -23,14 +23,22 @@ program midas_bgckmw
   use MathPhysConstants_mod
 
   implicit none
+  
 
+  integer, parameter            :: nchanAtms=22
+  integer, parameter            :: mxscan=96
   integer, PARAMETER            :: MXSAT = 9
-  integer, PARAMETER            :: MXVAL = 22
-  integer, PARAMETER            :: MXNT = 3000
   integer, parameter            :: JPNSAT = 9
   integer, parameter            :: JPCH = 50
+  real, parameter               :: zmisg=9.9e09
   integer, parameter            :: MXCHN = 42   
   integer, parameter            :: JPMXREJ = 15  
+  integer, parameter            :: ipc=6
+
+  character(len=128)            :: mglg_file
+  character(len=128)            :: statsFile
+  logical                       :: lutb
+  
   integer                       :: nobs_tot
   integer                       :: n_bad_reps
   integer                       :: n_reps
@@ -38,11 +46,10 @@ program midas_bgckmw
   integer                       :: satNumber 
   integer                       :: ntOut 
   integer                       :: nvalOut
-  integer                       :: junk 
   integer                       :: exdb
   integer                       :: exfin
   integer                       :: ier
-  integer                       :: I, ISTAT
+  integer                       :: istat
   integer                       :: nulnam
   integer                       :: INOSAT
   logical                       :: bad_report
@@ -50,14 +57,12 @@ program midas_bgckmw
   logical                       :: ifLastReport
   logical                       :: RESETQC 
   logical                       :: debug
-  logical                       :: clwQcThreshold
-  logical                       :: allowStateDepSigmaObs  
-  real, parameter               :: zmisg=9.9e09
+  logical                       :: writeModelLsqTT
+  logical                       :: writeEle25174 
   integer, parameter            :: MISGINT = -1
   character(len=9)              :: STNID
   character(len=9), allocatable :: satelliteId(:)
-  !character(len=9) :: satelliteId(MXSAT)
-
+  character(len=5)              :: instName
   character(len=90)             :: burpFileNameIn
   character(len=90)             :: burpFileNameOut
   character(len=9)              :: ETIKRESU
@@ -82,20 +87,62 @@ program midas_bgckmw
   integer, allocatable          :: IMARQ(:)
   integer, allocatable          :: IORBIT(:)
   integer, allocatable          :: globMarq(:)
-  real,    allocatable          :: clw_avg(:) 
-  real,    allocatable          :: clw(:)
-  real,    allocatable          :: scatw(:)
-  integer, allocatable          :: icheck(:,:)
-  integer, allocatable          :: ichkprf(:)
   integer                       :: IUTILST(JPCH,JPNSAT)
   real                          :: TOVERRST(JPCH,JPNSAT)
   integer                       :: MREJCOD(JPMXREJ,MXCHN,MXSAT)
-  integer                       :: MREJCOD2_opt(JPMXREJ,MXCHN,MXSAT)
+  integer                       :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)
+  integer, allocatable          :: lsq(:)
+  integer, allocatable          :: trn(:)
+  integer, allocatable          :: icheck(:,:)
+  integer, allocatable          :: ichkprf(:)
+  logical, allocatable          :: waterobs(:)
+  logical, allocatable          :: grossrej(:)
+  logical, allocatable          :: cloudobs(:)
+  logical, allocatable          :: iwvreject(:)
+  logical, allocatable          :: precipobs(:)
+  integer, allocatable          :: ident(:)
+  real,    allocatable          :: zdi(:)
+  real,    allocatable          :: clw(:)
+  real,    allocatable          :: scatw(:)
+  real,    allocatable          :: iwv(:)
+  real,    allocatable          :: SeaIce(:)
+  real,    allocatable          :: scatec(:)
+  real,    allocatable          :: scatbg(:)
+  logical, allocatable          :: lflagchn(:,:)
+  logical, allocatable          :: lqc(:,:)
+  real                          :: glbscanb(nchanAtms,mxscan,mxsat)
+  real                          :: dglbscanb(nchanAtms,mxscan,mxsat)
+  character(len=9)              :: csatid(mxsat)
+  real, allocatable             :: ztbcor(:)
+  integer                       :: seaIcePointNum
+  integer                       :: clwMissingPointNum
+  integer                       :: n_reps_tb2misg
 
-  EXTERNAL EXDB,EXFIN
-  namelist /nambgck/ debug, RESETQC, ETIKRESU, clwQcThreshold
+  integer                       :: cldcnt
 
-  JUNK = EXDB('BGCKMW','DEBUT','NON')
+
+  integer                       :: ilnmx
+  integer                       :: status
+  integer                       :: nele
+  integer                       :: nt
+  integer                       :: blat
+  integer                       :: blon
+  integer                       :: idtyp
+  integer                       :: flgcnt
+  integer                       :: rejcnt
+  integer                       :: landcnt
+  integer                       :: iwvcnt
+  integer                       :: pcpcnt
+  integer                       :: drycnt
+  integer                       :: indx1, indx2, ii, numbsat, iich, jj, kk
+
+  external EXDB,EXFIN
+  
+  namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
+                    writeModelLsqTT, writeEle25174, debug, RESETQC, ETIKRESU 
+
+  istat = exdb('midas_bgck','DEBUT','NON')
+
 
   write(*,'(/,' //                                                &
             '3(" *****************"),/,' //                       &
@@ -104,13 +151,35 @@ program midas_bgckmw
             '14x,"-- Revision : ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
-  ! 1) Debut
   ! default values
+  instName = 'AMSUA'
+  burpFileNameIn = './obsto_amsua'
+  burpFileNameOut = './obsto_amsua.out'
+  mglg_file  = './fstmglg'
+  statsFile = './stats_amsua_assim'  
+  writeModelLsqTT = .false.
+  writeEle25174 = .false.
   debug = .false.
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
-  clwQcThreshold = 0.3
-  allowStateDepSigmaObs = .false.
+
+
+  ! Initializations of counters (for total reports/locations in the file).
+  lutb = .False.
+  flgcnt = 0
+  landcnt = 0
+  rejcnt = 0
+  cldcnt = 0
+  iwvcnt = 0
+  pcpcnt = 0
+  drycnt = 0
+  seaIcePointNum = 0
+  clwMissingPointNum = 0
+  n_bad_reps = 0
+  reportIndex = 0
+  nobs_tot = 0 
+  n_reps_tb2misg = 0 
+  
   ! reading namelist
   nulnam = 0
   ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -123,23 +192,15 @@ program midas_bgckmw
   ier = fclos(nulnam)
 
   mwbg_debug = debug
-  mwbg_clwQcThreshold = clwQcThreshold
-  mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
 
-  burpFileNameIn = './obsto_amsua'
-  burpFileNameOut = './obsto_amsua.out'
-
-
+ 
   !#################################################################################
   ! STEP 1 ) Lecture des statistiques d'erreur totale pour les  TOVS 
   !#################################################################################
-  call mwbg_readStatTovs('./stats_amsua_assim', 'AMSUA', satelliteId, IUTILST, TOVERRST)
+  call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST)
   satNumber = size(satelliteId)
 
   ! MAIN LOOP through all the reports in the BURP file
-  n_bad_reps = 0
-  reportIndex = 0
-  nobs_tot = 0 
   
   REPORTS: do 
 
@@ -151,7 +212,7 @@ program midas_bgckmw
     call mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
                       zlat, zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, &
                       ntOut, qcflag1, qcflag2, ican, icanomp, IMARQ, IORBIT, &
-                      globMarq, resumeReport, ifLastReport, 'AMSUA', STNID)
+                      globMarq, resumeReport, ifLastReport, instName, STNID)
 
 
     if ( .not. resumeReport ) then
@@ -162,64 +223,58 @@ program midas_bgckmw
       end if
       ! Increment total number of obs pts read
       nobs_tot = nobs_tot + ntOut
-      ! trouver l'indice du satellite
-      INOSAT = 0
-      DO I = 1, satNumber
-        if ( STNID .EQ. '^'//satelliteId(I) ) THEN
-          INOSAT = I
-          write(*,*)' SATELLITE = ', STNID
-          write(*,*)'    INOSAT = ', INOSAT
-        end if
-      ENDDO
-      if ( INOSAT .EQ. 0 ) THEN
-        write(*,*) 'SATELLITE ',TRIM(STNID), &
-                   ' NOT FOUND IN STATS FILE!'
-        call ABORT()
-      end if
+
+      !###############################################################################
+      ! STEP 3) trouver l'indice du satellite                                        !
+      !###############################################################################
+      call mwbg_findSatelliteIndex(STNID, satelliteId, SatNumber, INOSAT)
     
       !###############################################################################
-      ! STEP 3 ) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
+      ! STEP 4) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       !    N.B.: on examine ce champ sur une boite centree sur chaque obs.
  
       !###############################################################################
       write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
-      call mwbg_readGeophysicFieldsAndInterpolate('AMSUA', zlat, zlon, MTINTRP, &
-                                                  MGINTRP, GLINTRP)
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, &
+                                                  GLINTRP)
+      !###############################################################################
+      ! STEP 5) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
+      !###############################################################################
+      write(*,*) ' ==> mwbg_tovCheck For: ', instName
+      if (instName == 'AMSUA') then
+        call mwbg_tovCheckAmsua(TOVERRST, IUTILST, ISAT, ilq, IORBIT, ican, ICANOMP, ztb, &
+                                biasCorr, ZOMP, ICHECK, nvalOut, ntOut, ZMISG, INOSAT, &
+                                ICHKPRF, scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
+                                IMARQ, ident, clw, scatw, MREJCOD, STNID, RESETQC, &
+                                ZLAT)
+      else if (instName == 'ATMS') then
+        call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
+                               zenith, qcflag2, qcflag1, ISAT, IORBIT, ICAN, ICANOMP, &
+                               ztb, biasCorr, ZOMP, ICHECK, nvalOut, nvalOut, ntOut, zmisg,INOSAT, &
+                               ident, ICHKPRF, scanpos, MTINTRP, globMarq, IMARQ, clw, scatw, MREJCOD, &
+                               MREJCOD2, STNID, RESETQC,  ipc, n_reps_tb2misg, drycnt,&
+                               landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, cldcnt, seaIcePointNum, &
+                               clwMissingPointNum)
+      end if
 
       !###############################################################################
-      ! STEP 4 ) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
+      ! STEP 6) Accumuler Les statistiques sur les rejets
       !###############################################################################
-      write(*,*) ' ==> mwbg_tovCheckAtms: '
-      call mwbg_tovCheckAmsua(TOVERRST, IUTILST, ISAT, ilq, IORBIT, ican, ICANOMP, ztb, &
-                              biasCorr, ZOMP, ICHECK, nvalOut, ntOut, ZMISG, INOSAT, &
-                              ICHKPRF, scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
-                              IMARQ, clw, clw_avg, scatw, MREJCOD, STNID, RESETQC, ZLAT)
+      write(*,*) ' ==> mwbg_qcStats For: ', instName
+      call mwbg_qcStats(instName, satNumber, ICHECK, ican, INOSAT, nvalOut, &
+                             ntOut, satelliteId, .FALSE., MREJCOD, MREJCOD2)
 
-
-      !###############################################################################
-      ! STEP 5 ) Accumuler Les statistiques sur les rejets
-      !###############################################################################
-      write(*,*) ' ==> mwbg_qcStats: '
-      call mwbg_qcStats('AMSUA', satNumber, ICHECK, ican, INOSAT, nvalOut, &
-                             ntOut, satelliteId, .FALSE., MREJCOD)
-
-
-      !###############################################################################
-      ! STEP 6 ) set terrain type to sea ice given certain conditions
-      !###############################################################################
-      write(*,*) ' ==> mwbg_setTerrainTypeToSeaIce : '
-      call mwbg_setTerrainTypeToSeaIce(GLINTRP, ilq, itt)
-    
     end if 
 
     !###############################################################################
-    ! STEP 7 ) Update the burpfile out burpFileNameIn
+    ! STEP 7) Update the burpfile out burpFileNameIn
     !###############################################################################
 
-    write(*,*) ' ==> mwbg_updateBurpAmsua: '
-    call mwbg_updateBurpAmsua(burpFileNameIn, ReportIndex, ETIKRESU, clw_avg, scatw, &
-                              globMarq, ICHKPRF, ilq, itt, & 
-                              RESETQC, IMARQ, burpFileNameout)
+    write(*,*) ' ==> mwbg_updateBurp For : ', instName
+    
+    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
+                           globMarq, RESETQC, ICHKPRF, ilq, itt, IMARQ, lutb, &
+                           writeModelLsqTT, writeEle25174, burpFileNameout)
 
     if ( ifLastReport) exit REPORTS
 
@@ -230,12 +285,12 @@ program midas_bgckmw
   write(*,*) ' Number of bad BURP file reports (all data flagged) = ', n_bad_reps
 
   !###############################################################################
-  ! STEP 12 ) Print the statistics in listing file 
+  ! STEP 8) Print the statistics in listing file 
   !###############################################################################
 
-  call mwbg_qcStats('AMSUA', satNumber, ICHECK, ican, INOSAT, nvalOut, &
-                         ntOut, satelliteId, .TRUE., MREJCOD)
+  call mwbg_qcStats(instName, satNumber, ICHECK, ican, INOSAT, nvalOut, &
+                         ntOut, satelliteId, .TRUE., MREJCOD, MREJCOD2)
   
-  junk  = exfin('bgckMW','FIN','NON')
+  istat  = exfin('bgckMW','FIN','NON')
 
-end program midas_bgckmw
+end program midas_bgckAllMW

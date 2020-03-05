@@ -1,0 +1,12 @@
+ &NAMBGCK
+  instName = 'ATMS'
+  burpFileNameIn = './obsatms'
+  burpFileNameOut = './obsatms.out'
+  mglg_file  = './fstmglg'
+  statsFile = './stats_atms_assim'
+  writeModelLsqTT = .false.
+  writeEle25174 = .true.
+  debug = .false.
+  RESETQC = .FALSE.
+  ETIKRESU = '>>BGCKALT'
+/

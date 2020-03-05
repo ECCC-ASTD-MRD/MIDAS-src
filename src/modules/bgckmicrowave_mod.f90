@@ -26,27 +26,41 @@ module bgckmicrowave_mod
   save
   private
 
-  ! public variables
-  public :: mwbg_debug, mwbg_clwQcThreshold, mwbg_allowStateDepSigmaObs
-  public :: mwbg_modlsqtt, mwbg_useUnbiasedObsForClw 
   ! Public functions/subroutines
-  public :: mwbg_flagDataUsingNrlCriteria
-  public :: mwbg_reviewAllcriteriaforFinalFlags
-  public :: mwbg_correctTbScanDependency
-  public :: mwbg_readStatTovs, mwbg_tovCheckAmsua, mwbg_qcStats
-  public :: mwbg_updateBurpAmsua
-  public :: mwbg_updateBurpAtms 
+
+  ! common functions/subroutines
+  public :: mwbg_getData
+  public :: mwbg_updateBurp 
+  public :: mwbg_readStatTovs
+  public :: mwbg_qcStats
   public :: mwbg_readGeophysicFieldsAndInterpolate
   public :: mwbg_burpErrorHistory
-  public :: mwbg_setTerrainTypeToSeaIce
+  public :: mwbg_findSatelliteIndex
+  public :: mwbg_getBurpReportAdresses
+
+  ! ATMS specific functions/subroutines
+  public :: mwbg_landIceMaskAtms
+  public :: mwbg_firstQcCheckAtms
+  public :: mwbg_grossValueCheck
+  public :: mwbg_nrlFilterAtms
+  public :: mwbg_flagDataUsingNrlCriteria
+  public :: mwbg_reviewAllcriteriaforFinalFlags
   public :: mwbg_tovCheckAtms
-  public :: mwbg_getData, mwbg_getBurpReportAdresses, mwbg_landIceMaskAtms
-  public :: mwbg_grossValueCheck, mwbg_firstQcCheckAtms, mwbg_nrlFilterAtms
+  public :: mwbg_updateBurpAtms 
+  ! AMSUA specific functions/subroutines
+  public :: mwbg_setTerrainTypeToSeaIce
+  public :: mwbg_correctTbScanDependency
+  public :: mwbg_tovCheckAmsua
+  public :: mwbg_updateBurpAmsua
+  
+  ! public variables
+  public :: mwbg_debug
+  public :: mwbg_clwQcThreshold
+  public :: mwbg_useUnbiasedObsForClw 
 
-  logical :: mwbg_debug, mwbg_clwQcThreshold
-  logical :: mwbg_modlsqtt 
-  logical :: mwbg_useUnbiasedObsForClw = .false. 
-
+  logical :: mwbg_debug
+  logical :: mwbg_clwQcThreshold
+  logical :: mwbg_useUnbiasedObsForClw 
   integer, parameter :: JPNSAT = 9
   integer, parameter :: JPCH = 50
   integer, parameter :: MXCHN = 42 
@@ -58,6 +72,17 @@ module bgckmicrowave_mod
   integer, parameter :: mxscan=96
   real, parameter    :: zmisg=9.9e09
   integer, parameter :: MISGINT = -1
+
+  ! Upper limit for CLW (kg/m**2) for Tb rejection over water
+  real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
+  real,   parameter :: clw_atms_nrl_UTrej=0.2        ! upper trop chans 7-9, 21-22
+  ! Other NRL thresholds
+  real,   parameter :: scatec_atms_nrl_LTrej=9.0     ! lower trop chans 1-6, 16-22
+  real,   parameter :: scatec_atms_nrl_UTrej=18.0    ! upper trop chans 7-9
+  real,   parameter :: scatbg_atms_nrl_LTrej=10.0    ! lower trop chans 1-6
+  real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
+  real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
+  
 contains
 
 
@@ -1242,7 +1267,7 @@ contains
   SUBROUTINE mwbg_tovCheckAmsua(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                IMARQ, clw, clw_avg, scatw, MREJCOD, STNID, RESETQC, ZLAT)
+                                IMARQ, ident, clw_avg, scatw, MREJCOD, STNID, RESETQC, ZLAT)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1264,6 +1289,7 @@ contains
     !                 13) scattering index reject,
     !                 14) radiance residual rogue check failure,
     !                 15) channel reject (channel selection).
+    !                 **) set terrain type to sea ice given certain conditions
     implicit none 
     !Arguments:
     integer, intent(in)                    :: IUTILST(JPCH,JPNSAT) !channel Selection using array IUTILST(chan,sat)
@@ -1276,7 +1302,7 @@ contains
     integer, intent(in)                    :: ISCNPOS(KNT)         ! position sur le "scan"
     integer, intent(in)                    :: KORBIT(KNT)          ! numero d'orbite
     integer, intent(in)                    :: ICANO(KNO*KNT)       ! canaux des observations
-    integer, intent(in)                    :: ITERRAIN(KNT)        ! indicateur du type de terrain
+    integer, intent(inout)                 :: ITERRAIN(KNT)        ! indicateur du type de terrain
     integer, intent(in)                    :: ICANOMP(KNO*KNT)     ! canaux des residus (o-p)
     integer, intent(in)                    :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)                    :: KNT                  ! nombre de tovs
@@ -1296,15 +1322,17 @@ contains
     integer,allocatable, intent(out)       :: ICHECK(:,:)          ! indicateur controle de qualite tovs par canal 
     !                                                                 =0, ok,
     !                                                                 >0, rejet,
-    real,allocatable,  intent(out)         :: clw(:)                ! retrieved cloud liquid water
-    real,allocatable,  intent(out)         :: clw_avg(:)            ! Averaged retrieved cloud liquid water, 
+    real,allocatable,  intent(out)         :: clw_avg(:)            ! Averaged (Background + obs)retrieved cloud liquid water, 
     !                                                                 from observation and background
     real,allocatable, intent(out)          :: scatw(:)              ! scattering index over water
 
     integer,allocatable, intent(out)       :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                                 =0, ok,
     !                                                                 >0, rejet d'au moins un canal
-    integer, intent(out)                   :: MREJCOD(JPMXREJ,MXCHN,MXSAT)  ! cumul du nombre de rejet 
+    integer,allocatable, intent(out)       :: ident(:)              !ATMS Information flag (ident) values (new BURP element 025174 in header)
+    !                                                               FOR AMSUA just fill with zeros
+
+    integer, intent(inout)                   :: MREJCOD(JPMXREJ,MXCHN,MXSAT)  ! cumul du nombre de rejet 
     !locals
     integer, parameter                     :: MXSCANHIRS= 56 
     integer, parameter                     :: MXSCANAMSU= 30 
@@ -1322,7 +1350,7 @@ contains
     real                                   :: PTBO    (KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
-
+    real,allocatable                       :: clw(:)                ! obs retrieved cloud liquid water
     integer                                :: MAXVAL
     integer                                :: JI
     integer                                :: JJ
@@ -1408,6 +1436,7 @@ contains
     call allocate1DRealArray(scatw,   KNT)
 
     call allocate1DIntegerArray(kchkprf, KNT)
+    call allocate1DIntegerArray(ident, KNT)
     call allocate2DIntegerArray(icheck, KNO, KNT)
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
@@ -1430,6 +1459,8 @@ contains
        MREJCOD(:,:,:) = 0
        LLFIRST = .FALSE.
     end if
+    ! fill ident with zeros ONLY for consistency with ATMS
+    ident(:) = 0
     ICHECK(:,:) = 0
      if ( RESETQC ) KMARQ(:,:) = 0
 
@@ -1563,12 +1594,18 @@ contains
       end do
     end do
 
+    !###############################################################################
+    ! FINAL STEP: set terrain type to sea ice given certain conditions
+    !###############################################################################
+    write(*,*) ' ==> mwbg_setTerrainTypeToSeaIce : '
+    call mwbg_setTerrainTypeToSeaIce(GLINTRP, KTERMER, ITERRAIN)
+    
     return
   end subroutine mwbg_tovCheckAmsua
 
 
-  subroutine mwbg_qcStats(instName, satNumber, ICHECK, KCANO, KNOSAT, &
-                              KNO, KNT, satelliteId, LDprint, MREJCOD, MREJCOD2_opt)
+  subroutine mwbg_qcStats(instName, satNumber, ICHECK, ICAN, KNOSAT, &
+                              KNO, KNT, satelliteId, LDprint, MREJCOD, MREJCOD2)
 
     !:Purpose:          Cumuler ou imprimer des statistiques decriptives
     !                   des rejets tovs.
@@ -1577,11 +1614,11 @@ contains
     character(*), intent(in)               :: instName                                    ! Instrument Name
     integer, intent(in)                    :: satNumber                                   ! Nombre de satellite portant instrument
     integer, intent(in)                    :: MREJCOD(JPMXREJ,MXCHN,MXSAT)                ! Nombre d'element rejetes par type de test
-    integer, intent(in), optional          :: MREJCOD2_opt(JPMXREJ,MXCHN,MXSAT)           ! Nombre d'element rejetes par type de test
-    integer, intent(in)                    :: ICHECK(KNO,KNT)                             ! indicateur controle de qualite tovs par canal 
+    integer, intent(in), optional          :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)           ! Nombre d'element rejetes par type de test
+    integer, intent(in)                    :: ICHECK(:,:)                             ! indicateur controle de qualite tovs par canal 
     !                                                                                     =0, ok,
     !                                                                                     >0, rejet,
-    integer, intent(in)                    :: KCANO(KNO,KNT)         ! canaux des observations
+    integer, intent(in)                    :: ICAN(KNO*KNT)               ! canaux des observations
     integer, intent(in)                    :: KNOSAT                 ! numero d'identificateur du satellite
     integer, intent(in)                    :: KNO                    ! nombre de canaux des observations 
     integer, intent(in)                    :: KNT                    ! nombre de tovs
@@ -1593,25 +1630,16 @@ contains
     integer                                :: JK
     integer                                :: INTOTOBS
     integer                                :: INTOTACC
-    integer                                :: INTOT(MXSAT)
-    integer                                :: INTOTRJF(MXSAT)
-    integer                                :: INTOTRJP(MXSAT)
+    integer, save                          :: INTOT(MXSAT)
+    integer, save                          :: INTOTRJF(MXSAT)
+    integer, save                          :: INTOTRJP(MXSAT)
+    integer                                :: KCANO(KNO,KNT)               ! canaux des observations
 
 
     logical, save                          :: LLFIRST = .True.
     logical                                :: FULLREJCT
     logical                                :: FULLACCPT
-    logical                                :: legendRejetAmsua
-    logical                                :: legendRejetAtms
 
-    legendRejetAmsua = .false.
-    legendRejetAtms = .false.
-
-    if (instName == 'AMSUA') then
-      legendRejetAmsua = .true.
-    else if (instName == 'ATMS') then
-      legendRejetAtms = .true.
-    end if 
     ! Initialize
     if ( LLFIRST ) then
       do JJ = 1, MXSAT
@@ -1624,31 +1652,48 @@ contains
 
     if (.NOT. LDprint ) then
 
+      ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
+      call copy1Dimto2DimIntegerArray(ICAN, KNO, KNT, KCANO)
       ! Accumulate statistics on rejects
       do JJ = 1, KNT
 
         INTOT(KNOSAT) = INTOT(KNOSAT) + 1
-
+        write(*,*) 'OBSTOT = ', INTOT(KNOSAT)
         ! Fully accepted, fully rejected or partially rejected?
         FULLREJCT = .true.
         FULLACCPT = .true.
-        do JI = 1, KNO
-          if ( KCANO(JI,JJ) .NE. 20 ) then
+        if (instName == "AMSUA") then 
+          do JI = 1, KNO
+            if ( KCANO(JI,JJ) .NE. 20 ) then
+              if ( ICHECK(JI,JJ) .NE. 0 ) then
+                FULLACCPT = .false.
+              else
+                FULLREJCT = .false.
+              end if
+            end if
+          end do
+          if ( FULLREJCT ) then
+            INTOTRJF(KNOSAT) = INTOTRJF(KNOSAT) + 1
+          end if
+          if ( .NOT.FULLREJCT .AND. .NOT.FULLACCPT ) then
+            INTOTRJP(KNOSAT) = INTOTRJP(KNOSAT) + 1
+          end if
+        else if  (instName == "ATMS") then 
+          do JI = 1, KNO
             if ( ICHECK(JI,JJ) .NE. 0 ) then
               FULLACCPT = .false.
             else
               FULLREJCT = .false.
             end if
+          end do
+          if ( FULLREJCT ) then
+            INTOTRJF(KNOSAT) = INTOTRJF(KNOSAT) + 1
           end if
-        end do
-        if ( FULLREJCT ) then
-          INTOTRJF(KNOSAT) = INTOTRJF(KNOSAT) + 1
-        end if
-        if ( .NOT.FULLREJCT .AND. .NOT.FULLACCPT ) then
-          INTOTRJP(KNOSAT) = INTOTRJP(KNOSAT) + 1
+          if ( .NOT.FULLREJCT .AND. .NOT.FULLACCPT ) then
+            INTOTRJP(KNOSAT) = INTOTRJP(KNOSAT) + 1
+          end if
         end if
       end do
-
     else
 
       ! Print statistics
@@ -1656,90 +1701,92 @@ contains
 
         INTOTOBS = INTOT(JK)
         INTOTACC = INTOTOBS - INTOTRJF(JK) - INTOTRJP(JK)
+          write(*,'(/////50("*"))')
+          write(*,'(     50("*")/)')
+          write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
+           A8)') satelliteId(JK) 
+          write(*,'(T5,"------------------------------------- ",/)')
+          write(*,'( &
+           " - TOTAL NUMBER OF OBS.    = ",I10,/ &
+           " - TOTAL FULL REJECTS      = ",I10,/ &
+           " - TOTAL PARTIAL REJECTS   = ",I10,/ &
+           "   ------------------------------------",/ &
+           "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
+            INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
 
-        write(*,'(/////50("*"))')
-        write(*,'(     50("*")/)')
-        write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
-         A8)') satelliteId(JK) 
-        write(*,'(T5,"------------------------------------- ",/)')
-        write(*,'( &
-         "   TOTAL NUMBER OF INST  = ",I10,/ &
-         " - TOTAL FULL REJECTS      = ",I10,/ &
-         " - TOTAL PARTIAL REJECTS   = ",I10,/ &
-         "   ------------------------------------",/ &
-         "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
-          INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
-
-        write(*,'(//,1x,114("-"))')
-        write(*,'(t10,"|",t47,"REJECTION CATEGORIES")')
-        write(*,'(" CHANNEL",t10,"|",105("-"))')
-        write(*,'(t10,"|",15i7)') (JI,JI=1,JPMXREJ)
-        write(*,'(1x,"--------|",105("-"))')
-        do JJ = 1, MXCHN
-           write(*,'(3X,I2,t10,"|",15I7)') JJ,(MREJCOD(JI,JJ,JK), &
+        if (instName == "AMSUA") then         
+          write(*,'(//,1x,114("-"))')
+           write(*,'(t10,"|",t47,"REJECTION CATEGORIES")')
+          write(*,'(" CHANNEL",t10,"|",105("-"))')
+          write(*,'(t10,"|",15i7)') (JI,JI=1,JPMXREJ)
+          write(*,'(1x,"--------|",105("-"))')
+          do JJ = 1, MXCHN
+             write(*,'(3X,I2,t10,"|",15I7)') JJ,(MREJCOD(JI,JJ,JK), &
                                       JI=1,JPMXREJ)
-        end do
-        write(*,'(1x,114("-"))')
-        if ( present(MREJCOD2_opt) ) then
-          write(*,'(1x,114("-"))')
-          write(*,'(t10,"|",t19,"2. QC2 REJECT CATEGORIES")')
+          end do
+          print *, ' '
+          print *, ' '
+          print *, ' -----------------------------------------------------'
+          print *, ' Definition of rejection categories:'
+          print *, ' -----------------------------------------------------'
+          print *, '  1 - topography reject'
+          print *, '  2 - invalid land/sea qualifier'
+          print *, '  3 - invalid terrain type'
+          print *, '  4 - invalid field of view number'
+          print *, '  5 - satellite zenith angle out of range '
+          print *, '  6 - inconsistent field of view and sat. zenith angle'
+          print *, '  7 - inconsistent land/sea qualifier and model mask'
+          print *, '  8 - inconsistent terrain type and land/sea', &
+                   ' qualifier/model ice (NOT doNE)'
+          print *, '  9 - uncorrected radiance'
+          print *, ' 10 - rejected by RTTOV'
+          print *, ' 11 - radiance gross check failure'
+          print *, ' 12 - cloud liquid water reject'
+          print *, ' 13 - scattering index reject'
+          print *, ' 14 - radiance residual rogue check failure'
+          print *, ' 15 - rejection by channel selection'
+          print *, ' -----------------------------------------------------'
+          print *, ' ' 
+
+        else if (instName == "ATMS") then 
+          write(*,'(//,1x,59("-"))')
+          write(*,'(t10,"|",t19,"1. REJECTION CATEGORIES")')
           write(*,'(" CHANNEL",t10,"|",50("-"))')
           write(*,'(t10,"|",5i7)') (JI,JI=1,JPMXREJ)
           write(*,'(1x,"--------|",50("-"))')
           do JJ = 1, MXCHN
-            write(*,'(3X,I2,t10,"|",5I7)') JJ,(MREJCOD2_opt(JI,JJ,JK), &
-                                           JI=1,JPMXREJ)
-          end do  
-          write(*,'(1x,114("-"))')
+            write(*,'(3X,I2,t10,"|",5I7)') JJ,(MREJCOD(JI,JJ,JK), &
+                                        JI=1,JPMXREJ)
+          end do
+          write(*,'(1x,59("-"))')
+          write(*,'(//,1x,59("-"))')
+          write(*,'(t10,"|",t19,"2. QC2 REJECT CATEGORIES")')
+          write(*,'(" CHANNEL",t10,"|",50("-"))') 
+          write(*,'(t10,"|",5i7)') (JI,JI=1,JPMXREJ)
+          write(*,'(1x,"--------|",50("-"))')
+          do JJ = 1, MXCHN
+            write(*,'(3X,I2,t10,"|",5I7)') JJ,(MREJCOD2(JI,JJ,JK), &
+                                        JI=1,JPMXREJ)          
+          end do
+          print *, ' '
+          print *, ' '
+          print *, ' -----------------------------------------------------'
+          print *, ' Definition of rejection categories: '
+          print *, ' -----------------------------------------------------'
+          print *, '  1 - first bgckAtms program reject [bit 7]'
+          print *, '  2 - topography reject'
+          print *, '  3 - uncorrected radiance'
+          print *, '  4 - innovation (O-P) based reject'
+          print *, '  5 - rejection by channel selection'
+          print *, ' -----------------------------------------------------'
+          print *, ' '
+          print *, ' QC2 REJECT numbers in Table 2 are for data that '
+          print *, ' passed test 1 (data with QC flag bit 7 OFF)'
+          print *, ' '
         end if 
       end do
-
-      ! Print legend
-      if (legendRejetAmsua) then
-        print *, ' '
-        print *, ' '
-        print *, ' -----------------------------------------------------'
-        print *, ' Definition of rejection categories:'
-        print *, ' -----------------------------------------------------'
-        print *, '  1 - topography reject'
-        print *, '  2 - invalid land/sea qualifier'
-        print *, '  3 - invalid terrain type'
-        print *, '  4 - invalid field of view number'
-        print *, '  5 - satellite zenith angle out of range '
-        print *, '  6 - inconsistent field of view and sat. zenith angle'
-        print *, '  7 - inconsistent land/sea qualifier and model mask'
-        print *, '  8 - inconsistent terrain type and land/sea', &
-                 ' qualifier/model ice (NOT doNE)'
-        print *, '  9 - uncorrected radiance'
-        print *, ' 10 - rejected by RTTOV'
-        print *, ' 11 - radiance gross check failure'
-        print *, ' 12 - cloud liquid water reject'
-        print *, ' 13 - scattering index reject'
-        print *, ' 14 - radiance residual rogue check failure'
-        print *, ' 15 - rejection by channel selection'
-        print *, ' -----------------------------------------------------'
-        print *, ' ' 
-      else if (legendRejetAtms) then 
-        print *, ' '
-        print *, ' '
-        print *, ' -----------------------------------------------------'
-        print *, ' Definition of rejection categories: '
-        print *, ' -----------------------------------------------------'
-        print *, '  1 - first bgckAtms program reject [bit 7]'
-        print *, '  2 - topography reject'
-        print *, '  3 - uncorrected radiance'
-        print *, '  4 - innovation (O-P) based reject'
-        print *, '  5 - rejection by channel selection'
-        print *, ' -----------------------------------------------------'
-        print *, ' '
-        print *, ' QC2 REJECT numbers in Table 2 are for data that '
-        print *, ' passed test 1 (data with QC flag bit 7 OFF)'
-        print *, ' '
-      end if
-
     end if
 
-    return
   end subroutine mwbg_qcStats
 
 
@@ -2014,10 +2061,264 @@ contains
 
   end subroutine modifyBurpBktypAndWriteReport
 
+  SUBROUTINE mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
+                               globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, lutb, & 
+                               writeModelLsqTT, writeEle25174, burpFileNameout)
+    !--------------------------------------------------------------------------------------
+    !:Purpose:      Pour AMSUA et ATMS: 
+    !               Allumer les bits des marqueurs pour les tovs rejetes.
+    !               Mettre a jour l'indicateur terre/mer qui a
+    !               possiblement ete corrige pour la glace marine.
+    !               Modifier le bktyp des donnees, marqueurs et (O-P) pourt
+    !               signifier "vu par AO". 
+    implicit none
+    !Arguments:
+    !
+    character(len=90),    intent(in)     :: burpFileNameIn     !burp input Obs File
+    integer,              intent(in)     :: ReportIndex        !report eportIndex
+    character(len=9),     intent(in)     :: ETIKRESU           !resume report etiket
+    real,                 intent(in)     :: ztb(:)             ! tempertature de brillance
+    real,                 intent(in)     :: clw(:)             !cloud liquid water path 
+    real,                 intent(in)     :: scatw(:)           !scattering index 
+    integer,              intent(inout)  :: globMarq(:)        !Marqueurs globaux  
+    integer, intent(in)                  :: ident(:)           !Information flag (ident) values (new BURP element 025174 in header)
+    integer,              intent(in)     :: KTERMER(:)         !indicateur terre/mer 
+    integer,              intent(inout)  :: ITERRAIN(:)        !indicateur du type de terrain 
+                                                               !niveau de chaque canal  
+    logical,              intent(in)     :: RESETQC            !reset the quality control flags before adding the new ones ?
+    integer,              intent(in)     :: KCHKPRF(:)         !indicateur global controle de qualite tovs. Code:
+                                                               !=0, ok,
+                                                               !>0, rejet, 
+    logical, intent(in)                  :: lutb               ! if replace missing tb by missing value
+    logical, intent(in)                  :: writeModelLsqTT    ! if replace lsq and terrain typ var by model values
+    logical, intent(in)                  :: writeEle25174      ! if copie the new element 25174 in the output burp file
+    integer,              intent(in)     :: IMARQ(:)           !modified flag values from mwbg_tovCheck  
+    character(len=90),    intent(inout)  :: burpFileNameout    ! burp output Obs File
+
+    !Locals:
+    type(BURP_FILE), save                :: File_in
+    type(BURP_FILE), save                :: File_out
+    type(BURP_RPT)                       :: reportIn
+    type(BURP_RPT)                       :: reportOut
+
+    type(BURP_BLOCK)                     :: blk 
+    type(BURP_BLOCK)                     :: blk_copy 
+
+    logical, save                        :: ifFirstCall=.True.
+    logical                              :: resumeReport 
+    character(len=9)                     :: idStn
+    integer, allocatable, save           :: adresses(:)        ! First Loop over all reports to get their adresses and save them
+    integer, save                        :: nb_rpts
+    integer, save                        :: nsize
+
+    integer                              :: error
+    integer                              :: ref_blk
+    integer                              :: my_nt
+    integer                              :: my_nval
+    integer                              :: my_nele
+    integer                              :: my_idtyp
+    integer                              :: idtyp
+    integer                              :: nlocs
+    integer                              :: blat
+    integer                              :: blon
+    integer                              :: nblocs
+    integer                              :: handle
+    integer                              :: iun_burpin
+    integer                              :: my_btyp
+    integer                              :: my_bktyp 
+    integer                              :: my_bfam
+    integer                              :: new_bktyp
+    integer                              :: indice 
+    integer                              :: kk
+    integer                              :: jj
+    integer                              :: JI
+    integer                              :: ipos
+    integer                              :: idata 
+    integer                              :: j
+
+
+    if (ifFirstCall) then
+      write(*,*) 'mwbg_updateBurp First Call : Initialisation'
+      ! LOOP OVER ALL REPORTS OF THE INPUT FILE, APPLY PROCESSING, AND WRITE TO OUTPUT FILE.
+      call mwbg_getBurpReportAdresses (burpFileNameIn, adresses)
+      ! initialisation
+      Call BURP_Init(File_in, F2= File_out, IOSTAT=error)
+      ! ouverture du fichier burp d'entree et de sortie
+      Call BURP_Init(reportIn, R2=reportOut, IOSTAT=error)
+      ! Number of reports and maximum report size from input BURP file
+      Call BURP_New(File_in,  FILENAME = burpFileNameIn,  MODE= FILE_ACC_READ,   IOSTAT= error)
+      Call BURP_Get_Property(File_in, NRPTS=nb_rpts, IO_UNIT= iun_burpin)
+      nsize = MRFMXL(iun_burpin)
+      ! Add nsize to report size to accomodate modified (larger) data blocks
+      nsize = nsize*3
+      Call BURP_New(File_out, FILENAME= burpFileNameOut, MODE= FILE_ACC_CREATE, IOSTAT= error)
+      ifFirstCall = .False.
+    end if
+
+
+    write(*,*) 'Get reportIn' 
+    Call BURP_Get_Report(File_in, REPORT= reportIn, REF= adresses(ReportIndex), IOSTAT= error) 
+    write(*,*) 'BURP_Get_Property reportIn'
+    if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, reportIn) 
+    Call BURP_Get_Property(reportIn,STNID=idStn,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
+
+    if ( idStn(1:2) .eq. ">>" ) then
+      write(*,*) 'This is a resume Report: Copy ETIK and RETURN' 
+      resumeReport = .True.
+      ! change the header
+      Call BURP_Set_Property(reportIn,STNID=ETIKRESU)  
+      Call BURP_Write_Report(File_out,reportIn,IOSTAT=error)
+      if (error /= burp_noerr) call mwbg_burpErrorHistory(File_in, reportIn, File_out, reportOut)
+
+      if (reportIndex == nb_rpts) then
+        write(*,*) ' reportIndex =  nb_rpts : END OF FILE'
+        Call BURP_Free(File_in, F2 = File_out,IOSTAT=error)
+        Call BURP_Free(reportIn, R2 = reportOut,IOSTAT=error)
+        write(*,*) 'FREE FILE_IN and FILE_OUT'
+      end if
+      
+      return 
+    end if  
+
+    write(*,*) ' Observation Report: Proceed to writing actions' 
+    ! Create new report (reportOut) to contain modified blocks from reportIn
+    Call BURP_New(reportOut, Alloc_Space = nsize,  IOSTAT=error)
+    if (error /= burp_noerr) call mwbg_burpErrorHistory(file_in, reportIn, file_out, reportOut)
+    
+    write(*,*) 'BURP_INIT_REPORT_WRITE reportOut to File_out'
+    ! initiliser pour ecriture a File_out
+    Call BURP_INIT_Report_Write(File_out,reportOut,IOSTAT=error)
+    if (error /= burp_noerr) call mwbg_burpErrorHistory(File_in, reportIn, File_out, reportOut)
+    write(*,*) 'BURP_Copy_Header TO reportOut'
+    !  copier le header du rapport 
+    Call BURP_Copy_Header(TO= reportOut, FROM= reportIn)
+
+    Call BURP_Init(blk, B2=blk_copy, IOSTAT=error)
+
+    ! Read and modify the blocks in rpt and add them to reportOut
+    ref_blk = 0
+    BLOCKS: do
+
+      ref_blk = BURP_Find_Block(reportIn,BLOCK= blk,SEARCH_FROM= ref_blk,IOSTAT= error)
+      if (error /= burp_noerr) call abort()
+      
+      if (ref_blk < 0) Exit BLOCKS
+
+      Call BURP_Get_Property(blk, &
+                  NELE   = my_nele, &
+                  NVAL   = my_nval, &       ! 1 or number of channels (obs per location) if Tb data/flag block
+                  NT     = my_nt, &         ! 1 or number of locations in block
+                  BTYP   = my_btyp, &
+                  BKTYP  = my_bktyp, & 
+                  BFAM   = my_bfam, &
+                  IOSTAT = error)
+      if (error /= burp_noerr) call abort()
+
+      ! 1) Bloc info 3d: bloc 5120.
+      !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
+      if (my_btyp == 5120) then     
+
+        IF (mwbg_debug) THEN
+          write(*,*) ' OLD FLAGS = ', (globMarq(JJ),JJ=1,my_nt)
+        ENDIF
+
+        call resetQcCases(RESETQC, KCHKPRF, globMarq)
+        ! Remplacer les nouveaux marqueurs dans le tableau.
+        call mwbg_copyIntegerElementToBurpBlock(blk, 55200, globMarq, "MARQUEURS_GLOBAUX", my_nval, my_nt)
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp,.False.)        
+      ! 2) Bloc info (general): bloc 3072
+      !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
+      !    marine.
+      !    Add new elements CLW, scatw and ident
+      else if (my_btyp == 3072) then
+        if (writeEle25174) then 
+          ! Add new elements IDENT
+          call mwbg_addIntegerElementBurpBlock(blk, 25174, ident, my_nval, my_nt, my_nele+1)
+          ! Add new elements CLW
+          call mwbg_addRealElementBurpBlock(blk, 13209, clw, my_nval, my_nt, my_nele+2)
+          ! Add new elements scatw
+          call mwbg_addRealElementBurpBlock(blk, 13208, scatw, my_nval, my_nt, my_nele+3)
+        else
+          call mwbg_addRealElementBurpBlock(blk, 13209, clw, my_nval, my_nt, my_nele+1)
+          ! Add new elements scatw
+          call mwbg_addRealElementBurpBlock(blk, 13208, scatw, my_nval, my_nt, my_nele+2)          
+        end if 
+
+        ! Remplacer les nouveaux indicateurs terre/mer dans le tableau.
+        if (writeModelLsqTT) then        
+          call mwbg_copyIntegerElementToBurpBlock(blk, 8012, KTERMER, "Land_Sea_INDICATOR", my_nval, my_nt)
+          ! Update terrain type dans le tableau.
+          call mwbg_copyIntegerElementToBurpBlock(blk, 13039, ITERRAIN, "TERRAIN_TYPE", my_nval, my_nt)
+          ! finally copy blk
+        end if
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp,.False.)        
+
+      ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
+      !    Modifier le bktyp pour signifier "vu par AO".
+      else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
+                my_bfam == 0 ) then 
+        ! Modify Tb data if any data (ztb) were set to zmisg (lutb=.true.)
+
+        if (lutb) then
+          call mwbg_copyRealElementToBurpBlock(blk, 12163, ztb, "Tb_data", my_nval, my_nt)
+          call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .False.)        
+
+        else
+          call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
+        endif
+
+      ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
+      !    Modifier les marqueurs de 13bits associes a chaque radiance.
+      !    Modifier le bktyp pour signifier "vu par AO".
+      else if ( (my_btyp == 15362 .or. my_btyp == 15392 .or. my_btyp == 15408) .and. &
+                my_bfam == 0 ) then 
+
+        ! extraire les marqueurs de 13bits des radiances; element 212163 (LEVEL 1B)
+        indice = BURP_Find_Element(blk,212163,IOSTAT=error)
+        ! Remplacer les nouveaux marqueurs dans le tableau.
+        ipos = 0
+        do kk =1, my_nt
+          do j = 1, my_nval
+            ipos = ipos + 1
+            Call BURP_Set_Tblval(blk,indice,j,kk,IMARQ(ipos))
+          enddo
+        enddo
+        ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
+      ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
+      !    Modifier le bktyp pour signifier "vu par AO".
+      else if ( (my_btyp == 9322 .or. my_btyp == 9226 .or. my_btyp == 9258 .or. &
+                my_btyp == 9274) .and. my_bfam == 14 ) then 
+        ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)
+      ! OTHER BLOCK 
+      else
+        call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp, .True.)
+
+      end if
+
+    enddo BLOCKS
+    write(*,*) ' Update file'
+
+    ! Write the modified report to the output file
+    Call BURP_Write_Report(File_out,reportOut,IOSTAT=error)
+    if (error /= burp_noerr) call mwbg_burpErrorHistory(File_in, reportIn, File_out, reportOut)
+    write(*,*) ' New Report'
+
+    if (reportIndex == nb_rpts) then
+      write(*,*) ' reportIndex =  nb_rpts : END OF FILE'
+      Call BURP_Free(File_in, F2 = File_out,IOSTAT=error)
+      Call BURP_Free(reportIn, R2 = reportOut,IOSTAT=error)
+      write(*,*) 'FREE FILE_IN and FILE_OUT'
+    end if 
+
+  end subroutine mwbg_updateBurp
+
+
 
   SUBROUTINE mwbg_updateBurpAmsua(burpFileNameIn, ReportIndex, ETIKRESU, clw, scatw, &
                                   globMarq, KCHKPRF, KTERMER, ITERRAIN, & 
-                                  RESETQC, IMARQ, burpFileNameout)
+                                  RESETQC, IMARQ, ident, burpFileNameout)
     !--------------------------------------------------------------------------------------
     !:Purpose:      Allumer les bits des marqueurs pour les tovs rejetes.
     !               Mettre a jour l'indicateur terre/mer qui a
@@ -2041,6 +2342,7 @@ contains
                                                                !niveau de chaque canal  
     logical,              intent(in)     :: RESETQC            !reset the quality control flags before adding the new ones ?
     integer,              intent(in)     :: IMARQ(:)           !modified flag values from mwbg_tovCheckAmsua  
+    integer,              intent(in)     :: ident(:)           !0 values for element (new ATMS BURP element 025174 in header)  
     character(len=90),    intent(in)     :: burpFileNameout    ! burp output Obs File
 
     !Locals:
@@ -2176,10 +2478,9 @@ contains
       ! 2) Bloc info (general): bloc 3072
       !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
       !    marine.
-      !    Add new elements CLW and scatw
       else if (my_btyp == 3072) then
+        ! Add new elements IDENT
         ! Add new elements CLW
-
         call mwbg_addRealElementBurpBlock(blk, 13209, clw, 1, my_nt, my_nele+1)
         ! Add new elements scatw
         call mwbg_addRealElementBurpBlock(blk, 13208, scatw, 1, my_nt, my_nele+2)
@@ -2760,7 +3061,7 @@ contains
     return
   end subroutine mwbg_readStatTovs
 
-  subroutine atmsTest1Flagbit7Check (itest, KCANO, IMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK, MREJCOD)
+  subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK, MREJCOD)
 
     !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms program
     !                        Includes observations flagged for cloud liquid water, scattering index,
@@ -2770,7 +3071,7 @@ contains
     ! Arguments
     integer,     intent(in)                                   :: itest(:)                 ! test number
     integer,     intent(in)                                   :: KCANO(KNO,KNT)                 ! observations channels
-    integer,     intent(inout)                                :: IMARQ(KNO,KNT)           ! observations channels
+    integer,     intent(inout)                                :: KMARQ(KNO,KNT)           ! observations channels
     integer,     intent(in)                                   :: KNOSAT                   ! numero de satellite (i.e. indice) 
     integer,     intent(in)                                   :: KNO                      ! nombre de canaux des observations 
     integer,     intent(in)                                   :: KNT                      ! nombre de tovs
@@ -2789,17 +3090,17 @@ contains
     if ( itest(testIndex) .eq. 1 ) then
       DO nDataIndex=1,KNT
         DO nChannelIndex=1,KNO
-          IBIT = AND(IMARQ(nChannelIndex,nDataIndex), 2**7)
+          IBIT = AND(KMARQ(nChannelIndex,nDataIndex), 2**7)
           IF ( IBIT .NE. 0  ) THEN
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             B7CHCK(nChannelIndex,nDataIndex) = 1
-            IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**9)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
             IF ( mwbg_debug ) THEN
               write(*,*)STNID(2:9),' first bgckAtms program REJECT.', &
                         'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
-                        ' IMARQ= ',IMARQ(nChannelIndex,nDataIndex)
+                        ' IMARQ= ',KMARQ(nChannelIndex,nDataIndex)
             ENDIF
           ENDIF
         ENDDO
@@ -2809,7 +3110,7 @@ contains
   end subroutine atmsTest1Flagbit7Check
 
   subroutine atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   IMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
+                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
                                    ICHECK, MREJCOD, MREJCOD2)
 
     !:Purpose:               1) test 2: Topography check (partial)
@@ -2822,11 +3123,11 @@ contains
     integer,     intent(in)                                   :: KNT                            ! nombre de tovs
     character *9,intent(in)                                   :: STNID                          ! identificateur du satellite
     real,        intent(in)                                   :: MTINTRP(KNT)                   ! topo aux point d'obs
-    integer,     intent(inout)                                :: IMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(in)                                   :: MXTOPO 
     integer,     intent(in)                                   :: ICHTOPO(MXTOPO) 
     real ,       intent(in)                                   :: ZCRIT(MXTOPO)
-    integer,     intent(out)                                  :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
     integer,     intent(inout)                                :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
     integer,     intent(inout)                                :: MREJCOD2(JPMXREJ,KNO,KNT)       ! cumul of reject element 
@@ -2845,8 +3146,8 @@ contains
           IF ( INDXTOPO .GT. 0 ) THEN
             IF ( MTINTRP(nDataIndex) .GE. ZCRIT(INDXTOPO) ) THEN
               ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
-              IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**9)
-              IMARQ(nChannelIndex:,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**18)
+              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**18)
               MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                    MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
               IF ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
@@ -2869,7 +3170,7 @@ contains
 
 
   subroutine atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                          IMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2)
+                                          KMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2)
 
     !:Purpose:                       Test 3: Uncorrected Tb check (single)
     !                                Uncorrected datum (flag bit #6 off). 
@@ -2883,8 +3184,8 @@ contains
     integer,     intent(in)                                   :: KNT                            ! nombre de tovs
     character *9,intent(in)                                   :: STNID                          ! identificateur du satellite
     logical,     intent(in)                                   :: RESETQC                        ! resetqc logical
-    integer,     intent(inout)                                :: IMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)                                  :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
     integer,     intent(inout)                                :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
     integer,     intent(inout)                                :: MREJCOD2(JPMXREJ,KNO,KNT)       ! cumul of reject element 
@@ -2902,10 +3203,10 @@ contains
       if ( itest(testIndex) .eq. 1 ) then
         DO nDataIndex=1,KNT
           DO nChannelIndex=1,KNO
-            IBIT = AND(IMARQ(nChannelIndex,nDataIndex), 2**6)
+            IBIT = AND(KMARQ(nChannelIndex,nDataIndex), 2**6)
             IF ( IBIT .EQ. 0  ) THEN
               ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
-              IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**11)
+              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**11)
               MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
               IF ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
@@ -2915,7 +3216,7 @@ contains
               IF ( mwbg_debug ) THEN
                 write(*,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
                           'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
-                          ' IMARQ= ',IMARQ(nChannelIndex,nDataIndex)
+                          ' IMARQ= ',KMARQ(nChannelIndex,nDataIndex)
               ENDIF
             ENDIF
           ENDDO
@@ -2927,7 +3228,7 @@ contains
 
   subroutine atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
                                   IDENTF, PMISG, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                  IMARQ, ICHECK, B7CHCK, MREJCOD, MREJCOD2)
+                                  KMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2)
 
     !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full).
@@ -2955,10 +3256,10 @@ contains
     integer,     intent(in)                                   :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(in)                                   :: MXCH2OMPREJ                       ! cst 
     integer,     intent(in)                                   :: ICH2OMPREJ(MXCH2OMPREJ)              !
-    integer,     intent(out)                                  :: IMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)                                  :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
-    integer,     intent(out)                                  :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
+    integer,     intent(inout)                                :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
     integer,     intent(inout)                                :: MREJCOD2(JPMXREJ,KNO,KNT)       ! cumul of reject element 
 
     ! Locals
@@ -2985,8 +3286,8 @@ contains
           IF ( PTBOMP(nChannelIndex,nDataIndex)      .NE. PMISG    .AND. &
               ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL     ) THEN
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
-            IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**9)
-            IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**16)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
             MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) =  &
                MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
             IF ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
@@ -3018,8 +3319,8 @@ contains
             IF ( INDXCAN .NE. 0 )  THEN
               IF ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) THEN
                 ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
-                IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**9)
-                IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**16)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
                 MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                         MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
                 IF ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
@@ -3041,8 +3342,8 @@ contains
             IF ( INDXCAN .NE. 0 )  THEN
               IF ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) THEN
                 ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
-                IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**9)
-                IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**16)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
                 MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                         MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
                 IF ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
@@ -3061,7 +3362,7 @@ contains
 
  
   subroutine atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                                   IUTILST, IMARQ, ICHECK, MREJCOD)
+                                                   IUTILST, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                         test 5: Channel selection using array IUTILST(chan,sat)
     !                                  IUTILST = 0 (blacklisted)
@@ -3076,8 +3377,8 @@ contains
     character *9,intent(in)                                   :: STNID                          ! identificateur du satellite
     integer,     intent(in)                                   :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
     integer,        intent(in)                                :: IUTILST(JPCH,JPNSAT)          !  channsl selection
-    integer,     intent(out)                                  :: IMARQ(KNO,KNT)                 ! marqueur de radiance 
-    integer,     intent(out)                                  :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
+    integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
+    integer,     intent(inout)                                :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
 
     ! Locals
     integer                                                   :: channelval
@@ -3095,7 +3396,7 @@ contains
         DO nChannelIndex=1,KNO
            channelval = KCANO(nChannelIndex,nDataIndex)
            IF ( IUTILST(channelval,KNOSAT) .EQ. 0 ) THEN
-             IMARQ(nChannelIndex,nDataIndex) = OR(IMARQ(nChannelIndex,nDataIndex),2**8)
+             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**8)
              MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                    MREJCOD(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
              IF ( mwbg_debug ) THEN
@@ -3115,9 +3416,12 @@ contains
   end subroutine atmsTest5ChannelSelectionUsingIutilst
 
 
-  SUBROUTINE mwbg_tovCheckAtms(TOVERRST, IUTILST, KSAT, KORBIT, KCANO, KCANOMP, PTBO, PTBCOR, &
-                               PTBOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENTF, &
-                               KCHKPRF, ISCNPOS, MTINTRP, IMARQ, MREJCOD, MREJCOD2, STNID, RESETQC)
+  SUBROUTINE mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
+                               zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
+                               ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
+                               KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, MREJCOD, MREJCOD2, STNID, & 
+                               RESETQC, ipc, n_reps_tb2misg, drycnt, landcnt, rejcnt, iwvcnt, &
+                               pcpcnt, flgcnt, cldcnt, seaIcePointNum, clwMissingPointNum)
 
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
@@ -3130,20 +3434,29 @@ contains
     !                                                         1 (assmilate)
     !                                                         2 (assimilate over open water only)
     real, intent(in)                 :: TOVERRST(JPCH,JPNSAT)! l'erreur totale des TOVS
-    integer, intent(in)              :: KSAT(KNT)            ! numero d'identificateur du satellite
-    integer, intent(in)              :: ISCNPOS(KNT)         ! position sur le "scan"
-    integer, intent(in)              :: KORBIT(KNT)          ! numero d'orbite
-    integer, intent(in)              :: KCANO(KNO,KNT)       ! canaux des observations
-    integer, intent(in)              :: KCANOMP(KNO,KNT)     ! canaux des residus (o-p)
+    character(len=128), intent(in)   :: mglg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNOMP                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNT                  ! nombre de tovs
+    real,    intent(in)              :: zlat(:)
+    real,    intent(in)              :: zlon(:)
+    integer, intent(in)              :: ilq(:) 
+    integer, intent(in)              :: itt(:)
+    real,    intent(inout)           :: zenith(:)
+    integer, intent(in)              :: qcflag2(:)
+    integer, intent(in)              :: qcflag1(:,:)
+    integer, intent(inout)           :: globMarq(:)
+    integer, intent(in)              :: KSAT(KNT)            ! numero d'identificateur du satellite
+    integer, intent(in)              :: ISCNPOS(KNT)         ! position sur le "scan"
+    integer, intent(in)              :: KORBIT(KNT)          ! numero d'orbite
+    integer, intent(in)              :: ICANO(:)       ! canaux des observations
+    integer, intent(in)              :: ICANOMP(:)     ! canaux des residus (o-p)
     integer, intent(in)              :: KNOSAT               ! numero de satellite (i.e. indice)
-    real, intent(in)                 :: PTBO(KNO,KNT)        ! radiances
-    real, intent(in)                 :: PTBCOR(KNO,KNT)      ! correction aux radiances
-    real, intent(in)                 :: PTBOMP(KNO,KNT)      ! residus (o-p)
+    real, intent(inout)              :: ztb(:)        ! radiances
+    real, intent(in)                 :: biasCorr(:)      ! correction aux radiances
+    real, intent(in)                 :: zomp(:)      ! residus (o-p)
     real, intent(in)                 :: MTINTRP(KNT)         ! topographie du modele
-    integer, intent(in)              :: IDENTF(KNT)           ! flag to identify all obs pts in report
+    integer, allocatable, intent(out):: IDENT(:)           ! flag to identify all obs pts in report
    !                                                                 as being over land/ice, cloudy, bad IWV
     real, intent(in)                 :: PMISG                ! missing value
     character *9, intent(in)         :: STNID                ! identificateur du satellite
@@ -3154,18 +3467,52 @@ contains
     integer,allocatable, intent(out) :: KCHKPRF(:)            ! indicateur global controle de qualite tovs. Code:
     !                                                            =0, ok,
     !                                                            >0, rejet d'au moins un canal
-    integer, intent(inout)           :: IMARQ(KNO,KNT)       ! marqueurs des radiances
-    integer, intent(out)             :: MREJCOD(JPMXREJ,MXCHN,MXSAT)           ! cumul du nombre de rejet par satellite, critere et par canal
-    integer, intent(out)             :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)          ! cumul du nombre de rejet (chech n2) par satellite, critere et par canal
+    integer, intent(inout)           :: IMARQ(:)       ! marqueurs des radiances
+    integer, intent(inout)           :: MREJCOD(JPMXREJ,MXCHN,MXSAT)           ! cumul du nombre de rejet par satellite, critere et par canal
+    integer, intent(inout)           :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)          ! cumul du nombre de rejet (chech n2) par satellite, critere et par canal
+    integer, intent(inout)           :: n_reps_tb2misg
+    real, allocatable, intent(out)   :: rclw (:)
+    real, allocatable, intent(out)   :: riwv(:)
+    integer, intent(in)              :: ipc 
+    integer, intent(inout)           :: drycnt 
+    integer, intent(inout)           :: landcnt 
+    integer, intent(inout)           :: rejcnt 
+    integer, intent(inout)           :: iwvcnt 
+    integer, intent(inout)           :: pcpcnt 
+    integer, intent(inout)           :: flgcnt 
+    integer, intent(inout)           :: cldcnt 
+    integer, intent(inout)           :: seaIcePointNum 
+    integer, intent(inout)           :: clwMissingPointNum 
 
     !locals
+    real                             :: PTBOMP(KNO,KNT)      ! residus (o-p)     2D
+    integer                          :: KCANO(KNO,KNT)       ! canaux des observations 2D
+    integer                          :: KCANOMP(KNO,KNT)     ! canaux des residus (o-p) 2D
+    integer                          :: KMARQ(KNO,KNT)       ! marqueurs des radiances 2D
+    integer, allocatable             :: lsq(:)
+    integer, allocatable             :: trn(:) 
+    logical, allocatable             :: waterobs(:)
+    logical, allocatable             :: grossrej(:)
+    logical                          :: lutb         ! true if Tb(ztb) are set to missing_value
+    logical, allocatable             :: lqc(:,:)        ! dim(nt,nchanAtms), lqc = .false. on input
+    logical, allocatable             :: cloudobs(:)
+    logical, allocatable             :: iwvreject(:)
+    logical, allocatable             :: precipobs(:)
+    real, allocatable                :: zdi(:)
+    real, allocatable                :: scatec(:) 
+    real, allocatable                :: scatbg(:) 
+    real, allocatable                :: SeaIce(:) 
+
     integer, parameter               :: MXSCANAMSU = 96 
     integer, parameter               :: MXSFCREJ   = 8 
     integer, parameter               :: MXCH2OMPREJ= 6  
     integer, parameter               :: MXTOPO     = 5 
     integer                          :: maxval 
+    integer                          :: iRej 
+    integer                          :: iNumSeaIce 
     integer                          :: JI
     integer                          :: JJ
+    integer                          :: kk
     integer                          :: INDX8
     integer                          :: INDX12
     integer                          :: INO
@@ -3216,6 +3563,93 @@ contains
     !             1  2  3  4  5 
     DATA ITEST  / 1, 1, 1, 1, 1 /
        
+    ! PART 1 TESTS:
+
+    !###############################################################################
+    ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
+    !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL    
+    !###############################################################################
+    write(*,*) ' ==> mwbg_landIceMaskAtms: '
+    call mwbg_landIceMaskAtms(mglg_file, KNT, zlat, zlon, ilq, itt, &
+                              lsq, trn, waterobs)
+
+    !###############################################################################
+    ! STEP 2 ) Check for values of TB that are missing or outside physical limits.    
+    !###############################################################################
+
+    write(*,*) ' ==> mwbg_grossValueCheck: '
+    call mwbg_grossValueCheck(KNT,ztb,grossrej)
+     
+    if ( ANY(grossrej) ) then
+      write(*,*) ' mwbg_grossValueCheck has detected bad Tb data. Number of affected &
+           locations = ', COUNT(grossrej)
+    endif
+
+    !###############################################################################
+    ! STEP 3 ) Preliminary QC checks --> set lqc(nt,nchanAtms)=.true. 
+    !          for data that fail QC     
+    !###############################################################################
+
+    write(*,*) ' ==> mwbg_firstQcCheckAtms: '
+    call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, stnid, &
+                               KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
+                               qcflag2, ICANO, lutb)
+
+    if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
+    !  Exclude problem points from further calculations
+    do kk = 1,KNT
+      if ( COUNT(lqc(kk,:)) == nchanAtms ) grossrej(kk) = .true.
+    end do
+
+    !###############################################################################
+    ! STEP 4 ) mwbg_nrlFilterAtms returns rclw, scatec, scatbg and also does sea-ice 
+    !          detection missing value for  rclw, scatec, scatbg  is -99.0 (e.g. over
+    !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
+    !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
+    !###############################################################################
+ 
+    !  
+    write(*,*) ' ==>NNN mwbg_nrlFilterAtms: '
+    call mwbg_nrlFilterAtms(KNT, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
+                            grossrej, rclw, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
+    seaIcePointNum = seaIcePointNum + iNumSeaIce
+    clwMissingPointNum = clwMissingPointNum + iRej
+      
+    !###############################################################################
+    ! STEP 5 ) Apply NRL cloud filter, scattering index and sea-ice detection algorithms
+    !          to OPEN WATER (waterobs=true) points.
+    ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
+    !###############################################################################
+    
+    write(*,*) ' ==> mwbg_flagDataUsingNrlCriteria: '
+    call mwbg_flagDataUsingNrlCriteria(KNT, ztb, biasCorr, rclw, scatec, scatbg, &
+                                       SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
+                                       zmisg, iwvreject, cloudobs, &
+                                       precipobs, cldcnt , ident, riwv, zdi)
+
+    !###############################################################################
+    ! STEP 5 ) ! Review all the checks previously made to determine which obs are to be 
+    !            accepted for assimilation and which are to be flagged for exclusion 
+    !            (IMARQ). 
+    !            grossrej()  = .true. if any channel had a gross error at the point
+    !            cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+    !            precipobs() = .true. if precip. detected through NRL scattering indices
+    !            waterobs()  = .true. if open water point
+    !            iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry 
+    !            for ch.20-22 over land)
+    !###############################################################################
+
+    write(*,*) ' ==> mwbg_reviewAllcriteriaforFinalFlags: '
+    call mwbg_reviewAllcriteriaforFinalFlags(KNT,KNO, ipc, lqc, grossrej, waterobs, &
+                                             precipobs, rclw, scatec, scatbg, iwvreject, riwv, &
+                                             IMARQ, globMarq, zdi, &
+                                             ident, zmisg, drycnt, landcnt, rejcnt, &
+                                             iwvcnt, pcpcnt, flgcnt)
+
+    !###############################################################################
+    ! PART 2 TESTS:
+    !###############################################################################
+
     ! Initialisation, la premiere fois seulement!
     IF (LLFIRST) THEN
       MREJCOD(:,:,:)  = 0
@@ -3223,8 +3657,20 @@ contains
       LLFIRST = .FALSE.
     ENDIF
 
+
+    ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
+    call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
+    call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
+    call copy1Dimto2DimIntegerArray(ICANOMP, KNO, KNT, KCANOMP)
+    call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
+    ! allocations
     call allocate1DIntegerArray(kchkprf, KNT)
     call allocate2DIntegerArray(icheck, KNO, KNT)
+    !  Initialisations
+    ICHECK(:,:) = 0
+    B7CHCK(:,:) = 0
+   
+    IF ( RESETQC ) KMARQ(:,:) = 0
 
     !  Verification de l'integrite des donnees, c'est-a-dire que:
     !         i)  les dimensions des divers blocs de donnees concordent,
@@ -3243,24 +3689,20 @@ contains
       ENDDO
     ENDDO
 
-    !  Initialisations
-    ICHECK(:,:) = 0
-    B7CHCK(:,:) = 0
-    IF ( RESETQC ) IMARQ(:,:) = 0
-
+     
     ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
-    call atmsTest1Flagbit7Check (itest, KCANO, IMARQ, KNOSAT, ICHECK, KNO, KNT, &
+    call atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
                                  STNID,  B7CHCK, MREJCOD)    
     ! 2) test 2: Topography check (partial)
     call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   IMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
+                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
                                    ICHECK, MREJCOD, MREJCOD2) 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                          IMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2) 
+                                          KMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2) 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
     !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac) 
@@ -3270,15 +3712,15 @@ contains
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
-                                  IDENTF, PMISG, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
-                                  IMARQ, ICHECK, B7CHCK, MREJCOD, MREJCOD2)
+                                  IDENT, PMISG, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
+                                  KMARQ,  B7CHCK, ICHECK, MREJCOD, MREJCOD2)
  
 
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
     call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                                   IUTILST, IMARQ, ICHECK, MREJCOD)
+                                                   IUTILST, KMARQ, ICHECK, MREJCOD)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -3295,7 +3737,53 @@ contains
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
     ENDIF 
 
-    RETURN
+    ! Copy the modified FLAG to the 1D array, used outside this s/r. 
+    do JJ=1,KNT
+      do JI=1,KNO
+        INDX = (JJ-1)*KNO + JI 
+        IMARQ(INDX) = KMARQ(JI,JJ)
+      end do
+    end do
+
+
+    write(*,*) ' --------------------------------------------------------------- '
+    write(*,*) ' Number of BURP file reports where Tb set to zmisg  = ', n_reps_tb2misg
+    write(*,*) ' --------------------------------------------------------------- '
+    write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
+    write(*,*) ' 2. Number of problem obs pts (Tb err, QCfail)      = ', rejcnt
+    write(*,*) ' 3. Number of cloudy obs  (CLW > clw_min)           = ', cldcnt
+    write(*,*) ' 4. Number of scatter/precip obs                    = ', pcpcnt
+    write(*,*) ' 5. Number of pts with Mean 183 Ghz Tb < 240K       = ', iwvcnt
+    write(*,*) ' 6. Number of pts flagged for AMSU-B Dryness Index  = ', drycnt
+    write(*,*) ' --------------------------------------------------------------- '
+    write(*,*) ' Total number of filtered obs pts                   = ', flgcnt
+    write(*,*) ' ----------------------------------------------------------------'
+    write(*,*) ' '
+    write(*,*) ' Number of waterobs points converted to sea ice points         = ', seaIcePointNum
+    write(*,*) ' Number of points where CLW/SI missing over water due bad data = ', clwMissingPointNum
+    write(*,*) ' --------------------------------------------------------------- '
+
+    write(*,*) '   Meaning of IDENT flag bits: '
+    write(*,*) ' '
+    write(*,*) '      BIT    Meaning'
+    write(*,*) '       0     off=land or sea-ice, on=open water away from coast'
+    write(*,*) '       1     Mean 183 Ghz [ch. 18-22] is missing'
+    write(*,*) '       2     NRL CLW is missing (over water)'
+    write(*,*) '       3     NRL > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)'
+    write(*,*) '       4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)'
+    write(*,*) '       5     Mean 183 Ghz [ch. 18-22] Tb < 240K'
+    write(*,*) '       6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)'
+    write(*,*) '       7     Dryness Index rejection (for ch. 22)'
+    write(*,*) '       8     scatec/scatbg > Upper Troposphere limit 18/15'
+    write(*,*) '       9     Dryness Index rejection (for ch. 21)'
+    write(*,*) '      10     Sea ice > 0.55 detected'
+    write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
+    write(*,*) ' '
+    write(*,*) '   New Element 13209 in BURP file = CLW (kg/m2)'
+    write(*,*) '   New Element 13208 in BURP file = ECMWF Scattering Index'
+    write(*,*) '   New Element 25174 in BURP file = IDENT flag'
+    write(*,*) ' '
+
   END SUBROUTINE mwbg_tovCheckAtms
 
 
@@ -4093,8 +4581,36 @@ contains
 
 
 
+  subroutine mwbg_findSatelliteIndex(STNID, satelliteId, SatNumber, INOSAT)
+    !:Purpose: Find the STNID Index in the satelliteId array
+
+    ! Arguments:
+    character(len=9), intent(in)  :: STNID
+    character(len=9), intent(in)  :: satelliteId(:)
+    integer,          intent(in)  :: satNumber 
+    integer,          intent(out) :: INOSAT 
+    ! Locals
+    integer                       :: satIndex   
+    ! trouver l'indice du satellite
+    INOSAT = 0
+    do satIndex = 1, satNumber
+      if ( STNID .EQ. '^'//satelliteId(satIndex) ) THEN
+        INOSAT = satIndex
+        write(*,*)' SATELLITE = ', STNID
+        write(*,*)'    INOSAT = ', INOSAT
+      end if
+    end do 
+    if ( INOSAT .EQ. 0 ) THEN
+      write(*,*) 'SATELLITE ',TRIM(STNID), &
+                 ' NOT FOUND IN STATS FILE!'
+      call ABORT()
+    end if
+
+  end subroutine mwbg_findSatelliteIndex
+
+
   subroutine mwbg_updateBurpAtms(burpFileNameIn, reportIndex, ETIKRESU, ztb, lsq, trn, riwv, rclw, ident, &
-                              globMarq, logicalFlags, RESETQC, KCHKPRF,IMARQ, lutb, burpFileNameout)
+                              globMarq, RESETQC, KCHKPRF,IMARQ, lutb, writeModelLsqTT, burpFileNameout)
 
     !:Purpose:                           This routine modifies the blocks in the input Report (rpt) 
 
@@ -4108,7 +4624,6 @@ contains
     real,    intent(in)                  :: riwv(:)
     real,    intent(in)                  :: rclw(:)
     integer, intent(inout)               :: globMarq(:)        !Marqueurs globaux  
-    logical, intent(in)                  :: logicalFlags(:,:)  !indicateur global controle de qualite tov par canal  
     integer, intent(in)                  :: ident(:)           !Information flag (ident) values (new BURP element 025174 in header)  
     integer, intent(in)                  :: IMARQ(:)           ! Data Flags 
     integer, intent(in)                  :: KCHKPRF(:)         !indicateur global controle de qualite tovs. Code:
@@ -4116,6 +4631,7 @@ contains
     logical, intent(in)                  :: RESETQC            !reset the quality control flags before adding the new ones ?
 
     logical, intent(in)                 :: lutb
+    logical, intent(in)                 :: writeModelLsqTT ! if replace obs. lsq and terrain type by their values in model 
     character(len=90),    intent(in)    :: burpFileNameout    ! burp output Obs File
 
     ! Locals
@@ -4240,10 +4756,6 @@ contains
       if (my_btyp == 5120) then     
         ! Set bit 6 in 24-bit global flags if any data rejected
         call resetQcCases(RESETQC, KCHKPRF, globMarq)
-        j = 1
-        do kk =1, my_nt
-           if ( ANY(logicalFlags(kk,:)) ) globMarq(kk) = IBSET(globMarq(kk),6)        
-        end do
         ! Remplacer les nouveaux marqueurs dans le tableau.
         call mwbg_copyIntegerElementToBurpBlock(blk, 55200, globMarq, "MARQUEURS_GLOBAUX", my_nval, my_nt)          
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp,.False.)          
@@ -4262,7 +4774,7 @@ contains
         ! Add new elements scatw
         call mwbg_addRealElementBurpBlock(blk, 13208, riwv, my_nval, my_nt, my_nele+3)
 
-        if (mwbg_modlsqtt) then
+        if (writeModelLsqTT) then
           call mwbg_copyIntegerElementToBurpBlock(blk, 8012, lsq, "LandSea_Qualifyer", my_nval, my_nt)
           call mwbg_copyIntegerElementToBurpBlock(blk, 13039, trn, "Terrain_Type", my_nval, my_nt)
         endif
@@ -4655,7 +5167,7 @@ contains
 
   subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid,&
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
-                                   ican, blat, blon, lutb)
+                                   ican, lutb)
     !  This routine performs basic quality control checks on the data. It sets array
     !  lqc(nt,nchanAtms) elements to .true. to flag data with failed checks.
     !
@@ -4686,8 +5198,6 @@ contains
     integer,              intent(in)                :: qcflag1(:,:)
     integer,              intent(in)                :: nt
     integer,              intent(in)                :: nval
-    integer,              intent(in)                :: blat  ! NT box lat,lon (header)
-    integer,              intent(in)                :: blon   ! NT box lat,lon (header)
     integer,              intent(in)                :: lsq(:)
     integer,              intent(in)                :: trn(:)
     logical,              intent(in)                :: grossrej(:)     ! dim(nt), true if 1 or more Tb fail gross error check
@@ -4702,10 +5212,6 @@ contains
     !  Locals
     integer :: ii, jj, indx1, icount
     logical :: fail, fail1, fail2
-
-    write(*,*) '============================================================================'
-    write(*,*) 'mwbg_firstQcCheckAtms: Processing data box: Stnid, lat, lon = ', stnid, blat, blon
-    write(*,*) ' '
 
     lutb = .false.
     call allocate2dLogicalArray(lqc, nt, nval)
@@ -4956,9 +5462,8 @@ contains
   end subroutine mwbg_correctTbScanDependency
 
 
-  subroutine mwbg_nrlFilterAtms(ni, ztbcor, biasCorr, pangl, plat, ilansea, iglace, &
-                                waterobs, grossrej, clw, si_ecmwf, si_bg, iNumSeaIce, iRej, &
-                                SeaIce)
+  subroutine mwbg_nrlFilterAtms(ni, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
+                                grossrej, clw, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
     !                  - sea ice, 
     !                  - cloud liquid water (clw), 
@@ -5011,11 +5516,11 @@ contains
     integer    ::  i
 
     integer, intent(in)                   ::  ni
-    integer, intent(inout)                ::  iNumSeaIce
+    integer, intent(out)                ::  iNumSeaIce
     integer, intent(in)                   ::  ilansea(:)
     integer, intent(inout)                ::  iglace(:)
-    integer, intent(inout)                ::  iRej
-    
+    integer, intent(out)                  ::  iRej
+   
     
     logical, intent(in)                   ::  grossrej(:)
     logical, intent(inout)                ::  waterobs(:)
@@ -5030,7 +5535,6 @@ contains
     real, allocatable, intent(out)        ::  SeaIce(:) 
 
     ! Locals
-
     integer                               :: ier(ni)
     real                                  ::  ice(ni)
     real                                  :: tb23(ni)
@@ -5193,9 +5697,7 @@ contains
 
 
   subroutine mwbg_flagDataUsingNrlCriteria(nt,ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
-                                          useUnbiasedObsForClw, scatec_atms_nrl_LTrej, scatec_atms_nrl_UTrej, &
-                                          scatbg_atms_nrl_LTrej, scatbg_atms_nrl_UTrej, clw_atms_nrl_LTrej, &
-                                          clw_atms_nrl_UTrej,mean_Tb_183Ghz_min, zmisg, iwvreject, & 
+                                          useUnbiasedObsForClw, zmisg, iwvreject, & 
                                           cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
@@ -5223,14 +5725,7 @@ contains
     real, intent(in)                           :: SeaIce (:)
 
     logical, intent(in)                        :: useUnbiasedObsForClw
-    real, intent(in)                           :: mean_Tb_183Ghz_min
     real, intent(in)                           :: zmisg 
-    real, intent(in)                           :: scatec_atms_nrl_LTrej 
-    real, intent(in)                           :: scatec_atms_nrl_UTrej
-    real, intent(in)                           :: scatbg_atms_nrl_LTrej
-    real, intent(in)                           :: scatbg_atms_nrl_UTrej
-    real, intent(in)                           :: clw_atms_nrl_LTrej
-    real, intent(in)                           :: clw_atms_nrl_UTrej
     logical, intent(in)                        :: grossrej(:)
     logical, intent(in)                        :: waterobs(:)
     integer, intent(inout)                     :: cldcnt 
@@ -5351,10 +5846,8 @@ contains
 
 
   subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, ipc, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
-                                                 scatbg, iwvreject, riwv, IMARQ, globMarq, clw_atms_nrl_LTrej,  &
-                                                 clw_atms_nrl_UTrej, scatec_atms_nrl_LTrej, scatec_atms_nrl_UTrej, &
-                                                 scatbg_atms_nrl_LTrej, scatbg_atms_nrl_UTrej, zdi, ident, zmisg, &
-                                                 lflagchn, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt)
+                                                 scatbg, iwvreject, riwv, IMARQ, globMarq, zdi, ident, zmisg, &
+                                                 drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt)
 
     !:Purpose:                  ! Review all the checks previously made to determine which obs are to be accepted
                                 ! for assimilation and which are to be flagged for exclusion (lflagchn). 
@@ -5381,13 +5874,6 @@ contains
     integer, intent(inout)                     :: IMARQ(:)
     integer, intent(inout)                     :: globMarq(:)
     real, intent(in)                           :: zmisg 
-    real, intent(in)                           :: scatec_atms_nrl_LTrej 
-    real, intent(in)                           :: scatec_atms_nrl_UTrej
-    real, intent(in)                           :: scatbg_atms_nrl_LTrej
-    real, intent(in)                           :: scatbg_atms_nrl_UTrej
-    real, intent(in)                           :: clw_atms_nrl_LTrej
-    real, intent(in)                           :: clw_atms_nrl_UTrej
-    logical, allocatable, intent(out)          :: lflagchn(:,:)
     integer, intent(inout)                     :: drycnt 
     integer, intent(inout)                     :: landcnt 
     integer, intent(inout)                     :: rejcnt 
@@ -5396,6 +5882,7 @@ contains
     integer, intent(inout)                     :: flgcnt 
 
     ! Locals
+    logical, allocatable                       :: lflagchn(:,:)
     integer                                    :: indx1
     integer                                    :: indx2
     integer                                    :: ii, kk, j, ipos, iidata
@@ -5504,20 +5991,15 @@ contains
       do j = 1, nval
         ipos = ipos + 1
         if (lflagchn(kk,j)) then
-          iidata = IBSET(IMARQ(ipos),7)
-          IMARQ(ipos) = iidata
+          IMARQ(ipos) = IBSET(IMARQ(ipos),7)
         end if
       enddo
     enddo
-    ! Set bit 6 in 24-bit global flags if any data rejected  
-    !ipos=0
-    !do kk =1, nt
-    !  if ( ANY(lflagchn(kk,:)) ) then
-    !    iidata = IBSET(globMarq(kk),6)
-    !    globMarq(kk) = iidata
-    !  end if
-    !enddo
 
+    ! Set bit 6 in 24-bit global flags if any data rejected  
+    do kk =1, nt
+      if ( ANY(lflagchn(kk,:)) ) globMarq(kk) = IBSET(globMarq(kk),6)
+    enddo
   
   end subroutine mwbg_reviewAllcriteriaforFinalFlags
 

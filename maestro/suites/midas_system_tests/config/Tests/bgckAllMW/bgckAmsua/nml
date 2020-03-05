@@ -1,0 +1,12 @@
+ &NAMBGCK
+  instName = 'AMSUA'
+  burpFileNameIn = './obsto_amsua'
+  burpFileNameOut = './obsto_amsua.out'
+  mglg_file  = './fstmglg'
+  statsFile = './stats_amsua_assim'
+  writeModelLsqTT = .true. 
+  writeEle25174 = .false.
+  debug = .false.
+  RESETQC = .FALSE.
+  ETIKRESU = '>>BGCKALT'
+/
