@@ -75,8 +75,8 @@ contains
   !----------------------------------------------------------------------
   subroutine enkf_LETKFanalyses(algorithm, numSubEns,  &
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                                stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
-                                stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
+                                stateVectorMeanTrl, stateVectorMeanAnl, &
+                                stateVectorDeterTrl, stateVectorDeterAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
                                 alphaRTPP, mpiDistribution)
@@ -91,10 +91,8 @@ contains
     type(struct_ens), pointer   :: ensembleTrl
     type(struct_ens)            :: ensembleAnl
     type(struct_eob)            :: ensObs_mpiglobal
-    type(struct_gsv)            :: stateVectorMeanInc
     type(struct_gsv)            :: stateVectorMeanTrl
     type(struct_gsv)            :: stateVectorMeanAnl
-    type(struct_gsv)            :: stateVectorDeterInc
     type(struct_gsv)            :: stateVectorDeterTrl
     type(struct_gsv)            :: stateVectorDeterAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
@@ -144,7 +142,10 @@ contains
     real(4), pointer     :: deterTrl_ptr_r4(:,:,:,:), deterAnl_ptr_r4(:,:,:,:), deterInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
+    type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorDeterInc
 
     logical :: deterministicStateExists
     logical :: firstTime = .true.
@@ -166,11 +167,12 @@ contains
     nEns = ens_getNumMembers(ensembleAnl)
     nLev_M = ens_getNumLev(ensembleAnl, 'MM')
     hco_ens => ens_getHco(ensembleAnl)
-    myLonBeg = stateVectorMeanInc%myLonBeg
-    myLonEnd = stateVectorMeanInc%myLonEnd
-    myLatBeg = stateVectorMeanInc%myLatBeg
-    myLatEnd = stateVectorMeanInc%myLatEnd
-    numVarLev    = stateVectorMeanInc%nk
+    vco_ens => ens_getVco(ensembleAnl)
+    myLonBeg = stateVectorMeanAnl%myLonBeg
+    myLonEnd = stateVectorMeanAnl%myLonEnd
+    myLatBeg = stateVectorMeanAnl%myLatBeg
+    myLatEnd = stateVectorMeanAnl%myLatEnd
+    numVarLev    = stateVectorMeanAnl%nk
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
@@ -211,6 +213,17 @@ contains
       allocate(weightsDeterLatLon(nEns,1,myNumLatLonSend))
       weightsDeterLatLon(:,:,:) = 0.0d0
     end if
+
+    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanInc)
+    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorDeterInc)
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -276,7 +289,7 @@ contains
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
         procIndex = myProcIndexesRecv(latLonIndex)
-        recvTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
+        recvTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
 
         nsize = nEns
         numRecv = numRecv + 1
@@ -285,14 +298,14 @@ contains
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
         if (deterministicStateExists) then
           numRecv = numRecv + 1
-          recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
           call mpi_irecv( weightsDeter(:,1,lonIndex,latIndex),  &
                           nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                           mpi_comm_grid, requestIdRecv(numRecv), ierr )
         end if
         nsize = nEns*nEns
         numRecv = numRecv + 1
-        recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+        recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
@@ -801,7 +814,7 @@ contains
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
         do procIndex = 1, myNumProcIndexesSend(latLonIndex)
-          sendTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
+          sendTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
           nsize = nEns
@@ -811,14 +824,14 @@ contains
                           mpi_comm_grid, requestIdSend(numSend), ierr )
           if (deterministicStateExists) then
             numSend = numSend + 1
-            sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+            sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
             call mpi_isend( weightsDeterLatLon(:,1,latLonIndex),  &
                             nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                             mpi_comm_grid, requestIdSend(numSend), ierr )
           end if
           nsize = nEns*nEns
           numSend = numSend + 1
-          sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
@@ -978,6 +991,9 @@ contains
     call tmg_start(19,'LETKF-barr')
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(19)
+
+    call gsv_deallocate( stateVectorMeanInc )
+    call gsv_deallocate( stateVectorDeterInc )
 
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

@@ -317,11 +317,6 @@ program midas_letkf
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanTrl)
-  call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
-  call gsv_zero(stateVectorMeanInc)
   call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -365,11 +360,6 @@ program midas_letkf
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorDeterTrl)
-    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero(stateVectorDeterInc)
     call gsv_allocate( stateVectorDeterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -526,9 +516,9 @@ program midas_letkf
 
   !- 4.3 Setup for interpolating weights from coarse to full resolution
   call tmg_start(92,'LETKF-interpolateWeights')
-  call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanInc%hco, weightLatLonStep,  &
-                            stateVectorMeanInc%myLonBeg, stateVectorMeanInc%myLonEnd,  &
-                            stateVectorMeanInc%myLatBeg, stateVectorMeanInc%myLatEnd)
+  call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanAnl%hco, weightLatLonStep,  &
+                            stateVectorMeanAnl%myLonBeg, stateVectorMeanAnl%myLonEnd,  &
+                            stateVectorMeanAnl%myLatBeg, stateVectorMeanAnl%myLatEnd)
   call tmg_stop(92)
 
   !
@@ -539,8 +529,8 @@ program midas_letkf
   call tmg_start(3,'LETKF-doAnalysis')
   call enkf_LETKFanalyses(algorithm, numSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                          stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
-                          stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
+                          stateVectorMeanTrl, stateVectorMeanAnl, &
+                          stateVectorDeterTrl, stateVectorDeterAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, alphaRTPP, mpiDistribution)
   call tmg_stop(3)
@@ -565,6 +555,23 @@ program midas_letkf
   !
   !- 6. Post processing of analysis results
   !
+
+  !- 6.0 Allocate and recompute mean and deterministic increment
+  call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                     dataKind_opt=4, allocHeightSfc_opt=.true., &
+                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_zero(stateVectorMeanInc)
+  call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+  call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+
+  call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                     dataKind_opt=4, allocHeightSfc_opt=.true., &
+                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_zero(stateVectorDeterInc)
+  call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
+  call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
 
   !- 6.1 Apply RTPS, if requested
   if (alphaRTPS > 0.0D0) then
