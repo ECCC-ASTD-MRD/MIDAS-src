@@ -78,13 +78,12 @@ contains
   subroutine enkf_LETKFanalyses(algorithm, numSubEns,  &
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                                 stateVectorMeanTrl, stateVectorMeanAnl, &
-                                stateVectorDeterTrl, stateVectorDeterAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
                                 alphaRTPP, mpiDistribution)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
-    !           mean and (if present) a deterministic state.
+    !           mean.
     implicit none
 
     ! Arguments
@@ -95,8 +94,6 @@ contains
     type(struct_eob)            :: ensObs_mpiglobal
     type(struct_gsv)            :: stateVectorMeanTrl
     type(struct_gsv)            :: stateVectorMeanAnl
-    type(struct_gsv)            :: stateVectorDeterTrl
-    type(struct_gsv)            :: stateVectorDeterAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
     integer                     :: maxNumLocalObs
     real(8)                     :: hLocalize(:)
@@ -136,20 +133,16 @@ contains
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
-    real(8), allocatable :: weightsDeter(:,:,:,:), weightsDeterLatLon(:,:,:)
     real(8), allocatable :: memberAnlPert(:)
     real(4), allocatable :: logPres_M_r4(:,:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
-    real(4), pointer     :: deterTrl_ptr_r4(:,:,:,:), deterAnl_ptr_r4(:,:,:,:), deterInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
-    type(struct_gsv)          :: stateVectorDeterInc
 
-    logical :: deterministicStateExists
     logical :: firstTime = .true.
 
     write(*,*) 'enkf_LETKFanalyses: starting'
@@ -179,7 +172,6 @@ contains
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
-    deterministicStateExists = stateVectorDeterTrl%allocated
 
     !
     ! Compute gridded 3D ensemble weights
@@ -208,24 +200,12 @@ contains
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
-    ! Weights for deterministic analysis
-    if (deterministicStateExists) then
-      allocate(weightsDeter(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
-      weightsDeter(:,:,:,:) = 0.0d0
-      allocate(weightsDeterLatLon(nEns,1,myNumLatLonSend))
-      weightsDeterLatLon(:,:,:) = 0.0d0
-    end if
 
     call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorMeanInc)
-    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero(stateVectorDeterInc)
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -298,13 +278,6 @@ contains
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        if (deterministicStateExists) then
-          numRecv = numRecv + 1
-          recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
-          call mpi_irecv( weightsDeter(:,1,lonIndex,latIndex),  &
-                          nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
-                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        end if
         nsize = nEns*nEns
         numRecv = numRecv + 1
         recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
@@ -416,29 +389,6 @@ contains
               end do
             end do
 
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as Pa * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, nEns
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +  &
-                       Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
-                end do
-              end do
-            end if
-
             ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
             weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
             do memberIndex = 1, nEns
@@ -492,41 +442,6 @@ contains
                      weightsTemp2(memberIndex2)
               end do
             end do
-
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-              weightsTemp2(:) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                               eigenVectors(memberIndex1,memberIndex2) *  &
-                                               weightsTemp(memberIndex1)
-                end do
-              end do
-              do memberIndex = 1, matrixRank
-                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                            1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
-              end do
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +   &
-                       eigenVectors(memberIndex1,memberIndex2) *  &
-                       weightsTemp2(memberIndex2)
-                end do
-              end do
-            end if
 
             ! Compute ensemble perturbation weights: 
             ! Wa = (1-alphaRTPP) * 
@@ -664,41 +579,6 @@ contains
               end do
             end do
 
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-              weightsTemp2(:) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                               eigenVectors(memberIndex1,memberIndex2) *  &
-                                               weightsTemp(memberIndex1)
-                end do
-              end do
-              do memberIndex = 1, matrixRank
-                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                            1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
-              end do
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +   &
-                       eigenVectors(memberIndex1,memberIndex2) *  &
-                       weightsTemp2(memberIndex2)
-                end do
-              end do
-            end if
-
             ! Compute ensemble perturbation weights using mean increment weights 
             ! formula, but with subset of members: 
             ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
@@ -804,7 +684,6 @@ contains
           ! no observations near this grid point, set weights to zero
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          if (deterministicStateExists) weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
         end if ! numLocalObs > 0
 
         call tmg_stop(91)
@@ -824,13 +703,6 @@ contains
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
-          if (deterministicStateExists) then
-            numSend = numSend + 1
-            sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
-            call mpi_isend( weightsDeterLatLon(:,1,latLonIndex),  &
-                            nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
-          end if
           nsize = nEns*nEns
           numSend = numSend + 1
           sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
@@ -864,13 +736,8 @@ contains
       !
       call tmg_start(92,'LETKF-interpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
-
         call enkf_interpWeights(wInterpInfo, weightsMean)
-
-        if (deterministicStateExists) call enkf_interpWeights(wInterpInfo, weightsDeter)
-
         call enkf_interpWeights(wInterpInfo, weightsMembers)
-
       end if
       call tmg_stop(92)
 
@@ -882,11 +749,6 @@ contains
       meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
       meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
       meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
-      if (deterministicStateExists) then
-        deterInc_ptr_r4 => gsv_getField_r4(stateVectorDeterInc)
-        deterTrl_ptr_r4 => gsv_getField_r4(stateVectorDeterTrl)
-        deterAnl_ptr_r4 => gsv_getField_r4(stateVectorDeterAnl)
-      end if
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -918,34 +780,6 @@ contains
                    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
             end do ! stepIndex
           end do ! varLevIndex
-
-          ! Compute the deterministic increment and analysis
-          if (deterministicStateExists) then
-            do varLevIndex = 1, numVarLev
-              ! Only treat varLevIndex values that correspond with current levIndex
-              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
-                levIndex2 = nLev_M
-              else
-                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-              end if
-              if (levIndex2 /= levIndex) cycle
-              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-              do stepIndex = 1, tim_nstepobsinc
-                ! deterministic increment
-                do memberIndex = 1, nEns
-                  deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                       deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                       weightsDeter(memberIndex,1,lonIndex,latIndex) *  &
-                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                        deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-                end do ! memberIndex
-                ! deterministic analysis
-                deterAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                     deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                     deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-              end do ! stepIndex
-            end do ! varLevIndex
-          end if
 
           ! Compute the ensemble member analyses
           do varLevIndex = 1, numVarLev
@@ -995,7 +829,6 @@ contains
     call tmg_stop(19)
 
     call gsv_deallocate( stateVectorMeanInc )
-    call gsv_deallocate( stateVectorDeterInc )
 
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1005,9 +838,7 @@ contains
   !----------------------------------------------------------------------
   ! enkf_postProcess
   !----------------------------------------------------------------------
-  subroutine enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc, &
-                              stateVectorDeterAnl, stateVectorDeterTrl,  &
-                              deterministicStateExists)
+  subroutine enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc)
     !
     !:Purpose:  Perform numerous post-processing steps to the ensemble
     !           produced by the LETKF algorithm.
@@ -1018,8 +849,6 @@ contains
     type(struct_ens), pointer :: ensembleTrl
     type(struct_ens)          :: ensembleAnl
     type(struct_gsv)          :: stateVectorHeightSfc
-    type(struct_gsv)          :: stateVectorDeterAnl, stateVectorDeterTrl
-    logical                   :: deterministicStateExists
 
     ! Locals
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
@@ -1027,7 +856,7 @@ contains
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
-    type(struct_gsv)          :: stateVectorMeanInc, stateVectorDeterInc
+    type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
     type(struct_gsv)          :: stateVectorMeanIncSubSample
     type(struct_gsv)          :: stateVectorMeanAnlSubSample
@@ -1120,21 +949,14 @@ contains
     call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
     call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
-    !- Allocate and compute mean and deterministic increment
+    !- Allocate and compute mean increment
     call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorMeanInc)
-    call gsv_zero(stateVectorDeterInc)
     call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-    call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
     call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-    call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
 
     !- Apply RTPS, if requested
     if (alphaRTPS > 0.0D0) then
@@ -1239,18 +1061,6 @@ contains
       ! And recompute mean increment
       call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
       call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-      call tmg_stop(102)
-    end if
-
-    !- Impose limits on deterministic analysis
-    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-         .and. deterministicStateExists ) then
-      call tmg_start(102,'LETKF-imposeHulimits')
-      if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorDeterAnl)
-      if ( imposeRttovHuLimits   ) call qlim_rttovLimit(stateVectorDeterAnl)
-      ! And recompute deterministic increment
-      call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
-      call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
       call tmg_stop(102)
     end if
 
@@ -1412,42 +1222,6 @@ contains
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                            stepIndex_opt=stepIndex, containsFullField_opt=.true.)
     end do
-
-    !- Output the deterministic increment (include MeanAnl Psfc) and analysis
-    if (deterministicStateExists) then
-      ! convert transformed to model variables for deterministic analysis and trial
-      call gvt_transform(stateVectorDeterAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-      call gvt_transform(stateVectorDeterTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-      ! and recompute mean increment for converted model variables (e.g. VIS and PR)
-      nullify(varNames)
-      call gsv_varNamesList(varNames, stateVectorDeterAnl)
-      call gsv_deallocate( stateVectorDeterInc )
-      call gsv_allocate( stateVectorDeterInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-      call gsv_copy(stateVectorDeterAnl, stateVectorDeterInc)
-      call gsv_add(stateVectorDeterTrl, stateVectorDeterInc, scaleFactor_opt=-1.0D0)
-      deallocate(varNames)
-
-      ! output the deterministic increment
-      call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), ensFileNameSuffix_opt='inc' )
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorDeterInc, outFileName, 'DETER_INC',  &
-                             typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-        call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'DETER_INC',  &
-                             typvar_opt='A', writeHeightSfc_opt=.true., numBits_opt=16, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-      end do
-
-      ! output the deterministic analysis state
-      call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
-      do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorDeterAnl, outFileName, 'DETER_ANL',  &
-                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-      end do
-    end if
 
     !- Output all ensemble member analyses and increments
     ! convert transformed to model variables for analysis and trial ensembles

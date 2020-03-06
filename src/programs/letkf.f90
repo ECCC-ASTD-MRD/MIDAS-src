@@ -56,10 +56,6 @@ program midas_letkf
   type(struct_gsv)          :: stateVectorStdDevTrl
   type(struct_gsv)          :: stateVectorStdDevAnl
   type(struct_gsv)          :: stateVectorStdDevAnlPert
-  type(struct_gsv)          :: stateVectorDeterTrl4D
-  type(struct_gsv)          :: stateVectorDeterTrl
-  type(struct_gsv)          :: stateVectorDeterAnl
-  type(struct_gsv)          :: stateVectorDeterInc
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_columnData)   :: column
 
@@ -74,13 +70,11 @@ program midas_letkf
   integer :: get_max_rss, fclos, fnom, fstopc, newdate
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
-  character(len=256) :: ensFileName, deterFileName
+  character(len=256) :: ensFileName
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
   character(len=4)   :: memberIndexStr
-
-  logical :: deterministicStateExists
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -301,73 +295,11 @@ program midas_letkf
   end if
   call gsv_copy(stateVectorMeanTrl, stateVectorMeanAnl)
 
-  !- 2.12 If deterministic background exists, do allocation and then read it
-  call fln_ensFileName( deterFileName, ensPathName, shouldExist_opt=.false. )
-  inquire(file=deterFileName, exist=deterministicStateExists)
-  if (deterministicStateExists) then
-    write(*,*)
-    write(*,*) 'midas-letkf: Deterministic background state found, will provide deterministic analysis.'
-    write(*,*) 'filename = ', deterFileName
-    call gsv_allocate( stateVectorDeterTrl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero(stateVectorDeterTrl4D)
-    call gsv_allocate( stateVectorDeterTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero(stateVectorDeterTrl)
-    call gsv_allocate( stateVectorDeterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero(stateVectorDeterAnl)
-    do stepIndex = 1, tim_nstepobs
-      call gsv_readFromFile( stateVectorDeterTrl4D, deterFileName, ' ', ' ',  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                             readHeightSfc_opt=.true. )
-    end do
-    if (tim_nstepobsinc < tim_nstepobs) then
-      call gsv_copy4Dto3D(stateVectorDeterTrl4D, stateVectorDeterTrl)
-    else
-      call gsv_copy(stateVectorDeterTrl4D, stateVectorDeterTrl)
-    end if
-    call gsv_copy(stateVectorDeterTrl, stateVectorDeterAnl)
-  else
-    write(*,*)
-    write(*,*) 'midas-letkf: No deterministic background state present.'
-    write(*,*)
-  end if
-
   !
   !- 3. Compute HX values with results in ensObs
   !
 
-  !- 3.1 If it exists, compute HX for deterministic background
-  if (deterministicStateExists) then
-
-    write(*,*) ''
-    write(*,*) 'midas-letkf: apply nonlinear H to deterministic background'
-    write(*,*) ''
-
-    ! copy deterministic background to state with pressure and heights allocated
-    call gsv_copy(stateVectorDeterTrl4D, stateVectorWithZandP4D, allowMismatch_opt=.true.)
-
-    ! Compute Y-H(X) in OBS_OMP
-    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, timeInterpType=obsTimeInterpType )
-
-    call tmg_start(6,'LETKF-obsOperators')
-    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
-    call tmg_stop(6)
-
-    ! Copy to ensObs: Y-HX for deterministic background
-    call eob_setDeterYb(ensObs)
-
-  end if
-
-  !- 3.2 Loop over all members and compute HX for each
+  !- 3.1 Loop over all members and compute HX for each
   do memberIndex = 1, nEns
 
     write(*,*) ''
@@ -390,7 +322,7 @@ program midas_letkf
 
   end do
 
-  !- 3.3 Set some additional information in ensObs and additional quality 
+  !- 3.2 Set some additional information in ensObs and additional quality 
   !      control before finally communicating ensObs globally
 
   ! Compute and remove the mean of Yb
@@ -480,13 +412,12 @@ program midas_letkf
   call tmg_stop(92)
 
   !
-  !- 5. Main calculation of ensemble and deterministic analyses
+  !- 5. Main calculation of ensemble analyses
   !
   call tmg_start(3,'LETKF-doAnalysis')
   call enkf_LETKFanalyses(algorithm, numSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanTrl, stateVectorMeanAnl, &
-                          stateVectorDeterTrl, stateVectorDeterAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, alphaRTPP, mpiDistribution)
   call tmg_stop(3)
@@ -517,9 +448,7 @@ program midas_letkf
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
     call tmg_start(8,'LETKF-postProcess')
-    call enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc, &
-                          stateVectorDeterAnl, stateVectorDeterTrl, &
-                          deterministicStateExists)
+    call enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc)
     call tmg_stop(8)
   else
     ! just write the raw analysis ensemble to files
