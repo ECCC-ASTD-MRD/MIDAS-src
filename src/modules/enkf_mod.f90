@@ -77,7 +77,7 @@ contains
   !----------------------------------------------------------------------
   subroutine enkf_LETKFanalyses(algorithm, numSubEns,  &
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                                stateVectorMeanTrl, stateVectorMeanAnl, &
+                                stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
                                 alphaRTPP, mpiDistribution)
@@ -92,7 +92,6 @@ contains
     type(struct_ens), pointer   :: ensembleTrl
     type(struct_ens)            :: ensembleAnl
     type(struct_eob)            :: ensObs_mpiglobal
-    type(struct_gsv)            :: stateVectorMeanTrl
     type(struct_gsv)            :: stateVectorMeanAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
     integer                     :: maxNumLocalObs
@@ -142,6 +141,7 @@ contains
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorMeanTrl
 
     logical :: firstTime = .true.
 
@@ -201,11 +201,19 @@ contains
     allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
+    call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanTrl)
     call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorMeanInc)
+
+    call ens_computeMean(ensembleTrl)
+    call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -828,7 +836,8 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(19)
 
-    call gsv_deallocate( stateVectorMeanInc )
+    call gsv_deallocate(stateVectorMeanInc)
+    call gsv_deallocate(stateVectorMeanTrl)
 
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -878,7 +887,6 @@ contains
     real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
-    logical  :: huAdjustmentAfterPert  ! choose to apply HU adjustment after random perturbations (default=true)
     real(8)  :: weightRecenter         ! weight applied to EnVar recentering increment
     integer  :: numMembersToRecenter ! number of members that get recentered on EnVar analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
@@ -886,7 +894,7 @@ contains
 
     NAMELIST /NAMENSPOSTPROC/randomSeed, writeSubSample,  &
                              alphaRTPS, alphaRandomPert, alphaRandomPertSubSample,  &
-                             imposeSaturationLimit, imposeRttovHuLimits, huAdjustmentAfterPert,  &
+                             imposeSaturationLimit, imposeRttovHuLimits,  &
                              weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
                              etiket0
 
@@ -902,7 +910,6 @@ contains
     alphaRandomPertSubSample =  -1.0D0
     imposeSaturationLimit = .false.
     imposeRttovHuLimits   = .false.
-    huAdjustmentAfterPert = .true.
     weightRecenter        = 0.0D0 ! means no recentering applied
     numMembersToRecenter  = -1    ! means all members recentered by default
     useOptionTableRecenter = .false.
@@ -967,8 +974,7 @@ contains
     end if
 
     !- Impose limits on humidity *before* random perturbations, if requested
-    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-         .and. .not.huAdjustmentAfterPert ) then
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
       call tmg_start(102,'LETKF-imposeHulimits')
       if (mpi_myid == 0) write(*,*) ''
       if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
@@ -1045,25 +1051,6 @@ contains
       call tmg_stop(101)
     end if
 
-    !- Impose limits on humidity *after* random perturbations, if requested
-    if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-         .and. huAdjustmentAfterPert ) then
-      call tmg_start(102,'LETKF-imposeHulimits')
-      if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
-      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
-      ! And recompute analysis mean
-      call ens_computeMean(ensembleAnl)
-      call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-      ! And recompute mean increment
-      call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
-      call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
-      call tmg_stop(102)
-    end if
-
     !- Recompute the analysis spread stddev after inflation and humidity limits
     call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -1101,15 +1088,6 @@ contains
       ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
       call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
                         recenteringCoeff_opt=1.0D0)
-      if ( (imposeSaturationLimit .or. imposeRttovHuLimits)  &
-           .and. huAdjustmentAfterPert ) then
-        if (mpi_myid == 0) write(*,*) ''
-        if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of recentered ensemble'
-        if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-        if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-        if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnlSubSample)
-        if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnlSubSample)
-      end if
 
       ! Re-compute analysis mean of sub-sampled ensemble
       call ens_computeMean(ensembleAnlSubSample)

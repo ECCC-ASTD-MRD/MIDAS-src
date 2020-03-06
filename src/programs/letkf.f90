@@ -49,7 +49,6 @@ program midas_letkf
   type(struct_ens), pointer :: ensembleTrl
   type(struct_ens)          :: ensembleAnl
   type(struct_gsv)          :: stateVectorMeanTrl4D
-  type(struct_gsv)          :: stateVectorMeanTrl
   type(struct_gsv)          :: stateVectorMeanAnl
   type(struct_gsv)          :: stateVectorMeanInc
   type(struct_gsv)          :: stateVectorWithZandP4D
@@ -264,11 +263,6 @@ program midas_letkf
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanTrl4D)
-  call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
-  call gsv_zero(stateVectorMeanTrl)
   call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -289,12 +283,11 @@ program midas_letkf
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   if (tim_nstepobsinc < tim_nstepobs) then
-    call gsv_copy4Dto3D(stateVectorMeanTrl4D, stateVectorMeanTrl)
+    call gsv_copy4Dto3D(stateVectorMeanTrl4D, stateVectorMeanAnl)
   else
-    call gsv_copy(stateVectorMeanTrl4D, stateVectorMeanTrl)
+    call gsv_copy(stateVectorMeanTrl4D, stateVectorMeanAnl)
   end if
-  call gsv_copy(stateVectorMeanTrl, stateVectorMeanAnl)
-
+  
   !
   !- 3. Compute HX values with results in ensObs
   !
@@ -417,7 +410,7 @@ program midas_letkf
   call tmg_start(3,'LETKF-doAnalysis')
   call enkf_LETKFanalyses(algorithm, numSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                          stateVectorMeanTrl, stateVectorMeanAnl, &
+                          stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, alphaRTPP, mpiDistribution)
   call tmg_stop(3)

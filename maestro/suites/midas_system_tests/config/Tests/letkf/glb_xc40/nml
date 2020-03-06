@@ -1,5 +1,6 @@
  &NAMLETKF
    algorithm                = 'CVLETKF'
+   ensPostProcessing        = .true.
    NENS                     = 128
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
@@ -7,18 +8,20 @@
    HLOCALIZE                = 2000.0D0
    VLOCALIZE                = 2.0D0
    alphaRTPP                = 0.00D0
+   modifyAmsubObsError      = .false.
+   backgroundCheck          = .false.
+   huberize                 = .false.
+   rejectHighLatIR          = .false.
+   rejectRadNearSfc         = .false.
+   obsTimeInterpType        = 'LINEAR'
+   mpiDistribution          = 'ROUNDROBIN'
+/
+ &NAMENSPOSTPROC
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.33D0
    alphaRandomPertSubSample = 0.66D0
-   modifyAmsubObsError   = .false.
-   backgroundCheck          = .false.
-   huberize                 = .false.
-   rejectHighLatIR       = .false.
-   rejectRadNearSfc         = .false.
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
-   obsTimeInterpType        = 'LINEAR'
-   mpiDistribution          = 'ROUNDROBIN'
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
