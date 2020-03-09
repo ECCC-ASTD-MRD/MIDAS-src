@@ -13,7 +13,7 @@
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="obsIO"/>
-  <SUBMITS sub_name="bgckAllMW"/>
+  <SUBMITS sub_name="bgckMW"/>
   <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
@@ -288,7 +288,7 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
-  <FAMILY  name="bgckAllMW">
+  <FAMILY  name="bgckMW">
     <SUBMITS sub_name="bgckAmsua"/>
     <FAMILY  name="bgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
