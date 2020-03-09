@@ -22,12 +22,13 @@ module fileNames_mod
   use utilities_mod
   use clib_interfaces_mod
   use ramDisk_mod
+  use timeCoord_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: fln_ensFileName, fln_ensAnlFileName
+  public :: fln_ensFileName, fln_ensAnlFileName, fln_ensTrlFileName
 
 contains
 
@@ -36,7 +37,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
                              ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
-                             copyToRamDisk_opt )
+                             copyToRamDisk_opt, resetFileInfo_opt)
     ! :Purpose: Return the filename of an ensemble member. Will also call routine in 
     !           ramdisk_mod module that will copy the file (if shouldExist_opt is true)
     !           to the ram disk. If the memberIndex_opt is not specified, the filename
@@ -53,6 +54,7 @@ contains
     logical, optional :: shouldExist_opt
     integer, optional :: ensembleFileExtLength_opt
     logical, optional :: copyToRamDisk_opt
+    logical, optional :: resetFileInfo_opt
 
     ! Locals:
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
@@ -63,6 +65,11 @@ contains
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
     character(len=200), save :: ensFileBaseName
+
+    if ( present(resetFileInfo_opt) ) then
+      if (resetFileInfo_opt) firstTime = .true.
+      return
+    end if
 
     if ( present(shouldExist_opt) ) then
       shouldExist = shouldExist_opt
@@ -221,5 +228,84 @@ contains
     write(*,*) 'fln_ensAnlFileName: ensFileName = ', trim(ensFileName)
 
   end subroutine fln_ensAnlFileName
+
+  !--------------------------------------------------------------------------
+  ! fln_ensTrlFileName
+  !--------------------------------------------------------------------------
+  subroutine fln_ensTrlFileName( ensFileName, ensPathName, dateStamp,  &
+                                 memberIndex_opt, ensFileNamePrefix_opt, ensFileNameSuffix_opt )
+    ! :Purpose: Return the filename for a trial state, including for
+    !           ensemble members (by specifying memberIndex_opt). The member
+    !           index extension is assumed to be 4 digits.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*)  :: ensFileName
+    character(len=*)  :: ensPathName
+    integer           :: dateStamp
+    integer, optional :: memberIndex_opt
+    character(len=*), optional :: ensFileNamePrefix_opt
+    character(len=*), optional :: ensFileNameSuffix_opt
+
+    ! locals
+    integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl
+    character(len=4)  :: ensNumber
+    character(len=3)  :: leadTimeStr
+    character(len=10) :: dateStrTrl
+
+    ! Compute the datestamp for the origin time of the trial forecasts
+    call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
+    
+    ! Set the printable date for trial related file names
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr = newdate(dateStampTrl, prntdate, prnttime, imode)
+    hours = prnttime/1000000
+    write(dateStrTrl,'(i10.10)') prntdate*100 + hours
+
+    if (present(memberIndex_opt)) then
+      write(ensNumber,'(i4.4)') memberIndex_opt
+    end if
+    write(leadTimeStr,'(i3.3)') nint(tim_windowsize)
+
+    if (present(memberIndex_opt)) then
+      if (present(ensFileNamePrefix_opt)) then
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrTrl // '_' // leadTimeStr // '_' // trim(ensFileNameSuffix_opt) // '_' // trim(ensNumber)
+        else
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrTrl // '_' // leadTimeStr // '_' // trim(ensNumber)
+        end if
+      else
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // dateStrTrl // '_' // leadTimeStr // '_' //  &
+                        trim(ensFileNameSuffix_opt) // '_' // trim(ensNumber)
+        else
+          ensFileName = trim(ensPathName) // '/' // dateStrTrl // '_' // leadTimeStr // '_' // trim(ensNumber)
+        end if
+      end if
+    else
+      if (present(ensFileNamePrefix_opt)) then
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrTrl // '_' // leadTimeStr // '_' // trim(ensFileNameSuffix_opt)
+        else
+          ensFileName = trim(ensPathName) // '/' // trim(ensFileNamePrefix_opt) //  &
+                        dateStrTrl // '_' // leadTimeStr
+        end if
+      else
+        if (present(ensFileNameSuffix_opt)) then
+          ensFileName = trim(ensPathName) // '/' // dateStrTrl // '_' // leadTimeStr // '_' //  &
+                        trim(ensFileNameSuffix_opt)
+        else
+          ensFileName = trim(ensPathName) // '/' // dateStrTrl // '_' // leadTimeStr
+        end if
+      end if
+    end if
+
+    write(*,*) 'fln_ensTrlFileName: ensFileName = ', trim(ensFileName)
+
+  end subroutine fln_ensTrlFileName
 
 end module fileNames_mod

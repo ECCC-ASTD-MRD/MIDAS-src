@@ -1129,12 +1129,12 @@ contains
 
     ! output trialmean, trialrms
     call enkf_getRmsEtiket(etiketMean, etiketStd, 'F', etiket0, nEns)
-    call fln_ensFileName( outFileName, '.', shouldExist_opt=.false. )
+    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_trialmean'
     call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
                          typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16,  &
                          stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
-    call fln_ensFileName( outFileName, '.', shouldExist_opt=.false. )
+    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_trialrms'
     call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
                          typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16, &
@@ -1142,12 +1142,12 @@ contains
 
     ! output analmean, analrms
     call enkf_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
-    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+    call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_analmean'
     call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
                          typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                          stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
-    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+    call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_analrms'
     call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
                          typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
@@ -2356,15 +2356,15 @@ contains
         call utl_abort('enkf_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
-      write(*,*) 'enkf_hybridRecentering: optiontable file has ', numColumns, ' columns.'
+      if (mpi_myid==0) write(*,*) 'enkf_hybridRecentering: optiontable file has ', numColumns, ' columns.'
       allocate( weightArray(0:numMembers) )
       rewind(nulFile)
       do memberIndex = 0, numMembers
         read(nulFile,'(a)') textLine
         call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
-        write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        if (mpi_myid==0) write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
         read(stringArray(numColumns),'(f6.3)') weightArray(memberIndex)
-        write(*,*) 'weightArray = ', weightArray(memberIndex)
+        if (mpi_myid==0) write(*,*) 'weightArray = ', weightArray(memberIndex)
       end do
       status = fclos(nulFile)
     end if

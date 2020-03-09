@@ -82,8 +82,8 @@ program midas_ensPostProcess
 
   !- 1. Initialize date/time-related info
 
-  ! Setup timeCoord module, set dateStamp with value from analysis file
-  call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, ensFileBaseName_opt=ensFileBaseName)
+  ! Setup timeCoord module, set dateStamp with value from trial ensemble member 1
+  call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, ensFileBaseName_opt=ensFileBaseName)
   call tim_setup(fileNameForDate_opt=ensFileName)
   allocate(dateStampList(tim_nstepobsinc))
   call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
@@ -98,9 +98,9 @@ program midas_ensPostProcess
   !- Initialize the grid from trial ensemble member 1
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
-  call fln_ensFileName( ensFileName, ensPathNameAnl, memberIndex_opt=1 )
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile( vco_ens, ensFileName )
+  call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1)
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
@@ -114,22 +114,24 @@ program midas_ensPostProcess
   end if
 
   !- Read the sfc height from trial ensemble member 1
-  call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
-  call gsv_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                         containsFullField_opt=.true., readHeightSfc_opt=.true. )
+  call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
+  call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+                        containsFullField_opt=.true., readHeightSfc_opt=.true.)
 
   !- 3. Allocate and read ensembles
 
+  !- Allocate ensembles, read the Anl ensemble
+  call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
+  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
+  call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
+
   !- Allocate ensembles, read the Trl ensemble
+  call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
   allocate(ensembleTrl)
   call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
-
-  !- Allocate ensembles, read the Anl ensemble
-  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call tmg_start(8,'LETKF-postProcess')

@@ -8,6 +8,7 @@
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
   <SUBMITS sub_name="letkf"/>
+  <SUBMITS sub_name="ensPostProcess"/>
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
@@ -253,6 +254,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+  </FAMILY>
+
+  <FAMILY  name="ensPostProcess">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
   </FAMILY>
 
   <FAMILY  name="prepcma">
