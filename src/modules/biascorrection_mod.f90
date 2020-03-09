@@ -1624,7 +1624,7 @@ CONTAINS
               end do
             end if
           end do
-          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0)  &
+          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0 .and. (.not. doRegression) ) &
                Write(*,*) "bias_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
