@@ -41,6 +41,7 @@ program midas_gencoeff
   use stateToColumn_mod
   use backgroundCheck_mod
   use analysisGrid_mod
+  use biasCorrection_mod
 
   implicit none
 
@@ -76,14 +77,6 @@ program midas_gencoeff
 
  
   ! 1. Top level setup
-
-  nulnam = 0
-  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  if (ierr /= 0) call utl_abort('midas-var: Error opening file flnml')
-  !read(nulnam,nml=namct0,iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-var: Error reading namelist')
-  !write(*,nml=namct0)
-  ierr = fclos(nulnam)
 
   call ram_setup()
  
@@ -262,7 +255,7 @@ contains
     !
     !- Initialize the observation error covariances
     !
-    call oer_setObsErrors(obsSpaceData, varMode) ! IN
+    if (.not. bias_mimicSatbcor) call oer_setObsErrors(obsSpaceData, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
  end subroutine gencoeff_setup
