@@ -596,7 +596,7 @@ program midas_letkf
   !- 6.3 Recenter analysis ensemble on EnVar analysis
   if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
     write(*,*) 'midas-letkf: Recenter analyses on EnVar analysis'
-    call enkf_recenterOnEnVar(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
+    call enkf_hybridRecentering(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
     ! And recompute analysis mean
     call ens_computeMean(ensembleAnl)
     call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
