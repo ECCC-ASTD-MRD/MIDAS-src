@@ -1094,15 +1094,17 @@ contains
       end if
 
       if ( codtyp_get_name( codeType_opt ) == 'radianceclear' ) then
-        fileName  = 'csr' 
+        fileName  = 'csr'
       else if ( codtyp_get_name( codeType_opt ) == 'mhs' .or. codtyp_get_name( codeType_opt ) == 'amsub' ) then
         fileName = 'to_amsub'
       else if ( codtyp_get_name( codeType_opt ) == 'amsua' ) then
         fileName = 'to_amsua'
       else if ( codtyp_get_name( codeType_opt ) == 'ssmi' ) then
-        fileName = 'ssmis'   
+        fileName = 'ssmis'
+      else if ( codtyp_get_name( codeType_opt ) == 'crisfsr' ) then
+        fileName = 'cris'
       else
-        fileName = codtyp_get_name( codeType_opt ) 
+        fileName = codtyp_get_name( codeType_opt )
       end if
     else
       if (.not. present(sfFileName_opt)) then

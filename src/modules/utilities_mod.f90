@@ -35,7 +35,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_getPositionXY
-  public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray
+  public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
 
   ! module interfaces
   ! -----------------
@@ -2314,5 +2314,52 @@ contains
     ierr=fclos(unit)
 
   end function utl_isNamelistPresent
+
+  !-----------------------------------------------------------------
+  ! utl_parseColumns
+  !-----------------------------------------------------------------
+  subroutine utl_parseColumns(line, numColumns, stringArray_opt)
+    !
+    ! :Purpose: To return column values in array of strings and
+    !           the number of space-delimited columns in a string
+    ! 
+    implicit none
+    ! Arguments
+    character(len=*), intent(in) :: line
+    integer, intent(out) :: numColumns
+    character(len=*), intent(out), optional :: stringArray_opt(:)
+    ! Locals
+    integer :: linePosition, wordPosition, lineLength
+
+    linePosition = 1
+    lineLength = len_trim(line)
+    numColumns = 0
+    
+    do while(linePosition <= lineLength)
+
+      do while(line(linePosition:linePosition) == ' ') 
+        linePosition = linePosition + 1
+        if (lineLength < linePosition) return
+      end do
+
+      numColumns = numColumns + 1
+      wordPosition = 0
+      if (present(stringArray_opt)) then
+        stringArray_opt(numColumns) = ''
+      end if
+
+      do
+        if (linePosition > lineLength) return
+        if (line(linePosition:linePosition) == ' ') exit
+        if (present(stringArray_opt)) then
+          wordPosition = wordPosition + 1
+          stringArray_opt(numColumns)(wordPosition:wordPosition) = line(linePosition:linePosition)
+        end if
+        linePosition = linePosition + 1
+      end do
+
+    end do
+    
+  end subroutine utl_parseColumns
 
 end module utilities_mod

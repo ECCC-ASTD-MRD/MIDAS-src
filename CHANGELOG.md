@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to recenter LETKF analysis ensemble on a supplied EnVar analysis (#328 and !313)
  * Addition of the OmP error std dev OBS_OMPE element and its possible use during background check (#246 and !311)
  * Add vertically varying horizontal localization length scale for LETKF (#322 and !305)
  * Add option `fullyUseExtremeTimeBins` (default is `.false.`) to namelist section NAMTIME (#323 and !304)

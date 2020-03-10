@@ -50,7 +50,8 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_interpWeights, enkf_addRandomPert, enkf_RTPS
-  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError, enkf_rejectHighLatIR
+  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
+  public :: enkf_rejectHighLatIR, enkf_hybridRecentering
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -1846,8 +1847,8 @@ contains
     integer :: nulFile, ierr, status, numSubSample
     integer :: memberIndex, memberIndexSubSample, memberIndexFull
     integer :: memberIndexesSubSample(1000), memberIndexesFull(1000)
-    integer :: fnom, fclos
     integer, allocatable :: dateStampListInc(:)
+    integer, external :: fnom, fclos
 
     numSubSample = 0
 
@@ -1899,5 +1900,101 @@ contains
     deallocate(dateStampListInc)
 
   end subroutine enkf_selectSubSample
+
+  !-----------------------------------------------------------------
+  ! enkf_hybridRecentering
+  !-----------------------------------------------------------------
+  subroutine enkf_hybridRecentering(ensembleAnl, weightRecenter,  &
+                                    useOptionTableRecenter, numMembersToRecenter)
+    ! :Purpose: Modify an ensemble by recentering the members on a state provided
+    !           in the file "recentering_analysis.fst".
+    !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
+    !           to determine the amount of recentering and how many members it is
+    !           applied to. Alternatively the information in the "optiontable" file
+    !           can be used to perform a different amount of recentering on each
+    !           member.
+    implicit none
+
+    ! Arguments
+    type(struct_ens) :: ensembleAnl
+    real(8)          :: weightRecenter
+    logical          :: useOptionTableRecenter
+    integer          :: numMembersToRecenter
+
+    ! Locals
+    type(struct_gsv) :: stateVectorRecenterAnl
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_vco), pointer :: vco_ens => null()
+    character(len=30)    :: recenterAnlFileName = 'recentering_analysis.fst'
+    character(len=20)    :: stringArray(100)
+    character(len=1000)  :: textLine
+    integer              :: stepIndex, memberIndex, columnIndex
+    integer              :: numMembers, numColumns, nulFile, status
+    logical              :: recenterAnlFileExists
+    real(8), allocatable :: weightArray(:)
+    integer, external    :: fnom, fclos
+
+    ! check if recentering analysis file exists
+    inquire(file=recenterAnlFileName, exist=recenterAnlFileExists)
+    if (.not. recenterAnlFileExists) then
+      write(*,*) 'enkf_hybridRecentering: RecenterAnlFileName = ', recenterAnlFileName
+      call utl_abort('enkf_hybridRecentering: The recentering analysis file does not exist')
+    end if
+
+    numMembers = ens_getNumMembers(ensembleAnl)
+
+    ! read the optiontable file, if requested
+    if (useOptionTableRecenter) then
+      write(*,*) 'enkf_hybridRecentering: using optiontable file to specify recentering weights.'
+      nulFile = 0
+      status = fnom(nulFile, './optiontable', 'FMT+SEQ+R/O', 0)
+      read(nulFile,'(a)', IOSTAT=status) textLine
+      if (status /= 0) then
+        call utl_abort('enkf_hybridRecentering: unable to read optiontable file')
+      end if
+      call utl_parseColumns(textLine, numColumns)
+      write(*,*) 'enkf_hybridRecentering: optiontable file has ', numColumns, ' columns.'
+      allocate( weightArray(0:numMembers) )
+      rewind(nulFile)
+      do memberIndex = 0, numMembers
+        read(nulFile,'(a)') textLine
+        call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
+        write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        read(stringArray(numColumns),'(f6.3)') weightArray(memberIndex)
+        write(*,*) 'weightArray = ', weightArray(memberIndex)
+      end do
+      status = fclos(nulFile)
+    end if
+
+    ! allocate and read in recentering analysis state
+    hco_ens => ens_getHco(ensembleAnl)
+    vco_ens => ens_getVco(ensembleAnl)
+    call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.false., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorRecenterAnl)
+
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                             readHeightSfc_opt=.false. )
+    end do
+
+    ! apply recentering
+    if (useOptionTableRecenter) then
+      call ens_recenter(ensembleAnl, stateVectorRecenterAnl,  &
+                        recenteringCoeffArray_opt=weightArray(1:numMembers),  &
+                        numMembersToRecenter_opt=numMembersToRecenter)
+    else
+      call ens_recenter(ensembleAnl, stateVectorRecenterAnl,  &
+                        recenteringCoeff_opt=weightRecenter,  &
+                        numMembersToRecenter_opt=numMembersToRecenter)
+    end if
+
+    call gsv_deallocate(stateVectorRecenterAnl)
+    if ( allocated(weightArray) ) deallocate(weightArray)
+
+  end subroutine enkf_hybridRecentering
 
 end module enkf_mod
