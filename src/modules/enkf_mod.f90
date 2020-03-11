@@ -994,7 +994,7 @@ contains
     !- Recenter analysis ensemble on EnVar analysis
     if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
       write(*,*) 'midas-letkf: Recenter analyses on EnVar analysis'
-      call enkf_recenterOnEnVar(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
+      call enkf_hybridRecentering(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
       ! And recompute analysis mean
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
@@ -2310,7 +2310,7 @@ contains
   subroutine enkf_hybridRecentering(ensembleAnl, weightRecenter,  &
                                     useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
-    !           in the file "recentering_analysis.fst".
+    !           in the file "recentering_analysis".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
     !           to determine the amount of recentering and how many members it is
     !           applied to. Alternatively the information in the "optiontable" file
@@ -2328,7 +2328,7 @@ contains
     type(struct_gsv) :: stateVectorRecenterAnl
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_vco), pointer :: vco_ens => null()
-    character(len=30)    :: recenterAnlFileName = 'recentering_analysis.fst'
+    character(len=30)    :: recenterAnlFileName = 'recentering_analysis'
     character(len=20)    :: stringArray(100)
     character(len=1000)  :: textLine
     integer              :: stepIndex, memberIndex, columnIndex
