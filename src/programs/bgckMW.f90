@@ -22,8 +22,6 @@ program midas_bgckMW
   use MathPhysConstants_mod
 
   implicit none
-  integer, parameter            :: nchanAtms=22                    ! ATMS channel number        
-  integer, parameter            :: mxscan=96                       ! 
   integer, PARAMETER            :: MXSAT = 9                       ! max number of satellite
   integer, parameter            :: JPNSAT = 9                      ! 
   integer, parameter            :: JPCH = 50                       ! missing value
