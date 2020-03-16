@@ -44,6 +44,7 @@ module enkf_mod
   use fileNames_mod
   use codTyp_mod
   use clib_interfaces_mod
+  use physicsFunctions_mod
   implicit none
   save
   private
@@ -1139,6 +1140,8 @@ contains
     call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
                          typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16, &
                          stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
 
     ! output analmean, analrms
     call enkf_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
@@ -1152,6 +1155,8 @@ contains
     call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
                          typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                          stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
 
     ! output analpertmean, analpertrms
     call enkf_getRmsEtiket(etiketMean, etiketStd, 'P', etiket0, nEns)
@@ -1165,6 +1170,8 @@ contains
     call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
                          typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
                          stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
 
     !- Output the ensemble mean increment (include MeanAnl Psfc) and analysis
 
@@ -2399,5 +2406,166 @@ contains
     if ( allocated(weightArray) ) deallocate(weightArray)
 
   end subroutine enkf_hybridRecentering
+
+  !-----------------------------------------------------------------
+  ! enkf_printRmsStats
+  !-----------------------------------------------------------------
+  subroutine enkf_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns)
+    !
+    ! :Purpose: Print statistics of a field to an ASCII output file
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv)             :: stateVectorStdDev
+    character(len=*)             :: fileName
+    real(8), intent(in)          :: elapsed
+    character(len=1), intent(in) :: ftype
+    integer, intent(in)          :: nEns
+
+    ! locals
+    real(8), allocatable          :: rmsvalue(:) 
+    type(struct_vco), pointer     :: vco
+    type(struct_hco), pointer     :: hco
+    character(len=4), allocatable :: nomvar_v(:)
+    character(len=2)              :: varLevel
+    real(8), allocatable          :: weight(:,:), scaleFactor(:)
+    real(4), allocatable          :: hyb_v(:)
+    integer :: ierr, lonIndex, latIndex, lonIndexP1, latIndexP1, nulFile
+    integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
+    real(4), pointer              :: stdDev_ptr_r4(:,:,:)
+    real(8)                       :: lon1, lon2, lon3, lat1, lat2, lat3
+    real(8)                       :: distanceX, distanceY, sumWeight
+    real(8)                       :: pSfc(1,1)
+    real(8), pointer              :: pressures_T(:,:,:), pressures_M(:,:,:)
+    integer, external             :: fnom, fclos
+
+    vco => gsv_getVco(stateVectorStdDev)
+    nLev_M = vco_getNumLev(vco,'MM')
+
+    numK = gsv_getNumK(stateVectorStdDev)
+    allocate(nomvar_v(numK))
+    allocate(hyb_v(numK))
+    allocate(rmsvalue(numK))
+    allocate(scaleFactor(numK))
+    allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
+
+    ! compute a 2D weight field used for horizontal averaging
+    hco => gsv_getHco(stateVectorStdDev)
+    sumWeight = 0.0D0
+    do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
+      do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
+        lonIndexP1 = min(stateVectorStdDev%ni,lonIndex+1)
+        latIndexP1 = min(stateVectorStdDev%nj,latIndex+1)
+        lon1 = hco%lon2d_4(lonIndex,latIndex)
+        lon2 = hco%lon2d_4(lonIndexP1,latIndex)
+        lon3 = hco%lon2d_4(lonIndex,latIndexP1)
+        lat1 = hco%lat2d_4(lonIndex,latIndex)
+        lat2 = hco%lat2d_4(lonIndexP1,latIndex)
+        lat3 = hco%lat2d_4(lonIndex,latIndexP1)
+        distanceX = phf_calcDistance(lat1, lon1, lat2, lon2)/1000.0D0
+        distanceY = phf_calcDistance(lat1, lon1, lat3, lon3)/1000.0D0
+        weight(lonIndex,latIndex) = distanceX * distanceY
+        sumWeight = sumWeight + weight(lonIndex,latIndex)
+      end do
+    end do
+    call mpi_allreduce_sumreal8scalar(sumWeight,'GRID')
+    weight(:,:) = weight(:,:) / sumWeight
+    
+    ! compute global mean variance accounting for weights
+    stdDev_ptr_r4 => gsv_getField3D_r4(stateVectorStdDev)
+    rmsvalue(:) = 0.0D0
+    do kIndex = 1, numK
+      do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
+        do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
+          rmsvalue(kIndex) = rmsvalue(kIndex) +  &
+               (stdDev_ptr_r4(lonIndex,latIndex,kIndex)**2) *  &
+               weight(lonIndex,latIndex)
+        end do
+      end do
+      call mpi_allreduce_sumreal8scalar(rmsvalue(kIndex),'GRID')
+      rmsvalue(kIndex) = rmsvalue(kIndex)**0.5
+    end do
+
+    ! compute pressure for a column where Psfc=1000hPa
+    pSfc(1,1) = 1000.0D2 !1000 hPa
+    ! pressure on momentum levels
+    nullify(pressures_M)
+    ierr = vgd_levels(vco%vgrid,           &
+                      ip1_list=vco%ip1_M,  &
+                      levels=pressures_M,  &
+                      sfc_field=pSfc,      &
+                      in_log=.false.)
+    if ( ierr /= VGD_OK ) call utl_abort('enkf_printRmsStats: ERROR with vgd_levels')
+    ! pressure on thermodynamic levels
+    nullify(pressures_T)
+    ierr = vgd_levels(vco%vgrid,           &
+                      ip1_list=vco%ip1_T,  &
+                      levels=pressures_T,  &
+                      sfc_field=pSfc,      &
+                      in_log=.false.)
+    if ( ierr /= VGD_OK ) call utl_abort('enkf_printRmsStats: ERROR with vgd_levels')
+
+    ! set the variable name, normalized pressure and scaleFactor for each element of column
+    do kIndex = 1, numK
+      levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
+      nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
+      varLevel = vnl_varLevelFromVarname(nomvar_v(kIndex))
+      if (varLevel == 'MM') then
+        hyb_v(kIndex) = pressures_M(1,1,levIndex)/Psfc(1,1)
+      else if (varLevel == 'TH') then
+        hyb_v(kIndex) = pressures_T(1,1,levIndex)/Psfc(1,1)
+      else
+        hyb_v(kIndex) = 1.0
+      end if
+      if ( (nomvar_v(kIndex) == 'UU') .or. (nomvar_v(kIndex) == 'VV') ) then
+        scaleFactor(kIndex) = MPC_KNOTS_PER_M_PER_S_R8
+      else if (nomvar_v(kIndex) == 'P0') then
+        scaleFactor(kIndex) = MPC_MBAR_PER_PA_R8
+      else
+        scaleFactor(kIndex) = 1.0d0
+      end if
+      rmsvalue(kIndex) = scaleFactor(kIndex) * rmsvalue(kIndex)
+    end do
+
+    ! write to file
+    if (mpi_myid == 0) then
+      write(*,*) 'enkf_printRmsStats: Opening ascii output file: ', trim(fileName)
+      nulFile = 0
+      ierr = fnom (nulFile, fileName, 'SEQ+R/W', 0)
+      if (ierr /= 0) then
+        call utl_abort('enkf_printRmsStats: Cannot open ascii output file')
+      end if
+
+      kIndexCount = 0
+      if ( (nomvar_v(1) == 'UU') .and. (nomvar_v(1+nLev_M) == 'VV') ) then        
+        do levIndex = 1, nLev_M
+          kIndexCount = kIndexCount + 2
+          kIndexUU = levIndex
+          kIndexVV = levIndex + nLev_M
+          write(nulFile,100) &
+               elapsed,ftype,nEns,nomvar_v(kIndexUU),hyb_v(kIndexUU),rmsvalue(kIndexUU)
+          write(nulFile,100) &
+               elapsed,ftype,nEns,nomvar_v(kIndexVV),hyb_v(kIndexVV),rmsvalue(kIndexVV)
+        end do
+      end if
+      do kIndex = kIndexCount+1, numK
+        write(nulFile,100) &
+             elapsed,ftype,nEns,nomvar_v(kIndex),hyb_v(kIndex),rmsvalue(kIndex)   
+      end do
+      ierr = fclos(nulFile)
+    end if
+
+100 format(f7.2,1x,A1,1x,I5,1x,A4,1x,f12.7,1x,(2E12.5))
+
+    deallocate(pressures_M)
+    deallocate(pressures_T)
+    deallocate(weight)
+    deallocate(nomvar_v)
+    deallocate(hyb_v)
+    deallocate(scaleFactor)
+    deallocate(rmsvalue)
+
+  end subroutine enkf_printRmsStats
 
 end module enkf_mod

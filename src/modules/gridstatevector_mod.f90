@@ -3414,7 +3414,7 @@ module gridStateVector_mod
         if ( trim(varName) == 'VIS' .and. containsFullField ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),MPC_MAXIMUM_VIS_R4)
         end if
-        
+
         if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
           if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*MPC_missingValue_R8 ) &
             field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
