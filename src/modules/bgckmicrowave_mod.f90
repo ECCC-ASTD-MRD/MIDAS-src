@@ -51,8 +51,8 @@ module bgckmicrowave_mod
   public :: mwbg_useUnbiasedObsForClw 
   public :: mwbg_allowStateDepSigmaObs
 
+  real    :: mwbg_clwQcThreshold
   logical :: mwbg_debug
-  logical :: mwbg_clwQcThreshold
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
   
