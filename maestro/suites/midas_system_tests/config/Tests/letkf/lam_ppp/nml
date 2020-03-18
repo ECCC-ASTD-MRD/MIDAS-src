@@ -24,6 +24,7 @@
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
+   onlyAssimObs    = .true.
 /
  &NAMBHI
    NTRUNC  =          42,
