@@ -21,6 +21,7 @@ module bgckmicrowave_mod
   !
   use burp_module
   use MathPhysConstants_mod
+  use utilities_mod
 
   implicit none
   save
@@ -50,14 +51,15 @@ module bgckmicrowave_mod
   public :: mwbg_clwQcThreshold
   public :: mwbg_useUnbiasedObsForClw 
   public :: mwbg_allowStateDepSigmaObs
+  public :: mwbg_maxNumChan
 
   real    :: mwbg_clwQcThreshold
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_allowStateDepSigmaObs
-  
+  integer, parameter :: mwbg_maxNumChan = 50
+
   integer, parameter :: JPNSAT = 9
-  integer, parameter :: JPCH = 50
   integer, parameter :: MXCHN = 42 
   integer, parameter :: JPMXREJ = 15
   integer, parameter :: MXSAT = 9
@@ -83,7 +85,6 @@ contains
   !--------------------------------------------------------------------------
   !  ISRCHEQR function
   !--------------------------------------------------------------------------
-
   integer function ISRCHEQR (KLIST, KLEN, KENTRY)
     ! OBJET          Rechercher un element dans une liste (valeurs reelles).
     ! APPEL          INDX = ISRCHEQR (KLIST, KLEN, KENTRY)
@@ -111,10 +112,9 @@ contains
 
   end function ISRCHEQR
 
- !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   !  ISRCHEQR function
   !--------------------------------------------------------------------------
-
   function ISRCHEQI (KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
     !OBJET          Rechercher un element dans une liste (valeurs entieres).
     !ARGUMENTS      - indx    - output -  position de l'element recherche:
@@ -144,8 +144,7 @@ contains
 
   !--------------------------------------------------------------------------
   !  extractParamForGrodyRun
-  !--------------------------------------------------------------------------
-  
+  !--------------------------------------------------------------------------  
   subroutine extractParamForGrodyRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, pmisg, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
                                      tb23_P, tb31_P, tb50_P, tb53_P, tb89_P)
@@ -234,7 +233,6 @@ contains
     !--------------------------------------------------------------------------
     !  amsuaTest10RttovRejectCheck
     !--------------------------------------------------------------------------
-
     subroutine amsuaTest10RttovRejectCheck(KCANO, KNOSAT, KNO, KNT, RESETQC, STNID, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:               10) test 10: RTTOV reject check (single)
@@ -284,7 +282,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest1TopographyCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest1TopographyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:               1) test 1: Topography check (partial)
@@ -345,7 +342,6 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest2LandSeaQualifierCheck 
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                      2) test 2: "Land/sea qualifier" code check (full)
@@ -393,7 +389,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest3TerrainTypeCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest3TerrainTypeCheck (KCANO, KNOSAT, KNO, KNT, STNID, ITERRAIN, MISGINT, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                     3) test 3: "Terrain type" code check (full)
@@ -444,7 +439,6 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest4FieldOfViewCheck 
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest4FieldOfViewCheck (KCANO, KNOSAT, KNO, KNT, STNID, ISCNPOS, MXSCANAMSU, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                          4) test 4: Field of view number check (full)
@@ -489,7 +483,6 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest5ZenithAngleCheck 
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest5ZenithAngleCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN, PMISG, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                   5) test 5: Satellite zenith angle check (full)
@@ -538,7 +531,6 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest6ZenAngleAndFovConsistencyCheck 
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest6ZenAngleAndFovConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, SATZEN,  PMISG, &
                                                   ISCNPOS, MISGINT, MXSCANAMSU, KMARQ, ICHECK, MREJCOD)
 
@@ -599,7 +591,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest7landSeaQualifyerAndModelLandSeaConsistencyCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (KCANO, KNOSAT, KNO, KNT, STNID, MGINTRP, KTERMER, &
                                                                         KMARQ, ICHECK, MREJCOD)
 
@@ -656,7 +647,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest9UncorrectedTbCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest9UncorrectedTbCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, KMARQ, ICHECK, MREJCOD)
 
     !:Purpose:                  9) test 9: Uncorrected Tb check (single)
@@ -706,7 +696,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest11RadianceGrossValueCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, PTBO, PMISG, GROSSMIN, &
                                       GROSSMAX, KMARQ, ICHECK, MREJCOD)
 
@@ -764,7 +753,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest12GrodyClwCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, clw, MISGRODY, MXCLWREJ, &
                                   ICLWREJ, cloudyClwThreshold, KMARQ, ICHECK, MREJCOD)
 
@@ -833,7 +821,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, scatw, KTERMER, ITERRAIN, &
                                               MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK, MREJCOD)
 
@@ -894,7 +881,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
                                               PMISG, MXSFCREJ, ISFCREJ, KMARQ, ICHECK, MREJCOD)
 
@@ -911,7 +897,7 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
     real,        intent(in)                :: ROGUEFAC(MXCHN)                  ! rogue factor 
-    real,        intent(in)                :: TOVERRST(JPCH,JPNSAT)          !  erreur totale TOVs
+    real,        intent(in)                :: TOVERRST(mwbg_maxNumChan,JPNSAT)          !  erreur totale TOVs
     real,        intent(in)                :: PTBOMP(KNO,KNT)              ! radiance o-p 
     real,        intent(in)                :: PMISG                          ! missing value
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
@@ -981,7 +967,6 @@ contains
   !--------------------------------------------------------------------------
   !  amsuaTest15ChannelSelectionWithIutilst
   !--------------------------------------------------------------------------
-
   subroutine amsuaTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
                                               GLINTRP, IUTILST, MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK, MREJCOD)
 
@@ -1005,7 +990,7 @@ contains
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     integer,     intent(in)                :: ITERRAIN(KNT)                  ! terrain type
     real  ,      intent(in)                :: GLINTRP(KNT)                   ! gl
-    integer,     intent(in)                :: IUTILST(JPCH,JPNSAT)          !  channel selection
+    integer,     intent(in)                :: IUTILST(mwbg_maxNumChan,JPNSAT)          !  channel selection
     integer,     intent(in)                :: MXSFCREJ2                       ! cst 
     integer,     intent(in)                :: ISFCREJ2(MXSFCREJ2)              !
     integer,     intent(out)               :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1074,7 +1059,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate1DIntegerArray
   !--------------------------------------------------------------------------
-
   subroutine allocate1DIntegerArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an array on 1 dimension
     ! Arguments
@@ -1089,15 +1073,13 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      write(*,*) ' Allocation Error in sub. allocate1DIntegerArray '
-      call abort()
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate1DIntegerArray')
     end if 
   end subroutine allocate1DIntegerArray
 
   !--------------------------------------------------------------------------
   !  allocate1DLogicalArray
   !--------------------------------------------------------------------------
-
   subroutine allocate1DLogicalArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an array on 1 dimension
     ! Arguments
@@ -1120,7 +1102,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate2DLogicalArray
   !--------------------------------------------------------------------------
-
   subroutine allocate2DLogicalArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an array on 2 dimension
     ! Arguments
@@ -1145,7 +1126,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate3DLogicalArray
   !--------------------------------------------------------------------------
-
   subroutine allocate3DLogicalArray(arrayToAllocate, firstDim, secondDim, thirdDim)
     !:Purpose: Allocate an array on 3 dimension
     ! Arguments
@@ -1171,7 +1151,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate2DIntegerArray
   !--------------------------------------------------------------------------
-
   subroutine allocate2DIntegerArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an array on 2 dimension
     ! Arguments
@@ -1196,7 +1175,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate3DIntegerArray
   !--------------------------------------------------------------------------
-
   subroutine allocate3DIntegerArray(arrayToAllocate, firstDim, secondDim, thirdDim)
     !:Purpose: Allocate an array on 3 dimension
     ! Arguments
@@ -1222,7 +1200,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate1DRealArray
   !--------------------------------------------------------------------------
-
   subroutine allocate1DRealArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an Real array on 1 dimension
     ! Arguments
@@ -1245,7 +1222,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate2DRealArray
   !--------------------------------------------------------------------------
-
   subroutine allocate2DRealArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an Real array on 2 dimension
     ! Arguments
@@ -1270,7 +1246,6 @@ contains
   !--------------------------------------------------------------------------
   !  allocate3DRealArray
   !--------------------------------------------------------------------------
-
   subroutine allocate3DRealArray(arrayToAllocate, firstDim, secondDim, thirdDim)
     !:Purpose: Allocate an array on 3 dimension
     ! Arguments
@@ -1296,7 +1271,6 @@ contains
   !--------------------------------------------------------------------------
   !  copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
-
   subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Real Array into 2D real array given dim1 and dim2 
     ! Arguments
@@ -1324,7 +1298,6 @@ contains
   !--------------------------------------------------------------------------
   !  copy1Dimto2DimIntegerArray
   !--------------------------------------------------------------------------
-
   subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
     !:Purpose: copy 1 dim Integer Array into 2D Integer array given dim1 and dim2 
     ! Arguments
@@ -1352,7 +1325,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-
   subroutine mwbg_tovCheckAmsua(TOVERRST, IUTILST, KSAT,  KTERMER, KORBIT, ICANO, ICANOMP, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, PMISG, KNOSAT, KCHKPRF, &
                                 ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
@@ -1381,11 +1353,11 @@ contains
     !                  - **) set terrain type to sea ice given certain conditions
     implicit none 
     !Arguments:
-    integer, intent(in)                    :: IUTILST(JPCH,JPNSAT) !channel Selection using array IUTILST(chan,sat)
+    integer, intent(in)                    :: IUTILST(mwbg_maxNumChan,JPNSAT) !channel Selection using array IUTILST(chan,sat)
     !                                                               IUTILST = 0 (blacklisted)
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
-    real, intent(in)                       :: TOVERRST(JPCH,JPNSAT)! l'erreur totale des TOVS
+    real, intent(in)                       :: TOVERRST(mwbg_maxNumChan,JPNSAT)! l'erreur totale des TOVS
     integer, intent(in)                    :: KSAT(KNT)            ! numero d'identificateur du satellite
     integer, intent(in)                    :: KTERMER(KNT)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(KNT)         ! position sur le "scan"
@@ -1694,7 +1666,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_qcStats
   !--------------------------------------------------------------------------
-
   subroutine mwbg_qcStats(instName, ICHECK, ICAN, KNOSAT, &
                               KNO, KNT, satelliteId, LDprint, MREJCOD, MREJCOD2)
 
@@ -1884,7 +1855,6 @@ contains
   !--------------------------------------------------------------------------
   !  resetQcC
   !--------------------------------------------------------------------------
-
   subroutine resetQcCases(RESETQC, KCHKPRF, globMarq)
     !:Purpose:        allumer la bit (6) indiquant que l'observation a un element
     !                 rejete par le controle de qualite de l'AO.
@@ -1921,7 +1891,6 @@ contains
   !--------------------------------------------------------------------------
   !  setTerrainTypeToSeaIce
   !--------------------------------------------------------------------------
-
   subroutine setTerrainTypeToSeaIce(GLINTRP, KTERMER, ITERRAIN)
 
     !:Purpose:       Dans les conditions suivantes:
@@ -1961,7 +1930,6 @@ contains
   !--------------------------------------------------------------------------
   !  addIntegerElementBurpBlock
   !--------------------------------------------------------------------------
-
   subroutine addIntegerElementBurpBlock(burpBlock, burpElement, burpArr, burpChannelNum, burpLocationNum, burpNele)
 
     !:Purpose: This subroutine takes a block, the btyp and the Intger element 
@@ -2008,7 +1976,6 @@ contains
   !--------------------------------------------------------------------------
   !  addRealElementBurpBlock
   !--------------------------------------------------------------------------
-
   subroutine addRealElementBurpBlock(burpBlock, burpElement, burpArr, burpChannelNum, burpLocationNum, burpNele)
 
     !:Purpose: This subroutine takes a block, the btyp and the Real element 
@@ -2055,7 +2022,6 @@ contains
   !--------------------------------------------------------------------------
   ! copyIntegerElementToBurpBlock 
   !--------------------------------------------------------------------------
-
   subroutine copyIntegerElementToBurpBlock(burpBlock, burpElement, burpArr, burpArrName, burpChannelNum, burpLocationNum)
 
     !:Purpose: This subroutine takes a block, the btyp and the Real element 
@@ -2102,7 +2068,6 @@ contains
   !--------------------------------------------------------------------------
   ! copyRealElementToBurpBlock 
   !--------------------------------------------------------------------------
-
   subroutine copyRealElementToBurpBlock(burpBlock, burpElement, burpArr, burpArrName, burpChannelNum, burpLocationNum)
 
     !:Purpose: This subroutine takes a block, the btyp and the Real element 
@@ -2149,7 +2114,6 @@ contains
   !--------------------------------------------------------------------------
   !  modifyBurpBktypAndWriteReport
   !--------------------------------------------------------------------------
-  
   subroutine modifyBurpBktypAndWriteReport(burpReport, burpBlock, newBktyp, convertBlock)
     !
     !:Purpose:This subroutine takes a block, and its current bktyp 
@@ -2179,11 +2143,9 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_updateBurp
   !--------------------------------------------------------------------------
-
   subroutine mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
                                globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, lutb, & 
                                writeModelLsqTT, writeEle25174, burpFileNameout)
-    !--------------------------------------------------------------------------------------
     !:Purpose:      Pour AMSUA et ATMS: 
     !               Allumer les bits des marqueurs pour les tovs rejetes.
     !               Mettre a jour l'indicateur terre/mer qui a
@@ -2436,8 +2398,6 @@ contains
   !--------------------------------------------------------------------------
   !  GRODY
   !--------------------------------------------------------------------------
-
-
   subroutine GRODY (ier, ni, tb23, tb31, tb50, tb53, tb89, &
                    tb23_P, tb31_P, tb50_P, tb53_P, tb89_P, &
                    pangl, plat, ilansea, ice, tpw, clw, clw_avg, &
@@ -2765,7 +2725,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_readStatTovs
   !--------------------------------------------------------------------------
-
   subroutine mwbg_readStatTovs(statFileName, instName, satelliteId, IUTILST, TOVERRST)
     !:Purpose:       Lire les statistiques de l'erreur totale pour les TOVS.
     !
@@ -2774,11 +2733,11 @@ contains
     character(*), intent(in) :: statFileName  ! fichier stats des TOVS
     character(*), intent(in) :: instName      ! Instrument Name
     character(len = 9), allocatable, intent(out) :: satelliteId(:)       ! Identificateur de satellite 
-    integer,                         intent(out) :: IUTILST(JPCH,JPNSAT) ! channel Selection using array IUTILST(chan,sat)
+    integer,                         intent(out) :: IUTILST(mwbg_maxNumChan,JPNSAT) ! channel Selection using array IUTILST(chan,sat)
     !                                                                      IUTILST = 0 (blacklisted)
     !                                                                      1 (assmilate)
     !                                                                      2 (assimilate over open water only)
-    real,                         intent(out) :: TOVERRST(JPCH,JPNSAT) ! l'erreur totale des TOVS
+    real,                         intent(out) :: TOVERRST(mwbg_maxNumChan,JPNSAT) ! l'erreur totale des TOVS
  
     !Locals
 
@@ -2796,9 +2755,9 @@ contains
     integer :: INDX, IPOS
     integer :: alloc_status 
     integer :: NCHNA(JPNSAT)
-    integer :: MLISCHNA(JPCH,JPNSAT)
-    real*8  :: tovErrorIn(JPCH,2,JPNSAT)
-    real    :: tovErrorStatus(JPCH,JPNSAT)
+    integer :: MLISCHNA(mwbg_maxNumChan,JPNSAT)
+    real*8  :: tovErrorIn(mwbg_maxNumChan,2,JPNSAT)
+    real    :: tovErrorStatus(mwbg_maxNumChan,JPNSAT)
     integer :: channelInNum(JPNSAT)
     integer :: identifSatId(JPNSAT)
     real*8 :: ZDUM
@@ -2830,7 +2789,7 @@ contains
       NCHNA(jpnsatIndex) = 0
       channelInNum(jpnsatIndex) = 0
       identifSatId(jpnsatIndex) = 0
-      do jpnchanIndex = 1, JPCH
+      do jpnchanIndex = 1, mwbg_maxNumChan
         tovErrorIn(jpnchanIndex,1,jpnsatIndex) = 0.0
         tovErrorIn(jpnchanIndex,2,jpnsatIndex) = 0.0
         IUTILST (jpnchanIndex,jpnsatIndex) = 0
@@ -2915,7 +2874,7 @@ contains
     write(*,'(//5X,"Total errors for TOVS data"/)') 
     do jpnsatIndex = 1, satNumber
       INDX = 0
-      do jpnchanIndex = 1, JPCH
+      do jpnchanIndex = 1, mwbg_maxNumChan
         if ( IUTILST(jpnchanIndex,jpnsatIndex) .NE. 0 ) THEN
           NCHNA(jpnsatIndex) = NCHNA(jpnsatIndex) + 1
           INDX = INDX + 1
@@ -2955,7 +2914,6 @@ contains
   !--------------------------------------------------------------------------
   !  atmsTest1Flagbit7Check
   !--------------------------------------------------------------------------
-
   subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK, MREJCOD)
 
     !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms program
@@ -3007,7 +2965,6 @@ contains
   !--------------------------------------------------------------------------
   !  atmsTest2TopographyCheck
   !--------------------------------------------------------------------------
-
   subroutine atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
                                    KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
                                    ICHECK, MREJCOD, MREJCOD2)
@@ -3069,7 +3026,6 @@ contains
   !--------------------------------------------------------------------------
   !  atmsTest3UncorrectedTbCheck
   !--------------------------------------------------------------------------
-
   subroutine atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
                                           KMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2)
 
@@ -3130,7 +3086,6 @@ contains
   !--------------------------------------------------------------------------
   !  atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-
   subroutine atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, PTBOMP, &
                                   IDENTF, PMISG, MXSFCREJ, ISFCREJ, ICH2OMPREJ, MXCH2OMPREJ, & 
                                   KMARQ, B7CHCK, ICHECK, MREJCOD, MREJCOD2)
@@ -3153,7 +3108,7 @@ contains
     integer,     intent(in)              :: KNT                            ! nombre de tovs
     character *9,intent(in)              :: STNID                          ! identificateur du satellite
     real,        intent(in)              :: ROGUEFAC(MXCHN)                  ! rogue factor 
-    real,        intent(in)              :: TOVERRST(JPCH,JPNSAT)          !  erreur totale TOVs
+    real,        intent(in)              :: TOVERRST(mwbg_maxNumChan,JPNSAT)          !  erreur totale TOVs
     real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p 
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident  
     real,        intent(in)              :: PMISG                          ! missing value
@@ -3268,7 +3223,6 @@ contains
   !--------------------------------------------------------------------------
   !  atmsTest5ChannelSelectionUsingIutilst
   !--------------------------------------------------------------------------
- 
   subroutine atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                    IUTILST, KMARQ, ICHECK, MREJCOD)
 
@@ -3284,7 +3238,7 @@ contains
     integer,     intent(in)               :: KNT                            ! nombre de tovs
     character *9,intent(in)               :: STNID                          ! identificateur du satellite
     integer,     intent(in)               :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(in)               :: IUTILST(JPCH,JPNSAT)          !  channsl selection
+    integer,     intent(in)               :: IUTILST(mwbg_maxNumChan,JPNSAT)          !  channsl selection
     integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)            :: MREJCOD(JPMXREJ,KNO,KNT)       ! cumul of reject element 
 
@@ -3326,7 +3280,6 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-
   subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
@@ -3340,11 +3293,11 @@ contains
  
     implicit none 
     !Arguments
-    integer, intent(in)              :: IUTILST(JPCH,JPNSAT) !channel Selection using array IUTILST(chan,sat)
+    integer, intent(in)              :: IUTILST(mwbg_maxNumChan,JPNSAT) !channel Selection using array IUTILST(chan,sat)
     !                                                         IUTILST = 0 (blacklisted)
     !                                                         1 (assmilate)
     !                                                         2 (assimilate over open water only)
-    real, intent(in)                 :: TOVERRST(JPCH,JPNSAT)! l'erreur totale des TOVS
+    real, intent(in)                 :: TOVERRST(mwbg_maxNumChan,JPNSAT)! l'erreur totale des TOVS
     character(len=128), intent(in)   :: mglg_file
     integer, intent(in)              :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)              :: KNOMP                  ! nombre de canaux des observations 
@@ -3699,7 +3652,6 @@ contains
   !--------------------------------------------------------------------------
   !  getBurpReportAdresses
   !--------------------------------------------------------------------------
-
   subroutine getBurpReportAdresses (burpFileNameIn, adresses)
 
     !:Purpose: Initial scan of file to get number of reports and number of data locations.
@@ -3799,7 +3751,6 @@ contains
   !--------------------------------------------------------------------------
   !  burpErrorHistory
   !--------------------------------------------------------------------------
-
   subroutine burpErrorHistory (burpFile, burpRpt, burpFile_opt, burpRpt_opt)
 
     ! :Purpose: Send and abort signal when there is a fail in reading burp file
@@ -3829,7 +3780,6 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate 
   !--------------------------------------------------------------------------
-
   subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
 
     implicit none
@@ -4104,7 +4054,6 @@ contains
   !--------------------------------------------------------------------------
   !   readBurpInteger
   !--------------------------------------------------------------------------
-
   subroutine readBurpInteger (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
                               burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
@@ -4206,7 +4155,6 @@ contains
   !--------------------------------------------------------------------------
   ! readBurpReal 
   !--------------------------------------------------------------------------
-
   subroutine readBurpReal (repIndex, burpRpt, burpBlkTypList, burpFam, burpEle, error, burpArr, &
                            burpArrName, burpLocationNum, burpChannelNum, abortIfMissing)
     !:Purpose: This subroutine takes the report, the family and the element 
@@ -4308,12 +4256,10 @@ contains
   !--------------------------------------------------------------------------
   !   mwbg_getData
   !--------------------------------------------------------------------------
- 
-  subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
+   subroutine mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
                           zlat, zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, &
                           ntOut, qcflag1, qcflag2, ican, icanomp, IMARQ, IORBIT, &
                           globMarq, resumeReport, iFlastReport, InstName, STNID)
-    !--------------------------------------------------------------------------------------
     !:Purpose:   This routine extracts the needed data from the blocks in the report:
     !             rpt              = report
 
@@ -4510,7 +4456,6 @@ contains
   !--------------------------------------------------------------------------
   !   mwbg_findSatelliteIndex
   !--------------------------------------------------------------------------
-
   subroutine mwbg_findSatelliteIndex(STNID, satelliteId, INOSAT)
     !:Purpose: Find the STNID Index in the satelliteId array
 
@@ -4542,7 +4487,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
-
   subroutine mwbg_landIceMaskAtms(mglg_file,npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
@@ -4630,7 +4574,6 @@ contains
     ! - lgintrp    : internal-  max. interpolated LG value on mesh for all obs pts
     ! - MGthresh   : internal-  maximum allowable land fraction for obs to be kept
     ! - LGthresh   : internal-  maximum allowable ice  fraction for obs to be kept
-    !--------------------------------------------------------------------
     implicit none
 
     ! Arguments:
@@ -4832,7 +4775,6 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_grossValueCheck  
   !--------------------------------------------------------------------------
-
   subroutine mwbg_grossValueCheck(npts,ztb,grossrej)
 
     !:Purpose: Check Tbs for values that are missing or outside physical limits.
@@ -4866,7 +4808,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_firstQcCheckAtms
   !--------------------------------------------------------------------------
-
   subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid,&
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
                                    ican, lutb)
@@ -5105,7 +5046,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
-
   subroutine mwbg_nrlFilterAtms(ni, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
                                 grossrej, clw, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
@@ -5340,7 +5280,6 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCriteria 
   !--------------------------------------------------------------------------
-
   subroutine mwbg_flagDataUsingNrlCriteria(nt,ztbcor, biasCorr, rclw, scatec, scatbg, SeaIce, grossrej, waterobs, &
                                           useUnbiasedObsForClw, zmisg, iwvreject, & 
                                           cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
@@ -5492,7 +5431,6 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_reviewAllcriteriaforFinalFlags
   !--------------------------------------------------------------------------
-
   subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, ipc, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
                                                  scatbg, iwvreject, riwv, IMARQ, globMarq, zdi, ident, zmisg, &
                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt)
@@ -5674,6 +5612,5 @@ contains
     end if
 
   end function calcStateDepObsErr_r4
-
 
 end module bgckmicrowave_mod

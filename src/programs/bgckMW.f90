@@ -20,16 +20,16 @@ program midas_bgckMW
   !
   use bgckmicrowave_mod
   use MathPhysConstants_mod
+  use utilities_mod
+  use mpi_mod
 
   implicit none
-  integer, PARAMETER            :: MXSAT = 9                       ! max number of satellite
+  integer, parameter            :: MXSAT = 9                       ! max number of satellite
   integer, parameter            :: JPNSAT = 9                      ! 
-  integer, parameter            :: JPCH = 50                       ! missing value
-  real, parameter               :: zmisg=9.9e09                    !
+  real, parameter               :: zmisg=9.9e09                    ! missing value
   integer, parameter            :: MXCHN = 42                      !
   integer, parameter            :: JPMXREJ = 15                    ! test index
   integer, parameter            :: ipc=6                           ! 
-  character(len=9)              :: instName                        ! instrument name
   character(len=90)             :: burpFileNameIn                  ! burp input file name
   character(len=90)             :: burpFileNameOut                 ! burp output file name
   character(len=9)              :: ETIKRESU                        ! resume etiket name
@@ -80,8 +80,8 @@ program midas_bgckMW
   integer, allocatable          :: IMARQ(:)                        ! obs. flag
   integer, allocatable          :: IORBIT(:)                       ! orbit
   integer, allocatable          :: globMarq(:)                     ! global marker
-  integer                       :: IUTILST(JPCH,JPNSAT)            ! channel use option for each sat.
-  real                          :: TOVERRST(JPCH,JPNSAT)           ! obs. error per channel for each sat
+  integer                       :: IUTILST(mwbg_maxNumChan,JPNSAT) ! channel use option for each sat.
+  real                          :: TOVERRST(mwbg_maxNumChan,JPNSAT)! obs. error per channel for each sat
   integer                       :: MREJCOD(JPMXREJ,MXCHN,MXSAT)    ! number of rejection per sat. per channl per test
   integer                       :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)   ! number of rejection per sat. per channl per test
   !                                                                  for ATMS 2nd category of tests
@@ -109,7 +109,11 @@ program midas_bgckMW
   integer                       :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index
 
   external EXDB,EXFIN
-  
+
+  ! namelist variables
+  character(len=9)              :: instName                        ! instrument name
+  ! Emmanuel: move other namelist variables here...
+
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
                     useUnbiasedObsForClw, debug, RESETQC, ETIKRESU 
@@ -122,6 +126,13 @@ program midas_bgckMW
             '14x,"-- BACKGROUND CHECK FOR MW OBSERVATIONS --",/, ' //&
             '14x,"-- Revision : ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
+  !- 1.0 mpi
+  call mpi_initialize
+
+  !- 1.1 timings
+  call tmg_init(mpi_myid, 'TMG_PREPCMA' )
+  call tmg_start(1,'MAIN')
 
   ! Initializations of counters (for total reports/locations in the file).
   lutb = .False.
@@ -182,7 +193,7 @@ program midas_bgckMW
     !###############################################################################
     ! STEP 2 ) Lecture des observations TOVS dans le fichier burpFileNameIn
     !###############################################################################
-      write(*,*) ' ==> mwbg_getData: '
+    write(*,*) ' ==> mwbg_getData: '
     call mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
                       zlat, zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, &
                       ntOut, qcflag1, qcflag2, ican, icanomp, IMARQ, IORBIT, &
@@ -228,6 +239,9 @@ program midas_bgckMW
                                MREJCOD2, STNID, RESETQC,  ipc, n_reps_tb2misg, drycnt,&
                                landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, cldcnt, seaIcePointNum, &
                                clwMissingPointNum)
+      else
+        write(*,*) 'midas-bgckMW: instName = ', instName
+        call utl_abort('midas-bgckMW: unknown instName')
       end if
 
       !###############################################################################
@@ -244,8 +258,8 @@ program midas_bgckMW
     !###############################################################################
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
     call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
-                           globMarq, RESETQC, ICHKPRF, ilq, itt, IMARQ, lutb, &
-                           writeModelLsqTT, writeEle25174, burpFileNameout)
+                         globMarq, RESETQC, ICHKPRF, ilq, itt, IMARQ, lutb, &
+                         writeModelLsqTT, writeEle25174, burpFileNameout)
 
     if (ifLastReport) exit REPORTS
 
@@ -260,7 +274,12 @@ program midas_bgckMW
   !###############################################################################
   call mwbg_qcStats(instName, ICHECK, ican, INOSAT, nvalOut, &
                     ntOut, satelliteId, .TRUE., MREJCOD, MREJCOD2)
-  
+
+  call tmg_stop(1)
+  call tmg_terminate(mpi_myid, 'TMG_PREPCMA' )
+
+  call rpn_comm_finalize(ier)
+
   istat  = exfin('midas-bgckMW','FIN','NON')
 
 end program midas_bgckMW
