@@ -1,4 +1,3 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -24,6 +23,66 @@ program midas_bgckMW
   use mpi_mod
 
   implicit none
+
+  integer                       :: reportIndex                                        ! report index
+  integer                       :: reportNumObs                                       ! number of obs in current report
+  integer                       :: reportNumChannel                                   ! "      "   channels "      "
+  integer                       :: nobs_tot                                           ! obs. total number
+  integer                       :: n_bad_reps                                         ! bad reports number
+  integer                       :: exdb                                               !
+  integer                       :: exfin                                              !
+  integer                       :: ier                                                !
+  integer                       :: istat                                              !
+  integer                       :: nulnam                                             !
+  integer                       :: fnom                                               !
+  integer                       :: fclos                                              !
+  integer                       :: satelliteIndexObserrorFile                         ! satellite index in obserror file
+  logical                       :: resumeReport                                       ! logical to newInformationFlagify resume report
+  logical                       :: ifLastReport                                       ! logical to newInformationFlagify last report
+  character(len=9)              :: burpFileSatId                                              ! station id in burp file
+  character(len=9), allocatable :: satelliteId(:)                                     ! satellite Id in stats error file
+  real, allocatable             :: modelInterpTerrain(:)                              ! topo in standard file interpolated to obs point
+  real, allocatable             :: modelInterpSeaIce(:)                               ! Glace de mer " "
+  real, allocatable             :: modelInterpGroundIce(:)                            ! Glace de continent " "
+  real,    allocatable          :: obsLatitude(:)                                     ! obs. point latitudes
+  real,    allocatable          :: obsLongitude(:)                                    ! obs. point longitude
+  integer, allocatable          :: satellitenewInformationFlagifier(:)                ! Satellite index in burp file
+  real,    allocatable          :: satelliteZenithAngle(:)                            ! sat. satelliteZenithAngle angle
+  integer, allocatable          :: landQualifierIndice(:)                             ! land qualifyer
+  integer, allocatable          :: terrainTypeIndice(:)                               ! terrain type
+  real,    allocatable          :: obsTemperatureBrillance(:)                         ! temperature de brillance
+  real,    allocatable          :: ompTemperatureBrillance(:)                         ! o-p temperature de "
+  real,    allocatable          :: biasCorr(:)                                        ! bias correction fo obsTemperatureBrillance
+  integer, allocatable          :: satelliteScanPosition(:)                           ! scan position
+  integer, allocatable          :: obsQcFlag1(:,:)                                    ! Obs Quality flag 1
+  integer, allocatable          :: obsQcFlag2(:)                                      ! Obs Quality flag 2 
+  integer, allocatable          :: observationChannels(:)                             ! obsTemperatureBrillance channels
+  integer, allocatable          :: ompChannels(:)                                     ! zomp channel
+  integer, allocatable          :: observationFlags(:)                                ! obs. flag
+  integer, allocatable          :: satelliteOrbitnewInformationFlagifier(:)           ! orbit
+  integer, allocatable          :: obsGlobalMarker(:)                                 ! global marker
+  integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat)            ! channel use option for each sat.
+  real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)           ! obs. error per channel for each sat
+  integer                       :: rejectionCodArray(mwbg_maxNumTest,&
+                                                     mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
+  !                                                                                                   per sat. per channl per test
+  integer                       :: rejectionCodArray2(mwbg_maxNumTest,&
+                                                      mwbg_maxNumChan,mwbg_maxNumSat) ! number of rejection per 
+  !                                                                                                   sat. per channl per test
+  !                                                                                                   for ATMS 2nd category of tests
+  integer, allocatable          :: qualityControlIndicator(:,:)                     ! indicateur controle de qualite tovs par canal 
+  !                                                                =0, ok,
+  !                                                                >0, rejet,
+  integer, allocatable          :: globalQcIndicator(:)                      ! indicateur global controle de qualite tovs. Code:
+  !                                                                =0, ok,
+  !                                                                >0, rejet d'au moins un canal
+  integer, allocatable          :: newInformationFlag(:)                        ! ATMS Information flag (newInformationFlag) values (new BURP element 
+  !                                                                  025174 in header). FOR AMSUA just fill with zeros 
+  real,    allocatable          :: cloudLiquidWaterPath(:)                          ! cloud liquid water. NB: for AMSUA, cloudLiquidWaterPath=0.5(model_cloudLiquidWaterPath + obs_cloudLiquidWaterPath)
+  real,    allocatable          :: atmScateringIndex(:)                        ! scatering index
+  external EXDB,EXFIN
+  ! namelist variables
+  character(len=9)              :: instName                        ! instrument name
   character(len=90)             :: burpFileNameIn                  ! burp input file name
   character(len=90)             :: burpFileNameOut                 ! burp output file name
   character(len=9)              :: ETIKRESU                        ! resume etiket name
@@ -37,82 +96,10 @@ program midas_bgckMW
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
   logical                       :: lutb                            ! logical for replacing missing tb value
-  integer                       :: nobs_tot                        ! obs. total number
-  integer                       :: n_bad_reps                      ! bad reports number
-  integer                       :: reportIndex                     ! report index
-  integer                       :: ntOut                           ! number of obs in current report
-  integer                       :: nvalOut                         ! "      "   channels "      "
-  integer                       :: exdb                            !
-  integer                       :: exfin                           !
-  integer                       :: ier                             !
-  integer                       :: istat                           !
-  integer                       :: nulnam                          !
-  integer                       :: fnom                            !
-  integer                       :: fclos                           !
-  integer                       :: INOSAT                          !
-  logical                       :: resumeReport                    ! logical to identify resume report
-  logical                       :: ifLastReport                    ! logical to identify last report
-  character(len=9)              :: STNID                           ! station id in burp file
-  character(len=9), allocatable :: satelliteId(:)                  ! satellite Id in stats error file
-  real, allocatable             :: MTINTRP(:)                      ! topo in standard file interpolated to obs point
-  real, allocatable             :: GLINTRP(:)                      ! Glace de mer " "
-  real, allocatable             :: MGINTRP(:)                      ! Glace de continent " "
-  real,    allocatable          :: zlat(:)                         ! obs. point latitudes
-  real,    allocatable          :: zlon(:)                         ! obs. point longitude
-  integer, allocatable          :: ISAT(:)                         ! Satellite index in burp file
-  real,    allocatable          :: zenith(:)                       ! sat. zenith angle
-  integer, allocatable          :: ilq(:)                          ! land qualifyer
-  integer, allocatable          :: itt(:)                          ! terrain type
-  real,    allocatable          :: ztb(:)                          ! temperature de brillance
-  real,    allocatable          :: ZOMP(:)                         ! o-p temperature de "
-  real,    allocatable          :: biasCorr(:)                     ! bias correction fo ztb
-  integer, allocatable          :: scanpos(:)                      ! scan position
-  integer, allocatable          :: qcflag1(:,:)                    ! 
-  integer, allocatable          :: qcflag2(:)                      ! 
-  integer, allocatable          :: ican(:)                         ! ztb channels
-  integer, allocatable          :: icanomp(:)                      ! zomp channel
-  integer, allocatable          :: IMARQ(:)                        ! obs. flag
-  integer, allocatable          :: IORBIT(:)                       ! orbit
-  integer, allocatable          :: globMarq(:)                     ! global marker
-  integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat) ! channel use option for each sat.
-  real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! obs. error per channel for each sat
-  integer                       :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
-  !                                                                                                   per sat. per channl per test
-  integer                       :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat) ! number of rejection per 
-  !                                                                                                   sat. per channl per test
-  !                                                                                                   for ATMS 2nd category of tests
-  integer, allocatable          :: lsq(:)                          ! land sea qualifyer
-  integer, allocatable          :: trn(:)                          ! terrain type
-  integer, allocatable          :: icheck(:,:)                     ! indicateur controle de qualite tovs par canal 
-  !                                                                =0, ok,
-  !                                                                >0, rejet,
-  integer, allocatable          :: ichkprf(:)                      ! indicateur global controle de qualite tovs. Code:
-  !                                                                =0, ok,
-  !                                                                >0, rejet d'au moins un canal
-  integer, allocatable          :: ident(:)                        ! ATMS Information flag (ident) values (new BURP element 
-  !                                                                  025174 in header). FOR AMSUA just fill with zeros 
-  real,    allocatable          :: clw(:)                          ! cloud liquid water. NB: for AMSUA, clw=0.5(model_clw + obs_clw)
-  real,    allocatable          :: scatw(:)                        ! scatering index
-  integer                       :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points
-  integer                       :: clwMissingPointNum              ! Number of points where CLW/SI missing over water due bad data
-  integer                       :: n_reps_tb2misg                  ! Number of BURP file reports where Tb set to mwbg_realMisg
-  integer                       :: cldcnt                          ! 
-  integer                       :: flgcnt                          ! Total number of filtered obs pts
-  integer                       :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail)
-  integer                       :: landcnt                         ! Number of obs pts found over land/ice
-  integer                       :: iwvcnt                          ! Number of pts with Mean 183 Ghz Tb < 240K
-  integer                       :: pcpcnt                          ! Number of scatter/precip obs
-  integer                       :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index
-
-  external EXDB,EXFIN
-
-  ! namelist variables
-  character(len=9)              :: instName                        ! instrument name
-  ! Emmanuel: move other namelist variables here...
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
-                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU 
+                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, lutb 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -144,6 +131,7 @@ program midas_bgckMW
   debug = .false.
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
+  lutb = .False.
 
   ! reading namelist
   nulnam = 0
@@ -157,23 +145,12 @@ program midas_bgckMW
 
   mwbg_debug = debug
   mwbg_clwQcThreshold = clwQcThreshold 
-  mwbg_allowStateDepSigmaObs = mwbg_allowStateDepSigmaObs
+  mwbg_allowStateDepSigmaObs = allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
 
   ! Initializations of counters (for total reports/locations in the file).
-  lutb = .False.
-  flgcnt = 0
-  landcnt = 0
-  rejcnt = 0
-  cldcnt = 0
-  iwvcnt = 0
-  pcpcnt = 0
-  drycnt = 0
-  seaIcePointNum = 0
-  clwMissingPointNum = 0
   n_bad_reps = 0
   nobs_tot = 0 
-  n_reps_tb2misg = 0 
   
   !#################################################################################
   ! STEP 1 ) Lecture des statistiques d'erreur totale pour les  TOVS 
@@ -189,51 +166,53 @@ program midas_bgckMW
     ! STEP 2 ) Lecture des observations TOVS dans le fichier burpFileNameIn
     !###############################################################################
     write(*,*) ' ==> mwbg_getData: '
-    call mwbg_getData(burpFileNameIn, reportIndex, ISAT, zenith, ilq, itt, &
-                      zlat, zlon, ztb, biasCorr, ZOMP, scanpos, nvalOut, &
-                      ntOut, qcflag1, qcflag2, ican, icanomp, IMARQ, IORBIT, &
-                      globMarq, resumeReport, ifLastReport, instName, STNID)
+    call mwbg_getData(burpFileNameIn, reportIndex, satellitenewInformationFlagifier, satelliteZenithAngle, landQualifierIndice, &
+                      terrainTypeIndice, obsLatitude, obsLongitude, obsTemperatureBrillance, biasCorr, ompTemperatureBrillance, &
+                      satelliteScanPosition, reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2, observationChannels, ompChannels, &
+                      observationFlags, satelliteOrbitnewInformationFlagifier, obsGlobalMarker, resumeReport, ifLastReport, &
+                      instName, burpFileSatId)
 
     if (.not. resumeReport) then
-      if (ALL(ZOMP(:) == MPC_missingValue_R4)) then 
+      if (ALL(ompTemperatureBrillance(:) == MPC_missingValue_R4)) then 
         n_bad_reps = n_bad_reps + 1  
-        write(*,*) 'Bad Report '
         cycle REPORTS
       end if
       ! Increment total number of obs pts read
-      nobs_tot = nobs_tot + ntOut
+      nobs_tot = nobs_tot + reportNumObs
 
       !###############################################################################
       ! STEP 3) trouver l'indice du satellite                                        !
       !###############################################################################
       write(*,*) ' ==> mwbg_findSatelliteIndex: '
-      call mwbg_findSatelliteIndex(STNID, satelliteId, INOSAT)
+      call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satelliteIndexObserrorFile)
     
       !###############################################################################
       ! STEP 4) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       !###############################################################################
       write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, &
-                                                  GLINTRP)
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLatitude, obsLongitude, modelInterpTerrain, modelInterpGroundIce, &
+                                                  modelInterpSeaIce)
 
       !###############################################################################
-      ! STEP 5) Controle de qualite des TOVS. Data QC flags (IMARQ) are modified here!
+      ! STEP 5) Controle de qualite des TOVS. Data QC flags (observationFlags) are modified here!
       !###############################################################################
       write(*,*) ' ==> mwbg_tovCheck For: ', instName
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(TOVERRST, IUTILST, ISAT, ilq, IORBIT, ican, ICANOMP, ztb, &
-                                biasCorr, ZOMP, ICHECK, nvalOut, ntOut, mwbg_realMisg, INOSAT, &
-                                ICHKPRF, scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
-                                IMARQ, ident, clw, scatw, rejectionCodArray, STNID, RESETQC, &
-                                ZLAT)
+        call mwbg_tovCheckAmsua(TOVERRST, IUTILST, satellitenewInformationFlagifier, landQualifierIndice, &
+                                satelliteOrbitnewInformationFlagifier, observationChannels, ompChannels, obsTemperatureBrillance, &
+                                biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumObs, &
+                                mwbg_realMisg, satelliteIndexObserrorFile, globalQcIndicator, satelliteScanPosition, &
+                                modelInterpGroundIce, modelInterpTerrain, modelInterpSeaIce, terrainTypeIndice, satelliteZenithAngle, &
+                                observationFlags, newInformationFlag, cloudLiquidWaterPath, atmScateringIndex, rejectionCodArray, &
+                                burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
-                               zenith, qcflag2, qcflag1, ISAT, IORBIT, ICAN, ICANOMP, &
-                               ztb, biasCorr, ZOMP, ICHECK, nvalOut, nvalOut, ntOut, mwbg_realMisg,INOSAT, &
-                               ident, ICHKPRF, scanpos, MTINTRP, globMarq, IMARQ, clw, scatw, rejectionCodArray, &
-                               rejectionCodArray2, STNID, RESETQC, n_reps_tb2misg, drycnt,&
-                               landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, cldcnt, seaIcePointNum, &
-                               clwMissingPointNum)
+        call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, obsLatitude, obsLongitude, landQualifierIndice, terrainTypeIndice, &
+                               satelliteZenithAngle, obsQcFlag2, obsQcFlag1, satellitenewInformationFlagifier, &
+                               satelliteOrbitnewInformationFlagifier, observationChannels, ompChannels, obsTemperatureBrillance, &
+                               biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumChannel, &
+                               reportNumObs, mwbg_realMisg, satelliteIndexObserrorFile, newInformationFlag, globalQcIndicator, &
+                               satelliteScanPosition, modelInterpTerrain, obsGlobalMarker, observationFlags, cloudLiquidWaterPath, &
+                               atmScateringIndex, rejectionCodArray, rejectionCodArray2, burpFileSatId, RESETQC, ifLastReport)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
@@ -243,8 +222,8 @@ program midas_bgckMW
       ! STEP 6) Accumuler Les statistiques sur les rejets
       !###############################################################################
       write(*,*) ' ==> mwbg_qcStats For: ', instName
-      call mwbg_qcStats(instName, ICHECK, ican, INOSAT, nvalOut, &
-                             ntOut, satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
+      call mwbg_qcStats(instName, qualityControlIndicator, observationChannels, satelliteIndexObserrorFile, reportNumChannel, &
+                             reportNumObs, satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
 
     end if 
 
@@ -252,9 +231,9 @@ program midas_bgckMW
     ! STEP 7) Update the burpfile out burpFileNameIn
     !###############################################################################
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
-    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
-                         globMarq, RESETQC, ICHKPRF, ilq, itt, IMARQ, lutb, &
-                         writeModelLsqTT, writeEle25174, burpFileNameout)
+    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPath, atmScateringIndex, &
+                         newInformationFlag, obsGlobalMarker, RESETQC, globalQcIndicator, landQualifierIndice, terrainTypeIndice, &
+                         observationFlags, lutb, writeModelLsqTT, writeEle25174, burpFileNameout)
 
     if (ifLastReport) exit REPORTS
 
@@ -267,8 +246,8 @@ program midas_bgckMW
   !###############################################################################
   ! STEP 8) Print the statistics in listing file 
   !###############################################################################
-  call mwbg_qcStats(instName, ICHECK, ican, INOSAT, nvalOut, &
-                    ntOut, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
+  call mwbg_qcStats(instName, qualityControlIndicator, observationChannels, satelliteIndexObserrorFile, reportNumChannel, &
+                    reportNumObs, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
 
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_PREPCMA' )

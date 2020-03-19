@@ -9,4 +9,5 @@
   debug = .false.
   RESETQC = .FALSE.
   ETIKRESU = '>>BGCKALT'
+  lutb = .false.	
 /

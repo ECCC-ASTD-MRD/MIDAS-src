@@ -58,7 +58,6 @@ module bgckmicrowave_mod
   public :: mwbg_maxNumObs
   public :: mwbg_maxScanAngle
   public :: mwbg_atmsMaxNumChan
-  public :: mwbg_atmsNumSfcSensitiveChannel
   public :: mwbg_realMisg
   public :: mwbg_intMisg
 
@@ -68,7 +67,6 @@ module bgckmicrowave_mod
   logical :: mwbg_allowStateDepSigmaObs
 
   integer, parameter :: mwbg_maxNumChan = 50
-  integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
   integer, parameter :: mwbg_maxNumSat = 9
   integer, parameter :: mwbg_maxNumTest = 15
   integer, PARAMETER :: mwbg_maxNumObs = 3000
@@ -76,6 +74,10 @@ module bgckmicrowave_mod
   integer, parameter :: mwbg_maxScanAngle=96
   real, parameter    :: mwbg_realMisg=9.9e09
   integer, parameter :: mwbg_intMisg = -1
+
+  ! Module variable
+
+  integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
 
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
   real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
@@ -3255,12 +3257,12 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
+  subroutine mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, &
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
-                               KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, rejectionCodArray2, STNID, & 
-                               RESETQC, n_reps_tb2misg, drycnt, landcnt, rejcnt, iwvcnt, &
-                               pcpcnt, flgcnt, cldcnt, seaIcePointNum, clwMissingPointNum)
+                               KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
+			       rejectionCodArray2, STNID, RESETQC, ifLastReport)
+                               
 
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
@@ -3309,18 +3311,10 @@ contains
     integer, intent(inout)           :: IMARQ(:)       ! marqueurs des radiances
     integer, intent(inout)           :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)           ! cumul du nombre de rejet par satellite, critere et par canal
     integer, intent(inout)           :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)          ! cumul du nombre de rejet (chech n2) par satellite, critere et par canal
-    integer, intent(inout)           :: n_reps_tb2misg
     real, allocatable, intent(out)   :: rclw (:)
     real, allocatable, intent(out)   :: riwv(:)
-    integer, intent(inout)           :: drycnt 
-    integer, intent(inout)           :: landcnt 
-    integer, intent(inout)           :: rejcnt 
-    integer, intent(inout)           :: iwvcnt 
-    integer, intent(inout)           :: pcpcnt 
-    integer, intent(inout)           :: flgcnt 
-    integer, intent(inout)           :: cldcnt 
-    integer, intent(inout)           :: seaIcePointNum 
-    integer, intent(inout)           :: clwMissingPointNum 
+    logical,           intent(in)    :: ifLastReport   ! True if last Report is read then do printing stuff
+
 
     !locals
     real                             :: PTBOMP(KNO,KNT)      ! residus (o-p)     2D
@@ -3375,6 +3369,17 @@ contains
     logical                          :: SFCREJCT
     logical                          :: CH2OMPREJCT
     logical, save                    :: LLFIRST
+    integer, save                    :: numReportWithMissigTb           ! Number of BURP file reports where Tb set to mwbg_realMisg
+    integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index             
+    integer, save                    :: landcnt                         ! Number of obs pts found over land/ice 
+    integer, save                    :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail) 
+    integer, save                    :: iwvcnt                          ! Number of pts with Mean 183 Ghz Tb < 240K 
+    integer, save                    :: pcpcnt                          ! Number of scatter/precip obs
+    integer, save                    :: cldcnt                          ! Number of water point covered by cloud 
+    integer, save                    :: flgcnt                          ! Total number of filtered obs pts
+    integer, save                    :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points 
+    integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing 
+    !                                                                     over water due bad data 
 
     DATA  LLFIRST / .TRUE. /
 
@@ -3401,6 +3406,23 @@ contains
     !             1  2  3  4  5 
     DATA ITEST  / 1, 1, 1, 1, 1 /
        
+    ! Initialisation, la premiere fois seulement!
+    if (LLFIRST) THEN
+      numReportWithMissigTb = 0
+      flgcnt = 0
+      landcnt = 0
+      rejcnt = 0
+      cldcnt = 0
+      iwvcnt = 0
+      pcpcnt = 0
+      drycnt = 0
+      seaIcePointNum = 0
+      clwMissingPointNum = 0
+      rejectionCodArray(:,:,:)  = 0
+      rejectionCodArray2(:,:,:) = 0
+      LLFIRST = .FALSE.
+    end if
+
     ! PART 1 TESTS:
 
     !###############################################################################
@@ -3433,7 +3455,7 @@ contains
                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
                                qcflag2, ICANO, lutb)
 
-    if ( lutb ) n_reps_tb2misg = n_reps_tb2misg + 1
+    if ( lutb ) numReportWithMissigTb = numReportWithMissigTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,KNT
       if ( COUNT(lqc(kk,:)) == mwbg_atmsMaxNumChan ) grossrej(kk) = .true.
@@ -3478,7 +3500,7 @@ contains
     !###############################################################################
 
     write(*,*) ' ==> mwbg_reviewAllcriteriaforFinalFlags: '
-    call mwbg_reviewAllcriteriaforFinalFlags(KNT,KNO, mwbg_atmsNumSfcSensitiveChannel, lqc, grossrej, waterobs, &
+    call mwbg_reviewAllcriteriaforFinalFlags(KNT,KNO, lqc, grossrej, waterobs, &
                                              precipobs, rclw, scatec, scatbg, iwvreject, riwv, &
                                              IMARQ, globMarq, zdi, &
                                              ident, mwbg_realMisg, drycnt, landcnt, rejcnt, &
@@ -3488,12 +3510,7 @@ contains
     ! PART 2 TESTS:
     !###############################################################################
 
-    ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) THEN
-      rejectionCodArray(:,:,:)  = 0
-      rejectionCodArray2(:,:,:) = 0
-      LLFIRST = .FALSE.
-    end if
+
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
@@ -3580,44 +3597,45 @@ contains
       end do
     end do
 
+    if(ifLastReport) then
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMisg  = ', numReportWithMissigTb
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
+      write(*,*) ' 2. Number of problem obs pts (Tb err, QCfail)      = ', rejcnt
+      write(*,*) ' 3. Number of cloudy obs  (CLW > clw_min)           = ', cldcnt
+      write(*,*) ' 4. Number of scatter/precip obs                    = ', pcpcnt
+      write(*,*) ' 5. Number of pts with Mean 183 Ghz Tb < 240K       = ', iwvcnt
+      write(*,*) ' 6. Number of pts flagged for AMSU-B Dryness Index  = ', drycnt
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' Total number of filtered obs pts                   = ', flgcnt
+      write(*,*) ' ----------------------------------------------------------------'
+      write(*,*) ' '
+      write(*,*) ' Number of waterobs points converted to sea ice points         = ', seaIcePointNum
+      write(*,*) ' Number of points where CLW/SI missing over water due bad data = ', clwMissingPointNum
+      write(*,*) ' --------------------------------------------------------------- '
 
-    write(*,*) ' --------------------------------------------------------------- '
-    write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMisg  = ', n_reps_tb2misg
-    write(*,*) ' --------------------------------------------------------------- '
-    write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
-    write(*,*) ' 2. Number of problem obs pts (Tb err, QCfail)      = ', rejcnt
-    write(*,*) ' 3. Number of cloudy obs  (CLW > clw_min)           = ', cldcnt
-    write(*,*) ' 4. Number of scatter/precip obs                    = ', pcpcnt
-    write(*,*) ' 5. Number of pts with Mean 183 Ghz Tb < 240K       = ', iwvcnt
-    write(*,*) ' 6. Number of pts flagged for AMSU-B Dryness Index  = ', drycnt
-    write(*,*) ' --------------------------------------------------------------- '
-    write(*,*) ' Total number of filtered obs pts                   = ', flgcnt
-    write(*,*) ' ----------------------------------------------------------------'
-    write(*,*) ' '
-    write(*,*) ' Number of waterobs points converted to sea ice points         = ', seaIcePointNum
-    write(*,*) ' Number of points where CLW/SI missing over water due bad data = ', clwMissingPointNum
-    write(*,*) ' --------------------------------------------------------------- '
-
-    write(*,*) '   Meaning of IDENT flag bits: '
-    write(*,*) ' '
-    write(*,*) '      BIT    Meaning'
-    write(*,*) '       0     off=land or sea-ice, on=open water away from coast'
-    write(*,*) '       1     Mean 183 Ghz [ch. 18-22] is missing'
-    write(*,*) '       2     NRL CLW is missing (over water)'
-    write(*,*) '       3     NRL > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)'
-    write(*,*) '       4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)'
-    write(*,*) '       5     Mean 183 Ghz [ch. 18-22] Tb < 240K'
-    write(*,*) '       6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)'
-    write(*,*) '       7     Dryness Index rejection (for ch. 22)'
-    write(*,*) '       8     scatec/scatbg > Upper Troposphere limit 18/15'
-    write(*,*) '       9     Dryness Index rejection (for ch. 21)'
-    write(*,*) '      10     Sea ice > 0.55 detected'
-    write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
-    write(*,*) ' '
-    write(*,*) '   New Element 13209 in BURP file = CLW (kg/m2)'
-    write(*,*) '   New Element 13208 in BURP file = ECMWF Scattering Index'
-    write(*,*) '   New Element 25174 in BURP file = IDENT flag'
-    write(*,*) ' '
+      write(*,*) '   Meaning of IDENT flag bits: '
+      write(*,*) ' '
+      write(*,*) '      BIT    Meaning'
+      write(*,*) '       0     off=land or sea-ice, on=open water away from coast'
+      write(*,*) '       1     Mean 183 Ghz [ch. 18-22] is missing'
+      write(*,*) '       2     NRL CLW is missing (over water)'
+      write(*,*) '       3     NRL > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)'
+      write(*,*) '       4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)'
+      write(*,*) '       5     Mean 183 Ghz [ch. 18-22] Tb < 240K'
+      write(*,*) '       6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)'
+      write(*,*) '       7     Dryness Index rejection (for ch. 22)'
+      write(*,*) '       8     scatec/scatbg > Upper Troposphere limit 18/15'
+      write(*,*) '       9     Dryness Index rejection (for ch. 21)'
+      write(*,*) '      10     Sea ice > 0.55 detected'
+      write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
+      write(*,*) ' '
+      write(*,*) '   New Element 13209 in BURP file = CLW (kg/m2)'
+      write(*,*) '   New Element 13208 in BURP file = ECMWF Scattering Index'
+      write(*,*) '   New Element 25174 in BURP file = IDENT flag'
+      write(*,*) ' '
+    end if
 
   end subroutine mwbg_tovCheckAtms
 
@@ -4060,9 +4078,7 @@ contains
     do while ((ref_blk <= 0 ) .and. (burpBlkTypListIndex <= burpBlkTypListNum))
       ref_blk = 0
       write(*,*) 'ref_blk = ', ref_blk
-      write(*,*) 'burpFam = ', burpFam
-      write(*,*) 'burpBlkTypList(burpBlkTypListIndex) = ', burpBlkTypList(burpBlkTypListIndex)
-      write(*,*) ' error = ', error
+      write(*,*) 'burpBlkTypListIndex = ', burpBlkTypListIndex
       ref_blk = BURP_Find_Block(burpRpt, &
                     BLOCK       = burpBlk, &
                     SEARCH_FROM = ref_blk, &
@@ -4159,9 +4175,7 @@ contains
     do while ((ref_blk <= 0 ) .and. (burpBlkTypListIndex <= burpBlkTypListNum))
       ref_blk = 0
       write(*,*) 'ref_blk = ', ref_blk
-      write(*,*) 'burpFam = ', burpFam
-      write(*,*) 'burpBlkTypList(burpBlkTypListIndex) = ', burpBlkTypList(burpBlkTypListIndex)
-      write(*,*) ' error = ', error
+      write(*,*) 'burpBlkTypListIndex = ', burpBlkTypListIndex
       ref_blk = BURP_Find_Block(burpRpt, &
                     BLOCK       = burpBlk, &
                     SEARCH_FROM = ref_blk, &
@@ -4334,17 +4348,12 @@ contains
     Call BURP_Get_Property(reportIn,STNID=idStn0,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
     if ( idStn0(1:2) .eq. ">>" ) then
       resumeReport = .True.
-      write(*,*) 'Resume Report: Will return to next Repport'
       return 
     else 
       resumeReport = .False.
-      write(*,*) 'Resume Report = ', resumeReport
       STNID = idStn0 
     end if
     
-    write(*,*) 'NLOCs = ', nlocs
-    write(*,*) 'report Index = ', reportIndex
-
     !  Get OMP data from the DATA block     BTYP =  9322 or 9226 or 9258 or 9274 and bfma = 14
     call readBurpReal (reportIndex, reportIn, (/9322,9226,9258,9274/), 14, 12163, error, ZOMP, 'Omp_Data', &
                    burpLocationNum, burpChannelNum, abortIfMissing = .FALSE.) 
@@ -5388,7 +5397,7 @@ contains
   !--------------------------------------------------------------------------
   !  mwbg_reviewAllcriteriaforFinalFlags
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, mwbg_atmsNumSfcSensitiveChannel, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
+  subroutine mwbg_reviewAllcriteriaforFinalFlags(nt,nval, lqc, grossrej, waterobs, precipobs, rclw, scatec, &
                                                  scatbg, iwvreject, riwv, IMARQ, globMarq, zdi, ident, mwbg_realMisg, &
                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt)
 
@@ -5402,7 +5411,6 @@ contains
     ! Arguments
     integer, intent(in)                        :: nt  
     integer, intent(in)                        :: nval 
-    integer, intent(in)                        :: mwbg_atmsNumSfcSensitiveChannel 
     logical, intent(in)                        :: lqc(:,:)
     real, intent(inout)                        :: rclw (:)
     real, intent(in)                           :: scatec(:) 
