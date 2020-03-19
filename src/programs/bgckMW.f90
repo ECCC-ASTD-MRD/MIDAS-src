@@ -24,12 +24,6 @@ program midas_bgckMW
   use mpi_mod
 
   implicit none
-  integer, parameter            :: MXSAT = 9                       ! max number of satellite
-  integer, parameter            :: JPNSAT = 9                      ! 
-  real, parameter               :: zmisg=9.9e09                    ! missing value
-  integer, parameter            :: MXCHN = 42                      !
-  integer, parameter            :: JPMXREJ = 15                    ! test index
-  integer, parameter            :: ipc=6                           ! 
   character(len=90)             :: burpFileNameIn                  ! burp input file name
   character(len=90)             :: burpFileNameOut                 ! burp output file name
   character(len=9)              :: ETIKRESU                        ! resume etiket name
@@ -80,11 +74,13 @@ program midas_bgckMW
   integer, allocatable          :: IMARQ(:)                        ! obs. flag
   integer, allocatable          :: IORBIT(:)                       ! orbit
   integer, allocatable          :: globMarq(:)                     ! global marker
-  integer                       :: IUTILST(mwbg_maxNumChan,JPNSAT) ! channel use option for each sat.
-  real                          :: TOVERRST(mwbg_maxNumChan,JPNSAT)! obs. error per channel for each sat
-  integer                       :: MREJCOD(JPMXREJ,MXCHN,MXSAT)    ! number of rejection per sat. per channl per test
-  integer                       :: MREJCOD2(JPMXREJ,MXCHN,MXSAT)   ! number of rejection per sat. per channl per test
-  !                                                                  for ATMS 2nd category of tests
+  integer                       :: IUTILST(mwbg_maxNumChan,mwbg_maxNumSat) ! channel use option for each sat.
+  real                          :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! obs. error per channel for each sat
+  integer                       :: rejectionCodArray(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)  ! number of rejection 
+  !                                                                                                   per sat. per channl per test
+  integer                       :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat) ! number of rejection per 
+  !                                                                                                   sat. per channl per test
+  !                                                                                                   for ATMS 2nd category of tests
   integer, allocatable          :: lsq(:)                          ! land sea qualifyer
   integer, allocatable          :: trn(:)                          ! terrain type
   integer, allocatable          :: icheck(:,:)                     ! indicateur controle de qualite tovs par canal 
@@ -99,7 +95,7 @@ program midas_bgckMW
   real,    allocatable          :: scatw(:)                        ! scatering index
   integer                       :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points
   integer                       :: clwMissingPointNum              ! Number of points where CLW/SI missing over water due bad data
-  integer                       :: n_reps_tb2misg                  ! Number of BURP file reports where Tb set to zmisg
+  integer                       :: n_reps_tb2misg                  ! Number of BURP file reports where Tb set to mwbg_realMisg
   integer                       :: cldcnt                          ! 
   integer                       :: flgcnt                          ! Total number of filtered obs pts
   integer                       :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail)
@@ -133,21 +129,6 @@ program midas_bgckMW
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_PREPCMA' )
   call tmg_start(1,'MAIN')
-
-  ! Initializations of counters (for total reports/locations in the file).
-  lutb = .False.
-  flgcnt = 0
-  landcnt = 0
-  rejcnt = 0
-  cldcnt = 0
-  iwvcnt = 0
-  pcpcnt = 0
-  drycnt = 0
-  seaIcePointNum = 0
-  clwMissingPointNum = 0
-  n_bad_reps = 0
-  nobs_tot = 0 
-  n_reps_tb2misg = 0 
  
   ! default namelist values
   instName = 'AMSUA'
@@ -169,8 +150,7 @@ program midas_bgckMW
   ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam, nml=nambgck, iostat=ier)
   if ( ier /= 0 ) then 
-    write(*,*) 'midas_bgckmw: Error reading namelist'
-    call abort()
+    call utl_abort('midas_bgckmw: Error reading namelist')
   end if 
   write(*,nml=nambgck)
   ier = fclos(nulnam)
@@ -179,7 +159,22 @@ program midas_bgckMW
   mwbg_clwQcThreshold = clwQcThreshold 
   mwbg_allowStateDepSigmaObs = mwbg_allowStateDepSigmaObs
   mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
- 
+
+  ! Initializations of counters (for total reports/locations in the file).
+  lutb = .False.
+  flgcnt = 0
+  landcnt = 0
+  rejcnt = 0
+  cldcnt = 0
+  iwvcnt = 0
+  pcpcnt = 0
+  drycnt = 0
+  seaIcePointNum = 0
+  clwMissingPointNum = 0
+  n_bad_reps = 0
+  nobs_tot = 0 
+  n_reps_tb2misg = 0 
+  
   !#################################################################################
   ! STEP 1 ) Lecture des statistiques d'erreur totale pour les  TOVS 
   !#################################################################################
@@ -227,16 +222,16 @@ program midas_bgckMW
       write(*,*) ' ==> mwbg_tovCheck For: ', instName
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(TOVERRST, IUTILST, ISAT, ilq, IORBIT, ican, ICANOMP, ztb, &
-                                biasCorr, ZOMP, ICHECK, nvalOut, ntOut, ZMISG, INOSAT, &
+                                biasCorr, ZOMP, ICHECK, nvalOut, ntOut, mwbg_realMisg, INOSAT, &
                                 ICHKPRF, scanpos, MGINTRP, MTINTRP, GLINTRP, itt, zenith, &
-                                IMARQ, ident, clw, scatw, MREJCOD, STNID, RESETQC, &
+                                IMARQ, ident, clw, scatw, rejectionCodArray, STNID, RESETQC, &
                                 ZLAT)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, zlat, zlon, ilq, itt, lsq, trn, &
                                zenith, qcflag2, qcflag1, ISAT, IORBIT, ICAN, ICANOMP, &
-                               ztb, biasCorr, ZOMP, ICHECK, nvalOut, nvalOut, ntOut, zmisg,INOSAT, &
-                               ident, ICHKPRF, scanpos, MTINTRP, globMarq, IMARQ, clw, scatw, MREJCOD, &
-                               MREJCOD2, STNID, RESETQC,  ipc, n_reps_tb2misg, drycnt,&
+                               ztb, biasCorr, ZOMP, ICHECK, nvalOut, nvalOut, ntOut, mwbg_realMisg,INOSAT, &
+                               ident, ICHKPRF, scanpos, MTINTRP, globMarq, IMARQ, clw, scatw, rejectionCodArray, &
+                               rejectionCodArray2, STNID, RESETQC, n_reps_tb2misg, drycnt,&
                                landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, cldcnt, seaIcePointNum, &
                                clwMissingPointNum)
       else
@@ -249,7 +244,7 @@ program midas_bgckMW
       !###############################################################################
       write(*,*) ' ==> mwbg_qcStats For: ', instName
       call mwbg_qcStats(instName, ICHECK, ican, INOSAT, nvalOut, &
-                             ntOut, satelliteId, .FALSE., MREJCOD, MREJCOD2)
+                             ntOut, satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
 
     end if 
 
@@ -273,7 +268,7 @@ program midas_bgckMW
   ! STEP 8) Print the statistics in listing file 
   !###############################################################################
   call mwbg_qcStats(instName, ICHECK, ican, INOSAT, nvalOut, &
-                    ntOut, satelliteId, .TRUE., MREJCOD, MREJCOD2)
+                    ntOut, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
 
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_PREPCMA' )
