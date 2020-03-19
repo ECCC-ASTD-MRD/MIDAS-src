@@ -102,7 +102,7 @@ program midas_ensPostProcess
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
-    call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
+    call utl_abort('midas-ensPostProcess: nLev_M /= nLev_T - currently not supported')
   end if
 
   if ( hco_ens % global ) then

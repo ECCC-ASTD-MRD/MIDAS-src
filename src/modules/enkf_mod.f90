@@ -888,8 +888,8 @@ contains
     real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
-    real(8)  :: weightRecenter         ! weight applied to EnVar recentering increment
-    integer  :: numMembersToRecenter ! number of members that get recentered on EnVar analysis
+    real(8)  :: weightRecenter         ! weight applied to recentering increment
+    integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
     character(len=12) :: etiket0
 
@@ -978,7 +978,7 @@ contains
     if (imposeSaturationLimit .or. imposeRttovHuLimits) then
       call tmg_start(102,'LETKF-imposeHulimits')
       if (mpi_myid == 0) write(*,*) ''
-      if (mpi_myid == 0) write(*,*) 'midas-letkf: limits will be imposed on the humidity of analysis ensemble'
+      if (mpi_myid == 0) write(*,*) 'enkf_postProcess: limits will be imposed on the humidity of analysis ensemble'
       if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
       if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
       if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
@@ -992,9 +992,9 @@ contains
       call tmg_stop(102)
     end if
 
-    !- Recenter analysis ensemble on EnVar analysis
+    !- Recenter analysis ensemble on supplied analysis
     if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
-      write(*,*) 'midas-letkf: Recenter analyses on EnVar analysis'
+      write(*,*) 'enkf_postProcess: Recenter analyses on supplied analysis'
       call enkf_hybridRecentering(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
       ! And recompute analysis mean
       call ens_computeMean(ensembleAnl)
@@ -1043,7 +1043,7 @@ contains
         datePrint =  datePrint*100 + timePrint
         ! Remove the year and add 9
         randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
-        write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
+        write(*,*) 'enkf_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
       else
         randomSeedRandomPert = randomSeed
       end if
@@ -1073,7 +1073,7 @@ contains
           datePrint =  datePrint*100 + timePrint
           ! Remove the year and add 9
           randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
-          write(*,*) 'midas-letkf: randomSeed for additive inflation set to ', randomSeedRandomPert
+          write(*,*) 'enkf_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
         else
           randomSeedRandomPert = randomSeed
         end if
@@ -1331,7 +1331,7 @@ contains
       etiketMean(9:11) = 'ALL'
 
     else
-      call utl_abort('midas-letkf: unknown value of etiketType')
+      call utl_abort('enkf_getRmsEtiket: unknown value of etiketType')
     end if
 
   end subroutine enkf_getRmsEtiket
