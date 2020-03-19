@@ -240,44 +240,47 @@ contains
 
     call rpn_comm_bcast(dateStamp_out, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-    ! Modify date to ensure that it corresponds to the middle of the window
-    ! Note: For this, we have to assume that the date in the file
-    !       does NOT correspond to the final time of the window
-    imode = -3 ! stamp to printable, time is HHMMSShh
-    ierr = newdate(datestamp_out, prntdate, prnttime, imode)
-    fileHour = real(prnttime,8)/1000000.0d0
-    windowsPerDay = nint(24.0d0 / tim_windowsize)
-    foundWindow = .false.
-    window_loop: do windowIndex = 0, windowsPerDay
-      windowBegHour = (real(windowIndex,8) * tim_windowsize) - (tim_windowsize/2.0d0)
-      windowEndHour = (real(windowIndex,8) * tim_windowsize) + (tim_windowsize/2.0d0)
-      if ( fileHour >= windowBegHour .and. fileHour < windowEndHour ) then
-        foundWindow = .true.
-        middleHour = real(windowIndex,8) * tim_windowsize
-        exit window_loop
+    if ( tim_referenceTime == 'middle' ) then
+      ! Modify date to ensure that it corresponds to the middle of the window
+      ! Note: For this, we have to assume that the date in the file
+      !       does NOT correspond to the final time of the window
+      imode = -3 ! stamp to printable, time is HHMMSShh
+      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+      fileHour = real(prnttime,8)/1000000.0d0
+      windowsPerDay = nint(24.0d0 / tim_windowsize)
+      foundWindow = .false.
+      window_loop: do windowIndex = 0, windowsPerDay
+        windowBegHour = (real(windowIndex,8) * tim_windowsize) - (tim_windowsize/2.0d0)
+        windowEndHour = (real(windowIndex,8) * tim_windowsize) + (tim_windowsize/2.0d0)
+        if ( fileHour >= windowBegHour .and. fileHour < windowEndHour ) then
+          foundWindow = .true.
+          middleHour = real(windowIndex,8) * tim_windowsize
+          exit window_loop
+        end if
+      end do window_loop
+
+      if ( .not. foundWindow ) then
+        write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour
+        call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
       end if
-    end do window_loop
 
-    if ( .not. foundWindow ) then
-      write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour
-      call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
-    end if
+      ! handle special case when window centered on hour 24
+      if ( nint(middleHour) == 24 ) then
+        ! add 24h to dateStamp and recompute prntdate
+        dateStamp_tmp = dateStamp_out
+        call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
+        imode = -3 ! stamp to printable, only prntdate will be used
+        ierr = newdate(datestamp_out, prntdate, prnttime, imode)
 
-    ! handle special case when window centered on hour 24
-    if ( nint(middleHour) == 24 ) then
-      ! add 24h to dateStamp and recompute prntdate
-      dateStamp_tmp = dateStamp_out
-      call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
-      imode = -3 ! stamp to printable, only prntdate will be used
+        ! subtract 24h from middleHour
+        middleHour = 0.0d0
+      end if
+
+      prnttime = nint(middleHour) * 1000000
+      imode = 3 ! printable to stamp
       ierr = newdate(datestamp_out, prntdate, prnttime, imode)
 
-      ! subtract 24h from middleHour
-      middleHour = 0.0d0
     end if
-
-    prnttime = nint(middleHour) * 1000000
-    imode = 3 ! printable to stamp
-    ierr = newdate(datestamp_out, prntdate, prnttime, imode)
 
   end function tim_getDateStampFromFile
 
