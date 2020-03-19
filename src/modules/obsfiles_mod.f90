@@ -182,12 +182,15 @@ contains
   ! locals
   integer           :: fileIndex, fnom, fclos, nulnam, ierr
   character(len=10) :: obsFileType, sfFileName
-  logical           :: lwritediagsql
   character(len=*), parameter :: myName = 'obsf_writeFiles'
   character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
   character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-  namelist /namwritediag/lwritediagsql
+  ! namelist variables
+  logical :: lwritediagsql
+  logical :: onlyAssimObs
+
+  namelist /namwritediag/lwritediagsql,onlyAssimObs
 
   if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
@@ -195,6 +198,7 @@ contains
 
   nulnam=0
   lwritediagsql = .false.
+  onlyAssimObs = .false.
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namwritediag,iostat=ierr)
   if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
@@ -239,7 +243,7 @@ contains
   else
     sfFileName = 'sf'
   end if
-  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName )
+  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )
 
   if ( present(asciDumpObs_opt) ) then
     if ( asciDumpObs_opt ) then

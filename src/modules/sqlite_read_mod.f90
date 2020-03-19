@@ -1121,15 +1121,16 @@ contains
   end function getObsFileName
 
 
-  subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName )
+  subroutine sqlr_writeAllSqlDiagFiles( obsdat, sfFileName, onlyAssimObs )
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !  
     implicit none
 
     ! arguments:
-    type(struct_obs)       :: obsdat ! obsSpaceData object
-    character(len=*)       :: sfFileName ! fileName acronym used for surface obs file
+    type(struct_obs)       :: obsdat       ! obsSpaceData object
+    character(len=*)       :: sfFileName   ! fileName acronym used for surface obs file
+    logical                :: onlyAssimObs ! only write assimilated obs
 
     ! locals:
     integer                :: familyIndex, codeType, codeTypeIndex, fileIndex
@@ -1183,14 +1184,16 @@ contains
 
           write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
           write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
-          call sqlr_writeSqlDiagFile(obsdat, 'TO', tovsFileNameList(fileIndex), &
+          call sqlr_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, &
+                                     tovsFileNameList(fileIndex), &
                                      tovsCodeTypeList(1:tovsCodeTypeListSize)) 
         end do
 
       else
 
         fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
-        call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), fileName) 
+        call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex),  &
+                                   onlyAssimObs, fileName) 
 
       end if   
       
@@ -1296,7 +1299,8 @@ contains
   end subroutine getObsFamilyListMpiGlobal
 
 
-  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, instrumentFileName, codeTypeList_opt )
+  subroutine sqlr_writeSqlDiagFile( obsdat, obsFamily, onlyAssimObs, &
+                                    instrumentFileName, codeTypeList_opt )
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
@@ -1304,7 +1308,8 @@ contains
 
     ! arguments
     type(struct_obs)  :: obsdat
-    character(len=*)  :: obsFamily    
+    character(len=*)  :: obsFamily
+    logical           :: onlyAssimObs
     character(len=*)  :: instrumentFileName
     integer, optional :: codeTypeList_opt(:)
 
@@ -1312,7 +1317,7 @@ contains
     type(fSQL_DATABASE)    :: db                   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                 ! type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType, codeType, date, time, idObs, idData 
+    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
@@ -1324,6 +1329,7 @@ contains
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
+    logical                :: writeHeader
 
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
@@ -1374,7 +1380,7 @@ contains
     call fSQL_do_many( db, queryCreate, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError( stat, 'fSQL_do_many with query: '//trim(queryCreate) )
 
-    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev ) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) myName//' Insert query Data   = ', trim( queryData )
@@ -1399,7 +1405,6 @@ contains
         if ( all( codeTypeList_opt(:) /= codeType ) ) cycle HEADER
       end if
 
-      idObs = idObs + 1
       obsRln    = obs_headElem_i( obsdat, OBS_RLN, headerIndex )
       obsNlv    = obs_headElem_i( obsdat, OBS_NLV, headerIndex )
       idStation = obs_elem_c    ( obsdat, 'STID' , headerIndex ) 
@@ -1409,7 +1414,22 @@ contains
       if (  lon > 180. ) lon = lon - 360.
       date      = obs_headElem_i( obsdat, OBS_DAT, headerIndex )
       time      = obs_headElem_i( obsdat, OBS_ETM, headerIndex ) * 100.
- 
+
+      ! check if at least one observation will be written, if not skip this header
+      if (onlyAssimObs) then
+        writeHeader = .false.
+        BODYCHECK: do bodyIndex = obsRln, obsNlv + obsRln -1
+          OMP = obs_bodyElem_r( obsdat, OBS_OMP , bodyIndex )
+          FGE = obs_bodyElem_r( obsdat, OBS_HPHT, bodyIndex )
+          ASS = obs_bodyElem_i( obsdat, OBS_ASS , bodyIndex )
+          if ( (ASS == obs_assimilated) .and.     &
+               (OMP /= obs_missingValue_R) .and.  &
+               (FGE /= obs_missingValue_R) ) writeHeader = .true.
+        end do BODYCHECK
+        if (.not. writeHeader) cycle HEADER
+      end if
+
+      idObs = idObs + 1
       call fSQL_bind_param( stmtHeader, PARAM_INDEX = 1, INT_VAR  = idObs     )
       call fSQL_bind_param( stmtHeader, PARAM_INDEX = 2, CHAR_VAR = idStation )
       call fSQL_bind_param( stmtHeader, PARAM_INDEX = 3, REAL_VAR = lat       ) 
@@ -1422,7 +1442,6 @@ contains
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
          
-        idData        = idData + 1
         obsVarno      = obs_bodyElem_i( obsdat, OBS_VNM , bodyIndex )
         obsFlag       = obs_bodyElem_i( obsdat, OBS_FLG , bodyIndex )
         vertCoordType = obs_bodyElem_i( obsdat, OBS_VCO , bodyIndex )
@@ -1432,6 +1451,15 @@ contains
         OER           = obs_bodyElem_r( obsdat, OBS_OER , bodyIndex )
         FGE           = obs_bodyElem_r( obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r( obsdat, OBS_PPP , bodyIndex )
+        ASS           = obs_bodyElem_i( obsdat, OBS_ASS , bodyIndex )
+
+        ! skip obs if it was not assimilated
+        if (onlyAssimObs) then
+          if ( (ASS /= obs_assimilated) .or.     &
+               (OMP == obs_missingValue_R) .or.  &
+               (FGE == obs_missingValue_R) ) cycle BODY
+        end if
+
         if ( obs_columnActive_RB(obsdat, OBS_SIGI) ) then
           ensInnovStdDev = obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex)
         else
@@ -1463,7 +1491,8 @@ contains
             vertCoordType = MPC_missingValue_INT 
         end select
 
-        ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,ompt,fg_error,obs_error,sigi,sigo
+        ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error,sigi,sigo
+        idData = idData + 1
         call fSQL_bind_param( stmtData, PARAM_INDEX = 1, INT_VAR  = idData        )
         call fSQL_bind_param( stmtData, PARAM_INDEX = 2, INT_VAR  = idObs         )
         call fSQL_bind_param( stmtData, PARAM_INDEX = 3, INT_VAR  = obsVarno      )
@@ -1477,38 +1506,40 @@ contains
         call fSQL_bind_param( stmtData, PARAM_INDEX = 7, INT_VAR  = obsFlag       )
         if ( OMA == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 8                         ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMA         )
-        end if
-        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 9                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OMP         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 8, REAL_VAR = OMA         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 9, REAL_VAR = OMA         )
         end if
-        if ( FGE == obs_missingValue_R ) then
+        if ( OMP == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 10                         ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = FGE         )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 10, REAL_VAR = OMP         )
+        end if
+        if ( FGE == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11                         ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = FGE         )
         end if
         if ( OER == obs_missingValue_R ) then
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11                        ) 
-        else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 11, REAL_VAR = OER        )
-        end if 
-        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 12                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = ensInnovStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 12, REAL_VAR = OER        )
         end if 
-        if ( ensObsErrStdDev == obs_missingValue_R ) then
+        if ( ensInnovStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 13                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = ensObsErrStdDev )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 13, REAL_VAR = ensInnovStdDev )
         end if 
-        if ( zhad == obs_missingValue_R ) then
+        if ( ensObsErrStdDev == obs_missingValue_R ) then
           call fSQL_bind_param( stmtData, PARAM_INDEX = 14                        ) 
         else
-          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, REAL_VAR = zhad )
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 14, REAL_VAR = ensObsErrStdDev )
+        end if 
+        if ( zhad == obs_missingValue_R ) then
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 15                        ) 
+        else
+          call fSQL_bind_param( stmtData, PARAM_INDEX = 15, REAL_VAR = zhad )
         end if 
 
         call fSQL_exec_stmt ( stmtData )

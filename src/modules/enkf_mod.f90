@@ -37,10 +37,14 @@ module enkf_mod
   use controlVector_mod
   use gridVariableTransforms_mod
   use bMatrix_mod
+  use humidityLimits_mod
   use localizationFunction_mod
   use varNameList_mod
   use codePrecision_mod
+  use fileNames_mod
   use codTyp_mod
+  use clib_interfaces_mod
+  use physicsFunctions_mod
   implicit none
   save
   private
@@ -49,9 +53,8 @@ module enkf_mod
   public :: struct_enkfInterpInfo
 
   ! public procedures
-  public :: enkf_setupInterpInfo, enkf_interpWeights, enkf_addRandomPert, enkf_RTPS
-  public :: enkf_selectSubSample, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
-  public :: enkf_rejectHighLatIR, enkf_hybridRecentering
+  public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
+  public :: enkf_rejectHighLatIR, enkf_postProcess
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -75,14 +78,13 @@ contains
   !----------------------------------------------------------------------
   subroutine enkf_LETKFanalyses(algorithm, numSubEns,  &
                                 ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
-                                stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
-                                stateVectorDeterInc, stateVectorDeterTrl, stateVectorDeterAnl, &
+                                stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
                                 alphaRTPP, mpiDistribution)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
-    !           mean and (if present) a deterministic state.
+    !           mean.
     implicit none
 
     ! Arguments
@@ -91,12 +93,7 @@ contains
     type(struct_ens), pointer   :: ensembleTrl
     type(struct_ens)            :: ensembleAnl
     type(struct_eob)            :: ensObs_mpiglobal
-    type(struct_gsv)            :: stateVectorMeanInc
-    type(struct_gsv)            :: stateVectorMeanTrl
     type(struct_gsv)            :: stateVectorMeanAnl
-    type(struct_gsv)            :: stateVectorDeterInc
-    type(struct_gsv)            :: stateVectorDeterTrl
-    type(struct_gsv)            :: stateVectorDeterAnl
     type(struct_enkfInterpInfo) :: wInterpInfo
     integer                     :: maxNumLocalObs
     real(8)                     :: hLocalize(:)
@@ -136,17 +133,17 @@ contains
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
-    real(8), allocatable :: weightsDeter(:,:,:,:), weightsDeterLatLon(:,:,:)
     real(8), allocatable :: memberAnlPert(:)
     real(4), allocatable :: logPres_M_r4(:,:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
-    real(4), pointer     :: deterTrl_ptr_r4(:,:,:,:), deterAnl_ptr_r4(:,:,:,:), deterInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
 
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
+    type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: deterministicStateExists
     logical :: firstTime = .true.
 
     write(*,*) 'enkf_LETKFanalyses: starting'
@@ -166,16 +163,16 @@ contains
     nEns = ens_getNumMembers(ensembleAnl)
     nLev_M = ens_getNumLev(ensembleAnl, 'MM')
     hco_ens => ens_getHco(ensembleAnl)
-    myLonBeg = stateVectorMeanInc%myLonBeg
-    myLonEnd = stateVectorMeanInc%myLonEnd
-    myLatBeg = stateVectorMeanInc%myLatBeg
-    myLatEnd = stateVectorMeanInc%myLatEnd
-    numVarLev    = stateVectorMeanInc%nk
+    vco_ens => ens_getVco(ensembleAnl)
+    myLonBeg = stateVectorMeanAnl%myLonBeg
+    myLonEnd = stateVectorMeanAnl%myLonEnd
+    myLatBeg = stateVectorMeanAnl%myLatBeg
+    myLatEnd = stateVectorMeanAnl%myLatEnd
+    numVarLev    = stateVectorMeanAnl%nk
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
-    deterministicStateExists = stateVectorDeterTrl%allocated
 
     !
     ! Compute gridded 3D ensemble weights
@@ -204,13 +201,20 @@ contains
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
-    ! Weights for deterministic analysis
-    if (deterministicStateExists) then
-      allocate(weightsDeter(nEns,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
-      weightsDeter(:,:,:,:) = 0.0d0
-      allocate(weightsDeterLatLon(nEns,1,myNumLatLonSend))
-      weightsDeterLatLon(:,:,:) = 0.0d0
-    end if
+
+    call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanTrl)
+    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanInc)
+
+    call ens_computeMean(ensembleTrl)
+    call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
     if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -276,23 +280,16 @@ contains
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
         procIndex = myProcIndexesRecv(latLonIndex)
-        recvTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
+        recvTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
 
         nsize = nEns
         numRecv = numRecv + 1
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        if (deterministicStateExists) then
-          numRecv = numRecv + 1
-          recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
-          call mpi_irecv( weightsDeter(:,1,lonIndex,latIndex),  &
-                          nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
-                          mpi_comm_grid, requestIdRecv(numRecv), ierr )
-        end if
         nsize = nEns*nEns
         numRecv = numRecv + 1
-        recvTag = recvTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+        recvTag = recvTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
@@ -401,29 +398,6 @@ contains
               end do
             end do
 
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as Pa * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, nEns
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +  &
-                       Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
-                end do
-              end do
-            end if
-
             ! Compute ensemble perturbation weights: (1-alphaRTPP)*[(Nens-1)^1/2*PaSqrt]+alphaRTPP*I
             weightsMembersLatLon(:,:,latLonIndex) = (1.0d0 - alphaRTPP) * sqrt(real(nEns - 1,8)) * PaSqrt(:,:)
             do memberIndex = 1, nEns
@@ -477,41 +451,6 @@ contains
                      weightsTemp2(memberIndex2)
               end do
             end do
-
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-              weightsTemp2(:) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                               eigenVectors(memberIndex1,memberIndex2) *  &
-                                               weightsTemp(memberIndex1)
-                end do
-              end do
-              do memberIndex = 1, matrixRank
-                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                            1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
-              end do
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +   &
-                       eigenVectors(memberIndex1,memberIndex2) *  &
-                       weightsTemp2(memberIndex2)
-                end do
-              end do
-            end if
 
             ! Compute ensemble perturbation weights: 
             ! Wa = (1-alphaRTPP) * 
@@ -649,41 +588,6 @@ contains
               end do
             end do
 
-            if (deterministicStateExists) then
-              ! Compute deterministic analysis local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - deterYb)
-              weightsTemp(:) = 0.0d0
-              do localObsIndex = 1, numLocalObs
-                bodyIndex = localBodyIndices(localObsIndex)
-                do memberIndex = 1, nEns
-                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                             YbTinvR(memberIndex,localObsIndex) *  &
-                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                               ensObs_mpiglobal%deterYb(bodyIndex) )
-                end do
-              end do
-              weightsTemp2(:) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                               eigenVectors(memberIndex1,memberIndex2) *  &
-                                               weightsTemp(memberIndex1)
-                end do
-              end do
-              do memberIndex = 1, matrixRank
-                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                            1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
-              end do
-              weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
-              do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEns
-                  weightsDeterLatLon(memberIndex1,1,latLonIndex) =  &
-                       weightsDeterLatLon(memberIndex1,1,latLonIndex) +   &
-                       eigenVectors(memberIndex1,memberIndex2) *  &
-                       weightsTemp2(memberIndex2)
-                end do
-              end do
-            end if
-
             ! Compute ensemble perturbation weights using mean increment weights 
             ! formula, but with subset of members: 
             ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
@@ -789,7 +693,6 @@ contains
           ! no observations near this grid point, set weights to zero
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          if (deterministicStateExists) weightsDeterLatLon(:,1,latLonIndex) = 0.0d0
         end if ! numLocalObs > 0
 
         call tmg_stop(91)
@@ -801,7 +704,7 @@ contains
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
         do procIndex = 1, myNumProcIndexesSend(latLonIndex)
-          sendTag = (latIndex-1)*stateVectorMeanInc%ni + lonIndex
+          sendTag = (latIndex-1)*stateVectorMeanAnl%ni + lonIndex
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
           nsize = nEns
@@ -809,16 +712,9 @@ contains
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
-          if (deterministicStateExists) then
-            numSend = numSend + 1
-            sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
-            call mpi_isend( weightsDeterLatLon(:,1,latLonIndex),  &
-                            nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
-                            mpi_comm_grid, requestIdSend(numSend), ierr )
-          end if
           nsize = nEns*nEns
           numSend = numSend + 1
-          sendTag = sendTag + stateVectorMeanInc%ni*stateVectorMeanInc%nj
+          sendTag = sendTag + stateVectorMeanAnl%ni*stateVectorMeanAnl%nj
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
@@ -849,13 +745,8 @@ contains
       !
       call tmg_start(92,'LETKF-interpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
-
         call enkf_interpWeights(wInterpInfo, weightsMean)
-
-        if (deterministicStateExists) call enkf_interpWeights(wInterpInfo, weightsDeter)
-
         call enkf_interpWeights(wInterpInfo, weightsMembers)
-
       end if
       call tmg_stop(92)
 
@@ -867,11 +758,6 @@ contains
       meanInc_ptr_r4 => gsv_getField_r4(stateVectorMeanInc)
       meanTrl_ptr_r4 => gsv_getField_r4(stateVectorMeanTrl)
       meanAnl_ptr_r4 => gsv_getField_r4(stateVectorMeanAnl)
-      if (deterministicStateExists) then
-        deterInc_ptr_r4 => gsv_getField_r4(stateVectorDeterInc)
-        deterTrl_ptr_r4 => gsv_getField_r4(stateVectorDeterTrl)
-        deterAnl_ptr_r4 => gsv_getField_r4(stateVectorDeterAnl)
-      end if
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -903,34 +789,6 @@ contains
                    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
             end do ! stepIndex
           end do ! varLevIndex
-
-          ! Compute the deterministic increment and analysis
-          if (deterministicStateExists) then
-            do varLevIndex = 1, numVarLev
-              ! Only treat varLevIndex values that correspond with current levIndex
-              if (vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'SF') then
-                levIndex2 = nLev_M
-              else
-                levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-              end if
-              if (levIndex2 /= levIndex) cycle
-              memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-              do stepIndex = 1, tim_nstepobsinc
-                ! deterministic increment
-                do memberIndex = 1, nEns
-                  deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                       deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                       weightsDeter(memberIndex,1,lonIndex,latIndex) *  &
-                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                        deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-                end do ! memberIndex
-                ! deterministic analysis
-                deterAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                     deterTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                     deterInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-              end do ! stepIndex
-            end do ! varLevIndex
-          end if
 
           ! Compute the ensemble member analyses
           do varLevIndex = 1, numVarLev
@@ -979,15 +837,563 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(19)
 
+    call gsv_deallocate(stateVectorMeanInc)
+    call gsv_deallocate(stateVectorMeanTrl)
+
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine enkf_LETKFanalyses
 
   !----------------------------------------------------------------------
-  ! enkf_computeLogPresM
+  ! enkf_postProcess
+  !----------------------------------------------------------------------
+  subroutine enkf_postProcess(ensembleAnl, ensembleTrl, stateVectorHeightSfc)
+    !
+    !:Purpose:  Perform numerous post-processing steps to the ensemble
+    !           produced by the LETKF algorithm.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_ens), pointer :: ensembleTrl
+    type(struct_ens)          :: ensembleAnl
+    type(struct_gsv)          :: stateVectorHeightSfc
+
+    ! Locals
+    integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
+    integer                   :: stepIndex, middleStepIndex, nulnam
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
+    type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanTrl
+    type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlPert, stateVectorStdDevTrl
+    type(struct_gsv)          :: stateVectorMeanIncSubSample
+    type(struct_gsv)          :: stateVectorMeanAnlSubSample
+    type(struct_gsv)          :: stateVectorMeanAnlSfcPres
+    type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
+    type(struct_ens)          :: ensembleTrlSubSample
+    type(struct_ens)          :: ensembleAnlSubSample
+    character(len=12)         :: etiketMean='', etiketStd=''
+    character(len=256)        :: outFileName
+    character(len=4), pointer :: varNames(:)
+
+    integer, external         :: fnom, fclos, newdate
+
+    ! Namelist variables
+    integer  :: randomSeed           ! seed used for random perturbation additive inflation
+    logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
+    real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
+    real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
+    real(8)  :: alphaRandomPertSubSample ! Random perturbation additive inflation coeff for medium-range fcsts
+    logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
+    logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
+    real(8)  :: weightRecenter         ! weight applied to recentering increment
+    integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
+    logical  :: useOptionTableRecenter ! use values in the optiontable file
+    character(len=12) :: etiket0
+
+    NAMELIST /NAMENSPOSTPROC/randomSeed, writeSubSample,  &
+                             alphaRTPS, alphaRandomPert, alphaRandomPertSubSample,  &
+                             imposeSaturationLimit, imposeRttovHuLimits,  &
+                             weightRecenter, numMembersToRecenter, useOptionTableRecenter,  &
+                             etiket0
+
+    hco_ens => ens_getHco(ensembleAnl)
+    vco_ens => ens_getVco(ensembleAnl)
+    nEns = ens_getNumMembers(ensembleAnl)
+
+    !- Setting default namelist variable values
+    randomSeed            =  -999
+    writeSubSample        = .false.
+    alphaRTPS             =  0.0D0
+    alphaRandomPert       =  0.0D0
+    alphaRandomPertSubSample =  -1.0D0
+    imposeSaturationLimit = .false.
+    imposeRttovHuLimits   = .false.
+    weightRecenter        = 0.0D0 ! means no recentering applied
+    numMembersToRecenter  = -1    ! means all members recentered by default
+    useOptionTableRecenter = .false.
+    etiket0               = 'E26_0_0P'
+
+    !- Read the namelist
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namenspostproc, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('enkf_postProc: Error reading namelist')
+    if ( mpi_myid == 0 ) write(*,nml=namenspostproc)
+    ierr = fclos(nulnam)
+
+    if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
+    if (alphaRandomPert < 0.0D0) alphaRandomPert = 0.0D0
+    if (alphaRandomPertSubSample < 0.0D0) alphaRandomPertSubSample = 0.0D0
+    if (numMembersToRecenter == -1) numMembersToRecenter = nEns ! default behaviour
+
+    !- Allocate and compute ensemble mean Trl and Anl
+    call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanTrl)
+    call gsv_zero(stateVectorMeanAnl)
+    call ens_computeMean(ensembleTrl)
+    call ens_computeMean(ensembleAnl)
+    call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
+    call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+
+    !- Allocate and compute ensemble spread stddev Trl and Anl (AnlPert computed later)
+    call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+    call ens_computeStdDev(ensembleTrl)
+    call ens_computeStdDev(ensembleAnl)
+    call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
+    call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+
+    !- Allocate and compute mean increment
+    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero(stateVectorMeanInc)
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+
+    !- Apply RTPS, if requested
+    if (alphaRTPS > 0.0D0) then
+      call enkf_RTPS(ensembleAnl, ensembleTrl, stateVectorStdDevAnl, stateVectorStdDevTrl, stateVectorMeanAnl, alphaRTPS)
+      ! recompute the analysis spread stddev
+      call ens_computeStdDev(ensembleAnl)
+      call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+    end if
+
+    !- Impose limits on humidity *before* random perturbations, if requested
+    if (imposeSaturationLimit .or. imposeRttovHuLimits) then
+      call tmg_start(102,'LETKF-imposeHulimits')
+      if (mpi_myid == 0) write(*,*) ''
+      if (mpi_myid == 0) write(*,*) 'enkf_postProcess: limits will be imposed on the humidity of analysis ensemble'
+      if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+      if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+      if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
+      if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+      ! And recompute analysis mean
+      call ens_computeMean(ensembleAnl)
+      call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+      ! And recompute mean increment
+      call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+      call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+      call tmg_stop(102)
+    end if
+
+    !- Recenter analysis ensemble on supplied analysis
+    if (weightRecenter > 0.0D0 .or. useOptionTableRecenter) then
+      write(*,*) 'enkf_postProcess: Recenter analyses on supplied analysis'
+      call enkf_hybridRecentering(ensembleAnl, weightRecenter, useOptionTableRecenter, numMembersToRecenter)
+      ! And recompute analysis mean
+      call ens_computeMean(ensembleAnl)
+      call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+      ! And recompute mean increment
+      call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+      call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+      ! And recompute the analysis spread stddev
+      call ens_computeStdDev(ensembleAnl)
+      call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
+    end if
+
+    !- If SubSample requested, copy sub-sample of analysis and trial members
+    if (writeSubSample) then
+      ! Copy sub-sampled analysis and trial ensemble members
+      call enkf_selectSubSample(ensembleAnl, ensembleTrl,  &
+                                ensembleAnlSubSample, ensembleTrlSubSample)
+
+      ! Create subdirectory for outputting sub sample increments
+      ierr = clib_mkdir_r('subspace')
+
+      ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis and increment
+      call gsv_allocate( stateVectorMeanAnlSubSample, tim_nstepobsinc,  &
+                         hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         dataKind_opt=4, allocHeightSfc_opt=.true., &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorMeanAnlSubSample)
+      call gsv_allocate( stateVectorMeanIncSubSample, tim_nstepobsinc,  &
+                         hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         dataKind_opt=4, allocHeightSfc_opt=.true., &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorMeanIncSubSample)
+
+    end if
+
+    !- Apply random additive inflation, if requested
+    if (alphaRandomPert > 0.0D0) then
+      ! If namelist value is -999, set random seed using the date (as in standard EnKF)
+      if (randomSeed == -999) then
+        imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+        dateStamp = tim_getDateStamp()
+        ierr = newdate(dateStamp, datePrint, timePrint, imode)
+        timePrint = timePrint/1000000
+        datePrint =  datePrint*100 + timePrint
+        ! Remove the year and add 9
+        randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+        write(*,*) 'enkf_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
+      else
+        randomSeedRandomPert = randomSeed
+      end if
+      call tmg_start(101,'LETKF-randomPert')
+      call enkf_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, randomSeedRandomPert)
+      call tmg_stop(101)
+    end if
+
+    !- Recompute the analysis spread stddev after inflation and humidity limits
+    call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+    call ens_computeStdDev(ensembleAnl)
+    call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
+
+    !- If SubSample requested, do remaining processing and output of sub-sampled members
+    if (writeSubSample) then
+
+      ! Apply random additive inflation to sub-sampled ensemble, if requested
+      if (alphaRandomPertSubSample > 0.0D0) then
+        ! If namelist value is -999, set random seed using the date (as in standard EnKF)
+        if (randomSeed == -999) then
+          imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+          dateStamp = tim_getDateStamp()
+          ierr = newdate(dateStamp, datePrint, timePrint, imode)
+          timePrint = timePrint/1000000
+          datePrint =  datePrint*100 + timePrint
+          ! Remove the year and add 9
+          randomSeedRandomPert = 9 + datePrint - 1000000*(datePrint/1000000)
+          write(*,*) 'enkf_postProcess: randomSeed for additive inflation set to ', randomSeedRandomPert
+        else
+          randomSeedRandomPert = randomSeed
+        end if
+        call tmg_start(101,'LETKF-randomPert')
+        call enkf_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
+                                alphaRandomPertSubSample, randomSeedRandomPert)
+        call tmg_stop(101)
+      end if
+
+      ! Compute analysis mean of sub-sampled ensemble
+      call ens_computeMean(ensembleAnlSubSample)
+
+      ! Shift members to have same mean as full ensemble and impose humidity limits, if requested
+      call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
+                        recenteringCoeff_opt=1.0D0)
+
+      ! Re-compute analysis mean of sub-sampled ensemble
+      call ens_computeMean(ensembleAnlSubSample)
+      call ens_copyEnsMean(ensembleAnlSubSample, stateVectorMeanAnlSubSample)
+
+      ! And compute mean increment with respect to mean of full trial ensemble
+      call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
+      call gsv_add(stateVectorMeanTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
+
+    end if
+
+    !
+    !- Output everything
+    !
+    call tmg_start(4,'LETKF-writeOutput')
+
+
+    !- Prepare stateVector with only MeanAnl surface pressure and surface height
+    call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+    call gsv_zero(stateVectorMeanAnlSfcPres)
+    if (mpi_myid <= (nEns-1)) then
+      call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
+                         dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.false., &
+                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+      call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
+    end if
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowMismatch_opt=.true.)
+    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+    call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
+
+    !- Output ens stddev and mean in trialrms, analrms and analpertrms files
+
+    ! determine middle timestep for output of these files
+    middleStepIndex = (tim_nstepobsinc + 1) / 2
+
+    ! output trialmean, trialrms
+    call enkf_getRmsEtiket(etiketMean, etiketStd, 'F', etiket0, nEns)
+    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
+    outFileName = trim(outFileName) // '_trialmean'
+    call gsv_writeToFile(stateVectorMeanTrl, outFileName, trim(etiketMean),  &
+                         typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16,  &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
+    outFileName = trim(outFileName) // '_trialrms'
+    call gsv_writeToFile(stateVectorStdDevTrl, outFileName, trim(etiketStd),  &
+                         typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
+
+    ! output analmean, analrms
+    call enkf_getRmsEtiket(etiketMean, etiketStd, 'A', etiket0, nEns)
+    call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
+    outFileName = trim(outFileName) // '_analmean'
+    call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                         typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+    call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
+    outFileName = trim(outFileName) // '_analrms'
+    call gsv_writeToFile(stateVectorStdDevAnl, outFileName, trim(etiketStd),  &
+                         typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
+
+    ! output analpertmean, analpertrms
+    call enkf_getRmsEtiket(etiketMean, etiketStd, 'P', etiket0, nEns)
+    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+    outFileName = trim(outFileName) // '_analpertmean'
+    call gsv_writeToFile(stateVectorMeanAnl, outFileName, trim(etiketMean),  &
+                         typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.true.)
+    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+    outFileName = trim(outFileName) // '_analpertrms'
+    call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, trim(etiketStd),  &
+                         typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                         stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+    outFileName = trim(outFileName) // '_ascii'
+    call enkf_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
+
+    !- Output the ensemble mean increment (include MeanAnl Psfc) and analysis
+
+    ! convert transformed to model variables for ensemble mean of analysis and trial
+    call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    ! and recompute mean increment for converted model variables (e.g. VIS and PR)
+    nullify(varNames)
+    call gsv_varNamesList(varNames, stateVectorMeanAnl)
+    call gsv_deallocate( stateVectorMeanInc )
+    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+    call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+    call gsv_add(stateVectorMeanTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+    deallocate(varNames)
+
+    ! output ensemble mean increment
+    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_writeToFile(stateVectorMeanInc, outFileName, 'ENSMEAN_INC',  &
+                           typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.false.)
+      call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+                           typvar_opt='A', writeHeightSfc_opt=.true., &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+    end do
+
+    ! output ensemble mean analysis state
+    call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
+    do stepIndex = 1, tim_nstepobsinc
+      call gsv_writeToFile(stateVectorMeanAnl, outFileName, 'ENSMEAN_ANL',  &
+                           typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+    end do
+
+    !- Output all ensemble member analyses and increments
+    ! convert transformed to model variables for analysis and trial ensembles
+    call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+    call tmg_start(104,'LETKF-writeEns')
+    call ens_writeEnsemble(ensembleAnl, '.', '', ' ', 'ENS_ANL', 'A',  &
+                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                           containsFullField_opt=.true.)
+    call tmg_stop(104)
+
+    ! WARNING: Increment put in ensembleTrl for output
+    call ens_add(ensembleAnl, ensembleTrl, scaleFactorInOut_opt=-1.0D0)
+    call tmg_start(104,'LETKF-writeEns')
+    call ens_writeEnsemble(ensembleTrl, '.', '', ' ', 'ENS_INC', 'R',  &
+                           numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                           containsFullField_opt=.false.)
+    ! Also write the reference (analysis) surface pressure to increment files
+    call enkf_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
+                                etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                ensPath='.')
+    call tmg_stop(104)
+
+    !- Output the sub-sampled ensemble analyses and increments
+    if (writeSubSample) then
+
+      ! Output the ensemble mean increment (include MeanAnl Psfc)
+      call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, 'ENSMEAN_INC',  &
+                             typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=16, &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.false.)
+        call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, 'ENSMEAN_INC',  &
+                             typvar_opt='A', writeHeightSfc_opt=.true., &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+      end do
+
+      ! Output the ensemble mean analysis state
+      call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, 'ENSMEAN_ANL',  &
+                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=16, &
+                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+      end do
+
+      ! Output the sub-sampled analysis ensemble members
+      call tmg_start(104,'LETKF-writeEns')
+      call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', ' ', 'ENS_ANL', 'A',  &
+                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                             containsFullField_opt=.true.)
+      call tmg_stop(104)
+
+      ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
+      ! WARNING: Increment put in ensembleTrlSubSample for output
+      call ens_add(ensembleAnlSubSample, ensembleTrlSubSample, scaleFactorInOut_opt=-1.0D0)
+      call tmg_start(104,'LETKF-writeEns')
+      call ens_writeEnsemble(ensembleTrlSubSample, 'subspace', '', ' ', 'ENS_INC', 'R',  &
+                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                             containsFullField_opt=.false.)
+      ! Also write the reference (analysis) surface pressure to increment files
+      call enkf_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
+                                  ens_getNumMembers(ensembleAnlSubSample),  &
+                                  etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
+                                  ensPath='subspace')
+      call tmg_stop(104)
+    end if
+
+    call tmg_stop(4)
+
+  end subroutine enkf_postProcess
+
+  !----------------------------------------------------------------------
+  ! enkf_getRMSEtiket (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_getRmsEtiket(etiketMean, etiketStd, etiketType, etiket0, nEns)
+    !
+    !:Purpose:   Return the appropriate string to use for the etiket
+    !            in standard files containing the ensemble mean and
+    !            spread.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*) :: etiketMean
+    character(len=*) :: etiketStd
+    character(len=*) :: etiketType
+    character(len=*) :: etiket0
+    integer          :: nEns
+
+    if (trim(etiketType) == 'F') then
+
+      ! create trialrms etiket, e.g. E2AVGTRPALL E24_3GMP0256
+      etiketStd(1:5) = etiket0(1:5)
+      etiketStd(6:7) = 'GM'
+      etiketStd(8:8) = etiket0(8:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7) = 'AVGTR'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else if (trim(etiketType) == 'A') then
+
+      ! create analrms etiket, e.g. E2AVGANPALL, E24_3_0P0256
+      etiketStd(1:8) = etiket0(1:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7)='AVGAN'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else if (trim(etiketType) == 'P') then
+
+      ! create analpertrms etiket, e.g. E2AVGPTPALL, E24_3PTP0256
+      etiketStd(1:5) = etiket0(1:5)
+      etiketStd(6:7) = 'PT'
+      etiketStd(8:8) = etiket0(8:8)
+      write(etiketStd(9:12),'(I4.4)') nEns
+      etiketMean(1:2) = etiket0(1:2)
+      etiketMean(3:7) = 'AVGPT'
+      etiketMean(8:8) = etiket0(8:8)
+      etiketMean(9:11) = 'ALL'
+
+    else
+      call utl_abort('enkf_getRmsEtiket: unknown value of etiketType')
+    end if
+
+  end subroutine enkf_getRmsEtiket
+
+  !----------------------------------------------------------------------
+  ! enkf_writeToAllMembers (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_writeToAllMembers(stateVector, nEns, etiket, typvar,  &
+                                    fileNameSuffix, ensPath)
+    !
+    !:Purpose:   Write the contents of the supplied stateVector to all
+    !            ensemble member files in an efficient parallel way.
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_gsv) :: stateVector
+    integer          :: nEns
+    character(len=*) :: etiket
+    character(len=*) :: typvar
+    character(len=*) :: fileNameSuffix
+    character(len=*) :: ensPath
+
+    ! locals:
+    integer            :: memberIndex, stepIndex, writeFilePE(nEns)
+    character(len=4)   :: memberIndexStr
+    character(len=256) :: outFileName
+
+    do memberIndex = 1, nEns
+      writeFilePE(memberIndex) = mod(memberIndex-1, mpi_nprocs)
+    end do
+
+    do memberIndex = 1, nEns
+
+      if (mpi_myid == writeFilePE(memberIndex)) then
+
+        call fln_ensAnlFileName( outFileName, ensPath, tim_getDateStamp(),  &
+                                 memberIndex, ensFileNameSuffix_opt=fileNameSuffix )
+        write(memberIndexStr,'(I4.4)') memberIndex
+
+        do stepIndex = 1, tim_nstepobsinc
+          call gsv_writeToFile(stateVector, outFileName,  &
+                               trim(etiket) // memberIndexStr,  &
+                               typvar_opt=trim(typvar), writeHeightSfc_opt=.true., &
+                               stepIndex_opt=stepIndex, containsFullField_opt=.true., &
+                               numBits_opt=16)
+        end do
+
+      end if
+
+    end do
+
+  end subroutine enkf_writeToAllMembers
+
+  !----------------------------------------------------------------------
+  ! enkf_computeLogPresM (private subroutine)
   !----------------------------------------------------------------------
   subroutine enkf_computeLogPresM(logPres_M_r4,stateVectorMeanTrl)
+    !
+    !:Purpose:  Compute extract global 3D log pressure field from supplied
+    !           stateVector.
+    !
     implicit none
 
     ! Arguments
@@ -1029,16 +1435,16 @@ contains
   end subroutine enkf_computeLogPresM
 
   !----------------------------------------------------------------------
-  ! enkf_setupMpiDistribution
+  ! enkf_setupMpiDistribution (private subroutine)
   !----------------------------------------------------------------------
   subroutine enkf_LETKFsetupMpiDistribution(myNumLatLonRecv, myNumLatLonSend, &
                                             myLatIndexesRecv, myLonIndexesRecv, &
                                             myLatIndexesSend, myLonIndexesSend, &
                                             myProcIndexesRecv, myProcIndexesSend, &
                                             myNumProcIndexesSend, mpiDistribution, wInterpInfo)
-
+    !
     ! :Purpose: Setup for distribution of grid points over mpi tasks.
-
+    !
     implicit none
 
     ! Arguments
@@ -1251,7 +1657,7 @@ contains
   end subroutine enkf_LETKFsetupMpiDistribution
 
   !----------------------------------------------------------------------
-  ! enkf_latLonAlreadyFound
+  ! enkf_latLonAlreadyFound (private function)
   !----------------------------------------------------------------------
   function enkf_latLonAlreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex) result(found)
     implicit none
@@ -1287,10 +1693,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_setupInterpInfo(wInterpInfo, hco, weightLatLonStep,  &
                                   myLonBeg,myLonEnd,myLatBeg,myLatEnd)
+    !
     ! :Purpose: Setup the weights and lat/lon indices needed to bilinearly
     !           interpolate the LETKF weights from a coarse grid to the full
     !           resolution grid. The coarseness of the grid is specified by
     !           the weightLatLonStep argument.
+    !
     implicit none
 
     ! Arguments
@@ -1484,8 +1892,10 @@ contains
   ! enkf_interpWeights
   !--------------------------------------------------------------------------
   subroutine enkf_interpWeights(wInterpInfo, weights)
+    !
     ! :Purpose: Perform the bilinear interpolation of the weights
     !           using the precalculated interpolation info.
+    !
     implicit none
 
     ! Arguments
@@ -1907,7 +2317,7 @@ contains
   subroutine enkf_hybridRecentering(ensembleAnl, weightRecenter,  &
                                     useOptionTableRecenter, numMembersToRecenter)
     ! :Purpose: Modify an ensemble by recentering the members on a state provided
-    !           in the file "recentering_analysis.fst".
+    !           in the file "recentering_analysis".
     !           The "weightRecenter" and "numMembersToRecenter" are used in the calculation
     !           to determine the amount of recentering and how many members it is
     !           applied to. Alternatively the information in the "optiontable" file
@@ -1925,7 +2335,7 @@ contains
     type(struct_gsv) :: stateVectorRecenterAnl
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_vco), pointer :: vco_ens => null()
-    character(len=30)    :: recenterAnlFileName = 'recentering_analysis.fst'
+    character(len=30)    :: recenterAnlFileName = 'recentering_analysis'
     character(len=20)    :: stringArray(100)
     character(len=1000)  :: textLine
     integer              :: stepIndex, memberIndex, columnIndex
@@ -1953,15 +2363,15 @@ contains
         call utl_abort('enkf_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
-      write(*,*) 'enkf_hybridRecentering: optiontable file has ', numColumns, ' columns.'
+      if (mpi_myid==0) write(*,*) 'enkf_hybridRecentering: optiontable file has ', numColumns, ' columns.'
       allocate( weightArray(0:numMembers) )
       rewind(nulFile)
       do memberIndex = 0, numMembers
         read(nulFile,'(a)') textLine
         call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
-        write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        if (mpi_myid==0) write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
         read(stringArray(numColumns),'(f6.3)') weightArray(memberIndex)
-        write(*,*) 'weightArray = ', weightArray(memberIndex)
+        if (mpi_myid==0) write(*,*) 'weightArray = ', weightArray(memberIndex)
       end do
       status = fclos(nulFile)
     end if
@@ -1996,5 +2406,166 @@ contains
     if ( allocated(weightArray) ) deallocate(weightArray)
 
   end subroutine enkf_hybridRecentering
+
+  !-----------------------------------------------------------------
+  ! enkf_printRmsStats
+  !-----------------------------------------------------------------
+  subroutine enkf_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns)
+    !
+    ! :Purpose: Print statistics of a field to an ASCII output file
+    !
+    implicit none
+
+    ! arguments
+    type(struct_gsv)             :: stateVectorStdDev
+    character(len=*)             :: fileName
+    real(8), intent(in)          :: elapsed
+    character(len=1), intent(in) :: ftype
+    integer, intent(in)          :: nEns
+
+    ! locals
+    real(8), allocatable          :: rmsvalue(:) 
+    type(struct_vco), pointer     :: vco
+    type(struct_hco), pointer     :: hco
+    character(len=4), allocatable :: nomvar_v(:)
+    character(len=2)              :: varLevel
+    real(8), allocatable          :: weight(:,:), scaleFactor(:)
+    real(4), allocatable          :: hyb_v(:)
+    integer :: ierr, lonIndex, latIndex, lonIndexP1, latIndexP1, nulFile
+    integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
+    real(4), pointer              :: stdDev_ptr_r4(:,:,:)
+    real(8)                       :: lon1, lon2, lon3, lat1, lat2, lat3
+    real(8)                       :: distanceX, distanceY, sumWeight
+    real(8)                       :: pSfc(1,1)
+    real(8), pointer              :: pressures_T(:,:,:), pressures_M(:,:,:)
+    integer, external             :: fnom, fclos
+
+    vco => gsv_getVco(stateVectorStdDev)
+    nLev_M = vco_getNumLev(vco,'MM')
+
+    numK = gsv_getNumK(stateVectorStdDev)
+    allocate(nomvar_v(numK))
+    allocate(hyb_v(numK))
+    allocate(rmsvalue(numK))
+    allocate(scaleFactor(numK))
+    allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
+
+    ! compute a 2D weight field used for horizontal averaging
+    hco => gsv_getHco(stateVectorStdDev)
+    sumWeight = 0.0D0
+    do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
+      do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
+        lonIndexP1 = min(stateVectorStdDev%ni,lonIndex+1)
+        latIndexP1 = min(stateVectorStdDev%nj,latIndex+1)
+        lon1 = hco%lon2d_4(lonIndex,latIndex)
+        lon2 = hco%lon2d_4(lonIndexP1,latIndex)
+        lon3 = hco%lon2d_4(lonIndex,latIndexP1)
+        lat1 = hco%lat2d_4(lonIndex,latIndex)
+        lat2 = hco%lat2d_4(lonIndexP1,latIndex)
+        lat3 = hco%lat2d_4(lonIndex,latIndexP1)
+        distanceX = phf_calcDistance(lat1, lon1, lat2, lon2)/1000.0D0
+        distanceY = phf_calcDistance(lat1, lon1, lat3, lon3)/1000.0D0
+        weight(lonIndex,latIndex) = distanceX * distanceY
+        sumWeight = sumWeight + weight(lonIndex,latIndex)
+      end do
+    end do
+    call mpi_allreduce_sumreal8scalar(sumWeight,'GRID')
+    weight(:,:) = weight(:,:) / sumWeight
+    
+    ! compute global mean variance accounting for weights
+    stdDev_ptr_r4 => gsv_getField3D_r4(stateVectorStdDev)
+    rmsvalue(:) = 0.0D0
+    do kIndex = 1, numK
+      do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
+        do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
+          rmsvalue(kIndex) = rmsvalue(kIndex) +  &
+               (stdDev_ptr_r4(lonIndex,latIndex,kIndex)**2) *  &
+               weight(lonIndex,latIndex)
+        end do
+      end do
+      call mpi_allreduce_sumreal8scalar(rmsvalue(kIndex),'GRID')
+      rmsvalue(kIndex) = rmsvalue(kIndex)**0.5
+    end do
+
+    ! compute pressure for a column where Psfc=1000hPa
+    pSfc(1,1) = 1000.0D2 !1000 hPa
+    ! pressure on momentum levels
+    nullify(pressures_M)
+    ierr = vgd_levels(vco%vgrid,           &
+                      ip1_list=vco%ip1_M,  &
+                      levels=pressures_M,  &
+                      sfc_field=pSfc,      &
+                      in_log=.false.)
+    if ( ierr /= VGD_OK ) call utl_abort('enkf_printRmsStats: ERROR with vgd_levels')
+    ! pressure on thermodynamic levels
+    nullify(pressures_T)
+    ierr = vgd_levels(vco%vgrid,           &
+                      ip1_list=vco%ip1_T,  &
+                      levels=pressures_T,  &
+                      sfc_field=pSfc,      &
+                      in_log=.false.)
+    if ( ierr /= VGD_OK ) call utl_abort('enkf_printRmsStats: ERROR with vgd_levels')
+
+    ! set the variable name, normalized pressure and scaleFactor for each element of column
+    do kIndex = 1, numK
+      levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
+      nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
+      varLevel = vnl_varLevelFromVarname(nomvar_v(kIndex))
+      if (varLevel == 'MM') then
+        hyb_v(kIndex) = pressures_M(1,1,levIndex)/Psfc(1,1)
+      else if (varLevel == 'TH') then
+        hyb_v(kIndex) = pressures_T(1,1,levIndex)/Psfc(1,1)
+      else
+        hyb_v(kIndex) = 1.0
+      end if
+      if ( (nomvar_v(kIndex) == 'UU') .or. (nomvar_v(kIndex) == 'VV') ) then
+        scaleFactor(kIndex) = MPC_KNOTS_PER_M_PER_S_R8
+      else if (nomvar_v(kIndex) == 'P0') then
+        scaleFactor(kIndex) = MPC_MBAR_PER_PA_R8
+      else
+        scaleFactor(kIndex) = 1.0d0
+      end if
+      rmsvalue(kIndex) = scaleFactor(kIndex) * rmsvalue(kIndex)
+    end do
+
+    ! write to file
+    if (mpi_myid == 0) then
+      write(*,*) 'enkf_printRmsStats: Opening ascii output file: ', trim(fileName)
+      nulFile = 0
+      ierr = fnom (nulFile, fileName, 'SEQ+R/W', 0)
+      if (ierr /= 0) then
+        call utl_abort('enkf_printRmsStats: Cannot open ascii output file')
+      end if
+
+      kIndexCount = 0
+      if ( (nomvar_v(1) == 'UU') .and. (nomvar_v(1+nLev_M) == 'VV') ) then        
+        do levIndex = 1, nLev_M
+          kIndexCount = kIndexCount + 2
+          kIndexUU = levIndex
+          kIndexVV = levIndex + nLev_M
+          write(nulFile,100) &
+               elapsed,ftype,nEns,nomvar_v(kIndexUU),hyb_v(kIndexUU),rmsvalue(kIndexUU)
+          write(nulFile,100) &
+               elapsed,ftype,nEns,nomvar_v(kIndexVV),hyb_v(kIndexVV),rmsvalue(kIndexVV)
+        end do
+      end if
+      do kIndex = kIndexCount+1, numK
+        write(nulFile,100) &
+             elapsed,ftype,nEns,nomvar_v(kIndex),hyb_v(kIndex),rmsvalue(kIndex)   
+      end do
+      ierr = fclos(nulFile)
+    end if
+
+100 format(f7.2,1x,A1,1x,I5,1x,A4,1x,f12.7,1x,(2E12.5))
+
+    deallocate(pressures_M)
+    deallocate(pressures_T)
+    deallocate(weight)
+    deallocate(nomvar_v)
+    deallocate(hyb_v)
+    deallocate(scaleFactor)
+    deallocate(rmsvalue)
+
+  end subroutine enkf_printRmsStats
 
 end module enkf_mod

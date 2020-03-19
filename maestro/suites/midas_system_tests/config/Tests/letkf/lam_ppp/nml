@@ -1,26 +1,30 @@
  &NAMLETKF
    algorithm             = 'LETKF'
+   ensPostProcessing     = .true.
    NENS                  = 40
    maxNumLocalObs        = 10000
    weightLatLonStep      = 3
    hLocalize             = 200.0D0
    vLocalize             = 2.0D0
    alphaRTPP             = 0.40D0
-   alphaRTPS             = 0.80D0
-   alphaRandomPert       = 0.10D0
    modifyAmsubObsError   = .false.
    backgroundCheck       = .false.
    huberize              = .false.
    rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
-   imposeSaturationLimit = .true.
-   imposeRttovHuLimits   = .true.
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
+/
+ &NAMENSPOSTPROC
+   alphaRTPS             = 0.80D0
+   alphaRandomPert       = 0.10D0
+   imposeSaturationLimit = .true.
+   imposeRttovHuLimits   = .true.
    useOptionTableRecenter = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
+   onlyAssimObs    = .true.
 /
  &NAMBHI
    NTRUNC  =          42,

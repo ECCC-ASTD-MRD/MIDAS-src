@@ -233,15 +233,16 @@ module sqliteFiles_mod
   end subroutine sqlf_thinFile
 
 
-  subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName )
+  subroutine sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in)     :: sfFileName ! fileName acronym used for surface obs file
+    logical                          :: onlyAssimObs
 
     call tmg_start(99,'sqlf_writeSqlDiagFiles: TOTAL: ')
     
-    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName )
+    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs )
     
     call tmg_stop(99)
 
