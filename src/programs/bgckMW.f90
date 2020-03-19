@@ -1,3 +1,4 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -15,7 +16,7 @@
 
 program midas_bgckMW
   !
-  !:Purpose: Main program for background check of microwave instruments. 
+  !:Purpose: Main program for background check of passive microwave instruments. 
   !
   use bgckmicrowave_mod
   use MathPhysConstants_mod
@@ -29,17 +30,10 @@ program midas_bgckMW
   integer                       :: reportNumChannel                                   ! "      "   channels "      "
   integer                       :: nobs_tot                                           ! obs. total number
   integer                       :: n_bad_reps                                         ! bad reports number
-  integer                       :: exdb                                               !
-  integer                       :: exfin                                              !
-  integer                       :: ier                                                !
-  integer                       :: istat                                              !
-  integer                       :: nulnam                                             !
-  integer                       :: fnom                                               !
-  integer                       :: fclos                                              !
   integer                       :: satelliteIndexObserrorFile                         ! satellite index in obserror file
   logical                       :: resumeReport                                       ! logical to newInformationFlagify resume report
   logical                       :: ifLastReport                                       ! logical to newInformationFlagify last report
-  character(len=9)              :: burpFileSatId                                              ! station id in burp file
+  character(len=9)              :: burpFileSatId                                      ! station id in burp file
   character(len=9), allocatable :: satelliteId(:)                                     ! satellite Id in stats error file
   real, allocatable             :: modelInterpTerrain(:)                              ! topo in standard file interpolated to obs point
   real, allocatable             :: modelInterpSeaIce(:)                               ! Glace de mer " "
@@ -79,8 +73,10 @@ program midas_bgckMW
   integer, allocatable          :: newInformationFlag(:)                        ! ATMS Information flag (newInformationFlag) values (new BURP element 
   !                                                                  025174 in header). FOR AMSUA just fill with zeros 
   real,    allocatable          :: cloudLiquidWaterPath(:)                          ! cloud liquid water. NB: for AMSUA, cloudLiquidWaterPath=0.5(model_cloudLiquidWaterPath + obs_cloudLiquidWaterPath)
-  real,    allocatable          :: atmScateringIndex(:)                        ! scatering index
-  external EXDB,EXFIN
+  real,    allocatable          :: atmScatteringIndex(:)                        ! scattering index
+  integer, external             :: exdb, exfin, fnom, fclos
+  integer                       :: ier, istat, nulnam
+
   ! namelist variables
   character(len=9)              :: instName                        ! instrument name
   character(len=90)             :: burpFileNameIn                  ! burp input file name
@@ -114,24 +110,24 @@ program midas_bgckMW
   call mpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_PREPCMA' )
+  call tmg_init(mpi_myid, 'TMG_BGCKMW' )
   call tmg_start(1,'MAIN')
  
   ! default namelist values
-  instName = 'AMSUA'
-  burpFileNameIn = './obsto_amsua'
-  burpFileNameOut = './obsto_amsua.out'
-  mglg_file  = './fstmglg'
-  statsFile = './stats_amsua_assim'  
-  writeModelLsqTT = .false.
-  writeEle25174 = .false.
-  clwQcThreshold = 0.3 
+  instName              = 'AMSUA'
+  burpFileNameIn        = './obsto_amsua'
+  burpFileNameOut       = './obsto_amsua.out'
+  mglg_file             = './fstmglg'
+  statsFile             = './stats_amsua_assim'  
+  writeModelLsqTT       = .false.
+  writeEle25174         = .false.
+  clwQcThreshold        = 0.3 
   allowStateDepSigmaObs = .false.
-  useUnbiasedObsForClw = .false.
-  debug = .false.
-  RESETQC = .FALSE.
-  ETIKRESU = '>>BGCKALT'
-  lutb = .False.
+  useUnbiasedObsForClw  = .false.
+  debug                 = .false.
+  RESETQC               = .false.
+  ETIKRESU              = '>>BGCKALT'
+  lutb                  = .false.
 
   ! reading namelist
   nulnam = 0
@@ -203,7 +199,7 @@ program midas_bgckMW
                                 biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumObs, &
                                 mwbg_realMisg, satelliteIndexObserrorFile, globalQcIndicator, satelliteScanPosition, &
                                 modelInterpGroundIce, modelInterpTerrain, modelInterpSeaIce, terrainTypeIndice, satelliteZenithAngle, &
-                                observationFlags, newInformationFlag, cloudLiquidWaterPath, atmScateringIndex, rejectionCodArray, &
+                                observationFlags, newInformationFlag, cloudLiquidWaterPath, atmScatteringIndex, rejectionCodArray, &
                                 burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, obsLatitude, obsLongitude, landQualifierIndice, terrainTypeIndice, &
@@ -212,7 +208,7 @@ program midas_bgckMW
                                biasCorr, ompTemperatureBrillance, qualityControlIndicator, reportNumChannel, reportNumChannel, &
                                reportNumObs, mwbg_realMisg, satelliteIndexObserrorFile, newInformationFlag, globalQcIndicator, &
                                satelliteScanPosition, modelInterpTerrain, obsGlobalMarker, observationFlags, cloudLiquidWaterPath, &
-                               atmScateringIndex, rejectionCodArray, rejectionCodArray2, burpFileSatId, RESETQC, ifLastReport)
+                               atmScatteringIndex, rejectionCodArray, rejectionCodArray2, burpFileSatId, RESETQC, ifLastReport)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
@@ -223,7 +219,7 @@ program midas_bgckMW
       !###############################################################################
       write(*,*) ' ==> mwbg_qcStats For: ', instName
       call mwbg_qcStats(instName, qualityControlIndicator, observationChannels, satelliteIndexObserrorFile, reportNumChannel, &
-                             reportNumObs, satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
+                        reportNumObs, satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
 
     end if 
 
@@ -231,7 +227,7 @@ program midas_bgckMW
     ! STEP 7) Update the burpfile out burpFileNameIn
     !###############################################################################
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
-    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPath, atmScateringIndex, &
+    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPath, atmScatteringIndex, &
                          newInformationFlag, obsGlobalMarker, RESETQC, globalQcIndicator, landQualifierIndice, terrainTypeIndice, &
                          observationFlags, lutb, writeModelLsqTT, writeEle25174, burpFileNameout)
 
@@ -250,7 +246,7 @@ program midas_bgckMW
                     reportNumObs, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
 
   call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_PREPCMA' )
+  call tmg_terminate(mpi_myid, 'TMG_BGCKMW' )
 
   call rpn_comm_finalize(ier)
 

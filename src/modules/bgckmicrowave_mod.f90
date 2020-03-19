@@ -3325,7 +3325,7 @@ contains
     integer, allocatable             :: trn(:) 
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
-    logical                          :: lutb         ! true if Tb(ztb) are set to missing_value
+    logical                          :: lutb            ! true if Tb(ztb) are set to missing_value
     logical, allocatable             :: lqc(:,:)        ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
     logical, allocatable             :: cloudobs(:)
     logical, allocatable             :: iwvreject(:)
@@ -4798,6 +4798,7 @@ contains
     !  for checks 3 and 4 fails.
     implicit none
 
+    ! Arguments
     integer,              intent(in)                :: ilq(:)
     integer,              intent(in)                :: itt(:)
     integer,              intent(in)                :: scanpos(:)
@@ -4814,11 +4815,10 @@ contains
     real,                 intent(in)                :: zlon(:)
     real,                 intent(inout)             :: ztb(:)
     real,                 intent(inout)             :: zenith(:)
-    logical,              intent(out)               :: lutb         ! true if Tb(ztb) are set to missing_value
+    logical,              intent(out)               :: lutb            ! true if Tb(ztb) are set to missing_value
     logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
-     
-     
-    !  Locals
+
+    ! Locals
     integer :: ii, jj, indx1, icount
     logical :: fail, fail1, fail2
 
