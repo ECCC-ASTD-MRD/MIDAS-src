@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    `abortOnMpiImbalance` namelist variable in `namstate` (#312 and !298)
 
 ### Changed
-
+ * Unify the `bgckMW` program for AMSUA and ATMS QC (#308 and !315)
  * Improve memory usage in `stateToColumn_mod` (#306 and !310)
  * The `midas-prepcma` program is now mpi (#325 and !309)
  * Diag sqlite files now produce unique id_obs, id_data values across mpi tasks (#318 and !303)
