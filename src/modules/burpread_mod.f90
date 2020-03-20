@@ -3992,6 +3992,7 @@ CONTAINS
     end do
 
     if ( count > 0 .and. isDerialt) then
+      write(*,*) "brpr_addRadianceBiasCorrectionElement: modifying file..."
 
       ! create a new report
       ! ------------------     
@@ -4033,8 +4034,7 @@ CONTAINS
 
           btyp10 = ishft(btyp,-5)
 
-          if ( btyp10 == 291 .and. bfam == 0 ) then !Data block 291 = 2**8 + 2**5 + 2**1 + 2**0
-            
+          if ( btyp10 == 289 .and. bfam == 0 ) then !Data block 289 = 2**8 + 2**5 + 2**0 for a derialt file
             indele = burp_find_element(inputBlock, element=icodele, iostat=error)
 
             if ( indele <= 0 ) then
@@ -4043,20 +4043,21 @@ CONTAINS
               Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodele, IOSTAT = error)
               do valIndex = 1,nvale
                 do tIndex = 1,nte
-                  call burp_set_tblval( inputBlock, &
+                  call burp_set_rval( inputBlock, &
                        nele_ind = nbele,            &
                        nval_ind = valIndex,         &
                        nt_ind   = tIndex,           &
-                       tblval   = -1, iostat=error)
+                       rval   = val_option, iostat=error)
                   if (error /= 0) call handle_error()
                 end do
               end do
             end if
         
             call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.false., iostat=error)
+                 convert_block =.true., encode_block=.true., iostat=error)
 
-          else if ( btyp10 == 483 .and. bfam == 0 ) then     !  MRQ block ; 483 =  2**8 + 2**7 + 2**6 + 2**5 + 2**1 + 2**0
+
+          else if ( btyp10 == 481 .and. bfam == 0 ) then     !  MRQ block ; 481 =  2**8 + 2**7 + 2**6 + 2**5 + 2**0 for a derialt file
             indele = burp_find_element(inputBlock, element=icodeleMrq , iostat=error)
             if ( indele <= 0 ) then
               nbele = nbele + 1
@@ -4075,7 +4076,7 @@ CONTAINS
             end if
         
             call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block =.true., encode_block=.false.,iostat=error)
+                 convert_block =.false., encode_block=.true.,iostat=error)
 
           else !other blocks
 
@@ -4096,6 +4097,10 @@ CONTAINS
     end if
 
     call  cleanup()
+
+    write(*,*) '---------------------------------------------'
+    write(*,*) '- end brpr_addRadianceBiasCorrectionElement -'
+    write(*,*) '---------------------------------------------'
 
   contains
 

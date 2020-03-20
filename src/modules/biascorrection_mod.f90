@@ -48,6 +48,7 @@ MODULE biasCorrection_mod
   public               :: bias_removeBiasCorrection, bias_refreshBiasCorrection, bias_readConfig
   public               :: bias_do_regression, bias_filterObs, bias_computeResidualsStatistics, bias_calcBias
   public               :: bias_removeOutliers, bias_applyBiasCorrection
+  public               :: bias_mimicSatbcor
 
   type  :: struct_chaninfo
     integer :: numActivePredictors
@@ -94,6 +95,7 @@ MODULE biasCorrection_mod
   logical  :: biasActive, loutstats
   logical  :: doRegression
   logical  :: lMimicSatbcor, lweightedEstimate, filterObs
+  logical  :: bias_mimicSatbcor
   real(8)  :: bg_stddev(NumPredictors),predScalingFactor(NumPredictors),predOffset(NumPredictors)
   real(8)  :: scanBiasCorLength 
   logical  :: removeBiasCorrection, refreshBiasCorrection, centerPredictors,loutCoeffCov
@@ -152,6 +154,7 @@ CONTAINS
          write(*,*) 'bias_readConfig: WARNING: Error reading namelist, assume it will not be used!'
     if ( mpi_myid == 0 ) write(*,nml=nambias)
     ierr = fclos(nulnam)
+    bias_mimicSatbcor = lMimicSatbcor
 
  end subroutine bias_readConfig
 
@@ -1621,7 +1624,7 @@ CONTAINS
               end do
             end if
           end do
-          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0)  &
+          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0 .and. (.not. doRegression) ) &
                Write(*,*) "bias_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) =",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
