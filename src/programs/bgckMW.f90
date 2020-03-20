@@ -91,7 +91,7 @@ program midas_bgckMW
   logical                       :: debug                           ! debug mode
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
-  logical                       :: writeTbValuesToFile                            ! logical for replacing missing tb value
+  logical                       :: writeTbValuesToFile             ! logical for replacing missing tb value
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &

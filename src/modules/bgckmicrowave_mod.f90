@@ -113,7 +113,7 @@ contains
 
     ISRCHEQR = 0
     do JI=1,KLEN
-       if ( NINT(KLIST(JI)) .EQ. NINT(KENTRY) ) THEN
+       if ( NINT(KLIST(JI)) .EQ. NINT(KENTRY) ) then
           ISRCHEQR = JI
           return
        end if
@@ -143,7 +143,7 @@ contains
 
     ISRCHEQI_out = 0
     do JI=1,KLEN
-       if ( KLIST(JI) .EQ. KENTRY ) THEN
+       if ( KLIST(JI) .EQ. KENTRY ) then
           ISRCHEQI_out = JI
           return
        end if
@@ -1872,14 +1872,14 @@ contains
     debug = mwbg_debug
     dataNum = size(globMarq)
     do dataIndex = 1, dataNum
-      if (RESETQC) THEN
+      if (RESETQC) then
         globMarq(dataIndex) = 1024  
       end if
-      if ( KCHKPRF(dataIndex).NE.0  ) THEN
+      if ( KCHKPRF(dataIndex).NE.0  ) then
         globMarq(dataIndex) = OR (globMarq(dataIndex),2**6)
       end if
     end do
-    if (debug) THEN
+    if (debug) then
       write(*,*) ' KCHKPRF   = ', (KCHKPRF(dataIndex),dataIndex=1,dataNum)
       write(*,*) ' NEW FLAGS = ', (globMarq(dataIndex),dataIndex=1,dataNum)
     end if
@@ -1910,7 +1910,7 @@ contains
     debug = mwbg_debug
     dataNum = size(ITERRAIN)
 
-    if ( mwbg_debug ) THEN
+    if ( mwbg_debug ) then
       write(*,*) ' OLD TERRAIN type = ', (ITERRAIN(dataIndex),dataIndex=1,dataNum)
       write(*,*) ' KTERMER = ', (KTERMER(dataIndex),dataIndex=1,dataNum)
       write(*,*) ' GLINTRP = ', (GLINTRP(dataIndex),dataIndex=1,dataNum)
@@ -1919,7 +1919,7 @@ contains
       if ( KTERMER (dataIndex) == 1 .and. ITERRAIN(dataIndex) == -1 .and. GLINTRP (dataIndex) >= 0.01 ) &
            ITERRAIN(dataIndex) = 0
     end do
-    if ( mwbg_debug ) THEN
+    if ( mwbg_debug ) then
       write(*,*) ' NEW TERRAIN type = ', (ITERRAIN(dataIndex),dataIndex=1,dataNum)
     end if
     
@@ -2283,7 +2283,7 @@ contains
       !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
       if (my_btyp == 5120) then     
 
-        if (mwbg_debug) THEN
+        if (mwbg_debug) then
           write(*,*) ' OLD FLAGS = ', (globMarq(JJ),JJ=1,my_nt)
         end if
 
@@ -2327,7 +2327,6 @@ contains
         if (writeTbValuesToFile) then
           call copyRealElementToBurpBlock(blk, 12163, ztb, "Tb_data", my_nval, my_nt)
           call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .False.)        
-
         else
           call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
         end if
@@ -2813,8 +2812,8 @@ contains
 
       ! Get satellite (e.g. NOAA18) from satellite/instrument (e.g. NOAA18 AMSUA)
       INDX = INDEX(CSATSTR, instName)
-      if ( INDX .GT. 3 ) THEN
-        if ( (instName == 'AMSUA') .and. ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) ) THEN
+      if ( INDX .GT. 3 ) then
+        if ( (instName == 'AMSUA') .and. ( INDEX(CSATSTR,'EOS-2') .GT. 0 ) ) then
           satelliteId(jpnsatIndex) = 'AQUA'
         else
           IPOS = INDX-2
@@ -2852,7 +2851,7 @@ contains
     do jpnsatIndex = 1, satNumber
       INDX = 0
       do jpnchanIndex = 1, mwbg_maxNumChan
-        if ( IUTILST(jpnchanIndex,jpnsatIndex) .NE. 0 ) THEN
+        if ( IUTILST(jpnchanIndex,jpnsatIndex) .NE. 0 ) then
           NCHNA(jpnsatIndex) = NCHNA(jpnsatIndex) + 1
           INDX = INDX + 1
           MLISCHNA(INDX,jpnsatIndex) = jpnchanIndex
@@ -2921,13 +2920,13 @@ contains
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
           IBIT = AND(KMARQ(nChannelIndex,nDataIndex), 2**7)
-          if ( IBIT .NE. 0  ) THEN
+          if ( IBIT .NE. 0  ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             B7CHCK(nChannelIndex,nDataIndex) = 1
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-            if ( mwbg_debug ) THEN
+            if ( mwbg_debug ) then
               write(*,*)STNID(2:9),' first bgckAtms program REJECT.', &
                         'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
                         ' IMARQ= ',KMARQ(nChannelIndex,nDataIndex)
@@ -2976,18 +2975,18 @@ contains
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
           INDXTOPO = ISRCHEQI(ICHTOPO, MXTOPO, KCANO(nChannelIndex,nDataIndex))
-          if ( INDXTOPO .GT. 0 ) THEN
-            if ( MTINTRP(nDataIndex) .GE. ZCRIT(INDXTOPO) ) THEN
+          if ( INDXTOPO .GT. 0 ) then
+            if ( MTINTRP(nDataIndex) .GE. ZCRIT(INDXTOPO) ) then
               ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
               KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
               KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**18)
               rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                    rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-              if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
+              if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) then
                 rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                    rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1                 
               end if
-              if ( mwbg_debug ) THEN
+              if ( mwbg_debug ) then
                 write(*,*)STNID(2:9),' TOPOGRAPHY REJECT.', &
                           'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
                           ' TOPO= ',MTINTRP(nDataIndex)
@@ -3032,22 +3031,22 @@ contains
     integer                                                   :: IBIT 
 
     
-    if (.NOT.RESETQC) THEN
+    if (.NOT.RESETQC) then
       testIndex = 3
       if ( itest(testIndex) .eq. 1 ) then
         do nDataIndex=1,KNT
           do nChannelIndex=1,KNO
             IBIT = AND(KMARQ(nChannelIndex,nDataIndex), 2**6)
-            if ( IBIT .EQ. 0  ) THEN
+            if ( IBIT .EQ. 0  ) then
               ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
               KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**11)
               rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-              if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
+              if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) then
                 rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                     rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1                 
               end if
-              if ( mwbg_debug ) THEN
+              if ( mwbg_debug ) then
                 write(*,*)STNID(2:9),' UNCORRECTED TB REJECT.', &
                           'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
                           ' IMARQ= ',KMARQ(nChannelIndex,nDataIndex)
@@ -3121,17 +3120,17 @@ contains
           XCHECKVAL = ROGUEFAC(channelval) * &
                      TOVERRST(channelval,KNOSAT) 
           if ( PTBOMP(nChannelIndex,nDataIndex)      .NE. PMISG    .AND. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL     ) THEN
+              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GE. XCHECKVAL     ) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) =  &
                rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
-            if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
+            if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) then
               rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1                 
             end if
-            if ( mwbg_debug ) THEN
+            if ( mwbg_debug ) then
               write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                      ' OBS = ',nDataIndex, &
                      ' CHANNEL= ',KCANO(nChannelIndex,nDataIndex), &
@@ -3140,27 +3139,27 @@ contains
             end if
             if ( channelval .EQ. 1 .OR. &
                 channelval .EQ. 2 .OR. &
-                channelval .EQ. 3    ) THEN
+                channelval .EQ. 3    ) then
               SFCREJCT = .TRUE.
             end if
           end if
           if ( channelval .EQ. 17 .AND. PTBOMP(nChannelIndex,nDataIndex) .NE. PMISG .AND. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GT. 5.0 ) THEN
+              ABS(PTBOMP(nChannelIndex,nDataIndex)) .GT. 5.0 ) then
             CH2OMPREJCT = .TRUE.
           end if
         end do
 
-        if ( SFCREJCT ) THEN
+        if ( SFCREJCT ) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ISFCREJ,MXSFCREJ,KCANO(nChannelIndex,nDataIndex))
-            if ( INDXCAN .NE. 0 )  THEN
-              if ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) THEN
+            if ( INDXCAN .NE. 0 )  then
+              if ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) then
                 ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
                 KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
                 KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
                 rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                         rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-                if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
+                if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) then
                   rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                      rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1                 
                 end if
@@ -3173,17 +3172,17 @@ contains
         !    Apply over open water only (bit 0 ON in QC integer identf).
         !    Only apply if obs not rejected in this test already.
         IBIT = AND(IDENTF(nDataIndex), 2**0)
-        if ( CH2OMPREJCT .AND. (IBIT .NE. 0) ) THEN
+        if ( CH2OMPREJCT .AND. (IBIT .NE. 0) ) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ICH2OMPREJ,MXCH2OMPREJ,KCANO(nChannelIndex,nDataIndex))
-            if ( INDXCAN .NE. 0 )  THEN
-              if ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) THEN
+            if ( INDXCAN .NE. 0 )  then
+              if ( ICHECK(nChannelIndex,nDataIndex) .NE. testIndex ) then
                 ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
                 KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
                 KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
                 rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                         rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-                if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) THEN
+                if ( B7CHCK(nChannelIndex,nDataIndex) .EQ. 0 ) then
                   rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                      rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1                 
                 end if
@@ -3234,11 +3233,11 @@ contains
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
            channelval = KCANO(nChannelIndex,nDataIndex)
-           if ( IUTILST(channelval,KNOSAT) .EQ. 0 ) THEN
+           if ( IUTILST(channelval,KNOSAT) .EQ. 0 ) then
              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**8)
              rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                    rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-             if ( mwbg_debug ) THEN
+             if ( mwbg_debug ) then
                write(*,*)STNID(2:9),'CHANNEL REJECT: ', &
                       ' OBS = ',nDataIndex, &
                       ' CHANNEL= ',channelval                  
@@ -3248,7 +3247,7 @@ contains
       end do      
     end if
 
-    if ( mwbg_debug ) THEN
+    if ( mwbg_debug ) then
       write(*,*) 'ICHECK = ',((ICHECK(nChannelIndex,nDataIndex),nChannelIndex=1,KNO),nDataIndex=1,KNT)
     end if
 
@@ -3261,7 +3260,7 @@ contains
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
                                KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
-			       rejectionCodArray2, STNID, RESETQC, ifLastReport)
+                               rejectionCodArray2, STNID, RESETQC, ifLastReport)
                                
 
 
@@ -3407,7 +3406,7 @@ contains
     DATA ITEST  / 1, 1, 1, 1, 1 /
        
     ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) THEN
+    if (LLFIRST) then
       numReportWithMissigTb = 0
       flgcnt = 0
       landcnt = 0
@@ -3529,13 +3528,13 @@ contains
     !  Verification de l'integrite des donnees, c'est-a-dire que:
     !         i)  les dimensions des divers blocs de donnees concordent,
     !         ii) les listes de canaux concordent.
-    if ( KNO .NE. KNOMP     ) THEN
+    if ( KNO .NE. KNOMP     ) then
       call utl_abort ('bgckMicrowave_mod:  ERROR IN DIMENSIONS OF TOVS DATA')
     end if
 
     do JJ=1,KNT
       do JI=1,KNO
-        if ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) THEN
+        if ( KCANO(JI,JJ) .NE. KCANOMP(JI,JJ) ) then
           call utl_abort ('bgckMicrowave_mod: INCONSISTENT CHANNEL LISTS FOR TOVS DATA')
         end if
       end do
@@ -3585,7 +3584,7 @@ contains
       end do
     end do
 
-    if ( mwbg_debug ) THEN
+    if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
     end if 
 
@@ -3871,15 +3870,15 @@ contains
       TOPOFACT = 1.0
       IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MF')
       CLNOMVAR = 'MF'
-      if (IREC .LT. 0) THEN
+      if (IREC .LT. 0) then
         TOPOFACT = 9.80616
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MX')
         CLNOMVAR = 'MX'
       end if
-      if (IREC .LT. 0) THEN
+      if (IREC .LT. 0) then
         call utl_abort ('bgckMicrowave_mod: ERREUR: LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE')
       else
-        if(allocateD(MT)) DEallocate(MT)
+        if(allocated(MT)) deallocate(MT)
         allocate ( MT(NI*NJ), STAT=ier)
         IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
            ' ',CLNOMVAR)
@@ -3898,11 +3897,11 @@ contains
       if (readGlaceMask) then 
         ! MG
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MG')
-        if (IREC .LT. 0) THEN
+        if (IREC .LT. 0) then
           call utl_abort ('bgckMicrowave_mod: ERREUR: LE MASQUE TERRE-MER EST INEXISTANT')
         end if
 
-        if(allocateD(MG)) DEallocate(MG)
+        if(allocated(MG)) deallocate(MG)
         allocate ( MG(NI*NJ), STAT=ier)
         IER = FSTLIR(MG,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,&
                  ' ','MG')
@@ -3918,11 +3917,11 @@ contains
         gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
         ! GL
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','GL')
-        if (IREC .LT. 0) THEN
+        if (IREC .LT. 0) then
           call utl_abort ('bgckMicrowave_mod: ERREUR: LE CHAMP GLACE DE MER EST INEXISTANT')
         end if
 
-        if(allocateD(GL)) DEallocate(GL)
+        if(allocated(GL)) deallocate(GL)
         allocate ( GL(NI*NJ), STAT=ier)
         IER = FSTLIR(GL,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
                  ' ','GL')
@@ -3948,15 +3947,15 @@ contains
     ! STEP 3:  Interpolation de la glace et le champ terre/mer du modele aux pts TOVS.
     ! N.B.: on examine ces champs sur une boite centree sur chaque obs.
     boxPointNum = MXLAT*MXLON
-    if(allocateD(ZLATBOX)) DEallocate(ZLATBOX)
+    if(allocated(ZLATBOX)) deallocate(ZLATBOX)
     allocate (ZLATBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocateD(ZLONBOX)) DEallocate(ZLONBOX)
+    if(allocated(ZLONBOX)) deallocate(ZLONBOX)
     allocate (ZLONBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocateD(MTINTBOX)) DEallocate(MTINTBOX)
+    if(allocated(MTINTBOX)) deallocate(MTINTBOX)
     allocate (MTINTBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocateD(GLINTBOX)) DEallocate(GLINTBOX)
+    if(allocated(GLINTBOX)) deallocate(GLINTBOX)
     allocate (GLINTBOX(boxPointNum, dataNum) , STAT=ier) 
-    if(allocateD(MGINTBOX)) DEallocate(MGINTBOX)
+    if(allocated(MGINTBOX)) deallocate(MGINTBOX)
     allocate (MGINTBOX(boxPointNum, dataNum) , STAT=ier) 
     NLAT = (MXLAT-1)/2
     NLON = (MXLON-1)/2
@@ -3978,43 +3977,43 @@ contains
     end do
     ier = ezsetopt('INTERP_DEGREE','LINEAR')
     ier = gdllsval(gdmt,mtintbox,mt,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
-    if (ier .lt. 0) THEN
+    if (ier .lt. 0) then
       call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MT')
     end if
     if(readGlaceMask) then   
       ier = gdllsval(gdmg,mgintbox,mg,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
-      if (ier .lt. 0) THEN
+      if (ier .lt. 0) then
         call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MG')
       end if
       ier = gdllsval(gdgl,glintbox,gl,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
-      if (ier .lt. 0) THEN
+      if (ier .lt. 0) then
         call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of GL')
       end if
     end if 
 
-    if(allocateD(MTINTRP)) DEallocate(MTINTRP)
+    if(allocated(MTINTRP)) deallocate(MTINTRP)
     allocate (MTINTRP(dataNum) , STAT=ier) 
-    if(allocateD(MGINTRP)) DEallocate(MGINTRP)
+    if(allocated(MGINTRP)) deallocate(MGINTRP)
     allocate (MGINTRP(dataNum) , STAT=ier) 
-    if(allocateD(GLINTRP)) DEallocate(GLINTRP)
+    if(allocated(GLINTRP)) deallocate(GLINTRP)
     allocate (GLINTRP(dataNum) , STAT=ier) 
     do dataIndex = 1, dataNum
-      if (DEBUG) THEN
-        PRINT *, ' ------------------  '
-        PRINT *, ' dataIndex = ', dataIndex
-        PRINT *, '   '
-        PRINT *, ' zlat,zlon = ', zlat(dataIndex), zlon(dataIndex)
-        PRINT *, '   '
-        PRINT *, ' ZLATBOX = '
-        PRINT *,  (ZLATBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        PRINT *, ' ZLONBOX = '
-        PRINT *,  (ZLONBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        PRINT *, ' MGINTBOX = '
-        PRINT *,  (MGINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        PRINT *, ' MTINTBOX = '
-        PRINT *,  (MTINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        PRINT *, ' GLINTBOX = '
-        PRINT *,  (GLINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+      if (DEBUG) then
+        print *, ' ------------------  '
+        print *, ' dataIndex = ', dataIndex
+        print *, '   '
+        print *, ' zlat,zlon = ', zlat(dataIndex), zlon(dataIndex)
+        print *, '   '
+        print *, ' ZLATBOX = '
+        print *,  (ZLATBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        print *, ' ZLONBOX = '
+        print *,  (ZLONBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        print *, ' MGINTBOX = '
+        print *,  (MGINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        print *, ' MTINTBOX = '
+        print *,  (MTINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        print *, ' GLINTBOX = '
+        print *,  (GLINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
       end if
       MGINTRP(dataIndex) = 0.0
       MTINTRP(dataIndex) = 0.0
@@ -4026,10 +4025,10 @@ contains
           GLINTRP(dataIndex) = MAX(GLINTRP(dataIndex),GLINTBOX(boxPointIndex,dataIndex))
         end if
       end do
-      if (DEBUG) THEN
-        PRINT *, ' MGINTRP = ', MGINTRP(dataIndex)
-        PRINT *, ' MTINTRP = ', MTINTRP(dataIndex)
-        PRINT *, ' GLINTRP = ', GLINTRP(dataIndex)
+      if (DEBUG) then
+        print *, ' MGINTRP = ', MGINTRP(dataIndex)
+        print *, ' MTINTRP = ', MTINTRP(dataIndex)
+        print *, ' GLINTRP = ', GLINTRP(dataIndex)
       end if
     end do
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
@@ -4440,13 +4439,13 @@ contains
     numSats = size(satelliteId)
     INOSAT = 0
     do satIndex = 1, numSats
-      if ( STNID .EQ. '^'//satelliteId(satIndex) ) THEN
+      if ( STNID .EQ. '^'//satelliteId(satIndex) ) then
         INOSAT = satIndex
         write(*,*)' SATELLITE = ', STNID
         write(*,*)'    INOSAT = ', INOSAT
       end if
     end do 
-    if ( INOSAT .EQ. 0 ) THEN
+    if ( INOSAT .EQ. 0 ) then
       call utl_abort('bgckMicrowave_mod:  IN STATS FILE No satellite '//trim(STNID))
     end if
 
