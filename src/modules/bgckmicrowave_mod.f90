@@ -2136,7 +2136,7 @@ contains
   !  mwbg_updateBurp
   !--------------------------------------------------------------------------
   subroutine mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, ztb, clw, scatw, ident, &
-                               globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, lutb, & 
+                               globMarq, RESETQC, KCHKPRF, KTERMER, ITERRAIN, IMARQ, writeTbValuesToFile, & 
                                writeModelLsqTT, writeEle25174, burpFileNameout)
     !:Purpose:      Pour AMSUA et ATMS: 
     !               Allumer les bits des marqueurs pour les tovs rejetes.
@@ -2162,7 +2162,7 @@ contains
     integer,              intent(in)     :: KCHKPRF(:)         !indicateur global controle de qualite tovs. Code:
                                                                !=0, ok,
                                                                !>0, rejet, 
-    logical, intent(in)                  :: lutb               ! if replace missing tb by missing value
+    logical, intent(in)                  :: writeTbValuesToFile               ! if replace missing tb by missing value
     logical, intent(in)                  :: writeModelLsqTT    ! if replace lsq and terrain typ var by model values
     logical, intent(in)                  :: writeEle25174      ! if copie the new element 25174 in the output burp file
     integer,              intent(in)     :: IMARQ(:)           !modified flag values from mwbg_tovCheck  
@@ -2322,9 +2322,9 @@ contains
       !    Modifier le bktyp pour signifier "vu par AO".
       else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
                 my_bfam == 0 ) then 
-        ! Modify Tb data if any data (ztb) were set to mwbg_realMisg (lutb=.true.)
+        ! Modify Tb data if any data (ztb) were set to mwbg_realMisg (writeTbValuesToFile=.true.)
 
-        if (lutb) then
+        if (writeTbValuesToFile) then
           call copyRealElementToBurpBlock(blk, 12163, ztb, "Tb_data", my_nval, my_nt)
           call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .False.)        
 
@@ -3325,7 +3325,7 @@ contains
     integer, allocatable             :: trn(:) 
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
-    logical                          :: lutb            ! true if Tb(ztb) are set to missing_value
+    logical                          :: writeTbValuesToFile            ! true if Tb(ztb) are set to missing_value
     logical, allocatable             :: lqc(:,:)        ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
     logical, allocatable             :: cloudobs(:)
     logical, allocatable             :: iwvreject(:)
@@ -3453,9 +3453,9 @@ contains
     write(*,*) ' ==> mwbg_firstQcCheckAtms: '
     call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, stnid, &
                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
-                               qcflag2, ICANO, lutb)
+                               qcflag2, ICANO, writeTbValuesToFile)
 
-    if ( lutb ) numReportWithMissigTb = numReportWithMissigTb + 1
+    if ( writeTbValuesToFile ) numReportWithMissigTb = numReportWithMissigTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,KNT
       if ( COUNT(lqc(kk,:)) == mwbg_atmsMaxNumChan ) grossrej(kk) = .true.
@@ -4776,7 +4776,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, scanpos, stnid,&
                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
-                                   ican, lutb)
+                                   ican, writeTbValuesToFile)
     !  This routine performs basic quality control checks on the data. It sets array
     !  lqc(nt,mwbg_atmsMaxNumChan) elements to .true. to flag data with failed checks.
     !
@@ -4815,14 +4815,14 @@ contains
     real,                 intent(in)                :: zlon(:)
     real,                 intent(inout)             :: ztb(:)
     real,                 intent(inout)             :: zenith(:)
-    logical,              intent(out)               :: lutb            ! true if Tb(ztb) are set to missing_value
+    logical,              intent(out)               :: writeTbValuesToFile            ! true if Tb(ztb) are set to missing_value
     logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,mwbg_atmsMaxNumChan), lqc = .false. on input
 
     ! Locals
     integer :: ii, jj, indx1, icount
     logical :: fail, fail1, fail2
 
-    lutb = .false.
+    writeTbValuesToFile = .false.
     call allocate2dLogicalArray(lqc, nt, nval)
     lqc(:,:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
@@ -4903,7 +4903,7 @@ contains
         fail = .true.
         write(*,*) 'WARNING: Bad or missing zenith angle! zenith, lat, lon = ', zenith(ii), zlat(ii), zlon(ii)
         zenith(ii) = mwbg_realMisg
-        lutb = .true.
+        writeTbValuesToFile = .true.
       end if
       do jj = 1,mwbg_atmsMaxNumChan
         if ( fail ) then
@@ -4925,7 +4925,7 @@ contains
       if ( zlat(ii) == -90.0  .and. zlon(ii) == -180.0 ) then
         fail = .true.
         icount =  icount + 1
-        lutb = .true.
+        writeTbValuesToFile = .true.
       end if
       do jj = 1,mwbg_atmsMaxNumChan
         if ( fail ) then
@@ -4944,7 +4944,7 @@ contains
       if ( abs(zlat(ii)) > 90.0  .or. abs(zlon(ii)) > 180.0 ) then
         fail = .true.
         icount =  icount + 1
-        lutb = .true.
+        writeTbValuesToFile = .true.
       end if
       do jj = 1,mwbg_atmsMaxNumChan
         if ( fail ) then

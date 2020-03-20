@@ -91,11 +91,11 @@ program midas_bgckMW
   logical                       :: debug                           ! debug mode
   logical                       :: writeModelLsqTT                 ! logical for writing lsq and tt in file
   logical                       :: writeEle25174                   ! logical for writing ele 25174 in file
-  logical                       :: lutb                            ! logical for replacing missing tb value
+  logical                       :: writeTbValuesToFile                            ! logical for replacing missing tb value
 
   namelist /nambgck/instName, burpFileNameIn, burpFileNameOut, mglg_file, statsFile, &
                     writeModelLsqTT, writeEle25174, clwQcThreshold, allowStateDepSigmaObs, &
-                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, lutb 
+                    useUnbiasedObsForClw, debug, RESETQC, ETIKRESU, writeTbValuesToFile 
 
   istat = exdb('midas-bgckMW','DEBUT','NON')
 
@@ -127,7 +127,7 @@ program midas_bgckMW
   debug                 = .false.
   RESETQC               = .false.
   ETIKRESU              = '>>BGCKALT'
-  lutb                  = .false.
+  writeTbValuesToFile   = .false.
 
   ! reading namelist
   nulnam = 0
@@ -229,7 +229,7 @@ program midas_bgckMW
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
     call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillance, cloudLiquidWaterPath, atmScatteringIndex, &
                          newInformationFlag, obsGlobalMarker, RESETQC, globalQcIndicator, landQualifierIndice, terrainTypeIndice, &
-                         observationFlags, lutb, writeModelLsqTT, writeEle25174, burpFileNameout)
+                         observationFlags, writeTbValuesToFile, writeModelLsqTT, writeEle25174, burpFileNameout)
 
     if (ifLastReport) exit REPORTS
 
