@@ -14,7 +14,6 @@
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="obsIO"/>
   <SUBMITS sub_name="bgckMW"/>
-  <SUBMITS sub_name="bgckAtms"/>
   <SUBMITS sub_name="genCoeff"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
@@ -290,16 +289,20 @@
   </FAMILY>
 
   <FAMILY  name="bgckMW">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="bgckAmsua"/>
+    <FAMILY  name="bgckAmsua">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="bgckAtms"/>
+    <FAMILY  name="bgckAtms">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
+
 
   <FAMILY  name="genCoeff">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="bgckAtms">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

@@ -1,5 +1,0 @@
- &NAMBGCK
-  DEBUG = .FALSE.
-  RESETQC = .FALSE.
-  ETIKRESU = '>>BGCKALT'
-/

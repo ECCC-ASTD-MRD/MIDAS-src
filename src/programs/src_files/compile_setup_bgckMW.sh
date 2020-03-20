@@ -2,5 +2,5 @@
 
 set -e
 
-LIBAPPL="burp_module"
+LIBAPPL="burp_module irc $MPILIB "
 
