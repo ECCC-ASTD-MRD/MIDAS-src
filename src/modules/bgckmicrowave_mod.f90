@@ -36,6 +36,14 @@ module bgckmicrowave_mod
   public :: mwbg_qcStats
   public :: mwbg_readGeophysicFieldsAndInterpolate
   public :: mwbg_findSatelliteIndex
+  public :: mwbg_allocate1DIntegerArray
+  public :: mwbg_allocate2DIntegerArray
+  public :: mwbg_allocate3DIntegerArray
+  public :: mwbg_allocate1DLogicalArray
+  public :: mwbg_allocate2DLogicalArray
+  public :: mwbg_allocate1DRealArray
+  public :: mwbg_allocate2DRealArray
+
   ! ATMS specific functions/subroutines
   public :: mwbg_landIceMaskAtms
   public :: mwbg_firstQcCheckAtms
@@ -1066,9 +1074,9 @@ contains
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
   !--------------------------------------------------------------------------
-  !  allocate1DIntegerArray
+  !  mwbg_allocate1DIntegerArray
   !--------------------------------------------------------------------------
-  subroutine allocate1DIntegerArray(arrayToAllocate, firstDim)
+  subroutine mwbg_allocate1DIntegerArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an array on 1 dimension
     ! Arguments
     integer, intent(inout), allocatable :: arrayToAllocate(:)
@@ -1082,14 +1090,14 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate1DIntegerArray')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DIntegerArray')
     end if 
-  end subroutine allocate1DIntegerArray
+  end subroutine mwbg_allocate1DIntegerArray
 
   !--------------------------------------------------------------------------
-  !  allocate1DLogicalArray
+  !  mwbg_allocate1DLogicalArray
   !--------------------------------------------------------------------------
-  subroutine allocate1DLogicalArray(arrayToAllocate, firstDim)
+  subroutine mwbg_allocate1DLogicalArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an array on 1 dimension
     ! Arguments
     logical, intent(inout), allocatable :: arrayToAllocate(:)
@@ -1103,14 +1111,14 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate1DLogicalArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DLogicalArray ')
     end if 
-  end subroutine allocate1DLogicalArray
+  end subroutine mwbg_allocate1DLogicalArray
 
   !--------------------------------------------------------------------------
-  !  allocate2DLogicalArray
+  !  mwbg_allocate2DLogicalArray
   !--------------------------------------------------------------------------
-  subroutine allocate2DLogicalArray(arrayToAllocate, firstDim, secondDim)
+  subroutine mwbg_allocate2DLogicalArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an array on 2 dimension
     ! Arguments
     logical, intent(inout), allocatable :: arrayToAllocate(:,:)
@@ -1125,10 +1133,10 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate2DLogicalArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DLogicalArray ')
     end if 
 
-  end subroutine allocate2DLogicalArray
+  end subroutine mwbg_allocate2DLogicalArray
 
   !--------------------------------------------------------------------------
   !  allocate3DLogicalArray
@@ -1155,9 +1163,9 @@ contains
   end subroutine allocate3DLogicalArray
 
   !--------------------------------------------------------------------------
-  !  allocate2DIntegerArray
+  !  mwbg_allocate2DIntegerArray
   !--------------------------------------------------------------------------
-  subroutine allocate2DIntegerArray(arrayToAllocate, firstDim, secondDim)
+  subroutine mwbg_allocate2DIntegerArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an array on 2 dimension
     ! Arguments
     integer, intent(inout), allocatable :: arrayToAllocate(:,:)
@@ -1172,15 +1180,15 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate2DIntegerArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DIntegerArray ')
     end if 
 
-  end subroutine allocate2DIntegerArray
+  end subroutine mwbg_allocate2DIntegerArray
 
   !--------------------------------------------------------------------------
-  !  allocate3DIntegerArray
+  !  mwbg_allocate3DIntegerArray
   !--------------------------------------------------------------------------
-  subroutine allocate3DIntegerArray(arrayToAllocate, firstDim, secondDim, thirdDim)
+  subroutine mwbg_allocate3DIntegerArray(arrayToAllocate, firstDim, secondDim, thirdDim)
     !:Purpose: Allocate an array on 3 dimension
     ! Arguments
     integer, intent(inout), allocatable :: arrayToAllocate(:,:,:)
@@ -1196,15 +1204,15 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim, secondDim, thirdDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate3DIntegerArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate3DIntegerArray ')
     end if 
 
-  end subroutine allocate3DIntegerArray
+  end subroutine mwbg_allocate3DIntegerArray
 
   !--------------------------------------------------------------------------
-  !  allocate1DRealArray
+  !  mwbg_allocate1DRealArray
   !--------------------------------------------------------------------------
-  subroutine allocate1DRealArray(arrayToAllocate, firstDim)
+  subroutine mwbg_allocate1DRealArray(arrayToAllocate, firstDim)
     !:Purpose: Allocate an Real array on 1 dimension
     ! Arguments
     real,    intent(inout), allocatable :: arrayToAllocate(:)
@@ -1218,14 +1226,14 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate1DRealArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DRealArray ')
     end if 
-  end subroutine allocate1DRealArray
+  end subroutine mwbg_allocate1DRealArray
 
   !--------------------------------------------------------------------------
-  !  allocate2DRealArray
+  !  mwbg_allocate2DRealArray
   !--------------------------------------------------------------------------
-  subroutine allocate2DRealArray(arrayToAllocate, firstDim, secondDim)
+  subroutine mwbg_allocate2DRealArray(arrayToAllocate, firstDim, secondDim)
     !:Purpose: Allocate an Real array on 2 dimension
     ! Arguments
     real,    intent(inout), allocatable :: arrayToAllocate(:,:)
@@ -1240,10 +1248,10 @@ contains
     if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
     allocate(arrayToAllocate(firstDim, secondDim), stat = allocStatus)
     if (allocStatus /= 0) then
-      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. allocate2DRealArray ')
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate2DRealArray ')
     end if 
 
-  end subroutine allocate2DRealArray
+  end subroutine mwbg_allocate2DRealArray
 
   !--------------------------------------------------------------------------
   !  allocate3DRealArray
@@ -1493,13 +1501,13 @@ contains
                     250., 260., 260., 270., 280., 290., 330./  
 
     ! Allocation
-    call allocate1DRealArray(clw_avg, KNT)
-    call allocate1DRealArray(clw,     KNT)
-    call allocate1DRealArray(scatw,   KNT)
+    call mwbg_allocate1DRealArray(clw_avg, KNT)
+    call mwbg_allocate1DRealArray(clw,     KNT)
+    call mwbg_allocate1DRealArray(scatw,   KNT)
 
-    call allocate1DIntegerArray(kchkprf, KNT)
-    call allocate1DIntegerArray(ident, KNT)
-    call allocate2DIntegerArray(icheck, KNO, KNT)
+    call mwbg_allocate1DIntegerArray(kchkprf, KNT)
+    call mwbg_allocate1DIntegerArray(ident, KNT)
+    call mwbg_allocate2DIntegerArray(icheck, KNO, KNT)
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
@@ -1999,11 +2007,9 @@ contains
     debug = mwbg_debug
     Call BURP_Resize_Block(burpBlock, ADD_NELE = 1, iostat = error)
     if (error /= burp_noerr) call utl_abort('bgckMicrowave_mod: BURP_Resize_Block Error')
-
     ! Add new elements CLW and scatw
     Call BURP_Set_Element(burpBlock,NELE_IND=burpNele,ELEMENT=burpElement,iostat=error)
     call BURP_Encode_Block(burpBlock)   ! encode the element numbers in the block
-    
     dataIndex = 1 
     do burpChannelIndex = 1,burpChannelNum  
       do burpLocationIndex  =1, burpLocationNum
@@ -2228,7 +2234,6 @@ contains
       ifFirstCall = .False.
     end if
 
-
     Call BURP_Get_Report(File_in, REPORT= reportIn, REF= adresses(ReportIndex), iostat= error) 
     if (error /= burp_noerr) call burpErrorHistory(file_in, reportIn) 
     Call BURP_Get_Property(reportIn,STNID=idStn,IDTYP=idtyp,ELEV=nlocs,LATI=blat,LONG=blon,NBLK=nblocs,HANDLE=handle)
@@ -2247,7 +2252,6 @@ contains
       
       return 
     end if  
-
     ! Create new report (reportOut) to contain modified blocks from reportIn
     Call BURP_New(reportOut, Alloc_Space = nsize,  iostat=error)
     if (error /= burp_noerr) call burpErrorHistory(file_in, reportIn, file_out, reportOut)
@@ -2279,6 +2283,7 @@ contains
                   iostat = error)
       if (error /= burp_noerr) call utl_abort('bgckMicrowave_mod: BURP_Get_Porperty Error')
 
+ 
       ! 1) Bloc info 3d: bloc 5120.
       !    Modifier les marqueurs globaux de 24bits pour les donnees rejetees.
       if (my_btyp == 5120) then     
@@ -2295,6 +2300,7 @@ contains
       !    Modifier les indicateurs terre/mer possiblement corriges pour la glace
       !    marine.
       !    Add new elements CLW, scatw and ident
+
       else if (my_btyp == 3072) then
         if (writeEle25174) then 
           ! Add new elements IDENT
@@ -2308,7 +2314,6 @@ contains
           ! Add new elements scatw
           call addRealElementBurpBlock(blk, 13208, scatw, my_nval, my_nt, my_nele+2)          
         end if 
-
         ! Remplacer les nouveaux indicateurs terre/mer dans le tableau.
         if (writeModelLsqTT) then        
           call copyIntegerElementToBurpBlock(blk, 8012, KTERMER, "Land_Sea_INDICATOR", my_nval, my_nt)
@@ -2320,6 +2325,8 @@ contains
 
       ! 3) Bloc multi niveaux de radiances: bloc 9218, 9248, 9264.
       !    Modifier le bktyp pour signifier "vu par AO".
+
+
       else if ( (my_btyp == 9218 .or. my_btyp == 9248 .or. my_btyp ==9264) .and. &
                 my_bfam == 0 ) then 
         ! Modify Tb data if any data (ztb) were set to mwbg_realMisg
@@ -2330,6 +2337,8 @@ contains
         else
           call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
         end if
+
+
 
       ! 4) Bloc marqueurs multi niveaux de radiances: bloc 15362, 15392, 15408.
       !    Modifier les marqueurs de 13bits associes a chaque radiance.
@@ -2349,6 +2358,8 @@ contains
         end do
         ! Remplacer le bloc et modifier le bktyp pour signifier "vu par AO".
         call modifyBurpBktypAndWriteReport(reportOut, blk, my_bktyp+4, .True.)        
+
+
       ! 5) Bloc multi niveaux de residus de radiances (O-P): bloc 9322, 9226, 9258, 9274, bfam 14
       !    Modifier le bktyp pour signifier "vu par AO".
       else if ( (my_btyp == 9322 .or. my_btyp == 9226 .or. my_btyp == 9258 .or. &
@@ -2362,7 +2373,6 @@ contains
       end if
 
     end do BLOCKS
-
     ! Write the modified report to the output file
     Call BURP_Write_Report(File_out,reportOut,iostat=error)
     if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn, File_out, reportOut)
@@ -2371,7 +2381,6 @@ contains
       Call BURP_Free(File_in, F2 = File_out,iostat=error)
       Call BURP_Free(reportIn, R2 = reportOut,iostat=error)
     end if 
-
   end subroutine mwbg_updateBurp
 
   !--------------------------------------------------------------------------
@@ -3517,8 +3526,8 @@ contains
     call copy1Dimto2DimIntegerArray(ICANOMP, KNO, KNT, KCANOMP)
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     ! allocations
-    call allocate1DIntegerArray(kchkprf, KNT)
-    call allocate2DIntegerArray(icheck, KNO, KNT)
+    call mwbg_allocate1DIntegerArray(kchkprf, KNT)
+    call mwbg_allocate2DIntegerArray(icheck, KNO, KNT)
     !  Initialisations
     ICHECK(:,:) = 0
     B7CHCK(:,:) = 0
@@ -4603,15 +4612,15 @@ contains
     integer :: idum1,idum2,idum3
 
     ! Allocate space for arrays holding values on mesh grid pts.
-    call allocate1DRealArray(latmesh, mxlat*mxlon)
-    call allocate1DRealArray(lonmesh, mxlat*mxlon)
-    call allocate1DRealArray(mgintob, mxlat*mxlon)
-    call allocate1DRealArray(lgintob, mxlat*mxlon)
-    call allocate2DRealArray(zlatbox, mxlat*mxlon, npts)
-    call allocate2DRealArray(zlonbox, mxlat*mxlon, npts)
-    call allocate1DIntegerArray(zlq, npts)
-    call allocate1DIntegerArray(ztt, npts)
-    call allocate1DlogicalArray(waterobs, npts)
+    call mwbg_allocate1DRealArray(latmesh, mxlat*mxlon)
+    call mwbg_allocate1DRealArray(lonmesh, mxlat*mxlon)
+    call mwbg_allocate1DRealArray(mgintob, mxlat*mxlon)
+    call mwbg_allocate1DRealArray(lgintob, mxlat*mxlon)
+    call mwbg_allocate2DRealArray(zlatbox, mxlat*mxlon, npts)
+    call mwbg_allocate2DRealArray(zlonbox, mxlat*mxlon, npts)
+    call mwbg_allocate1DIntegerArray(zlq, npts)
+    call mwbg_allocate1DIntegerArray(ztt, npts)
+    call mwbg_allocate1DLogicalArray(waterobs, npts)
     zlq(:) = ilq(1:npts)  ! land/sea qualifier
     ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
     
@@ -4625,7 +4634,7 @@ contains
       call utl_abort('bgckMicrowave_mod:  mwbg_landIceMaskAtms The MG field is MISSING')
     end if
 
-    call allocate1DRealArray(mg, ni*nj)
+    call mwbg_allocate1DRealArray(mg, ni*nj)
 
     ier = fstlir(mg,iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MG')
 
@@ -4650,7 +4659,7 @@ contains
       llg=.true.
     end if
 
-    call allocate1DRealArray(lg, nilg*njlg)
+    call mwbg_allocate1DRealArray(lg, nilg*njlg)
 
     if ( llg ) then
       ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
@@ -4700,8 +4709,8 @@ contains
     gdid   = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
     gdidlg = ezqkdef(nilg,njlg,grtyplg,ig1lg,ig2lg,ig3lg,ig4lg,iungeo)
     
-    call allocate1DRealArray(mgintrp, npts)
-    call allocate1DRealArray(lgintrp, npts)
+    call mwbg_allocate1DRealArray(mgintrp, npts)
+    call mwbg_allocate1DRealArray(lgintrp, npts)
 
     mgintrp(:) = 0.0
     lgintrp(:) = 0.0
@@ -4754,7 +4763,7 @@ contains
     ! Locals
     integer :: ii, indx1, indx2
 
-    call allocate1DLogicalArray(grossrej, npts)
+    call mwbg_allocate1DLogicalArray(grossrej, npts)
     
     grossrej(1:npts) = .true.
     indx1 = 1
@@ -4822,7 +4831,7 @@ contains
     logical :: fail, fail1, fail2
 
     reportHasMissingTb = .false.
-    call allocate2dLogicalArray(lqc, nt, nval)
+    call mwbg_allocate2dLogicalArray(lqc, nt, nval)
     lqc(:,:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
@@ -5112,10 +5121,10 @@ contains
 
 
     ! Allocation
-    call allocate1DRealArray(clw,ni)
-    call allocate1DRealArray(si_ecmwf,ni)
-    call allocate1DRealArray(si_bg,ni)
-    call allocate1DRealArray(SeaIce,ni)
+    call mwbg_allocate1DRealArray(clw,ni)
+    call mwbg_allocate1DRealArray(si_ecmwf,ni)
+    call mwbg_allocate1DRealArray(si_bg,ni)
+    call mwbg_allocate1DRealArray(SeaIce,ni)
     ! extract required channels:
     !  23 Ghz = AMSU-A 1 = ATMS channel 1 
     !  31 Ghz = AMSU-A 2 = ATMS channel 2
@@ -5297,15 +5306,15 @@ contains
     real                                       ::  ztb183(5)
 
 
-    call allocate1DLogicalArray(cloudobs, nt)
-    call allocate1DLogicalArray(iwvreject, nt)
-    call allocate1DIntegerArray(ident, nt)
-    call allocate1DLogicalArray(precipobs, nt)
-    call allocate1DRealArray(riwv, nt)
-    call allocate1DRealArray(ztb_amsub3, nt)
-    call allocate1DRealArray(bcor_amsub3, nt)
-    call allocate1DRealArray(ztb_amsub5, nt)
-    call allocate1DRealArray(bcor_amsub5, nt)
+    call mwbg_allocate1DLogicalArray(cloudobs, nt)
+    call mwbg_allocate1DLogicalArray(iwvreject, nt)
+    call mwbg_allocate1DIntegerArray(ident, nt)
+    call mwbg_allocate1DLogicalArray(precipobs, nt)
+    call mwbg_allocate1DRealArray(riwv, nt)
+    call mwbg_allocate1DRealArray(ztb_amsub3, nt)
+    call mwbg_allocate1DRealArray(bcor_amsub3, nt)
+    call mwbg_allocate1DRealArray(ztb_amsub5, nt)
+    call mwbg_allocate1DRealArray(bcor_amsub5, nt)
 
     ! To begin, assume that all obs are good.
     ident(:) = 0
@@ -5445,7 +5454,7 @@ contains
 
 
     ! Allocation
-    call allocate2DLogicalArray(lflagchn,nt, nval)
+    call mwbg_allocate2DLogicalArray(lflagchn,nt, nval)
 
     lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
     do kk = 1, nt

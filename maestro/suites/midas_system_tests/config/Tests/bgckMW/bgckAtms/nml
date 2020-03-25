@@ -11,3 +11,9 @@
   ETIKRESU = '>>BGCKALT'
   writeTbValuesToFile = .false.
 /
+ &NAMMWOBS
+  reportNumMax = 600
+  locationNumMax = 4500
+  channelNumMax = 22
+
+/
