@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Bug fix to avoid overflow in the computation of secant of satellite zenith angle when this variable is missing in the observation file.
  * Fix bugs for the `genCoeff` program and application of bias correction in `var` and `oMinusF` (#330 and !316)
  * Fix global mode for `calcStats` program, which was not working, and make it mpi (#307 and !308)
  * Bug fix for the `genCoeff` program: radiosonde weighting was not working properly (#323 and !304)
