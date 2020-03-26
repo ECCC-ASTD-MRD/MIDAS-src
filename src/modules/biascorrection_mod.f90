@@ -1333,6 +1333,7 @@ CONTAINS
     type(struct_obs), intent(inout) :: obsSpaceData
     !Locals:
     integer  :: iSensor, iPredictor, jPredictor
+    real(8)  :: zenithAngle
 
     predictor(:) = 0.0d0
     
@@ -1358,7 +1359,8 @@ CONTAINS
         !        predictor(iPredictor) = trialTG(obsIndex)
       else if ( iPredictor == 6 ) then
         ! SV secant of satellite zenith angle minus one
-        predictor(iPredictor) = (1.d0/cos( obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+        zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) 
+        if (zenithAngle < 75. ) predictor(iPredictor) = (1.d0 /cos( zenithAngle * MPC_RADIANS_PER_DEGREE_R8 ) ) - 1.d0
       end if
 
     end do
