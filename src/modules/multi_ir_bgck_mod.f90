@@ -1081,6 +1081,10 @@ contains
           end if
 
           ! Condition valid if model top is higher than 10 mb
+          ! with computation made on model levels instead of RTTOV levels
+          ! this test is a litle bit more strict than before
+          ! decrease of the order of  1-2% in the number of high peaking radiance IR assimilated
+          ! not dramatic so could be kept as is
           if ( nint(ptop_T) < 1000 ) then
             if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.95d0 ) then
               rejflag(channelIndex,11) = 1
