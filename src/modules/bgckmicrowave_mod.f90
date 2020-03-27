@@ -36,6 +36,7 @@ module bgckmicrowave_mod
   public :: mwbg_qcStats
   public :: mwbg_readGeophysicFieldsAndInterpolate
   public :: mwbg_findSatelliteIndex
+  public :: mwbg_allocate1DCharacterArray
   public :: mwbg_allocate1DIntegerArray
   public :: mwbg_allocate2DIntegerArray
   public :: mwbg_allocate3DIntegerArray
@@ -1074,6 +1075,27 @@ contains
   end subroutine amsuaTest15ChannelSelectionWithIutilst
 
   !--------------------------------------------------------------------------
+  !  mwbg_allocate1DCharacterArray
+  !--------------------------------------------------------------------------
+  subroutine mwbg_allocate1DCharacterArray(arrayToAllocate, firstDim)
+    !:Purpose: Allocate an array on 1 dimension
+    ! Arguments
+    character(len=9), intent(out), allocatable :: arrayToAllocate(:)
+    integer, intent(in)                 :: firstDim
+    
+    !locals
+    integer                             :: allocStatus
+
+    ! Allocation
+    allocStatus = 0
+    if (allocated(arrayToAllocate)) deallocate(arrayToAllocate)
+    allocate(arrayToAllocate(firstDim), stat = allocStatus)
+    if (allocStatus /= 0) then
+      call utl_abort('bgckMicrowave_mod: Allocation Error in sub. mwbg_allocate1DCharacterArray')
+    end if 
+  end subroutine mwbg_allocate1DCharacterArray
+
+  !--------------------------------------------------------------------------
   !  mwbg_allocate1DIntegerArray
   !--------------------------------------------------------------------------
   subroutine mwbg_allocate1DIntegerArray(arrayToAllocate, firstDim)
@@ -1367,25 +1389,25 @@ contains
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
     real, intent(in)                       :: TOVERRST(mwbg_maxNumChan,mwbg_maxNumSat)! l'erreur totale des TOVS
-    integer, intent(in)                    :: KSAT(KNT)            ! numero d'identificateur du satellite
-    integer, intent(in)                    :: KTERMER(KNT)         ! indicateur terre/mer
-    integer, intent(in)                    :: ISCNPOS(KNT)         ! position sur le "scan"
-    integer, intent(in)                    :: KORBIT(KNT)          ! numero d'orbite
-    integer, intent(in)                    :: ICANO(KNO*KNT)       ! canaux des observations
-    integer, intent(inout)                 :: ITERRAIN(KNT)        ! indicateur du type de terrain
-    integer, intent(in)                    :: ICANOMP(KNO*KNT)     ! canaux des residus (o-p)
+    integer, intent(in)                    :: KSAT(:)            ! numero d'identificateur du satellite
+    integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
+    integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
+    integer, intent(in)                    :: KORBIT(:)          ! numero d'orbite
+    integer, intent(in)                    :: ICANO(:)       ! canaux des observations
+    integer, intent(inout)                 :: ITERRAIN(:)        ! indicateur du type de terrain
+    integer, intent(in)                    :: ICANOMP(:)     ! canaux des residus (o-p)
     integer, intent(in)                    :: KNO                  ! nombre de canaux des observations 
     integer, intent(in)                    :: KNT                  ! nombre de tovs
     integer, intent(in)                    :: KNOSAT               ! numero de satellite (i.e. indice)
-    integer, intent(inout)                 :: IMARQ(KNO*KNT)       ! marqueurs des radiances
-    real, intent(in)                       :: ZO(KNO*KNT)          ! radiances
-    real, intent(in)                       :: ZCOR(KNO*KNT)        ! correction aux radiances
-    real, intent(in)                       :: ZOMP(KNO*KNT)        ! residus (o-p)
-    real, intent(in)                       :: MGINTRP(KNT)         ! masque terre/mer du modele
-    real, intent(in)                       :: MTINTRP(KNT)         ! topographie du modele
-    real, intent(in)                       :: GLINTRP(KNT)         ! etendue de glace du modele
-    real, intent(in)                       :: SATZEN(KNT)          ! angle zenith du satellite (deg.)
-    real, intent(in)                       :: ZLAT(KNT)            ! latitude
+    integer, intent(inout)                 :: IMARQ(:)       ! marqueurs des radiances
+    real, intent(in)                       :: ZO(:)          ! radiances
+    real, intent(in)                       :: ZCOR(:)        ! correction aux radiances
+    real, intent(in)                       :: ZOMP(:)        ! residus (o-p)
+    real, intent(in)                       :: MGINTRP(:)         ! masque terre/mer du modele
+    real, intent(in)                       :: MTINTRP(:)         ! topographie du modele
+    real, intent(in)                       :: GLINTRP(:)         ! etendue de glace du modele
+    real, intent(in)                       :: SATZEN(:)          ! angle zenith du satellite (deg.)
+    real, intent(in)                       :: ZLAT(:)            ! latitude
     real, intent(in)                       :: PMISG                ! missing value
     character *9, intent(in)               :: STNID                ! identificateur du satellite
     logical, intent(in)                    :: RESETQC              ! reset du controle de qualite?
@@ -1855,7 +1877,7 @@ contains
         end if 
       end do
     end if
-
+    print *,'END OF mwbd_qcStats'
   end subroutine mwbg_qcStats
 
   !--------------------------------------------------------------------------
@@ -2378,6 +2400,7 @@ contains
     if (error /= burp_noerr) call burpErrorHistory(File_in, reportIn, File_out, reportOut)
 
     if (reportIndex == nb_rpts) then
+      write(*,*) "LAST REPORT : Burp Udate is closing File"
       Call BURP_Free(File_in, F2 = File_out,iostat=error)
       Call BURP_Free(reportIn, R2 = reportOut,iostat=error)
     end if 
@@ -3269,7 +3292,7 @@ contains
                                zenith, qcflag2, qcflag1, KSAT, KORBIT, ICANO, ICANOMP, &
                                ztb, biasCorr, ZOMP, ICHECK, KNO, KNOMP, KNT, PMISG, KNOSAT, IDENT, &
                                KCHKPRF, ISCNPOS, MTINTRP, globMarq, IMARQ, rclw, riwv, rejectionCodArray, &
-                               rejectionCodArray2, STNID, RESETQC, ifLastReport)
+                               rejectionCodArray2, STNID, RESETQC)
                                
 
 
@@ -3321,8 +3344,6 @@ contains
     integer, intent(inout)           :: rejectionCodArray2(mwbg_maxNumTest,mwbg_maxNumChan,mwbg_maxNumSat)          ! cumul du nombre de rejet (chech n2) par satellite, critere et par canal
     real, allocatable, intent(out)   :: rclw (:)
     real, allocatable, intent(out)   :: riwv(:)
-    logical,           intent(in)    :: ifLastReport   ! True if last Report is read then do printing stuff
-
 
     !locals
     real                             :: PTBOMP(KNO,KNT)      ! residus (o-p)     2D
@@ -3605,7 +3626,7 @@ contains
       end do
     end do
 
-    if(ifLastReport) then
+    if(mwbg_debug) then
       write(*,*) ' --------------------------------------------------------------- '
       write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMisg  = ', numReportWithMissigTb
       write(*,*) ' --------------------------------------------------------------- '
@@ -4448,7 +4469,7 @@ contains
     numSats = size(satelliteId)
     INOSAT = 0
     do satIndex = 1, numSats
-      if ( STNID .EQ. '^'//satelliteId(satIndex) ) then
+      if ( trim(STNID) .EQ. '^'//satelliteId(satIndex) ) then
         INOSAT = satIndex
         write(*,*)' SATELLITE = ', STNID
         write(*,*)'    INOSAT = ', INOSAT

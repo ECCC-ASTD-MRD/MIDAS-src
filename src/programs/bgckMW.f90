@@ -45,13 +45,13 @@ program midas_bgckMW
   real,    allocatable          :: satZenithAngle(:)                                  ! sat. satZenithAngle angle
   integer, allocatable          :: landQualifierIndice(:)                             ! land qualifyer
   integer, allocatable          :: terrainTypeIndice(:)                               ! terrain type
-  real,    allocatable          :: obsTemperatureBrillance(:)                         ! temperature de brillance
-  real,    allocatable          :: ompTemperatureBrillance(:)                         ! o-p temperature de "
-  real,    allocatable          :: biasCorr(:)                                        ! bias correction fo obsTemperatureBrillance
-  integer, allocatable          :: satelliteScanPosition(:)                           ! scan position
+  real,    allocatable          :: obsTb(:)                         ! temperature de brillance
+  real,    allocatable          :: ompTb(:)                         ! o-p temperature de "
+  real,    allocatable          :: obsTbBiasCorr(:)                                        ! bias correction fo obsTb
+  integer, allocatable          :: satScanPosition(:)                           ! scan position
   integer, allocatable          :: obsQcFlag1(:,:)                                    ! Obs Quality flag 1
   integer, allocatable          :: obsQcFlag2(:)                                      ! Obs Quality flag 2 
-  integer, allocatable          :: obsChannels(:)                                     ! obsTemperatureBrillance channels
+  integer, allocatable          :: obsChannels(:)                                     ! obsTb channels
   integer, allocatable          :: ompChannels(:)                                     ! zomp channel
   integer, allocatable          :: obsFlags(:)                                        ! obs. flag
   integer, allocatable          :: satOrbit(:)                                        ! orbit
@@ -81,6 +81,7 @@ program midas_bgckMW
   integer, external             :: exdb, exfin, fnom, fclos
   integer                       :: ier, istat, nulnam
   ! Temporary arrays
+  character(len=9), allocatable :: burpFileSatIdTmp(:)                                     ! satellite Id in stats error file
   integer, allocatable          :: reportNumObsTmp(:)                                       ! number of obs in current report
   integer, allocatable          :: reportNumChannelTmp(:)                                   ! "      "   channels "      "
   real,    allocatable          :: obsLatitudeTmp(:,:)                                     ! obs. point latitudes
@@ -89,13 +90,13 @@ program midas_bgckMW
   real,    allocatable          :: satZenithAngleTmp(:,:)                                  ! sat. satZenithAngle angle
   integer, allocatable          :: landQualifierIndiceTmp(:,:)                             ! land qualifyer
   integer, allocatable          :: terrainTypeIndiceTmp(:,:)                               ! terrain type
-  real,    allocatable          :: obsTemperatureBrillanceTmp(:,:)                         ! temperature de brillance
-  real,    allocatable          :: ompTemperatureBrillanceTmp(:,:)                         ! o-p temperature de "
-  real,    allocatable          :: biasCorrTmp(:,:)                                        ! bias correction fo obsTemperatureBrillance
-  integer, allocatable          :: satelliteScanPositionTmp(:,:)                           ! scan position
+  real,    allocatable          :: obsTbTmp(:,:)                         ! temperature de brillance
+  real,    allocatable          :: ompTbTmp(:,:)                         ! o-p temperature de "
+  real,    allocatable          :: obsTbBiasCorrTmp(:,:)                                        ! bias correction fo obsTb
+  integer, allocatable          :: satScanPositionTmp(:,:)                           ! scan position
   integer, allocatable          :: obsQcFlag1Tmp(:,:,:)                                    ! Obs Quality flag 1
   integer, allocatable          :: obsQcFlag2Tmp(:,:)                                      ! Obs Quality flag 2 
-  integer, allocatable          :: obsChannelsTmp(:,:)                                     ! obsTemperatureBrillance channels
+  integer, allocatable          :: obsChannelsTmp(:,:)                                     ! obsTb channels
   integer, allocatable          :: ompChannelsTmp(:,:)                                     ! zomp channel
   integer, allocatable          :: obsFlagsTmp(:,:)                                        ! obs. flag
   integer, allocatable          :: satOrbitTmp(:,:)                                        ! orbit
@@ -195,12 +196,14 @@ program midas_bgckMW
   nobs_tot = 0 
   
   !#################################################################################
-  ! STEP 1 ) Lecture des statistiques d'erreur totale pour les  TOVS 
+  ! Lecture des statistiques d'erreur totale pour les  TOVS 
   !#################################################################################
   call mwbg_readStatTovs(statsFile, instName, satelliteId, IUTILST, TOVERRST)
 
+  !#################################################################################
   ! Allocation of the temporary big arrays to assign in all file data
-
+  !#################################################################################
+  call mwbg_allocate1DCharacterArray(burpFileSatIdTmp,reportNumMax)
   call mwbg_allocate1DLogicalArray(listeOfResumeReport,reportNumMax)
   call mwbg_allocate1DLogicalArray(listeOfGoodReport,reportNumMax)
   call mwbg_allocate1DIntegerArray(reportNumObsTmp,reportNumMax)
@@ -211,93 +214,88 @@ program midas_bgckMW
   call mwbg_allocate2DRealArray(obsLatitudeTmp,reportNumMax,locationNumMax)
   call mwbg_allocate2DRealArray(obsLongitudeTmp,reportNumMax,locationNumMax)
   call mwbg_allocate2DRealArray(satZenithAngleTmp,reportNumMax,locationNumMax)
-  
-  call mwbg_allocate2DIntegerArray(satelliteScanPositionTmp,reportNumMax,locationNumMax)
+  call mwbg_allocate2DIntegerArray(satScanPositionTmp,reportNumMax,locationNumMax)
   call mwbg_allocate3DIntegerArray(obsQcFlag1Tmp,reportNumMax,locationNumMax,3)
-  call mwbg_allocate2DIntegerArray(obsQcFlag2Tmp,reportNumMax,locationNumMax)
   call mwbg_allocate2DIntegerArray(satOrbitTmp,reportNumMax,locationNumMax)
   call mwbg_allocate2DIntegerArray(obsGlobalMarkerTmp,reportNumMax,locationNumMax)
-
-  call mwbg_allocate2DRealArray(obsTemperatureBrillanceTmp,reportNumMax,locationNumMax*channelNumMax)
-  call mwbg_allocate2DRealArray(biasCorrTmp,reportNumMax,locationNumMax*channelNumMax)
-  call mwbg_allocate2DRealArray(ompTemperatureBrillanceTmp,reportNumMax,locationNumMax*channelNumMax)
+  call mwbg_allocate2DRealArray(obsTbTmp,reportNumMax,locationNumMax*channelNumMax)
+  call mwbg_allocate2DRealArray(obsTbBiasCorrTmp,reportNumMax,locationNumMax*channelNumMax)
+  call mwbg_allocate2DRealArray(ompTbTmp,reportNumMax,locationNumMax*channelNumMax)
   call mwbg_allocate2DIntegerArray(obsChannelsTmp,reportNumMax,locationNumMax*channelNumMax)
   call mwbg_allocate2DIntegerArray(ompChannelsTmp,reportNumMax,locationNumMax*channelNumMax)
   call mwbg_allocate2DIntegerArray(obsFlagsTmp,reportNumMax,locationNumMax*channelNumMax)
-  ! MAIN LOOP through all the reports in the BURP file
-  listeOfGoodReport = .false.
-  listeOfResumeReport = .false.
-  reportIndex = 0
-  REPORTS: do 
+  call mwbg_allocate2DIntegerArray(obsQcFlag2Tmp,reportNumMax,locationNumMax*channelNumMax)
 
+  ! MAIN LOOP through all the reports in the BURP file
+  listeOfGoodReport(:) = .true.
+  listeOfResumeReport(:) = .false.
+  reportIndex = 0
+
+  REPORTS: do 
     reportIndex = reportIndex + 1
     !###############################################################################
     ! STEP 0 ) Read TOV Observations in big arrays
     !###############################################################################
     write(*,*) ' ==> mwbg_getData: '
     call mwbg_getData(burpFileNameIn, reportIndex, satIdentifier, satZenithAngle, landQualifierIndice, &
-                      terrainTypeIndice, obsLatitude, obsLongitude, obsTemperatureBrillance, biasCorr, ompTemperatureBrillance, &
-                      satelliteScanPosition, reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2, obsChannels, ompChannels, &
-                      obsFlags, satOrbit, obsGlobalMarker, resumeReport, ifLastReport, &
+                      terrainTypeIndice, obsLatitude, obsLongitude, obsTb, obsTbBiasCorr, ompTb, &
+                      satScanPosition, reportNumChannel, reportNumObs, obsQcFlag1, obsQcFlag2, obsChannels, &
+                      ompChannels, obsFlags, satOrbit, obsGlobalMarker, resumeReport, ifLastReport, &
                       instName, burpFileSatId)
 
     if (resumeReport) listeOfResumeReport(reportIndex) = .true.
     if (ifLastReport) lastReportIndex = reportIndex
     if (.not. resumeReport) then
-      if (ALL(ompTemperatureBrillance(:) == MPC_missingValue_R4)) then 
+      if (ALL(ompTb(:) == MPC_missingValue_R4)) then 
         n_bad_reps = n_bad_reps + 1  
+        listeOfGoodReport(reportIndex) = .false.
         cycle REPORTS
       end if
       ! Increment total number of obs pts read
       nobs_tot = nobs_tot + reportNumObs
       ! copy obs content in temporary arrays
-      listeOfGoodReport(reportIndex) = .true.
-      reportNumObsTmp(reportIndex) = reportNumObs
-      reportNumChannelTmp(reportIndex) = reportNumChannel
-      satIdentifierTmp(reportIndex,1:size(satIdentifier))           = satIdentifier
-      satZenithAngleTmp(reportIndex,1:size(satZenithAngle))          = satZenithAngle
+      burpFileSatIdTmp(reportIndex)                                       = burpFileSatId
+      reportNumObsTmp(reportIndex)                                        = reportNumObs
+      reportNumChannelTmp(reportIndex)                                    = reportNumChannel
+      satIdentifierTmp(reportIndex,1:size(satIdentifier))                 = satIdentifier
+      satZenithAngleTmp(reportIndex,1:size(satZenithAngle))               = satZenithAngle
       landQualifierIndiceTmp(reportIndex,1:size(landQualifierIndice))     = landQualifierIndice  
-      terrainTypeIndiceTmp(reportIndex,1:size(terrainTypeIndice))       = terrainTypeIndice
-      obsLatitudeTmp(reportIndex,1:size(obsLatitude))             = obsLatitude
-      obsLongitudeTmp(reportIndex,1:size(obsLongitude))            = obsLongitude
-      obsTemperatureBrillanceTmp(reportIndex,1:size(obsTemperatureBrillance)) = obsTemperatureBrillance 
-      biasCorrTmp(reportIndex,1:size(biasCorr))                = biasCorr
-      ompTemperatureBrillanceTmp(reportIndex,1:size(ompTemperatureBrillance)) = ompTemperatureBrillance
-      satelliteScanPositionTmp(reportIndex,1:size(satelliteScanPosition))   = satelliteScanPosition 
-      obsQcFlag1Tmp(reportIndex,1:size(obsQcFlag1,1),1:size(obsQcFlag1,2))            = obsQcFlag1
-      obsQcFlag2Tmp(reportIndex,1:size(obsQcFlag2))              = obsQcFlag2 
-      obsChannelsTmp(reportIndex,1:size(obsChannels))             = obsChannels
-      ompChannelsTmp(reportIndex,1:size(ompChannels))             = ompChannels
-      obsFlagsTmp(reportIndex,1:size(obsFlags))                = obsFlags
-      satOrbitTmp(reportIndex,1:size(satOrbit))                = satOrbit
-      obsGlobalMarkerTmp(reportIndex,1:size(obsGlobalMarker))         = obsGlobalMarker
+      terrainTypeIndiceTmp(reportIndex,1:size(terrainTypeIndice))         = terrainTypeIndice
+      obsLatitudeTmp(reportIndex,1:size(obsLatitude))                     = obsLatitude
+      obsLongitudeTmp(reportIndex,1:size(obsLongitude))                   = obsLongitude
+      obsTbTmp(reportIndex,1:size(obsTb))                                 = obsTb 
+      obsTbBiasCorrTmp(reportIndex,1:size(obsTbBiasCorr))                 = obsTbBiasCorr
+      ompTbTmp(reportIndex,1:size(ompTb))                                 = ompTb
+      satScanPositionTmp(reportIndex,1:size(satScanPosition))             = satScanPosition 
+      obsQcFlag1Tmp(reportIndex,1:size(obsQcFlag1,1),1:size(obsQcFlag1,2))= obsQcFlag1
+      obsQcFlag2Tmp(reportIndex,1:size(obsQcFlag2))                       = obsQcFlag2 
+      obsChannelsTmp(reportIndex,1:size(obsChannels))                     = obsChannels
+      ompChannelsTmp(reportIndex,1:size(ompChannels))                     = ompChannels
+      obsFlagsTmp(reportIndex,1:size(obsFlags))                           = obsFlags
+      satOrbitTmp(reportIndex,1:size(satOrbit))                           = satOrbit
+      obsGlobalMarkerTmp(reportIndex,1:size(obsGlobalMarker))             = obsGlobalMarker
     end if
     if (ifLastReport) exit REPORTS
   end do REPORTS
-  write(*,*) ' Number of obs pts read from BURP file              = ', nobs_tot
-  write(*,*) ' Number of BURP file reports                        = ', reportIndex
-  write(*,*) ' Number of bad BURP file reports (all data flagged) = ', n_bad_reps 
-  write(*,*) 'liste of resume report = ', listeOfResumeReport
-  write (*,*) 'SAT IDENTIFIER = ', satIdentifierTmp
+
   ! QC LOOP 
   reportIndex = 0
   ifLastReport = .false.
-  REPORTS2: do 
+
+  QCLoop: do 
     reportIndex = reportIndex + 1
     ifLastReport = reportIndex == lastReportIndex
-    if (.not. listeOfResumeReport(reportIndex)) then
-      if (.not. listeOfGoodreport(reportIndex)) then
-        write(*,*) 'Bad report index'
-        cycle REPORTS2
-      else
+    if (listeOfGoodreport(reportIndex)) then
+      if (.not. listeOfResumeReport(reportIndex)) then
         !###############################################################################
-        ! STEP 3) trouver l'indice du satellite                                        !
+        ! STEP 1) trouver l'indice du satellite                                        !
         !###############################################################################
         write(*,*) ' ==> mwbg_findSatelliteIndex: '
-        call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
+        call mwbg_findSatelliteIndex(burpFileSatIdTmp(reportIndex), satelliteId, satIndexObserrFile)
+        !call mwbg_findSatelliteIndex(burpFileSatId, satelliteId, satIndexObserrFile)
     
         !###############################################################################
-        ! STEP 4) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
+        ! STEP 2) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
         !###############################################################################
         write(*,*) ' ==> mwbg_readGeophysicFieldsAndInterpolate: '
         call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLatitudeTmp(reportIndex,:), &
@@ -305,71 +303,91 @@ program midas_bgckMW
                                                     modelInterpGroundIce, modelInterpSeaIce)
 
         !###############################################################################
-        ! STEP 5) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
+        ! STEP 3) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
         !###############################################################################
         write(*,*) ' ==> mwbg_tovCheck For: ', instName
         if (instName == 'AMSUA') then
           call mwbg_tovCheckAmsua(TOVERRST, IUTILST, satIdentifierTmp(reportIndex,:), landQualifierIndiceTmp(reportIndex,:), &
                                   satOrbitTmp(reportIndex,:), obsChannelsTmp(reportIndex,:), ompChannelsTmp(reportIndex,:), &
-                                  obsTemperatureBrillanceTmp(reportIndex,:), biasCorrTmp(reportIndex,:), &
-                                  ompTemperatureBrillanceTmp(reportIndex,:), qcIndicator, reportNumChannelTmp(reportIndex), &
-                                  reportNumObsTmp(reportIndex), mwbg_realMisg, satIndexObserrFile, globalQcIndicator, &
-                                  satelliteScanPositionTmp(reportIndex,:), modelInterpGroundIce, modelInterpTerrain, modelInterpSeaIce, &
-                                  terrainTypeIndiceTmp(reportIndex,:), satZenithAngleTmp(reportIndex,:), obsFlagsTmp(reportIndex,:), &
-                                  newInformationFlag, cloudLiquidWaterPath, atmScatteringIndex, rejectionCodArray, burpFileSatId, &
-                                  RESETQC, obsLatitudeTmp(reportIndex,:))
+                                  obsTbTmp(reportIndex,:), obsTbBiasCorrTmp(reportIndex,:), ompTbTmp(reportIndex,:), qcIndicator, &
+				  reportNumChannelTmp(reportIndex), reportNumObsTmp(reportIndex), mwbg_realMisg, satIndexObserrFile, &
+				  globalQcIndicator, satScanPositionTmp(reportIndex,:), modelInterpGroundIce, modelInterpTerrain, &
+                                  modelInterpSeaIce, terrainTypeIndiceTmp(reportIndex,:), satZenithAngleTmp(reportIndex,:), &
+				  obsFlagsTmp(reportIndex,:), newInformationFlag, cloudLiquidWaterPath, atmScatteringIndex, &
+                                  rejectionCodArray, burpFileSatIdTmp(reportIndex), RESETQC, obsLatitudeTmp(reportIndex,:))
         else if (instName == 'ATMS') then
           call mwbg_tovCheckAtms(TOVERRST, IUTILST, mglg_file, obsLatitudeTmp(reportIndex,:), obsLongitudeTmp(reportIndex,:), &
                                  landQualifierIndiceTmp(reportIndex,:), terrainTypeIndiceTmp(reportIndex,:), &
                                  satZenithAngleTmp(reportIndex,:), obsQcFlag2Tmp(reportIndex,:), obsQcFlag1Tmp(reportIndex,:,:), &
                                  satIdentifierTmp(reportIndex,:), satOrbitTmp(reportIndex,:), obsChannelsTmp(reportIndex,:), &
-                                 ompChannelsTmp(reportIndex,:), obsTemperatureBrillanceTmp(reportIndex,:), biasCorrTmp(reportIndex,:), &
-                                 ompTemperatureBrillanceTmp(reportIndex,:), qcIndicator, reportNumChannelTmp(reportIndex), &
+                                 ompChannelsTmp(reportIndex,:), obsTbTmp(reportIndex,:), obsTbBiasCorrTmp(reportIndex,:), &
+                                 ompTbTmp(reportIndex,:), qcIndicator, reportNumChannelTmp(reportIndex), &
                                  reportNumChannelTmp(reportIndex), reportNumObsTmp(reportIndex), mwbg_realMisg, satIndexObserrFile, &
-                                 newInformationFlag, globalQcIndicator, satelliteScanPositionTmp(reportIndex,:), modelInterpTerrain, &
-                                 obsGlobalMarkerTmp(reportIndex,:), obsFlagsTmp(reportIndex,:), cloudLiquidWaterPath, atmScatteringIndex, &
-                                 rejectionCodArray, rejectionCodArray2, burpFileSatId, RESETQC, ifLastReport)
+                                 newInformationFlag, globalQcIndicator, satScanPositionTmp(reportIndex,:), modelInterpTerrain, &
+                                 obsGlobalMarkerTmp(reportIndex,:), obsFlagsTmp(reportIndex,:), cloudLiquidWaterPath, &
+                                 atmScatteringIndex, rejectionCodArray, rejectionCodArray2, burpFileSatIdTmp(reportIndex), RESETQC)
         else
           write(*,*) 'midas-bgckMW: instName = ', instName
           call utl_abort('midas-bgckMW: unknown instName')
         end if
 
         !###############################################################################
-        ! STEP 6) Accumuler Les statistiques sur les rejets
+        ! STEP 4) Accumuler Les statistiques sur les rejets
         !###############################################################################
         write(*,*) ' ==> mwbg_qcStats For: ', instName
-        call mwbg_qcStats(instName, qcIndicator, obsChannelsTmp(reportIndex,:), satIndexObserrFile, reportNumChannel, &
+        call mwbg_qcStats(instName, qcIndicator, obsChannelsTmp(reportIndex,:), satIndexObserrFile, reportNumChannelTmp(reportIndex), &
                           reportNumObsTmp(reportIndex), satelliteId, .FALSE., rejectionCodArray, rejectionCodArray2)
+      end if
 
-      end if 
-    end if
     !###############################################################################
-    ! STEP 7) Update the burpfile out burpFileNameIn
+    ! STEP 5) Update the burpfile out burpFileNameIn
     !###############################################################################
     write(*,*) ' ==> mwbg_updateBurp For : ', instName
-    call mwbg_updateBurp(burpFileNameIn, ReportIndex, ETIKRESU, obsTemperatureBrillanceTmp(reportIndex,:), cloudLiquidWaterPath, &
-                         atmScatteringIndex, newInformationFlag, obsGlobalMarkerTmp(reportIndex,:), RESETQC, globalQcIndicator, &
-                         landQualifierIndiceTmp(reportIndex,:), terrainTypeIndiceTmp(reportIndex,:), &
-                         obsFlagsTmp(reportIndex,:), writeTbValuesToFile, writeModelLsqTT, writeEle25174, burpFileNameout)
-
-    if (ifLastReport) exit REPORTS2
-
-  end do REPORTS2
+    call mwbg_updateBurp(burpFileNameIn, reportIndex, ETIKRESU, obsTbTmp(reportIndex,:), cloudLiquidWaterPath, atmScatteringIndex, &
+                         newInformationFlag, obsGlobalMarkerTmp(reportIndex,:), RESETQC, globalQcIndicator, &
+                         landQualifierIndiceTmp(reportIndex,:), terrainTypeIndiceTmp(reportIndex,:), obsFlagsTmp(reportIndex,:), &
+                         writeTbValuesToFile, writeModelLsqTT, writeEle25174, burpFileNameout)
+    end if
+    if (ifLastReport) exit QCLoop
+  end do QCLoop
 
   write(*,*) ' Number of obs pts read from BURP file              = ', nobs_tot
   write(*,*) ' Number of BURP file reports                        = ', reportIndex
   write(*,*) ' Number of bad BURP file reports (all data flagged) = ', n_bad_reps
 
   !###############################################################################
-  ! STEP 8) Print the statistics in listing file 
+  ! Print the statistics in listing file 
   !###############################################################################
-  call mwbg_qcStats(instName, qcIndicator, obsChannelsTmp(reportIndex,:), satIndexObserrFile, reportNumChannel, &
-                    reportNumObs, satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
+  call mwbg_qcStats(instName, qcIndicator, obsChannelsTmp(reportIndex,:), satIndexObserrFile, reportNumChannelTmp(reportIndex), &
+                    reportNumObsTmp(reportIndex), satelliteId, .TRUE., rejectionCodArray, rejectionCodArray2)
+
 
   call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_BGCKMW' )
-
   call rpn_comm_finalize(ier)
+
+  deallocate(burpFileSatIdTmp)
+  deallocate(listeOfResumeReport)
+  deallocate(listeOfGoodReport)
+  deallocate(reportNumObsTmp)
+  deallocate(reportNumChannelTmp)
+  deallocate(satIdentifierTmp)
+  deallocate(landQualifierIndiceTmp)
+  deallocate(terrainTypeIndiceTmp)
+  deallocate(obsLatitudeTmp)
+  deallocate(obsLongitudeTmp)
+  deallocate(satZenithAngleTmp)
+  deallocate(satScanPositionTmp)
+  deallocate(obsQcFlag1Tmp)
+  deallocate(obsQcFlag2Tmp)
+  deallocate(satOrbitTmp)
+  deallocate(obsGlobalMarkerTmp)
+  deallocate(obsTbTmp)
+  deallocate(obsTbBiasCorrTmp)
+  deallocate(ompTbTmp)
+  deallocate(obsChannelsTmp)
+  deallocate(ompChannelsTmp)
+  deallocate(obsFlagsTmp)
 
   istat  = exfin('midas-bgckMW','FIN','NON')
 

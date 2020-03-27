@@ -12,7 +12,7 @@
   writeTbValuesToFile = .false.	
 /
  &NAMMWOBS
-  reportNumMax = 1500
-  locationNumMax = 5000
-  channelNumMax = 22
+  reportNumMax = 1300
+  locationNumMax = 500
+  channelNumMax = 15
 /
