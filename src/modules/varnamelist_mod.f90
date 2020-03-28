@@ -194,7 +194,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
    ! vnl_varnameFromVarnum
    !--------------------------------------------------------------------------
-    function vnl_varnameFromVarnum( varNumber, varNumberChm_opt ) result(varName)
+    function vnl_varnameFromVarnum( varNumber, varNumberChm_opt, modelName_opt ) result(varName)
       !
       ! :Purpose: To get the variable name from the variable number
       !
@@ -204,6 +204,7 @@ module varNameList_mod
       !Arguments:
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
+      character(len=*), intent(in), optional :: modelName_opt
       character(len=4)    :: varName
       
       varName='    '
@@ -249,11 +250,11 @@ module varNameList_mod
         if (present(varNumberChm_opt)) then 
            select case (varNumberChm_opt)
               case(BUFR_NECH_O3)
-                 varname='TO3'  ! Could also be 'O3L'. Code to account for this when needed.
+                 varname='TO3' 
               case(BUFR_NECH_H2O)
                  varname='HU'
               case(BUFR_NECH_CH4)
-                 varname='TCH4' ! Could also be 'CH4L'. Code to account for this when needed.
+                 varname='TCH4'
               case(BUFR_NECH_CO2)
                  varname='TCO2'
               case(BUFR_NECH_CO)
@@ -261,7 +262,7 @@ module varNameList_mod
               case(BUFR_NECH_NO2)
                  varname='TNO2'
               case(BUFR_NECH_N2O)
-                 varname='TN2O' ! Could also be 'NO2L'. Code to account for this when needed.
+                 varname='TN2O' 
               case(BUFR_NECH_NO)
                  varname='TNO'
               case(BUFR_NECH_HCHO)
@@ -275,9 +276,24 @@ module varNameList_mod
               case(BUFR_NECH_PM10)
                  varname='AC'
               case default
-                 write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumberChm_opt
-                 call utl_abort('vnl_varnameFromVarnum')
+                 call utl_abort( 'vnl_varnameFromVarnum: Unknown variable number! ' // &
+                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt) )
            end select
+           if (present(modelName_opt)) then
+             if (trim(modelName_opt) == 'GEM') then
+               select case (varNumberChm_opt)
+                 case(BUFR_NECH_O3)
+                   varname='O3L'  
+                 case(BUFR_NECH_CH4)
+                   varname='CH4L'
+                 case(BUFR_NECH_N2O)
+                   varname='N2OL'
+                 case default
+                   call utl_abort( 'vnl_varnameFromVarnum: Unknown variable number or model! ' // &
+                      utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt) // ', ' // trim(modelName_opt) )
+               end select
+             end if
+           end if      
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
            call utl_abort('vnl_varnameFromVarnum')
@@ -418,7 +434,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
    ! vnl_varLevelFromVarnum
    !--------------------------------------------------------------------------
-    function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt) result(varLevel)
+    function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt,modelName_opt) result(varLevel)
       !
       ! :Purpose: To get variable level list from the variable number 
       !
@@ -427,12 +443,13 @@ module varNameList_mod
       !Arguments:
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
+      character(len=*), intent(in), optional :: modelName_opt
       character(len=2)              :: varLevel
 
       !Local:
       character(len=4)              :: varName
 
-      varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt)
+      varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)
       varLevel = varLevelList(vnl_varListIndex(varName))
 
     end function vnl_varLevelFromVarnum

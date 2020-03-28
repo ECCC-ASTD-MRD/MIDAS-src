@@ -229,9 +229,12 @@ module obsOperatorsChem_mod
   integer :: chm_tropo_mode(0:chm_constituents_size),chm_tropo_bound(0:chm_constituents_size)
   integer :: chm_obsdata_maxsize
   real(8) :: chm_tropo_column_top(0:chm_constituents_size)
+  ! Identification of the model 
+  character(len=10) :: modelName = 'GEM-MACH' 
 
   ! Setup initialization key
-  logical :: initializedChem = .false.    
+  logical :: initializedChem = .false.   
+  
   
   !--------------------------------------------------------------------------
   
@@ -401,6 +404,10 @@ contains
     !                           number of obs) associated to ordered observation
     !                           indices
     ! 
+    !      :modelName:          Nome/identifiier of forecast model
+    !                           Default: 'GEM-MACH'
+    !                           Set to 'GEM' for varNames of 'O3L', 'CH4L', and 'N2OL'
+    !
     implicit none
 
     ! Locals:
@@ -419,7 +426,7 @@ contains
     namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,    &
                      assim_nlev, assim_exclude_nflag,assim_exclude_flag,       &
                      tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
-                     genoper
+                     genoper,modelName
   
     ! Default NAMCHEM values
 
@@ -1706,7 +1713,8 @@ contains
       allocate(obs_col(nobslev),success(nobslev),ixtr(nobslev),iass(nobslev),process_obs(nobslev),flag(nobslev))
 
       ! Check to see if background error variances available
-      if (kmode.eq.1) process_obs(:) = bchm_StatsExistForVarName(vnl_varnameFromVarnum(varno,obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)))
+      if (kmode.eq.1) process_obs(:) = bchm_StatsExistForVarName( &
+         vnl_varnameFromVarnum(varno,obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex),modelName))
  
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
@@ -1739,7 +1747,7 @@ contains
 
          if (kmode.eq.3) then
             model_col(:) = 0.0D0
-            obsoper%varName = vnl_varnameFromVarnum(varno,obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex))
+            obsoper%varName = vnl_varnameFromVarnum(varno,obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex),modelName)
          end if
 
       else  
@@ -2016,7 +2024,7 @@ contains
     ! Index of vertical coordinate type    
     obsoper%vco     = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)  
     ! Model field name (NOMVAR value)
-    obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex),obsoper%constituent_id)
+    obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex),obsoper%constituent_id,modelName)
 
     ! Allocate arrays
 
