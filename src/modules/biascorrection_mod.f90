@@ -1333,6 +1333,7 @@ CONTAINS
     type(struct_obs), intent(inout) :: obsSpaceData
     !Locals:
     integer  :: iSensor, iPredictor, jPredictor
+    real(8)  :: zenithAngle
 
     predictor(:) = 0.0d0
     
@@ -1358,7 +1359,8 @@ CONTAINS
         !        predictor(iPredictor) = trialTG(obsIndex)
       else if ( iPredictor == 6 ) then
         ! SV secant of satellite zenith angle minus one
-        predictor(iPredictor) = (1.d0/cos( obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+        zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex) 
+        if (zenithAngle < 75. ) predictor(iPredictor) = (1.d0 /cos( zenithAngle * MPC_RADIANS_PER_DEGREE_R8 ) ) - 1.d0
       end if
 
     end do
@@ -2148,12 +2150,14 @@ CONTAINS
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY  
       biasCor = obs_bodyElem_r(obsSpaceData,OBS_BCOR,bodyIndex)
       if (biasCor /= MPC_missingValue_R8) then
-        flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
         Obs =  obs_bodyElem_r(obsSpaceData,column,bodyIndex)
-        call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,OBS_REAL))
-        flag = ibset(flag, 6)
-        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, flag)
-        nbcor = nbcor + 1
+        if (Obs /= MPC_missingValue_R8) then 
+          call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor,OBS_REAL))
+          flag = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
+          flag = ibset(flag, 6)
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, flag)
+          nbcor = nbcor + 1
+        end if
       end if
     end do BODY
 
