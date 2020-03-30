@@ -429,7 +429,7 @@ set -ex
    . ssmuse-sh -d eccc/mrd/rpn/utils/16.2.3
    . ssmuse-sh -d eccc/mrd/rpn/anl/oavar/3.0.4
  elif [ "${TRUE_HOST}" = eccc-ppp3 -o "${TRUE_HOST}" = eccc-ppp4 -o "${TRUE_HOST}" = daley -o "${TRUE_HOST}" = banting -o "${TRUE_HOST}" = xc3 -o "${TRUE_HOST}" = xc4 ]; then
-   . ssmuse-sh -d eccc/mrd/rpn/utils/19.5
+   . ssmuse-sh -d eccc/mrd/rpn/utils/19.5.1
  else
    echo "Unknown TRUE_HOST: ${TRUE_HOST}"
    exit
